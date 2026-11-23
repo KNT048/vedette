@@ -90,7 +90,7 @@ Extracted **statically** from every call of `fail(`/`refuse(`/the `bad(` functio
 
 Codes built by a validation function with its own table (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) were added by hand.
 
-#### HTTP 400 (259 codes)
+#### HTTP 400 (257 codes)
 
 | Code | HTTP | Sample message (EN, from the mock) | Endpoint |
 |---|---|---|---|
@@ -210,13 +210,11 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `invalid_credentials` | 400 | Wrong email or password. | `POST /auth/login`; `POST /auth/login/resend-code` |
 | `invalid_content` | 400 | This is not a Word (DOCX) file. Only PDF, MD, TXT and DOCX files can be added. (also: this is not a PDF file; not UTF-8 text) | `POST /ai/knowledge` |
 | `invalid_cve` | 400 | A CVE ID looks like CVE-2022-27593. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
-| `invalid_day` | 400 | Pick a day of the week. | module reports (shared validator) |
 | `invalid_email` | 400 | The email is not valid, for example name@company.com. | `POST /core/setup`; `POST /core/users` |
 | `invalid_employees` | 400 | Headcount is a whole number from 0 to 1,000,000. | module reports (shared validator) |
 | `invalid_format` | 400 | Choose JSON or CSV. | `GET /core/logs/export`; `POST /feeds/parse-test` |
 | `invalid_from` | 400 | The start of the range must be a date like 2026-11-09 or a UTC time ending in Z, like 2026-11-09T00:00:00Z. | `GET /core/audit`; `GET /core/audit/export`. New backend code [PROPOSED]: `bad_from` is not used because it already means "wrong sender email" in notify (§3.2 rule 5). A `YYYY-MM-DD` date is interpreted in the organisation's timezone; a timestamp must end in `Z` (an offset such as `+07:00` is rejected) |
 | `invalid_grouping` | 400 | Group the open findings by device or by CVE. | `PUT /reports/definition` |
-| `invalid_hour` | 400 | The send hour must be 0 to 23. | module reports (shared validator) |
 | `invalid_issuer` | 400 | The issuer must be an https address, for example https://sso.example.com/realms/main. | `PUT /core/oidc` |
 | `invalid_items` | 400 | Pick at least one action of this request. | module response (shared validator) |
 | `invalid_jobs` | 400 | One of the chosen jobs is not an AI job. Pick from the list. | `POST /ai/knowledge`; `PUT /ai/knowledge/{id}` |

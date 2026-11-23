@@ -1,16 +1,9 @@
-// Kiểu API module reports — suy ra từ hợp đồng Zod (contract.ts), không khai tay.
+// API types of the reports module, inferred from the zod contract (contract.ts), never written by hand.
 import type { z } from 'zod'
 import type * as C from './contract'
 
 export type FindingRow = z.infer<typeof C.FindingRow>
-export type TopRisk = z.infer<typeof C.TopRisk>
-export type ActionItem = z.infer<typeof C.ActionItem>
 export type AiSummary = z.infer<typeof C.AiSummary>
-export type WeeklyReport = z.infer<typeof C.WeeklyReport>
-export type WeeklyPreview = z.infer<typeof C.WeeklyPreview>
-export type Weekday = z.infer<typeof C.Weekday>
-export type Schedule = z.infer<typeof C.Schedule>
-export type HistoryEntry = z.infer<typeof C.HistoryEntry>
 export type DataVolume = z.infer<typeof C.DataVolume>
 export type OrgSize = z.infer<typeof C.OrgSize>
 export type PdplOrg = z.infer<typeof C.PdplOrg>

@@ -1,6 +1,34 @@
 package reports
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
+
+func day0(daysAgo int) time.Time { return t0.Add(-time.Duration(daysAgo) * 24 * time.Hour) }
+
+// pdplSample is the assessment's network: a firewall, an old PC not approved yet and a server, with their findings.
+func pdplSample() pdplInput {
+	return pdplInput{
+		now: t0,
+		devices: []Device{
+			{ID: "a1", Name: "fw-01", IP: "10.0.0.1", Kind: "firewall", Approved: true, OS: "FortiOS 7"},
+			{ID: "a2", Name: "pc-old", IP: "10.0.0.2", Kind: "pc", Approved: false, OS: "Windows 10 Pro"},
+			{ID: "a3", Name: "srv", IP: "10.0.0.3", Kind: "server", Approved: true, OS: "Windows Server 2016"},
+		},
+		findings: []Finding{
+			{ID: "f1", AssetID: "a2", CVE: "CVE-2026-0001", Status: "confirmed", Severity: "critical", FirstSeen: day0(1)},
+			{ID: "f2", AssetID: "a3", CVE: "CVE-2026-0002", Status: "suspected", Severity: "high", FirstSeen: day0(20)},
+			{ID: "f3", AssetID: "a1", CVE: "CVE-2026-0003", Status: "patched", Severity: "high", FirstSeen: day0(10)},
+			{ID: "f4", AssetID: "a1", CVE: "CVE-2026-0004", Status: "false_positive", Severity: "low", FirstSeen: day0(40)},
+			{ID: "f5", AssetID: "a2", CVE: "CVE-2026-0005", Status: "confirmed", Severity: "medium", FirstSeen: t0.Add(time.Hour)}, // in the future: ignored
+		},
+		kev: []KEVEntry{
+			{CVE: "CVE-2026-0001", Vendor: "Microsoft", Product: "Windows"},
+			{CVE: "CVE-2026-0002", Vendor: "Acme", Product: "Srv"},
+		},
+	}
+}
 
 func okOrg() PdplOrg {
 	return PdplOrg{Name: "Acme Ltd", TaxCode: "0312345678", Address: "1 Main Street, Hanoi", Sector: "Retail", Employees: 12, DataVolume: "lt1k", Size: "micro",
@@ -32,7 +60,7 @@ func TestRegime(t *testing.T) {
 }
 
 func pdplFor(mods Modules, org PdplOrg) PdplReport {
-	in := sampleInput()
+	in := pdplSample()
 	return buildPdpl(pdplInput{devices: in.devices, findings: in.findings, kev: in.kev, modules: mods, org: org, id: "pdpl-1", now: t0})
 }
 
@@ -98,7 +126,7 @@ func TestMeasuresFromDevices(t *testing.T) {
 	if m := measure(r, "unapproved"); m.N != 1 || m.Names[0] != "pc-old" {
 		t.Errorf("unapproved = %+v", m)
 	}
-	in := sampleInput()
+	in := pdplSample()
 	in.devices[0].Kind = "switch"
 	in.devices[2].Ports = []int{22, 3389}
 	r = buildPdpl(pdplInput{devices: in.devices, findings: nil, modules: fakeMods{"feeds": true, "scan": true}, org: okOrg(), id: "x", now: t0})
@@ -133,7 +161,7 @@ func TestObligations(t *testing.T) {
 
 func TestPdplInventoryBlock(t *testing.T) {
 	t.Parallel()
-	in := sampleInput()
+	in := pdplSample()
 	in.devices[0].Sources = []string{"snmp", "nmap"}
 	in.devices[1].Sources = []string{"nmap"}
 	r := buildPdpl(pdplInput{devices: in.devices, modules: nil, org: okOrg(), id: "x", now: t0})
@@ -152,7 +180,7 @@ func TestPdplInventoryBlock(t *testing.T) {
 
 func TestNothingFoundIsOkOnlyWhenTheBoxCouldLook(t *testing.T) { // INV-8, FORBID-3
 	t.Parallel()
-	in := sampleInput()
+	in := pdplSample()
 	clean := []Device{{ID: "d", Name: "d", Kind: "firewall", Approved: true, OS: "FortiOS"}}
 	for _, c := range []struct {
 		name string

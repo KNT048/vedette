@@ -11,6 +11,7 @@ import (
 	"github.com/knt048/vedette/core/schedule"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/reports"
 	"github.com/knt048/vedette/modules/scan"
 )
 
@@ -21,6 +22,7 @@ func TestTheBoxRegistersTheScheduleOwners(t *testing.T) {
 	d := testServices(t)
 	scanService(d)
 	exposureService(d)
+	reportsService(d)
 	fs, err := feedsService(d)
 	if err != nil {
 		t.Fatal(err)
@@ -39,6 +41,7 @@ func TestTheBoxRegistersTheScheduleOwners(t *testing.T) {
 		{exposure.PublicIPScheduleKey, []schedule.Freq{schedule.Interval}, 5, 1440, true, true},
 		{agentintake.WazuhScheduleKey, []schedule.Freq{schedule.Interval}, 5, 0, false, true}, // off until a server is connected
 		{"feeds.source:cisa-kev", []schedule.Freq{schedule.Interval}, 60, 168 * 60, true, true},
+		{reports.ScheduleKey(reports.DefinitionID), []schedule.Freq{schedule.Weekly, schedule.Monthly}, 1, 0, false, true}, // off until a person turns it on
 	} {
 		v, err := d.Schedules.Get(ctx, c.key)
 		if err != nil {
@@ -83,6 +86,7 @@ func TestEveryOwnerOfTheSpecTableIsRegistered(t *testing.T) {
 		"feeds.source":       {"feeds.go", "s.ScheduleOwner()"},
 		"exposure.public_ip": {filepath.Join("..", "..", "modules", "exposure", "schedule.go"), "s.PublicIPScheduleOwner()"},
 		"agent-intake.wazuh": {"wiring.go", "d.AgentIntake.ScheduleOwner()"},
+		"reports.def":        {"reports.go", "svc.ScheduleOwner()"},
 	}
 	for key, w := range wired {
 		b, err := os.ReadFile(w.file)
@@ -115,10 +119,11 @@ var ownLogic = []struct {
 	{"public IP detection: an interval column and its own due test", "modules/exposure", regexp.MustCompile(`interval_min\s+INTEGER|func autoDue\(`)},
 	{"Wazuh pull: an interval column and its own preset list", "modules/agent-intake", regexp.MustCompile(`interval_minutes\s+INTEGER|var WazuhIntervals`)},
 	{"maintenance window: its own days-and-hours test", "modules/core", regexp.MustCompile(`func isoDay\(|slices\.Contains\(w\.Days, isoDay`)},
+	{"reports: a weekday-and-hour schedule table and its own slots", "modules/reports", regexp.MustCompile(`rep_schedule|func slotAt\(|func nextRun\(`)},
 }
 
 // The count test of the schedule owners: how many of them still keep a slot, an interval or a window of their own instead of using
-// core/schedule. Reports and the per-target schedule of exposure scans move with their own work and are not counted here.
+// core/schedule. The per-target schedule of exposure scans moves with its own work and is not counted here.
 func TestNoOwnerKeepsItsOwnSlotOrWindowLogic(t *testing.T) {
 	t.Parallel()
 	root := filepath.Join("..", "..")

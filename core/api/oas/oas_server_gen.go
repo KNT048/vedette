@@ -2260,30 +2260,6 @@ type Handler interface {
 	//
 	// GET /reports/pdpl
 	ReportsGetReportsPdpl(ctx context.Context) (*ReportsGetReportsPdplOK, error)
-	// ReportsGetReportsSchedule implements reports_get_reports_schedule operation.
-	//
-	// Weekly report schedule and recipients.
-	//
-	// GET /reports/schedule
-	ReportsGetReportsSchedule(ctx context.Context) (*ReportsGetReportsScheduleOK, error)
-	// ReportsGetReportsWeeklyHistory implements reports_get_reports_weekly_history operation.
-	//
-	// History of sent weekly reports.
-	//
-	// GET /reports/weekly/history
-	ReportsGetReportsWeeklyHistory(ctx context.Context) (*ReportsGetReportsWeeklyHistoryOK, error)
-	// ReportsGetReportsWeeklyHistoryID implements reports_get_reports_weekly_history_id operation.
-	//
-	// One sent report with the original figures of that week, for reprinting.
-	//
-	// GET /reports/weekly/history/{id}
-	ReportsGetReportsWeeklyHistoryID(ctx context.Context, params ReportsGetReportsWeeklyHistoryIDParams) (*ReportsGetReportsWeeklyHistoryIDOK, error)
-	// ReportsGetReportsWeeklyPreview implements reports_get_reports_weekly_preview operation.
-	//
-	// One-page weekly report, figures computed when opened.
-	//
-	// GET /reports/weekly/preview
-	ReportsGetReportsWeeklyPreview(ctx context.Context) (*ReportsGetReportsWeeklyPreviewOK, error)
 	// ReportsPostReportsPdplAiSummary implements reports_post_reports_pdpl_ai_summary operation.
 	//
 	// Draft a commentary for the assessment report with the customer AI.
@@ -2302,18 +2278,6 @@ type Handler interface {
 	//
 	// POST /reports/send
 	ReportsPostReportsSend(ctx context.Context) (*ReportsPostReportsSendOK, error)
-	// ReportsPostReportsWeeklyAiSummary implements reports_post_reports_weekly_ai_summary operation.
-	//
-	// Draft a commentary for the weekly report with the customer AI.
-	//
-	// POST /reports/weekly/ai-summary
-	ReportsPostReportsWeeklyAiSummary(ctx context.Context) (*ReportsPostReportsWeeklyAiSummaryOK, error)
-	// ReportsPostReportsWeeklySend implements reports_post_reports_weekly_send operation.
-	//
-	// Send the weekly report now to the scheduled recipients.
-	//
-	// POST /reports/weekly/send
-	ReportsPostReportsWeeklySend(ctx context.Context) (*ReportsPostReportsWeeklySendOK, error)
 	// ReportsPutReportsDefinition implements reports_put_reports_definition operation.
 	//
 	// Save the report name, options and recipients (emails validated, max 20).
@@ -2326,12 +2290,6 @@ type Handler interface {
 	//
 	// PUT /reports/pdpl/org
 	ReportsPutReportsPdplOrg(ctx context.Context, req *ReportsPutReportsPdplOrgReq) (*ReportsPutReportsPdplOrgOK, error)
-	// ReportsPutReportsSchedule implements reports_put_reports_schedule operation.
-	//
-	// Save schedule and recipients (emails validated, max 20).
-	//
-	// PUT /reports/schedule
-	ReportsPutReportsSchedule(ctx context.Context, req *ReportsPutReportsScheduleReq) (*ReportsPutReportsScheduleOK, error)
 	// ResponseDeleteResponseCatalogID implements response_delete_response_catalog_id operation.
 	//
 	// Delete a custom action that no rule uses.

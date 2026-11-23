@@ -22,6 +22,7 @@ func TestInstantsAreWrittenInTheZoneCalendarDaysAsStored(t *testing.T) {
 		{Stamp(at, hcm), "15 Nov 2026, 04:11"},
 		{Clock(at, hcm), "04:11"},
 		{ISODay(at, hcm), "2026-11-15"},
+		{Short(at, hcm), "15 Nov"},
 		{Day(at, nil), "14 Nov 2026"}, // no zone known: UTC
 		{Stamp(at, ny), "14 Nov 2026, 16:11"},
 		{StampZone(at, hcm), "15 Nov 2026, 04:11 +07"},

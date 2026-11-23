@@ -6,8 +6,8 @@
 ## Modifying: `notify.Service.OpenIncident(ctx, IncidentInput)`
 - **honeypot**, **logs**, **inventory**, **response** (the Respond button at `/response?incident=<id>`). Changing the merge key = changing the number of incidents the user sees.
 
-## Modifying: `notify.Service.SendReport(ctx, to, ReportMail)` and `IncidentsSince(ctx, since, top)`
-- **reports** (`cmd/vedette/reports.go`: `reportsMailer` sends the weekly report summary through the saved email channel, at most 20 addresses, not entering the send history; `reportsIncidents.Week` reads the incident count by class and a few notable incidents). Changing the fixed error of `SendReport` or `incidentClass` (the classes `trap`, `failed_logins`, `login_accepted`, `bad_connection`, `anomaly`) changes the numbers in the report.
+## Modifying: `notify.Service.SendReport(ctx, to, ReportMail)` and `IncidentsIn(ctx, from, to, top)`
+- **reports** (`cmd/vedette/reports.go`: `reportsMailer` mails the periodic report's digest through the saved email channel, at most 20 addresses, not in the send history; `reportsDetections.Period` reads the incidents with activity in the period by kind, and the top few by severity with their first device). Changing the fixed errors of `SendReport`, or what counts as activity in a period (`last_seen` after its start, `first_seen` before its end), changes the report.
 
 ## Modifying: kind `intrusion`, `IncidentOf`, `KindCounts`
 - **ids** (`cmd/vedette/ids.go` `idsIncidents`): links an alert to an incident through `IncidentOf` and the same merge key (`dedupeKey`); changing how the key is computed → the alert loses its `incident`.

@@ -324,12 +324,9 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4)', () => {
 
   it('when neither primary nor fallback can answer the error says what to do', async () => {
     sessionStore.set({ userId: 'u-admin' })
-    aiAssignStore.update((a) => ({ ...a, jobs: { ...a.jobs, 'weekly-report': { primary: 'p-haiku', fallback: null } } }))
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://unreachable.example.com' } : p)))
     // unreachable only makes the "Test connection" step fail; use a timeout to simulate no answer when running the job
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-haiku' ? { ...p, base_url: 'https://timeout.example.com' } : p)))
-    const res = await api('/reports/weekly/ai-summary', { method: 'POST', body: '{}' })
-    expect(res.status).toBe(200) // the weekly report is recorded through recordAiRun, not through the cap of the ai module
     const r = await api('/ai/logs/digest', { method: 'POST', body: '{}' })
     expect(r.status).toBe(200) // log-digest's primary is Ollama, unaffected
   })

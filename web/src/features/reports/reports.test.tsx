@@ -8,7 +8,6 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { assetsStore, aiRunsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { regimeOf } from './pdpl'
-import { buildWeekly } from './weekly'
 import type { ReportDefinition, ReportDocument } from './types'
 
 const enabled = (el: HTMLElement) => waitFor(() => expect(el).toBeEnabled())
@@ -224,14 +223,6 @@ describe('reports: the security report (S-REP-1)', () => {
     renderApp('/reports')
     expect((await screen.findAllByText('Could not build the report.')).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('button', { name: 'Try again' }).length).toBeGreaterThan(0)
-  })
-})
-
-describe('reports: point-in-time figures (weekly endpoint kept for the box until it is replaced)', () => {
-  it('four weeks ago there were no findings yet (every sample finding appeared later)', () => {
-    const old = buildWeekly(Date.now() - 28 * 864e5)
-    expect(old.counts.open_confirmed + old.counts.open_suspected).toBe(0)
-    expect(buildWeekly().counts.open_confirmed).toBe(1)
   })
 })
 

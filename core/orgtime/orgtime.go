@@ -46,6 +46,9 @@ func in(t time.Time, loc *time.Location) time.Time {
 // Day is the day of instant t in loc: "15 Nov 2026".
 func Day(t time.Time, loc *time.Location) string { return in(t, loc).Format(dayLayout) }
 
+// Short is the day of instant t in loc without its year, for a sentence about a recent period: "15 Nov".
+func Short(t time.Time, loc *time.Location) string { return in(t, loc).Format(shortLayout) }
+
 // Stamp is instant t in loc to the minute: "15 Nov 2026, 04:11".
 func Stamp(t time.Time, loc *time.Location) string { return in(t, loc).Format(stampLayout) }
 

@@ -25,7 +25,9 @@ func withLayer(n notify.Notice, info notify.FindingInfo) notify.Notice {
 	n.Layer = info.Layer
 	return n
 }
-func reportsExploited(f reports.Finding) bool { return f.Exploited() }
+func reportsExploited(f reports.FindingView) bool {
+	return f.Status == findings.CodeExploited || f.Status == findings.CodeUnderAttack
+}
 func mcpExploited(f mcpserver.Finding) bool {
 	return f.Urgency == findings.CodeExploited || f.Urgency == findings.CodeUnderAttack
 }
@@ -148,7 +150,7 @@ func TestReadersNeverCallAFindingAboveLayerTwoExploited(t *testing.T) {
 	counts["to fix risk marker"] = max(0, marked-exploitedCount)
 
 	// reports, MCP, AI context: what each carries of the finding
-	rf, err := reportsFindings{s.d.Findings, s.d}.All(ctx)
+	rf, err := reportsViews{s.d.Findings}.Views(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,40 +1,51 @@
 # Reports — Change Impact Map
 
-> Go code in `modules/reports` (service.go, weekly.go, pdpl.go); the signatures below are the real ones. The gates to other modules are in `ports.go`, the adapters in `cmd/vedette/reports.go`.
+> Go code in `modules/reports` (definition.go, document.go, service.go, schedule.go, mail.go, pdpl.go); the signatures below are
+> the real ones. Ports to other modules are in `ports.go`, their adapters in `cmd/vedette/reports.go`.
 
-## Modifying: `Service.Weekly(ctx) (WeeklyReport, error)` (`buildWeekly`) — 3 callers
-- **`Preview`** (`/reports/weekly/preview`), **`WeeklyAI`** (`/reports/weekly/ai-summary`), **`send`** (the scheduled send job and `/reports/weekly/send`): changing the structure of `counts`/`actions` → the GUI `WeeklyDocument` + the print page + the email all change; old history (`HistoryEntry.report`) must remain readable (the figures are stored by schema version).
+## Modifying: `Service.Document(ctx) (Document, error)` (`buildDocument`) — 2 callers
+- **HTTP** `GET /reports/document` and **`send`** (`POST /reports/send`, the `report-send` job). The document's shape is
+  `contract.ts` `ReportDocument`: a change is a change of the web's Report tab, the print page and every sent report read back from
+  `rep_history` (a sent document is never recomputed, so a field added later is absent in older ones: keep new fields optional).
+- The golden file `testdata/document_week.golden.json` shows every figure, order and field: a change shows in its diff
+  (`go test ./modules/reports -run TestDocumentGolden -update`, then review).
 
-## Modifying: `buildWeekly` / `buildPdpl` → `computeWeekly` / `computePdpl` + `approvedOnly(weeklyInput)` (INV-16)
-- `buildWeekly`/`buildPdpl` compute twice when there are unapproved devices: the full version and `approved_only` (no unapproved devices, no findings of theirs). The second pass reads the fixes again (`fixesFor`) for its top risks; with no unapproved devices it does not recompute. `buildPdpl` calls `computeWeekly` (it does not need the weekly view).
-- **web** `features/reports/filters.tsx` (`weeklyView`, `pdplView`) reads `approved_only`, `device_approved`, `not_relevant*`: changing the names/meaning of these fields → the switch on the page, the print page and the history filter wrongly without an error.
-- Changing the meaning of `Device.Approved` in the adapter `cmd/vedette/reports.go` (from `inventory` `Approved`) → "devices not in the Devices list" changes accordingly.
+## Modifying: the findings read (`findings.Service.Views`, `View.JSON`, `fnd_finding_event` kinds and details)
+- `reportsViews` maps `View.JSON` (device ref, software line, status, severity, verification, fix, handled line) and the state
+  events `created`, `handled`, `reopened`, `acceptance_expired`. Handled this period, open at the start and at the end of the period
+  are replayed from those events (`historyOf`): a new state-changing event kind, or a handled event that no longer carries
+  `from_version`/`to_version`/`note`, changes the report without an error.
+- `findings.Views` leaving out ignored devices is what keeps them out of the report.
+- The reasons line reads `findings.Service.View` per listed finding (open, layers 1 to 4, at most 100 per list).
 
-## Modifying: `Service.GeneratePdpl(ctx, actor) (PdplReport, error)` (`buildPdpl`, `Regime`) — 1 caller
-- **HTTP** `/reports/pdpl/generate`. Changing the rule/computation of `regime`, `measures` → the legal content changes: re-check it against the official source and record the date in CONTRACT.
+## Modifying: `exposure.Service.Tree/Services/Issues`
+- `reportsExposure` reads proof state, parent, last scan, service rows (`state`, `first_seen`, `last_seen`, cert expiry) and issue
+  rows (`engine`, `severity`, `state`, `first_seen`). A change of these names or meanings changes the External exposure section.
 
-## Modifying: the data-reading interfaces (`inventory.AllDevices`, `findings.List`, `feeds.Store.KevVulns` / `KevPulledAt`, `feeds.Service.NewlyExploited`, `feeds.DisplayOf`)
-- `kev_new`/`kev_matched` are `feeds.Service.NewlyExploited` (the same number as the home page), the product name is `feeds.DisplayOf` (the same name as Findings), and `devices` counts the whole box like the Devices page. Changing one of the three in the other module changes the report accordingly, as intended.
-- A `patched` finding that Vedette closed because the device was updated (`fixed_by_update`, `resolved_by=system`) counts as handled and the row's `by` says "Vedette" (INV-13); changing the `resolved_by` of automatic closure → edit `weekly.go`.
-- Reports is a **consumer** of `inventory`, findings (core) and `feeds`; changing the semantics of a finding state (`confirmed/suspected/mitigated/patched/false_positive/not_relevant/risk_accepted`; `risk_accepted` is closed but does **not** count towards the week's "handled": `Counts.Accepted`/`AcceptedUntil` and the line "Risk accepted: N (until …)"; needs `Finding.AcceptedUntil`, filled by the adapter `cmd/vedette/reports.go` from findings) or a device type → the report counts wrongly without an error. A contract test is needed in `inventory`.
+## Modifying: `notify.Service.IncidentsIn(ctx, from, to, top)` / `SendReport` / `EmailReady`
+- Detections counts the incidents with activity in the period by kind (the detection kinds; a kind a producer adds later is not
+  named) and names the top 5 by severity with their first device. `SendReport`'s errors become the history's fixed messages.
 
-- `reportsFindings.All` (`cmd/vedette/reports.go`) skips findings of ignored devices and `ClosedForIgnore` findings; `reportsInventory.Devices` skips ignored devices; `reportsKEV.Entries` keeps only the `cisa-kev` list. Changing one of the three changes the report's figures.
-- `Finding.Agent` is filled by `cmd/vedette/reports.go` from `findings.Record.Evidence.Agent`; if lost → the report row says "Suspected" again for an agent's finding.
+## Modifying: `feeds` `GET /feeds/sources`, `GET /feeds/status`, `feeds.IsStale`
+- Coverage lists the enabled vulnerability feeds with their last good pull (status `sources[].fetched_at`, joined by name) and
+  staleness by their schedule. A change of those answers changes Coverage.
 
-## Modifying: `notify.Service.IncidentsSince` (class of an incident) / `findings.FixedInForAll` (via `reportsRemedies`, `reportsIncidents`)
-- **reports**: `modules/logs/authfail.go` titles ("N failed logins from …", "A login from … was ACCEPTED after …") are how notify's `incidentClass` tells failed-login from accepted-login incidents (`TestIncidentsSinceCountsEveryClassBeyondTheListCap`); `findings.GroupFix` kinds `fixed|none|up_to|distro|feature_update|esu` feed the action sentence (`todo.go`; the last two from a Windows release row: "Move … to a Windows release Microsoft still services", "Install the Extended Security Update …"; each its own `class()` and counted as a "fix" step).
+## Modifying: `core/schedule` (Owner, Fire, Skip)
+- `ScheduleOwner` registers `reports.def`; `startSend` runs inside the schedule's transaction and writes `rep_definition.send_due_at`.
+  `RunPending` sends outside it.
 
-## Modifying: `notify.Service.SendReport(ctx, to, ReportMail) error` / `EmailReady`
-- **notify**: changing the signature/error → the `status`/`error` in the history are wrong.
-
-## Modifying: `ai.Service.RunJob(weekly-report | pdpl-assessment)` (qua `reportsAI`)
-- **ai**: changing `JobResult` → the AI comment block breaks; changing the `data: internal` of these two jobs → organisation data could be sent to the cloud.
+## Modifying: the PDPL assessment (`GeneratePdpl`, `buildPdpl`, `Regime`)
+- **HTTP** `/reports/pdpl/generate`. Changing the rule of `regime` or `measures` changes legal content: check it again against the
+  official sources and record the date in CONTRACT. It reads `Findings.All` (the legacy finding projection) and `KEV.Entries`.
 
 ## Disabling this module
-- The Reports page and the send schedule disappear; recipients no longer receive the weekly report (no error on their side).
-- No module depends on `reports`. `rep_*` is kept.
+- The Reports page and the scheduled sends stop; recipients get no report (no error on their side). `rep_*` are kept.
+- No module depends on `reports`.
+
+## Modifying: `ai.Service.RunJob(pdpl-assessment)` (through `reportsAI`)
+- **ai**: changing `JobResult` breaks the AI comment block; changing the `data: internal` of this job could send organisation data
+  to the cloud.
 
 ## Modifying: the device type (`content/devicetypes`)
-- **Device type**: reads `content/devicetypes` (a leaf package, standard library only). PDPL compares the type it behaves as (`ActsAs`): a VPN gateway is a firewall, a virtual machine is a main system (server); counting by type keeps the type id.
-
-- `Finding.Urgency` (findings' layer, 0 = not stated, reads as exploited): an action sentence says "exploited vulnerabilit(y/ies)" only while every finding of its line is layer 1 or 2, else "vulnerabilit(y/ies)"; the PDPL facts say "Open vulnerability findings". Adapter: `cmd/vedette/reports.go`.
+- The PDPL assessment compares the type a device behaves as (`ActsAs`): a VPN gateway is a firewall, a virtual machine is a main
+  system (server); counting by type keeps the type id.

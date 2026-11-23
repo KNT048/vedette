@@ -355,7 +355,7 @@ const runHandlers = [
       .filter((r) => (!p('module') || r.module === p('module')) && (!p('kind') || r.kind === p('kind')) && (!p('status') || r.status === p('status')))
       .filter((r) => (!p('subject_kind') || r.subject?.kind === p('subject_kind')) && (!p('subject_id') || r.subject?.id === p('subject_id')))
       .filter((r) => !q || r.title.toLowerCase().includes(q) || (r.subject?.label ?? '').toLowerCase().includes(q) || r.requested_by.toLowerCase().includes(q) || r.id === p('q').trim())
-      .sort((a, b) => b.queued_at.localeCompare(a.queued_at))
+      .sort((a, b) => (b.started_at ?? b.queued_at).localeCompare(a.started_at ?? a.queued_at)) // by when each started, as the box lists them
     const offset = Number(p('offset') || 0)
     const limit = Math.min(200, Math.max(1, Number(p('limit') || 200)))
     return HttpResponse.json({ items: rows.slice(offset, offset + limit).map(runSummary), total: rows.length })

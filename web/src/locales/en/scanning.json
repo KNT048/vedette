@@ -312,6 +312,7 @@
     "started": "Scan started",
     "queuedToast": "Queued: it starts when the scanner is free",
     "sweepRunning": "A LAN scan is going on now.",
+    "sweepQueued": "A LAN scan is queued.",
     "openRun": "Open the run",
     "none": "Select at least one device.",
     "needsScope": "The network ranges are not confirmed yet.",
@@ -448,8 +449,8 @@
     "anyKind": "Every kind",
     "stateFilter": "State",
     "anyState": "Every state",
-    "oneDevice": "Only the runs of {{device}}.",
-    "everyDevice": "Show every run",
+    "deviceFilter": "Device",
+    "anyDevice": "Every device",
     "empty": "No run yet. A run appears here as soon as a sweep, a check or a scan is queued.",
     "col": {
       "what": "Run",

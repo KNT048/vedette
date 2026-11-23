@@ -88,6 +88,8 @@ type Dispatcher struct {
 
 	packInvalid    bool   // the worker found the image's pack damaged (pack_invalid): not trusted until the image holds another pack
 	packInvalidSHA string // the pack hash the heartbeat reported when it happened
+
+	onReport func() // told after every heartbeat (OnReport), outside mu
 }
 
 // slot is the state of one kind of job. At most one job of the kind is handed to the worker at a time.
@@ -713,12 +715,31 @@ func (d *Dispatcher) JobResultRejected(id string, e *sensorlink.Error) {
 	d.finishLocked(s, j, nil, err)
 }
 
-// ActiveHeartbeat implements sensorlink.Backend and feeds Health.
+// ActiveHeartbeat implements sensorlink.Backend and feeds Health. The OnReport hook hears of it after mu is released.
 func (d *Dispatcher) ActiveHeartbeat(_ context.Context, hb *sensorlink.ActiveHeartbeat) (string, error) {
 	d.mu.Lock()
-	defer d.mu.Unlock()
 	d.beatAt, d.haveBeat, d.nmap, d.nuclei, d.snmp, d.domainIP, d.typedIP = d.now(), true, hb.Nmap, hb.Nuclei, hb.SNMP, hb.DomainIP, hb.TypedIP
-	return d.instance, nil
+	instance, hook := d.instance, d.onReport
+	d.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+	return instance, nil
+}
+
+// OnReport sets the hook told after every heartbeat of the scan worker: work that waits for the worker starts when it reports, not at
+// the next tick. The hook must not block (the worker's request waits for it). Set it before the worker can report.
+func (d *Dispatcher) OnReport(fn func()) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.onReport = fn
+}
+
+// NmapMissing says the scan worker reports, and says it has no nmap: work that waits for nmap will not get it by waiting.
+func (d *Dispatcher) NmapMissing() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.fresh(d.now()) && !d.nmap.Present
 }
 
 // ---- the domain fence ----

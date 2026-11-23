@@ -165,7 +165,8 @@ func (m *Manager) canResume(r Run, workLeft bool) bool {
 	return ok && k.Resumable
 }
 
-// List returns one page of runs, newest first, and the number of runs that match.
+// List returns one page of runs, newest first by the time each started (the time it was queued for one that has not started yet: the
+// Runs tab shows that time in its Started column), and the number of runs that match.
 func (m *Manager) List(ctx context.Context, f Filter) ([]Run, int, error) {
 	var where []string
 	var args []any
@@ -205,7 +206,7 @@ func (m *Manager) List(ctx context.Context, f Filter) ([]Run, int, error) {
 		limit = MaxPage
 	}
 	offset := max(f.Offset, 0)
-	runs, err := m.readRuns(ctx, db, `SELECT `+runCols+` FROM core_run r`+cond+` ORDER BY r.queued_at DESC, r.rowid DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
+	runs, err := m.readRuns(ctx, db, `SELECT `+runCols+` FROM core_run r`+cond+` ORDER BY COALESCE(r.started_at, r.queued_at) DESC, r.rowid DESC LIMIT ? OFFSET ?`, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, err
 	}

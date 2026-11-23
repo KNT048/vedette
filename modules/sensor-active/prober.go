@@ -50,3 +50,9 @@ type nmapHealther interface{ NmapHealth() string }
 // workerWaiter is implemented by a Prober whose nmap runs in a scan worker: WorkerAbsent is true while the worker has not reported
 // (since core started, or for 90 seconds), a state it comes out of by itself, so work a person asks for can wait for it.
 type workerWaiter interface{ WorkerAbsent() bool }
+
+// workerReporter is a Prober that tells when the scan worker reports (the Dispatcher), and whether it says nmap is missing.
+type workerReporter interface {
+	OnReport(fn func())
+	NmapMissing() bool
+}

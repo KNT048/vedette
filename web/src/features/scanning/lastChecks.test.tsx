@@ -135,7 +135,7 @@ describe('the device page says what each check does and when each last ran', () 
     const table = await screen.findByRole('table', { name: 'Runs of every engine' }, T)
     expect(within(table).getByRole('link', { name: 'Check NAS-PHOTOS' })).toHaveAttribute('href', '/runs/run-m2')
     expect(within(table).queryByRole('link', { name: 'Check WEB01' })).toBeNull()
-    expect(screen.getByText('Only the runs of NAS-PHOTOS.')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Device' })).toHaveValue('a-nas02')
   })
 
   // #965: a read that failed or has not answered is never shown as "Never"

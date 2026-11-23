@@ -32,6 +32,29 @@ describe('Settings › Scanning › Runs', () => {
     server.events.removeAllListeners()
   })
 
+  it('the device filter picks one device of the inventory and asks the box for its runs only', async () => {
+    const asked: string[] = []
+    server.events.on('request:start', ({ request }) => { const u = new URL(request.url); if (u.pathname === '/api/v1/runs') asked.push(u.search) })
+    const user = userEvent.setup()
+    renderApp('/settings/scanning?tab=runs')
+    await screen.findByRole('table', { name: 'Runs of every engine' }, T)
+    const pick = screen.getByRole('combobox', { name: 'Device' })
+    await waitFor(() => expect(within(pick).getByRole('option', { name: /NAS-PHOTOS/ })).toBeInTheDocument(), T)
+    await user.selectOptions(pick, within(pick).getByRole('option', { name: /NAS-PHOTOS/ }))
+    await waitFor(() => expect(asked.at(-1)).toBe('?subject_kind=device&subject_id=a-nas02&limit=25'), T)
+    const table = screen.getByRole('table', { name: 'Runs of every engine' })
+    await waitFor(() => expect(within(table).queryByRole('link', { name: 'Check WEB01' })).toBeNull(), T)
+    expect(within(table).getByRole('link', { name: 'Check NAS-PHOTOS' })).toBeInTheDocument()
+    server.events.removeAllListeners()
+  })
+
+  it('runs are listed by when they started: a run queued early that started late comes first', async () => {
+    runsStore.update((l) => [...l, { ...l[3]!, id: 'run-late', title: 'Queued early, started late', status: 'done', queued_at: '2020-01-01T00:00:00.000Z', started_at: '2099-01-01T00:00:00.000Z', ended_at: '2099-01-01T00:01:00.000Z' }])
+    renderApp('/settings/scanning?tab=runs')
+    const table = await screen.findByRole('table', { name: 'Runs of every engine' }, T)
+    expect(within(table).getAllByRole('link')[0]).toHaveTextContent('Queued early, started late')
+  })
+
   it('a list on page 2 stays on page 2 while it is read again', async () => {
     runsPoll.waitingMs = 200
     runsStore.update((l) => [...l, ...Array.from({ length: 40 }, (_, i) => ({ ...l[3]!, id: `run-x${i}`, title: `Vulnerability checks ${i}`, queued_at: new Date(Date.UTC(2026, 10, 1, 0, i)).toISOString() }))])

@@ -107,30 +107,80 @@ func (s *Service) refreshWaits(ctx context.Context, st Settings) {
 	}
 }
 
-// resumePersonsChecks queues the person's checks that wait for the scan worker (asked while it had not reported, StartManual) once it
-// is available: they run whatever the window, oldest first, behind whatever holds the nmap lane.
-func (s *Service) resumePersonsChecks(ctx context.Context) {
-	if s.available(ctx) != nil {
+// personWaitMax is how long a person's check waits for the scan worker to report before it gives up.
+const personWaitMax = 30 * time.Minute
+
+// Why a person's check that waited for the scan worker gives up.
+const (
+	gaveUpNoWorker = "The scan worker did not report for 30 minutes, so the device was not checked. Check that the scan container runs, then check the device again"
+	gaveUpNoNmap   = "The scan worker reports that nmap is not installed in the scan container, so the device was not checked"
+)
+
+// workerReported is the scan worker's heartbeat (workerReporter.OnReport): the person's checks that wait for it start now, on a goroutine
+// of their own (the heartbeat must not wait), one pass at a time.
+func (s *Service) workerReported() {
+	if s.closed.Load() || !s.waking.CompareAndSwap(false, true) {
 		return
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id FROM core_run WHERE module = ? AND kind = ? AND trigger = 'manual' AND parent_id IS NULL
+	s.bg.Add(1)
+	go func() {
+		defer s.bg.Done()
+		defer s.waking.Store(false)
+		ctx, cancel := context.WithTimeout(context.Background(), workerReportedFor)
+		defer cancel()
+		if st, err := s.inv.Settings(ctx); err != nil || st.allowed() != nil {
+			return // scanning off or the scope not confirmed: the check is refused when it runs; the tick looks again
+		}
+		s.resumePersonsChecks(ctx)
+	}()
+}
+
+// workerReportedFor bounds one workerReported pass.
+const workerReportedFor = 30 * time.Second
+
+// resumePersonsChecks queues the person's checks that wait for the scan worker (asked while it had not reported, StartManual) once it
+// is available: they run whatever the window, oldest first, behind whatever holds the nmap lane. It runs when the worker reports
+// (workerReported) and at every tick. A check gives up with a plain failure when the worker reports that it has no nmap, or after
+// personWaitMax without the worker.
+func (s *Service) resumePersonsChecks(ctx context.Context) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, queued_at FROM core_run WHERE module = ? AND kind = ? AND trigger = 'manual' AND parent_id IS NULL
 		AND status = 'waiting' AND waiting_for = ? ORDER BY queued_at, rowid`, ModuleID, RunCheck, waitWorker)
 	if err != nil {
 		return
 	}
-	var ids []string
+	type waiting struct {
+		id    string
+		since time.Time
+	}
+	var ws []waiting
 	for rows.Next() {
-		var id string
-		if rows.Scan(&id) == nil {
-			ids = append(ids, id)
+		var w waiting
+		var at string
+		if rows.Scan(&w.id, &at) == nil {
+			w.since, _ = time.Parse(time.RFC3339Nano, at)
+			ws = append(ws, w)
 		}
 	}
-	if rows.Close() != nil {
+	if rows.Close() != nil || len(ws) == 0 {
 		return
 	}
-	for _, id := range ids {
-		if err := s.runs.Resume(ctx, id, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) && !errors.Is(err, run.ErrNotFound) {
-			s.log.WarnContext(ctx, "sensoractive: starting a person's check once the scan worker reported failed", "run", id, "error", err)
+	ready := s.available(ctx) == nil
+	noNmap := false
+	if r, ok := s.prober.(workerReporter); ok && !ready {
+		noNmap = r.NmapMissing()
+	}
+	for _, w := range ws {
+		var err error
+		switch {
+		case ready:
+			err = s.runs.Resume(ctx, w.id, run.System)
+		case noNmap:
+			err = s.runs.GiveUp(ctx, w.id, gaveUpNoNmap)
+		case !w.since.IsZero() && s.clock().Sub(w.since) >= personWaitMax:
+			err = s.runs.GiveUp(ctx, w.id, gaveUpNoWorker)
+		}
+		if err != nil && !errors.Is(err, run.ErrNotResumable) && !errors.Is(err, run.ErrNotFound) && !errors.Is(err, run.ErrNotLive) {
+			s.log.WarnContext(ctx, "sensoractive: settling a person's check that waits for the scan worker failed", "run", w.id, "error", err)
 		}
 	}
 }
@@ -576,6 +626,8 @@ func failWords(err error) string {
 // identResult is how a person's check ended, from the identification.
 func identResult(got Identification, err error) run.Result {
 	switch {
+	case errors.Is(err, ErrStopped) && errors.As(err, new(*stopCause)): // stopped under it for a reason of its own: the reason, exactly
+		return run.Result{Status: run.Failed, Error: "The check stopped because " + stopWords(err)}
 	case errors.Is(err, ErrStopped):
 		return run.Result{Status: run.Partial, Error: "stopped"}
 	case err != nil:

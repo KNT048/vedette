@@ -135,7 +135,7 @@ func (s *Service) allPortsResult(ctx context.Context, id string, err error) run.
 	case errors.Is(err, errNoAnswer):
 		return run.Result{Status: run.Failed, Error: weeklyNoAnswer + " " + s.weeklyRetry(ctx, id)}
 	case errors.Is(err, errHostTimedOut):
-		return run.Result{Status: run.Failed, Error: fmt.Sprintf(weeklyTimedOutAt, roundWords(nmapargv.AllPortsHostTimeout)) + " " + s.weeklyRetry(ctx, id)}
+		return run.Result{Status: run.Failed, Error: fmt.Sprintf(weeklyTimedOutAt, boundWords(nmapargv.AllPortsHostTimeout)) + " " + s.weeklyRetry(ctx, id)}
 	case errors.Is(err, errAnswersEverywhere):
 		return run.Result{Status: run.Partial, Error: "The device answers on every port (a firewall or a SYN proxy): this scan learns nothing"}
 	case errors.Is(err, ErrStopped) && ctx.Err() == nil:

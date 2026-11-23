@@ -38,7 +38,7 @@ func (m *Manager) summary(ctx context.Context, r Run) string {
 		if r.WaitingFor != nil {
 			what = *r.WaitingFor
 		}
-		return join("Waiting for "+what, count, estimate())
+		return join("Waiting for "+what, count) // what it waits for, not a time left: it does not move while it waits
 	case Running:
 		if count == "" {
 			return "Running"
@@ -152,10 +152,14 @@ func (m *Manager) holdOf(ctx context.Context, id string, a *Run) (time.Duration,
 	return k.Hold(ctx, *a)
 }
 
-// about writes a wait: "about a minute", "about 25 minutes", "about 3 hours".
+// about writes a wait: "about a minute", "about 25 minutes", "about 3 hours". Minutes round up; hours round to the nearest, so 3 hours
+// and 10 minutes is "about 3 hours", not 4.
 func about(d time.Duration) string {
 	if d < 90*time.Second {
 		return "about a minute"
+	}
+	if d >= 90*time.Minute {
+		return "about " + durationWords(d, math.Round)
 	}
 	return "about " + durationWords(d, math.Ceil)
 }

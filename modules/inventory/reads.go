@@ -282,6 +282,9 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	if f.Q != "" { // the query found the candidates; a device stays when what its row shows holds the text
 		items = slices.DeleteFunc(items, func(d Device) bool { return !d.shows(f.Q) })
 	}
+	if len(f.Software) > 0 {
+		items = slices.DeleteFunc(items, func(d Device) bool { return len(d.matchedSoftware(f.Software)) == 0 })
+	}
 	if items == nil {
 		items = []Device{}
 	}

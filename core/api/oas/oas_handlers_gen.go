@@ -29933,6 +29933,10 @@ func (s *Server) handleInventoryGetInventoryDevicesRequest(args [0]string, argsE
 					Name: "q",
 					In:   "query",
 				}: params.Q,
+				{
+					Name: "software",
+					In:   "query",
+				}: params.Software,
 			},
 			Raw: r,
 		}
@@ -30386,6 +30390,10 @@ func (s *Server) handleInventoryGetInventoryExportCsvRequest(args [0]string, arg
 					Name: "q",
 					In:   "query",
 				}: params.Q,
+				{
+					Name: "software",
+					In:   "query",
+				}: params.Software,
 			},
 			Raw: r,
 		}

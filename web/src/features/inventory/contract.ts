@@ -107,7 +107,13 @@ export const DeviceRisk = z.object({
   code: z.enum(DEVICE_STATUSES),
   count: z.number().int().min(1).describe('An open status: distinct CVEs of the device at that status ("2 exploited"); needs_input: the items of the Needs your input queue for the device'),
 }).describe('The device\'s badge (findings\' device status): null when it has none, for the Vedette box itself, and while the findings module is off')
-export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
+/** A software name of the Devices search's software: suggestions, with the number of devices that run it. */
+export const SoftwareName = z.object({ name: z.string(), count: z.number().int().min(1).describe('Devices with a software line of this name') })
+export const DeviceRow = Asset.omit({ software: true, services: true }).extend(ScanInfo.shape).extend({
+  software_count: z.number().int().min(0).describe('Number of the device\'s software lines (a line a person said is not installed counts). The lines themselves are on the device page (GET /inventory/devices/{id}): the list never carries them'),
+  service_count: z.number().int().min(0).describe('Number of the device\'s open services (ports); the services themselves are on the device page'),
+  product: Software.nullable().describe('A device added by hand: its first software line by name that is installed (the line that names a device with no host name, and the product Settings › Declared software lists); null for a discovered device or one with no such line'),
+  matched_software: z.array(Software).optional().describe('Only with the software filter: the device\'s lines that hold one of its words, by name (the Matched software column)'),
   sources: z.array(DeviceSource).describe('Every source that told Vedette something about the device and is still kept (its details, software or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source: filter, #829 sources of the device page)'),
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
@@ -124,6 +130,7 @@ export const DevicesQuery = z.object({
   has_findings: z.enum(['true', 'false']).optional().describe('true: findings_count > 0'),
   risk: z.string().max(120).optional().describe(`Comma-separated device statuses: ${DEVICE_STATUSES.join(', ')}, or none (no badge). Unknown value: 400 bad_filter`),
   q: z.string().max(80).optional().describe('Free text, case-insensitive, matched in the name (the name in Vedette, the host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model'),
+  software: z.string().max(400).optional().describe('Comma-separated words, case-insensitive: keeps the devices with a software line whose "name vendor product" holds one of them; each row then lists those lines in matched_software'),
 })
 export const DevicesResponse = z.object({
   items: z.array(DeviceRow),
@@ -131,6 +138,10 @@ export const DevicesResponse = z.object({
   notify_new: z.boolean(),
   notify_available: z.boolean().describe('false when the notify module is off'),
   risk_unavailable: z.boolean().describe('The badges could not be read (the findings module failed): no row has one and a badge filter was not applied'),
+  top_software: z.object({
+    devices: z.array(SoftwareName).describe('Over the listed devices that are approved or quiet'),
+    review: z.array(SoftwareName).describe('Over the listed devices that are To review'),
+  }).describe('The 12 software names most of the listed devices run (most devices first, then by name), for the search\'s software: suggestions; declared software with no device is left out'),
 })
 /** INV-41: a person's correction of a row a sensor or agent reported. */
 export const SoftwareCorrection = z.object({

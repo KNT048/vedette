@@ -18,8 +18,8 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// The same device says the same software at the same version wherever it is read: the Devices list, the device page, the CSV export
-// and the device data an assistant gets (the Ask context). The fixture is an anonymised test-network inventory replayed through the
+// The same device says the same software at the same version wherever it is read: the device page, the CSV export and the device
+// data an assistant gets (the Ask context); the Devices list, which carries no lines, counts as many as the page shows. The fixture is an anonymised test-network inventory replayed through the
 // write paths (modules/inventory/testdata/software_lines.json, the same file the inventory's own line tests replay). For every device
 // the test builds, per surface, the set of "<name> <version>" the surface says the device runs, and counts the devices where two
 // surfaces disagree.
@@ -111,7 +111,7 @@ func TestSoftwareLine_Fixture_SameVersionOnEverySurface(t *testing.T) {
 		}
 		return at(sw, "correction", "not_installed") != true
 	}
-	surfaces := map[string]map[string]runs{"list": {}, "page": {}, "export": {}, "assistant": {}}
+	surfaces := map[string]map[string]runs{"page": {}, "export": {}, "assistant": {}}
 	add := func(surface, device, s string) {
 		if surfaces[surface][device] == nil {
 			surfaces[surface][device] = runs{}
@@ -123,14 +123,13 @@ func TestSoftwareLine_Fixture_SameVersionOnEverySurface(t *testing.T) {
 	if code != 200 {
 		t.Fatalf("list: %d %v", code, list)
 	}
+	// the list carries no lines, only how many the device has: the page's count
+	listCount := map[string]int{}
 	for _, d := range at(list, "items").([]any) {
 		id, _ := at(d, "id").(string)
-		for _, sw := range at(d, "software").([]any) {
-			if installed(sw) {
-				add("list", id, text(at(sw, "display").(string), at(sw, "version")))
-			}
-		}
+		listCount[id] = int(at(d, "software_count").(float64))
 	}
+	pageCount := map[string]int{}
 	// the device page's source rows come from the server, through the real wiring
 	if code, v := s.do("GET", "/inventory/devices/"+f.Devices[0].ID+"/sources", "viewer", ""); code != 200 || len(at(v, "rows").([]any)) != 3 {
 		t.Fatalf("sources: %d %v", code, v)
@@ -140,6 +139,7 @@ func TestSoftwareLine_Fixture_SameVersionOnEverySurface(t *testing.T) {
 		if code != 200 {
 			t.Fatalf("page %s: %d %v", d.ID, code, page)
 		}
+		pageCount[d.ID] = len(at(page, "asset", "software").([]any))
 		for _, sw := range at(page, "asset", "software").([]any) {
 			if installed(sw) {
 				add("page", d.ID, text(at(sw, "display").(string), at(sw, "version")))
@@ -198,7 +198,10 @@ func TestSoftwareLine_Fixture_SameVersionOnEverySurface(t *testing.T) {
 		want := surfaces["page"][d.ID]
 		lines += len(want)
 		var bad []string
-		for _, name := range []string{"list", "export", "assistant"} {
+		if listCount[d.ID] != pageCount[d.ID] {
+			bad = append(bad, fmt.Sprintf("list counts %d lines, the page shows %d", listCount[d.ID], pageCount[d.ID]))
+		}
+		for _, name := range []string{"export", "assistant"} {
 			got := surfaces[name][d.ID]
 			for s := range want {
 				if !got[s] {

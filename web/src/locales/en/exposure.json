@@ -684,8 +684,9 @@
     "noneBody": "Vulnerabilities that are not known to be exploited are not compared.",
     "noneBodyInfo": "The services and versions below were compared with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on).",
     "gapsLabel": "Services whose version could not be read",
-    "gap_one": "{{count}} exploited CVE of {{software}} on port {{port}} could not be checked: the service sent no version ({{cves}}).",
-    "gap_other": "{{count}} exploited CVEs of {{software}} on port {{port}} could not be checked: the service sent no version ({{cves}}).",
+    "gap_one": "{{count}} exploited CVE of {{software}} on port {{port}} could not be checked: the service sent no version.",
+    "gap_other": "{{count}} exploited CVEs of {{software}} on port {{port}} could not be checked: the service sent no version.",
+    "gapCves": "CVEs of {{software}} on port {{port}}",
     "count_one": "{{count}} exploited",
     "count_other": "{{count}} exploited",
     "noProduct": "Not named",
@@ -787,11 +788,6 @@
       "cves": "CVEs",
       "solution": "Solution"
     },
-    "sev": {
-      "high": "High {{score}}",
-      "medium": "Medium {{score}}",
-      "low": "Low {{score}}"
-    },
     "noCve": "None named",
     "results": {
       "title": "OpenVAS results (unauthenticated, QoD ≥ 70)",
@@ -883,12 +879,6 @@
       "pages": "Pages",
       "fix": "What ZAP suggests"
     },
-    "risk": {
-      "high": "High",
-      "medium": "Medium",
-      "low": "Low",
-      "info": "Info"
-    },
     "confidence": {
       "low": "Low",
       "medium": "Medium",
@@ -946,8 +936,7 @@
     "cpes": "Software Shodan names: {{list}}.",
     "vulnsTitle_one": "{{count}} CVE Shodan lists",
     "vulnsTitle_other": "{{count}} CVEs Shodan lists",
-    "vulnsNote": "Shodan guesses these from the software versions it saw. They are Shodan's claim: Vedette has not confirmed them, and the Exploited vulnerabilities above are Vedette's own check.",
-    "vuln": "Shodan lists {{cve}}; Vedette has not confirmed it."
+    "vulnsNote": "Shodan guesses these from the software versions it saw. They are Shodan's claim: Vedette has not confirmed them, and the Exploited vulnerabilities above are Vedette's own check."
   },
   "deep": {
     "title": "Deep scan by address",

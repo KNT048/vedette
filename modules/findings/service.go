@@ -3,9 +3,10 @@ package findings
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"reflect"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -40,13 +41,15 @@ type ServiceConfig struct {
 	// finding counts as decided when a merge must keep one of two findings of a CVE. It reads through tx, the merge's own
 	// transaction, so a merge sees what the same write changed before it. nil: none has.
 	Applied func(ctx context.Context, tx *sql.Tx, findingIDs []string) (map[string]bool, error)
-	// Lifecycle holds the other modules' parts of a device merge (core/lifecycle): when a merge folds two findings of one CVE into one,
+	// Lifecycle holds the other modules' parts of a device merge (core/lifecycle): when a merge folds two findings of one line into one,
 	// their FindingFolded moves the rows they keep by finding id (mitigation, response) before the folded finding is deleted. nil: none.
 	Lifecycle *lifecycle.Hooks
 	// SafeCheck says whether a safe vulnerability check exists for a CVE: the binary answers from the template pack the scan
 	// itself plans with (scan Pack.ForCVE), never the nuclei-templates feed flag, which is off on an offline box and lists
 	// templates the pack does not ship. The Feeds port's KevInfo.HasTemplate is the same answer. nil: Vuln.HasTemplate as given.
 	SafeCheck func(cve string) bool
+	// Urgency is what the urgency pass rates findings with (UrgencySources); a nil Facts: the pass does not run.
+	Urgency UrgencySources
 }
 
 // safeCheck is ServiceConfig.SafeCheck for v, else v's own flag.
@@ -64,13 +67,16 @@ type Have struct {
 	Since time.Time
 }
 
-// Service owns fnd_finding and fnd_finding_history. Every mutation runs in one transaction with its
-// history rows and its core_audit row (SYS-3); events go out after the commit.
+// Service owns fnd_finding, fnd_finding_event and fnd_question. Every change of a finding goes through Transition and runs in one
+// transaction with its events and its core_audit row (SYS-3); bus events go out after the commit.
 type Service struct {
+	// rematched counts the writes whose device read differently inside the write than when its match was computed (the match was
+	// computed again): a measure that a device read twice compares equal, so the hourly pass stays on its fast path.
+	rematched  atomic.Int64
 	cfg        ServiceConfig
 	now        func() time.Time
 	plan       planState       // "Updates to plan": in memory, see planpass.go
-	gen        atomic.Uint64   // counts committed writes: GET /findings/summary drops its cached answer when it moves (summary.go)
+	gen        atomic.Uint64   // counts committed writes: GET /findings/overview drops its kept answer when it moves (overview.go)
 	toFixCache classifiedCache // the classification of every device (To fix, RiskMap)
 }
 
@@ -89,11 +95,10 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 // publishTimeout bounds the delivery of the events of one committed change.
 const publishTimeout = 5 * time.Second
 
-// eventWriteTimeout bounds how long a handler of an incoming event (OnMatchChanged, OnAssetIgnored) waits for the one
-// writer. The bus gives a handler 5 s, but a long write elsewhere (the first KEV pull) holds the writer longer, and an
-// event that failed at "store: begin: context deadline exceeded" is not delivered again: the finding would never be
-// created, or the findings of a deleted device would stay. So these handlers run on their own deadline, cut loose from
-// the bus's (a caller that really goes away, on shutdown, is still cut at this bound).
+// eventWriteTimeout bounds how long a handler of an incoming event (OnMatchChanged) waits for the one writer. The bus gives a
+// handler 5 s, but a long write elsewhere (the first KEV pull) holds the writer longer, and an event that failed at "store: begin:
+// context deadline exceeded" is not delivered again. So these handlers run on their own deadline, cut loose from the bus's (a caller
+// that really goes away, on shutdown, is still cut at this bound).
 const eventWriteTimeout = time.Minute
 
 func eventContext(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -130,9 +135,156 @@ func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, now time.Time, 
 	return nil
 }
 
-// Get returns one finding, or an error wrapping ErrNotFound.
+// step runs one trigger on one finding inside tx: Transition, the row and its events, an audit row for what a person or Vedette
+// decided, and the bus events of the older read model. isNew says f has no row yet.
+func (s *Service) step(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, t Trigger, emit func(string, any)) (Finding, []Event, error) {
+	g, evs, err := apply(ctx, tx, f, isNew, t)
+	if err != nil || len(evs) == 0 {
+		return g, evs, err
+	}
+	for _, e := range evs {
+		action, detail := auditOf(g, e)
+		if action == "" {
+			continue
+		}
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: e.Actor, Action: action, Target: g.ID, Detail: detail}); err != nil {
+			return f, nil, err
+		}
+	}
+	if isNew {
+		return g, evs, nil // the caller announces a new finding (CreatedEvent)
+	}
+	if e, ok := legacyEvent(f, g, evs); ok && Announced(g) && !raised(f, g) { // a rise: one notice, the caller's
+		emit(EventStatusChanged, e)
+	}
+	return g, evs, nil
+}
+
+// auditOf is the audit row of one event: what a person did, and what Vedette decided by itself about the handling. "" for the
+// rest (urgency, fix, detection edges: the finding's own history holds them).
+func auditOf(f Finding, e Event) (action, detail string) {
+	d := e.Detail
+	switch e.Kind {
+	case EvCreated:
+		return "findings.created", f.CVE + ", basis " + string(f.Basis)
+	case EvHandled:
+		detail = f.CVE + ": " + string(d.Resolution) + " via " + string(d.Via)
+		if d.FromVersion != "" {
+			detail += " (" + d.FromVersion + " → " + d.ToVersion + ")"
+		}
+		if d.AcceptedUntil != "" {
+			detail += " until " + d.AcceptedUntil
+		}
+		if d.Note != "" {
+			detail += ": " + d.Note
+		}
+		return "findings.status", detail
+	case EvReopened:
+		detail = f.CVE + ": reopened (" + d.Why + ")"
+		if d.Note != "" {
+			detail += ": " + d.Note
+		}
+		return "findings.status", detail
+	case EvAcceptanceExpire:
+		return "findings.status", f.CVE + ": risk acceptance by " + d.From + " until " + d.AcceptedUntil + " expired"
+	case EvConfirmed:
+		if e.Actor != SystemUser {
+			return "findings.confirm", f.CVE + ": confirmed by " + e.Actor + ": " + d.Note
+		}
+	case EvUnconfirmed:
+		if e.Actor != SystemUser {
+			return "findings.unconfirm", f.CVE + ": confirmation undone by " + e.Actor
+		}
+	}
+	return "", ""
+}
+
+// Get returns one finding in the older read model, or an error wrapping ErrNotFound.
 func (s *Service) Get(ctx context.Context, id string) (Record, error) {
-	return loadByID(ctx, s.cfg.DB.Reader(), id)
+	f, err := loadFinding(ctx, s.cfg.DB.Reader(), id)
+	if err != nil {
+		return Record{}, err
+	}
+	recs, err := s.records(ctx, s.cfg.DB.Reader(), []Finding{f}, "f.id = ?", id)
+	if err != nil {
+		return Record{}, err
+	}
+	return recs[0], nil
+}
+
+// List returns the findings of one device, or of every device when assetID is empty, newest first, in the older read model.
+func (s *Service) List(ctx context.Context, assetID string) ([]Record, error) {
+	q := s.cfg.DB.Reader()
+	fs, err := findingsOf(ctx, q, assetID)
+	if err != nil {
+		return nil, err
+	}
+	return s.records(ctx, q, fs, "(?1 = '' OR f.asset_id = ?1)", assetID)
+}
+
+// Finding returns one finding, or an error wrapping ErrNotFound.
+func (s *Service) Finding(ctx context.Context, id string) (Finding, error) {
+	return loadFinding(ctx, s.cfg.DB.Reader(), id)
+}
+
+// Findings returns the findings of one device, or of every device when assetID is "", newest first.
+func (s *Service) Findings(ctx context.Context, assetID string) ([]Finding, error) {
+	return findingsOf(ctx, s.cfg.DB.Reader(), assetID)
+}
+
+// Events returns the history of one finding, oldest first.
+func (s *Service) Events(ctx context.Context, id string) ([]Event, error) {
+	m, err := eventsOf(ctx, s.cfg.DB.Reader(), "f.id = ?", id)
+	return m[id], err
+}
+
+// Questions returns the questions of one device, or of every device when assetID is "".
+func (s *Service) Questions(ctx context.Context, assetID string) ([]Question, error) {
+	return questionsOf(ctx, s.cfg.DB.Reader(), assetID)
+}
+
+// records projects findings into the older read model, with their events (selected by where on fnd_finding f) and the CVSS band.
+func (s *Service) records(ctx context.Context, q querier, fs []Finding, where string, args ...any) ([]Record, error) {
+	if len(fs) == 0 {
+		return nil, nil
+	}
+	evs, err := eventsOf(ctx, q, where, args...)
+	if err != nil {
+		return nil, err
+	}
+	cves := make([]string, 0, len(fs))
+	for _, f := range fs {
+		cves = append(cves, f.CVE)
+	}
+	slices.Sort(cves)
+	scores, err := s.cfg.Feeds.CVSS(ctx, slices.Compact(cves))
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "findings: reading the CVSS scores", "error", err)
+		scores = nil
+	}
+	out := make([]Record, len(fs))
+	for i, f := range fs {
+		var band Severity
+		if c, ok := scores[f.CVE]; ok {
+			band = bandOf(c)
+		}
+		out[i] = record(f, evs[f.ID], band)
+	}
+	return out, nil
+}
+
+// ignoredDevices is the set of devices a person ignored: their findings stay as they are, and every reader of open findings leaves
+// them out (an attribute of the device, never a change of its findings).
+func (s *Service) ignoredDevices(ctx context.Context) (map[string]bool, error) {
+	ids, err := s.cfg.Inventory.IgnoredIDs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("reading the ignored devices: %w", err)
+	}
+	out := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out, nil
 }
 
 // AssetRisk is what a device's risk marker reads (inventory.RiskCounts), from To fix's own classification of the device (RiskOf;
@@ -172,6 +324,23 @@ func riskyUpdate(u UpdateAction) bool {
 	return u.Likely > 0 || sevRank(Severity(u.Worst)) >= sevRank(SeverityHigh)
 }
 
+// sevRank orders severities (unknown values lowest).
+func sevRank(s Severity) int {
+	switch s {
+	case SeverityCritical:
+		return 5
+	case SeverityHigh:
+		return 4
+	case SeverityMedium:
+		return 3
+	case "low":
+		return 2
+	case "info":
+		return 1
+	}
+	return 0
+}
+
 // riskTTL bounds how long the classification of every device (classified) is kept when nothing it reads changed: a backstop for the
 // 12-month line of the plan's CVEs, which moves with time alone.
 const riskTTL = time.Minute
@@ -187,8 +356,8 @@ func (s *Service) RiskMap(ctx context.Context, feedsOn bool) (map[string]AssetRi
 	return c.risk, nil
 }
 
-// CountByAsset returns how many findings each asset has, every status included: the number inventory shows as findings_count, which
-// is also what deleting the device deletes (DeviceDeleted). One grouped read; an asset with none is absent.
+// CountByAsset returns how many findings each device has, every state included: the number inventory shows as findings_count, which
+// is also what deleting the device deletes (DeviceDeleted). One grouped read; a device with none is absent.
 func (s *Service) CountByAsset(ctx context.Context) (map[string]int, error) {
 	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_finding GROUP BY asset_id`)
 	if err != nil {
@@ -207,31 +376,21 @@ func (s *Service) CountByAsset(ctx context.Context) (map[string]int, error) {
 	return out, rows.Err()
 }
 
-// List returns the findings of one asset, or of every asset when assetID is empty, newest first.
-func (s *Service) List(ctx context.Context, assetID string) ([]Record, error) {
-	return listRecords(ctx, s.cfg.DB.Reader(), assetID)
-}
-
-// UpsertResult says what an upsert did.
+// UpsertResult says what one match write did.
 type UpsertResult struct {
 	Created []string // ids of the findings created
-	Touched int      // findings that already existed (open or closed) and only had last_seen refreshed
-	// Regraded counts the product findings graded higher before the product-severity rule that took the product severity.
-	Regraded int
-	// Closed counts the findings Vedette closed because the version is proved outside every range, Retired the
-	// old product findings of settled "Multiple Products" entries NVD's list leaves out, Aged the findings of KEV
-	// CVEs published over 12 months ago that rest on no confirmed evidence.
-	Closed, Retired, Aged int
-	// NameOnly counts the product findings closed because they rest on the product name only.
-	NameOnly int
-	// Asked counts the findings closed because only a person's answer decides them.
-	Asked int
-	// NotInstalled counts the findings closed because a person said their software is not installed (INV-6c).
-	NotInstalled int
+	Touched int      // findings detected again (open or handled)
+	// Closed counts the findings Vedette handled because the data no longer detects them (patched or corrected).
+	Closed int
+	// Reopened counts the findings that opened again (detected again after Vedette closed them, or still detected after a person
+	// marked them patched).
+	Reopened int
+	// Questions counts the questions the device has after the write.
+	Questions int
 }
 
-// OnMatchChanged handles inventory.match.changed: it reads the device and the exploited list and
-// matches them (PRE-1). An unknown device is ErrUnknownAsset.
+// OnMatchChanged handles inventory.match.changed: it reads the device and the exploited list and matches them (PRE-1). An unknown
+// device is ErrUnknownAsset.
 func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertResult, error) {
 	ctx, cancel := eventContext(ctx)
 	defer cancel()
@@ -243,29 +402,39 @@ func (s *Service) OnMatchChanged(ctx context.Context, assetID string) (UpsertRes
 	if !ok {
 		return UpsertResult{}, fmt.Errorf("findings: matching device %q: %w", assetID, ErrUnknownAsset)
 	}
-	vulns, err := s.cfg.Feeds.Vulns(ctx)
+	pinned, err := s.pinnedCVEs(ctx, assetID)
 	if err != nil {
-		return UpsertResult{}, fmt.Errorf("findings: reading the exploited list: %w", err)
+		return UpsertResult{}, err
 	}
-	return s.UpsertFromMatch(ctx, a, vulns)
+	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope([]Asset{a}, pinned))
+	if err != nil {
+		return UpsertResult{}, fmt.Errorf("findings: reading the catalogue: %w", err)
+	}
+	set := newMatchSet(vulns)
+	dev := set.forDevice(a)
+	a.winList = dev
+	res, err := s.upsert(ctx, a, dev, cveSet(vulns), nil, true)
+	if err != nil {
+		return res, err
+	}
+	// The device's findings are rated at once: one this write created enters its layer as news (a new finding is recent).
+	if _, err := s.RateUrgency(ctx, assetID); err != nil {
+		return res, err
+	}
+	return res, nil
 }
 
-// UpsertFromMatch matches the device's software against vulns and writes the result (INV-6, POST-1):
-// a new pair becomes a suspected finding with its "created" history row and a
-// findings.finding.created event; a pair that already exists is never created again: it gets last_seen
-// refreshed and, if open, a stronger basis (product to version, findings.finding.severity_raised when the
-// severity goes up). Nothing is deleted. Only Vedette's own proofs change a status: a suspected
-// finding the matcher proves not affected is closed, and one Vedette closed that matches again is reopened;
-// a person's closing is never reopened, and a person's reopen is never closed again.
+// UpsertFromMatch matches the device's software against vulns and writes the result through Transition (applyMatch): a detected
+// (CVE, software line) is created or detected again, a finding of a CVE of vulns that is no longer detected goes away the way the
+// data says (patched with credit, or corrected), and the device's questions are rewritten.
 func (s *Service) UpsertFromMatch(ctx context.Context, a Asset, vulns []Vuln) (UpsertResult, error) {
-	return s.upsert(ctx, a, vulns, nil)
+	return s.upsert(ctx, a, vulns, cveSet(vulns), nil, false)
 }
 
-// upsert is UpsertFromMatch. whole, when not nil, is the match of the whole exploited list, whose "add the version" items and
-// unchecked rows (#910) the device's become instead of the ones this vulns list gives: Reconcile writes the backlog and the
-// recent entries in two writes, each of which replaces them, so it passes those of the whole list (the recent write
-// left "checks 1 exploited CVE" of 30).
-func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *MatchResult) (UpsertResult, error) {
+// upsert is UpsertFromMatch. whole, when not nil, is the match of the whole exploited list, whose questions the device's become
+// instead of the ones this vulns list gives: Reconcile writes the backlog and the recent entries in two writes, each of which
+// replaces them.
+func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[string]bool, whole *MatchResult, reread bool) (UpsertResult, error) {
 	var since map[string]Have
 	if s.cfg.HaveSince != nil {
 		var err error
@@ -273,213 +442,77 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			return UpsertResult{}, fmt.Errorf("findings: reading the products answered on Home: %w", err)
 		}
 	}
+	haveOf := func(fs []Finding) map[string]bool {
+		out := make(map[string]bool, len(fs))
+		for _, f := range fs {
+			out[f.CVE] = true
+		}
+		return out
+	}
+	// The match is computed before the write, against the findings the device has now, so the writer is held only for the writing;
+	// a finding created meanwhile (a safe check) makes the write compute it again.
+	before, err := findingsOf(ctx, s.cfg.DB.Reader(), a.ID)
+	if err != nil {
+		return UpsertResult{}, err
+	}
+	haveBefore := haveOf(before)
+	matched := MatchAsset(a, vulns, haveBefore, s.now())
 	var res UpsertResult
-	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		res = UpsertResult{}
-		// A match read before a person ignored the device writes nothing; asked inside the write, so
-		// an Ignore that commits later closes what this one wrote (OnAssetIgnored).
+		// A match read before a person ignored the device writes nothing; asked inside the write.
 		if ig, err := s.cfg.Inventory.IsIgnored(ctx, a.ID); err != nil {
 			return fmt.Errorf("findings: reading whether the device is ignored: %w", err)
 		} else if ig {
 			return nil
 		}
-		if len(a.NotInstalled) > 0 { // INV-6c: a match read before a person cleared a mark must not close its findings again; read the device now
+		// The device as the inventory holds it now: no inventory write can commit while this write runs, so a reading that arrived
+		// after the match was computed (a device that reported its update meanwhile) is matched here, never overwritten by an older one.
+		changed := false
+		if reread {
 			fresh, ok, err := s.cfg.Inventory.MatchInput(ctx, a.ID)
 			if err != nil {
-				return fmt.Errorf("findings: reading the device again: %w", err)
+				return fmt.Errorf("findings: reading the device: %w", err)
 			}
-			if ok {
-				fresh.winList = a.winList
-				a = fresh
+			if !ok {
+				return nil // deleted (or ignored) since the match was computed
+			}
+			fresh.winList = a.winList
+			if changed = !reflect.DeepEqual(fresh, a); changed {
+				a = fresh // its entries stay the ones read for the older reading: a product it did not run waits for the next pass
 			}
 		}
-		have, err := cvesOfAsset(ctx, tx, a.ID)
+		existing, err := findingsOf(ctx, tx, a.ID)
 		if err != nil {
 			return err
 		}
-		hs := haveSet(have)
-		m := haveScope(a, vulns, MatchAsset(a, vulns, hs, now), since, hs, now)
-		for _, list := range [][]Match{m.New, m.Existing} { // a version a person gave is said to be theirs (#950)
-			for i := range list {
-				if why := usesCorrection(a, list[i].SoftwareID); why != "" && !strings.Contains(list[i].Evidence.Summary, why) {
-					list[i].Evidence.Summary = strings.TrimSpace(list[i].Evidence.Summary + " " + why)
-				}
+		have := haveOf(existing)
+		if changed || !maps.Equal(have, haveBefore) {
+			matched = MatchAsset(a, vulns, have, now)
+		}
+		if changed {
+			s.rematched.Add(1)
+			// the entries were chosen for the older reading: only the CVEs this write compares are judged (a CVE another device
+			// brought into the set never closes a finding this reading may make), and the questions are those of the whole match
+			mine := cveSet(vulns)
+			judged = maps.Clone(judged)
+			maps.DeleteFunc(judged, func(c string, _ bool) bool { return !mine[c] })
+			if whole != nil {
+				w := MatchAsset(a, a.winList, nil, now)
+				whole = &w
 			}
 		}
-		for _, nm := range m.New {
-			f, h := NewFinding(nm, now)
-			if err := f.Validate(); err != nil {
-				return fmt.Errorf("findings: new finding for %s: %w", nm.CVE, err)
-			}
-			r := Record{ID: store.NewID("f"), AssetID: a.ID, CVE: nm.CVE, Finding: f, FirstSeen: now, LastSeen: now}
-			if err := insertRecord(ctx, tx, r); err != nil {
-				return err
-			}
-			if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-				return err
-			}
-			if f.Status == StatusConfirmed { // the device itself stated a version inside the range (ByDevice)
-				if err := insertHistory(ctx, tx, r.ID, HistoryEntry{TS: now, User: SystemUser, Action: "confirmed", Note: DeviceConfirmedNote}); err != nil {
-					return err
-				}
-			}
-			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.created", Target: r.ID,
-				Detail: createdDetail(r, a)}); err != nil {
-				return err
-			}
-			emit(EventCreated, CreatedEvent{FindingID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Severity: r.Severity, Basis: r.Basis})
-			res.Created = append(res.Created, r.ID)
-		}
-		backfill, err := backfillPending(ctx, tx)
-		if err != nil {
-			return err
-		}
-		for _, em := range m.Existing {
-			r, err := loadByPair(ctx, tx, a.ID, em.CVE)
-			if err != nil {
-				return err
-			}
-			before := r.Finding
-			reopened, reopenWhy := false, ""
-			if f, h, ok := r.ReopenOnMatch(now); ok { // Vedette closed it by itself; it applies again
-				why, err := reopenReason(ctx, tx, a, r, em.SoftwareID)
-				if err != nil {
-					return err
-				}
-				r.Finding, reopened = f, true
-				h.Note = withCorrection(h.Note, correctionWhy(a, em.SoftwareID))
-				if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-					return err
-				}
-				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.matches_again", Target: r.ID, Detail: r.CVE + ": reopened"}); err != nil {
-					return err
-				}
-				reopenWhy = why
-			}
-			r.Finding = r.ApplyMatch(em)
-			settled, quiet := r.Status, false
-			if f, h, ok := r.SettleByDevice(now); ok { // the version the device states confirms it, or no longer does
-				r.Finding = f
-				if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-					return err
-				}
-				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.status", Target: r.ID,
-					Detail: fmt.Sprintf("%s: %s to %s (%s)", r.CVE, settled, r.Status, deviceDetail(r.Finding))}); err != nil {
-					return err
-				}
-				// The first pass after the rule arrived: an open finding confirmed only by the new rule is told once, in the
-				// summary finishBackfill sends, not one notice each.
-				if quiet = backfill && !reopened && r.Status == StatusConfirmed; quiet {
-					if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_device_backfill (finding_id) VALUES (?) ON CONFLICT (finding_id) DO NOTHING`, r.ID); err != nil {
-						return fmt.Errorf("findings: recording a confirmation of the first pass: %w", err)
-					}
-				}
-			}
-			switch {
-			case reopened: // one story: the reopen's event carries the status it reopened to
-				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: reopenWhy})
-			case quiet:
-			case r.Status != before.Status:
-				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before.Status, To: r.Status, Reason: ReasonDeviceVersion})
-			}
-			r.LastSeen = now
-			if err := r.Validate(); err != nil {
-				return fmt.Errorf("findings: finding %s after a repeated match: %w", r.ID, err)
-			}
-			if err := updateRecord(ctx, tx, r); err != nil {
-				return err
-			}
-			if r.Basis != before.Basis {
-				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.basis_raised", Target: r.ID,
-					Detail: fmt.Sprintf("%s: %s to %s, %s", r.CVE, before.Basis, r.Basis, r.Severity)}); err != nil {
-					return err
-				}
-				if !reopened && sevRank(r.Severity) > sevRank(before.Severity) { // its own event; the status did not change. A reopening is one story (#698): its event carries the severity
-					emit(EventSeverityRaised, SeverityRaisedEvent{FindingID: r.ID, AssetID: r.AssetID, CVE: r.CVE,
-						FromSeverity: before.Severity, ToSeverity: r.Severity, Basis: r.Basis})
-				}
-			} else if r.Severity != before.Severity { // A product match graded before the product-severity rule takes the product severity, once
-				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.regraded", Target: r.ID,
-					Detail: fmt.Sprintf("%s: %s to %s (product match only, version not compared)", r.CVE, before.Severity, r.Severity)}); err != nil {
-					return err
-				}
-				res.Regraded++
-			}
-			if n := len(r.History); !reopened && n > 0 && r.History[n-1].Action == "no_longer_matches" { // matches again: the newest line must not say otherwise
-				if err := insertHistory(ctx, tx, r.ID, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: "The device matches this entry again."}); err != nil {
-					return err
-				}
-				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.matches_again", Target: r.ID, Detail: r.CVE}); err != nil {
-					return err
-				}
-			}
-			res.Touched++
-		}
-		for _, list := range [][]Match{m.NotAffected, m.Retired, m.Aged, m.NameOnly} { // the close note names a person's correction
-			for i := range list {
-				why := correctionWhy(a, list[i].SoftwareID)
-				list[i].Evidence.Summary = withCorrection(list[i].Evidence.Summary, why)
-				list[i].corrected = why != "" // a person's correction is no update the device got (fixedByUpdate)
-			}
-		}
-		if res.Closed, err = s.autoResolve(ctx, tx, a.ID, m.NotAffected, false, now, emit); err != nil {
-			return err
-		}
-		if res.Retired, err = s.autoResolve(ctx, tx, a.ID, m.Retired, true, now, emit); err != nil {
-			return err
-		}
-		if res.Aged, err = s.closeAged(ctx, tx, a.ID, m.Aged, now, emit); err != nil {
-			return err
-		}
-		if res.NameOnly, err = s.closeNameOnly(ctx, tx, a.ID, m.NameOnly, now, emit); err != nil {
-			return err
-		}
-		if res.Asked, err = s.closeAsked(ctx, tx, a.ID, m.Asked, now, emit); err != nil {
-			return err
-		}
-		var kept map[string]string // INV-6c: findings a person kept open on a row they said is not installed
-		if res.NotInstalled, kept, err = s.closeNotInstalled(ctx, tx, a.ID, a.Name, notInstalledCVEs(a, vulns, hs, m, now), now, emit); err != nil {
-			return err
-		}
-		n, err := s.noteNoLongerMatching(ctx, tx, a.ID, vulns, m, kept, correctionWhy(a, ""), now, emit)
-		if err != nil {
-			return err
-		}
-		res.Regraded += n
-		need, unchecked := m.NeedVersion, m.Unchecked
+		m := haveScope(a, vulns, matched, since, have, now)
+		qm := m
 		if whole != nil {
-			need, unchecked = whole.NeedVersion, whole.Unchecked
+			qm = *whole
 		}
-		if err := replaceUnchecked(ctx, tx, a.ID, unchecked, now); err != nil {
-			return err
-		}
-		added, err := announceUnchecked(ctx, tx, a.ID, unchecked, vulns, now)
-		if err != nil {
-			return err
-		}
-		if len(added) > 0 {
-			emit(EventUncheckedAdded, UncheckedAddedEvent{AssetID: a.ID, AssetName: clean(a.Name), CVEs: added})
-		}
-		return replaceVersionNeeded(ctx, tx, a.ID, need, now)
+		r, err := s.applyMatch(ctx, tx, a, vulns, judged, m, qm, existing, now, emit)
+		res = r
+		return err
 	})
 	if err != nil {
 		return UpsertResult{}, err
-	}
-	if res.Regraded > 0 {
-		s.cfg.Log.InfoContext(ctx, "product-only findings re-graded to the product severity (W3-3)", "asset", a.ID, "count", res.Regraded)
-	}
-	if res.Retired > 0 {
-		s.cfg.Log.InfoContext(ctx, "findings: closed (D-506): Multiple Products entries over a year old whose NVD list names none of the device's software",
-			"asset", a.ID, "count", res.Retired)
-	}
-	if res.Aged > 0 {
-		s.cfg.Log.InfoContext(ctx, "findings: closed (D-615): KEV CVEs published over 12 months ago matched by product only", "asset", a.ID, "count", res.Aged)
-	}
-	if res.Asked > 0 {
-		s.cfg.Log.InfoContext(ctx, "findings: closed (D-604): platform-limited CVEs only a person's answer decides, now under could-not-be-checked", "asset", a.ID, "count", res.Asked)
-	}
-	if res.NameOnly > 0 {
-		s.cfg.Log.InfoContext(ctx, "findings: closed (D-602): product findings without version evidence, now under could-not-be-checked", "asset", a.ID, "count", res.NameOnly)
 	}
 	return res, nil
 }
@@ -572,739 +605,309 @@ func haveScope(a Asset, vulns []Vuln, m MatchResult, since map[string]Have, have
 	return out
 }
 
-// autoResolve closes the suspected findings the matcher proved not affected: status not_relevant by the system
-// user, reason not_affected_version, the matcher's sentence as note and history, audit findings.auto_resolved and a
-// findings.finding.status_changed event. Only a positive proof comes here (MatchResult.NotAffected): an unknown or
-// unreadable version, a scan-confirmed or a closed finding is never closed, nor one a person reopened after Vedette
-// closed it. Nothing is deleted.
-//
-// retired closes the old findings of settled "Multiple Products" entries NVD's list leaves out
-// (MatchResult.Retired) the same way, under the same reason: the CHECK of fnd_finding.resolution_reason allows only
-// not_affected_version and a new value needs a rebuild of fnd_finding, so the note says why. Only basis product
-// closes (a version finding came from NVD naming the software once), and never one a person reopened at any time.
-// It returns how many it closed.
-func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, proved []Match, retired bool, now time.Time, emit func(string, any)) (int, error) {
-	closed := 0
-	for _, p := range proved {
-		r, err := loadByPair(ctx, tx, assetID, p.CVE)
-		if errors.Is(err, ErrNotFound) {
-			continue
-		}
-		if err != nil {
-			return closed, err
-		}
-		if reopenedByPerson(r.History) {
-			continue // a person reopened what Vedette closed: their call stands
-		}
-		if retired && (r.Basis != BasisProduct || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" })) {
-			continue // Product findings only, and a person's reopen always stands
-		}
-		was := r.Status
-		reason := ReasonNotAffectedVersion
-		var f Finding
-		var h HistoryEntry
-		ok := false
-		if fixed, yes := fixedByUpdate(r, p, orgtime.At(ctx, s.cfg.Zone)); yes && !retired { // the version moved out of the range: an update
-			if f, h, ok = r.FixedByUpdate(fixed, now); ok {
-				reason = ReasonFixedByUpdate
-			}
-		}
-		if !ok {
-			f, h, ok = r.AutoResolve(p.Evidence.Summary, now)
-		}
-		if !ok && !retired {
-			f, h, ok = r.SettleAsked(p.Evidence.Summary, now) // Closed while waiting for an answer; the answer proves it
-		}
-		if !ok {
-			// already closed by proof: keep where it rests and the version that proves it current (the entry changed, or an older row
-			// predates the columns); no history, no event
-			if !retired && (r.AutoResolved() || r.PatchedByUpdate()) && (r.SoftwareID != orKeep(p.SoftwareID, r.SoftwareID) || r.ProvedVersion != p.provedOn) {
-				r.SoftwareID, r.ProvedVersion = orKeep(p.SoftwareID, r.SoftwareID), p.provedOn
-				if err := updateRecord(ctx, tx, r); err != nil {
-					return closed, err
-				}
-			}
-			continue
-		}
-		r.Finding = f
-		r.SoftwareID, r.ProvedVersion = orKeep(p.SoftwareID, r.SoftwareID), p.provedOn
-		if err := updateRecord(ctx, tx, r); err != nil {
-			return closed, err
-		}
-		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-			return closed, err
-		}
-		detail := r.CVE + ": " + reason
-		switch {
-		case reason == ReasonFixedByUpdate:
-			detail += " (" + r.ResolutionNote + ")"
-		case p.pkgFixed:
-			detail += " (D-604: the package release is at or above the distribution's fix for the device's branch)"
-		case retired:
-			detail += " (D-506: Multiple Products, NVD names none of the device's software, entry over a year old)"
-		case p.why != "": // the reason code is the one the CHECK allows; the detail says no version was compared
-			detail += " (D-547: the device or the software names another platform than the one the CVE affects; no version was compared)"
-		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID, Detail: detail}); err != nil {
-			return closed, err
-		}
-		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: reason})
-		closed++
-	}
-	return closed, nil
-}
-
-// closeAged closes the open findings the age rule drops (S-TIER-4, MatchResult.Aged): a KEV CVE published over
-// 12 months ago that the matcher matches by product only (no version compared). Like the retired ones,
-// status not_relevant by the system user with the reason not_affected_version (the only one the CHECK of
-// fnd_finding.resolution_reason allows), the note saying why (AgedNote), a history row, audit findings.auto_resolved
-// and a status_changed event (notify sends nothing for it). Never a finding a scan confirmed (basis scan), a closed one, or
-// one a person reopened at any time: a person who reopened it decided. ReopenOnMatch reopens it on confirmed evidence.
-func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, aged []Match, now time.Time, emit func(string, any)) (int, error) {
-	closed := 0
-	for _, p := range aged {
-		r, err := loadByPair(ctx, tx, assetID, p.CVE)
-		if errors.Is(err, ErrNotFound) {
-			continue
-		}
-		if err != nil {
-			return closed, err
-		}
-		// product findings only (#803): a version or agent finding whose match fell back to product-only (NVD's
-		// ranges gone in one pull, a version that became unreadable) stays for the next match, never flip-flops; a person's reopen stands.
-		// A product finding on a row the agent reported (AgentRow) is no exception any more: the agent gave a
-		// version Vedette could not compare, which is no version evidence.
-		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent || personKept(r.History) {
-			continue
-		}
-		was := r.Status
-		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
-		if !ok {
-			continue
-		}
-		r.Finding = f
-		r.SoftwareID = orKeep(p.SoftwareID, r.SoftwareID)
-		if err := updateRecord(ctx, tx, r); err != nil {
-			return closed, err
-		}
-		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-			return closed, err
-		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID,
-			Detail: r.CVE + ": " + ReasonNotAffectedVersion + " (D-615: published over 12 months ago, product match only, no version compared)"}); err != nil {
-			return closed, err
-		}
-		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})
-		closed++
-	}
-	return closed, nil
-}
-
-// closeNameOnly closes the open findings that rest on the product name only (MatchResult.NameOnly): the matcher no longer makes
-// a finding without version evidence, and a rule change reaches the findings it made before at the next match or reconcile. Like the
-// age rule's: status not_relevant by the system user with the reason not_affected_version (the only one the CHECK allows),
-// the note saying why and that the CVE is now under "Could not be checked" (NameOnlyNote), a history row, audit
-// findings.auto_resolved and a status_changed event, which notify and response do not send on (only a reopen, an expired
-// acceptance or a scan's confirmation are notices), so closing many at once sends nothing. Only a suspected finding of basis
-// product (AutoResolve): never one a scan confirmed, a version or agent-build finding whose match fell back to product-only (it
-// stays and noteNoLongerMatching says why), a closed one (a person's not_relevant, false_positive, mitigated, patched or
-// risk_accepted stands), or one a person reopened at any time. ReopenOnMatch reopens it when a later match compares a version.
-func (s *Service) closeNameOnly(ctx context.Context, tx *sql.Tx, assetID string, dropped []Match, now time.Time, emit func(string, any)) (int, error) {
-	closed := 0
-	for _, p := range dropped {
-		r, err := loadByPair(ctx, tx, assetID, p.CVE)
-		if errors.Is(err, ErrNotFound) {
-			continue
-		}
-		if err != nil {
-			return closed, err
-		}
-		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent ||
-			personKept(r.History) {
-			continue
-		}
-		was := r.Status
-		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
-		if !ok {
-			continue
-		}
-		r.Finding = f
-		r.SoftwareID = orKeep(p.SoftwareID, r.SoftwareID)
-		if err := updateRecord(ctx, tx, r); err != nil {
-			return closed, err
-		}
-		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-			return closed, err
-		}
-		detail := r.CVE + ": " + ReasonNotAffectedVersion + " (D-602: product name only, no version evidence"
-		if p.listed { // #939
-			detail += "; listed under could not be checked"
-		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID, Detail: detail + ")"}); err != nil {
-			return closed, err
-		}
-		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})
-		closed++
-	}
-	return closed, nil
-}
-
-// closeAsked closes the open findings of platform-limited CVEs only a person's answer decides (MatchResult.Asked), like
-// closeNameOnly but whatever the basis (a version inside NVD's range says nothing while the platform condition is open): status
-// not_relevant by the system user, reason not_affected_version, the note (AskedNote first) saying what is not known and that the
-// CVE is under "Could not be checked" with the question, a history row, audit findings.auto_resolved and a status_changed event
-// (notify sends nothing for it). Never one a scan confirmed, a closed one, or one a person reopened or accepted (personKept).
-// ReopenOnMatch reopens it when the answer says the device is affected; autoResolve rewrites its reason when the answer proves
-// it is not (SettleAsked).
-func (s *Service) closeAsked(ctx context.Context, tx *sql.Tx, assetID string, asked []Match, now time.Time, emit func(string, any)) (int, error) {
-	closed := 0
-	for _, p := range asked {
-		r, err := loadByPair(ctx, tx, assetID, p.CVE)
-		if errors.Is(err, ErrNotFound) {
-			continue
-		}
-		if err != nil {
-			return closed, err
-		}
-		if personKept(r.History) || r.Basis == BasisPerson { // a platform answer is no version proof against a person's confirm
-			continue
-		}
-		was := r.Status
-		f, h, ok := r.AutoResolve(p.Evidence.Summary, now)
-		if !ok {
-			continue
-		}
-		r.Finding = f
-		r.SoftwareID = orKeep(p.SoftwareID, r.SoftwareID)
-		if err := updateRecord(ctx, tx, r); err != nil {
-			return closed, err
-		}
-		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-			return closed, err
-		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID,
-			Detail: r.CVE + ": " + ReasonNotAffectedVersion + " (D-604: platform condition open, needs a person's answer; listed under could not be checked)"}); err != nil {
-			return closed, err
-		}
-		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})
-		closed++
-	}
-	return closed, nil
-}
-
-// deviceDetail says, for the audit row of a status SettleByDevice changed, who stated the version.
-func deviceDetail(f Finding) string {
-	switch {
-	case !f.ByDevice():
-		return "the device no longer states a version inside the affected range"
-	case f.Evidence.Source == SourceSNMP:
-		return "the device states the version over SNMP"
-	}
-	return "the device's agent states the version"
-}
-
-// orKeep is the matcher's software row id, or the stored one when the match names none.
-func orKeep(id, stored string) string {
-	if id != "" {
-		return id
-	}
-	return stored
-}
-
-// personKept says a person kept the finding open: reopened it, or accepted its risk (#939: an expired acceptance reopens
-// as the system, and closing it an hour after "open again" was told would contradict the notice). The age rule and the name-only rule never close it.
-func personKept(hist []HistoryEntry) bool {
-	return slices.ContainsFunc(hist, func(h HistoryEntry) bool {
-		return h.User != SystemUser && (h.Action == "reopened" || h.Action == string(StatusRiskAccepted))
-	})
-}
-
-// noteNoLongerMatching records, once, that a suspected finding (basis version or product) is no longer produced by the
-// matcher although its CVE is in the list that was matched: the device's software changed, or CISA changed the vendor or
-// product of the entry. Nothing closes (FORBID-2): a person reads the history row and closes it. A CVE that is not
-// in vulns says nothing (a partial list never judges a pair), and a finding the scan confirmed (basis scan) is not judged by
-// the version matcher. Such a finding matched by product only and graded above medium before the product-severity rule takes the
-// product severity, once (the re-grade reaches it too: a pair the matcher no longer produces is never in Existing); it returns how many.
-// A finding the version the device reports confirmed (ByDevice) is judged the same way: the device no longer states a version
-// inside the range, so it goes back to suspected first (a "confirm_undone" row, findings.finding.status_changed with
-// ReasonDeviceVersion), then gets the same history row.
-func (s *Service) noteNoLongerMatching(ctx context.Context, tx *sql.Tx, assetID string, vulns []Vuln, m MatchResult, kept map[string]string, corrected string, now time.Time, emit func(string, any)) (regraded int, err error) {
-	rows, err := tx.QueryContext(ctx, `SELECT cve FROM fnd_finding WHERE asset_id = ? AND (status = 'suspected' OR status = 'confirmed' AND basis = 'version')`, assetID)
-	if err != nil {
-		return 0, fmt.Errorf("findings: reading suspected findings: %w", err)
-	}
-	var open []string
-	for rows.Next() {
-		var c string
-		if err := rows.Scan(&c); err != nil {
-			_ = rows.Close()
-			return 0, fmt.Errorf("findings: reading suspected findings: %w", err)
-		}
-		open = append(open, c)
-	}
-	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return 0, fmt.Errorf("findings: reading suspected findings: %w", err)
-	}
-	if len(open) == 0 {
-		return 0, nil
-	}
-	listed := make(map[string]bool, len(vulns))
-	for _, v := range vulns {
-		listed[v.CVE] = true
-	}
-	matched := make(map[string]bool, len(m.New)+len(m.Existing))
-	for _, x := range m.New {
-		matched[x.CVE] = true
-	}
-	for _, x := range m.Existing {
-		matched[x.CVE] = true
-	}
-	awaiting := map[string]string{} // CVE -> software that needs a version to decide it
-	for _, n := range m.NeedVersion {
-		for _, c := range n.CVEs {
-			awaiting[c] = n.Software
-		}
-	}
-	unlisted := make(map[string]string, len(m.Unlisted)+len(m.Aged)) // CVE -> why NVD's list does not name the software, or the age rule's sentence
-	for _, x := range m.Unlisted {
-		unlisted[x.CVE] = x.Evidence.Summary
-	}
-	for _, x := range m.Aged { // a finding the age rule did not close (a person reopened it, a version or agent finding) says why it stays
-		unlisted[x.CVE] = fmt.Sprintf("%s was published more than 12 months ago and Vedette now matches it by the product name only, so it would not list it on a device today. This finding stays open (you reopened it, or it was matched by version before); close it yourself if it does not apply.", x.CVE)
-	}
-	for _, x := range m.NameOnly { // One closeNameOnly left open (a person reopened it, a version or agent finding) says why it stays
-		unlisted[x.CVE] = fmt.Sprintf("Vedette now matches %s by the product name only (%s), so it would not list it as a finding on a device today. This finding stays open (you reopened it, or it was matched by version before); close it yourself if it does not apply.", x.CVE, x.gap)
-	}
-	for _, x := range m.Asked { // One closeAsked left open (a person reopened or accepted it) says what is still asked
-		unlisted[x.CVE] = x.AskedWhy() + ". Vedette lists it under \"Could not be checked\" until you answer there; this finding stays open because you kept it."
-	}
-	for cve, note := range kept { // INV-6c: one closeNotInstalled left open (a person reopened or accepted it) says why it stays
-		unlisted[cve] = note
-	}
-	for _, cve := range open {
-		if !listed[cve] || matched[cve] {
-			continue
-		}
-		r, err := loadByPair(ctx, tx, assetID, cve)
-		if err != nil {
-			return regraded, err
-		}
-		if r.Status == StatusConfirmed && r.ByDevice() { // the device's stated version no longer puts it inside the range
-			ev := *r.Evidence
-			ev.Source, ev.Agent = "", false // nothing the device states decides it any more: neither "Confirmed: …" nor "Detected by the agent"
-			ev.Summary = DeviceUnconfirmedNote + " Vedette no longer matches it to the software the device reports; check the device and close this finding if it does not apply."
-			r.Evidence = &ev
-			f, h, ok := r.SettleByDevice(now)
-			if ok {
-				r.Finding = f
-				if err := updateRecord(ctx, tx, r); err != nil {
-					return regraded, err
-				}
-				if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-					return regraded, err
-				}
-				if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.status", Target: r.ID,
-					Detail: r.CVE + ": confirmed to suspected (the device no longer states a version inside the affected range)"}); err != nil {
-					return regraded, err
-				}
-				emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: StatusConfirmed, To: r.Status, Reason: ReasonDeviceVersion})
-			}
-		}
-		if r.Status != StatusSuspected {
-			continue
-		}
-		if r.Basis == BasisProduct && sevRank(r.Severity) > sevRank(SeverityMedium) {
-			was := r.Severity
-			r.Severity = SeverityMedium
-			if err := updateRecord(ctx, tx, r); err != nil {
-				return regraded, err
-			}
-			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.regraded", Target: r.ID,
-				Detail: fmt.Sprintf("%s: %s to %s (product match only, version not compared)", r.CVE, was, r.Severity)}); err != nil {
-				return regraded, err
-			}
-			regraded++
-		}
-		h := HistoryEntry{TS: now, User: SystemUser, Action: "no_longer_matches",
-			Note: "The device no longer matches this entry: its software or version changed, the version is outside the affected versions, or the exploited list changed the entry. Close it yourself if it does not apply."}
-		if sw, ok := awaiting[cve]; ok {
-			h.Note = clean(sw) + " on this device has no version Vedette can read, so this CVE is no longer listed on its own: it is counted in \"Add the version\". Add the version to check it, or close this yourself."
-		} else if note, ok := unlisted[cve]; ok {
-			h.Note = clipNote(note)
-		}
-		h.Note = withCorrection(h.Note, corrected)
-		if n := len(r.History); n > 0 && r.History[n-1].Action == "no_longer_matches" && r.History[n-1].Note == h.Note {
-			continue // said already (a new reason, such as NVD's product list for a "Multiple Products" entry, is said once more)
-		}
-		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-			return regraded, err
-		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.no_longer_matches", Target: r.ID, Detail: cve}); err != nil {
-			return regraded, err
-		}
-	}
-	return regraded, nil
-}
-
-// ConfirmFromScan records a positive scan result for a pair (PRE-2, POST-2). The finding must exist
-// (scan targets come from findings). The change, its history row and the audit row are one
-// transaction; findings.finding.status_changed goes out when the library says a person has to know.
+// ConfirmFromScan records a positive safe check for a CVE on a device (PRE-2). The check is about the software line the CVE is on
+// (scanLine: the line the matcher reads the entry on, when the device has one): that line's finding is detected with basis scan,
+// verified scan, at the version the line reads now; a finding on no line takes the line; a device with no such line gets a finding on
+// no line. The scan's evidence is checked and truncated like any untrusted reply. It returns the finding in the older read model.
 func (s *Service) ConfirmFromScan(ctx context.Context, assetID, cve string, ev Evidence) (Record, error) {
 	if !ValidCVE(cve) {
 		return Record{}, fmt.Errorf("findings: confirming from scan: %w", ErrInvalidCVE)
 	}
-	var out Record
-	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
-		r, err := loadByPair(ctx, tx, assetID, cve)
-		if err != nil {
-			return err
-		}
+	if ev.Template == "" || len(ev.Template) > maxTemplate || !isText(ev.Template, ev.Summary, ev.Request, ev.Response) {
+		return Record{}, fmt.Errorf("findings: confirming from scan: %w", ErrInvalidEvidence)
+	}
+	ev.Summary, ev.Request, ev.Response = truncate(ev.Summary), truncate(ev.Request), truncate(ev.Response)
+	line, version, productKey, err := s.scanLine(ctx, assetID, cve)
+	if err != nil {
+		return Record{}, err
+	}
+	urgency := UrgencyUpdate
+	if kev, err := s.cfg.Feeds.KevInfo(ctx, []string{cve}); err != nil {
+		return Record{}, fmt.Errorf("findings: reading the exploited lists: %w", err)
+	} else if _, ok := kev[cve]; ok {
+		urgency = UrgencyExploited
+	}
+	var id string
+	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
 		// A scan that started before a person ignored the device confirms nothing on it
 		if ig, err := s.cfg.Inventory.IsIgnored(ctx, assetID); err != nil {
 			return fmt.Errorf("findings: reading whether the device is ignored: %w", err)
 		} else if ig {
-			out = r
 			return nil
 		}
 		if ev.CheckedAt.IsZero() {
 			ev.CheckedAt = now
 		}
-		was := r.Status
-		o, err := r.ConfirmFromScan(ev, now)
+		fs, err := queryFindings(ctx, tx, `asset_id = ? AND cve = ?`, assetID, cve)
 		if err != nil {
 			return err
 		}
-		if len(o.History) == 0 && !o.Notify {
-			out = r // the same match was already recorded: nothing changes
-			return nil
-		}
-		r.Finding = o.Finding
-		r.LastSeen = now
-		if err := r.Validate(); err != nil {
-			return fmt.Errorf("findings: finding %s after a scan: %w", r.ID, err)
-		}
-		if err := updateRecord(ctx, tx, r); err != nil {
-			return err
-		}
-		for _, h := range o.History {
-			if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-				return err
+		var onLine, noLine *Finding
+		for i := range fs {
+			switch fs[i].SoftwareID {
+			case line:
+				onLine = &fs[i]
+			case "":
+				noLine = &fs[i]
 			}
 		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.scan_confirmed", Target: r.ID,
-			Detail: fmt.Sprintf("%s: %s to %s, template %s", r.CVE, was, r.Status, ev.Template)}); err != nil {
+		var f Finding
+		isNew := false
+		switch {
+		case onLine != nil && noLine != nil && line != "":
+			if f, err = s.absorbNoLine(ctx, tx, *noLine, *onLine); err != nil {
+				return err
+			}
+		case onLine != nil:
+			f = *onLine
+		case noLine != nil:
+			f = *noLine // it takes the line, when there is one (TrDetected)
+		case line == "" && len(fs) > 0:
+			f = fs[0] // the matcher names no line for the CVE: the finding the device has
+		default:
+			known, err := s.cfg.Inventory.Assets(ctx, []string{assetID})
+			if err != nil {
+				return fmt.Errorf("findings: reading the device: %w", err)
+			}
+			if _, ok := known[assetID]; !ok {
+				return fmt.Errorf("findings: confirming from scan on device %q: %w", assetID, ErrUnknownAsset)
+			}
+			f, isNew = Finding{ID: store.NewID("f"), AssetID: assetID, CVE: cve}, true
+		}
+		e := ev
+		d := Detection{SoftwareID: line, Basis: DetectScan, Verified: VerifiedScan, RangeOrigin: RangeScan, MatchedVersion: version,
+			Evidence: &e, ReadAt: ev.CheckedAt, Urgency: urgency}
+		if !isNew {
+			d.RangeOrigin = f.RangeOrigin
+			if s.rates() {
+				d.Urgency = 0 // the urgency pass that follows rates and tells a rise
+			}
+		} else {
+			d.ProductKey = productKey
+		}
+		g, _, err := s.step(ctx, tx, f, isNew, Trigger{Kind: TrDetected, At: now, Detection: d}, emit)
+		if err != nil {
 			return err
 		}
-		if o.Notify {
-			emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status})
+		switch {
+		case isNew && Announced(g):
+			emit(EventCreated, CreatedEvent{FindingID: g.ID, AssetID: g.AssetID, CVE: g.CVE, Severity: SeverityHigh, Basis: BasisScan})
+		case !isNew && raised(f, g): // its CVE joined an exploited list since it was made: one alert of the rise
+			emit(EventUrgencyRaised, raisedEvent(f, g, SeverityHigh))
 		}
-		out, err = loadByID(ctx, tx, r.ID)
+		id = g.ID
+		return nil
+	})
+	if err != nil {
+		return Record{}, err
+	}
+	if id == "" {
+		return Record{}, nil
+	}
+	if _, err := s.RateUrgency(ctx, assetID); err != nil { // the check is saved: its record is the answer; the hourly pass rates it
+		s.cfg.Log.WarnContext(ctx, "findings: rating urgency after a safe check failed", "device", assetID, "error", err)
+	}
+	return s.Get(ctx, id)
+}
+
+// scanLine is the software line of the device a safe check of the CVE is about: the line the matcher reads the entry on (a match,
+// a proof, or a row it could not decide), with the version it matches on now (the package release when the line has one) and its
+// product. "" when the device has none, or the entry is not on the exploited list.
+func (s *Service) scanLine(ctx context.Context, assetID, cve string) (line, version, product string, err error) {
+	a, m, ok, err := s.matchOne(ctx, assetID, cve)
+	if err != nil || !ok {
+		return "", "", "", err
+	}
+	var ids []string
+	for _, x := range slices.Concat(m.New, m.Existing) {
+		ids = append(ids, x.SoftwareID)
+		for _, l := range x.Lines {
+			ids = append(ids, l.SoftwareID)
+		}
+	}
+	for _, x := range slices.Concat(m.NotAffected, m.NameOnly, m.Aged, m.Unlisted, m.Asked) {
+		ids = append(ids, x.SoftwareID)
+	}
+	for _, n := range m.NeedVersion {
+		ids = append(ids, n.SoftwareID)
+	}
+	lines := deviceLines(a)
+	for _, id := range ids {
+		if l, ok := lines[storedLine(id)]; ok && storedLine(id) != "" {
+			v := l.reading.Version
+			if l.reading.Pkg != "" {
+				v = l.reading.Pkg
+			}
+			return l.sw.ID, v, productKey(l.sw), nil
+		}
+	}
+	return "", "", "", nil
+}
+
+// matchOne matches the device against one entry of the exploited list, as if the device had a finding of it (so a proof names its
+// line too); a Windows build's month is read from the whole list. ok is false when the device is gone or ignored, or the entry is
+// not on the list.
+func (s *Service) matchOne(ctx context.Context, assetID, cve string) (Asset, MatchResult, bool, error) {
+	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
+	if err != nil {
+		return Asset{}, MatchResult{}, false, fmt.Errorf("findings: reading the device: %w", err)
+	}
+	if !ok {
+		return Asset{}, MatchResult{}, false, nil
+	}
+	vulns, err := s.cfg.Feeds.MatchSet(ctx, NewMatchScope([]Asset{a}, []string{cve}))
+	if err != nil {
+		return Asset{}, MatchResult{}, false, fmt.Errorf("findings: reading the catalogue: %w", err)
+	}
+	dev := newMatchSet(vulns).forDevice(a)
+	i := slices.IndexFunc(dev, func(v Vuln) bool { return v.CVE == cve })
+	if i < 0 {
+		return Asset{}, MatchResult{}, false, nil
+	}
+	a.winList = dev
+	return a, MatchAsset(a, dev[i:i+1], map[string]bool{cve: true}, s.now()), true, nil
+}
+
+// Handle marks findings of one device handled by a person, with one note (POST /findings/handle): all of ids must be findings of one
+// device (else ErrManyDevices). A finding that already has this handling is skipped. One event and one audit row per finding, all
+// or nothing.
+func (s *Service) Handle(ctx context.Context, ids []string, res Resolution, note string, until time.Time, user string) (handled, skipped int, err error) {
+	if err := ValidUser(user); err != nil {
+		return 0, 0, err
+	}
+	uniq := uniqueIDs(ids)
+	if len(uniq) == 0 || len(uniq) > MaxBulk {
+		return 0, 0, ErrTooMany
+	}
+	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+		handled, skipped = 0, 0
+		device := ""
+		for _, id := range uniq {
+			f, err := loadFinding(ctx, tx, id)
+			if err != nil {
+				return err
+			}
+			if device != "" && f.AssetID != device {
+				return ErrManyDevices
+			}
+			device = f.AssetID
+			_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrHandle, At: now, Actor: user, Resolution: res, Note: note, Until: until}, emit)
+			if err != nil {
+				return err
+			}
+			if len(evs) == 0 {
+				skipped++
+				continue
+			}
+			handled++
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	return handled, skipped, nil
+}
+
+// Reopen opens a handled finding again on a person's word (their handling was a mistake).
+func (s *Service) Reopen(ctx context.Context, id, note, user string) (Finding, error) {
+	return s.personStep(ctx, id, Trigger{Kind: TrReopen, Actor: user, Note: note})
+}
+
+// Verify confirms a finding that is not confirmed yet on a person's word; the note says what makes them sure. No bus event: a
+// person's own click sends no notice and starts no response.
+func (s *Service) Verify(ctx context.Context, id, note, user string) (Finding, error) {
+	return s.personStep(ctx, id, Trigger{Kind: TrVerify, Actor: user, Note: note})
+}
+
+// Unverify takes back a person's own confirmation.
+func (s *Service) Unverify(ctx context.Context, id, user string) (Finding, error) {
+	return s.personStep(ctx, id, Trigger{Kind: TrUnverify, Actor: user})
+}
+
+// personStep runs a person's trigger on one finding in a write of its own.
+func (s *Service) personStep(ctx context.Context, id string, t Trigger) (Finding, error) {
+	if err := ValidUser(t.Actor); err != nil {
+		return Finding{}, err
+	}
+	var out Finding
+	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
+		f, err := loadFinding(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		t.At = now
+		quiet := func(string, any) {}
+		if t.Kind == TrReopen {
+			quiet = emit
+		}
+		out, _, err = s.step(ctx, tx, f, false, t, quiet)
 		return err
 	})
 	return out, err
 }
 
-// RescanClear records that a rescan no longer matches (history row rescan_clear). The status never
-// changes: nothing closes without a person (FORBID-2).
-func (s *Service) RescanClear(ctx context.Context, assetID, cve string) error {
-	if !ValidCVE(cve) {
-		return fmt.Errorf("findings: recording a clear rescan: %w", ErrInvalidCVE)
-	}
-	return s.write(ctx, func(tx *sql.Tx, now time.Time, _ func(string, any)) error {
-		r, err := loadByPair(ctx, tx, assetID, cve)
-		if err != nil {
-			return err
-		}
-		if err := insertHistory(ctx, tx, r.ID, ScanClear(now)); err != nil {
-			return err
-		}
-		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.rescan_clear", Target: r.ID, Detail: r.CVE})
-	})
-}
-
-// SetStatus applies a person's action (INV-3). user is the actor's email. On any error nothing is
-// written. The checks run in the order the API reports them (library Finding.Apply).
+// SetStatus applies a person's action from the finding page: a handling (ActionResolution) or a reopen. On any error nothing is
+// written.
 func (s *Service) SetStatus(ctx context.Context, id string, action Action, note, user string) (Record, error) {
 	return s.setStatus(ctx, id, action, note, user, time.Time{})
 }
 
-// setStatus is SetStatus with the until day of accept_risk (zero for every other action).
+// setStatus is SetStatus with the last day of accept_risk (zero for every other action).
 func (s *Service) setStatus(ctx context.Context, id string, action Action, note, user string, until time.Time) (Record, error) {
-	if err := ValidUser(user); err != nil {
+	if action == ActionReopen {
+		if !until.IsZero() {
+			return Record{}, fmt.Errorf("findings: reopening with a date: %w", ErrBadUntil)
+		}
+		if _, err := s.Reopen(ctx, id, note, user); err != nil {
+			return Record{}, err
+		}
+		return s.Get(ctx, id)
+	}
+	res, ok := ActionResolution(action)
+	if !ok {
+		return Record{}, fmt.Errorf("findings: applying action %q: %w", action, ErrBadAction)
+	}
+	if _, _, err := s.Handle(ctx, []string{id}, res, note, until, user); err != nil {
 		return Record{}, err
 	}
-	var out Record
-	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
-		r, err := applyStatus(ctx, s.cfg.Audit, tx, id, action, note, user, until, now, emit)
-		out = r
-		return err
-	})
-	return out, err
+	return s.Get(ctx, id)
 }
 
-// ConfirmByPerson confirms a suspected finding on a person's word (Finding.ConfirmByPerson): the change, its history row
-// ("Confirmed by <user>: <note>"), the audit row findings.confirm are one transaction; no status_changed event goes out, so no notice is sent and no response starts. The caller has
-// checked the person is an admin (the route's role).
+// ConfirmByPerson is Verify in the older read model.
 func (s *Service) ConfirmByPerson(ctx context.Context, id, note, user string) (Record, error) {
-	return s.confirmChange(ctx, id, user, "findings.confirm", func(f Finding, now time.Time) (Finding, HistoryEntry, error) {
-		return f.ConfirmByPerson(note, user, now)
-	})
-}
-
-// UnconfirmByPerson is Undo: a finding a person confirmed goes back to suspected, with a history row and the audit row
-// findings.unconfirm. A finding a scan confirmed is refused.
-func (s *Service) UnconfirmByPerson(ctx context.Context, id, user string) (Record, error) {
-	return s.confirmChange(ctx, id, user, "findings.unconfirm", func(f Finding, now time.Time) (Finding, HistoryEntry, error) {
-		return f.UnconfirmByPerson(user, now)
-	})
-}
-
-func (s *Service) confirmChange(ctx context.Context, id, user, action string, change func(Finding, time.Time) (Finding, HistoryEntry, error)) (Record, error) {
-	if err := ValidUser(user); err != nil {
+	if _, err := s.Verify(ctx, id, note, user); err != nil {
 		return Record{}, err
 	}
-	var out Record
-	err := s.write(ctx, func(tx *sql.Tx, now time.Time, _ func(string, any)) error {
-		r, err := loadByID(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		f, h, err := change(r.Finding, now)
-		if err != nil {
-			return err
-		}
-		r.Finding = f
-		if err := f.Validate(); err != nil {
-			return fmt.Errorf("findings: finding %s after %s: %w", r.ID, action, err)
-		}
-		if err := updateRecord(ctx, tx, r); err != nil {
-			return err
-		}
-		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-			return err
-		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: action, Target: r.ID, Detail: r.CVE + ": " + h.Note}); err != nil {
-			return err
-		}
-		// No status_changed event: a person's own click sends no notice and starts no response; the history and the audit row are the record.
-		out, err = loadByID(ctx, tx, r.ID)
-		return err
-	})
-	return out, err
+	return s.Get(ctx, id)
 }
 
-// MaxBulk is how many findings one bulk status change may touch (INV-10): a filtered list of a few hundred findings
-// fits, and the one write transaction stays short.
+// UnconfirmByPerson is Unverify in the older read model.
+func (s *Service) UnconfirmByPerson(ctx context.Context, id, user string) (Record, error) {
+	if _, err := s.Unverify(ctx, id, user); err != nil {
+		return Record{}, err
+	}
+	return s.Get(ctx, id)
+}
+
+// MaxBulk is how many findings one handle request may touch: a filtered list of a few hundred findings fits, and the one write
+// transaction stays short.
 const MaxBulk = 500
 
 // ErrTooMany is a bulk change that names more than MaxBulk findings, or none (the API's 400 invalid).
 var ErrTooMany = &APIError{"invalid", 400, fmt.Sprintf("Select between 1 and %d findings.", MaxBulk)}
 
-// SetStatusMany applies one action with one note to the open findings among ids (INV-10): every open finding gets its
-// own history row, its own core_audit row and its own status_changed event, exactly as SetStatus would give it, all in
-// one transaction. A finding that is already closed (patched, mitigated, false positive, not relevant, risk accepted) is counted in
-// skipped and left as it is: a bulk change never overwrites a reason someone wrote. All or nothing: an unknown id or a
-// refused action writes nothing. reopen is not a bulk action. A duplicate id counts once.
-func (s *Service) SetStatusMany(ctx context.Context, ids []string, action Action, note, user string) (changed, skipped int, err error) {
-	return s.setStatusMany(ctx, ids, action, note, user, time.Time{})
-}
+// ErrManyDevices is a handle request whose findings are on more than one device: handling always applies to one device.
+var ErrManyDevices = &APIError{"many_devices", 400, "Handle the findings of one device at a time."}
 
-// setStatusMany is SetStatusMany with the until day of accept_risk: a bad day is refused before anything, even
-// when every finding is closed.
-func (s *Service) setStatusMany(ctx context.Context, ids []string, action Action, note, user string, until time.Time) (changed, skipped int, err error) {
-	if err := ValidUser(user); err != nil {
-		return 0, 0, err
-	}
-	if action == ActionReopen {
-		return 0, 0, fmt.Errorf("findings: bulk %q: %w", action, ErrBadAction)
-	}
-	if err := ValidUntil(action, until, s.now()); err != nil {
-		return 0, 0, err
-	}
+func uniqueIDs(ids []string) []string {
 	seen := make(map[string]bool, len(ids))
-	uniq := make([]string, 0, len(ids))
+	out := make([]string, 0, len(ids))
 	for _, id := range ids {
 		if !seen[id] {
 			seen[id] = true
-			uniq = append(uniq, id)
+			out = append(out, id)
 		}
 	}
-	if len(uniq) == 0 || len(uniq) > MaxBulk {
-		return 0, 0, ErrTooMany
-	}
-	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
-		changed, skipped = 0, 0
-		for _, id := range uniq {
-			r, err := loadByID(ctx, tx, id)
-			if err != nil {
-				return err
-			}
-			if !r.Status.Open() {
-				skipped++
-				continue
-			}
-			if _, err := applyStatus(ctx, s.cfg.Audit, tx, id, action, note, user, until, now, emit); err != nil {
-				return err
-			}
-			changed++
-		}
-		return nil
-	})
-	if err != nil {
-		return 0, 0, err
-	}
-	return changed, skipped, nil
-}
-
-// applyStatus is one person's action on one finding inside tx: the change, its history row, its audit row and, when the
-// status changed, its event.
-func applyStatus(ctx context.Context, log *audit.Log, tx *sql.Tx, id string, action Action, note, user string, until, now time.Time, emit func(string, any)) (Record, error) {
-	r, err := loadByID(ctx, tx, id)
-	if err != nil {
-		return Record{}, err
-	}
-	was := r.Status
-	f, h, err := r.apply(action, note, user, until, now)
-	if err != nil {
-		return Record{}, err
-	}
-	r.Finding = f
-	if err := f.Validate(); err != nil {
-		return Record{}, fmt.Errorf("findings: finding %s after %s: %w", r.ID, action, err)
-	}
-	if err := updateRecord(ctx, tx, r); err != nil {
-		return Record{}, err
-	}
-	if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-		return Record{}, err
-	}
-	detail := fmt.Sprintf("%s: %s", r.CVE, action)
-	if h.Note != "" {
-		detail += ": " + h.Note
-	}
-	if err := log.Append(ctx, tx, audit.Entry{User: user, Action: "findings.status", Target: r.ID, Detail: detail}); err != nil {
-		return Record{}, err
-	}
-	if was != r.Status {
-		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status})
-	}
-	return loadByID(ctx, tx, r.ID)
-}
-
-// OnAssetIgnored handles inventory.asset.ignored (inventory INV-38): a person said the device needs no watching. Its open
-// findings close (Finding.IgnoreClose: not_relevant by the system user, "Closed by Vedette: the device was ignored by <person>."),
-// each with its history row, an audit row findings.status and a status_changed event with ReasonDeviceIgnored (notify sends
-// nothing for it). Findings already closed keep their status, note and history. Its "add the version" items and unchecked rows go
-// (derived; the next match makes them again) and its plan entry is dropped. While ignored the inventory leaves the device out of
-// MatchInput and AssetIDs, so nothing new is made. It returns how many findings it closed.
-func (s *Service) OnAssetIgnored(ctx context.Context, assetID, actor string) (int, error) {
-	ctx, cancel := eventContext(ctx)
-	defer cancel()
-	s.dropPlan(assetID)
-	return s.forAssetFindings(ctx, assetID, ReasonDeviceIgnored, true, func(f Finding, now time.Time) (Finding, HistoryEntry, bool) {
-		return f.IgnoreClose(actor, now)
-	})
-}
-
-// OnAssetUnignored handles inventory.asset.unignored: the device is watched again. Only the findings OnAssetIgnored closed
-// and nobody touched since reopen (Finding.UnignoreReopen), with a history row, an audit row and a status_changed event with
-// ReasonDeviceWatched (notify sends nothing for it); the inventory.asset.updated that follows matches the device again as usual.
-// It returns how many findings it reopened.
-func (s *Service) OnAssetUnignored(ctx context.Context, assetID, actor string) (int, error) {
-	ctx, cancel := eventContext(ctx)
-	defer cancel()
-	s.markPlan(assetID)
-	return s.forAssetFindings(ctx, assetID, ReasonDeviceWatched, false, func(f Finding, now time.Time) (Finding, HistoryEntry, bool) {
-		return f.UnignoreReopen(actor, now)
-	})
-}
-
-// forAssetFindings runs change on every finding of a device in one write, only while the device is ignored (ignored) or watched
-// (!ignored), asked inside the write, so an event or a reconcile pass that lost a race with the person's next click changes nothing
-// (#945). A finding it changes (ok) is validated and stored with its history row, an audit row findings.status and
-// a status_changed event with reason. On an ignored device it also removes the "add the version" items and unchecked rows.
-func (s *Service) forAssetFindings(ctx context.Context, assetID, reason string, ignored bool, change func(f Finding, now time.Time) (Finding, HistoryEntry, bool)) (int, error) {
-	dropDerived := ignored
-	n := 0
-	err := s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
-		n = 0
-		if is, err := s.cfg.Inventory.IsIgnored(ctx, assetID); err != nil {
-			return fmt.Errorf("findings: reading whether the device is ignored: %w", err)
-		} else if is != ignored {
-			return nil
-		}
-		recs, err := listRecords(ctx, tx, assetID)
-		if err != nil {
-			return fmt.Errorf("findings: reading the findings of a device: %w", err)
-		}
-		for i := range recs {
-			r := &recs[i]
-			before := r.Status
-			f, h, ok := change(r.Finding, now)
-			if !ok {
-				continue
-			}
-			r.Finding = f
-			if err := r.Validate(); err != nil {
-				return fmt.Errorf("findings: finding %s: %w", r.ID, err)
-			}
-			if err := updateRecord(ctx, tx, *r); err != nil {
-				return err
-			}
-			if err := insertHistory(ctx, tx, r.ID, h); err != nil {
-				return err
-			}
-			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.status", Target: r.ID,
-				Detail: fmt.Sprintf("%s: %s to %s (%s)", r.CVE, before, r.Status, reason)}); err != nil {
-				return err
-			}
-			emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: before, To: r.Status, Reason: reason})
-			n++
-		}
-		if !dropDerived {
-			return nil
-		}
-		for _, q := range []string{`DELETE FROM fnd_version_needed WHERE asset_id = ?`, `DELETE FROM fnd_unchecked WHERE asset_id = ?`} {
-			if _, err := tx.ExecContext(ctx, q, assetID); err != nil {
-				return fmt.Errorf("findings: clearing the derived rows of an ignored device: %w", err)
-			}
-		}
-		return nil
-	})
-	return n, err
-}
-
-func cvesOfAsset(ctx context.Context, q querier, assetID string) ([]string, error) {
-	rows, err := q.QueryContext(ctx, `SELECT cve FROM fnd_finding WHERE asset_id = ?`, assetID)
-	if err != nil {
-		return nil, fmt.Errorf("findings: reading existing findings: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-	var out []string
-	for rows.Next() {
-		var c string
-		if err := rows.Scan(&c); err != nil {
-			return nil, fmt.Errorf("findings: reading existing findings: %w", err)
-		}
-		out = append(out, c)
-	}
-	return out, rows.Err()
-}
-
-func haveSet(cves []string) map[string]bool {
-	m := make(map[string]bool, len(cves))
-	for _, c := range cves {
-		m[c] = true
-	}
-	return m
-}
-
-// createdDetail is the audit text of a new finding. It names the device, not its id: the audit page replaces an id with
-// the name and prints the stored text under it, so an id here showed every line twice.
-func createdDetail(r Record, a Asset) string {
-	dev := clean(a.Name)
-	if dev == "" {
-		dev = r.AssetID
-	}
-	return fmt.Sprintf("%s on %s, basis %s, %s", r.CVE, dev, r.Basis, r.Severity)
+	return out
 }

@@ -61,6 +61,8 @@ const (
 	numOrNull  = `{"type":["number","null"]}`
 	pageOutput = `"total":{"type":"integer","description":"Items that match, over all pages."},"next_offset":{"type":["integer","null"],"description":"Offset of the next page; null on the last page."}`
 
+	fixProps = `"fix":{"type":"string","description":"What fixes it on this device, in one sentence: the fix the finding page shows."},"verification":{"type":"string","description":"Whether a person, a safe check or the device itself confirmed that the device is affected, or that nobody has yet."},`
+
 	ignoredProp    = `"ignored":{"type":"boolean","description":"A person said this device needs no watching: it is not waiting for review, not scanned and has no open findings."},`
 	assetRowSchema = `{"type":"object","additionalProperties":false,"required":["id","name","ip","hostname","kind","vendor","model","os","approved","ignored","first_seen","last_seen"],"properties":{` +
 		`"id":{"type":"string"},"name":{"type":"string"},"ip":` + strOrNull + `,"hostname":` + strOrNull + `,"kind":{"type":"string"},` +
@@ -77,21 +79,31 @@ const (
 	findingRowSchema = `{"type":"object","additionalProperties":false,"required":["id","asset_id","cve","status","severity","confidence","basis","first_seen","last_seen","resolved_at"],"properties":{` +
 		`"id":{"type":"string"},"asset_id":{"type":"string"},"cve":{"type":"string"},` +
 		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"]},` +
-		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` +
+		`"urgency":{"type":"string","enum":["under_attack","exploited","public_exploit","critical_edge","update_recommended"],"description":"Why it matters now: under_attack (an intrusion alert on this network named the CVE), exploited (attackers use it), public_exploit (working exploit code is public), critical_edge (a critical flaw on a device attackers target first) or update_recommended (no sign of exploitation)."},` +
+		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` + fixProps +
 		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"},"accepted_until":{"type":"string","format":"date","description":"risk_accepted only: the last day; the finding reopens by itself after it."}}}`
 	findingSchema = `{"type":"object","additionalProperties":false,"required":["id","asset_id","cve","status","severity","confidence","basis","first_seen","last_seen","resolved_at","evidence","history"],"properties":{` +
 		`"id":{"type":"string"},"asset_id":{"type":"string"},"cve":{"type":"string"},` +
 		`"status":{"type":"string","enum":["confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"]},` +
-		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` +
+		`"urgency":{"type":"string","enum":["under_attack","exploited","public_exploit","critical_edge","update_recommended"],"description":"Why it matters now: under_attack (an intrusion alert on this network named the CVE), exploited (attackers use it), public_exploit (working exploit code is public), critical_edge (a critical flaw on a device attackers target first) or update_recommended (no sign of exploitation)."},` +
+		`"severity":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1},"basis":{"type":"string"},` + fixProps +
 		`"first_seen":{"type":"string","format":"date-time"},"last_seen":{"type":"string","format":"date-time"},"resolved_at":{"type":["string","null"],"format":"date-time"},"accepted_until":{"type":"string","format":"date","description":"risk_accepted only: the last day; the finding reopens by itself after it."},` +
 		`"evidence":{"type":["object","null"],"additionalProperties":false,"required":["template","checked_at"],"properties":{"template":{"type":"string","description":"The scan check that confirmed it."},"checked_at":{"type":"string","format":"date-time"}}},` +
 		`"history":{"type":"array","maxItems":50,"items":{"type":"object","additionalProperties":false,"required":["at","action"],"properties":{"at":{"type":"string","format":"date-time"},"action":{"type":"string"}}}}}}`
 
-	cveEntrySchema = `{"type":"object","additionalProperties":false,"required":["cve","vendor","product","name","description","required_action","date_added","due_date","ransomware","epss","has_scan_template","links"],"properties":{` +
+	cveEntrySchema = `{"type":"object","additionalProperties":false,"required":["cve","vendor","product","name","description","required_action","due_date","ransomware","epss","has_scan_template","links"],"properties":{` +
 		`"cve":{"type":"string"},"vendor":{"type":"string"},"product":{"type":"string"},"name":{"type":"string"},"description":{"type":"string"},` +
-		`"required_action":{"type":"string"},"source":{"type":"string","description":"The list that has it: cisa-kev, vulncheck-kev (VulnCheck KEV) or a feed the administrator added."},"date_added":{"type":"string","format":"date"},"due_date":{"type":["string","null"],"format":"date"},` +
+		`"required_action":{"type":"string"},"source":{"type":"string","description":"The list that has it: cisa-kev, vulncheck-kev (VulnCheck KEV) or a feed the administrator added; empty when no list has the CVE."},"date_added":{"type":"string","format":"date"},"due_date":{"type":["string","null"],"format":"date"},` +
 		`"ransomware":{"type":"boolean","description":"Known to be used in ransomware campaigns."},"epss":` + numOrNull + `,` +
-		`"has_scan_template":{"type":"boolean","description":"The box has a check that can confirm it by scanning."},"links":{"type":"array","maxItems":10,"items":{"type":"string"}}}}`
+		`"has_scan_template":{"type":"boolean","description":"The box has a check that can confirm it by scanning."},"links":{"type":"array","maxItems":10,"items":{"type":"string"}},` +
+		`"title":{"type":"string"},"published":{"type":"string","format":"date"},"nvd_status":{"type":"string","description":"NVD's own word for where it is in its analysis; empty until NVD answered."},` +
+		`"weaknesses":{"type":"array","maxItems":10,"items":{"type":"object","additionalProperties":false,"required":["id","name"],"properties":{"id":{"type":"string"},"name":{"type":"string"}}}},` +
+		`"cvss":{"type":"object","additionalProperties":false,"required":["score","severity","version","vector","attack_vector","privileges_required","user_interaction"],"properties":{"score":{"type":"number"},"severity":{"type":"string"},"version":{"type":"string"},"vector":{"type":"string"},"attack_vector":{"type":"string"},"privileges_required":{"type":"string"},"user_interaction":{"type":"string"}}},` +
+		`"affected_versions":{"type":"array","maxItems":30,"items":{"type":"string"}},"affected_versions_from":{"type":"string","enum":["nvd","cna","adp"],"description":"Whose affected versions these are: NVD's, the vendor's own (the CVE record's CNA) or CISA's (ADP)."},` +
+		`"fixed_releases":{"type":"array","maxItems":20,"items":{"type":"object","additionalProperties":false,"required":["train","release"],"properties":{"train":{"type":"string"},"release":{"type":"string"}}}},` +
+		`"solution":{"type":"string"},"workaround":{"type":"string","description":"The CVE record's workaround, or the sentence that none is published."},` +
+		`"references":{"type":"array","maxItems":30,"items":{"type":"object","additionalProperties":false,"required":["url","group"],"properties":{"url":{"type":"string"},"group":{"type":"string"}}}},` +
+		`"nvd_url":{"type":"string"},"record_url":{"type":"string"}}}`
 	hotSchema = `{"type":"object","additionalProperties":false,"required":["cve","vendor","product","date_added","ransomware","epss","has_scan_template"],"properties":{` +
 		`"cve":{"type":"string"},"vendor":{"type":"string"},"product":{"type":"string"},"date_added":{"type":"string","format":"date"},"ransomware":{"type":"boolean"},"epss":` + numOrNull + `,"has_scan_template":{"type":"boolean"}}}`
 )
@@ -119,7 +131,7 @@ var Tools = []Tool{
 	},
 	{
 		Name: "list_findings", Title: "List findings", Scope: ScopeFindings,
-		Description: "List exploited vulnerabilities matched to devices (findings), newest first. status: open (confirmed or suspected, the default), all, or one status. Filter by asset_id or cve. Paged with offset and limit.",
+		Description: "List vulnerabilities matched to devices (findings), newest first. urgency says why each matters now: under_attack, exploited, public_exploit, critical_edge or update_recommended; only the first two are being exploited. status: open (confirmed or suspected, the default), all, or one status. Filter by asset_id or cve. Paged with offset and limit.",
 		Input:       json.RawMessage(`{"type":"object","additionalProperties":false,"properties":{"status":{"type":"string","enum":["open","all","confirmed","suspected","mitigated","patched","false_positive","not_relevant","risk_accepted"],"default":"open"},"asset_id":{"type":"string","maxLength":96},"cve":{"type":"string","pattern":"^[Cc][Vv][Ee]-[0-9]{4}-[0-9]{4,7}$"},` + pageProps + `}}`),
 		Output:      page(findingRowSchema),
 		run:         listFindings,
@@ -133,7 +145,7 @@ var Tools = []Tool{
 	},
 	{
 		Name: "lookup_cve", Title: "Look up a CVE", Scope: ScopeFeeds,
-		Description: "Look a CVE up in the exploited-vulnerability lists on the box (CISA KEV, VulnCheck KEV when the administrator turned it on, and the feeds the administrator added); the entry names its list in source. listed is false when no list has it.",
+		Description: "Look a CVE up in the box's catalogue: its title and weakness, the score read into words, the affected versions with the fixed release of each release train, the CVE record's solution and workaround, and its references by tag. When an exploited list has it (CISA KEV, VulnCheck KEV when the administrator turned it on, or a feed the administrator added) the entry names that list in source and listed is true; listed is false for a CVE no list has, and entry is null for a CVE the catalogue does not hold.",
 		Input:       json.RawMessage(`{"type":"object","additionalProperties":false,"required":["cve"],"properties":{"cve":{"type":"string","pattern":"^[Cc][Vv][Ee]-[0-9]{4}-[0-9]{4,7}$","description":"For example CVE-2024-3400."}}}`),
 		Output:      json.RawMessage(`{"type":"object","additionalProperties":false,"required":["cve","listed","entry"],"properties":{"cve":{"type":"string"},"listed":{"type":"boolean"},"entry":{"oneOf":[{"type":"null"},` + cveEntrySchema + `]}}}`),
 		run:         lookupCVE,
@@ -370,6 +382,9 @@ type findingRow struct {
 	LastSeen      string  `json:"last_seen"`
 	ResolvedAt    *string `json:"resolved_at"`
 	AcceptedUntil string  `json:"accepted_until,omitempty"`
+	Urgency       string  `json:"urgency,omitempty"`
+	Fix           string  `json:"fix,omitempty"`
+	Verification  string  `json:"verification,omitempty"`
 }
 
 func listFindings(ctx context.Context, src Source, a args) (any, int, error) {
@@ -414,7 +429,8 @@ func listFindings(ctx context.Context, src Source, a args) (any, int, error) {
 		case hasCVE && !strings.EqualFold(f.CVE, cve):
 			continue
 		}
-		rows = append(rows, findingRow{f.ID, f.AssetID, f.CVE, f.Status, f.Severity, f.Confidence, f.Basis, f.FirstSeen, f.LastSeen, f.ResolvedAt, f.AcceptedUntil})
+		rows = append(rows, findingRow{f.ID, f.AssetID, f.CVE, f.Status, f.Severity, f.Confidence, f.Basis, f.FirstSeen, f.LastSeen, f.ResolvedAt, f.AcceptedUntil, f.Urgency,
+			clip(f.Fix, 512), clip(f.Verification, 256)})
 	}
 	p := paginate(rows, offset, limit)
 	return p, len(p.Items), nil
@@ -437,6 +453,7 @@ func getFinding(ctx context.Context, src Source, a args) (any, int, error) {
 		e.Template = clip(e.Template, 256)
 		f.Evidence = &e
 	}
+	f.Fix, f.Verification = clip(f.Fix, 512), clip(f.Verification, 256)
 	if f.History == nil {
 		f.History = []HistoryStep{}
 	}
@@ -471,12 +488,17 @@ func lookupCVE(ctx context.Context, src Source, a args) (any, int, error) {
 	}
 	e.Vendor, e.Product, e.Name = clip(e.Vendor, 256), clip(e.Product, 256), clip(e.Name, 512)
 	e.Description, e.RequiredAction = clip(e.Description, maxText), clip(e.RequiredAction, maxText)
+	e.Title, e.Solution, e.Workaround = clip(e.Title, 512), clip(e.Solution, maxText), clip(e.Workaround, maxText)
 	links := []string{}
 	for _, l := range e.Links[:min(len(e.Links), maxLinks)] {
 		links = append(links, clip(l, 512))
 	}
 	e.Links = links
-	return cveAnswer{CVE: cve, Listed: true, Entry: &e}, 1, nil
+	e.Weaknesses = e.Weaknesses[:min(len(e.Weaknesses), 10)]
+	e.AffectedVersions = e.AffectedVersions[:min(len(e.AffectedVersions), 30)]
+	e.FixedReleases = e.FixedReleases[:min(len(e.FixedReleases), 20)]
+	e.References = e.References[:min(len(e.References), 30)]
+	return cveAnswer{CVE: cve, Listed: e.Source != "", Entry: &e}, 1, nil
 }
 
 func lookupIOC(ctx context.Context, src Source, a args) (any, int, error) {

@@ -93,7 +93,7 @@ describe('Device page: the network scan row while the switch is on and nothing h
     markReached('saj-fw', ['192.168.10.81'])
     renderApp('/devices/a-hand-fw2', { role: 'admin' })
     const row = await scanRow()
-    expect(await within(row).findByText('last check 3 hours ago', {}, T)).toBeInTheDocument()
+    expect(await within(row).findByText(/^On · last check 3 hours ago/, {}, T)).toBeInTheDocument()
     expect(row).not.toHaveTextContent('Not set up')
     expect(row).not.toHaveTextContent('first check')
   })

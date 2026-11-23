@@ -7,6 +7,7 @@ import { CalendarClock, Power, RefreshCw, ShieldCheck } from 'lucide-react'
 import { Notice } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
+import { CveList } from '@/components/common/status'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
@@ -165,7 +166,7 @@ function Body({ s }: { s: CheckedOs }) {
     { id: 'cur', header: t('updates.os.col.current'), accessorFn: (p) => p.current, cell: ({ getValue }) => <span className="font-mono text-meta text-muted">{getValue() as string}</span> },
     { id: 'new', header: t('updates.os.col.new'), accessorFn: (p) => p.new, cell: ({ getValue }) => <span className="font-mono text-meta">{getValue() as string}</span> },
     { id: 'sec', header: t('updates.os.col.security'), accessorFn: (p) => Number(p.security), cell: ({ row }) => (row.original.security ? <Chip tone="danger">{t('common:yes')}</Chip> : <span className="text-muted">{t('common:no')}</span>) },
-    { id: 'cves', header: t('updates.os.col.cves'), accessorFn: (p) => p.cves.join(' '), cell: ({ row }) => (row.original.cves.length ? <div className="flex flex-wrap gap-x-2">{row.original.cves.map((c) => <span key={c} className="whitespace-nowrap text-meta">{c}</span>)}</div> : <span className="text-muted">–</span>) },
+    { id: 'cves', header: t('updates.os.col.cves'), accessorFn: (p) => p.cves.join(' '), cell: ({ row }) => (row.original.cves.length ? <CveList items={row.original.cves.map((cve) => ({ cve }))} label={t('updates.os.cvesOf', { name: row.original.name })} /> : <span className="text-muted">–</span>) },
   ]
 
   return (
@@ -236,7 +237,7 @@ function Body({ s }: { s: CheckedOs }) {
                 <div className="grid gap-1">
                   <div className="flex flex-wrap items-center gap-2"><span className="font-mono text-meta font-medium [overflow-wrap:anywhere]">{p.name}</span>{p.security ? <Chip tone="danger">{t('updates.os.col.security')}</Chip> : null}</div>
                   <span className="font-mono text-caption text-muted [overflow-wrap:anywhere]">{p.current} {'>'} {p.new}</span>
-                  {p.cves.length ? <span className="text-caption">{p.cves.join(', ')}</span> : null}
+                  {p.cves.length ? <CveList items={p.cves.map((cve) => ({ cve }))} label={t('updates.os.cvesOf', { name: p.name })} /> : null}
                 </div>
               )} />
           </div>

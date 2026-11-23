@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/netip"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -23,7 +22,7 @@ import (
 // review: never throw away a person's decisions: Ignore through the API (operator) closes the device's open
 // findings with a readable reason and no notice; a finding a person settled keeps its status; a reconcile makes nothing new; Stop
 // ignoring reopens only what Ignore closed and the device is matched again.
-func TestWiringIgnoredDeviceClosesItsOpenFindingsAndKeepsDecisions(t *testing.T) {
+func TestWiringIgnoredDeviceKeepsItsFindingsAsTheyAre(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	ctx := t.Context()
@@ -70,9 +69,9 @@ func TestWiringIgnoredDeviceClosesItsOpenFindingsAndKeepsDecisions(t *testing.T)
 	if c, b := s.do("POST", "/inventory/devices/"+id+"/ignore", "operator", `{"ignored":true}`); c != 200 {
 		t.Fatalf("ignore: %d %v", c, b)
 	}
-	recs = byCVE()
+	recs = byCVE() // ignoring is an attribute of the device: its findings stay as they are, and every list leaves them out
 	open := recs["CVE-2026-1001"]
-	if len(recs) != 2 || open.Status != findings.StatusNotRelevant || !strings.HasPrefix(open.ResolutionNote, "Closed by Vedette: the device was ignored by ") {
+	if len(recs) != 2 || open.Status != findings.StatusSuspected {
 		t.Fatalf("after ignore: %+v", recs)
 	}
 	if fp := recs["CVE-2026-1002"]; fp.Status != findings.StatusFalsePositive || fp.ResolutionNote != "not this model" {
@@ -81,7 +80,7 @@ func TestWiringIgnoredDeviceClosesItsOpenFindingsAndKeepsDecisions(t *testing.T)
 	if err := findingsJobs(*s.d)[0].Run(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if recs = byCVE(); len(recs) != 2 || recs["CVE-2026-1001"].Status != findings.StatusNotRelevant {
+	if recs = byCVE(); len(recs) != 2 || recs["CVE-2026-1001"].Status != findings.StatusSuspected {
 		t.Fatalf("the reconcile touched an ignored device's findings: %+v", recs)
 	}
 	if c, b := s.do("GET", "/inventory/devices", "viewer", ""); c != 200 || at(b, "counts", "ignored") != float64(1) || len(at(b, "items").([]any)) != 0 {
@@ -96,7 +95,7 @@ func TestWiringIgnoredDeviceClosesItsOpenFindingsAndKeepsDecisions(t *testing.T)
 	}
 	recs = byCVE()
 	if r := recs["CVE-2026-1001"]; r.Status != findings.StatusSuspected || r.ResolutionNote != "" {
-		t.Fatalf("the finding Ignore closed is not open again: %+v", r)
+		t.Fatalf("the open finding changed: %+v", r)
 	}
 	if fp := recs["CVE-2026-1002"]; fp.Status != findings.StatusFalsePositive {
 		t.Fatalf("Stop ignoring reopened a person's decision: %+v", fp)

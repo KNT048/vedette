@@ -324,10 +324,11 @@ func TestWiringRouterWithThreeSourcesOfOpenSSH(t *testing.T) {
 		t.Fatalf("MatchInput gives %+v, want the agent's row alone", a.Software)
 	}
 	agentRow := a.Software[0].ID
-	u, ok, err := s.d.Findings.DeviceUpdates(ctx, id, true)
-	if err != nil || !ok {
-		t.Fatal(ok, err)
+	tf, err := s.d.Findings.ToFix(ctx, true, id)
+	if err != nil || len(tf.Devices) != 1 {
+		t.Fatal(len(tf.Devices), err)
 	}
+	u := tf.Devices[0]
 	if len(u.Exploited) != 1 || u.Exploited[0].SoftwareID != agentRow || u.Exploited[0].Kind != "distro" ||
 		u.Exploited[0].Action != "Install the distribution's security updates for OpenSSH" {
 		t.Errorf("To fix, exploited: %+v", u.Exploited)

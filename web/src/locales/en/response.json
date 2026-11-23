@@ -830,7 +830,7 @@
       "zalo": "Confirm only if this Zalo account is yours: approval replies from it will then count as you.",
       "zaloInfo": "An administrator listed this Zalo account as yours for approving actions, and Vedette sent you this link."
     },
-    "confirm": "Confirm",
+    "confirm": "Confirm ownership",
     "linked": {
       "telegram": "Linked. {{account}} now counts as you when you press Approve or Reject in Telegram.",
       "zalo": "Linked. {{account}} now counts as you when you reply to approval messages."

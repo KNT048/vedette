@@ -2,6 +2,8 @@
 // is not shown: an explanation that helps becomes an info icon beside the thing it explains. This guard reads every non-test
 // .tsx under features/, components/ and app/ with a small tag scanner and fails on:
 //  - a <Section> whose children and actions hold only prose (text, t('…') lines, InfoTip, Card, a Notice without actions);
+//  - an info notice (<Notice tone="off">) with no actions whose title, info and text are only prose: an explanation set apart
+//    as a box. Notices of other tones (warn, danger, accent) state a condition the reader must know and are not counted;
 //  - an h2–h5 heading whose block holds only prose. The block is the heading's own wrapper, widened to the largest
 //    ancestor that holds no other heading.
 // Anything that is a control or data counts as content: button, a, input, select, textarea, details, table, form, any other
@@ -19,7 +21,12 @@ const CONTENT_TAG = /<(?!\/)(?!(?:p|span|div|strong|em|b|i|br|code|small|time|In
 
 /** The named exceptions: file, the heading's text, and why it stays. */
 const ALLOWED: { file: string; heading: string; why: string }[] = [
-  { file: 'features/reports/WeeklyDocument.tsx', heading: 'doc.weekly.appendix', why: 'the title of a printed appendix whose sub-sections follow it as siblings; the weekly report is reworked on its own' },
+  { file: 'features/core/parts.tsx', heading: "t('readOnly'", why: 'says the reader\'s role cannot change the section: a state of this page, not an explanation' },
+  { file: 'features/scanning/EnginesTab.tsx', heading: "t('adminOnly')", why: 'says the reader\'s role cannot change the engines: a state of this page' },
+  { file: 'features/scanning/SafetyTab.tsx', heading: "t('safety.adminOnly')", why: 'says the reader\'s role cannot change the settings: a state of this page' },
+  { file: 'features/response/ApprovePage.tsx', heading: 't(`approve.state.', why: 'the state of an approval link (expired, used, decided): the whole answer of that page' },
+  { file: 'features/exposure/SurfacePanel.tsx', heading: "t('surface.older')", why: 'says this scan has no surface map, in place of the map: a state of the panel' },
+  { file: 'features/core/BugReportDialog.tsx', heading: "t('bug.noSend')", why: 'tells the person, inside the dialog that drafts the report, that nothing leaves the box by itself (a privacy statement next to the action)' },
 ]
 
 type Hit = { file: string; line: number; heading: string }
@@ -124,6 +131,15 @@ export function scan(files: { file: string; text: string }[]): Hit[] {
         const body = text.slice(e.open, text.lastIndexOf('</Section>', e.end))
         if (headingsIn(e) === 1 && !/\bactions=/.test(head) && !hasContent(body) && !CONTENT_TAG.test(head.replace(/^<\w*/, ''))) {
           hits.push({ file, line: lineOf(e.start), heading: /title=\{([^}]*)\}/.exec(head)?.[1] ?? '' })
+        }
+      } else if (e.tag === 'Notice') {
+        // a notice with no action whose title and text are only prose: an explanation set apart as a box
+        const head = text.slice(e.start, e.open)
+        const selfClosing = /\/>$/.test(head)
+        const body = selfClosing ? '' : text.slice(e.open, text.lastIndexOf('</Notice>', e.end))
+        const attrs = head.replace(/^<\w*/, '').replace(/\b(?:info|title)=\{t\([^{}]*(?:\{[^{}]*\}[^{}]*)*\)\}/g, '')
+        if (/\btone="off"/.test(head) && !/\bactions=/.test(head) && !hasContent(body) && !CONTENT_TAG.test(attrs) && !/=\{(?!t\()/.test(attrs)) {
+          hits.push({ file, line: lineOf(e.start), heading: /title=\{([^}]*)\}/.exec(head)?.[1] ?? 'Notice' })
         }
       } else if (HEADINGS.has(e.tag)) {
         // the heading's wrapper, widened while no other heading is inside

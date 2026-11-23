@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/States'
-import { Chip } from '@/components/common/StatusChip'
+import { CveList, SeverityBadge } from '@/components/common/status'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { InfoTip } from '@/components/common/InfoTip'
 import { InfoLine } from './InfoLine'
@@ -18,13 +18,13 @@ export function WebSection({ s }: { s: Snapshot }) {
   const scanned = s.checks.some((c) => c.kind === 'web')
   const why = s.not_checked.find((n) => n.kind === 'web')
   const cols: ColumnDef<WebFinding>[] = [
-    { id: 'risk', header: t('web.col.risk'), accessorFn: (r) => ORDER[r.risk], cell: ({ row }) => <Chip tone={row.original.risk === 'high' || row.original.risk === 'medium' ? 'warn' : 'off'}>{t(`web.risk.${row.original.risk}`)}</Chip> },
+    { id: 'risk', header: t('web.col.risk'), accessorFn: (r) => ORDER[r.risk], cell: ({ row }) => <SeverityBadge severity={row.original.risk} /> },
     { id: 'alert', header: t('web.col.alert'), accessorFn: (r) => r.name, cell: ({ row }) => (
       <span className="grid gap-1">
         <span className="font-medium">{row.original.name}</span>
         <span className="text-caption text-muted">{row.original.description}</span>
         {row.original.software.map((w) => (
-          <span key={`${w.product}/${w.version}`} className="text-caption">{t('web.software', { product: w.product, version: w.version })}{w.cves.length > 0 ? ` · ${w.cves.join(', ')}` : ''}</span>
+          <span key={`${w.product}/${w.version}`} className="grid gap-0.5 text-caption">{t('web.software', { product: w.product, version: w.version })}{w.cves.length > 0 ? <CveList items={w.cves.map((cve) => ({ cve }))} label={t('web.software', { product: w.product, version: w.version })} /> : null}</span>
         ))}
         {row.original.cwe > 0 ? (
           <a className="w-fit text-caption text-accent underline underline-offset-4" href={`https://cwe.mitre.org/data/definitions/${row.original.cwe}.html`} target="_blank" rel="noopener noreferrer" aria-label={t('web.cweLink', { id: row.original.cwe })}>{t('web.cwe', { id: row.original.cwe })}</a>

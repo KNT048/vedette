@@ -14,6 +14,7 @@
 
 ## Modifying: `Planner`, `Critical`, `savePlan`
 - `Config.Planner` (cmd/vedette `responsePlanner` over `ai.Service.RunJob`, việc `response-plan`) và `Config.Critical` (findings + inventory + feeds): nil = không có kế hoạch mới, `ai_available=false`. `aboutTheDevice` chỉ nhận IP của thiết bị, kiểm ở cả `checkDraft` lẫn `RequestProposal`; nới nó (tên, CIDR, interface...) cần bằng chứng buộc giá trị vào thiết bị. Sửa `checkDraft` là sửa cổng của mọi kế hoạch AI: mọi thứ lưu phải qua `planProposal`; thêm trường vào `storedProposal` phải cập nhật `TestPlanStoresActionIDAndCheckedValuesOnly`. Job `plan` thêm vào `Jobs()` (3 job).
+- A device a person ignored is out of response: cmd/vedette `responseCritical` (through `findings.Views`, and its device read) lists no plan target for it, and `responseDirectory.Finding` answers not found for its findings, so no `finding` rule fires, no stored plan is listed or approved, and it is no evidence. The urgency pass emits no rise for it either. `TestWiringAnIgnoredDeviceIsSilentUntilItIsWatchedAgain`.
 - **Job kế hoạch không có trần riêng theo ngày; nó giữ 3 phát hiện mỗi lượt 5 phút (cầu chì đợt, `maxPlansPerRun`) và lùi 1 h → 6 h → 24 h theo phát hiện (`planBackoff`). Giới hạn tổng là ngân sách token tháng của `ai` (dừng ở 100 %, báo ở 80 %); `ErrPlanUnavailable` (ngân sách hết `budget_reached`, cầu chì `rate_limited`, không hồ sơ) dừng lượt, không lùi phát hiện. Test: `TestPlanBackoffAndNoDailyCap`.
 
 ## Modifying: `PlannerStatus`, `PlannerFinding`, `keepStatus`, `noActionReason` (planner_status.go)
@@ -131,3 +132,5 @@
 
 ## Modifying: `DeviceMerged`, `FindingFolded` (`devicelifecycle.go`, core/lifecycle)
 - **inventory** calls them inside its merge transaction (registered in `cmd/vedette/devicelifecycle.go`): `resp_plans`, `resp_events` and `resp_actions` follow the device (and the finding a merge folded) by id and keep the name they stored. A new table with an `asset_id` or `finding_id` must be added here, or its rows point at a device or finding that is gone. A deleted device needs nothing: these rows are a log kept with the stored name.
+
+- `FindingInfo.KEV` is "exploited in the wild" (findings' layer 1 or 2), set by `cmd/vedette/response.go`; `PlanTarget.Urgency` carries the status code of the finding's layer into the plan job's data.

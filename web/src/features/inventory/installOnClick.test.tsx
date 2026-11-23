@@ -16,7 +16,7 @@ const enableModule = (id: string, enabled: boolean) => modulesStore.update((l) =
 const tokens = async () => {
   sessionStore.set({ userId: 'u-admin' })
   const r = await fetch(`${location.origin}/api/v1/inventory/agents`)
-  return ((await r.json()) as { tokens: { id: string; name: string; hosts: number }[] }).tokens
+  return ((await r.json()) as { tokens: { id: string; name: string; hosts: number; device_id: string | null }[] }).tokens
 }
 const setOs = (id: string, os: string | null) => assetsStore.update((l) => l.map((a) => (a.id === id ? { ...a, os: os ? { value: os, source: 'nmap', confidence: 1, seen_at: new Date().toISOString() } : null } : a)))
 const command = (dlg: HTMLElement) => within(dlg).getByText(/^vdt_osquery_/).textContent
@@ -29,7 +29,7 @@ describe('Install dialogs make a token on the click only', () => {
     const before = (await tokens()).length
     renderApp('/devices/a-srvad', { role: 'admin' })
     const list = await screen.findByRole('list', { name: 'Sources' }, T)
-    await user.click(within(within(list).getByText('Agent (osquery or Wazuh)').closest('li') as HTMLElement).getByRole('button', { name: 'Install osquery' }))
+    await user.click(await within(list).findByRole('button', { name: 'Create agent token' }, T))
     const dlg = await screen.findByRole('dialog', undefined, T)
     await user.click(await within(dlg).findByRole('button', { name: 'Linux' }, T))
     await user.click(within(dlg).getByRole('button', { name: 'Windows' }))
@@ -40,6 +40,7 @@ describe('Install dialogs make a token on the click only', () => {
     const made = await tokens()
     expect(made).toHaveLength(before + 1)
     expect(made.at(-1)!.name).toMatch(/\S/)
+    expect(made.at(-1)!.device_id).toBe('a-srvad') // made for this device: its row offers Show setup
     const first = command(dlg)
     await user.click(within(dlg).getByRole('button', { name: 'Windows' })) // switching the system re-renders: the same token, no new one
     expect(command(dlg)).toBe(first)

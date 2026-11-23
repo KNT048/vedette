@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/netip"
-	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/core/observe"
@@ -41,7 +40,7 @@ func TestWiringNotInstalledClosesAReportedRowsFinding(t *testing.T) {
 		return recs[0]
 	}
 	if r := finding(); r.Status != findings.StatusSuspected {
-		t.Fatalf("seed: %+v", r.Finding)
+		t.Fatalf("seed: %+v", r.Row)
 	}
 	m, _, err := s.d.Inventory.MatchInput(ctx, id)
 	if err != nil || len(m.Software) != 1 {
@@ -58,8 +57,8 @@ func TestWiringNotInstalledClosesAReportedRowsFinding(t *testing.T) {
 		t.Fatalf("PATCH not_installed: %d %v", c, b)
 	}
 	r := finding()
-	if r.Status != findings.StatusNotRelevant || !strings.Contains(r.ResolutionNote, "it@acme.example said FortiOS 7.2.5 (nmap) is not installed on ") {
-		t.Fatalf("closed with the person named: %+v", r.Finding)
+	if r.Status != findings.StatusNotRelevant || r.Row.Via != findings.ViaNotInstalled || r.ResolvedBy != "it@acme.example" {
+		t.Fatalf("closed with the person named: %+v", r.Row)
 	}
 	_, detail := s.do("GET", "/inventory/devices/"+id, "viewer", "")
 	var corr map[string]any
@@ -90,7 +89,7 @@ func TestWiringNotInstalledClosesAReportedRowsFinding(t *testing.T) {
 	}
 	scan() // the same version again: it stays closed
 	if r := finding(); r.Status != findings.StatusNotRelevant {
-		t.Fatalf("the next scan must keep it closed: %+v", r.Finding)
+		t.Fatalf("the next scan must keep it closed: %+v", r.Row)
 	}
 	var cid string
 	for _, sw := range at(detail, "asset", "software").([]any) {
@@ -102,7 +101,7 @@ func TestWiringNotInstalledClosesAReportedRowsFinding(t *testing.T) {
 		t.Fatalf("Clear: %d %v", c, b)
 	}
 	if r := finding(); r.Status != findings.StatusSuspected {
-		t.Fatalf("Clear must reopen it: %+v", r.Finding)
+		t.Fatalf("Clear must reopen it: %+v", r.Row)
 	}
 	if dev, err := s.d.Inventory.Device(ctx, id); err != nil || len(mcpAsset(dev).Software) != 1 {
 		t.Fatalf("cleared: the software is listed again: %+v %v", dev.Software, err)

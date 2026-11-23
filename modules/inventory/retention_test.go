@@ -1,12 +1,17 @@
 package inventory_test
 
 import (
+	"context"
+	"database/sql"
+	"errors"
 	"net/netip"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -140,5 +145,56 @@ func TestTheBoxSoftwareIsNeverPruned(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM inv_software WHERE product = 'htop' AND state <> 'removed'`); n != 0 {
 		t.Fatal("another device's stale agent software was kept")
+	}
+}
+
+// A removed software line past its retention is deleted through the lifecycle participants (LinesDeleted, with the exact ids, in the
+// same write), and a participant that fails keeps the line without stopping the 30-day expiry of agent software.
+func TestPruneOfRemovedLinesGoesThroughTheLifecycle(t *testing.T) {
+	g := &gate{on: map[string]bool{"agent-intake": true}}
+	hooks := &lifecycle.Hooks{}
+	fail := errors.New("a module could not settle its rows")
+	failing := true
+	var got [][]string
+	hooks.Register(lifecycle.Participant{Name: "test", LinesDeleted: func(_ context.Context, _ *sql.Tx, l lifecycle.LinesDelete) error {
+		if failing {
+			return fail
+		}
+		got = append(got, l.Lines)
+		return nil
+	}})
+	e := newEnv(t, func(c *inventory.Config) { c.Modules, c.Lifecycle = g, hooks })
+	hint := observe.AssetHint{IP: netip.MustParseAddr("192.0.2.33")}
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, nil, []observe.Software{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.6}}))
+	must(e.svc.ReplaceSoftware(e.ctx(), hint, observe.Nmap, nil, nil)) // the scan no longer sees it: removed
+	removed := e.count(`SELECT count(*) FROM inv_software WHERE state = 'removed'`)
+	if removed != 1 {
+		t.Fatalf("%d removed lines", removed)
+	}
+	e.tick(inventory.RemovedSoftwareRetention + time.Hour)
+	must(e.svc.ReplaceSoftware(e.ctx(), hint, observe.Osquery, nil, []observe.Software{{Display: "htop", Vendor: "htop", Product: "htop", Version: "3.3.0", Confidence: 0.95}}))
+	for range 31 * 24 { // the participant fails every run: the removed line stays, the agent's stale list still expires
+		if err := e.svc.PruneAgentSoftware(e.ctx()); !errors.Is(err, fail) {
+			t.Fatalf("the failing participant's error: %v", err)
+		}
+		e.tick(time.Hour)
+	}
+	if e.count(`SELECT count(*) FROM inv_software WHERE state = 'removed' AND product = 'OpenSSH'`) != 1 {
+		t.Fatal("a line was deleted although a participant failed")
+	}
+	if e.count(`SELECT count(*) FROM inv_software WHERE state = 'present' AND source = 'osquery'`) != 0 {
+		t.Fatal("the agent software expiry stopped behind the failing prune")
+	}
+	failing = false
+	must(e.svc.PruneAgentSoftware(e.ctx()))
+	if len(got) != 1 || len(got[0]) != 1 || e.count(`SELECT count(*) FROM inv_software WHERE id IN ('`+strings.Join(got[0], "', '")+`')`) != 0 ||
+		e.count(`SELECT count(*) FROM inv_software WHERE product = 'OpenSSH'`) != 0 {
+		t.Fatalf("lines told %v", got)
 	}
 }

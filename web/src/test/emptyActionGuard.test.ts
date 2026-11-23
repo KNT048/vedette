@@ -17,10 +17,9 @@ const WINDOW = 1500
 
 /** The named exceptions: file, a piece of the count expression, and why it can never be 0 there. */
 const ALLOWED: { file: string; text: string; count: number; why: string }[] = [
-  { file: 'features/findings/FindingsPage.tsx', text: 'ids.length', count: 1, why: 'the bulk dialog opens only from the selection bar, which shows only with a selection' },
+  { file: 'features/findings/ByFix.tsx', text: 'card.findings', count: 1, why: 'a fix card exists only for a fix with open findings (at least one)' },
   { file: 'features/notify/IncidentsPage.tsx', text: 'ids.length', count: 1, why: 'the bulk dialog opens only from the selection bar, which shows only with a selection' },
-  { file: 'features/findings/FindingsPage.tsx', text: 'all', count: 1, why: 'PlanLine returns null when the plan has no item, so all is at least 1' },
-  { file: 'features/feeds/HomeDashboard.tsx', text: 's.open.total', count: 1, why: 'the Fix first card is drawn only when it lists open findings (an empty one returns earlier)' },
+  { file: 'features/feeds/HomeDashboard.tsx', text: 'o.open.findings', count: 1, why: 'the Fix first card is drawn only when it lists open findings (an empty one returns earlier)' },
   { file: 'features/inventory/AgentsSection.tsx', text: 'r.removed', count: 2, why: 'the count is in the toast after Remove unused tokens, not on a link or button' },
 ]
 

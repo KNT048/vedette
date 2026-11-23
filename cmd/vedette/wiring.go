@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/netip"
 	"slices"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/logexport"
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/server"
 	hostclient "github.com/knt048/vedette/host/client"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
@@ -27,6 +29,7 @@ import (
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/honeypot"
+	idsmodule "github.com/knt048/vedette/modules/ids"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
 	"github.com/knt048/vedette/modules/notify"
@@ -218,6 +221,19 @@ func (a findingsInventory) AssetIDs(ctx context.Context) ([]string, error) {
 	return a.inv.AssetIDs(ctx)
 }
 
+// Lines names software lines for findings' lists (inventory.LineRefs).
+func (a findingsInventory) Lines(ctx context.Context, ids []string) (map[string]findings.Line, error) {
+	refs, err := a.inv.LineRefs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]findings.Line, len(refs))
+	for id, r := range refs {
+		out[id] = findings.Line{ID: r.ID, AssetID: r.AssetID, Display: r.Display, ProductKey: r.ProductKey, Version: r.Version}
+	}
+	return out, nil
+}
+
 // IgnoredIDs and IsIgnored are the devices a person ignored, for findings' reconcile and its write-time check.
 func (a findingsInventory) IgnoredIDs(ctx context.Context) ([]string, error) {
 	return a.inv.IgnoredIDs(ctx)
@@ -307,7 +323,7 @@ func declaredOS(d inventory.MatchDevice, candidates []string) (id, version strin
 func findingsSoftware(s inventory.MatchSoftware) findings.Software {
 	out := findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
 		Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource, ReportedSource: s.ReportedSource, Correction: s.Correction, Superseded: s.Superseded,
-		Key: s.Key}
+		Key: s.Key, MarkedBy: s.MarkedBy, Guess: s.Guess}
 	if t, err := time.Parse(time.RFC3339Nano, s.MarkedAt); err == nil {
 		out.MarkedAt = t
 	}
@@ -330,6 +346,9 @@ type vulnCache struct {
 	mu    sync.Mutex
 	stamp string
 	vulns []findings.Vuln // read only once built: the matcher never changes it
+	// productsStamp and products: feeds' RangeProducts as read under that stamp
+	productsStamp string
+	products      []feeds.RangeProduct
 }
 
 func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]findings.KevInfo, error) {
@@ -516,6 +535,227 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	return out, nil
 }
 
+// MatchSet is what findings' match pass compares the devices with (findings.Feeds.MatchSet): the exploited lists' entries (Vulns),
+// then every other catalogue CVE whose ranges name a product the devices run (scope.Keep), whose vendor states versions of such a
+// product in its own notation (SchemeCVEs), that a distribution fixed in a package the devices run (scope.Packages) or that a finding
+// holds (scope.Pinned), with the ranges the catalogue's precedence gives (feeds' rangeOrigin: NVD's when NVD has any, else the CVE
+// record's), the vendor's rows read in the product's version scheme (Schemed), the publication day, EPSS and the distributions' word.
+// Every entry, the exploited lists' included, carries the same data whichever of these found it. Nothing while the feeds module is off.
+func (a findingsFeeds) MatchSet(ctx context.Context, scope findings.MatchScope) ([]findings.Vuln, error) {
+	if a.on != nil && !a.on() {
+		return nil, nil
+	}
+	kev, err := a.Vulns(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := slices.Clone(kev) // the cached list is never written: Schemed is added to the copy
+	listed := make(map[string]bool, len(kev))
+	for _, v := range kev {
+		listed[v.CVE] = true
+	}
+	more, err := a.catalogueEntries(ctx, scope, listed)
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, more...)
+	if err := a.withSchemed(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// catalogueEntries is MatchSet's part beyond the exploited lists (listed): the catalogue CVEs the scope reaches, each once.
+func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.MatchScope, listed map[string]bool) ([]findings.Vuln, error) {
+	products, err := a.rangeProducts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var keys []feeds.ProductKey
+	for _, k := range products {
+		v, p := feeds.MatchName(k.Vendor, k.Product, k.Record)
+		if scope.Keep(v, p, k.Record) || k.Record && scope.Keep(k.Vendor, k.Product, true) {
+			keys = append(keys, feeds.ProductKey{Vendor: k.Vendor, Product: k.Product})
+		}
+	}
+	ranges, err := a.st.Ranges(ctx, keys)
+	if err != nil {
+		return nil, err
+	}
+	reached := map[string]bool{} // CVEs found by a vendor's own rows or a distribution's word, beside the generic ranges
+	schemeCVEs, err := a.st.SchemeCVEs(ctx, keys)
+	if err != nil {
+		return nil, err
+	}
+	pkgs := make([]feeds.DistroPackage, len(scope.Packages))
+	for i, p := range scope.Packages {
+		pkgs[i] = feeds.DistroPackage{Distro: p.Distro, Release: p.Release, Package: p.Package}
+	}
+	distroCVEs, err := a.st.DistroCVEs(ctx, pkgs)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range slices.Concat(schemeCVEs, distroCVEs) {
+		reached[c] = true
+	}
+	var pins []string
+	pinSet := map[string]bool{}
+	for _, c := range scope.Pinned {
+		if !listed[c] && !pinSet[c] {
+			pins = append(pins, c)
+			pinSet[c] = true
+		}
+	}
+	pinned, err := a.st.RangesOf(ctx, pins)
+	if err != nil {
+		return nil, err
+	}
+	byCVE := map[string][]feeds.Range{}
+	for _, r := range pinned { // every range of a pinned CVE
+		byCVE[r.CVE] = append(byCVE[r.CVE], r)
+	}
+	for _, r := range ranges { // the ranges of the scope's products of the others
+		if !listed[r.CVE] && !pinSet[r.CVE] {
+			byCVE[r.CVE] = append(byCVE[r.CVE], r)
+		}
+	}
+	cves := slices.Sorted(maps.Keys(byCVE))
+	for _, c := range pins { // a pinned CVE whose ranges are all gone (rejected) is still judged: its findings go away
+		if _, ok := byCVE[c]; !ok {
+			cves = append(cves, c)
+		}
+	}
+	for _, c := range slices.Sorted(maps.Keys(reached)) {
+		if _, ok := byCVE[c]; !ok && !listed[c] && !pinSet[c] {
+			cves = append(cves, c)
+		}
+	}
+	if len(cves) == 0 {
+		return nil, nil
+	}
+	cat, err := a.st.Catalogue(ctx, cves)
+	if err != nil {
+		return nil, err
+	}
+	distro, err := a.st.DistroFixesFor(ctx, cves)
+	if err != nil {
+		return nil, err
+	}
+	loading, err := a.st.DistroLoading(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []findings.Vuln
+	for _, cve := range cves {
+		e, inCatalogue := cat[cve]
+		rows := byCVE[cve]
+		if len(rows) == 0 && !inCatalogue {
+			continue // not in the catalogue at all: nothing says anything about it, so it is not judged
+		}
+		v := findings.Vuln{CVE: cve, NVDAnswered: true, HasTemplate: safeCheckFor(cve), DistroLoading: loading, Origin: recordOrigin(rows)}
+		complete := true
+		for _, r := range rows {
+			complete = complete && (r.DefaultStatus == feeds.DefaultAffected || r.DefaultStatus == feeds.DefaultUnaffected)
+			if row, ok := r.MatchRow(); ok {
+				v.Affected = append(v.Affected, findings.Affected{CPE: row.CPE,
+					Range: findings.VersionRange{StartIncl: row.StartIncl, StartExcl: row.StartExcl, EndIncl: row.EndIncl, EndExcl: row.EndExcl}})
+			}
+		}
+		switch {
+		case v.Origin == feeds.OriginNVD || len(rows) == 0:
+		case complete:
+			v.RangesFrom = findings.RangesCVEOrg
+		default:
+			v.RangesFrom = findings.RangesCVEOrgPartial
+		}
+		if e.Published != nil {
+			v.Published = *e.Published
+		}
+		if e.EPSS != nil {
+			v.EPSS = *e.EPSS
+		}
+		for _, d := range distro[cve] {
+			v.Distro = append(v.Distro, findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro})
+		}
+		if len(v.Affected) > 0 || len(v.Distro) > 0 || pinSet[cve] || reached[cve] {
+			out = append(out, v)
+		}
+	}
+	return out, nil
+}
+
+// withSchemed adds to each entry of vulns the ranges its vendor states in its own notation, read in the version scheme of the
+// product they name (feeds.RangeScheme): what the matcher and findings.FixOf read the vendor's fixed release of a device's train from.
+// An entry no such range names is left without any.
+func (a findingsFeeds) withSchemed(ctx context.Context, vulns []findings.Vuln) error {
+	if len(vulns) == 0 {
+		return nil
+	}
+	cves := make([]string, len(vulns))
+	at := make(map[string]int, len(vulns))
+	for i, v := range vulns {
+		cves[i] = v.CVE
+		at[v.CVE] = i
+		vulns[i].Schemed = nil // a copy of a cached entry shares its slice: never append to it
+	}
+	rows, err := a.st.SchemeRangesOf(ctx, cves)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		s, sp, _, ok := feeds.RangeScheme(r)
+		if !ok {
+			continue
+		}
+		p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
+		if !ok {
+			continue
+		}
+		i := at[r.CVE]
+		vulns[i].Schemed = append(vulns[i].Schemed, findings.SchemedRange{Product: p.Key, Scheme: s, Span: sp, Origin: r.Origin})
+	}
+	return nil
+}
+
+// recordOrigin is the origin of a CVE's ranges as the catalogue's precedence gave them: nvd when any is NVD's, else cna when the CNA
+// gave any, else adp ("" for none).
+func recordOrigin(rows []feeds.Range) string {
+	origin := ""
+	for _, r := range rows {
+		switch {
+		case r.Origin == feeds.OriginNVD:
+			return feeds.OriginNVD
+		case r.Origin == feeds.OriginCNA || origin == "":
+			origin = r.Origin
+		}
+	}
+	return origin
+}
+
+// rangeProducts is feeds' RangeProducts, read once per match stamp (the stamp moves with every pull that writes ranges).
+func (a findingsFeeds) rangeProducts(ctx context.Context) ([]feeds.RangeProduct, error) {
+	if a.cache == nil {
+		return a.st.RangeProducts(ctx)
+	}
+	stamp, err := a.st.MatchStamp(ctx)
+	if err != nil {
+		return nil, err
+	}
+	a.cache.mu.Lock()
+	p, ok := a.cache.products, a.cache.products != nil && a.cache.productsStamp == stamp
+	a.cache.mu.Unlock()
+	if ok {
+		return p, nil
+	}
+	p, err = a.st.RangeProducts(ctx)
+	if err == nil {
+		a.cache.mu.Lock()
+		a.cache.productsStamp, a.cache.products = stamp, p
+		a.cache.mu.Unlock()
+	}
+	return p, err
+}
+
 // rangesFrom maps the source feeds stored for a CVE's ranges to what findings may do with them: "" (NVD), a
 // complete CVE.org list (may close), or a partial one (may only raise).
 func rangesFrom(src string) string {
@@ -655,6 +895,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		Applied:   mitigationApplied,        // a merge keeps the finding a person marked a mitigation item applied on
 		Lifecycle: d.Lifecycle,              // a merge that folds two findings tells mitigation and response (registerLifecycle)
 		SafeCheck: safeCheckFor}             // "a safe check exists": the scan's own pack, the same answer as KevInfo.HasTemplate
+	cfg.Urgency = urgencySources(d) // the urgency pass: feeds' signals, the devices' types and exposure, the intrusion alerts
 	if d.Bus != nil {
 		cfg.Publisher = findingsPublisher{d.Bus}
 	}
@@ -666,7 +907,7 @@ func buildServices(ctx context.Context, d *deps) error {
 		gate = d.Reg
 	}
 	d.FindingHandlers = findings.NewFindingHandlers(d.Findings, inv, feed, gate)
-	// Home's one read (GET /findings/summary, #825; also the shell's nav badges) carries inventory's device counts and notify's sent
+	// Home's one read (GET /findings/overview; also the shell's nav badges) carries inventory's device counts and notify's sent
 	// messages and open incidents; findings imports neither.
 	home := findings.HomeSources{Alerts: notifySvc.SentSince, Incidents: notifySvc.OpenIncidents}
 	if d.Inventory != nil {
@@ -677,12 +918,13 @@ func buildServices(ctx context.Context, d *deps) error {
 	d.FindingHandlers.SetScanReach(scanReach(d))
 	// The ai service comes before mitigation: mitigation reaches the AI only through this door (mitigation.AI), and the door is
 	// unavailable while no profile is assigned, so the page offers no AI button then.
-	d.AIFacts = aiFacts{fs.Store(), d.Findings, inv, aiBoxID(d.Inventory)}
-	ask := aiAsk{feeds: fs.Store(), findings: d.Findings, inv: d.Inventory, gate: gate}
+	cases := caseSource{findings: d.Findings, feeds: fs.Store()}
+	d.AIFacts = aiFacts{feeds: fs.Store(), cases: cases, inv: inv, boxID: aiBoxID(d.Inventory)}
+	ask := aiAsk{feeds: fs.Store(), findings: d.Findings, cases: cases, inv: d.Inventory, gate: gate}
 	if d.AI, err = newAI(ctx, d, d.AIFacts, ask, ask); err != nil { // ask is also device_updates' door, typed (#935)
 		return fmt.Errorf("ai: %w", err)
 	}
-	aiDoor := aiMitigation{svc: d.AI, inv: d.Inventory, log: d.Log}
+	aiDoor := aiMitigation{svc: d.AI, cases: cases, inv: d.Inventory, log: d.Log}
 	if d.HostSocket != "" { // the box's subnets and gateways decide which firewalls are on a device's path; no host, not known
 		aiDoor.net = aiNetReader(hostclient.New(d.HostSocket))
 	}
@@ -724,6 +966,7 @@ func subscribe(d deps) {
 			return fn(ctx, e.Data)
 		}
 	}
+	d.Bus.Subscribe(idsmodule.EventAlertDetected, urgencyOnAlerts(&d)) // an attack here is layer 1 at once
 	d.Bus.Subscribe(inventory.EventMatchChanged, on("findings", func(ctx context.Context, data any) error {
 		ev, ok := data.(inventory.MatchEvent)
 		if !ok {
@@ -781,17 +1024,11 @@ func subscribe(d deps) {
 			return nil
 		}))
 	}
-	// An ignored device's open findings close ("Closed by Vedette: the device was ignored by <person>."; what a person settled
-	// keeps its status, nothing is deleted), and while it is ignored nothing new is made (MatchInput says it is not there, AssetIDs
-	// leaves it out). Stopping reopens only what Ignore closed; the inventory.asset.updated with match that follows matches it again.
-	d.Bus.Subscribe(inventory.EventAssetIgnored, on("findings", func(ctx context.Context, data any) error {
-		ev, ok := data.(inventory.AssetEvent)
-		if !ok {
-			return fmt.Errorf("unexpected payload %T", data)
-		}
-		_, err := d.Findings.OnAssetIgnored(ctx, ev.AssetID, ev.Actor)
-		return err
-	}))
+	// An ignored device's findings stay as they are: ignoring is an attribute of the device, and every list leaves its findings out
+	// (while it is ignored nothing new is made: MatchInput says it is not there, AssetIDs leaves it out). It is silent too: the urgency
+	// pass does not rate its findings, so no rise of them reaches notify, response, the SIEM export or To review. Stop ignoring sends
+	// inventory.asset.updated with match, so OnMatchChanged matches and rates the device again at once: a rise that happened while it
+	// was ignored is told then, by the one Tell rule.
 	// A finding on a device, or a honeypot hit from it, is a reason to look at a private-address device that was held out of To review:
 	// it joins To review with its one new-device notice (inventory INV-49).
 	d.Bus.Subscribe(findings.EventCreated, on("inventory", func(ctx context.Context, data any) error {
@@ -800,6 +1037,20 @@ func subscribe(d deps) {
 		}
 		if err := eventInto(data, &ev); err != nil {
 			return err
+		}
+		return d.Inventory.EarnReview(ctx, ev.AssetID)
+	}))
+	// so is a finding that becomes exploited or under attack here (its CVE joined an exploited list)
+	d.Bus.Subscribe(findings.EventUrgencyRaised, on("inventory", func(ctx context.Context, data any) error {
+		var ev struct {
+			AssetID string `json:"asset_id"`
+			To      int    `json:"to"`
+		}
+		if err := eventInto(data, &ev); err != nil {
+			return err
+		}
+		if ev.To < findings.UrgencyUnderAttack || ev.To > findings.UrgencyExploited {
+			return nil
 		}
 		return d.Inventory.EarnReview(ctx, ev.AssetID)
 	}))
@@ -814,14 +1065,6 @@ func subscribe(d deps) {
 			return nil
 		}
 		return d.Inventory.EarnReview(ctx, ev.SrcAssetID)
-	}))
-	d.Bus.Subscribe(inventory.EventAssetUnignored, on("findings", func(ctx context.Context, data any) error {
-		ev, ok := data.(inventory.AssetEvent)
-		if !ok {
-			return fmt.Errorf("unexpected payload %T", data)
-		}
-		_, err := d.Findings.OnAssetUnignored(ctx, ev.AssetID, ev.Actor)
-		return err
 	}))
 	d.Bus.Subscribe(feeds.EventNewKEV, on("inventory", func(ctx context.Context, data any) error {
 		ev, ok := data.(feeds.NewKEVEvent)
@@ -848,12 +1091,42 @@ func subscribe(d deps) {
 	}
 	// New NVD affected versions decide findings again for every device; the first fill is backlog.
 	// One event per device; after a later update only the devices of the changed CVEs.
-	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", func(ctx context.Context, data any) error {
+	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", rangesUpdated(&d)))
+	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
+		defer cancel()
+		ctx = notify.WithBaseline(ctx)
+		_, err := d.Inventory.RematchAll(ctx)
+		return err
+	}))
+	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // new_port, the one reader of a new port
+}
+
+// rangesUpdated is the subscriber of feeds.ranges.updated: new affected versions decide findings again. The first fill rematches every
+// device as backlog; a later update rematches the devices of the changed exploited-list CVEs. A change of a catalogue CVE's ranges
+// (RangesUpdatedEvent.Catalogue, or a CVE no list holds) runs findings' match pass now instead of at its next hour: it is the one
+// reader of those CVEs.
+func rangesUpdated(d *deps) func(ctx context.Context, data any) error {
+	return func(ctx context.Context, data any) error {
 		ev, _ := data.(feeds.RangesUpdatedEvent)
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
 		defer cancel()
-		st, ok := feedsKEV{&d}.store()
+		wake := func() {
+			if d.Wake != nil {
+				d.Wake("findings", "reconcile")
+			}
+		}
+		if len(ev.CVEs) == 0 {
+			if ev.Catalogue {
+				wake()
+			}
+			return nil
+		}
+		st, ok := feedsKEV{d}.store()
 		if ev.First || !ok {
+			if ev.Catalogue { // RematchAll reads the lines of listed CVEs only: the catalogue CVEs need the match pass too
+				wake()
+			}
 			if ev.First {
 				ctx = notify.WithBaseline(ctx)
 			}
@@ -865,20 +1138,23 @@ func subscribe(d deps) {
 			return err
 		}
 		refs := make([]inventory.KevRef, len(rows))
+		listed := make(map[string]bool, len(rows))
 		for i, r := range rows {
 			refs[i] = inventory.KevRef{CVE: r.CVE, Vendor: r.Vendor, Product: r.Product}
+			listed[r.CVE] = true
+		}
+		if ev.Catalogue || catalogueChanged(ev.CVEs, listed) {
+			wake()
 		}
 		_, err = d.Inventory.RematchMany(ctx, refs)
 		return err
-	}))
-	d.Bus.Subscribe(feeds.EventSyncBaseline, on("inventory", func(ctx context.Context, _ any) error {
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rematchTimeout)
-		defer cancel()
-		ctx = notify.WithBaseline(ctx)
-		_, err := d.Inventory.RematchAll(ctx)
-		return err
-	}))
-	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // new_port, the one reader of a new port
+	}
+}
+
+// catalogueChanged says a ranges update names a CVE that is on no exploited list (listed): only findings' match pass compares those
+// with the devices.
+func catalogueChanged(cves []string, listed map[string]bool) bool {
+	return slices.ContainsFunc(cves, func(c string) bool { return !listed[c] })
 }
 
 // alpineWake wakes the feeds pull job when a device whose OS changed states Alpine Linux and alpine-osv is on but not loaded yet

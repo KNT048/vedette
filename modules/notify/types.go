@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"errors"
+	"regexp"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
@@ -126,14 +127,11 @@ const (
 // IncidentKinds lists every kind, in the order the API documents them.
 var IncidentKinds = []IncidentKind{IncidentTrap, IncidentBadAddress, IncidentLogAnomaly, IncidentUnknownDevice, IncidentIntrusion}
 
-// Valid reports whether k is one of the kinds.
-func (k IncidentKind) Valid() bool {
-	switch k {
-	case IncidentTrap, IncidentBadAddress, IncidentLogAnomaly, IncidentUnknownDevice, IncidentIntrusion:
-		return true
-	}
-	return false
-}
+// Valid reports whether k has the shape of a kind (lower case words and digits, at most 40 characters): the vocabulary is open, so a
+// producer's new kind needs no change here. "vuln" is taken: a vulnerability is a finding and its notice, never an incident.
+func (k IncidentKind) Valid() bool { return kindShape.MatchString(string(k)) && k != "vuln" }
+
+var kindShape = regexp.MustCompile(`^[a-z0-9_]{1,40}$`)
 
 // IncidentStatus is the handling state of an incident.
 type IncidentStatus string
@@ -302,20 +300,42 @@ type Bus interface {
 	Flush(ctx context.Context, o *events.Outbox)
 }
 
-// FindingInfo describes a finding for a notice. The findings module implements FindingDirectory.
+// FindingInfo describes a finding for a notice, as findings.View shows it now: the status and its words come from findings (one wording
+// source), notify only frames them for the event that is told.
 type FindingInfo struct {
 	CVE      string
 	Product  string
 	Severity Severity
-	Title    string // one plain sentence
-	What     string
-	Action   string
-	Devices  []string // names of the devices the finding matched; empty = it matched none
+	// Open: the finding is open now. A finding that was handled since its event is never announced.
+	Open bool
+	// Layer is the stored urgency layer of the finding (1 under attack here .. 5 update recommended). Layer 5 never alerts.
+	Layer int
+	// Status is the name of the status the finding page shows ("Public exploit available"), Meaning the sentence that says what it asks
+	// of a person, Reasons the line of the reasons ("Exploited in the wild: CISA KEV (19 Nov 2026)"; "" when none), all from findings.
+	Status, Meaning, Reasons string
+	// Note is said after the meaning when the device needs it ("The device is not added yet: open the finding to add it or ignore it.").
+	Note    string
+	Action  string   // what to do first
+	Devices []string // names of the devices the finding matched; empty = it matched none
 }
+
+// exploitedLayer says whether an urgency layer means attackers use the flaw: under attack here (1), exploited in the wild (2), or not
+// stated (0).
+func exploitedLayer(layer int) bool { return layer <= 2 }
+
+// layerUpdate is the urgency layer of a finding with no sign of exploitation (findings.UrgencyUpdate): it never alerts.
+const layerUpdate = 5
 
 // FindingDirectory looks a finding up by id. Without one, finding events cannot become notices.
 type FindingDirectory interface {
 	Finding(ctx context.Context, id string) (FindingInfo, bool, error)
+}
+
+// SignalDirectory reads the exploitation news the box holds (feeds_signal) for the History page.
+type SignalDirectory interface {
+	// UnmatchedExploited counts the CVEs a source reported as exploited (a qualifying signal the box stored at or after since, not one
+	// that came with a source's first load) that no device has a finding for.
+	UnmatchedExploited(ctx context.Context, since time.Time) (int, error)
 }
 
 // DeviceDirectory names a device by inventory id. Without one, device events show the id.

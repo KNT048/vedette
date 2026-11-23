@@ -7,8 +7,9 @@ import { server } from '@/test/server'
 import { modulesStore, sessionStore } from '@/mocks/stores'
 import { ensureBox, snmpStore } from './mocks'
 
-// S-INV-1: SNMP is set up per device, on the device's own SNMP card: state, edit, read address, copy from another device, Check now,
-// remove; and the notices of what the box changed by itself.
+// S-INV-1: SNMP is set up per device, on the SNMP row of the device's Sources: its state and Check now on the row; the state, settings
+// and what answered in the dialog Check now opens, with Edit and Remove there; read address, copy from another device; and the notices
+// of what the box changed by itself.
 vi.setConfig({ testTimeout: 30_000 })
 beforeEach(() => ensureBox())
 
@@ -16,6 +17,11 @@ const T = { timeout: 5000 }
 const enableModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
 const card = async () => (await screen.findByRole('list', { name: 'Sources' }, T)).querySelector('#device-snmp') as HTMLElement // the SNMP row of the Sources list
 const dialog = async () => screen.findByRole('dialog', undefined, T)
+/** Check now on the row: the dialog with the state, the settings and what answered. */
+const checkNow = async (user: ReturnType<typeof userEvent.setup>, name = 'FW-HQ') => {
+  await user.click(await within(await card()).findByRole('button', { name: 'Check now' }, T))
+  return screen.findByRole('dialog', { name: `SNMP of ${name}` }, T)
+}
 const API = '/api/v1/inventory/snmp/devices/:id'
 const addByHand = async (ip: string) => {
   sessionStore.set({ userId: 'u-admin' })
@@ -25,9 +31,13 @@ const addByHand = async (ip: string) => {
 }
 
 describe('Device page: SNMP card states', () => {
-  it('working: the state, the read address, secrets by their last 4 characters, the times and what answered', async () => {
+  it('working: the row says so; Check now shows the read address, secrets by their last 4 characters, the times and what answered', async () => {
+    const user = userEvent.setup()
     const { container } = renderApp('/devices/a-fw01', { role: 'admin' })
-    const c = await card()
+    expect(await within(await card()).findByText('Working', undefined, T)).toBeInTheDocument()
+    expect(await card()).not.toHaveTextContent('Read from') // the settings are behind Check now
+    await expectNoA11yViolations(container)
+    const c = await checkNow(user)
     expect(await within(c).findByText('Working', undefined, T)).toBeInTheDocument()
     expect(c).toHaveTextContent('The last read at 192.168.10.1 got an answer.')
     expect(c).toHaveTextContent('192.168.10.1 (the device\'s IP)')
@@ -38,8 +48,8 @@ describe('Device page: SNMP card states', () => {
     expect(c).toHaveTextContent('UDP 161')
     expect(within(c).getByText('What answered at 192.168.10.1')).toBeInTheDocument()
     expect(within(c).getByText('FortiGate 60F')).toBeInTheDocument()
-    expect(within(c).getByRole('button', { name: 'Check now' })).toBeInTheDocument()
-    await expectNoA11yViolations(container)
+    expect(within(c).getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(within(c).getByRole('button', { name: 'Remove' })).toBeInTheDocument()
   })
 
   it('not set up: says so and offers Set up SNMP', async () => {
@@ -50,14 +60,6 @@ describe('Device page: SNMP card states', () => {
     expect(within(c).queryByRole('button', { name: 'Check now' })).toBeNull()
   })
 
-  it('not answering: the reason in plain words', async () => {
-    snmpStore.update((l) => l.map((x) => (x.device_id === 'a-fw01' ? { ...x, last_reason: 'no_answer', answer: null } : x)))
-    renderApp('/devices/a-fw01', { role: 'admin' })
-    const c = await card()
-    expect(await within(c).findByText('Not answering', undefined, T)).toBeInTheDocument()
-    expect(c).toHaveTextContent('No answer from 192.168.10.1 on UDP port 161 within 2 s')
-  })
-
   it('waiting, and moved: the IP changed, so the read address is set again with the secret typed again', async () => {
     // saved while the device was at another address, left to the device's IP: it moved
     snmpStore.update((l) => l.map((x) => (x.device_id === 'a-fw01' ? { ...x, read_from: '192.168.10.99', last_reason: null, last_checked_at: null, last_answer_at: null, answer: null } : x)))
@@ -65,7 +67,8 @@ describe('Device page: SNMP card states', () => {
     renderApp('/devices/a-fw01', { role: 'admin' })
     const c = await card()
     expect(await within(c).findByText('Waiting for the first read', undefined, T)).toBeInTheDocument()
-    const notice = within(c).getByText('Moved: the device\'s IP changed; set the read address again').closest('[role="status"]') as HTMLElement
+    // why nothing is sent is said under the row, with its fix
+    const notice = (await screen.findByText('Moved: the device\'s IP changed; set the read address again', undefined, T)).closest('[role="status"]') as HTMLElement
     expect(notice).toHaveTextContent('is now at 192.168.10.1')
     await user.click(within(notice).getByRole('button', { name: 'Set the read address' }))
     const dlg = await dialog()
@@ -76,8 +79,7 @@ describe('Device page: SNMP card states', () => {
     await user.type(within(dlg).getByLabelText('Privacy password'), 'new-priv-pass')
     await user.click(within(dlg).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), T)
-    await waitFor(() => expect(within(c).queryByText(/Moved:/)).toBeNull(), T)
-    expect(c).toHaveTextContent('192.168.10.1 (the device\'s IP)')
+    await waitFor(() => expect(screen.queryByText(/Moved:/)).toBeNull(), T)
   })
 
   it('a viewer and an operator see no SNMP card', async () => {
@@ -113,12 +115,13 @@ describe('Device page: SNMP card edit', () => {
     await user.click(within(dlg).getByRole('button', { name: 'Set up SNMP' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), T)
     expect(await screen.findByText('SNMP is now on for this device.', undefined, T)).toBeInTheDocument()
-    expect(await within(c).findByText('Waiting for the first read', undefined, T)).toBeInTheDocument()
-    expect(c).toHaveTextContent('••••1234')
-    expect(c).not.toHaveTextContent('public-ro-1234')
+    expect(await within(await card()).findByText('Waiting for the first read', undefined, T)).toBeInTheDocument()
     // the Sources switch is on now
     const sources = screen.getByRole('list', { name: 'Sources' })
-    expect(within(sources).getByRole('switch', { name: 'SNMP reads of this device' })).toBeChecked()
+    await waitFor(() => expect(within(sources).getByRole('switch', { name: 'SNMP reads of this device' })).toBeChecked(), T)
+    const shown = await checkNow(user, 'FortiGate')
+    expect(await within(shown).findByText(/••••1234/, undefined, T)).toBeInTheDocument()
+    expect(shown).not.toHaveTextContent('public-ro-1234')
   })
 
   it('sets up v3 with a management address and another port', async () => {
@@ -138,10 +141,11 @@ describe('Device page: SNMP card edit', () => {
     expect(within(dlg).getByTestId('snmp-consent')).toHaveTextContent('to 100.65.253.1')
     await user.click(within(dlg).getByRole('button', { name: 'Set up SNMP' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), T)
-    expect(await within(c).findByText('100.65.253.1', { exact: false }, T)).toHaveTextContent('(management address)')
-    expect(c).toHaveTextContent('v3, user monitor')
-    expect(c).toHaveTextContent('SHA · ••••t-77')
-    expect(c).toHaveTextContent('UDP 1161')
+    const shown = await checkNow(user, 'SW-CORE')
+    expect(await within(shown).findByText('100.65.253.1', undefined, T)).toHaveTextContent('(management address)')
+    expect(shown).toHaveTextContent('v3, user monitor')
+    expect(shown).toHaveTextContent('SHA · ••••t-77')
+    expect(shown).toHaveTextContent('UDP 1161')
   })
 
   it('each read-address mistake is said at Read from, before or after the server', async () => {
@@ -225,9 +229,8 @@ describe('Device page: SNMP card edit', () => {
   it('an edit keeps a blank secret, and asks for it again when Read from changes', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-fw01', { role: 'admin' })
-    const c = await card()
-    await user.click(await within(c).findByRole('button', { name: 'Edit' }, T))
-    const dlg = await dialog()
+    await user.click(within(await checkNow(user)).getByRole('button', { name: 'Edit' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Edit SNMP of FW-HQ' }, T)
     const pw = within(dlg).getByLabelText('Authentication password')
     expect(pw).toHaveAccessibleDescription('Saved: ends in 2fe8. Leave empty to keep it.')
     await user.type(within(dlg).getByLabelText('Read from'), '192.168.10.60')
@@ -258,8 +261,9 @@ describe('Device page: SNMP copy from another device', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), T)
     server.events.removeAllListeners()
     expect(bodies).toEqual([{ copy_from: 'a-fw01' }])
-    expect(await within(c).findByText('v3, user vedette-ro', undefined, T)).toBeInTheDocument()
-    expect(c).toHaveTextContent('192.168.10.3 (the device\'s IP)')
+    const shown = await checkNow(user, 'SW-CORE')
+    expect(await within(shown).findByText('v3, user vedette-ro', undefined, T)).toBeInTheDocument()
+    expect(shown).toHaveTextContent('192.168.10.3 (the device\'s IP)')
   })
 
   it('is refused for another read address: the secret must be typed', async () => {
@@ -301,11 +305,14 @@ describe('Device page: SNMP Check now and Remove', () => {
     const c = await card()
     expect(await within(c).findByText('Waiting for the first read', undefined, T)).toBeInTheDocument()
     await user.click(within(c).getByRole('button', { name: 'Check now' }))
-    const busy = await within(c).findByRole('button', { name: /Checking/ }, T)
+    const dlg = await screen.findByRole('dialog', { name: 'SNMP of FW-HQ' }, T)
+    const busy = await within(dlg).findByRole('button', { name: /Checking/ }, T)
     expect(busy).toHaveAttribute('aria-busy', 'true')
-    expect(within(c).getByText(/Reading 192\.168\.10\.1 with SNMP/)).toBeInTheDocument()
+    expect(within(dlg).getByText(/Reading 192\.168\.10\.1 with SNMP/)).toBeInTheDocument()
     release()
-    expect(await within(c).findByText('Working', undefined, T)).toBeInTheDocument()
+    expect(await within(dlg).findByText('Working', undefined, T)).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(await within(await card()).findByText('Working', undefined, T)).toBeInTheDocument() // the row reads it again
     expect(await screen.findByText('FW-HQ answered SNMP.', undefined, T)).toBeInTheDocument()
   })
 
@@ -313,19 +320,19 @@ describe('Device page: SNMP Check now and Remove', () => {
     snmpStore.update((l) => l.map((x) => (x.device_id === 'a-fw01' ? { ...x, version: 'v2c', username: null, auth: null, priv: null, community: 'wrong-community', auth_password: undefined, priv_password: undefined } : x)))
     const user = userEvent.setup()
     renderApp('/devices/a-fw01', { role: 'admin' })
-    const c = await card()
-    await user.click(await within(c).findByRole('button', { name: 'Check now' }, T))
+    const c = await checkNow(user)
     expect(await within(c).findByText('Not answering', undefined, T)).toBeInTheDocument()
     expect(c).toHaveTextContent('No answer from 192.168.10.1')
-    expect(await screen.findByText('FW-HQ did not answer SNMP. The SNMP row says why.', undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText('FW-HQ did not answer SNMP.', undefined, T)).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(await within(await card()).findByText('Not answering', undefined, T)).toBeInTheDocument()
   })
 
   it('a check refused before anything is sent says why', async () => {
     server.use(http.post(`${API}/check`, () => HttpResponse.json({ error: { code: 'stopped', message: 'Scanning was turned off.' } }, { status: 409 })))
     const user = userEvent.setup()
     renderApp('/devices/a-fw01', { role: 'admin' })
-    const c = await card()
-    await user.click(await within(c).findByRole('button', { name: 'Check now' }, T))
+    const c = await checkNow(user)
     const alert = await within(c).findByRole('alert', undefined, T)
     expect(alert).toHaveTextContent('Nothing was sent')
     expect(alert).toHaveTextContent('Scanning was turned off.')
@@ -334,13 +341,12 @@ describe('Device page: SNMP Check now and Remove', () => {
   it('Remove asks first, then the device has no SNMP', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-fw01', { role: 'admin' })
-    const c = await card()
-    await user.click(await within(c).findByRole('button', { name: 'Remove' }, T))
-    const dlg = await dialog()
+    await user.click(within(await checkNow(user)).getByRole('button', { name: 'Remove' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Remove SNMP from FW-HQ?' }, T)
     expect(dlg).toHaveTextContent('Remove SNMP from FW-HQ?')
     expect(dlg).toHaveTextContent('What the device already said stays in the inventory')
     await user.click(within(dlg).getByRole('button', { name: 'Remove SNMP' }))
-    expect(await within(c).findByText('Not set up', undefined, T)).toBeInTheDocument()
+    expect(await within(await card()).findByText('Not set up', undefined, T)).toBeInTheDocument()
     expect(await screen.findByText('SNMP removed from FW-HQ.', undefined, T)).toBeInTheDocument()
   })
 })
@@ -367,41 +373,5 @@ describe('SNMP notices and the Scanning card', () => {
     expect(within(list).getByRole('link', { name: 'FW-HQ' })).toHaveAttribute('href', '/devices/a-fw01#device-snmp')
     expect(within(list).getByText('Working')).toBeInTheDocument()
     expect(screen.getByText('SNMP is set up on 1 device. Open one to edit it or check it now.')).toBeInTheDocument()
-  })
-})
-
-describe('Device page: use these SNMP settings on similar devices', () => {
-  it('lists devices of the same maker or type without settings, prechecks the same maker, applies to the ticked ones', async () => {
-    const bodies: unknown[] = []
-    server.events.on('request:start', async ({ request }) => { if (request.url.includes('/apply-similar')) bodies.push(await request.clone().json()) })
-    const user = userEvent.setup()
-    renderApp('/devices/a-fw01', { role: 'admin' })
-    const c = await card()
-    await user.click(await within(c).findByRole('button', { name: 'Use on similar devices' }, T))
-    const dlg = await dialog()
-    const boxes = await within(dlg).findAllByRole('checkbox', undefined, T)
-    expect(boxes.length).toBeGreaterThan(0)
-    const maker = within(dlg).getByRole('checkbox', { name: /192\.168\.10\.251/ })
-    expect(maker).toBeChecked() // same maker (Fortinet): prechecked
-    expect(dlg).not.toHaveTextContent('ro-auth-2fe8') // the secret never reaches the page
-    await user.click(within(dlg).getByRole('button', { name: /^Use on \d+ devices?$/ }))
-    expect(await within(dlg).findByText('Settings saved, read queued.', undefined, T)).toBeInTheDocument()
-    expect(bodies).toHaveLength(1)
-    expect((bodies[0] as { device_ids: string[] }).device_ids).toContain('a-unk02')
-    expect(snmpStore.get().find((x) => x.device_id === 'a-unk02')?.read_from).toBe('192.168.10.251')
-  })
-
-  it('a device that was ticked but is no longer a candidate says so, and nothing is saved on it', async () => {
-    const user = userEvent.setup()
-    renderApp('/devices/a-fw01', { role: 'admin' })
-    const c = await card()
-    await user.click(await within(c).findByRole('button', { name: 'Use on similar devices' }, T))
-    const dlg = await dialog()
-    await within(dlg).findAllByRole('checkbox', undefined, T)
-    // the device gets its own settings while the list is open
-    const own = snmpStore.get().find((x) => x.device_id === 'a-fw01')!
-    snmpStore.update((l) => [...l, { ...own, device_id: 'a-unk02', read_from: '192.168.10.251' }])
-    await user.click(within(dlg).getByRole('button', { name: /^Use on \d+ devices?$/ }))
-    expect(await within(dlg).findByText(/not a candidate any more/, undefined, T)).toBeInTheDocument()
   })
 })

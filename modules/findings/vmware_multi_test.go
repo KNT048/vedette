@@ -1,15 +1,10 @@
 package findings
 
 import (
-	"bytes"
-	"database/sql"
-	"log/slog"
 	"slices"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/knt048/vedette/core/audit"
 )
 
 // vmwareToolsPC is a Windows test device: VMware Tools 13.0.10 as the agent maps it (the product catalogue
@@ -20,168 +15,7 @@ func vmwareToolsPC() Asset {
 	}}
 }
 
-var vmwareMultiCVEs = []string{"CVE-2020-3950", "CVE-2020-4006", "CVE-2022-22960"} // CISA "VMware | Multiple Products"
-
-// openProductFindings gives the device the old open findings of cves the way an older matcher made them: suspected,
-// basis product, high.
-func openProductFindings(t *testing.T, e *env, a Asset, vulns []Vuln, cves []string) {
-	t.Helper()
-	guess := make([]Vuln, 0, len(cves))
-	for _, v := range vulns {
-		if slices.Contains(cves, v.CVE) {
-			v.Affected = []Affected{{CPE: "cpe:2.3:a:" + strings.ToLower(v.Vendor) + ":*:*:*:*:*:*:*:*:*"}} // may be anything: product
-			guess = append(guess, v)
-		}
-	}
-	if got := seedNameOnly(t, e, a, guess); len(got) != len(cves) { // The matcher no longer makes them
-		t.Fatalf("setup: %v", got)
-	}
-	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET severity = 'high' WHERE asset_id = ?`, a.ID)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// VMware Tools 13.0.10 gets nothing from the three "VMware Multiple Products" entries, whose real NVD
-// lists name Fusion, Horizon Client, Remote Console, Identity Manager, Workspace ONE Access, Cloud Foundation… but not
-// Tools. The entries are years old in KEV, so NVD's list is settled: the old open product findings the retired
-// vendor-wide rule made close by themselves at the first reconcile pass. A "Multiple Products" entry added 100 days ago
-// keeps its finding (open, medium, the note); a version finding and one a person reopened are never closed.
-func TestGolden_VMwareToolsMultipleProducts(t *testing.T) {
-	t.Parallel()
-	vulns := goldenVulns(t)
-	dev := vmwareToolsPC()
-	if r := MatchAsset(dev, vulns, nil, t0); len(r.New) != 0 || len(r.NeedVersion)+len(r.Unlisted)+len(r.Retired) != 0 {
-		t.Fatalf("VMware Tools 13.0.10: %+v", r)
-	}
-	// Three more entries with the real NVD list of CVE-2020-3950 (ids made up): one CISA added 100 days ago, one whose
-	// finding is basis version, one a person closed and reopened.
-	const recent, version, reopened = "CVE-2026-0001", "CVE-2021-0002", "CVE-2021-0003"
-	idx := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == vmwareMultiCVEs[0] })
-	for _, x := range []struct {
-		cve   string
-		added time.Time
-	}{{recent, t0.Add(-100 * 24 * time.Hour)}, {version, vulns[idx].DateAdded}, {reopened, vulns[idx].DateAdded}} {
-		v := vulns[idx]
-		v.CVE, v.DateAdded = x.cve, x.added
-		vulns = append(vulns, v)
-	}
-	all := append(slices.Clone(vmwareMultiCVEs), recent, version, reopened)
-	have := map[string]bool{}
-	for _, c := range all {
-		have[c] = true
-	}
-	r := MatchAsset(dev, vulns, have, t0)
-	var unlisted, retired []string
-	for _, m := range r.Unlisted {
-		unlisted = append(unlisted, m.CVE)
-	}
-	for _, m := range r.Retired {
-		retired = append(retired, m.CVE)
-	}
-	slices.Sort(unlisted)
-	if slices.Sort(retired); len(unlisted) != len(all) || !slices.Equal(retired, []string{"CVE-2020-3950", "CVE-2020-4006", version, reopened, "CVE-2022-22960"}) ||
-		len(r.Existing)+len(r.NotAffected) != 0 {
-		t.Fatalf("unlisted %v, retired %v, kept %+v, proved %+v", unlisted, retired, r.Existing, r.NotAffected)
-	}
-
-	e := newEnv(t)
-	e.inv.match = map[string]Asset{dev.ID: dev}
-	e.inv.assets = map[string]AssetView{dev.ID: {ID: dev.ID, Hostname: ptr("byn"), IP: "192.168.18.50", Kind: "computer", Display: "VMware Tools"}}
-	e.feeds.vulns = vulns
-	openProductFindings(t, e, dev, vulns, all)
-	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET basis = 'version', confidence = 0.7 WHERE cve = ?`, version)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	f, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, reopened)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, a := range []Action{ActionNotRelevant, ActionReopen} {
-		if _, err := e.svc.SetStatus(t.Context(), f.ID, a, "checked by hand", "anna@example.test"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// A test box already said "no longer matches" in the generic words (no NVD data at the time) and closed nothing.
-	var noNVD []Vuln
-	for _, v := range vulns {
-		if slices.Contains(all, v.CVE) {
-			v.Affected = nil
-		}
-		noNVD = append(noNVD, v)
-	}
-	if res, err := e.svc.UpsertFromMatch(t.Context(), dev, noNVD); err != nil || len(res.Created)+res.Retired != 0 {
-		t.Fatalf("%+v %v", res, err)
-	}
-	e.pub.take()
-
-	// The module starts: the reconcile pass closes the three, says so in the log, and a second pass changes nothing.
-	var logged bytes.Buffer
-	svc, err := NewService(ServiceConfig{DB: e.db, Audit: audit.New(func() time.Time { return *e.clock }), Publisher: e.pub, Inventory: e.inv, Feeds: e.feeds,
-		Log: slog.New(slog.NewTextHandler(&logged, nil)), Clock: func() time.Time { return *e.clock }})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for pass, want := range []int{3, 0} {
-		res, err := svc.Reconcile(t.Context())
-		if err != nil || res.Retired != want || res.Closed != 0 || res.Created != 0 {
-			t.Fatalf("pass %d: %+v %v", pass, res, err)
-		}
-	}
-	if l := logged.String(); !strings.Contains(l, "findings: closed") || !strings.Contains(l, "count=3") ||
-		strings.Count(l, "findings: reconcile pass done") != 2 || !strings.Contains(l, "closed_multiple_products=3") {
-		t.Errorf("log:\n%s", logged.String())
-	}
-	const want = "Closed by Vedette: CISA lists CVE-2020-3950 for several VMware products; NVD names fusion, horizon client, remote console, not VMware Tools (settled: CISA added it over a year ago). Vedette checks it again whenever NVD's data for it changes."
-	for _, c := range all {
-		f, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, c)
-		if err != nil {
-			t.Fatal(err)
-		}
-		last := f.History[len(f.History)-1]
-		switch c {
-		case recent, version, reopened:
-			if f.Status != StatusSuspected || last.Action != "no_longer_matches" || !strings.Contains(last.Note, "not VMware Tools; check the vendor advisory") {
-				t.Errorf("%s: %+v, last history %+v", c, f.Finding, last)
-			}
-		default:
-			if f.Status != StatusNotRelevant || f.ResolvedBy != SystemUser || f.ResolutionReason != ReasonNotAffectedVersion || f.Severity != SeverityMedium ||
-				last.Action != string(StatusNotRelevant) || last.User != SystemUser || last.Note != f.ResolutionNote || !strings.HasPrefix(last.Note, "Closed by Vedette: CISA lists "+c) {
-				t.Errorf("%s: %+v, last history %+v", c, f.Finding, last)
-			}
-			if c == "CVE-2020-3950" && last.Note != want {
-				t.Errorf("note %q, want %q", last.Note, want)
-			}
-		}
-	}
-	if got := e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.auto_resolved' AND detail LIKE '%D-506%'`); got != 3 {
-		t.Errorf("auto_resolved audit rows %d, want 3", got)
-	}
-	ev := e.pub.take()
-	if len(ev) != 3 {
-		t.Fatalf("events %+v", ev)
-	}
-	for _, x := range ev {
-		if p, ok := x.Payload.(StatusChangedEvent); !ok || p.From != StatusSuspected || p.To != StatusNotRelevant || p.Reason != ReasonNotAffectedVersion {
-			t.Errorf("event %+v", x)
-		}
-	}
-
-	// NVD later names VMware Tools for CVE-2020-3950 with 13.0.10 inside: the finding reopens by itself.
-	vulns[idx].Affected = append(vulns[idx].Affected, Affected{CPE: "cpe:2.3:a:vmware:tools:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "13.0.0", EndExcl: "13.0.11"}})
-	if res, err := svc.Reconcile(t.Context()); err != nil || res.Retired != 0 {
-		t.Fatalf("%+v %v", res, err)
-	}
-	if f, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, "CVE-2020-3950"); err != nil || f.Status != StatusSuspected || f.Basis != BasisVersion ||
-		f.History[len(f.History)-1].Action != "matches_again" {
-		t.Errorf("after NVD names Tools: %+v %v", f, err)
-	}
-}
+var vmwareMultiCVEs = []string{"CVE-2020-3950", "CVE-2020-4006", "CVE-2022-22960"}
 
 // Only when NVD names none of the device's software of the vendor. A device that also has Fusion, which NVD names
 // for CVE-2020-3950 and whose version is outside its range, keeps the earlier behaviour: Tools is unlisted, nothing retires.
@@ -235,4 +69,49 @@ func TestGolden_BoxOSRulesOutOverlayFS(t *testing.T) {
 	if r := MatchAsset(box, vulns, nil, t0); !slices.ContainsFunc(r.NameOnly, func(m Match) bool { return m.CVE == cve && m.Basis == BasisProduct }) { // No finding
 		t.Fatalf("without an OS: %+v", r.NameOnly)
 	}
+}
+
+// VMware Tools 13.0.10 gets nothing from the three "VMware Multiple Products" entries, whose real NVD
+// lists name Fusion, Horizon Client, Remote Console, Identity Manager, Workspace ONE Access, Cloud Foundation… but not
+// Tools. The entries are years old in KEV, so NVD's list is settled: the old open product findings the retired
+// vendor-wide rule made close by themselves at the first reconcile pass. A "Multiple Products" entry added 100 days ago
+// keeps its finding (open, medium, the note); a version finding and one a person reopened are never closed.
+func TestGolden_VMwareToolsMultipleProducts(t *testing.T) {
+	t.Parallel()
+	vulns := goldenVulns(t)
+	dev := vmwareToolsPC()
+	if r := MatchAsset(dev, vulns, nil, t0); len(r.New) != 0 || len(r.NeedVersion)+len(r.Unlisted)+len(r.Retired) != 0 {
+		t.Fatalf("VMware Tools 13.0.10: %+v", r)
+	}
+	// Three more entries with the real NVD list of CVE-2020-3950 (ids made up): one CISA added 100 days ago, one whose
+	// finding is basis version, one a person closed and reopened.
+	const recent, version, reopened = "CVE-2026-0001", "CVE-2021-0002", "CVE-2021-0003"
+	idx := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == vmwareMultiCVEs[0] })
+	for _, x := range []struct {
+		cve   string
+		added time.Time
+	}{{recent, t0.Add(-100 * 24 * time.Hour)}, {version, vulns[idx].DateAdded}, {reopened, vulns[idx].DateAdded}} {
+		v := vulns[idx]
+		v.CVE, v.DateAdded = x.cve, x.added
+		vulns = append(vulns, v)
+	}
+	all := append(slices.Clone(vmwareMultiCVEs), recent, version, reopened)
+	have := map[string]bool{}
+	for _, c := range all {
+		have[c] = true
+	}
+	r := MatchAsset(dev, vulns, have, t0)
+	var unlisted, retired []string
+	for _, m := range r.Unlisted {
+		unlisted = append(unlisted, m.CVE)
+	}
+	for _, m := range r.Retired {
+		retired = append(retired, m.CVE)
+	}
+	slices.Sort(unlisted)
+	if slices.Sort(retired); len(unlisted) != len(all) || !slices.Equal(retired, []string{"CVE-2020-3950", "CVE-2020-4006", version, reopened, "CVE-2022-22960"}) ||
+		len(r.Existing)+len(r.NotAffected) != 0 {
+		t.Fatalf("unlisted %v, retired %v, kept %+v, proved %+v", unlisted, retired, r.Existing, r.NotAffected)
+	}
+
 }

@@ -117,11 +117,11 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
   says "holds this page". Groups are drawn only once `/modules` has answered (no header that turns into an item). First visit: every group closed except the one holding the current page, which opens by
   itself without overwriting the saved state. Open groups and the rail choice are saved per user in `localStorage`
   (`vedette.nav.<userId>`, reads and writes in try/catch; on failure the first-visit default).
-- **Badges** come from one cheap read, `GET /findings/summary` (#825, cached on the box, shared with Home through the same
-  query key `['findings','summary']`, 60 s refresh, paused in a hidden tab). A plain selector table in `app/nav.ts` maps it to
-  items: Findings ← `open.confirmed` ("confirmed to handle"), Devices ← `devices.pending` ("to review"), Incidents ←
-  `incidents.urgent` ("high or critical open"); all urgent (red), as work waits for the user. An error stops the polling.
-  The summary API PR (#825) merges before the shell PR. No per-item hook and no list fetch in the shell. A closed group shows only the **urgent** total
+- **Badges** come from one cheap read, `GET /findings/overview` (cached on the box, shared with Home through the same
+  query key `['findings','model','overview']`, 60 s refresh, paused in a hidden tab). A plain selector table in `app/nav.ts` maps it to
+  items: Findings ← the open findings of the four urgent statuses (`open.by_status`: under attack, exploited, public exploit,
+  critical on an edge device), Incidents ← `incidents.urgent` ("high or critical open"); all urgent (red), as work waits for the
+  user. An error stops the polling. No per-item hook and no list fetch in the shell. A closed group shows only the **urgent** total
   of its items; its accessible name starts with the visible text and then lists the parts ("Assets 15 waiting: Devices 15 to review"; no
   `aria-label` that would hide the visible label, WCAG 2.5.3). No summary (findings off, error): no badges.
 - **Rail**: from `lg`, "Collapse menu" at the foot shrinks 240 px to 56 px (then "Expand menu"; the name always equals the tooltip); groups flatten into icons,
@@ -197,31 +197,34 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
   `no-alerts` Incidents, `scanning` a running first scan, `welcome` and `setup-done` first-run setup. `Illustration` inlines the
   static build-time SVG (`?raw`); it is the only `dangerouslySetInnerHTML` in `src`, never fed with data; `aria-hidden`.
 
-## 7. Chip, counter, badge; risk with its CVSS line
+## 7. Chip, counter, badge; the status model
 
-- `Chip` (exists, `StatusChip.tsx`; **fix**: `shape` = `soft` | `solid` | `dashed`, **default `soft` for every tone**): 24 px,
-  `rounded-sm`, `text-caption` 500, always words. `solid` only for `StatusChip` confirmed (danger) and `Counter`; `dashed` only
-  for `StatusChip` suspected (warn). The 64 direct `Chip` uses in features become soft, which is the point: one solid meaning.
-- **Severity** (decided 2026-11-16, option (c)): `SeverityChip` is soft in the four tones (Critical and High `danger`, Medium
-  `warn`, Low and Info `off`) with a `SeverityMeter` before the word: four bars, 4 filled for Critical, 3 High, 2 Medium, 1 Low,
-  0 Info, so Critical and High differ by more than the word and Critical never looks like the solid "Confirmed" next to it;
-  no fifth colour. As Tenable gives each severity its own icon
-  ([Tenable severity indicators](https://docs.tenable.com/vulnerability-management/Content/getting-started/VulnerabilitySeverityIndicators.htm)).
-- Exploit markers: **Exploited** / **In KEV** `danger` soft, **Ransomware** `danger` soft, **Not exploited** `off` soft. In a
-  row: certainty (`StatusChip`) → risk (`SeverityChip` / `RiskChip`) → exploit markers; the CVSS line under them. The `Chip`
-  type allows `solid` only with `danger` and `dashed` only with `warn`. Migration list: `feeds/CvePage.tsx` "In KEV" is `accent`
-  today and becomes `danger` soft.
+- `Chip` (`StatusChip.tsx`): 24 px, `rounded-sm`, `text-caption` 500, always words, soft in four tones for generic states
+  (on/off, linked, sent). It never shows a finding's status, a severity, how a match is verified or how a finding was handled:
+  those have one component each in `components/common/status`, and `web/src/test/statusGuard.test.ts` fails on any other chip
+  of them (a named exception says why it stays).
+- **Status** (`StatusBadge`): one badge per finding status and device badge, most urgent first: Under attack here (the only
+  filled one, `danger`), Exploited in the wild (`danger` soft), Public exploit available (`warn` with a full border), Critical on
+  an edge device (`warn` outline), Update recommended (`warn` soft), Patched (`ok` soft), Mitigated (`ok` outline), Risk accepted
+  until a day, Not relevant, False positive (`off`), Needs your input (`accent`). Each has its own icon, so colour is never
+  alone; its meaning is the hover text. With a count it is a device's badge ("2 exploited") and a link to that device's findings.
+- **Reasons** (`ReasonsLine`): under the badge, every urgency layer that applies with its sources, date and link
+  ("Exploited in the wild: Rapid7 (19 Nov); not yet in CISA KEV · Public exploit available: GitHub, 244 stars (18 Nov)").
+- **Verification** (`VerificationLine`): a second line, never a second chip: "Confirmed by a safe check", "Confirmed: the
+  device reports this version", "Confirmed by <user>", "Not confirmed yet: based on a scan banner".
+- **Handling** (`HandledLine`): who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
+- **Severity** (`SeverityBadge`): the CVE's CVSS band and score, "Critical 9.8", soft in the four tones (Critical and High
+  `danger`, Medium `warn`, Low, None and Info `off`) with a `SeverityMeter` of four bars (4 Critical … 0 None), as Tenable gives
+  each severity its own icon ([Tenable severity indicators](https://docs.tenable.com/vulnerability-management/Content/getting-started/VulnerabilitySeverityIndicators.htm)).
+  Separate from the status and never instead of it. No score: "Not scored yet", never 0. Version and vector on hover; on the
+  finding page behind an ⓘ with FIRST's credit; bands from [FIRST CVSS](https://www.first.org/cvss/v3.1/specification-document)
+  (NVD's three bands for CVSS 2.0).
+- **CVE lists** (`CveList`): every list of CVEs, most severe first, each with its severity and a link, a count line
+  ("2 Critical · 18 High · 5 Medium"), Critical and High shown and the rest behind one click ("+12 Medium/Low"). No joined
+  string of CVE ids and no hand-built run of links elsewhere (the status guard counts them).
 - `Counter` (**build** `components/common/Counter.tsx`, taken out of `PageTabs`): pill, `text-caption` 600, "99+" cap, `danger`
   solid when work waits for the user, `off` soft for a plain count, words for screen readers inside; used by tabs, nav, KPI
   ([Primer CounterLabel](https://primer.style/product/components/counter-label/)). `ScopeBadge` (exists): Preview / not in v1.
-- **Risk + CVSS**: Vedette's risk chip first; under it in a list cell, or after it on the finding page, the line
-  **CVSS 9.8 Critical ⓘ** (`text-meta`; score 600 tabular; band word in danger/warn/muted). The ⓘ holds version, vector, source
-  and the FIRST credit. No score → "No score ⓘ", never 0. CVSS never replaces the risk chip: Tenable shows its own VPR as the
-  companion of CVSS the same way ([Tenable CVSS vs VPR](https://docs.tenable.com/vulnerability-management/Content/Explore/Findings/RiskMetrics.htm));
-  bands from [FIRST CVSS](https://www.first.org/cvss/v3.1/specification-document). `CvssScore` lives in
-  `features/findings/Cvss.tsx` (CVSS branch); when Devices or Exposure need it, it moves to `components/common/Cvss.tsx`
-  together with `cvssBand` and the `Cvss` type (to `lib/`) and the `cvss.*` strings (to `common`), so no component imports a feature.
-
 ## 8. Notice, form, dialog
 
 - `Notice` (exists): page or section state; tones danger, warn, accent, off; title + one line + ⓘ + actions.
@@ -324,6 +327,6 @@ keywords; opacity-modified tokens and hand-drawn boxes are review-only, as said 
 
 1. **Incidents always visible** in the pinned block (§2).
 2. **Settings is one entry at the foot** of the sidebar; its sections keep their own menu.
-3. **Severity: a level meter inside the existing four tones** (§7); solid stays for "Confirmed" only.
+3. **Severity: a level meter inside the existing four tones** (§7); only "Under attack here" is filled.
 
 No open questions remain for this standard; new ones go to the issue of the page that raises them.

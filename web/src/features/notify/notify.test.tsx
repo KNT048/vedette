@@ -364,7 +364,7 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3)', () =>
   it('select all shown, Resolve with one note: one audit row per incident, the list empties', async () => {
     renderApp('/incidents')
     await screen.findByRole('table', { name: 'Incidents' })
-    // The nav badge counts the open high and critical incidents (GET /findings/summary)
+    // The nav badge counts the open high and critical incidents (GET /findings/overview)
     expect(await mainNavLink(/^Incidents \d+ high or critical open$/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select all 4 incidents on this page' }))
     const bar = screen.getByRole('region', { name: 'Selected incidents' })
@@ -999,9 +999,9 @@ describe('notify: channel form matrix', () => {
     const linked = async () => ((await getJson('/notify/zalo/approvers')).items as { state: string }[])[0]!.state
     // signed in as someone else (the administrator): the page opens, nothing links, Confirm is refused, the link stays good
     const wrong = renderApp(path, { role: 'admin' })
-    expect(await screen.findByRole('button', { name: 'Confirm' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Confirm ownership' })).toBeInTheDocument()
     expect(await linked()).toBe('waiting')
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm ownership' }))
     expect(await screen.findByText(/This link is for another Vedette account/)).toBeInTheDocument()
     wrong.unmount()
     // the right person
@@ -1010,7 +1010,7 @@ describe('notify: channel form matrix', () => {
     expect(await screen.findByText('3847561029384756102')).toHaveClass('font-mono')
     expect(screen.getByText('Named "Lan Pham" by your administrator.')).toBeInTheDocument()
     expect(screen.getByText(/Confirm only if this Zalo account is yours/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm ownership' }))
     expect(await screen.findByText(/Linked\. Zalo ID 3847561029384756102 now counts as you/)).toBeInTheDocument()
     sessionStore.set({ userId: 'u-admin' })
     expect(await linked()).toBe('linked')
@@ -1032,7 +1032,7 @@ describe('notify: channel form matrix', () => {
     expect(zaloMessagesForTest().length).toBe(before)
     renderApp(mine.link, { role: 'admin' })
     expect(await screen.findByText(ZALO_BOX_UID)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm ownership' }))
     expect(await screen.findByText(new RegExp(`Linked\\. Zalo ID ${ZALO_BOX_UID}`))).toBeInTheDocument()
     await expectNoA11yViolations()
   })
@@ -1269,5 +1269,16 @@ describe('notify: email user sign-in (S-NOT-1)', () => {
     await userEvent.type(await within(dlg).findByLabelText('Address from the browser'), `http://127.0.0.1:53121/?state=${'S'.repeat(43)}&error=access_denied`)
     await userEvent.click(within(dlg).getByRole('button', { name: 'Finish sign-in' }))
     expect(await within(dlg).findByText('The sign-in was declined. Sign in again and approve.')).toBeInTheDocument()
+  })
+})
+
+describe('incident kinds', () => {
+  it('an unknown kind parses and gets the generic label; a known one keeps its own', async () => {
+    const { IncidentKind } = await import('./contract')
+    const { kindKey } = await import('./shared')
+    expect(IncidentKind.parse('ioc_hit')).toBe('ioc_hit')
+    expect(IncidentKind.safeParse('Not A Kind').success).toBe(false)
+    expect(kindKey({ kind: 'ioc_hit', attempt: false })).toBe('incidents.kind.other')
+    expect(kindKey({ kind: 'intrusion', attempt: false })).toBe('incidents.kind.intrusion')
   })
 })

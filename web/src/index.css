@@ -133,6 +133,34 @@
   .print-doc * { color: black !important; border-color: silver !important; background-color: transparent !important; }
   .no-print { display: none !important; }
   @page report { size: A4; margin: 16mm; } /* the report's named page only: other pages print with the browser's settings */
+
+  /* The security report (reports/SecurityReport.tsx) prints in colour: its status badges, severity bars and charts keep their
+     meaning on paper. Everything that neither holds nor is inside .print-report is taken out of the layout, and the boxes that
+     hold it lose their own layout, so the report is in normal flow: its named page (A4, 16 mm margins) then applies on every
+     page. It prints on the light tokens whatever the screen theme (the values repeat :root above), with backgrounds kept. */
+  :where(body:has(.print-report)) :where(:not(:has(.print-report)):not(.print-report):not(.print-report *)) { display: none !important; }
+  :where(body:has(.print-report)) :has(.print-report) {
+    display: block !important; position: static !important; margin: 0 !important; padding: 0 !important; border: 0 !important;
+    width: auto !important; max-width: none !important; min-width: 0 !important; height: auto !important; min-height: 0 !important;
+    overflow: visible !important; box-shadow: none !important; background: white !important;
+  }
+  :where(html:has(.print-report), body:has(.print-report)) { margin: 0 !important; padding: 0 !important; background: white !important; }
+  .print-report {
+    page: report; max-width: none !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important;
+    --paper: #ffffff; --surface: #ffffff; --sunken: #f1f3f0;
+    --ink: #18211d; --muted: #56615c; --rule: #dfe3df;
+    --accent: #1d5a45; --accent-ink: #ffffff; --accent-soft: #e3eee8;
+    --danger: #b42318; --danger-soft: #fbeae8;
+    --warn: #9a5b06; --warn-soft: #fbf1df;
+    --ok: #3b6b1e; --ok-soft: #ebf3e3;
+    --off: #5a635f; --off-soft: #edf0ee;
+    background: white; color: var(--ink); color-scheme: light;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  .print-report .report-block { break-inside: avoid; }
+  .print-report h3, .print-report h4 { break-after: avoid; }
+  .print-report tr { break-inside: avoid; }
+  .print-report a { text-decoration: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

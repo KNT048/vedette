@@ -65,7 +65,12 @@ func TestWiringFirewallIPSEventRaisesAnIntrusionIncidentAndTheFindingIsUnderAtta
 	if code != 200 || at(list, "total") != float64(3) {
 		t.Fatalf("GET /detection/alerts: %d %v", code, list)
 	}
-	code, one := s.do("GET", "/detection/alerts?window=24h&cve=CVE-2026-1001&device="+dev, "viewer", "")
+	// The rating pass an intrusion alert triggers runs in the background: wait until it has stored the finding's layer.
+	var one map[string]any
+	waitUntil(t, func() bool {
+		code, one = s.do("GET", "/detection/alerts?window=24h&cve=CVE-2026-1001&device="+dev, "viewer", "")
+		return code == 200 && at(one, "items", 0, "findings", 0, "status") == "under_attack"
+	})
 	if code != 200 || at(one, "total") != float64(1) {
 		t.Fatalf("by CVE and device: %d %v", code, one)
 	}

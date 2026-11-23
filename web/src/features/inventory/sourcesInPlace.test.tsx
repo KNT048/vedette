@@ -12,7 +12,10 @@ beforeEach(() => ensureBox())
 const T = { timeout: 5000 }
 const enableModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
 const sources = async () => screen.findByRole('list', { name: 'Sources' }, T)
-const item = (list: HTMLElement, name: string) => within(list).getByText(name).closest('li') as HTMLElement
+const row = async (src: 'scan' | 'snmp' | 'agent') => {
+  const list = await sources()
+  return waitFor(() => { const li = list.querySelector<HTMLElement>(`li[data-source="${src}"]`); expect(li).not.toBeNull(); return li! }, T)
+}
 const api = async (method: string, path: string, body?: unknown) => {
   sessionStore.set({ userId: 'u-admin' })
   return fetch(`${location.origin}/api/v1/inventory${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
@@ -20,49 +23,24 @@ const api = async (method: string, path: string, body?: unknown) => {
 const setOs = (id: string, os: string | null) => assetsStore.update((l) => l.map((a) => (a.id === id ? { ...a, os: os ? { value: os, source: 'nmap', confidence: 1, seen_at: new Date().toISOString() } : null } : a)))
 
 describe('Device page: SNMP is one row of the Sources list', () => {
-  it('has no SNMP card of its own; Set up opens the settings in place and the row then shows the state', async () => {
+  it('has no SNMP card of its own; Set up opens the settings in a dialog; the row then shows its state and Check now only', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-nas02', { role: 'admin' })
-    const list = await sources()
+    const snmp = await row('snmp')
     expect(screen.queryByRole('heading', { name: 'SNMP', level: 2 })).toBeNull()
-    expect(screen.getAllByText('SNMP').length).toBe(1) // one row, not a row plus a frame
-    const snmp = item(list, 'SNMP')
-    expect(await within(snmp).findByTestId('snmp-state', undefined, T)).toHaveTextContent('Not set up')
+    expect(snmp).toHaveTextContent('Not set up')
     await user.click(within(snmp).getByRole('button', { name: 'Set up' }))
     const dlg = await screen.findByRole('dialog', undefined, T)
     await user.type(within(dlg).getByLabelText('Community'), 'public')
     await user.click(within(dlg).getByRole('button', { name: 'Set up SNMP' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), T)
-    expect(await within(snmp).findByText(/Waiting for the first read|Working|Not answering/, undefined, T)).toBeInTheDocument()
-    expect(within(snmp).getByRole('button', { name: 'Edit' })).toBeInTheDocument()
-    expect(within(snmp).getByRole('button', { name: 'Check now' })).toBeInTheDocument()
-    expect(within(snmp).queryByRole('button', { name: 'Set up' })).toBeNull()
-  })
-})
-
-describe('Device page: the Sources list is compact', () => {
-  it('sources that only report are one line with no frame and no control; the ones a person acts on keep theirs', async () => {
-    renderApp('/devices/a-nas02', { role: 'admin' })
-    const list = await sources()
-    const passive = item(list, 'Passive listening')
-    expect(passive).toHaveTextContent('Reporting')
-    expect(passive.className).not.toMatch(/\bborder\b/)
-    expect(within(passive).queryByRole('button')).toBeNull()
-    expect(within(passive).queryByRole('switch')).toBeNull()
-    expect(within(passive).queryByRole('link')).toBeNull()
-    const scan = item(list, 'Network scan')
-    expect(scan.className).toMatch(/\bborder\b/)
-    expect(within(scan).getByRole('switch')).toBeInTheDocument()
-    expect(item(list, 'SNMP').className).toMatch(/\bborder\b/)
-  })
-
-  it('a hand-added device: its manual line is a plain line too', async () => {
-    const r = await api('POST', '/devices', { catalog_id: 'fortigate', ip: '192.168.10.91' })
-    const { id } = (await r.json()) as { id: string }
-    renderApp(`/devices/${id}`, { role: 'admin' })
-    const manual = item(await sources(), 'Manual')
-    expect(manual.className).not.toMatch(/\bborder\b/)
-    expect(within(manual).queryByRole('button')).toBeNull()
+    await waitFor(async () => expect(await row('snmp')).toHaveTextContent(/Waiting for the first read|Working|Not answering/), T)
+    const after = await row('snmp')
+    expect(within(after).getByRole('button', { name: 'Check now' })).toBeInTheDocument()
+    // Edit, Remove and the settings are in the dialog Check now opens, not on the row; "Use on similar devices" is gone
+    expect(within(after).queryByRole('button', { name: 'Edit' })).toBeNull()
+    expect(within(after).queryByRole('button', { name: /similar devices/ })).toBeNull()
+    expect(within(after).queryByText('Read from')).toBeNull()
   })
 })
 
@@ -72,8 +50,7 @@ describe('Device page: Install osquery goes straight to this device', () => {
     setOs('a-srvad', 'Ubuntu 22.04 LTS')
     const user = userEvent.setup()
     renderApp('/devices/a-srvad', { role: 'admin' })
-    const agent = item(await sources(), 'Agent (osquery or Wazuh)')
-    await user.click(within(agent).getByRole('button', { name: 'Install osquery' }))
+    await user.click(within(await row('agent')).getByRole('button', { name: 'Create agent token' }))
     const dlg = await screen.findByRole('dialog', undefined, T)
     expect(dlg).toHaveAccessibleName(/^Install osquery on /)
     await user.click(await within(dlg).findByRole('button', { name: 'Create install command' }, T))
@@ -95,7 +72,7 @@ describe('Device page: Install osquery goes straight to this device', () => {
     setOs('a-srvad', 'Microsoft Windows Server 2025')
     const user = userEvent.setup()
     renderApp('/devices/a-srvad', { role: 'admin' })
-    await user.click(within(item(await sources(), 'Agent (osquery or Wazuh)')).getByRole('button', { name: 'Install osquery' }))
+    await user.click(within(await row('agent')).getByRole('button', { name: 'Create agent token' }))
     const dlg = await screen.findByRole('dialog', undefined, T)
     await user.click(await within(dlg).findByRole('button', { name: 'Create install command' }, T))
     expect(await within(dlg).findByText(/-Token 'vdt_osquery_/, undefined, T)).toBeInTheDocument()
@@ -106,7 +83,7 @@ describe('Device page: Install osquery goes straight to this device', () => {
     setOs('a-srvad', null)
     const user = userEvent.setup()
     renderApp('/devices/a-srvad', { role: 'admin' })
-    await user.click(within(item(await sources(), 'Agent (osquery or Wazuh)')).getByRole('button', { name: 'Install osquery' }))
+    await user.click(within(await row('agent')).getByRole('button', { name: 'Create agent token' }))
     const dlg = await screen.findByRole('dialog', undefined, T)
     expect(await within(dlg).findByRole('button', { name: 'Windows' }, T)).toBeInTheDocument()
     expect(within(dlg).queryByText(/--token/)).toBeNull()
@@ -184,39 +161,23 @@ describe('Add a device', () => {
   })
 })
 
-describe('Device page: the Agent row knows what an agent can run on', () => {
-  const AGENT = 'Agent (osquery or Wazuh)'
-  const HINT = 'Agents run on computers and servers.'
-
-  it('a firewall: no Install osquery; one line says agents are for computers and servers and SNMP reads the firmware; Set up opens the SNMP settings in place', async () => {
+describe('Device page: an agent token made for the device', () => {
+  it('is the device\'s: the row then waits for the agent and Show setup gives the token\'s last characters and the command again', async () => {
     enableModule('agent-intake', true)
-    enableModule('sensor-active', true)
+    setOs('a-srvad', 'Ubuntu 22.04 LTS')
     const user = userEvent.setup()
-    const r = await api('POST', '/devices', { catalog_id: 'fortigate', ip: '192.168.10.94' })
-    const id = ((await r.json()) as { id: string }).id
-    renderApp(`/devices/${id}`, { role: 'admin' })
-    const agent = item(await sources(), AGENT)
-    expect(await within(agent).findByTestId('agent-kind-hint', undefined, T)).toHaveTextContent(`${HINT} For this device, SNMP reads the firmware version.`)
-    expect(within(agent).queryByRole('button', { name: 'Install osquery' })).toBeNull()
-    await user.click(await within(agent).findByRole('button', { name: 'Set up' }, T))
+    renderApp('/devices/a-srvad', { role: 'admin' })
+    await user.click(within(await row('agent')).getByRole('button', { name: 'Create agent token' }))
     const dlg = await screen.findByRole('dialog', undefined, T)
-    expect(within(dlg).getByLabelText('Community')).toBeInTheDocument()
-  })
-
-  it('a server keeps Install osquery and gets no hint', async () => {
-    enableModule('agent-intake', true)
-    renderApp('/devices/a-srvad', { role: 'admin' })
-    const agent = item(await sources(), AGENT)
-    expect(within(agent).getByRole('button', { name: 'Install osquery' })).toBeInTheDocument()
-    expect(within(agent).queryByTestId('agent-kind-hint')).toBeNull()
-  })
-
-  it('an unknown kind keeps Install osquery and says what agents are for', async () => {
-    enableModule('agent-intake', true)
-    assetsStore.update((l) => l.map((a) => (a.id === 'a-srvad' ? { ...a, kind: 'unknown' } : a)))
-    renderApp('/devices/a-srvad', { role: 'admin' })
-    const agent = item(await sources(), AGENT)
-    expect(within(agent).getByRole('button', { name: 'Install osquery' })).toBeInTheDocument()
-    expect(within(agent).getByTestId('agent-kind-hint')).toHaveTextContent(HINT)
+    await user.click(await within(dlg).findByRole('button', { name: 'Create install command' }, T))
+    const secret = (await within(dlg).findByText(/^vdt_osquery_/, undefined, T)).textContent!
+    await user.keyboard('{Escape}')
+    await waitFor(async () => expect(await row('agent')).toHaveAttribute('data-state', 'waiting'), T)
+    expect(await row('agent')).toHaveTextContent('Waiting for the agent to enroll')
+    await user.click(within(await row('agent')).getByRole('button', { name: 'Show setup' }))
+    const setup = await screen.findByRole('dialog', { name: 'Agent setup of SRV-AD' }, T)
+    expect(within(setup).getByTestId('agent-setup-token')).toHaveTextContent(`••••${secret.slice(-4)}`)
+    expect(within(setup).queryByText(secret)).toBeNull() // the secret was shown once
+    expect(await within(setup).findByText(/--token <TOKEN>/, undefined, T)).toBeInTheDocument()
   })
 })

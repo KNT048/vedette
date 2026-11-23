@@ -7,7 +7,7 @@ import { navItems, type NavGroup, type NavItem } from './feature'
 
 /** Always visible, in this order, never in a group. Incidents is here (UI.md §2, decided 2026-11-16): "the alert arrives" is the
  *  core journey, as Wiz and CrowdStrike keep Issues and Detections top-level. */
-export const PINNED = ['/', '/findings', '/plan', '/incidents'] as const
+export const PINNED = ['/', '/findings', '/incidents'] as const
 
 /** The collapsible groups, in order. `monitor` holds no group of its own any more: what it held is pinned or moved below. */
 export type ShellGroup = Exclude<NavGroup, 'monitor'>
@@ -21,15 +21,22 @@ export function placeOf(n: NavItem): 'pinned' | ShellGroup {
   return MOVED[n.to] ?? (n.group === 'monitor' ? 'assist' : n.group)
 }
 
-/** The part of GET /findings/summary (#825) the nav reads. Optional fields: an older box, or one whose summary lacks a count, shows no badge. */
-export type NavSummary = { open?: { confirmed?: number }; incidents?: { open?: number; urgent?: number } }
+/** The part of GET /findings/overview the nav reads. Optional fields: an older box, or one whose overview lacks a count, shows no badge. */
+export type NavSummary = { open?: { by_status?: Partial<Record<'under_attack' | 'exploited' | 'public_exploit' | 'critical_edge', number>> }; incidents?: { open?: number; urgent?: number } | null }
 
 /** The badge of one entry: count and the words read after it. `urgent`: work waits for the user (red, and summed on a closed group). */
 export type NavBadge = { count: number; key: string; urgent: boolean }
 
+/** Open findings of the first four urgency layers (under attack, exploited, public exploit, critical on an edge device): a part of the
+ *  Findings screen's open count, filtered by the same statuses. "Update recommended" can wait and gives no badge. */
+const urgentOpen = (s: NavSummary) => {
+  const b = s.open?.by_status
+  return b ? (b.under_attack ?? 0) + (b.exploited ?? 0) + (b.public_exploit ?? 0) + (b.critical_edge ?? 0) : 0
+}
+
 const BADGES: Record<string, (s: NavSummary) => NavBadge | null> = {
-  '/findings': (s) => (s.open?.confirmed ? { count: s.open.confirmed, key: 'layout.badge.findings', urgent: true } : null),
-  // The open high and critical incidents (#825 adds `incidents.urgent` to the summary for this badge).
+  '/findings': (s) => (urgentOpen(s) ? { count: urgentOpen(s), key: 'layout.badge.findings', urgent: true } : null),
+  // The open high and critical incidents.
   '/incidents': (s) => (s.incidents?.urgent ? { count: s.incidents.urgent, key: 'layout.badge.incidents', urgent: true } : null),
 }
 
@@ -37,12 +44,12 @@ export function badgeOf(to: string, s: NavSummary | undefined): NavBadge | null 
   return s ? (BADGES[to]?.(s) ?? null) : null
 }
 
-/** One cheap read for every badge: the cached summary Home reads too (same query key, so one request serves both). Only while the
+/** One cheap read for every badge: the overview Home reads too (same query key, so one request serves both). Only while the
  *  findings module is on; a failure shows no badges and is not retried in a loop. */
 export function useNavSummary(enabled: boolean) {
   return useQuery({
-    queryKey: ['findings', 'summary'],
-    queryFn: () => api.get<NavSummary>('/findings/summary'),
+    queryKey: ['findings', 'model', 'overview'],
+    queryFn: () => api.get<NavSummary>('/findings/overview'),
     enabled,
     staleTime: 60_000,
     // An error (a box without the endpoint yet, a 5xx) stops the polling instead of asking every minute.

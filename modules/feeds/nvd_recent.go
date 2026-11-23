@@ -299,6 +299,7 @@ type recentPull struct {
 	st         Stats
 	kevChanged []string // exploited-list CVEs whose NVD ranges changed
 	kevFirst   bool     // no exploited-list CVE had NVD's answer before this pull
+	catalogue  bool     // a CVE on no exploited list was written
 }
 
 // storeNVDPage writes the records of one page the retention rule keeps and the cursor after it, in one transaction. A feed edited or
@@ -326,6 +327,7 @@ func (s *Service) storeNVDPage(ctx context.Context, rp *recentPull, recs []NVDRe
 			return fmt.Errorf("feeds: store NVD records: %w", err)
 		}
 		rp.kevChanged = append(rp.kevChanged, w.KEVChanged...)
+		rp.catalogue = rp.catalogue || w.Catalogue
 		if selector == "" {
 			return nil
 		}
@@ -479,7 +481,7 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 		line += fmt.Sprintf(" The catalogue keeps %s older CVEs that an exploited list or a signal names.", grouped(total-all))
 	}
 	p.out.Note = strings.TrimSpace(line + " " + p.out.Note)
-	p.kevRanges, p.kevRangesFirst = rp.kevChanged, rp.kevFirst
+	p.kevRanges, p.kevRangesFirst, p.catalogueRanges = rp.kevChanged, rp.kevFirst, rp.catalogue
 	return p, nil
 }
 

@@ -75,8 +75,7 @@ func manyUpdates(n int, what string) []UpdateRow {
 // words and the device's details (they came with the first call), and pages read to the end.
 func TestDeviceUpdates_FirstCallKeepsEachListAndPagesAreLean(t *testing.T) {
 	b := updatesBox{assets: []AssetRow{{ID: "a-pc", Name: "PC-134", IP: "192.168.18.134"}},
-		updates: map[string]DeviceUpdates{"a-pc": {Open: 200, Exploited: manyUpdates(60, "exploited"), NoUpdate: manyUpdates(10, "unnamed"), Planned: manyUpdates(20, "recommended"),
-			PlanRan: true, PlanCompared: true}}}
+		updates: map[string]DeviceUpdates{"a-pc": {Open: 200, Exploited: manyUpdates(60, "exploited"), NoUpdate: manyUpdates(10, "unnamed"), Planned: manyUpdates(20, "recommended")}}}
 	ans, err := callUpdates(t, b, `{"device":"192.168.18.134"}`)
 	if err != nil || !ans.Found || ans.Total != 60 || ans.RecTotal != 20 || ans.StatusWords == "" || ans.Device["name"] != "PC-134" {
 		t.Fatalf("%+v %v", ans, err)
@@ -137,13 +136,13 @@ func TestDeviceUpdates_DeviceIsNeverGuessed(t *testing.T) {
 func TestDeviceUpdates_WordsForWhatIsNotProved(t *testing.T) {
 	b := updatesBox{assets: []AssetRow{{ID: "a-1", Name: "nas", IP: "10.0.0.1"}, {ID: "a-2", Name: "cam", IP: "10.0.0.2"}},
 		updates: map[string]DeviceUpdates{
-			"a-1": {Open: 1, NoUpdate: []UpdateRow{{Action: "No update is named that fixes these: follow the vendor's advice for Photo Station", CVEs: []string{"CVE-2022-27593"}, Reported: 1}}, PlanRan: true},
+			"a-1": {Open: 1, NoUpdate: []UpdateRow{{Action: "No update is named that fixes these: follow the vendor's advice for Photo Station", CVEs: []string{"CVE-2022-27593"}, Detected: 1}}},
 			"a-2": {PlanOff: true}}}
 	ans, err := callUpdates(t, b, `{"device":"10.0.0.1"}`)
-	if err != nil || len(ans.NoUpdate) != 1 || !strings.HasSuffix(ans.NoUpdate[0], "; 1 CVE, reported") || !strings.Contains(ans.PlanNote, "not compared") {
+	if err != nil || len(ans.NoUpdate) != 1 || !strings.HasSuffix(ans.NoUpdate[0], "; 1 CVE, detected") {
 		t.Fatalf("%+v %v", ans, err)
 	}
-	if !strings.Contains(statusWords, "reported = the agent reported the installed version but the box has not proved it affected") {
+	if !strings.Contains(statusWords, "detected = the device's own agent or another trusted source reported the installed version") {
 		t.Fatal(statusWords)
 	}
 	if ans, _ := callUpdates(t, b, `{"device":"cam"}`); !strings.Contains(ans.PlanNote, "feeds module is off") {

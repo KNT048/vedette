@@ -71,7 +71,99 @@
     "high": "High",
     "medium": "Medium",
     "low": "Low",
-    "info": "Info"
+    "info": "Info",
+    "none": "None"
+  },
+  "severityBadge": {
+    "unscored": "Not scored yet",
+    "cvss": "CVSS {{version}} base score {{score}}",
+    "first": "CVSS is owned by FIRST and used by permission."
+  },
+  "findingStatus": {
+    "under_attack": "Under attack here",
+    "exploited": "Exploited in the wild",
+    "public_exploit": "Public exploit available",
+    "critical_edge": "Critical on an edge device",
+    "update_recommended": "Update recommended",
+    "patched": "Patched",
+    "mitigated": "Mitigated",
+    "accepted": "Risk accepted",
+    "acceptedUntil": "Risk accepted until {{date}}",
+    "not_relevant": "Not relevant",
+    "false_positive": "False positive",
+    "needs_input": "Needs your input",
+    "meaning": {
+      "under_attack": "Someone on your network sent this exploit, and this device is affected. Isolate or patch it now.",
+      "exploited": "Attackers use this flaw in real attacks. Patch it now.",
+      "public_exploit": "Working exploit code is public. Patch it this week.",
+      "critical_edge": "A critical flaw that needs no login, on a device class attackers target first. Patch it now.",
+      "update_recommended": "A known flaw affects this version; no sign of exploitation yet. Update when convenient.",
+      "patched": "The fixed version is installed or the software is gone.",
+      "mitigated": "A workaround is in place; the flaw is still in the software.",
+      "accepted": "Someone decided to live with it until a set day.",
+      "not_relevant": "It does not apply to this device.",
+      "false_positive": "The match was wrong.",
+      "needs_input": "Vedette needs an answer from you before it can decide."
+    }
+  },
+  "deviceStatus": {
+    "under_attack_one": "{{count}} under attack",
+    "under_attack_other": "{{count}} under attack",
+    "exploited_one": "{{count}} exploited",
+    "exploited_other": "{{count}} exploited",
+    "public_exploit_one": "{{count}} public exploit",
+    "public_exploit_other": "{{count}} public exploits",
+    "critical_edge_one": "{{count}} critical on edge",
+    "critical_edge_other": "{{count}} critical on edge",
+    "update_recommended_one": "Update recommended",
+    "update_recommended_other": "Update recommended",
+    "needs_input_one": "Needs your input",
+    "needs_input_other": "Needs your input"
+  },
+  "verification": {
+    "scan": "Confirmed by a safe check",
+    "device": "Confirmed: the device reports this version",
+    "person": "Confirmed by {{by}}",
+    "personUnnamed": "Confirmed by a person",
+    "notYet": "Not confirmed yet",
+    "notYetBasis": "Not confirmed yet: based on {{basis}}",
+    "basis": {
+      "scan": "a safe check",
+      "device_version": "the version the device reports",
+      "package": "the distribution's package data",
+      "banner_version": "a scan banner",
+      "statement": "a version someone entered",
+      "person": "a person's word"
+    }
+  },
+  "handled": {
+    "vedette": "Vedette",
+    "line": "{{status}} by {{by}} ({{date}})",
+    "lineHow": "{{status}} by {{by}}: {{how}} ({{date}})",
+    "withNote": "{{line}}: {{note}}",
+    "how": {
+      "version_moved": "version moved {{from}} → {{to}}",
+      "software_removed": "{{software}} was removed",
+      "software_removed_unnamed": "the software was removed",
+      "distro_fixed": "the distribution's package is fixed",
+      "scan_clear": "the safe check came back clear",
+      "data_corrected": "the match was corrected",
+      "not_installed": "the software is not installed"
+    }
+  },
+  "reasons": {
+    "notInKev": "not yet in CISA KEV",
+    "due": "fix by {{date}}",
+    "internet": "Reachable from the Internet (seen {{date}})"
+  },
+  "cveList": {
+    "more_one": "+{{count}} {{bands}}",
+    "more_other": "+{{count}} {{bands}}",
+    "moreAny_one": "+{{count}} more",
+    "moreAny_other": "+{{count}} more",
+    "fewer": "Show fewer",
+    "unscored_one": "{{count}} not scored yet",
+    "unscored_other": "{{count}} not scored yet"
   },
   "source": {
     "manual": "Manual",
@@ -82,6 +174,7 @@
     "passive": "Passive",
     "scan": "Confirmation scan",
     "kev": "CISA KEV",
+    "catalogue": "NVD vulnerability data",
     "vulncheck-kev": "VulnCheck KEV",
     "epss": "FIRST EPSS",
     "nuclei": "nuclei-templates",
@@ -232,7 +325,7 @@
     "breadcrumb": "Breadcrumb",
     "version": "Version",
     "badge": {
-      "findings": "confirmed to handle",
+      "findings": "urgent to handle",
       "incidents": "high or critical open"
     },
     "groupWaiting": "waiting: {{parts}}",
@@ -324,7 +417,6 @@
     "honeypot": "Internal traps",
     "reports": "Reports",
     "findings": "Findings",
-    "plan": "Recommended updates",
     "exposure": "External exposure",
     "incidents": "Incidents",
     "channels": "Alert channels",

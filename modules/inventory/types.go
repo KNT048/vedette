@@ -133,62 +133,61 @@ type FindingCounter interface {
 	CountByAsset(ctx context.Context) (map[string]int, error)
 }
 
-// RiskCounts is what findings says about one device, read from what its "To fix" shows (findings DeviceUpdates, one rule):
-// Exploited = its open exploited findings To fix lists (an update is named for them, or the box proved them); Updates = its
-// Recommended updates (findings INV-20) that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity.
-type RiskCounts struct{ Exploited, Updates int }
-
-// RiskSource says which devices carry risk (owned by findings; inventory may not read fnd_* tables): one batch for every device
-// (findings.RiskMap, cached there). A device that is absent, or whose counts are both 0, is clean.
+// RiskSource is the badge of every device that has one, from findings' one device status function (inventory may not read fnd_*
+// tables): its most urgent open finding status with the distinct CVEs at it, else needs_input with the items waiting for a person. A
+// device that is absent has none.
 type RiskSource interface {
-	RiskByAsset(ctx context.Context) (map[string]RiskCounts, error)
+	DeviceStatuses(ctx context.Context) (map[string]Risk, error)
 }
 
-// Risk levels of a device, worst first: the words of DeviceRisk.level and of the Devices search's risk filter ("none" = clean).
+// The device badge words (contract.ts DEVICE_STATUSES) and "none" for a device without a badge (the Devices search's filter).
 const (
-	RiskExploited = "exploited" // open exploited findings
-	RiskUpdate    = "update"    // none of those, but a Recommended update for a likely-exploited or High+ CVE
-	RiskNone      = "none"
+	RiskUnderAttack   = "under_attack"
+	RiskExploited     = "exploited"
+	RiskPublicExploit = "public_exploit"
+	RiskCriticalEdge  = "critical_edge"
+	RiskUpdate        = "update_recommended"
+	RiskNeedsInput    = "needs_input"
+	RiskNone          = "none"
 )
 
-// RiskLevels are the words of the risk filter, worst first.
-var RiskLevels = []string{RiskExploited, RiskUpdate, RiskNone}
+// RiskLevels are the words of the badge filter, most urgent first.
+var RiskLevels = []string{RiskUnderAttack, RiskExploited, RiskPublicExploit, RiskCriticalEdge, RiskUpdate, RiskNeedsInput, RiskNone}
 
-// Risk is the marker of a device in every list (contract.ts DeviceRisk): nil when the device is clean.
+// Risk is the badge of a device in every list (contract.ts DeviceBadge): nil when it has none.
 type Risk struct {
-	Level     string `json:"level"`     // RiskExploited or RiskUpdate
-	Exploited int    `json:"exploited"` // open exploited findings
-	Updates   int    `json:"updates"`   // Recommended updates for a likely-exploited or High+ CVE
+	Code  string `json:"code"`  // one of RiskLevels but none
+	Count int    `json:"count"` // distinct CVEs at that status; for needs_input the items waiting for a person
 }
 
-// riskOf is the marker of counts c: exploited when it has open exploited findings, else update when it has such updates, else nil.
-func riskOf(c RiskCounts) *Risk {
-	switch {
-	case c.Exploited > 0:
-		return &Risk{Level: RiskExploited, Exploited: c.Exploited, Updates: c.Updates}
-	case c.Updates > 0:
-		return &Risk{Level: RiskUpdate, Updates: c.Updates}
-	}
-	return nil
-}
-
-// riskWords is the marker's text, as the pages show it (also the CSV's risk column): "2 exploited", "Update recommended", "" when clean.
+// riskWords is the badge's text, as the pages show it (also the CSV's risk column): "2 exploited", "Update recommended", "" when none.
 func riskWords(r *Risk) string {
-	switch {
-	case r == nil:
+	if r == nil {
 		return ""
-	case r.Level == RiskExploited:
-		return fmt.Sprintf("%d exploited", r.Exploited)
 	}
-	return "Update recommended"
+	switch r.Code {
+	case RiskUnderAttack:
+		return fmt.Sprintf("%d under attack here", r.Count)
+	case RiskExploited:
+		return fmt.Sprintf("%d exploited", r.Count)
+	case RiskPublicExploit:
+		return fmt.Sprintf("%d with a public exploit", r.Count)
+	case RiskCriticalEdge:
+		return fmt.Sprintf("%d critical on an edge device", r.Count)
+	case RiskUpdate:
+		return "Update recommended"
+	case RiskNeedsInput:
+		return "Needs your input"
+	}
+	return ""
 }
 
-// riskLevel is the filter word of a device's marker.
+// riskLevel is the filter word of a device's badge.
 func riskLevel(r *Risk) string {
 	if r == nil {
 		return RiskNone
 	}
-	return r.Level
+	return r.Code
 }
 
 // ModuleGate says whether another module is on (modreg.Registry implements it).

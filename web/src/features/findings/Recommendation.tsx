@@ -16,12 +16,14 @@ import { fmtDate, fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
 import { useApplied, useAskAi } from './api'
-import type { AiResult, ApplyItem, CodeStep, FindingDetail, FirewallGuide, FirewallVendor, KevInfo } from './types'
+import type { AiAnswer, AiResult, ApplyItem, CodeStep, FindingDetail, FirewallGuide, FirewallVendor, KevInfo } from './types'
+import { AiAnswerKey } from './contract'
+
+const ANSWER_ORDER = AiAnswerKey.options
 import { isOpen } from './basis'
 import { softwareFor, useDeviceSoftware } from './rematch'
 import { overdue } from './accept'
 import { useFindingAgentGone } from './agentNow'
-import { linkKind, linkLabels } from './links'
 
 function SideEffect({ text }: { text: string }) {
   const { t } = useTranslation('findings')
@@ -211,17 +213,50 @@ export function PackView({ finding }: { finding: FindingDetail }) {
   )
 }
 
+/**
+ * "Ask my AI": four short answers in a fixed order, each under its own heading with the links it rests on. The headings are the
+ * page's, never the AI's; an answer the AI left out is not shown (no paragraph about why something is absent).
+ */
+export function AiAnswers({ answers }: { answers: AiAnswer[] }) {
+  const { t } = useTranslation('findings')
+  const by = new Map(answers.map((a) => [a.key, a]))
+  return (
+    <div className="grid gap-3" data-testid="ai-answers">
+      {ANSWER_ORDER.map((key) => {
+        const a = by.get(key)
+        if (!a) return null
+        const links = a.links.filter((l) => /^https?:\/\//i.test(l.url))
+        return (
+          <section key={key} aria-labelledby={`ai-answer-${key}`} className="grid gap-1">
+            <h4 id={`ai-answer-${key}`} className="text-sm font-semibold">{t(`ai.answer.${key}`)}</h4>
+            <p className="whitespace-pre-line">{a.text}</p>
+            {links.length ? (
+              <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-meta">
+                {links.map((l) => <li key={l.url}><a className="break-all text-accent underline underline-offset-4" href={l.url} target="_blank" rel="noopener noreferrer">{l.title}</a></li>)}
+              </ul>
+            ) : null}
+          </section>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Kết quả AI của khách: luôn trong AiBlock origin="customer", không bao giờ giống khuyến nghị của dự án. */
 export function AiOutput({ r }: { r: AiResult }) {
   const { t } = useTranslation('findings')
   return (
     <AiBlock origin="customer" model={r.profile ? `${r.model} (${r.profile})` : r.model} tokens={r.tokens} citations={r.citations}>
-      {r.paragraphs.map((p) => <p key={p}>{p}</p>)}
-      <ol className="grid list-decimal gap-1 pl-5">{r.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+      {r.answers?.length ? <AiAnswers answers={r.answers} /> : (
+        <>
+          {r.paragraphs.map((p) => <p key={p}>{p}</p>)}
+          <ol className="grid list-decimal gap-1 pl-5">{r.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+        </>
+      )}
       {/* M2-2: the config blocks to paste, each copyable, with what it is based on and its side effect */}
       {r.configs?.length ? <div className="grid gap-2"><p className="text-sm font-medium">{t('ai.configsTitle')}</p><Steps steps={r.configs} caution={t('ai.configCaution')} /></div> : null}
       {/* #897 r1 H1: when no configuration helps (a local flaw, no open port serves it), the AI says why instead of inventing rules */}
-      {r.no_config_reason ? <div className="grid gap-1"><p className="text-sm font-medium">{t(r.configs?.length ? 'ai.noteTitle' : 'ai.noConfigTitle')}</p><p>{r.no_config_reason}</p></div> : null}
+      {r.no_config_reason && !r.answers?.length ? <div className="grid gap-1"><p className="text-sm font-medium">{t(r.configs?.length ? 'ai.noteTitle' : 'ai.noConfigTitle')}</p><p>{r.no_config_reason}</p></div> : null}
       {r.shortened ? <p className="text-meta text-muted">{t('ai.shortened')}</p> : null}
     </AiBlock>
   )
@@ -305,12 +340,6 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const k: KevInfo | null = finding.kev
   const vc = k?.source === 'vulncheck-kev'
-  const vendor = k?.links.filter((u) => linkKind(u) === 'vendor') ?? []
-  const other = k?.links.filter((u) => linkKind(u) !== 'vendor') ?? []
-  // One label per link, never the same twice on this page (two CISA directive pages, five advisories of one vendor)
-  const named = k ? linkLabels(t, k.links) : []
-  const labels = new Map(k?.links.map((u, i) => [u, named[i]!]))
-  const product = k?.display || t('rec.theSoftware')
   // Step 3 points to "I updated" when the page shows it (the software the CVE was matched to is known).
   const sw = useDeviceSoftware(finding.asset?.id)
   const rows = softwareFor(sw.data?.asset.software, finding.cve)
@@ -328,20 +357,6 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
             <blockquote lang="en" className="max-w-3xl border-l-2 border-rule pl-3 text-sm">{k.required_action}</blockquote>
             {k.due_date ? <p className="text-sm font-medium">{t(overdue(k.due_date) ? 'rec.dueDatePassed' : 'rec.dueDate', { date: fmtDate(k.due_date) })}</p> : null}
             {k.ransomware ? <p className="text-meta">{t('rec.ransomware')}</p> : null}
-          </div>
-          <div className="grid gap-2">
-            <h3 className="text-sm font-semibold">{t('rec.fixTitle')}</h3>
-            {finding.fixed_in ? <FixedInNote finding={finding} /> : <p className="max-w-3xl text-meta text-muted">{t('rec.noFixedVersion')}</p>}
-            {vendor.length > 0 ? (
-              <ul className="grid gap-1 text-sm">
-                {vendor.map((u) => <li key={u}><a className="break-all text-accent underline underline-offset-4" href={u} target="_blank" rel="noopener noreferrer">{labels.get(u)}</a></li>)}
-              </ul>
-            ) : <p className="text-sm">{t('rec.noVendorLink', { cve: finding.cve, product })}</p>}
-            {other.length > 0 ? (
-              <ul className="grid gap-1 text-meta">
-                {other.map((u) => <li key={u}><a className="break-all text-accent underline underline-offset-4" href={u} target="_blank" rel="noopener noreferrer">{labels.get(u)}</a></li>)}
-              </ul>
-            ) : null}
           </div>
           <NowSteps finding={finding} kev={k} updatable={updatable} manual={rows.find((r) => r.source === 'manual')?.display} agentGone={agentGone} />
         </>

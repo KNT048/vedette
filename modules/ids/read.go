@@ -334,7 +334,13 @@ type Attack struct {
 // with an event at or after since (one row per CVE and destination address, newest first). Findings decides what that means for a
 // finding (layer 1: an attack in the last AttackWindow aimed at the device, or at any address while the device is affected).
 func (s *Service) Attacked(ctx context.Context, since time.Time) ([]Attack, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT c.cve, a.dst_ip, coalesce(max(a.dst_asset_id), ''), min(a.first_ts), max(a.last_ts), sum(a.count),
+	return ReadAttacked(ctx, s.cfg.DB.Reader(), since)
+}
+
+// ReadAttacked is Attacked through q, the service's reader or a read-only handle on the same file (the selfcheck recomputes stored
+// urgencies with it).
+func ReadAttacked(ctx context.Context, q *sql.DB, since time.Time) ([]Attack, error) {
+	rows, err := q.QueryContext(ctx, `SELECT c.cve, a.dst_ip, coalesce(max(a.dst_asset_id), ''), min(a.first_ts), max(a.last_ts), sum(a.count),
 			(SELECT b.id FROM ids_alert b JOIN ids_alert_cve d ON d.alert_id = b.id WHERE d.cve = c.cve AND b.dst_ip = a.dst_ip ORDER BY b.last_ts DESC, b.id LIMIT 1)
 		FROM ids_alert a JOIN ids_alert_cve c ON c.alert_id = a.id WHERE a.last_ts >= ?
 		GROUP BY c.cve, a.dst_ip ORDER BY max(a.last_ts) DESC, c.cve, a.dst_ip LIMIT ?`, store.FormatTS(since), MaxAlerts)

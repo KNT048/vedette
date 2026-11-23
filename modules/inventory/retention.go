@@ -3,9 +3,11 @@ package inventory
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -35,9 +37,16 @@ type retention struct {
 // PruneAgentSoftware deletes the agent software past its retention. It is the job "agent-software-prune" of the module.
 // The same job deletes the removed software lines past their retention (a fixed date, whatever ran meanwhile).
 func (s *Service) PruneAgentSoftware(ctx context.Context) error {
-	if err := s.pruneRemovedSoftware(ctx); err != nil {
-		return err
+	// the agent readings expire whatever the removed lines' prune did: a failure there must not stop the lines from going removed
+	removedErr := s.pruneRemovedSoftware(ctx)
+	if removedErr != nil {
+		s.log.WarnContext(ctx, "inventory: the removed software lines past their retention stay until the next run", "error", removedErr)
 	}
+	return errors.Join(removedErr, s.expireAgentSoftware(ctx))
+}
+
+// expireAgentSoftware deletes the agent software past its retention, once agent-intake has been on long enough to have read it again.
+func (s *Service) expireAgentSoftware(ctx context.Context) error {
 	now := s.clock().UTC()
 	s.retMu.Lock()
 	r := &s.ret
@@ -147,11 +156,25 @@ func (s *Service) pruneAgentSoftware(ctx context.Context, cut string) (int64, er
 	return total, nil
 }
 
-// pruneRemovedSoftware deletes the software lines removed longer than RemovedSoftwareRetention ago.
+// pruneRemovedSoftware deletes the software lines removed longer than RemovedSoftwareRetention ago. The modules that point at a line
+// settle their rows on them first, in the same write (lifecycle LinesDeleted), with the exact ids the delete removes.
 func (s *Service) pruneRemovedSoftware(ctx context.Context) error {
 	return s.write(ctx, func(tx *sql.Tx, _ *outbox) error {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software WHERE state = 'removed' AND removed_at < ?`, store.FormatTS(s.clock().Add(-RemovedSoftwareRetention))); err != nil {
+		ids, err := candidates(ctx, tx, `SELECT id FROM inv_software WHERE state = 'removed' AND removed_at < ? ORDER BY id`,
+			store.FormatTS(s.clock().Add(-RemovedSoftwareRetention)))
+		if err != nil {
 			return fmt.Errorf("inventory: prune removed software: %w", err)
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		if err := s.lifecycle.LinesDeleted(ctx, tx, lifecycle.LinesDelete{Lines: ids}); err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if _, err := tx.ExecContext(ctx, `DELETE FROM inv_software WHERE id = ?`, id); err != nil {
+				return fmt.Errorf("inventory: prune removed software: %w", err)
+			}
 		}
 		return nil
 	})

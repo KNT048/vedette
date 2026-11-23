@@ -80,13 +80,13 @@ async function startChecks(page: Page, targets: string[]) {
   return page.evaluate(async (ids) => (await fetch('/api/v1/scans/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targets: ids }) })).status, targets)
 }
 const engine = (page: Page, name: RegExp) => page.getByRole('listitem', { name })
-/** The only 404 allowed: GET /findings/summary, the shell's nav badges, whose mock comes with #825 (w-summary). Any other 404 fails. */
+/** No request answers 404. */
 function notFound(page: Page) {
   const seen: string[] = []
   page.on('response', (r) => { if (r.status() === 404) seen.push(new URL(r.url()).pathname) })
-  return () => seen.filter((p) => p !== '/api/v1/findings/summary')
+  return () => seen
 }
-const only404Summary = (errors: string[], unexpected: () => string[]) => { expect(unexpected()).toEqual([]); return errors.filter((e) => !/status of 404/.test(e)) }
+const no404 = (errors: string[], unexpected: () => string[]) => { expect(unexpected()).toEqual([]); return errors.filter((e) => !/status of 404/.test(e)) }
 
 test.describe('scan: IT operator', () => {
   test.beforeEach(async ({ page }) => { await sample(page); await loginAs(page, 'u-op') })
@@ -106,7 +106,7 @@ test.describe('scan: IT operator', () => {
     await expect(page.getByText('Only an administrator can turn engines on or off.')).toBeVisible()
     await expect(page.getByRole('link', { name: /Vulnerability scans/ })).toHaveCount(0)
     await english(page, 'scanning')
-    expect(only404Summary(errors, nf)).toEqual([])
+    expect(no404(errors, nf)).toEqual([])
   })
 
   test('old links land on their new place; ?tab= opens the tab; reload keeps it; an unknown tab falls back', async ({ page }) => {
@@ -385,7 +385,7 @@ test.describe('scan: clean install', () => {
     await dlg.getByRole('button', { name: 'Confirm these ranges' }).click()
     await expect(page.getByText('Network ranges saved and confirmed').first()).toBeVisible()
     await english(page, 'clean scanning')
-    expect(only404Summary(errors, nf)).toEqual([])
+    expect(no404(errors, nf)).toEqual([])
   })
 
   test('when the scanner is not available, the Nuclei schedule says why nothing runs', async ({ page }) => {
@@ -421,7 +421,7 @@ test.describe('scan: screenshots and accessibility', () => {
         await expectAccessible(page, `${tab} ${tag}`)
       }
       // No Credentialed scan tab in v1, so no shot of it.
-      expect(only404Summary(errors, nf)).toEqual([])
+      expect(no404(errors, nf)).toEqual([])
     })
   }
 })

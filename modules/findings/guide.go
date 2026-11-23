@@ -139,6 +139,9 @@ type AIResult struct {
 	Paragraphs []string   `json:"paragraphs"`
 	Steps      []string   `json:"steps"`
 	Citations  []Citation `json:"citations"`
+	// Answers are the four answers in the order of the questions; when present the page shows them instead of the paragraphs and steps
+	// (absent for answers stored before).
+	Answers []AIAnswer `json:"answers,omitempty"`
 	// Configs are the ready config blocks of a mitigation-config answer (M2-2): the device's own workaround and a rule per firewall
 	// vendor, each with its side effect; absent for explain and for answers stored before them.
 	Configs []CodeStep `json:"configs,omitempty"`
@@ -146,6 +149,20 @@ type AIResult struct {
 	Shortened bool `json:"shortened,omitempty"`
 	// NoConfigReason: why no config or no firewall rule helps (a local flaw, no open port serves it), in the AI's words (#897 r1 H1).
 	NoConfigReason string `json:"no_config_reason,omitempty"`
+}
+
+// AIAnswer is one of the four answers of "Ask my AI": its key (affected, fix, workaround, urgency), a few sentences and the references it
+// rests on. The links are the brief's own references, written by the box.
+type AIAnswer struct {
+	Key   string   `json:"key"`
+	Text  string   `json:"text"`
+	Links []AILink `json:"links"`
+}
+
+// AILink is a reference an answer cites.
+type AILink struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
 }
 
 // AIResults holds the last result per skill.
@@ -222,13 +239,16 @@ func orEmpty[T any](s []T) []T {
 
 // Row is a finding as the list shows it (FindingRow): the stored finding, the device and the KEV entry.
 type Row struct {
-	ID             string       `json:"id"`
-	AssetID        string       `json:"asset_id"`
-	CVE            string       `json:"cve"`
-	Status         Status       `json:"status"`
-	Severity       Severity     `json:"severity"`
-	Confidence     float64      `json:"confidence"`
-	Basis          Basis        `json:"basis"`
+	ID         string   `json:"id"`
+	AssetID    string   `json:"asset_id"`
+	CVE        string   `json:"cve"`
+	Status     Status   `json:"status"`
+	Severity   Severity `json:"severity"`
+	Confidence float64  `json:"confidence"`
+	Basis      Basis    `json:"basis"`
+	// Urgency is the finding's layer: 1 under attack here, 2 exploited in the wild, 3 public exploit available, 4 critical on an edge
+	// device, 5 update recommended (no sign of exploitation).
+	Urgency        int          `json:"urgency"`
 	Evidence       *evidenceDoc `json:"evidence"`
 	FirstSeen      time.Time    `json:"first_seen"`
 	LastSeen       time.Time    `json:"last_seen"`
@@ -329,7 +349,7 @@ type Detail struct {
 
 func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	row := Row{
-		ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: r.Status, Severity: r.Severity, Confidence: r.ShownConfidence(), Basis: r.Basis,
+		ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: r.Status, Severity: r.Severity, Confidence: r.ShownConfidence(), Basis: r.Basis, Urgency: r.Row.Urgency,
 		Evidence: apiEvidence(r.Evidence), FirstSeen: r.FirstSeen.UTC(), LastSeen: r.LastSeen.UTC(),
 		History: make([]historyDoc, 0, len(r.History)), Asset: a, Kev: k, CVSS: c,
 	}
@@ -380,7 +400,7 @@ func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	return row
 }
 
-// shownAsset is a device as every findings answer shows it (GET /findings, GET /findings/{id}, GET /findings/summary): a kind outside
+// shownAsset is a device as every findings answer shows it (GET /findings, GET /findings/{id}, the finding lists): a kind outside
 // the inventory's device types is "unknown", and the name is never the internal id: its Display (the OS, else the kind, #905), else the kind.
 func shownAsset(a AssetView) AssetView {
 	if !validKind(a.Kind) {

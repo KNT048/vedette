@@ -289,7 +289,8 @@ func newNotify(d *deps) *notify.Service {
 	}
 	c.Hits = notifyHits{d}
 	c.Findings = notifyFindings{d} // d.Findings and the feeds store are built after notify: read when asked
-	if d.Reg != nil {              // a nil *modreg.Registry inside the interface would not compare equal to nil, and OnChange would panic
+	c.Signals = notifySignals{d}
+	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil, and OnChange would panic
 		c.Modules = d.Reg
 	}
 	if d.Bus != nil { // a nil *events.Bus inside the interface would not compare equal to nil

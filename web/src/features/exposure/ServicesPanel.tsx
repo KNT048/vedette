@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { Panel, Section } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/States'
-import { Chip, SeverityChip } from '@/components/common/StatusChip'
+import { Chip } from '@/components/common/StatusChip'
+import { CveList, SeverityBadge, StatusBadge, VerificationLine } from '@/components/common/status'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { PortMark } from './PortMark'
 import { InfoLine } from './InfoLine'
@@ -44,14 +45,20 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
     { id: 'version', header: t('col.version'), accessorFn: (r) => r.version, cell: ({ row }) => row.original.version || <span className="text-muted">{t(view(row.original).ident === 'port' || view(row.original).ident === 'none' ? 'vulns.notRead' : 'vulns.noVersion')}</span> },
     { id: 'cves', header: t('col.exploited'), accessorFn: count, cell: ({ row }) => {
       const n = count(row.original), m = maybe(row.original)
-      return n + m > 0 ? <span className="flex flex-wrap gap-1">{n > 0 ? <Chip tone="warn">{t('vulns.count', { count: n })}</Chip> : null}{m > 0 ? <Chip tone="off">{t('vulns.countBackport', { count: m })}</Chip> : null}</span> : null
+      return n + m > 0 ? <span className="flex flex-wrap gap-1">{n > 0 ? <StatusBadge code="exploited" count={n} /> : null}{m > 0 ? <Chip tone="off">{t('vulns.countBackport', { count: m })}</Chip> : null}</span> : null
     } },
   ]
   const vulnCols: ColumnDef<VulnRow>[] = [
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row }) => <span className="grid gap-0.5"><span className="font-medium">{row.original.cve}</span><span className="text-caption text-muted">{row.original.name}</span></span> },
     ...ipCol<VulnRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
-    { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row }) => row.original.basis === 'template' ? <Chip tone="danger">{t('vulns.basis.template', { id: row.original.template })}</Chip> : row.original.basis === 'greenbone' ? <Chip tone="warn">{t('vulns.basis.greenbone', { qod: row.original.qod ?? 0 })}</Chip> : row.original.backport ? <Chip tone="off">{t('vulns.basis.backport', { distro: row.original.backport })}</Chip> : <Chip tone="warn">{t(`vulns.basis.${row.original.basis}`)}</Chip> },
+    { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => (
+      // how the match is known: a safe template confirmed it, else the version a banner or page gave (product only: not even that)
+      <span className="grid gap-0.5">
+        {r.basis === 'template' ? <VerificationLine verified="scan" basis="scan" /> : <VerificationLine verified="no" basis={r.basis === 'product' ? null : 'banner_version'} />}
+        <span className="text-caption text-muted">{r.basis === 'template' ? r.template : r.basis === 'greenbone' ? t('vulns.basis.greenbone', { qod: r.qod ?? 0 }) : r.backport ? t('vulns.basis.backport', { distro: r.backport }) : t(`vulns.basis.${r.basis}`)}</span>
+      </span>
+    ) },
     { id: 'listed', header: t('col.listed'), accessorFn: (r) => r.date_added ?? '', cell: ({ row }) => (
       <span className="grid gap-1">{row.original.date_added ? fmtDate(row.original.date_added) : t('common:unknown')}{row.original.ransomware ? <Chip tone="danger">{t('vulns.ransomware')}</Chip> : null}</span>
     ) },
@@ -63,7 +70,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
     .filter((r) => r.severity !== undefined && r.outcome === 'matched' && !(r.cve && s.vulns.some((v) => v.ip === r.ip && v.port === r.port && v.cve === r.cve)))
     .sort((a, b) => SEVERITY_ORDER[a.severity!] - SEVERITY_ORDER[b.severity!])
   const deepCols: ColumnDef<TemplateRow>[] = [
-    { id: 'risk', header: t('col.risk'), accessorFn: (r) => SEVERITY_ORDER[r.severity!], cell: ({ row }) => row.original.severity === 'unknown' || row.original.severity === undefined ? <Chip tone="off">{t('common:unknown')}</Chip> : <SeverityChip severity={row.original.severity} /> },
+    { id: 'risk', header: t('col.risk'), accessorFn: (r) => SEVERITY_ORDER[r.severity!], cell: ({ row }) => row.original.severity === 'unknown' || row.original.severity === undefined ? <Chip tone="off">{t('common:unknown')}</Chip> : <SeverityBadge severity={row.original.severity} /> },
     { id: 'name', header: t('col.name'), accessorFn: (r) => r.name ?? r.template, cell: ({ row }) => <span className="grid gap-0.5"><span className="font-medium">{row.original.name || row.original.template}</span><span className="text-caption text-muted">{t('vulns.deepTemplate', { id: row.original.template })}</span></span> },
     ...ipCol<TemplateRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
@@ -89,7 +96,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
           )}
           {s.version_gaps.length > 0 ? (
             <ul aria-label={t('vulns.gapsLabel')} className="grid gap-1 text-sm">
-              {s.version_gaps.map((g) => <li key={`${g.ip}:${g.port}`}>{t('vulns.gap', { count: g.cves.length, software: g.software, port: g.port, cves: g.cves.join(', ') })}</li>)}
+              {s.version_gaps.map((g) => <li key={`${g.ip}:${g.port}`} className="grid gap-0.5">{t('vulns.gap', { count: g.cves.length, software: g.software, port: g.port })}<CveList items={g.cves.map((cve) => ({ cve }))} label={t('vulns.gapCves', { software: g.software, port: g.port })} /></li>)}
             </ul>
           ) : null}
           {deep.length > 0 ? (

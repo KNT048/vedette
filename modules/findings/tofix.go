@@ -29,12 +29,24 @@ type ToFix struct {
 // (the page's "Needs your input"), not "to fix".
 func (u UpdateAction) Proved() bool { return u.Confirmed+u.Detected > 0 }
 
-// actionable is what "To fix" lists of a device: its exploited actions with a named update, and the ones without an update that
-// the box proved.
+// actionable is what "To fix" counts of a device as exploited: its actions with a named update, and the ones without an update that
+// the box proved, each cut to the CVEs attackers use (an action of a public exploit or a critical flaw on an edge device is listed
+// on the card but is not an exploited CVE to fix; an action with none left is dropped).
 func (d DeviceUpdates) actionable() []UpdateAction {
-	out := slices.Clone(d.Exploited)
-	for _, u := range d.NoUpdate {
-		if u.Proved() {
+	var out []UpdateAction
+	for _, u := range slices.Concat(d.Exploited, slices.DeleteFunc(slices.Clone(d.NoUpdate), func(u UpdateAction) bool { return !u.Proved() })) {
+		if len(u.Layers) != len(u.CVEs) { // layers not stated: every CVE counts, as before urgency layers
+			out = append(out, u)
+			continue
+		}
+		var cves []string
+		for i, c := range u.CVEs {
+			if u.Layers[i] <= UrgencyExploited {
+				cves = append(cves, c)
+			}
+		}
+		if len(cves) > 0 {
+			u.CVEs = cves
 			out = append(out, u)
 		}
 	}
@@ -76,9 +88,14 @@ func (s *Service) classify(ctx context.Context, feedsOn bool, assetID string) (T
 	if err != nil {
 		return ToFix{}, err
 	}
+	ignored, err := s.ignoredDevices(ctx) // a person's ignored devices are left out of To fix and the risk marker
+	if err != nil {
+		return ToFix{}, fmt.Errorf("findings: to fix: %w", err)
+	}
 	open := map[string][]Record{}
 	for _, r := range recs {
-		if r.Status.Open() {
+		// a finding of a CVE nobody exploits yet (urgency 5) is a recommended update (Planned), never one to fix, as DeviceUpdates has it
+		if r.Status.Open() && Announced(r.Row) && !ignored[r.AssetID] {
 			open[r.AssetID] = append(open[r.AssetID], r)
 		}
 	}
@@ -93,7 +110,7 @@ func (s *Service) classify(ctx context.Context, feedsOn bool, assetID string) (T
 		plans := maps.Clone(s.plan.devices)
 		s.plan.mu.RUnlock()
 		for id, d := range plans {
-			if len(s.notDone(d.items)) > 0 && (assetID == "" || id == assetID) {
+			if len(d.items) > 0 && (assetID == "" || id == assetID) {
 				seen[id] = true
 			}
 		}
@@ -109,7 +126,7 @@ func (s *Service) classify(ctx context.Context, feedsOn bool, assetID string) (T
 		if err != nil {
 			return ToFix{}, fmt.Errorf("findings: to fix: reading device %s: %w", id, err)
 		}
-		if !ok { // the device is gone; its findings go with it (Reconcile)
+		if !ok || ignored[id] { // the device is gone (its findings go with it, Reconcile), or ignored
 			continue
 		}
 		d := DeviceUpdates{AssetID: id, Open: len(open[id])}

@@ -149,6 +149,8 @@ type pullPlan struct {
 	// whether none of them had an answer before the pull.
 	kevRanges      []string
 	kevRangesFirst bool
+	// catalogueRanges: those pulls changed the ranges of a CVE on no exploited list (RangesUpdatedEvent.Catalogue).
+	catalogueRanges bool
 
 	iocs    []iocInput
 	hasIOCs bool
@@ -511,6 +513,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		baseline       bool // the CISA list filled an empty table: one baseline event, not one per CVE
 		rangesChanged  []string
 		rangesFirst    bool
+		catalogue      bool // ranges of a CVE on no exploited list changed
 	)
 	pinned, err := s.pinned(ctx) // the catalogue keeps them, whatever an NVD pull brings
 	if err != nil {
@@ -532,7 +535,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		return s.Audit.Append(ctx, tx, audit.Entry{User: actor, Action: "feeds.fetch", Target: src.Name, Detail: detail})
 	}
 	write := func(p pullPlan) error {
-		fresh, changed, added, removed, stale, baseline, rangesChanged, rangesFirst = nil, nil, 0, 0, false, false, nil, false
+		fresh, changed, added, removed, stale, baseline, rangesChanged, rangesFirst, catalogue = nil, nil, 0, 0, false, false, nil, false, false
 		if p.hasIOCs { // a long list: chunks, not one transaction that holds the writer (applyIOCs)
 			var err error
 			added, removed, stale, err = applyIOCs(ctx, s.DB, p.out.Finished, src, p.iocs, s.afterChunk, func(tx *sql.Tx, _, _ int) error { return finish(tx, p.out) })
@@ -593,7 +596,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if err != nil {
 					return err
 				}
-				rangesChanged = w.KEVChanged
+				rangesChanged, catalogue = w.KEVChanged, w.Catalogue
 				if p.out.Records, err = kevNVDCountTx(ctx, tx); err != nil { // the exploited CVEs NVD answered for, not only this (incremental) pull's
 					return err
 				}
@@ -626,9 +629,10 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if rangesChanged, rangesFirst, err = applyWinRel(ctx, tx, p.winRel, p.winRelUpd); err != nil {
 					return err
 				}
-			case len(p.kevRanges) > 0: // nvd-recent and cve-org stored as they went: the exploited-list CVEs whose ranges changed are news
-				// (ranges of CVEs read for the first time are backlog; a new CISA entry still alerts by its own new_kev event)
-				rangesChanged, rangesFirst = p.kevRanges, p.kevRangesFirst
+			case len(p.kevRanges) > 0 || p.catalogueRanges: // nvd-recent and cve-org stored as they went: the exploited-list CVEs whose
+				// ranges changed are news (ranges of CVEs read for the first time are backlog; a new CISA entry still alerts by its own
+				// new_kev event), and so is a change of a catalogue CVE's ranges (Catalogue)
+				rangesChanged, rangesFirst, catalogue = p.kevRanges, p.kevRangesFirst, p.catalogueRanges
 			}
 			return finish(tx, p.out)
 		})
@@ -682,9 +686,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	if added > 0 || removed > 0 {
 		emit(EventIOCUpdated, IOCUpdatedEvent{FeedID: src.ID, Added: added, Removed: removed})
 	}
-	if len(rangesChanged) > 0 {
+	if len(rangesChanged) > 0 || catalogue {
 		slices.Sort(rangesChanged)
-		emit(EventRangesUpdated, RangesUpdatedEvent{CVEs: rangesChanged, First: rangesFirst})
+		emit(EventRangesUpdated, RangesUpdatedEvent{CVEs: rangesChanged, First: rangesFirst && len(rangesChanged) > 0, Catalogue: catalogue})
 	}
 	if !p.out.OK {
 		emit(EventFetchFailed, FetchFailedEvent{FeedID: src.ID, Error: p.out.Err})

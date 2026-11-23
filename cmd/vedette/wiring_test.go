@@ -204,7 +204,7 @@ func TestWiringDeviceMatchesKEVAndDeleteRemovesTheFinding(t *testing.T) {
 	}
 	_, list := s.do("GET", "/findings", "viewer", "")
 	fid := at(list, "items", 0, "id").(string)
-	if at(list, "items", 0, "asset", "id") != id || at(list, "items", 0, "basis") != "product" || at(list, "items", 0, "kev", "name") == nil {
+	if at(list, "items", 0, "asset", "id") != id || at(list, "items", 0, "basis") != "version" || at(list, "items", 0, "kev", "name") == nil {
 		t.Errorf("row: %v", at(list, "items", 0))
 	}
 	if c, b := s.do("GET", "/findings/"+fid, "viewer", ""); c != 200 || at(b, "id") != fid {

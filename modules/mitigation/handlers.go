@@ -49,6 +49,9 @@ func NewActionHandlers(db *store.DB, a *audit.Log, f *findings.Service, d Detail
 
 // Limits on what the AI may hand back: its output is untrusted text.
 const (
+	maxAIAnswers    = 4
+	maxAIAnswer     = 1200 // the schema's longest answer text
+	maxAILinks      = 8
 	maxAIParagraphs = 20
 	maxAISteps      = 30
 	maxAICitations  = 20
@@ -137,7 +140,7 @@ func (h *ActionHandlers) FindingsPostFindingsIDAi(ctx context.Context, req *oas.
 	if err != nil {
 		return nil, err
 	}
-	out, err := h.ai.Run(ctx, AIRequest{Skill: skill, Finding: before.Row, FixedIn: before.FixedIn, HasPack: before.Pack != nil, User: p.Email})
+	out, err := h.ai.Run(ctx, AIRequest{Skill: skill, FindingID: rec.ID, HasPack: before.Pack != nil, User: p.Email})
 	if ae, ok := apierr.As(err); ok { // the AI module says what happened (cut off, wrong format, a hook, the provider, the cap): pass it on
 		return nil, ae
 	}
@@ -210,6 +213,15 @@ func sanitizeAI(skill Skill, ts time.Time, o AIOutput) findings.AIResult {
 			check = append(check, "and more")
 		}
 		r.Configs = append(r.Configs, findings.CodeStep{Title: clip(c.Title, 300), Code: code, Note: clip(c.Note, 300), SideEffect: clip(c.SideEffect, maxAIText), Check: check})
+	}
+	for _, a := range o.Answers[:min(len(o.Answers), maxAIAnswers)] {
+		x := findings.AIAnswer{Key: clip(a.Key, 20), Text: clip(a.Text, maxAIAnswer), Links: []findings.AILink{}}
+		for _, l := range a.Links[:min(len(a.Links), maxAILinks)] {
+			if u, err := url.Parse(l.URL); err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != "" && len(l.URL) <= 2000 {
+				x.Links = append(x.Links, findings.AILink{Title: clip(l.Title, 200), URL: l.URL})
+			}
+		}
+		r.Answers = append(r.Answers, x)
 	}
 	for _, s := range o.Paragraphs[:min(len(o.Paragraphs), maxAIParagraphs)] {
 		r.Paragraphs = append(r.Paragraphs, clip(s, maxAIText))

@@ -16,6 +16,8 @@
     "titleFirstRun": "Today: add your devices so Vedette can check them",
     "titleOpen_one": "Today: {{count}} of your devices runs software being exploited",
     "titleOpen_other": "Today: {{count}} of your devices run software being exploited",
+    "titleUpdates_one": "Today: {{count}} of your devices has updates to install",
+    "titleUpdates_other": "Today: {{count}} of your devices have updates to install",
     "titleClear": "Today: nothing you run is being exploited",
     "kevNoData": "No exploited list has been fetched yet, so Vedette cannot say whether anything you run is exploited."
   },
@@ -120,7 +122,7 @@
     "template": "Confirmation template",
     "templateYes": "Yes (nuclei-templates), can be confirmed by scanning",
     "templateNo": "Not yet, version-based assessment only",
-    "description": "Original description",
+    "description": "Description",
     "descriptionHint": "Verbatim from CISA KEV.",
     "descriptionHintVulnCheck": "From VulnCheck KEV (not on the CISA list yet).",
     "requiredActionVulnCheck": "VulnCheck KEV:",
@@ -379,21 +381,12 @@
       "recent": "Recent",
       "old": "Older than 12 months"
     },
-    "notExploited": "Not on an exploited list",
     "intro": "This CVE is on no exploited list (CISA KEV, or VulnCheck KEV when it is on). Vedette lists the devices it confirmed under Recommended updates, grouped by the update that fixes it; it is never a finding and never alerts.",
     "introOld": "This CVE is on no exploited list and was published more than 12 months ago, or this box has no NVD record of it. Vedette lists such a CVE on a device only when a scan engine finds it there.",
     "products": "Products (NVD)",
     "productsNone": "NVD names none yet",
     "publishedNone": "Not in the NVD data of the last 12 months",
     "severity": "Severity (CVSS)",
-    "sev": {
-      "critical": "Critical",
-      "high": "High",
-      "medium": "Medium",
-      "low": "Low",
-      "none": "None"
-    },
-    "notScored": "Not scored by NVD yet",
     "epssNone": "No EPSS score in the data",
     "epssHint": "(EPSS, next 30 days; scores of {{date}})",
     "status": "NVD status",
@@ -407,18 +400,16 @@
   "dash": {
     "label": "Today at a glance",
     "loading": "Loading today at a glance",
-    "open_one": "open exploited finding on {{devices}} device",
-    "open_other": "open exploited findings on {{devices}} devices",
-    "openNone": "open exploited findings",
-    "unchecked_one": "You have 1 exploited CVE Vedette could not check on {{devices}} device: read it on the Findings page",
-    "unchecked_other": "You have {{count}} exploited CVEs Vedette could not check on {{devices}} devices: read them on the Findings page",
-    "confirmed_one": "{{count}} confirmed",
-    "confirmed_other": "{{count}} confirmed",
-    "suspected_one": "{{count}} suspected",
-    "suspected_other": "{{count}} suspected",
-    "ransomware_one": "{{count}} used by ransomware",
-    "ransomware_other": "{{count}} used by ransomware",
-    "trendLabel": "Open exploited findings over {{days}} days: {{first}} then, {{last}} now",
+    "open_one": "open finding on {{devices}} device",
+    "open_other": "open findings on {{devices}} devices",
+    "openNone": "open findings",
+    "input_one": "{{count}} item needs your input",
+    "input_other": "{{count}} items need your input",
+    "notAdded_one": "{{count}} not added yet",
+    "notAdded_other": "{{count}} not added yet",
+    "cause": "Caused by {{cve}}",
+    "cvesOf": "CVEs fixed by: {{fix}}",
+    "trendLabel": "Open findings over {{days}} days: {{first}} then, {{last}} now",
     "trendDay_one": "{{day}}: {{count}} open",
     "trendDay_other": "{{day}}: {{count}} open",
     "now": "Now",
@@ -431,8 +422,6 @@
     "devices_other": "devices watched",
     "affected_one": "{{count}} affected",
     "affected_other": "{{count}} affected",
-    "pending_one": "{{count}} to review",
-    "pending_other": "{{count}} to review",
     "alerts_one": "alert sent, last {{days}} days",
     "alerts_other": "alerts sent, last {{days}} days",
     "alertsFailed_one": "{{count}} failed to send",
@@ -444,19 +433,13 @@
     "urgent_other": "{{count}} high or critical",
     "urgentNone": "None high or critical",
     "fixFirst": "Fix first",
-    "fixFirstInfo": "The open findings that matter most: confirmed (by a scan, by the version the device itself reports, or by a person) before suspected, then those ransomware groups use, then the highest CVSS score, then the newest. Every one is on an exploited list (CISA KEV or VulnCheck KEV); CVSS says how bad the flaw is, not whether it is exploited.",
+    "fixFirstInfo": "The updates that matter most across your devices, most urgent first: under attack here, exploited in the wild, public exploit, critical on an edge device, then update recommended; ties go to the update that fixes the most findings. CVSS says how bad a flaw is, not whether it is exploited.",
     "allFindings_one": "All {{count}} open finding",
     "allFindings_other": "All {{count}} open findings",
-    "since": "found {{when}}",
-    "removedDevice": "A removed device",
-    "inKev": "In CISA KEV",
-    "inVulncheck": "In VulnCheck KEV",
-    "exploited": "Exploited",
-    "ransomwareChip": "Ransomware",
-    "emptyTitle": "Nothing you run is being exploited",
+    "emptyTitle": "No open findings",
     "emptyBody_one": "Vedette checks your {{count}} device again whenever the exploited lists change.",
     "emptyBody_other": "Vedette checks your {{count}} devices again whenever the exploited lists change.",
-    "emptyInfo": "A finding appears here when a device runs a version listed as exploited in the wild (CISA KEV, VulnCheck KEV). Newly exploited vulnerabilities, matched or not, are on the board below."
+    "emptyInfo": "A finding appears when a device runs software affected by a known vulnerability. Newly exploited vulnerabilities, matched or not, are on the board below."
   },
   "start": {
     "title": "Get started",
@@ -516,5 +499,99 @@
     "notConfirmed": "Not confirmed yet.",
     "submit": "Add range",
     "added": "{{range}} added. Scan it now from Get started, or Vedette scans it in its next window."
+  },
+  "brief": {
+    "theProduct": "The product",
+    "weakness": "a flaw of type “{{name}}” ({{id}})",
+    "flaw": "a flaw",
+    "how": " that an attacker can use {{vector}}, {{privileges}} and {{user}}",
+    "howNoUser": " that an attacker can use {{vector}} and {{privileges}}",
+    "vector": {
+      "network": "over the network",
+      "adjacent": "from the same local network",
+      "local": "with local access to it",
+      "physical": "with physical access to it"
+    },
+    "privileges": {
+      "none": "without logging in",
+      "low": "with low privileges",
+      "high": "with high privileges"
+    },
+    "user": {
+      "none": "with no action from a user",
+      "needed": "when a user takes an action"
+    },
+    "status": {
+      "exploited": "; attackers use it in real attacks",
+      "public_exploit": "; working exploit code is public"
+    },
+    "sentence": "{{product}} has {{weakness}}{{how}}{{urgency}}.",
+    "facts": {
+      "product": "Product",
+      "severity": "Severity",
+      "weakness": "Weakness",
+      "epss": "Exploit likelihood",
+      "published": "Published",
+      "modified": "Last changed",
+      "nvd": "NVD status",
+      "ssvc": "CISA's assessment",
+      "ids": "Records"
+    },
+    "scoredBy": "CVSS {{version}} by {{source}}",
+    "scorer": {
+      "nvd": "NVD",
+      "cna": "the vendor (CNA)",
+      "adp": "CISA (ADP)"
+    },
+    "epssValue": "{{score}} in the next 30 days, higher than {{percentile}} of CVEs",
+    "ssvcValue": "Exploitation {{exploitation}} · automatable {{automatable}} · impact {{impact}}",
+    "notKnown": "not known",
+    "affected": {
+      "title": "Affected and fixed",
+      "product": "Product",
+      "versions": "Affected",
+      "fixed": "Fixed in",
+      "yourDevice": "Your device",
+      "noFix": "The version data names no fixed release: the vendor advisory has it.",
+      "all_one": "All affected versions ({{count}} row)",
+      "all_other": "All affected versions ({{count}} rows)",
+      "origin": {
+        "nvd": "From NVD",
+        "cna": "From the CVE record (the vendor)",
+        "adp": "From CISA (ADP)"
+      },
+      "notUsed": "not used for matching while NVD gives versions",
+      "train": "Release train"
+    },
+    "todo": {
+      "title": "What to do",
+      "fix": "Install the fixed release the vendor advisory names.",
+      "search": "Search {{product}}'s security advisories for {{cve}}.",
+      "vendor": "The vendor's solution:",
+      "workaround": "If you cannot patch yet:",
+      "noWorkaround": "No workaround is published: install the fix.",
+      "required": "{{source}} asks:",
+      "due": "Fix by {{date}}."
+    },
+    "advisory": "Vendor advisory",
+    "sources": "Sources",
+    "ref": {
+      "vendor-advisory": "Vendor advisory",
+      "patch": "Patch",
+      "mitigation": "Mitigation",
+      "release-notes": "Release notes",
+      "exploit": "Exploit",
+      "government-resource": "Government",
+      "third-party-advisory": "Third-party advisory",
+      "technical-description": "Technical description",
+      "issue-tracking": "Issue tracker",
+      "mailing-list": "Mailing list",
+      "vdb-entry": "Vulnerability database",
+      "media-coverage": "News",
+      "other": "Other"
+    },
+    "nvdLink": "NVD",
+    "recordLink": "CVE record",
+    "more": "Affected versions, sources and score"
   }
 }

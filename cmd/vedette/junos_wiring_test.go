@@ -84,7 +84,7 @@ func TestWiringLLDPJunosSwitchGetsItsFindings(t *testing.T) {
 	}
 	// nmap's guess wins the OS field (review M2): the switch's own statement still decides, nothing "no longer matches".
 	record(observe.Nmap, 0.9, map[observe.Field]string{observe.OS: "Juniper JUNOS 10.4R1.9 (EX4200 switch)"})
-	if got, n := cves(), s.count(`SELECT count(*) FROM fnd_finding_history WHERE action = 'no_longer_matches'`); !slices.Equal(got, []string{"CVE-2023-36845"}) || n != 0 {
+	if got, n := cves(), s.count(`SELECT count(*) FROM fnd_finding_event WHERE kind = 'no_longer_detected'`); !slices.Equal(got, []string{"CVE-2023-36845"}) || n != 0 {
 		t.Fatalf("after nmap: %v, %d no-longer-matches rows", got, n)
 	}
 	// A hostname is not what the matcher reads: no rematch (review L3).

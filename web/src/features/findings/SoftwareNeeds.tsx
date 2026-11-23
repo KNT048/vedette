@@ -3,10 +3,9 @@
 // for the device); nothing on a clean row.
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { Chip } from '@/components/common/StatusChip'
 import { useModuleEnabled } from '@/lib/modules'
 import { useToFix } from './api'
-import { actionable, unproved } from './ToFix'
+import { Worst, actionable, unproved } from './ToFix'
 import { kbNote } from './fix'
 import type { ToFixAction } from './types'
 
@@ -83,7 +82,7 @@ export function SoftwareNeeds({ assetId, softwareId, needs }: { assetId: string;
       {cves ? (
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Link to={to} className="font-medium text-accent underline-offset-4 hover:underline">{t('needs.exploited', { count: cves })}</Link>
-          {worst ? <Chip tone={rank(worst) >= 3 ? 'danger' : 'warn'}>{t(`common:severity.${worst.toLowerCase()}`)}</Chip> : null}
+          <Worst worst={worst} />
           {n.exploited.filter((a) => a.kind !== 'none').map((a) => <span key={a.group}>{a.action}</span>)}
         </span>
       ) : null}

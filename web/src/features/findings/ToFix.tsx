@@ -7,7 +7,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
-import { Chip } from '@/components/common/StatusChip'
+import { CveList, SeverityBadge, type Band } from '@/components/common/status'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
@@ -15,7 +15,6 @@ import { useDevice, useDevices } from '@/features/inventory/api'
 import { deviceName } from './basis'
 import { kbNote, noCvesKey } from './fix'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
-import { MarkDoneButton } from './PlanDone'
 import type { SoftwareLine } from '@/features/inventory/types'
 import { isOsSoftware, IUpdated, TypedVersionDialog, type UpdatedSoftware } from './Updated'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
@@ -26,9 +25,8 @@ import { RowActions } from './Handle'
  *  row that is the OS or the kernel (its "vendor|product"). */
 const osAction = (a: ToFixAction) => a.windows || a.kind === 'windows' || a.kind === 'esu' || a.kind === 'feature_update' || isOsSoftware(a.product.split('|')[0] ?? '', a.product.split('|')[1] ?? '')
 
-const SEV = ['info', 'low', 'medium', 'high', 'critical']
-const rank = (s: string) => SEV.indexOf(s.toLowerCase())
-const tone = (s: string) => (rank(s) >= 3 ? 'danger' : rank(s) === 2 ? 'warn' : 'off') as 'danger' | 'warn' | 'off'
+const SEV: readonly Band[] = ['info', 'low', 'medium', 'high', 'critical']
+const rank = (s: string) => SEV.indexOf(s.toLowerCase() as Band)
 
 /** An exploited action without a named update and without proof is the person's to check (Needs your input), not to fix. */
 export const proved = (a: ToFixAction) => a.confirmed + a.detected > 0
@@ -41,9 +39,8 @@ export const listed = (d: ToFixDevice) => actionable(d).length + d.planned.lengt
 
 /** One severity: the worst of the action's CVEs, in words (never a second CVSS label next to it). */
 export function Worst({ worst }: { worst: string }) {
-  const { t } = useTranslation('findings')
-  if (!worst) return null
-  return <Chip tone={tone(worst)}>{t(`common:severity.${worst.toLowerCase()}`)}</Chip>
+  const band = SEV.find((b) => b === worst.toLowerCase())
+  return band ? <SeverityBadge severity={band} /> : null
 }
 
 /** The box's own OS packages are installed from Settings › Updates: the action's button. */
@@ -94,18 +91,11 @@ function Action({ a, planned, box, asset, typed }: { a: ToFixAction; planned: bo
           <span className="ml-2 hidden text-meta text-accent underline-offset-4 group-open:inline">{t('toFix.hideCves')}</span>
         </summary>
         {/* a finding to fix: one line each, with Mark as handled right there; a planned CVE (no finding) only links to its page */}
-        <ul aria-label={t('toFix.cvesOf', { action: a.action })} className={planned ? 'mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-meta' : 'mt-1 grid gap-1 pl-4 text-meta'}>
-          {a.cves.map((c, i) => (
-            <li key={c} className={planned ? undefined : 'flex flex-wrap items-center gap-x-3 gap-y-1'}>
-              {a.finding_ids[i] ? <Link to={`/findings/${encodeURIComponent(a.finding_ids[i]!)}`} className="text-accent underline-offset-4 hover:underline">{c}</Link>
-                : <Link to={`/cve/${encodeURIComponent(c)}`} className="text-accent underline-offset-4 hover:underline">{c}</Link>}
-              {!planned && a.finding_ids[i] ? <RowActions f={{ id: a.finding_ids[i]!, cve: c, asset }} /> : null}
-            </li>
-          ))}
-        </ul>
+        <CveList all rows={!planned} className="mt-1 pl-4" label={t('toFix.cvesOf', { action: a.action })}
+          items={a.cves.map((cve, i) => ({ cve, id: a.finding_ids[i], to: a.finding_ids[i] ? `/findings/${encodeURIComponent(a.finding_ids[i]!)}` : undefined }))}
+          action={planned ? undefined : (c) => (c.id ? <RowActions f={{ id: c.id, cve: c.cve, asset }} /> : null)} />
       </details>
       <ActionButton a={a} box={box} />
-      {planned ? <MarkDoneButton group={a.group} action={a.action} software={a.software} /> : null}
       {/* The same "I updated it" as the finding page: a typed version once per software, under its last row (typedSoftware); an
           agent or a check reads the whole device (DeviceUpdated, once per device) */}
       {typed ? <TypedUpdated asset={asset} software={typed} /> : null}

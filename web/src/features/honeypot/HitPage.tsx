@@ -14,6 +14,7 @@ import { RespondLink } from './hitParts'
 import { notOffered } from '@/lib/v1'
 import type { HitDetail, HitEvent } from './types'
 import { kindLabel } from '@/lib/deviceTypes'
+import { NotAddedChip } from '@/features/findings/NotAdded'
 
 export default function HitPage() {
   const { t } = useTranslation('honeypot')
@@ -52,7 +53,7 @@ function HitBody({ h, crumbs, respond }: { h: HitDetail; crumbs: Crumb[]; respon
             { label: t('hit.trap'), value: h.kind === 'service' ? `${h.trap_hostname} (${h.trap_ip})` : `${h.trap_hostname}: ${h.trap_ip}` },
             { label: t('hit.srcIp'), value: h.src_ip },
             { label: t('hit.srcDevice'), value: h.asset && h.src_name
-              ? <span className="flex flex-wrap items-center gap-2"><Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${h.asset.id}`}>{h.src_name}</Link><span className="text-meta text-muted">{kindLabel(h.asset.kind)}</span>{h.asset.approved ? null : <Chip tone="warn">{t('hit.unapproved')}</Chip>}</span>
+              ? <span className="flex flex-wrap items-center gap-2"><Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${h.asset.id}`}>{h.src_name}</Link><span className="text-meta text-muted">{kindLabel(h.asset.kind)}</span><NotAddedChip asset={h.asset} /></span>
               : <span className="text-muted">{h.is_test ? t('hits.deviceBox') : t('hit.noDevice')}</span> },
           ]} />
         </Card>

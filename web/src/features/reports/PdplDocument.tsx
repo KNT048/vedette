@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { AiBlock } from '@/components/common/AiBlock'
 import { Notice } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
-import { FindingStatusChip } from '@/features/findings/AcceptRisk'
+import { FindingStatus } from '@/features/findings/legacyStatus'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 import { FiltersUsed, pdplView, useReportFilters } from './filters'
 import { Scroll } from './parts'
@@ -81,7 +81,7 @@ export function PdplDocument({ report: full, aiAction }: { report: PdplReport; a
           <Scroll>
             <table className="w-full border-collapse text-meta" aria-labelledby="pd-risk">
               <thead><tr className="border-b border-rule text-left text-muted"><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.device')}</th><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.cve')}</th><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.product')}</th><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.status')}</th><th scope="col" className="py-1 font-medium">{t('doc.col.since')}</th></tr></thead>
-              <tbody>{r.risks.map((f) => <tr key={f.id} className="border-b border-rule last:border-b-0"><td className="py-1 pr-3">{f.device}</td><td className="py-1 pr-3">{f.cve}</td><td className="py-1 pr-3">{f.product}</td><td className="py-1 pr-3"><FindingStatusChip f={f} /></td><td className="py-1">{fmtDate(f.since)}</td></tr>)}</tbody>
+              <tbody>{r.risks.map((f) => <tr key={f.id} className="border-b border-rule last:border-b-0"><td className="py-1 pr-3">{f.device}</td><td className="py-1 pr-3">{f.cve}</td><td className="py-1 pr-3">{f.product}</td><td className="py-1 pr-3"><FindingStatus f={f} /></td><td className="py-1">{fmtDate(f.since)}</td></tr>)}</tbody>
             </table>
           </Scroll>
         )}

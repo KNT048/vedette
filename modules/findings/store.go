@@ -11,24 +11,15 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Record is one stored finding: the pair, its lifecycle state, timestamps and history.
-type Record struct {
-	ID      string
-	AssetID string
-	CVE     string
-	Finding
-	FirstSeen time.Time
-	LastSeen  time.Time
-	History   []HistoryEntry
-}
-
 // querier is what both *sql.DB (reads) and *sql.Tx (inside a write) offer.
 type querier interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// evidenceDoc is the JSON of fnd_finding.evidence and of the evidence field of the API.
+type scanner interface{ Scan(dest ...any) error }
+
+// evidenceDoc is the JSON of fnd_finding.evidence (display only) and of the evidence field of the API.
 type evidenceDoc struct {
 	Summary   string    `json:"summary"`
 	Template  string    `json:"template,omitempty"`
@@ -37,8 +28,7 @@ type evidenceDoc struct {
 	CheckedAt time.Time `json:"checked_at"`
 	Agent     bool      `json:"agent,omitempty"`     // The version compared is the one the device's agent reports
 	AgentRow  bool      `json:"agent_row,omitempty"` // A product-only match on a row the agent reported with its version
-	Prior     string    `json:"prior,omitempty"`     // Stored only (Evidence.Prior); newRow leaves it out of the API
-	Source    string    `json:"source,omitempty"`    // snmp or agent: the device itself stated the version (Evidence.Source); the CHECK reads it
+	Source    string    `json:"source,omitempty"`    // snmp or agent: the device itself stated the version (Evidence.Source)
 	Read      *readDoc  `json:"read,omitempty"`      // Stored only (Evidence.Read); apiEvidence leaves it out
 }
 
@@ -55,7 +45,7 @@ func newEvidenceDoc(e *Evidence) *evidenceDoc {
 	if e == nil {
 		return nil
 	}
-	d := &evidenceDoc{Summary: e.Summary, Template: e.Template, Request: e.Request, Response: e.Response, CheckedAt: e.CheckedAt.UTC(), Agent: e.Agent, AgentRow: e.AgentRow, Prior: string(e.Prior), Source: e.Source}
+	d := &evidenceDoc{Summary: e.Summary, Template: e.Template, Request: e.Request, Response: e.Response, CheckedAt: e.CheckedAt.UTC(), Agent: e.Agent, AgentRow: e.AgentRow, Source: e.Source}
 	if r := e.Read; r != nil {
 		d.Read = &readDoc{Software: r.Software, Source: r.Source, Version: r.Version, Pkg: r.Pkg, At: r.At.UTC()}
 		if r.At.IsZero() {
@@ -69,7 +59,7 @@ func newEvidenceDoc(e *Evidence) *evidenceDoc {
 func apiEvidence(e *Evidence) *evidenceDoc {
 	d := newEvidenceDoc(e)
 	if d != nil {
-		d.Prior, d.Read = "", nil
+		d.Read = nil
 	}
 	return d
 }
@@ -78,60 +68,88 @@ func (d *evidenceDoc) evidence() *Evidence {
 	if d == nil {
 		return nil
 	}
-	e := &Evidence{Summary: d.Summary, Template: d.Template, Request: d.Request, Response: d.Response, CheckedAt: d.CheckedAt, Agent: d.Agent, AgentRow: d.AgentRow, Prior: Basis(d.Prior), Source: d.Source}
+	e := &Evidence{Summary: d.Summary, Template: d.Template, Request: d.Request, Response: d.Response, CheckedAt: d.CheckedAt, Agent: d.Agent, AgentRow: d.AgentRow, Source: d.Source}
 	if r := d.Read; r != nil {
 		e.Read = &Reading{Software: r.Software, Source: r.Source, Version: r.Version, Pkg: r.Pkg, At: r.At}
 	}
 	return e
 }
 
-const findingColumns = `id, asset_id, cve, status, severity, confidence, basis, evidence, first_seen, last_seen, resolved_by, resolved_at, resolution_note, resolution_reason, accepted_until, software_id, proved_version`
+func encodeEvidence(e *Evidence) (any, error) {
+	if e == nil {
+		return nil, nil
+	}
+	b, err := json.Marshal(newEvidenceDoc(e))
+	if err != nil {
+		return nil, fmt.Errorf("findings: encoding evidence: %w", err)
+	}
+	return string(b), nil
+}
 
-type scanner interface{ Scan(dest ...any) error }
+const findingColumns = `id, asset_id, cve, software_id, detected, basis, verified, range_origin, matched_version, fix_kind, fix_version, fix_ref,
+	fix_key, evidence, state, resolution, via, resolved_by, resolved_at, note, accepted_until, from_version, to_version, urgency, urgency_at,
+	first_seen, last_seen, updated_at`
 
-func scanRecord(s scanner) (Record, error) {
+func scanFinding(s scanner) (Finding, error) {
 	var (
-		r                                      Record
-		status, severity, basis                string
-		evidence, resolvedBy, resolvedAt, note sql.NullString
-		reason, until, softwareID, proved      sql.NullString
-		first, last                            string
+		f                                           Finding
+		basis, verified, fixKind, state             string
+		softwareID, matched, fixVersion, fixRef     sql.NullString
+		evidence, resolution, via, resolvedBy, note sql.NullString
+		resolvedAt, until, from, to                 sql.NullString
+		urgencyAt, first, last, updated             string
 	)
-	if err := s.Scan(&r.ID, &r.AssetID, &r.CVE, &status, &severity, &r.Confidence, &basis, &evidence, &first, &last, &resolvedBy, &resolvedAt, &note, &reason, &until, &softwareID, &proved); err != nil {
-		return Record{}, err
+	if err := s.Scan(&f.ID, &f.AssetID, &f.CVE, &softwareID, &f.Detected, &basis, &verified, &f.RangeOrigin, &matched, &fixKind, &fixVersion, &fixRef,
+		&f.FixKey, &evidence, &state, &resolution, &via, &resolvedBy, &resolvedAt, &note, &until, &from, &to, &f.Urgency, &urgencyAt,
+		&first, &last, &updated); err != nil {
+		return Finding{}, err
 	}
-	r.Status, r.Severity, r.Basis = Status(status), Severity(severity), Basis(basis)
-	var err error
-	if r.FirstSeen, err = parseTS(first); err != nil {
-		return Record{}, err
-	}
-	if r.LastSeen, err = parseTS(last); err != nil {
-		return Record{}, err
-	}
+	f.SoftwareID, f.MatchedVersion = softwareID.String, matched.String
+	f.Basis, f.Verified, f.State = DetectionBasis(basis), Verified(verified), State(state)
+	f.Fix = Fix{Kind: FixKind(fixKind), Version: fixVersion.String, Ref: fixRef.String}
+	f.Resolution, f.Via, f.ResolvedBy, f.Note = Resolution(resolution.String), Via(via.String), resolvedBy.String, note.String
+	f.FromVersion, f.ToVersion = from.String, to.String
 	if evidence.Valid {
 		var d evidenceDoc
 		if err := json.Unmarshal([]byte(evidence.String), &d); err != nil {
-			return Record{}, fmt.Errorf("evidence: %w", err)
+			return Finding{}, fmt.Errorf("evidence: %w", err)
 		}
-		r.Evidence = d.evidence()
+		f.Evidence = d.evidence()
 	}
-	r.ResolvedBy, r.ResolutionNote, r.ResolutionReason = resolvedBy.String, note.String, reason.String
-	r.SoftwareID, r.ProvedVersion = softwareID.String, proved.String
-	if resolvedAt.Valid {
-		if r.ResolvedAt, err = parseTS(resolvedAt.String); err != nil {
-			return Record{}, err
+	var err error
+	for _, p := range []struct {
+		dst *time.Time
+		src string
+	}{{&f.UrgencyAt, urgencyAt}, {&f.FirstSeen, first}, {&f.LastSeen, last}, {&f.UpdatedAt, updated}, {&f.ResolvedAt, resolvedAt.String}} {
+		if p.src == "" {
+			continue
+		}
+		if *p.dst, err = parseTS(p.src); err != nil {
+			return Finding{}, err
 		}
 	}
 	if until.Valid {
-		if r.AcceptedUntil, err = time.Parse(time.DateOnly, until.String); err != nil {
-			return Record{}, fmt.Errorf("accepted_until: %w", err)
+		if f.AcceptedUntil, err = time.Parse(time.DateOnly, until.String); err != nil {
+			return Finding{}, fmt.Errorf("accepted_until: %w", err)
 		}
 	}
-	return r, nil
+	return f, nil
+}
+
+func findingArgs(f Finding) ([]any, error) {
+	ev, err := encodeEvidence(f.Evidence)
+	if err != nil {
+		return nil, err
+	}
+	return []any{f.ID, f.AssetID, f.CVE, nullString(f.SoftwareID), f.Detected, string(f.Basis), string(f.Verified), f.RangeOrigin, nullString(f.MatchedVersion),
+		string(f.Fix.Kind), nullString(f.Fix.Version), nullString(f.Fix.Ref), f.FixKey, ev, string(f.State), nullString(string(f.Resolution)),
+		nullString(string(f.Via)), nullString(f.ResolvedBy), nullTS(f.ResolvedAt), nullString(f.Note), nullDay(f.AcceptedUntil),
+		nullString(f.FromVersion), nullString(f.ToVersion), f.Urgency, store.FormatTS(f.UrgencyAt), store.FormatTS(f.FirstSeen),
+		store.FormatTS(f.LastSeen), store.FormatTS(f.UpdatedAt)}, nil
 }
 
 func parseTS(s string) (time.Time, error) {
-	t, err := time.Parse("2006-01-02T15:04:05.000Z", s)
+	t, err := time.Parse(tsLayout, s)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("timestamp: %w", err)
 	}
@@ -159,146 +177,229 @@ func nullTS(t time.Time) any {
 	return store.FormatTS(t)
 }
 
-// loadHistory appends the history rows of the findings in byID (for one asset, or all when assetID is empty).
-func loadHistory(ctx context.Context, q querier, assetID string, byID map[string]*Record) error {
-	rows, err := q.QueryContext(ctx, `SELECT h.finding_id, h.ts, h.user, h.action, coalesce(h.note, '')
-		FROM fnd_finding_history h JOIN fnd_finding f ON f.id = h.finding_id
-		WHERE (?1 = '' OR f.asset_id = ?1) ORDER BY h.ts, h.rowid`, assetID)
+// loadFinding returns one finding, or an error wrapping ErrNotFound.
+func loadFinding(ctx context.Context, q querier, id string) (Finding, error) {
+	f, err := scanFinding(q.QueryRowContext(ctx, `SELECT `+findingColumns+` FROM fnd_finding WHERE id = ?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Finding{}, fmt.Errorf("findings: loading finding: %w", ErrNotFound)
+	}
 	if err != nil {
-		return fmt.Errorf("history: %w", err)
+		return Finding{}, fmt.Errorf("findings: loading finding: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		var id, ts string
-		var h HistoryEntry
-		if err := rows.Scan(&id, &ts, &h.User, &h.Action, &h.Note); err != nil {
-			return fmt.Errorf("history: %w", err)
-		}
-		r, ok := byID[id]
-		if !ok {
-			continue
-		}
-		if h.TS, err = parseTS(ts); err != nil {
-			return err
-		}
-		r.History = append(r.History, h)
-	}
-	return rows.Err()
+	return f, nil
 }
 
-// listRecords returns the findings of one asset (assetID != "") or all of them, newest first (the
-// mock lists the most recently matched first; findings of one match keep their match order).
-func listRecords(ctx context.Context, q querier, assetID string) ([]Record, error) {
-	rows, err := q.QueryContext(ctx, `SELECT `+findingColumns+` FROM fnd_finding
-		WHERE (?1 = '' OR asset_id = ?1) ORDER BY first_seen DESC, rowid ASC`, assetID)
+// queryFindings returns the findings a WHERE clause selects, newest first (findings of one match keep their order).
+func queryFindings(ctx context.Context, q querier, where string, args ...any) ([]Finding, error) {
+	return selectFindings(ctx, q, where+` ORDER BY first_seen DESC, rowid ASC`, args...)
+}
+
+// selectFindings returns the findings of a WHERE clause with its own order (and limit).
+func selectFindings(ctx context.Context, q querier, whereOrder string, args ...any) ([]Finding, error) {
+	rows, err := q.QueryContext(ctx, `SELECT `+findingColumns+` FROM fnd_finding WHERE `+whereOrder, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list: %w", err)
+		return nil, fmt.Errorf("findings: reading findings: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
-	var out []Record
+	var out []Finding
 	for rows.Next() {
-		r, err := scanRecord(rows)
+		f, err := scanFinding(rows)
 		if err != nil {
-			return nil, fmt.Errorf("list: %w", err)
+			return nil, fmt.Errorf("findings: reading findings: %w", err)
 		}
-		out = append(out, r)
+		out = append(out, f)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("list: %w", err)
-	}
-	byID := make(map[string]*Record, len(out))
-	for i := range out {
-		byID[out[i].ID] = &out[i]
-	}
-	if err := loadHistory(ctx, q, assetID, byID); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("findings: reading findings: %w", err)
 	}
 	return out, nil
 }
 
-func loadRecord(ctx context.Context, q querier, where string, args ...any) (Record, error) {
-	r, err := scanRecord(q.QueryRowContext(ctx, `SELECT `+findingColumns+` FROM fnd_finding WHERE `+where, args...))
-	if errors.Is(err, sql.ErrNoRows) {
-		return Record{}, fmt.Errorf("findings: loading finding: %w", ErrNotFound)
+// findingsOf returns the findings of one device, or of every device when assetID is "".
+func findingsOf(ctx context.Context, q querier, assetID string) ([]Finding, error) {
+	return queryFindings(ctx, q, `(?1 = '' OR asset_id = ?1)`, assetID)
+}
+
+// writeFinding inserts a new finding or updates the row, and appends its events.
+func writeFinding(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, evs []Event) error {
+	args, err := findingArgs(f)
+	if err != nil {
+		return err
+	}
+	if isNew {
+		_, err = tx.ExecContext(ctx, `INSERT INTO fnd_finding (`+findingColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, args...)
+	} else {
+		_, err = tx.ExecContext(ctx, `UPDATE fnd_finding SET software_id = ?4, detected = ?5, basis = ?6, verified = ?7, range_origin = ?8,
+			matched_version = ?9, fix_kind = ?10, fix_version = ?11, fix_ref = ?12, fix_key = ?13, evidence = ?14, state = ?15, resolution = ?16,
+			via = ?17, resolved_by = ?18, resolved_at = ?19, note = ?20, accepted_until = ?21, from_version = ?22, to_version = ?23, urgency = ?24,
+			urgency_at = ?25, first_seen = ?26, last_seen = ?27, updated_at = ?28 WHERE id = ?1`, args...)
 	}
 	if err != nil {
-		return Record{}, fmt.Errorf("findings: loading finding: %w", err)
+		return fmt.Errorf("findings: writing finding: %w", err)
 	}
-	rows, err := q.QueryContext(ctx, `SELECT ts, user, action, coalesce(note, '') FROM fnd_finding_history WHERE finding_id = ? ORDER BY ts, rowid`, r.ID)
+	return insertEvents(ctx, tx, evs)
+}
+
+func insertEvents(ctx context.Context, tx *sql.Tx, evs []Event) error {
+	for _, e := range evs {
+		d, err := json.Marshal(e.Detail)
+		if err != nil {
+			return fmt.Errorf("findings: encoding an event: %w", err)
+		}
+		var detail any
+		if string(d) != "{}" {
+			detail = string(d)
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_finding_event (finding_id, ts, actor, kind, detail) VALUES (?, ?, ?, ?, ?)`,
+			e.FindingID, store.FormatTS(e.TS), e.Actor, string(e.Kind), detail); err != nil {
+			return fmt.Errorf("findings: inserting an event: %w", err)
+		}
+	}
+	return nil
+}
+
+// apply runs Transition on f and writes the result; isNew says f has no row yet. It returns the finding after the trigger and its
+// events (none when nothing changed: then nothing is written).
+func apply(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, t Trigger) (Finding, []Event, error) {
+	g, evs, err := Transition(f, t)
 	if err != nil {
-		return Record{}, fmt.Errorf("findings: loading history: %w", err)
+		return f, nil, err
+	}
+	if g.State == "" || sameFinding(f, g) && len(evs) == 0 {
+		return g, nil, nil
+	}
+	if err := writeFinding(ctx, tx, g, isNew, evs); err != nil {
+		return f, nil, err
+	}
+	return g, evs, nil
+}
+
+// eventsOf returns the events of the findings a WHERE clause on fnd_finding selects (alias f), by finding, oldest first.
+func eventsOf(ctx context.Context, q querier, where string, args ...any) (map[string][]Event, error) {
+	rows, err := q.QueryContext(ctx, `SELECT e.id, e.finding_id, e.ts, e.actor, e.kind, e.detail FROM fnd_finding_event e
+		JOIN fnd_finding f ON f.id = e.finding_id WHERE `+where+` ORDER BY e.id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading events: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
+	out := map[string][]Event{}
 	for rows.Next() {
-		var ts string
-		var h HistoryEntry
-		if err := rows.Scan(&ts, &h.User, &h.Action, &h.Note); err != nil {
-			return Record{}, fmt.Errorf("findings: loading history: %w", err)
+		var (
+			e      Event
+			ts     string
+			kind   string
+			detail sql.NullString
+		)
+		if err := rows.Scan(&e.ID, &e.FindingID, &ts, &e.Actor, &kind, &detail); err != nil {
+			return nil, fmt.Errorf("findings: reading events: %w", err)
 		}
-		if h.TS, err = parseTS(ts); err != nil {
-			return Record{}, err
+		if e.TS, err = parseTS(ts); err != nil {
+			return nil, err
 		}
-		r.History = append(r.History, h)
+		e.Kind = EventKind(kind)
+		if detail.Valid {
+			if err := json.Unmarshal([]byte(detail.String), &e.Detail); err != nil {
+				return nil, fmt.Errorf("findings: reading an event: %w", err)
+			}
+		}
+		out[e.FindingID] = append(out[e.FindingID], e)
 	}
-	if err := rows.Err(); err != nil {
-		return Record{}, fmt.Errorf("findings: loading history: %w", err)
+	return out, rows.Err()
+}
+
+const questionColumns = `id, asset_id, software_id, cve, kind, detail, cves, asked_at, answer, answered_by, answered_at`
+
+func scanQuestion(s scanner) (Question, error) {
+	var (
+		q                                       Question
+		kind, asked                             string
+		softwareID, cve, detail, answer, by, at sql.NullString
+	)
+	if err := s.Scan(&q.ID, &q.AssetID, &softwareID, &cve, &kind, &detail, &q.Cves, &asked, &answer, &by, &at); err != nil {
+		return Question{}, err
 	}
-	return r, nil
+	q.SoftwareID, q.CVE, q.Kind, q.Answer, q.AnsweredBy = softwareID.String, cve.String, QuestionKind(kind), answer.String, by.String
+	var err error
+	if q.AskedAt, err = parseTS(asked); err != nil {
+		return Question{}, err
+	}
+	if at.Valid {
+		if q.AnsweredAt, err = parseTS(at.String); err != nil {
+			return Question{}, err
+		}
+	}
+	if detail.Valid {
+		if err := json.Unmarshal([]byte(detail.String), &q.Detail); err != nil {
+			return Question{}, fmt.Errorf("findings: reading a question: %w", err)
+		}
+	}
+	return q, nil
 }
 
-func loadByID(ctx context.Context, q querier, id string) (Record, error) {
-	return loadRecord(ctx, q, "id = ?", id)
+// questionsOf returns the questions of one device, or of every device when assetID is "", the most CVEs first.
+func questionsOf(ctx context.Context, q querier, assetID string) ([]Question, error) {
+	rows, err := q.QueryContext(ctx, `SELECT `+questionColumns+` FROM fnd_question WHERE (?1 = '' OR asset_id = ?1)
+		ORDER BY asset_id, cves DESC, kind, ifnull(cve, ''), rowid`, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading questions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Question
+	for rows.Next() {
+		x, err := scanQuestion(rows)
+		if err != nil {
+			return nil, fmt.Errorf("findings: reading questions: %w", err)
+		}
+		out = append(out, x)
+	}
+	return out, rows.Err()
 }
 
-func loadByPair(ctx context.Context, q querier, assetID, cve string) (Record, error) {
-	return loadRecord(ctx, q, "asset_id = ? AND cve = ?", assetID, cve)
-}
-
-func insertRecord(ctx context.Context, tx *sql.Tx, r Record) error {
-	ev, err := encodeEvidence(r.Evidence)
+// replaceQuestions makes qs the questions of the device: a question that still holds keeps its row (its id, when it was asked and
+// its answer), one that no longer holds goes, a new one is added.
+func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Question, now time.Time) error {
+	old, err := questionsOf(ctx, tx, assetID)
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO fnd_finding (`+findingColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.ID, r.AssetID, r.CVE, string(r.Status), string(r.Severity), r.Confidence, string(r.Basis), ev,
-		store.FormatTS(r.FirstSeen), store.FormatTS(r.LastSeen), nullString(r.ResolvedBy), nullTS(r.ResolvedAt), nullString(r.ResolutionNote), nullString(r.ResolutionReason), nullDay(r.AcceptedUntil), nullString(r.SoftwareID), nullString(r.ProvedVersion))
-	if err != nil {
-		return fmt.Errorf("findings: inserting finding: %w", err)
+	have := make(map[string]Question, len(old))
+	for _, q := range old {
+		have[q.key()] = q
 	}
-	return nil
-}
-
-func updateRecord(ctx context.Context, tx *sql.Tx, r Record) error {
-	ev, err := encodeEvidence(r.Evidence)
-	if err != nil {
-		return err
+	keep := map[string]bool{}
+	for _, q := range qs {
+		q.AssetID = assetID
+		k := q.key()
+		if keep[k] {
+			continue
+		}
+		keep[k] = true
+		detail, err := json.Marshal(q.Detail)
+		if err != nil {
+			return fmt.Errorf("findings: encoding a question: %w", err)
+		}
+		if q.Cves < 1 {
+			q.Cves = 1
+		}
+		if was, ok := have[k]; ok {
+			if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET detail = ?, cves = ? WHERE id = ?`, string(detail), q.Cves, was.ID); err != nil {
+				return fmt.Errorf("findings: updating a question: %w", err)
+			}
+			continue
+		}
+		q.ID, q.AskedAt = store.NewID("q"), now
+		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_question (id, asset_id, software_id, cve, kind, detail, cves, asked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			q.ID, assetID, nullString(q.SoftwareID), nullString(q.CVE), string(q.Kind), string(detail), q.Cves, store.FormatTS(now)); err != nil {
+			return fmt.Errorf("findings: adding a question: %w", err)
+		}
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE fnd_finding SET status = ?, severity = ?, confidence = ?, basis = ?, evidence = ?, last_seen = ?,
-		resolved_by = ?, resolved_at = ?, resolution_note = ?, resolution_reason = ?, accepted_until = ?, software_id = ?, proved_version = ? WHERE id = ?`,
-		string(r.Status), string(r.Severity), r.Confidence, string(r.Basis), ev, store.FormatTS(r.LastSeen),
-		nullString(r.ResolvedBy), nullTS(r.ResolvedAt), nullString(r.ResolutionNote), nullString(r.ResolutionReason), nullDay(r.AcceptedUntil), nullString(r.SoftwareID), nullString(r.ProvedVersion), r.ID)
-	if err != nil {
-		return fmt.Errorf("findings: updating finding: %w", err)
-	}
-	return nil
-}
-
-func encodeEvidence(e *Evidence) (any, error) {
-	if e == nil {
-		return nil, nil
-	}
-	b, err := json.Marshal(newEvidenceDoc(e))
-	if err != nil {
-		return nil, fmt.Errorf("findings: encoding evidence: %w", err)
-	}
-	return string(b), nil
-}
-
-func insertHistory(ctx context.Context, tx *sql.Tx, findingID string, h HistoryEntry) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO fnd_finding_history (id, finding_id, ts, user, action, note) VALUES (?, ?, ?, ?, ?, ?)`,
-		store.NewID("fh"), findingID, store.FormatTS(h.TS), h.User, h.Action, nullString(h.Note))
-	if err != nil {
-		return fmt.Errorf("findings: inserting history: %w", err)
+	for k, q := range have {
+		if keep[k] {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_question WHERE id = ?`, q.ID); err != nil {
+			return fmt.Errorf("findings: removing a question: %w", err)
+		}
 	}
 	return nil
 }

@@ -47,8 +47,8 @@ func (s *Service) FindingFolded(ctx context.Context, tx *sql.Tx, f lifecycle.Fin
 // directory knows it (a finding event also takes the device's kind, name and address, which a rule reads). When the directory does not
 // know f.Into (a split runs this inside the write that creates the device, which a reader does not see yet), a waiting finding event
 // keeps no name, kind or address of the device the finding left: a rule that names the address is refused as having no target, never
-// run on the old device's. Its plan is retired, not moved: its proposals hold values built for the old device's address, so it is deleted (logged and audited) and the planner writes a new plan for the finding on its new
-// device. A pending request is withdrawn, not moved: its items hold the values it was rendered with (the old device's address), so
+// run on the old device's. Its plan is retired, not moved: its proposals hold values built for the old device's address, so it is
+// deleted (logged and audited) and the planner writes a new plan for the finding on its new device. A pending request is withdrawn, not moved: its items hold the values it was rendered with (the old device's address), so
 // approving it would act on the old device under the new one's name. It ends expired with the reason, keeps the device it was made
 // for, and is logged and audited; a new request is asked for from the new plan. What was decided or done keeps the device it was
 // about: a request approved, executed, rejected, expired, failed or rolled back, and an event the rules already ran on.

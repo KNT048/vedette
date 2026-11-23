@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/store"
 )
@@ -97,7 +98,7 @@ func (s *Service) MergeMany(ctx context.Context, actor, into string, from []stri
 		if msg := twoAgents(rows, ids); msg != "" {
 			return conflict("not_same_device", msg)
 		}
-		if err := choiceAmong(ctx, tx, ids, choice); err != nil {
+		if err := s.choiceAmong(ctx, tx, ids, choice); err != nil {
 			return err
 		}
 		for _, f := range from {
@@ -140,7 +141,14 @@ func checkChoice(c MergeChoice) (Patch, error) {
 
 // choiceAmong refuses a choice that is not one of the devices' own values of that field (400 bad_choice): the merge dialog offers
 // only those.
-func choiceAmong(ctx context.Context, tx *sql.Tx, ids []string, c MergeChoice) error {
+func (s *Service) choiceAmong(ctx context.Context, tx *sql.Tx, ids []string, c MergeChoice) error {
+	guesses := map[string]string{}
+	if c.Kind != nil {
+		var err error
+		if guesses, err = s.kindGuesses(ctx, tx, ids); err != nil {
+			return err
+		}
+	}
 	for _, f := range []struct {
 		field string
 		v     *string
@@ -148,7 +156,7 @@ func choiceAmong(ctx context.Context, tx *sql.Tx, ids []string, c MergeChoice) e
 		if f.v == nil {
 			continue
 		}
-		vals, err := fieldValues(ctx, tx, ids, f.field)
+		vals, err := fieldValues(ctx, tx, ids, f.field, guesses)
 		if err != nil {
 			return err
 		}
@@ -190,6 +198,9 @@ func (s *Service) mergeOne(ctx context.Context, tx *sql.Tx, o *outbox, actor, in
 		return fmt.Errorf("inventory: read devices: %w", err)
 	}
 	gains := rows[from].approved && !rows[into].approved
+	if err := rememberMerged(ctx, tx, into, from, s.now()); err != nil {
+		return err
+	}
 	watch, err := s.joinAs(ctx, tx, o, from, into, "a person merged them", joinMachine, actor, true)
 	if err != nil {
 		return err
@@ -229,6 +240,31 @@ func (s *Service) mergeOne(ctx context.Context, tx *sql.Tx, o *outbox, actor, in
 	return nil
 }
 
+// kindGuesses is the type the identification rules guess (addGuesses) for each of ids whose type is unknown and that one rule fits.
+func (s *Service) kindGuesses(ctx context.Context, q querier, ids []string) (map[string]string, error) {
+	in := "(" + strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",") + ")"
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	devs, err := s.loadDevices(ctx, q, "WHERE a.id IN "+in, 0, args...)
+	if err != nil {
+		return nil, err
+	}
+	cores := make([]*AssetCore, len(devs))
+	for i := range devs {
+		cores[i] = &devs[i].AssetCore
+	}
+	s.addGuesses(ctx, cores)
+	out := map[string]string{}
+	for _, d := range cores {
+		if d.Guess != nil {
+			out[d.ID] = d.Guess.Type
+		}
+	}
+	return out, nil
+}
+
 // fieldWords names the fields a merge preview compares, for messages.
 var fieldWords = map[string]string{"name": "name", "kind": "type", "os": "operating system", "vendor": "maker", "model": "model", "hostname": "host name"}
 
@@ -239,6 +275,9 @@ var mergeFields = []string{"name", "kind", "os", "vendor", "model", "hostname"}
 type MergeValue struct {
 	Device string `json:"device"`
 	Value  string `json:"value"`
+	// Guess: a type the identification rules give a device whose type is unknown (AssetCore.Guess), offered so a person can pick
+	// it for the merged device; kind only.
+	Guess bool `json:"guess,omitempty"`
 }
 
 // MergeField is a field the devices of a merge state differently.
@@ -249,6 +288,9 @@ type MergeField struct {
 	// name of the kept device first; the strongest source's reading for the others).
 	Kept      string `json:"kept"`
 	Choosable bool   `json:"choosable"` // name, kind and os: the merge takes a choice (fields)
+	// Missing are the devices that have no value of the field (type and OS only): a type or OS only one of the devices states is
+	// listed too, so the person sees what the merged device ends with.
+	Missing []string `json:"missing"`
 }
 
 // MergeSide is one device of a merge preview.
@@ -410,12 +452,14 @@ func (s *Service) MergePreview(ctx context.Context, into string, from []string) 
 	return out, nil
 }
 
-// fieldValues reads each device's value of a merge field, as the pages show it: the name every page gives it, the type (none while
-// unknown), and the OS, maker, model and host name the device has now. A device without a value is left out.
-func fieldValues(ctx context.Context, q querier, ids []string, field string) ([]MergeValue, error) {
+// fieldValues reads each device's value of a merge field, as the pages show it: the name every page gives it, the type (while
+// unknown, the type the identification rules guess, from guesses), and the OS, maker, model and host name the device has now. A
+// device without a value is left out.
+func fieldValues(ctx context.Context, q querier, ids []string, field string, guesses map[string]string) ([]MergeValue, error) {
 	var out []MergeValue
 	for _, id := range ids {
 		var v sql.NullString
+		guess := false
 		switch field {
 		case "name":
 			v = sql.NullString{String: deviceName(ctx, q, id), Valid: true}
@@ -423,12 +467,13 @@ func fieldValues(ctx context.Context, q querier, ids []string, field string) ([]
 			if err := q.QueryRowContext(ctx, `SELECT `+field+` FROM inv_asset WHERE id = ?`, id).Scan(&v); err != nil {
 				return nil, fmt.Errorf("inventory: read device: %w", err)
 			}
-			if field == "kind" && v.String == "unknown" {
-				v.Valid = false
+			if field == "kind" && v.String == devicetypes.Unknown {
+				g, ok := guesses[id]
+				v, guess = sql.NullString{String: g, Valid: ok}, ok
 			}
 		}
 		if v.Valid && strings.TrimSpace(v.String) != "" {
-			out = append(out, MergeValue{Device: id, Value: v.String})
+			out = append(out, MergeValue{Device: id, Value: v.String, Guess: guess})
 		}
 	}
 	return out, nil
@@ -461,9 +506,13 @@ func (s *Service) mergeDiffers(ctx context.Context, tx *sql.Tx, ids []string) ([
 		return nil, fmt.Errorf("inventory: read observations: %w", err)
 	}
 	best := winners(list)
+	guesses, err := s.kindGuesses(ctx, tx, ids)
+	if err != nil {
+		return nil, err
+	}
 	out := []MergeField{}
 	for _, f := range mergeFields {
-		vals, err := fieldValues(ctx, tx, ids, f)
+		vals, err := fieldValues(ctx, tx, ids, f, guesses)
 		if err != nil {
 			return nil, err
 		}
@@ -473,7 +522,15 @@ func (s *Service) mergeDiffers(ctx context.Context, tx *sql.Tx, ids []string) ([
 				distinct++
 			}
 		}
-		if distinct < 2 {
+		missing := []string{}
+		if f == "kind" || f == "os" { // the type and OS a person picks: one device's value against none is a difference too
+			for _, id := range ids {
+				if !slices.ContainsFunc(vals, func(v MergeValue) bool { return v.Device == id }) {
+					missing = append(missing, id)
+				}
+			}
+		}
+		if distinct < 2 && (distinct == 0 || len(missing) == 0) {
 			continue
 		}
 		kept := ""
@@ -496,6 +553,11 @@ func (s *Service) mergeDiffers(ctx context.Context, tx *sql.Tx, ids []string) ([
 				}
 				kept = cmpOr(DisplayName("", best["hostname"].value, best["vendor"].value, best["model"].value, ip.String, origin.String, ""), vals[0].Value)
 			}
+		case "kind": // a guess is never the kind: the merged device keeps a stated type, else stays unknown until a person picks one
+			kept = devicetypes.Unknown
+			if o, ok := best[f]; ok {
+				kept = o.value
+			}
 		default:
 			if o, ok := best[f]; ok {
 				kept = o.value
@@ -503,7 +565,7 @@ func (s *Service) mergeDiffers(ctx context.Context, tx *sql.Tx, ids []string) ([
 				kept = vals[0].Value
 			}
 		}
-		out = append(out, MergeField{Field: f, Values: vals, Kept: kept, Choosable: f == "name" || f == "kind" || f == "os"})
+		out = append(out, MergeField{Field: f, Values: vals, Kept: kept, Choosable: f == "name" || f == "kind" || f == "os", Missing: missing})
 	}
 	return out, nil
 }
@@ -569,6 +631,10 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 			return conflict("agent_address", "This device's agent reports from this address, so it stays with the agent's machine. Split off the device's other addresses instead.")
 		}
 		name := deviceName(ctx, tx, id)
+		gone, err := mergedAt(ctx, tx, id, moved.ip, moved.mac) // a merged device's interface: the split gives that device back
+		if err != nil {
+			return err
+		}
 		first, last := moved.firstSeen, moved.lastS
 		if main {
 			if err := tx.QueryRowContext(ctx, `SELECT first_seen, coalesce(ip_confirmed_at, last_seen) FROM inv_asset WHERE id = ?`, id).Scan(&first, &last); err != nil {
@@ -580,7 +646,9 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 		} else if _, err := tx.ExecContext(ctx, `DELETE FROM inv_asset_address WHERE id = ?`, moved.id); err != nil {
 			return fmt.Errorf("inventory: split an address: %w", err)
 		}
-		newID = store.NewID("a")
+		if newID, err = splitID(ctx, tx, gone, store.NewID("a")); err != nil {
+			return err
+		}
 		var at, confirmed any // the approval the device had, the address seen when the interface was
 		if approved {
 			at = cmpOr(approvedAt.String, s.now())
@@ -596,6 +664,9 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 			return err
 		}
 		if err := keepMACObs(ctx, tx, newID, moved.mac, moved.source, last); err != nil {
+			return err
+		}
+		if err := giveBack(ctx, tx, id, newID, gone); err != nil {
 			return err
 		}
 		if main { // the other address seen last is the device's main one now

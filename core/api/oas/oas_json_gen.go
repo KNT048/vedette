@@ -236712,6 +236712,14 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) encodeFields(e
 		e.Str(s.Kept)
 	}
 	{
+		e.FieldStart("missing")
+		e.ArrStart()
+		for _, elem := range s.Missing {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("values")
 		e.ArrStart()
 		for _, elem := range s.Values {
@@ -236721,11 +236729,12 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) encodeFields(e
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDMergePreviewOKDiffersItem = [4]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDMergePreviewOKDiffersItem = [5]string{
 	0: "choosable",
 	1: "field",
 	2: "kept",
-	3: "values",
+	3: "missing",
+	4: "values",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem from json.
@@ -236771,8 +236780,28 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) Decode(d *jx.D
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kept\"")
 			}
-		case "values":
+		case "missing":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Missing = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Missing = append(s.Missing, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"missing\"")
+			}
+		case "values":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Values = make([]InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -236799,7 +236828,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) Decode(d *jx.D
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -236907,14 +236936,21 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) enco
 		e.Str(s.Device)
 	}
 	{
+		if s.Guess.Set {
+			e.FieldStart("guess")
+			s.Guess.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("value")
 		e.Str(s.Value)
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem = [2]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem = [3]string{
 	0: "device",
-	1: "value",
+	1: "guess",
+	2: "value",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem from json.
@@ -236938,8 +236974,18 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) Deco
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"device\"")
 			}
+		case "guess":
+			if err := func() error {
+				s.Guess.Reset()
+				if err := s.Guess.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"guess\"")
+			}
 		case "value":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Value = string(v)
@@ -236960,7 +237006,7 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -244716,6 +244762,8 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItemReason) Decode(d *jx.De
 		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingModel
 	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice:
 		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameOs:
+		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameOs
 	default:
 		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReason(v)
 	}
@@ -250713,6 +250761,8 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemReason) Decode(d *jx.Decode
 		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingModel
 	case InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice:
 		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonSameOs:
+		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonSameOs
 	default:
 		*s = InventoryGetInventoryPossibleSameOKItemsItemReason(v)
 	}

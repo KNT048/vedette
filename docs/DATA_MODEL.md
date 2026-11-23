@@ -113,6 +113,7 @@ The read model of one CVE is `feeds.Brief`.
 | `inv_software_reading` | What each source reads now of a line: one row per (source, instance, address). |
 | `inv_software_event` | Append-only history of a line (appeared, version changed, removed, a person's entry set or lapsed …). Text copies keep it readable after the line is pruned. |
 | `inv_separate`, `inv_hand_seen`, `inv_detected_keep` | A person's decisions about identity: two devices kept apart, the MAC bound to a hand-added device, a detected value the person chose to override. |
+| `inv_merged_from` | What a person's merge took in (the merged device's id, main interface, name in Vedette and observations), so Split off of that interface gives the device back as it was. |
 | `inv_source`, `inv_setting` | When each source first reported; inventory settings (LAN ranges, scan scope, fragile kinds …). |
 | `intake_agent_tokens`, `intake_osquery_nodes` | osquery enrolment tokens (hashed; optionally for one device) and the enrolled nodes with their reporting rhythm (`NodeHealth`). |
 | `intake_wazuh`, `intake_wazuh_agent`, `intake_prune_clock` | The one Wazuh connection, the agents it delivered, and the node-prune bookkeeping. |

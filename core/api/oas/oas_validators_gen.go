@@ -72189,6 +72189,17 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) Validate() err
 		})
 	}
 	if err := func() error {
+		if s.Missing == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "missing",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Values == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -75116,6 +75127,8 @@ func (s InventoryGetInventoryDevicesIDOKPossibleSameItemReason) Validate() error
 		return nil
 	case "mac_at_added_device":
 		return nil
+	case "same_os":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -77660,6 +77673,8 @@ func (s InventoryGetInventoryPossibleSameOKItemsItemReason) Validate() error {
 	case "rotating_model":
 		return nil
 	case "mac_at_added_device":
+		return nil
+	case "same_os":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

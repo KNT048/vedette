@@ -1,10 +1,10 @@
-# web — giao diện Vedette (React 19 + TypeScript)
+# web: the Vedette UI (React 19 + TypeScript)
 
-Chạy với dữ liệu mẫu (không cần backend): từ thư mục gốc `make dev` rồi mở http://localhost:5173.
-Lần đầu mở sẽ vào trang cài đặt ban đầu; chọn "Dùng dữ liệu mẫu" để vào ngay. Tài khoản mẫu: `admin@congty.vn`, `it@congty.vn`, `giamdoc@congty.vn`, mật khẩu `vedette-demo`.
+Run with sample data (no backend needed): from the root folder run `make dev`, then open http://localhost:5173.
+The first open goes to initial setup; choose "Use sample data" to get in at once. Sample accounts: `admin@congty.vn`, `it@congty.vn`, `giamdoc@congty.vn`, password `vedette-demo`.
 
-- Kiến trúc và quy ước: `docs/FRONTEND.md`.
-- Mock API (MSW) là hợp đồng với backend: handler ở `src/features/<module>/mocks.ts`. Nối backend Go thật từng module: `make dev-api` (`REAL=core,inventory` chọn module; xem `docs/DEPLOYMENT.md` §13). Build nối toàn bộ backend: `VITE_API_MOCK=off pnpm build`.
-- Bảng nóng dùng dữ liệu CISA KEV/EPSS thật: `make fixtures` (chạy lại mỗi tuần).
-- Kiểm tra: `make verify` (tsc + lint + vitest + build), `make e2e` (Playwright).
-- Node ghim bằng `devEngines.runtime` trong `package.json`: pnpm tự tải đúng bản Node, không cần nvm.
+- Architecture and conventions: `docs/FRONTEND.md`.
+- The mock API (MSW) is the contract with the backend: handlers are in `src/features/<module>/mocks.ts`. Connect the real Go backend module by module: `make dev-api` (`REAL=core,inventory` picks the modules; see `docs/DEPLOYMENT.md` §13). A build connected to the whole backend: `VITE_API_MOCK=off pnpm build`.
+- The hot board uses real CISA KEV/EPSS data: `make fixtures` (re-run every week).
+- Checks: `make verify` (tsc + lint + vitest + build), `make e2e` (Playwright).
+- Node is pinned by `devEngines.runtime` in `package.json`: pnpm downloads the right Node version by itself, no nvm needed.

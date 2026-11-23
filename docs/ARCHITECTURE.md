@@ -185,7 +185,7 @@ Ngoại lệ không mở rộng sang `vedette-host`: AI không bao giờ gọi `
 | Người dùng | Không root trong container. `core` và `sensor`/`scan` chạy uid cố định từ `host.conf` (`core_uid`, `sensor_uid`), không `UserNS=auto` (capability của user namespace con không phủ namespace mạng của host); `sensor`/`scan` nhận `NET_RAW` qua tập ambient (kiểm ở lab, đường lùi UID 0 + `NET_RAW`); service khác `UserNS=auto` |
 | Mạng | Mặc định bridge nội bộ; host/macvlan chỉ `sensor`, `scan`, `honeypot` vì cần |
 | Image | Ghim digest; cosign bắt buộc; chỉ chứa runtime tối thiểu; SBOM mỗi bản phát hành; `govulncheck`, `trivy` trong CI |
-| Host | `vedette-host` hardening systemd; không SSH vào container (`agent-safety.md`) |
+| Host | `vedette-host` hardening systemd; không SSH vào container |
 
 ### 7.5 Xác thực, phân quyền, API
 

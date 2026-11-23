@@ -2,13 +2,13 @@
 
 > Tier: · Story: · Last verified: YYYY-MM-DD
 
-## Invariants (luôn đúng)
-- **INV-1**: … (đo được; test `TestContract_INV1_…`)
-## Preconditions (trước khi gọi)
+## Invariants (always true)
+- **INV-1**: ... (measurable; test `TestContract_INV1_...`)
+## Preconditions (before the call)
 - **PRE-1**: …
 ## Postconditions (sau khi xong)
 - **POST-1**: …
-## Forbidden (không bao giờ)
+## Forbidden (never)
 - **FORBID-1**: …
 ## Dependencies
 - **DEPENDS ON**: core/…

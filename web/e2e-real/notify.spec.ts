@@ -6,6 +6,7 @@ import { api, authFile, box } from './box'
 import { as, chanRow, destText, getChannels, getHistory, historyMeta, NAME, quietSummary, SEV, statusText, TYPES, watch5xx, type Channels, type Incident } from './notify-shared'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
 import { collectErrors, shot } from '../e2e/helpers'
+import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 test.use({ actionTimeout: 10_000 })
 
@@ -27,8 +28,11 @@ test.describe('Alert channels with what the box really holds (S-NOT-1, S-NOT-2)'
 
     await page.goto('/settings/channels')
     await expect(h1(page)).toHaveText('Alert channels')
-    await expect(page.getByText('Choose where Vedette sends alerts. With no channel on, alerts only appear in the app.')).toBeVisible()
-    await expect(page.getByText('Alert content (device names, CVE IDs) leaves the box only to the channels you turn on here and nowhere else. A channel that is off sends no data.')).toBeVisible()
+    // the one-line texts are shown; the longer explanation is behind each ⓘ and is that button's accessible description
+    await expect(page.getByText('Choose where Vedette sends alerts.', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'About Alert channels' })).toHaveAccessibleDescription('With no channel on, alerts only appear in the app. Each channel has its own minimum severity, and quiet hours and grouping below apply to all of them.')
+    await expect(page.getByText('Alert content leaves the box only through channels you turn on.', { exact: true })).toBeVisible()
+    await expect(page.getByText('Alert content (device names, CVE IDs) leaves the box only to the channels you turn on here and nowhere else. A channel that is off sends no data.', { exact: true })).toHaveCount(1) // behind its ⓘ
     await expect(page.getByRole('table', { name: 'Alert channels' })).toBeVisible()
     for (const ch of d.channels) {
       const row = chanRow(page, ch)
@@ -79,7 +83,7 @@ test.describe('Alert channels with what the box really holds (S-NOT-1, S-NOT-2)'
       await expect(h1(page)).toHaveText('Alert channels')
       const fields: Record<string, string[]> = {
         telegram: ['Chat ID', 'Bot token'], slack: ['Channel label (optional)', 'Incoming Webhook URL'], zalo: ['OA ID', 'Recipient ID (user_id)', 'App ID', 'Secret key', 'Refresh token', 'Access token (optional)'],
-        'zalo-personal': ['Recipient (user or group ID)'], email: ['SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'], webhook: ['Webhook URL', 'Signing key'],
+        'zalo-personal': ['Or find by invite link, phone number or ID'], email: ['SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'], webhook: ['Webhook URL', 'Signing key'],
       }
       for (const ch of before.channels) {
         await chanRow(page, ch).getByRole('button', { name: `${ch.configured ? 'Edit' : 'Set up'} ${NAME[ch.type]}`, exact: true }).click()
@@ -87,13 +91,17 @@ test.describe('Alert channels with what the box really holds (S-NOT-1, S-NOT-2)'
         await expect(dlg).toBeVisible()
         for (const f of fields[ch.type]!) await expect(dlg.getByLabel(f, { exact: true }), `${ch.type}: ${f}`).toBeVisible()
         const approvals = dlg.getByRole('switch', { name: 'Approve actions from this channel' })
-        if (ch.type === 'zalo' || ch.type === 'webhook') {
+        // Approvals belong to the response module, which v1 does not offer: the section is there only when the module is offered or the channel already has approvals on
+        if (!POST_V1_IN_UI && !ch.approvals) {
           await expect(approvals).toHaveCount(0)
-          await expect(dlg.getByText('This channel cannot take approvals. Messages sent here carry a link that opens Vedette, where an operator or administrator approves.')).toBeVisible()
+          await expect(dlg.getByText('Approvals', { exact: true })).toHaveCount(0)
+        } else if (ch.type === 'zalo' || ch.type === 'webhook') {
+          await expect(approvals).toHaveCount(0)
+          await expect(dlg.getByText('This channel cannot take approvals.', { exact: true })).toBeVisible()
         } else {
           await expect(approvals).toHaveCount(1)
         }
-        if (ch.type === 'zalo-personal') await expect(dlg.getByText("Unofficial: uses Zalo's personal web protocol, not an official API. Zalo may lock the account. Use a dedicated account, not your personal one.")).toBeVisible()
+        if (ch.type === 'zalo-personal') await expect(dlg.getByRole('note')).toHaveText('Unofficial channel: Zalo may lock this account. Use a separate account, not yours.')
         await expectAccessible(page, `${ch.type} dialog`)
         await noVietnamese(page, `${ch.type} dialog`)
         await page.keyboard.press('Escape')
@@ -131,7 +139,9 @@ test.describe('Incidents on a box where nothing has happened yet (S-ALERT-3)', (
     if (open === 0) {
       await expect(page.getByText('No open incidents')).toBeVisible()
       await expect(page.getByRole('table', { name: 'Incidents' })).toHaveCount(0)
-      await expect(page.getByRole('link', { name: 'Set up alert channels' })).toHaveAttribute('href', '/settings/channels')
+      // setting up a channel from here is for an administrator (a viewer cannot read channels): a viewer gets neither the link nor the button
+      await expect(page.getByRole('link', { name: 'Set up alert channels' })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Set up alert channels' })).toHaveCount(0)
     } else {
       await expect(page.getByRole('table', { name: 'Incidents' }).getByRole('row')).toHaveCount(open + 1)
     }

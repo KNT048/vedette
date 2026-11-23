@@ -109,6 +109,7 @@ type buildOpts struct {
 	rescue           bool     // SignRescue with the backup key, instead of the active and backup slots
 	installModes     []string // default appliance only: "container" needs the container assets, which beforeSign writes
 	beforeSign       func(dir string, in Inputs)
+	advisories       []release.Advisory // new advisories of the index
 }
 
 func (r *rig) build(o buildOpts) (dir string, err error) {
@@ -149,7 +150,7 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 	dir = r.t.TempDir()
 	must(r.t, os.WriteFile(filepath.Join(dir, manifestFile), res.Manifest, 0o600))
 	files, err := BuildIndex(prevIdx, IndexParams{Now: t1, Rollout: -1, Channel: o.channel, ManifestVersion: o.version, ManifestRaw: res.Manifest,
-		RevokeKeys: o.revoke, RevokeReason: reasonIf(o.revoke), BackupKeyID: r.trust.Backup.KeyID()})
+		RevokeKeys: o.revoke, RevokeReason: reasonIf(o.revoke), BackupKeyID: r.trust.Backup.KeyID(), Advisories: o.advisories})
 	if err != nil {
 		return "", err
 	}
@@ -366,10 +367,10 @@ func TestHistoryGuard(t *testing.T) {
 		{"an add-only migration, safe=false", buildOpts{version: "1.1.0", cur: addOnly, earlier: earlier}, "", ""},
 		{"an add-only migration, safe=true", buildOpts{version: "1.1.0", safe: true, minVersion: "1.0.0", baseline: v1, cur: addOnly, earlier: earlier}, "", ""},
 		{"an epoch below an earlier release's", buildOpts{version: "1.1.0", cur: epochTree("1", addOnly), earlier: earlier}, "went down from 2 to 1", ""},
-		{"a new epoch, safe=false", buildOpts{version: "1.1.0", cur: epochTree("3", addOnly), earlier: earlier}, "", ""},
+		{"a new epoch, safe=false", buildOpts{version: "1.1.0", minUpgrade: "1.1.0", advisories: freshInstall("1.1.0"), cur: epochTree("3", addOnly), earlier: earlier}, "", ""},
 		{"a new epoch, safe=true", buildOpts{version: "1.1.0", safe: true, minVersion: "1.0.0", baseline: v1, cur: epochTree("3", addOnly), earlier: earlier}, "", "starts schema epoch 3 after release 1.0.0 (epoch 2)"},
 		{"the first release of epoch 2 after an epoch 1 beta, safe=true", buildOpts{version: "1.1.0", safe: true, minVersion: "0.1.0-beta.1", baseline: epoch1, cur: v1, earlier: []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epoch1}}}, "", "starts schema epoch 2 after release 0.1.0-beta.1 (epoch 1)"},
-		{"the first release of epoch 2 after an epoch 1 beta, safe=false", buildOpts{version: "1.1.0", cur: v1, earlier: []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epoch1}}}, "", ""},
+		{"the first release of epoch 2 after an epoch 1 beta, safe=false", buildOpts{version: "1.1.0", minUpgrade: "1.1.0", advisories: freshInstall("1.1.0"), cur: v1, earlier: []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epoch1}}}, "", ""},
 	}
 	for _, c := range cases {
 		c.o.channel, c.o.prevDir = "stable", prev
@@ -397,7 +398,8 @@ func TestHistoryGuard(t *testing.T) {
 }
 
 // min_upgrade_from above the channel's latest is refused (no box could upgrade), except for a release that starts a new schema
-// epoch: no box of the earlier epoch can update to it in place, and min_upgrade_from makes such a box refuse at its check.
+// epoch: no box of the earlier epoch can update to it in place, so such a release must set min_upgrade_from to its own version
+// (the box then refuses at its check) and the index must carry an advisory those boxes show.
 func TestMinUpgradeFromAboveLatest(t *testing.T) {
 	r := newRig(t)
 	epoch1 := Tree{"modules/a/migrations/sqlite/0001_old.sql": up("CREATE TABLE old (id INT);")}
@@ -412,8 +414,11 @@ func TestMinUpgradeFromAboveLatest(t *testing.T) {
 	}{
 		{"same epoch, min_upgrade_from above the latest", buildOpts{version: "0.1.1", minUpgrade: "0.1.1", cur: epochTree("1", epoch1), earlier: []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epochTree("1", epoch1)}}}, "is above 0.1.0-beta.1, the latest published"},
 		{"same epoch, min_upgrade_from at the latest", buildOpts{version: "0.1.1", minUpgrade: "0.1.0-beta.1", cur: epochTree("1", epoch1), earlier: []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epochTree("1", epoch1)}}}, ""},
-		{"new epoch, min_upgrade_from is this release", buildOpts{version: "0.1.1", minUpgrade: "0.1.1", cur: v2, earlier: beta}, ""},
-		{"new epoch, no min_upgrade_from", buildOpts{version: "0.1.1", cur: v2, earlier: beta}, ""},
+		{"new epoch, min_upgrade_from is this release", buildOpts{version: "0.1.1", minUpgrade: "0.1.1", advisories: freshInstall("0.1.1"), cur: v2, earlier: beta}, ""},
+		{"new epoch, no advisory for the boxes it strands", buildOpts{version: "0.1.1", minUpgrade: "0.1.1", cur: v2, earlier: beta}, "add an advisory such a box shows as affected"},
+		{"new epoch, an advisory fixed at the latest does not count", buildOpts{version: "0.1.1", minUpgrade: "0.1.1", advisories: freshInstall("0.1.0-beta.1"), cur: v2, earlier: beta}, "add an advisory"},
+		{"new epoch, no min_upgrade_from", buildOpts{version: "0.1.1", advisories: freshInstall("0.1.1"), cur: v2, earlier: beta}, "set min_upgrade_from to 0.1.1"},
+		{"new epoch, min_upgrade_from below this release", buildOpts{version: "0.1.1", minUpgrade: "0.1.0-beta.1", advisories: freshInstall("0.1.1"), cur: v2, earlier: beta}, "set min_upgrade_from to 0.1.1"},
 		{"new epoch, min_upgrade_from not SemVer", buildOpts{version: "0.1.1", minUpgrade: "v0.1", cur: v2, earlier: beta}, "min_upgrade_from"},
 		{"new epoch, min_upgrade_from above this release", buildOpts{version: "0.1.1", minUpgrade: "0.2.0", cur: v2, earlier: beta}, "is above 0.1.1, this release"},
 	}

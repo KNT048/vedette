@@ -51,6 +51,10 @@ type IndexParams struct {
 	RevokeKeys   []string
 	RevokeReason string
 	BackupKeyID  string
+
+	// Advisories are new advisories to publish (ParseAdvisory); the ones of the previous index carry over. A release whose
+	// min_upgrade_from strands the boxes on a release of the previous index needs one (checkStrandedBoxesTold).
+	Advisories []release.Advisory
 }
 
 // keyIDRE is the form of a key id in a key revocation (internal/release Revocation.validate).
@@ -73,8 +77,9 @@ func checkChannelsStable(prev, cur *release.Index) error {
 }
 
 // BuildIndex builds index.json (unsigned) from the previous verified index and the new manifest. Revocations, advisories and
-// the other channel carry over unchanged, so a chain of indexes never forgets a revocation. It refuses a sequence that does not
-// go up, a channel whose latest version would go down, and an expiry past the 14-day maximum.
+// the other channel carry over unchanged, so a chain of indexes never forgets a revocation; new advisories are appended. It
+// refuses a sequence that does not go up, a channel whose latest version would go down, an expiry past the 14-day maximum, an
+// advisory a box would refuse, and a release that strands the boxes of an earlier release without an advisory telling them.
 func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 	x := release.Index{
 		Schema: indexSchema, GeneratedAt: p.Now.UTC().Truncate(time.Second),
@@ -99,6 +104,9 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 		x.Keys = append(x.Keys, prev.Keys...)
 	}
 	if err := addKeyRevocations(&x, p); err != nil {
+		return nil, err
+	}
+	if err := addAdvisories(&x, p.Advisories); err != nil {
 		return nil, err
 	}
 	x.Sequence = p.Sequence
@@ -156,12 +164,19 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 			return nil, err
 		}
 	}
+	if err := checkStrandedBoxesTold(prev, &x, p.ManifestVersion, p.ManifestRaw); err != nil {
+		return nil, err
+	}
 	if len(x.Channels) == 0 {
 		return nil, errors.New("an index needs at least one channel: give the manifest of the first release")
 	}
 	cur, err := marshal(x)
 	if err != nil {
 		return nil, err
+	}
+	// A box refuses an index above this size (internal/release parseIndex), so every box would refuse this one.
+	if len(cur) > release.MaxDocBytes {
+		return nil, fmt.Errorf("the index would be %d bytes, larger than the %d bytes a box reads: shorten or drop advisories", len(cur), release.MaxDocBytes)
 	}
 	files := []IndexFile{{"index.json", cur}}
 	for s := 1; s < indexSchema; s++ {

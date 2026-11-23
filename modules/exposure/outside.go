@@ -237,7 +237,7 @@ type OutsideView struct {
 	CheckedBy string `json:"checked_by"`
 	Found     bool   `json:"found"`
 	OutsideAnswer
-	ScanPorts []int   `json:"scan_ports"` // nil: never scanned
+	ScanPorts []int   `json:"scan_ports" nullable:"true"` // nil: never scanned (null in the API)
 	ScanAt    *string `json:"scan_at"`
 }
 

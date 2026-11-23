@@ -51,8 +51,8 @@ type (
 		Vendor   string            `json:"vendor"`
 		Kind     string            `json:"kind"`
 		Evidence string            `json:"evidence"`
-		Devices  []ApplianceDevice `json:"devices"`
-		More     int               `json:"more,omitempty"` // devices of the family beyond the first MaxApplianceDevices
+		Devices  []ApplianceDevice `json:"devices" nullable:"true"` // nil: Vedette cannot tell (null in the API)
+		More     int               `json:"more,omitempty"`          // devices of the family beyond the first MaxApplianceDevices
 		fp       *adminpages.Fingerprint
 	}
 	// ApplianceDevice is one inventory device of the family and how many open exploited vulnerabilities it has.

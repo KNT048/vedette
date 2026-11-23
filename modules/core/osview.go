@@ -1,10 +1,10 @@
 package core
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/host/api"
 )
 
@@ -76,13 +76,9 @@ type osRunView struct {
 
 // asOAS decodes a view into the generated type of one operation (their decoders check every required field).
 func asOAS[T any](v any) (*T, error) {
-	b, err := json.Marshal(v)
+	out, err := apijson.Into[T](v)
 	if err != nil {
-		return nil, fmt.Errorf("core: encode view: %w", err)
-	}
-	out := new(T)
-	if err := json.Unmarshal(b, out); err != nil {
-		return nil, fmt.Errorf("core: decode view: %w", err)
+		return nil, fmt.Errorf("core: view: %w", err)
 	}
 	return out, nil
 }

@@ -2,13 +2,13 @@ package sensorpassive
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/server"
@@ -88,13 +88,9 @@ func sentence(msg string) string {
 
 // convert re-reads v, through its JSON form, as the generated type T.
 func convert[T any](v any) (*T, error) {
-	raw, err := json.Marshal(v)
+	out, err := apijson.Into[T](v)
 	if err != nil {
-		return nil, fmt.Errorf("sensorpassive: encode response: %w", err)
-	}
-	out := new(T)
-	if err := json.Unmarshal(raw, out); err != nil {
-		return nil, fmt.Errorf("sensorpassive: build response: %w", err)
+		return nil, fmt.Errorf("sensorpassive: %w", err)
 	}
 	return out, nil
 }

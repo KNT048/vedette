@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
@@ -34,13 +35,9 @@ func NewResponseHandlers(svc *Service) *ResponseHandlers { return &ResponseHandl
 
 // convert re-reads v, through its JSON form, as T.
 func convert[T any](v any) (*T, error) {
-	raw, err := json.Marshal(v)
+	out, err := apijson.Into[T](v)
 	if err != nil {
-		return nil, fmt.Errorf("response: encode: %w", err)
-	}
-	out := new(T)
-	if err := json.Unmarshal(raw, out); err != nil {
-		return nil, fmt.Errorf("response: decode: %w", err)
+		return nil, fmt.Errorf("response: %w", err)
 	}
 	return out, nil
 }

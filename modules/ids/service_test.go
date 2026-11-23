@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/lifecycle"
@@ -538,4 +539,24 @@ func TestContract_TablesUseThePrefix(t *testing.T) {
 	t.Parallel()
 	storetest.AssertMigrationsUsePrefix(t, ModuleID, Migrations, "ids_", storetest.Migration{Module: "core", FS: core.Migrations},
 		storetest.Migration{Module: "inventory", FS: inventory.Migrations})
+}
+
+// An empty list answers an empty array, never null: the API schema says array, and a null made GET /detection/alerts answer 500
+// right after the module was turned on (no alert yet), as it does for a search that matches nothing and a page past the end.
+func TestAnEmptyAlertListIsAnEmptyArray(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	h := NewIDSHandlers(e.svc)
+	for name, p := range map[string]oas.DetectionGetDetectionAlertsParams{
+		"no alert yet":     {Window: oas.DetectionGetDetectionAlertsWindow7d},
+		"a page past them": {Window: oas.DetectionGetDetectionAlertsWindow24h, Offset: oas.NewOptString("50")},
+	} {
+		out, err := h.DetectionGetDetectionAlerts(t.Context(), p)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if out.Items == nil || len(out.Items) != 0 || out.Total != 0 {
+			t.Fatalf("%s: %+v", name, out)
+		}
+	}
 }

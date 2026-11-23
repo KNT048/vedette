@@ -24,8 +24,8 @@ import (
 //     affects → proved not affected (no finding; an open one closes by auto-resolve, reason not_affected_version with a platform
 //     audit detail). The distribution's own word is read first and wins;
 //   - the platform is not known (nothing names a platform) → no finding: the CVE is "Could not be checked" (reason
-//     platform_unknown) with the entry's question, and an open finding closes into that list (MatchResult.Asked); the person's
-//     answer (the device's OS, inventory INV-41) decides at the next match;
+//     platform_unknown) with the entry's question, and an open suspected finding closes into that list (MatchResult.Asked; one a safe
+//     check or a person confirmed stays open); the person's answer (the device's OS, inventory INV-41) decides at the next match;
 //   - the platform is one it affects and the entry has the distribution's fixed list: the package release decides. At or above
 //     the fix of the device's branch → proved not affected (closes by auto-resolve); below it → a version finding; no release yet →
 //     "Could not be checked" (reason package_unknown) asking for it, unless the version is older than every fix (a finding);

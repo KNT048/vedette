@@ -39,7 +39,7 @@ func storedLine(id string) string {
 //   - every match (and every other line the entry matches, Match.Lines) is detected on its (CVE, software line): created, or
 //     detected again;
 //   - every finding of the device that was detected until now, whose CVE is in vulns and that this match no longer detects, goes
-//     away the way the data says (goneVia): a scan's proof is left to the scans unless its software line is gone;
+//     away the way the data says (goneVia): a safe check's proof or a person's confirmation holds against data alone (Transition);
 //   - the device's questions become those of qm (the match of the whole list).
 func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []Vuln, judged map[string]bool, m, qm MatchResult, existing []Finding, now time.Time, emit func(string, any)) (UpsertResult, error) {
 	var res UpsertResult
@@ -121,7 +121,7 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 		if seen[lineKey(f.CVE, f.SoftwareID)] || !judged[f.CVE] || !f.Detected {
 			continue
 		}
-		via, from, to, by := goneVia(a, lines, f, proofs) // a safe check's proof holds against data alone (Transition)
+		via, from, to, by := goneVia(a, lines, f, proofs) // a safe check's proof or a person's confirmation holds against data alone (Transition)
 		_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: via, FromVersion: from, ToVersion: to, Actor: by}, emit)
 		if err != nil {
 			return res, fmt.Errorf("findings: %s on %s: %w", f.CVE, a.ID, err)

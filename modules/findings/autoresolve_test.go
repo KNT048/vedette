@@ -82,3 +82,42 @@ func TestAutoResolve_NotInstalledClosesAPersonConfirmedFinding(t *testing.T) {
 		t.Fatalf("person-confirmed, then marked not installed: %+v, want not relevant via not installed by the marker", f)
 	}
 }
+
+// A person who confirmed a finding keeps it open when the match can no longer decide the CVE (its platform is not known any more:
+// the OS set on the device was cleared) and asks instead: the person's word outranks a question, as a safe check's proof does; only
+// Undo takes it back. The same question closes an unconfirmed finding as data corrected.
+func TestAutoResolve_APlatformQuestionLeavesAPersonConfirmedFindingOpen(t *testing.T) {
+	t.Parallel()
+	for _, confirmed := range []bool{true, false} {
+		e := newEnv(t)
+		sw := sshRow("9.0p1", "protocol 2.0", "nmap") // a scan's banner: suspected
+		sw.SeenAt = t0
+		alpine := Asset{ID: "a-1", Name: "gw-alpine", ManualOS: "Alpine Linux 3.15", Software: []Software{sw}} // a branch with no fix: NVD's range decides
+		vulns := []Vuln{sshhole()}
+		if res, err := e.svc.UpsertFromMatch(t.Context(), alpine, vulns); err != nil || len(res.Created) != 1 {
+			t.Fatalf("%+v %v", res, err)
+		}
+		if confirmed {
+			if _, err := e.svc.Verify(t.Context(), e.only(t).ID, "logged in, the affected build runs", "anna@example.com"); err != nil {
+				t.Fatal(err)
+			}
+		}
+		e.advance(time.Hour)
+		unknown := alpine
+		unknown.ManualOS = "" // nothing names the platform now: the CVE is asked, not matched
+		if _, err := e.svc.UpsertFromMatch(t.Context(), unknown, vulns); err != nil {
+			t.Fatal(err)
+		}
+		qs, err := e.svc.Questions(t.Context(), "a-1")
+		if err != nil || len(qs) != 1 || qs[0].Kind != QuestionPlatform {
+			t.Fatalf("questions %+v %v, want the platform question", qs, err)
+		}
+		f := e.only(t)
+		switch {
+		case confirmed && (f.State != StateOpen || f.Verified != VerifiedPerson || !f.Detected):
+			t.Errorf("person-confirmed, then a platform question: %+v, want open, detected and confirmed by the person", f)
+		case !confirmed && (f.State != StateHandled || f.Via != ViaDataCorrected):
+			t.Errorf("unconfirmed, then a platform question: %+v, want closed as data corrected", f)
+		}
+	}
+}

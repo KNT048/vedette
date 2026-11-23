@@ -82,9 +82,10 @@ type Detection struct {
 //   - gone (an edge: only a finding detected until now): an open finding is handled by Vedette, patched when something changed on
 //     the device (version_moved, software_removed, distro_fixed, scan_clear), not relevant when only the data changed
 //     (data_corrected) or a person said the software is not installed (not_installed). A mitigation or an accepted risk gives way to
-//     patch credit (the flaw is gone). A person's patched, false positive and not relevant hold. A safe check's proof is not undone
-//     by range data (data_corrected, distro_fixed), only by a newer reading of the device; a clear safe check does not credit a flaw
-//     the device's own reading still shows.
+//     patch credit (the flaw is gone). A person's patched, false positive and not relevant hold. A safe check's proof or a person's
+//     confirmation is not undone by range data (data_corrected, distro_fixed, also a question the match asks instead), only by a
+//     newer reading of the device or a person's "not installed"; a clear safe check does not credit a flaw the device's own reading
+//     still shows.
 //   - handle, reopen, verify, unverify: a person's word, checked like the API reports it. Marking a finding the way Vedette already
 //     closed it takes it over with the person's note, except Vedette's patch credit, which stays (the person's note is an event).
 //   - tick: an accepted risk whose last day is over opens again while detected, else Vedette closes it as corrected.
@@ -267,8 +268,10 @@ func (t *transition) gone(tr Trigger) error {
 	if via == ViaVersionMoved && (from == "" || to == "" || from == to) {
 		via = ViaDataCorrected // no version change to credit
 	}
-	if f.Verified == VerifiedScan && (via == ViaDataCorrected || via == ViaDistroFixed) {
-		return nil // range data does not undo what a safe check proved; a newer reading of the device does (version_moved, removed)
+	if f.Verified.sticky() && (via == ViaDataCorrected || via == ViaDistroFixed) {
+		// range data (or a question the match asks instead) does not undo what a safe check proved or a person confirmed; a newer
+		// reading of the device does (version_moved, removed), and a person's "not installed"
+		return nil
 	}
 	if via == ViaScanClear && (f.Basis == DetectDeviceVersion || f.Basis == DetectPackage) {
 		return nil // a clear safe check does not credit a flaw the device's own reading still shows

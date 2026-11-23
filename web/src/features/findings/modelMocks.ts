@@ -83,7 +83,7 @@ const groupBy = <T>(l: T[], key: (x: T) => string) => { const m = new Map<string
 const byUrgency = (a: { layer: number; n: number; name: string }, b: { layer: number; n: number; name: string }) => a.layer - b.layer || b.n - a.n || a.name.localeCompare(b.name)
 
 /** The device badge: the most urgent open status with its distinct CVEs, else needs_input when only the queue has items for it. */
-function deviceStatus(assetId: string): DeviceStatus {
+export function deviceStatus(assetId: string): DeviceStatus {
   const open = rows().filter((r) => r.asset_id === assetId && r.state === 'open')
   if (open.length) {
     const layer = Math.min(...open.map((r) => r.layer))

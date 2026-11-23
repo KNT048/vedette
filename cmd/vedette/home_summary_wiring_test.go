@@ -4,12 +4,12 @@ import (
 	"testing"
 )
 
-// #825: the binary gives GET /findings/summary inventory's device counts and notify's sent messages and open incidents (findings imports neither).
+// The binary gives GET /findings/overview inventory's device counts and notify's sent messages and open incidents (findings imports neither).
 func TestWiringHomeSummaryCarriesDevicesAndAlerts(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	s.addFortiGate()
-	sum, err := s.d.FindingHandlers.Summary(t.Context())
+	sum, err := s.d.FindingHandlers.Overview(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -17,7 +17,7 @@ func TestWiringHomeSummaryCarriesDevicesAndAlerts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if total == 0 || sum.Devices.Total != total || sum.Devices.Pending != pending {
+	if total == 0 || sum.Devices.Total != total || sum.Devices.NotAdded != pending {
 		t.Fatalf("summary devices %+v, inventory %d/%d", sum.Devices, total, pending)
 	}
 	if sum.Alerts == nil || sum.Alerts.Days != 7 || sum.Incidents == nil {

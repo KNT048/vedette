@@ -10181,7 +10181,7 @@ func decodeInventoryGetInventoryDevicesParams(args [0]string, argsEscaped bool, 
 						if err := (validate.String{
 							MinLength:     0,
 							MinLengthSet:  false,
-							MaxLength:     60,
+							MaxLength:     120,
 							MaxLengthSet:  true,
 							Email:         false,
 							Hostname:      false,
@@ -10900,7 +10900,7 @@ func decodeInventoryGetInventoryExportCsvParams(args [0]string, argsEscaped bool
 						if err := (validate.String{
 							MinLength:     0,
 							MinLengthSet:  false,
-							MaxLength:     60,
+							MaxLength:     120,
 							MaxLengthSet:  true,
 							Email:         false,
 							Hostname:      false,

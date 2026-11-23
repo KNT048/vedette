@@ -114,7 +114,7 @@ func TestRiskMap_OnlyOpenFindingsToFix(t *testing.T) {
 	if got, _ := e.svc.RiskMap(t.Context(), true); got["a-1"] != (AssetRisk{Exploited: 1}) {
 		t.Fatalf("confirmed: %+v (a write must drop the cache)", got)
 	}
-	if _, _, err := e.svc.setStatusMany(t.Context(), []string{id}, ActionAcceptRisk, "until the vendor ships it", "it@acme.example", dayOf(t0).AddDate(0, 0, 30)); err != nil {
+	if _, _, err := e.svc.Handle(t.Context(), []string{id}, ResolutionAccepted, "until the vendor ships it", dayOf(t0).AddDate(0, 0, 30), "it@acme.example"); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := e.svc.RiskMap(t.Context(), true); len(got) != 0 {

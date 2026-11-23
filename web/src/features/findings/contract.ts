@@ -217,7 +217,7 @@ export const PlanCve = z.object({
 })
 /** A device's risk marker (the same value as GET /inventory/devices gives, findings.RiskMap); null when clean, for the Vedette box
  * itself, or when the marker could not be read. */
-export const DeviceRiskView = z.object({ level: z.enum(['exploited', 'update']), exploited: z.number().int(), updates: z.number().int() }).nullable()
+export const DeviceRiskView = z.object({ code: z.enum(DEVICE_STATUSES), count: z.number().int().min(1) }).nullable().describe('The device badge (the device status every list gives)')
   .describe('The device\'s risk marker: exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read')
 /** A recommended update a person marked as done (POST /findings/plan/done). */
 export const PlanDone = z.object({
@@ -643,15 +643,10 @@ export const endpoints = defineEndpoints([
     params: idParams, body: z.object({ note: z.string().max(500) }), response: FindingDetail },
   { method: 'post', path: '/findings/{id}/unconfirm', summary: 'Undo a confirmation a person made (admin): the finding is suspected again; a finding a scan confirmed is refused', stories: ['S-MIT-1'], role: 'admin',
     params: idParams, response: FindingDetail },
-  { method: 'post', path: '/findings/status', summary: 'Change the status of the open findings among the ids (at most 500) with one note; one history and audit row per finding, all or nothing; closed findings are skipped', stories: ['S-MIT-1'], role: 'operator',
-    body: z.object({ ids: z.array(findingId).min(1).max(MAX_BULK), action: BulkAction, note: z.string().max(500), until }),
-    response: z.object({ updated: z.number().int().describe('Open findings changed'), skipped: z.number().int().describe('Findings already closed, left as they were') }) },
   { method: 'post', path: '/findings/{id}/applied', summary: 'Log "Applied" for one recommendation item; does not change the status by itself', stories: ['S-MIT-1'], role: 'operator',
     params: idParams, body: z.object({ item: ApplyItem }), response: FindingDetail },
   { method: 'post', path: '/findings/{id}/ai', summary: 'Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off', stories: ['S-AI-2', 'S-MIT-1'], role: 'operator',
     params: idParams, body: z.object({ skill: z.enum(['explain', 'mitigation-config']) }), response: FindingDetail },
-  { method: 'get', path: '/findings/summary', summary: 'Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend, device and alert counts; one cached read', stories: ['S-FEED-1', 'S-MIT-1', 'S-UI-1'], role: 'viewer',
-    response: HomeSummary },
   { method: 'get', path: '/findings/plan', summary: 'Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 % or more) or published in the last 12 months, version-confirmed only; never findings, never alerts', stories: ['S-TIER-1', 'S-TIER-2'], role: 'viewer',
     query: z.object({ tier: PlanFilter.optional().describe('Default all'), asset: z.string().max(64).optional().describe('One device'),
       done: z.enum(['true', 'false']).optional().describe('true: only the items a person marked done (Done); default false: the items to plan, without them') }), response: Plan },

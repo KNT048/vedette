@@ -2,7 +2,6 @@ package findings
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -57,58 +56,6 @@ func TestHaveScope_OnlyTheDeclaredDeviceIsScoped(t *testing.T) {
 	// With a version the version decides, not the answer on Home.
 	if got := haveScope(nas("6.1"), e.feeds.vulns, MatchAsset(nas("6.1"), e.feeds.vulns, nil, t0), map[string]Have{"a-1": {Key: "qnap|photo station", Since: day("2026-11-01")}}, nil, t0); len(got.New) != 4 {
 		t.Fatalf("with a version: %+v", got.New)
-	}
-}
-
-// One action and one note for the open findings among many; each gets its own history, audit row and event; a
-// closed one is skipped with its reason kept; all or nothing.
-func TestSetStatusMany_OneRowEachAllOrNothing(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true})
-	res, err := e.svc.OnMatchChanged(t.Context(), "a-1")
-	if err != nil || len(res.Created) != 2 {
-		t.Fatalf("seed: %+v %v", res, err)
-	}
-	e.pub.take()
-	before := e.count(`SELECT count(*) FROM core_audit`)
-	for _, c := range []struct {
-		name   string
-		ids    []string
-		action Action
-		note   string
-		want   error
-	}{
-		{"unknown id", []string{res.Created[0], "f-nope"}, ActionFalsePositive, "lab", ErrNotFound},
-		{"note required", res.Created, ActionFalsePositive, "", ErrNoteRequired},
-		{"reopen", res.Created, ActionReopen, "", ErrBadAction},
-		{"none", nil, ActionPatched, "", ErrTooMany},
-		{"too many", make([]string, MaxBulk+1), ActionPatched, "", ErrTooMany},
-	} {
-		if c.name == "too many" {
-			for i := range c.ids {
-				c.ids[i] = fmt.Sprintf("f-%d", i)
-			}
-		}
-		if _, _, err := e.svc.SetStatusMany(t.Context(), c.ids, c.action, c.note, "it@acme.example"); !errors.Is(err, c.want) {
-			t.Errorf("%s: err = %v, want %v", c.name, err, c.want)
-		}
-	}
-	if e.count(`SELECT count(*) FROM core_audit`) != before || e.count(`SELECT count(*) FROM fnd_finding WHERE state = 'open' AND verified = 'no'`) != 2 || len(e.pub.take()) != 0 {
-		t.Fatal("a refused bulk change wrote something")
-	}
-	if _, err := e.svc.SetStatus(t.Context(), res.Created[1], ActionPatched, "updated to 6.1.2", "it@acme.example"); err != nil {
-		t.Fatal(err)
-	}
-	e.pub.take()
-	n, skipped, err := e.svc.SetStatusMany(t.Context(), append(res.Created, res.Created[0]), ActionFalsePositive, "iPhone on guest Wi-Fi", "it@acme.example")
-	if err != nil || n != 1 || skipped != 1 {
-		t.Fatalf("bulk = %d changed, %d skipped, %v", n, skipped, err)
-	}
-	if e.count(`SELECT count(*) FROM fnd_finding WHERE resolution = 'false_positive' AND note = 'iPhone on guest Wi-Fi'`) != 1 ||
-		e.count(`SELECT count(*) FROM fnd_finding WHERE resolution = 'patched' AND note = 'updated to 6.1.2'`) != 1 ||
-		e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.status'`) != 2 || len(e.pub.take()) != 1 {
-		t.Fatal("an open finding gets its own status, audit row and event; a closed one keeps its reason")
 	}
 }
 

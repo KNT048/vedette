@@ -1851,16 +1851,6 @@ func (UnimplementedHandler) FindingsGetFindingsPlan(ctx context.Context, params 
 	return r, ht.ErrNotImplemented
 }
 
-// FindingsGetFindingsSummary implements findings_get_findings_summary operation.
-//
-// Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend,
-// device and alert counts; one cached read.
-//
-// GET /findings/summary
-func (UnimplementedHandler) FindingsGetFindingsSummary(ctx context.Context) (r *FindingsGetFindingsSummaryOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // FindingsGetFindingsToFix implements findings_get_findings_to_fix operation.
 //
 // To fix: every device that needs an update or an action, the most urgent first, each with its actions
@@ -1977,16 +1967,6 @@ func (UnimplementedHandler) FindingsPostFindingsPlanUndone(ctx context.Context, 
 //
 // POST /findings/questions/{id}/answer
 func (UnimplementedHandler) FindingsPostFindingsQuestionsIDAnswer(ctx context.Context, req *FindingsPostFindingsQuestionsIDAnswerReq, params FindingsPostFindingsQuestionsIDAnswerParams) (r *FindingsPostFindingsQuestionsIDAnswerOK, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// FindingsPostFindingsStatus implements findings_post_findings_status operation.
-//
-// Change the status of the open findings among the ids (at most 500) with one note; one history and
-// audit row per finding, all or nothing; closed findings are skipped.
-//
-// POST /findings/status
-func (UnimplementedHandler) FindingsPostFindingsStatus(ctx context.Context, req *FindingsPostFindingsStatusReq) (r *FindingsPostFindingsStatusOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

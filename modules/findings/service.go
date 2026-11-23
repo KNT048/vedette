@@ -942,56 +942,6 @@ var ErrTooMany = &APIError{"invalid", 400, fmt.Sprintf("Select between 1 and %d 
 // ErrManyDevices is a handle request whose findings are on more than one device: handling always applies to one device.
 var ErrManyDevices = &APIError{"many_devices", 400, "Handle the findings of one device at a time."}
 
-// SetStatusMany applies one action with one note to the open findings among ids: a finding that is already handled is counted in
-// skipped and left as it is (a bulk change never overwrites a reason someone wrote). All or nothing; reopen is not a bulk action.
-func (s *Service) SetStatusMany(ctx context.Context, ids []string, action Action, note, user string) (changed, skipped int, err error) {
-	return s.setStatusMany(ctx, ids, action, note, user, time.Time{})
-}
-
-// setStatusMany is SetStatusMany with the last day of accept_risk.
-func (s *Service) setStatusMany(ctx context.Context, ids []string, action Action, note, user string, until time.Time) (changed, skipped int, err error) {
-	if err := ValidUser(user); err != nil {
-		return 0, 0, err
-	}
-	res, ok := ActionResolution(action)
-	if !ok {
-		return 0, 0, fmt.Errorf("findings: bulk %q: %w", action, ErrBadAction)
-	}
-	if res == ResolutionAccepted { // a bad day is refused before anything, even when every finding is handled already
-		if err := validUntil(until, s.now()); err != nil {
-			return 0, 0, err
-		}
-	} else if !until.IsZero() {
-		return 0, 0, fmt.Errorf("findings: bulk %q with a date: %w", action, ErrBadUntil)
-	}
-	uniq := uniqueIDs(ids)
-	if len(uniq) == 0 || len(uniq) > MaxBulk {
-		return 0, 0, ErrTooMany
-	}
-	err = s.write(ctx, func(tx *sql.Tx, now time.Time, emit func(string, any)) error {
-		changed, skipped = 0, 0
-		for _, id := range uniq {
-			f, err := loadFinding(ctx, tx, id)
-			if err != nil {
-				return err
-			}
-			if f.State != StateOpen {
-				skipped++
-				continue
-			}
-			if _, _, err := s.step(ctx, tx, f, false, Trigger{Kind: TrHandle, At: now, Actor: user, Resolution: res, Note: note, Until: until}, emit); err != nil {
-				return err
-			}
-			changed++
-		}
-		return nil
-	})
-	if err != nil {
-		return 0, 0, err
-	}
-	return changed, skipped, nil
-}
-
 func uniqueIDs(ids []string) []string {
 	seen := make(map[string]bool, len(ids))
 	out := make([]string, 0, len(ids))

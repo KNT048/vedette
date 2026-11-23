@@ -200,15 +200,13 @@ func (s *Service) risks(ctx context.Context) (out map[string]*Risk, ok bool) {
 	if s.risk == nil {
 		return out, true
 	}
-	m, err := s.risk.RiskByAsset(ctx)
+	m, err := s.risk.DeviceStatuses(ctx)
 	if err != nil {
 		s.log.WarnContext(ctx, "inventory: device risk markers not read", "error", err)
 		return out, false
 	}
-	for id, c := range m {
-		if r := riskOf(c); r != nil {
-			out[id] = r
-		}
+	for id, r := range m {
+		out[id] = &r
 	}
 	return out, true
 }

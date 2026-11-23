@@ -182,9 +182,6 @@ func TestUnchecked_910_ItemsActionAndOrder(t *testing.T) {
 	if items[0].Version != nil || items[1].Version == nil || *items[1].Version != "1.0" {
 		t.Fatalf("versions = %+v", items)
 	}
-	if s := uncheckedCounts(items); s != (SummaryUnchecked{CVEs: 3, Devices: 2}) {
-		t.Fatalf("counts = %+v", s)
-	}
 }
 
 // #919 r1: CISA keys CVE-2018-0171 "IOS and IOS XE" but NVD lists only classic cisco:ios; on an IOS XE device that states its

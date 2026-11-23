@@ -1303,13 +1303,6 @@ type Handler interface {
 	//
 	// GET /findings/plan
 	FindingsGetFindingsPlan(ctx context.Context, params FindingsGetFindingsPlanParams) (*FindingsGetFindingsPlanOK, error)
-	// FindingsGetFindingsSummary implements findings_get_findings_summary operation.
-	//
-	// Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend,
-	// device and alert counts; one cached read.
-	//
-	// GET /findings/summary
-	FindingsGetFindingsSummary(ctx context.Context) (*FindingsGetFindingsSummaryOK, error)
 	// FindingsGetFindingsToFix implements findings_get_findings_to_fix operation.
 	//
 	// To fix: every device that needs an update or an action, the most urgent first, each with its actions
@@ -1393,13 +1386,6 @@ type Handler interface {
 	//
 	// POST /findings/questions/{id}/answer
 	FindingsPostFindingsQuestionsIDAnswer(ctx context.Context, req *FindingsPostFindingsQuestionsIDAnswerReq, params FindingsPostFindingsQuestionsIDAnswerParams) (*FindingsPostFindingsQuestionsIDAnswerOK, error)
-	// FindingsPostFindingsStatus implements findings_post_findings_status operation.
-	//
-	// Change the status of the open findings among the ids (at most 500) with one note; one history and
-	// audit row per finding, all or nothing; closed findings are skipped.
-	//
-	// POST /findings/status
-	FindingsPostFindingsStatus(ctx context.Context, req *FindingsPostFindingsStatusReq) (*FindingsPostFindingsStatusOK, error)
 	// HoneypotDeleteHoneypotTokensID implements honeypot_delete_honeypot_tokens_id operation.
 	//
 	// Delete a honey token; the planted copy stops alerting.

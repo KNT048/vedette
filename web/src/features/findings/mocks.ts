@@ -10,12 +10,12 @@ import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
 import { mockHardening } from './hardeningMock'
-import type { AiAnswer, AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanDone, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
+import type { AiAnswer, AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanDone, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { metaStore } from '@/features/inventory/mocks'
-import { openIncidents, sentSince } from '@/features/notify/mocks'
-import { SUMMARY_DAYS, SUMMARY_TOP } from './contract'
+import { deviceStatus } from './modelMocks'
+import type { DeviceStatusCode } from '@/lib/statusCodes'
 import { modelHandlers } from './modelMocks'
 
 interface Vuln { cve: string; vendor: string; product: string; name: string; required_action: string; links: string[]; date_added: string; due_date: string | null; ransomware: boolean; epss: number | null; has_template: boolean }
@@ -32,7 +32,6 @@ export const fixes = collection<Record<string, RowFix>>('fnd_fixes', () => ({}))
 
 const APPLY_ITEMS: ApplyItem[] = ['patch', 'workaround', 'fortigate', 'mikrotik', 'generic']
 const ACTIONS: StatusAction[] = ['patched', 'mitigated', 'false_positive', 'not_relevant', 'accept_risk', 'reopen']
-const MAX_BULK = 500
 
 const DISPLAY: Record<string, string> = {
   'qnap|photo station': 'Photo Station app on a QNAP NAS',
@@ -62,23 +61,14 @@ function kevInfo(cve: string): KevInfo | null {
 }
 
 
-/** A device's risk marker as the box computes it (findings RiskOf, through inventory): read from what To fix shows for it (one
- *  rule): its open exploited findings To fix lists (an update named, or proved), else its recommended updates with a likely CVE or of
- *  High or Critical severity. null when clean, and while the findings module is off. */
-type Risk = { level: 'exploited' | 'update'; exploited: number; updates: number }
-/** The box (inventory's BOX_ID) is never marked; its updates stay in To fix. */
+/** A device's badge as the box computes it (findings' device status, through inventory). null when it has none, and while the
+ *  findings module is off. */
+type Risk = { code: DeviceStatusCode; count: number }
+/** The box (inventory's BOX_ID) is never marked. */
 const MOCK_BOX = 'a-box'
 export function deviceRisk(assetId: string): Risk | null {
   if (!isOn('findings') || assetId === MOCK_BOX) return null
-  return riskOfCard(toFix(assetId).devices[0] ?? null)
-}
-/** findings.RiskOf of one To fix card. */
-function riskOfCard(d: Omit<ToFixDevice, 'risk'> | null): Risk | null {
-  if (!d || d.asset.id === MOCK_BOX) return null
-  const exploited = [...d.exploited, ...d.no_update.filter((x) => x.confirmed + x.detected > 0)].reduce((n, x) => n + Math.max(x.finding_ids.length, x.cves.length), 0)
-  const updates = d.planned.filter((x) => x.likely > 0 || sevRank(x.worst) >= sevRank('high')).length
-  if (exploited > 0) return { level: 'exploited', exploited, updates }
-  return updates > 0 ? { level: 'update', exploited: 0, updates } : null
+  return deviceStatus(assetId)
 }
 
 /** The recommended updates a person marked done (POST /findings/plan/done), by item key, with the CVEs the item had then. */
@@ -401,34 +391,6 @@ function askAnswers(f: Finding, k: KevInfo | null, dev: string): AiAnswer[] {
   ]
 }
 
-/** GET /findings/summary (#825), computed as the box does: open = confirmed + suspected; the trend counts, at the end of each UTC day, the
- *  findings first seen by then and not closed by then. */
-export function summary(): HomeSummary {
-  const rows = findingsStore.get().map(row)
-  const open = rows.filter((r) => r.status === 'confirmed' || r.status === 'suspected')
-  const rank = (r: FindingRow) => [r.urgency, r.status === 'confirmed' ? 0 : 1, r.kev?.ransomware ? 0 : 1, -(r.cvss?.score ?? -1)] as const
-  const top = [...open].sort((a, b) => {
-    const x = rank(a), y = rank(b)
-    return x[0] - y[0] || x[1] - y[1] || x[2] - y[2] || x[3] - y[3] || b.first_seen.localeCompare(a.first_seen)
-  }).slice(0, SUMMARY_TOP)
-  const now = Date.now()
-  const today = new Date(now); today.setUTCHours(24, 0, 0, 0)
-  const trend = Array.from({ length: SUMMARY_DAYS }, (_, i) => {
-    const end = i === SUMMARY_DAYS - 1 ? now : today.getTime() - (SUMMARY_DAYS - 1 - i) * 864e5
-    return rows.filter((r) => Date.parse(r.first_seen) <= end && (!r.resolved_at || Date.parse(r.resolved_at) > end)).length
-  })
-  const assets = assetsStore.get()
-  return {
-    open: { total: open.length, confirmed: open.filter((r) => r.status === 'confirmed').length, devices: new Set(open.map((r) => r.asset_id)).size, ransomware: open.filter((r) => r.kev?.ransomware).length },
-    top: top.map((r) => ({ id: r.id, cve: r.cve, status: r.status === 'confirmed' ? 'confirmed' as const : 'suspected' as const, severity: r.severity, urgency: r.urgency, asset: r.asset, product: r.kev ? (r.kev.display || `${r.kev.vendor} ${r.kev.product}`) : '', software: r.fix?.software ?? '', ransomware: !!r.kev?.ransomware, source: r.kev ? (r.kev.source ?? 'cisa-kev') : null, cvss: r.cvss, first_seen: r.first_seen })),
-    trend,
-    devices: { total: assets.length, pending: assets.filter((a) => !a.approved).length },
-    alerts: isOn('notify') ? { ...sentSince(new Date(now - 7 * 864e5).toISOString()), days: 7 } : null,
-    incidents: isOn('notify') ? openIncidents() : null,
-    unchecked: uncheckedCounts(),
-    generated_at: nowIso(),
-  }
-}
 
 const cveOf = (cve: string, name: string, added: string, ransomware: boolean, advisory: string | null) => ({ cve, name, date_added: added, ransomware, advisory })
 const UNCHECKED_SEED: { asset: string; software: string; reason: UncheckedItem['reason']; action: UncheckedItem['action']; cves: UncheckedItem['cves'] }[] = [
@@ -528,10 +490,6 @@ function platformItem(): UncheckedItem | null {
     answers: [{ label: 'Alpine Linux 3.22', os: 'Alpine Linux 3.22' }, { label: 'Alpine Linux 3.23', os: 'Alpine Linux 3.23' }, { label: 'Another system', ask: ['os', 'pkg_version'] }],
   } }
 }
-const uncheckedCounts = () => {
-  const l = unchecked()
-  return { cves: new Set(l.flatMap((i) => i.cves.map((c) => c.cve))).size, devices: new Set(l.map((i) => i.asset_id)).size }
-}
 
 const SEV = ['info', 'low', 'medium', 'high', 'critical']
 const sevRank = (s: string) => SEV.indexOf(s.toLowerCase())
@@ -598,7 +556,7 @@ function toFix(asset: string | null): ToFix {
       return { ...u, action: sentence(u) }
     })
     const card = { asset: view, open: rows.filter((x) => x.asset_id === id).length, exploited: acts.filter((x) => x.kind !== 'none').sort(order), no_update: acts.filter((x) => x.kind === 'none').sort(order), planned, plan_compared: true }
-    devices.push({ ...card, risk: riskOfCard(card) })
+    devices.push({ ...card, risk: deviceRisk(id) })
   }
   const urgency = (d: ToFixDevice) => {
     const act = [...d.exploited, ...d.no_update.filter((x) => x.confirmed + x.detected > 0)]
@@ -621,13 +579,6 @@ export const handlers = [
       asset: assetView(a), asset_id: a.id, software_id: s.id, software: s.display, version: s.version || null, cves,
     }))
     return HttpResponse.json({ items: [...list.map(row), ...(asset ? enteredClosed(asset) : [])].map((r) => (asset ? withSoftware(r) : r)), version_needed, unchecked: unchecked(asset) })
-  }),
-
-  // Before /findings/:id: "summary" is not a finding id.
-  http.get(`${API}/findings/summary`, () => {
-    const denied = guard('viewer'); if (denied) return denied
-    expireAccepted()
-    return HttpResponse.json(summary())
   }),
 
   // Before /findings/:id: "to-fix" is not a finding id.
@@ -725,36 +676,6 @@ export const handlers = [
     patch(f.id, (x) => ({ ...x, status: 'suspected', basis: was, history: [...x.history, { ts: nowIso(), user, action: 'confirm_undone', note: `Confirmation undone by ${user}: back to suspected.` }] }))
     audit('findings.unconfirm', f.id, `${f.cve}: confirmation undone by ${user}`)
     return HttpResponse.json(detail(find(f.id)!))
-  }),
-
-  // Một hành động, một ghi chú cho các phát hiện đang mở (INV-10): tất cả hoặc không gì; mỗi phát hiện một dòng lịch sử và kiểm toán; phát hiện đã đóng được đếm và bỏ qua.
-  http.post(`${API}/findings/status`, async ({ request }) => {
-    const denied = guard('operator'); if (denied) return denied
-    const b = await body<{ ids: string[]; action: StatusAction; note: string; until?: string }>(request)
-    const ids = [...new Set(Array.isArray(b.ids) ? b.ids.map(String) : [])]
-    if (ids.length === 0 || ids.length > MAX_BULK) return fail(400, 'invalid', `Select between 1 and ${MAX_BULK} findings.`)
-    if (!b.action || b.action === 'reopen' || !ACTIONS.includes(b.action)) return fail(400, 'bad_action', 'Choose one of: patched, mitigated, false positive, not relevant, or accept risk.')
-    const note = typeof b.note === 'string' ? b.note.trim() : ''
-    if (note.length > 500) return fail(400, 'note_too_long', 'The note can be at most 500 characters. Shorten it.')
-    if ((b.action === 'false_positive' || b.action === 'not_relevant' || b.action === 'accept_risk') && note.length < 3) return fail(400, 'note_required', 'Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands.')
-    if (b.action === 'accept_risk' ? !untilOk(String(b.until ?? '')) : b.until !== undefined) return fail(400, 'bad_until', 'Accept the risk until a date from tomorrow up to one year from today.')
-    if (ids.some((id) => !find(id))) return fail(404, 'not_found', 'No such finding.')
-    const ts = nowIso()
-    const user = who()
-    let skipped = 0
-    for (const id of ids) {
-      const f = find(id)!
-      if (f.status !== 'confirmed' && f.status !== 'suspected') { skipped++; continue } // a closed finding keeps its reason
-      if (b.action === 'accept_risk') {
-        const until = String(b.until)
-        patch(id, (x) => ({ ...x, status: 'not_relevant', resolved_by: user, resolved_at: ts, resolution_note: note, history: [...x.history, { ts, user, action: 'risk_accepted', note: `${note} (until ${fmtDate(until)})` }] }))
-        accepted.update((m) => ({ ...m, [id]: until }))
-      } else {
-        patch(id, (x) => ({ ...x, status: b.action as Finding['status'], resolved_by: user, resolved_at: ts, resolution_note: note || null, history: [...x.history, { ts, user, action: b.action as string, note: note || undefined }] }))
-      }
-      audit('findings.status', id, `${f.cve} → ${b.action}${note ? `: ${note}` : ''}`)
-    }
-    return HttpResponse.json({ updated: ids.length - skipped, skipped })
   }),
 
   // "Đã áp dụng": ghi nhật ký, không tự đổi trạng thái; chỉ quét lại mới xác nhận đã hết.

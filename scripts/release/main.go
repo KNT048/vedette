@@ -9,6 +9,7 @@
 //	go run ./scripts/release index       -out dist/release -manifest dist/release/release-manifest.json [-prev-index DIR -keys-dir DIR]
 //	go run ./scripts/release index       -out dist/refresh -prev-index DIR        (the weekly refresh: no manifest; then sign and verify the same directory)
 //	go run ./scripts/release index       ... -revoke-key <key id> -revoke-reason TEXT   (a key revocation; it counts only in an index the backup key signs)
+//	go run ./scripts/release index       ... -advisory advisory.json   (a new advisory every box shows on its Updates page; repeatable)
 //	go run ./scripts/release min-sequence -prev-index DIR [-keys-dir DIR]   (prints the sequence of the published index: the MIN_SEQUENCE of vedette-host; index -min-sequence N refuses a sequence not above it)
 //	go run ./scripts/release check-binaries BINARY...   (preflight: refuses a binary built with -tags releasetestkeys, the throwaway release keys)
 //	go run ./scripts/release check-image -image localhost/vedette-scan-base:check -kind scan-base [-container podman|docker] [-repo .]   (the files the gates check inside core and scan-base, on one local image; make images-check)
@@ -298,10 +299,9 @@ func cmdManifest(ctx context.Context, args []string, stdout, stderr io.Writer) e
 	}
 	say(stdout, "wrote %s (version %s, db_schema %d, rollback.safe=%t)", p, inputs.Version, res.DBSchema, inputs.Rollback.Safe)
 	if e := res.Epoch; e != nil {
-		say(stderr, "note: this release starts schema epoch %d (release %s has %d). Core refuses a database of an earlier epoch, so a box "+
-			"running %s or earlier cannot update to it in place: the update fails its health check and the host puts the previous "+
-			"release and its database back. Say so in the notes: such a box installs this release fresh. Set min_upgrade_from to %s "+
-			"(RELEASE_MIN_UPGRADE_FROM of make release-in) so such a box says so at its update check instead of downloading the release.",
+		say(stderr, "note: this release starts schema epoch %d (release %s has %d): a box running %s or earlier refuses it at its update "+
+			"check (min_upgrade_from %s) and must install it fresh. Say so in the notes, and give the index step an advisory those boxes "+
+			"show (RELEASE_ADVISORY of make release-manifest; the index step refuses to go on without one).",
 			e.To, e.Since, e.From, e.Since, inputs.Version)
 	}
 	if !inputs.Rollback.Safe && len(res.Findings) > 0 {
@@ -339,11 +339,24 @@ func cmdIndex(args []string, stdout io.Writer) error {
 		return nil
 	})
 	reason := fs.String("revoke-reason", "", "why the keys of -revoke-key are revoked (one line)")
+	var advisories []release.Advisory
+	fs.Func("advisory", "JSON file of a new advisory to publish: {id, severity, title, affects, fixed_in, url} (repeatable; earlier ones carry over)", func(v string) error {
+		raw, err := readSmall(v, 4<<10)
+		if err != nil {
+			return err
+		}
+		a, err := ParseAdvisory(raw)
+		if err != nil {
+			return fmt.Errorf("%s: %w", v, err)
+		}
+		advisories = append(advisories, a)
+		return nil
+	})
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	p := IndexParams{Now: time.Now(), Sequence: *seq, MinSequence: *minSeq, Rollout: *rollout, ValidFor: time.Duration(*days) * 24 * time.Hour,
-		RevokeKeys: revoke, RevokeReason: *reason}
+		RevokeKeys: revoke, RevokeReason: *reason, Advisories: advisories}
 	if *days <= 0 {
 		return errors.New("-valid-days must be positive")
 	}

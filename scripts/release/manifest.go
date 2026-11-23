@@ -117,7 +117,8 @@ var serviceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 //     place);
 //   - migrations that do not continue the history of an earlier release of the same schema epoch (one removed, edited or numbered
 //     below, CheckHistory), whatever rollback.safe says, and a schema epoch below an earlier release's (HistoryError);
-//   - rollback.safe=true for a release whose schema epoch is above the newest earlier release's (a new migration history);
+//   - rollback.safe=true for a release whose schema epoch is above the newest earlier release's (a new migration history), and
+//     such a release without min_upgrade_from equal to its own version;
 //   - rollback.safe=true without rollback.min_version (below this version), without the migrations at that release, or unless every
 //     migration since that release is add-only (the whole span a box may roll back across, not one step);
 //   - an image of an unknown service, a repeated service, a malformed digest, or a missing or unreadable cosign file;
@@ -209,6 +210,15 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 		if c > 0 && res.Epoch == nil {
 			return res, fmt.Errorf("min_upgrade_from %s is above %s, the latest published: no box could upgrade", in.MinUpgradeFrom, latest)
 		}
+	}
+	// A release that starts a new schema epoch: no box of the earlier epoch can update to it in place (its core refuses the
+	// database, the health gate fails and the host puts the previous release back). min_upgrade_from of exactly this version makes such a box refuse at its
+	// update check instead of downloading the release; a lower one lets the boxes of the earlier epoch try.
+	if c, err := release.CompareVersions(in.MinUpgradeFrom, in.Version); res.Epoch != nil && (err != nil || c != 0) {
+		return res, fmt.Errorf("this release starts schema epoch %d after release %s (epoch %d), so a box on %s or earlier cannot update to it in place: "+
+			"set min_upgrade_from to %s (RELEASE_MIN_UPGRADE_FROM of make release-in; it is %q), so such a box refuses at its update check "+
+			"instead of downloading the release, and publish an advisory those boxes show (RELEASE_ADVISORY of make release-manifest)",
+			res.Epoch.To, res.Epoch.Since, res.Epoch.From, res.Epoch.Since, in.Version, in.MinUpgradeFrom)
 	}
 
 	// The rollback guard.

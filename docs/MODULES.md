@@ -3,7 +3,7 @@
 Principle: the user switches on exactly what they need. Each module is a Go package in `modules/<name>/` with:
 
 ```
-modules/<tên>/
+modules/<name>/
   MANIFEST.yaml   # id, display name, a 1-sentence description, dependencies, permissions needed, ports opened, data written, stories served
   CONTRACT.md     # INV/PRE/POST/FORBID — docs/MODULE_CONTRACTS.md
   IMPACT.md       # who calls what, who is affected when this module is switched off
@@ -39,7 +39,7 @@ General rules:
 | [`response`](../modules/response/CONTRACT.md) | Response: WHEN-IF-THEN rules and AI proposals → actions on a firewall/switch/DNS, **approval required by default**, 2 people for high risk, a blocklist for firewalls to pull; a separate execution switch is OFF by default. The only exception to SYS-8 | optional (high risk) | notify, inventory (soft: ai; the connection to devices belongs to `core`) | `core` | none (public routes on 8443) | `resp_*` | S-RESP-1..4, S-AI-8 | M1 (GUI) |
 | [`agent-intake`](../modules/agent-intake/CONTRACT.md) | Receives packages from osquery (Vedette is the TLS server, a one-line install script for Linux/Windows Server) or pulls the read-only Wazuh API; ships no agent, only the server | optional | inventory | `core` | HTTPS 8443 | `intake_*` (writes observations with source=agent into `inv_*` through an interface) | S-INV-4 | M7 |
 | [`ai`](../modules/ai/CONTRACT.md) | BYOK assistant: several profiles + job assignment with fallback, the harness (rules, memory, skills, RAG, external connections, hooks), a tamper-resistant AI log, 3 token levels, **no write tools** | optional | core (+ any module that has data) | `core` | out to the Internet to the provider | `ai_*` | S-AI-1..8 | M6 |
-| [`reports`](../modules/reports/CONTRACT.md) | A weekly report, a PDPL report (Law 91/2025/QH15, Decree 356/2025/NĐ-CP), print/save as PDF | optional | inventory, feeds (+notify to send; scan, logs if present) | `core` | none | `rep_*` | S-REP-1, 2 | M7 |
+| [`reports`](../modules/reports/CONTRACT.md) | A weekly report, a PDPL report (Law 91/2025/QH15, Decree 356/2025/ND-CP), print/save as PDF | optional | inventory, feeds (+notify to send; scan, logs if present) | `core` | none | `rep_*` | S-REP-1, 2 | M7 |
 | `fleet` | ~~A central server for many sites/customers~~ **postponed, not in the GUI** | none | none | none | none | none | S-FLEET-1 `[failed]` | postponed |
 | [`mcp-server`](../modules/mcp-server/CONTRACT.md) | A read-only MCP for outside agents/SIEMs (7 tools, tokens scoped to assets/findings/feeds) | optional | core | `core` | HTTP 127.0.0.1:8765 | `mcp_*` | S-MCP-1 | M6 |
 | [`auth-oidc`](../modules/auth-oidc/CONTRACT.md) | OIDC/SSO (code + PKCE), maps groups → 3 roles | optional | core | `core` | out to the IdP | `oidc_*` | S-CORE-3 | M7 |
@@ -48,7 +48,7 @@ The "Container" column follows the container list in `ARCHITECTURE.md` §2; the 
 
 **`host`: a component, not a module.** [`vedette-host`](../modules/host/CONTRACT.md) is a very small systemd process that runs as root and runs only a **fixed command list** (OS updates, network/SPAN/secondary IP, pulling and rolling back cosign-signed images, backups); only `core` can call it, through an internal socket. It is not switched on/off in Settings, it is present on the **Appliance** install type and **absent on the "Container only" type** (features that need it say "not supported"). It has `modules/host/{MANIFEST.yaml,CONTRACT.md,IMPACT.md}` like a module so others can work on it in parallel.
 
-Ghi chú:
+Notes:
 - `feeds` also pulls **feeds that need the customer's key** (VulnCheck, AbuseIPDB, VirusTotal, GreyNoise, Shodan, OTX, urlscan, OpenPhish, Censys) directly from the source; each source has its own key field, off by default (`DATA_PIPELINE.md` §BYOK feeds).
 - `sensor-*`, `honeypot` and `logs` can run in **sensor** mode separate from the server (`ARCHITECTURE.md` §Sensor/Server).
 - The milestone order follows `ROADMAP.md`; **every module has a GUI screen before it has a backend**.

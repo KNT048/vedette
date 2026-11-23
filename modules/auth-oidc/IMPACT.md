@@ -12,7 +12,7 @@
 - **core/auth `SSOSignIn`**: Callback passes on (`iss`, `sub`, email, `email_verified`, name, role) after the ID token has been checked. Changing what is checked before the call → `core/auth` trusts unchecked data (INV-1).
 - **modules/core codes/catalogue test**: a new error code must be in `docs/API_CONVENTIONS.md` (counted per status table).
 
-## Modifying: `MapRole(groups, rows, def)` và `idClaims.groups(claim)`
+## Modifying: `MapRole(groups, rows, def)` and `idClaims.groups(claim)`
 - The role of every SSO account at the next sign-in; changing the rules (highest, exact name match, drop groups > 256 characters, the first 200 groups) → promotes/demotes in bulk and ends the sessions of people whose role changes.
 
 ## Modifying: `newClient` / `discover` / `clientFor` (every call to the IdP)

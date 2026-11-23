@@ -28,7 +28,8 @@ import (
 // and prints a hand-written fixture from testdata/.
 
 type fakeOpts struct {
-	always   string // when set, print this file whatever the argv
+	always   string // when set, print this file whatever the argv (but topPorts)
+	topPorts string // when set, a run with --top-ports prints this file (the external shape's discovery)
 	slowFrom int    // from this call number (1-based) the script sleeps 30 s before printing; 0 never
 	exitCode int    // non-zero: exit with it after printing
 }
@@ -58,6 +59,9 @@ printf '%%s\n' "$@" >> "$LOG"
 echo '--' >> "$LOG"
 if [ %d -gt 0 ] && [ "$((n + 1))" -ge %d ]; then sleep 30; fi
 `, log, o.slowFrom, o.slowFrom)
+	if o.topPorts != "" {
+		body += fmt.Sprintf("case \" $* \" in *\" --top-ports \"*) cat %q; exit 0;; esac\n", o.topPorts)
+	}
 	if o.always != "" {
 		body += "cat " + o.always + "\n"
 	} else {

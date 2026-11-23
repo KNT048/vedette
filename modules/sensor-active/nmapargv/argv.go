@@ -34,10 +34,15 @@ const (
 	// (vmware-version); per TLS port one more handshake (ssl-cert). Every answer is read, nothing is sent with a login. A fragile
 	// device keeps Gentle exactly: no script, no -sV, no UDP.
 	GentleTitles
-	// External is service identification on the box's own verified public IP for exposure (exposure INV-19): -sV over the
-	// fixed TCP list of the surface scan (commonports), at ExternalRate, with no -O and no --script (only what -sV runs itself). It
-	// is the only shape whose target is public, and it takes exactly one; every other shape takes local addresses only. Whether
-	// the address is the box's own is not grammar: core checks it before it hands the job out, the worker again before nmap.
+	// External is the default scan of the box's own verified public IP for exposure (exposure INV-19), in two nmap runs of
+	// the same name: first port discovery (-sS, no -sV) over nmap's own ExternalTopPorts most common TCP ports (--top-ports, read
+	// from the nmap-services of the nmap the box installed, never copied here), then -sS -sV over ExtraPortNumbers (the surface
+	// scan's list, commonports, and the reviewed admin ports) plus the ports the discovery found open outside it (FlagsFor with
+	// ports, at most commonports.MaxBelievableOpen of them). -sV only ever reads open ports, so it runs on the open ports only, and a
+	// discovery with more than commonports.MaxBelievableOpen open ends before any -sV is sent. Both at ExternalRate, with no -O and
+	// no --script (only what -sV runs itself). It is the only shape whose target is public outside the full ones, and it takes
+	// exactly one; every other shape takes local addresses only. Whether the address is the box's own is not grammar: core checks
+	// it before it hands each job out, the worker again before nmap.
 	External
 	// ExternalFull is the deep scan of the box's own verified public IP once an administrator accepted the target's testing terms
 	// (exposure FULL-1): every TCP port (-p-), -sV, and nmap's "default", "safe" and "vuln" scripts without the
@@ -87,19 +92,32 @@ const (
 	allPortsRetries     = "1"
 )
 
-// ExternalRate is the fixed --max-rate of the external shape (packets a second): 99 ports with 2 retries are a few hundred SYNs,
-// a few seconds at this rate, gentle on the customer's own router (plan exposure-real-vulns §3).
+// ExternalRate is the fixed --max-rate of the external shape (packets a second), gentle on the customer's own router: the
+// discovery's ExternalTopPorts SYNs with at most 2 retransmissions each are at most 3,000 probes, 30 seconds at this rate; the -sV
+// run's port scan (at most MaxExternalPorts ports) a few seconds more.
 const ExternalRate = 100
 
-// ExternalPorts is the -p value of the external shape: the ports of commonports.List, ascending, comma-separated.
-var ExternalPorts = func() string {
-	ns := commonports.Numbers()
-	ss := make([]string, len(ns))
-	for i, n := range ns {
-		ss[i] = strconv.Itoa(n)
-	}
-	return strings.Join(ss, ",")
-}()
+// ExternalTopPorts is the --top-ports count of the external discovery: nmap's most common TCP ports by its own frequency data.
+// The list itself is never written into Vedette (nmap-services is under the Nmap Public Source License): nmap picks it when it
+// runs, and the parser reads back the ports it probed from its <scaninfo services>. Nessus probes about 4,790 ports by default,
+// Qualys' standard list about 2,800, typical attack-surface tools 200 to 300; with ExtraPortNumbers this probes about 1,070.
+const ExternalTopPorts = 1000
+
+// MaxExternalPorts is the most ports the -sV run of the external shape names: ExtraPortNumbers and at most
+// commonports.MaxBelievableOpen open ports the discovery found outside it.
+var MaxExternalPorts = len(ExtraPortNumbers) + commonports.MaxBelievableOpen
+
+// The host timeouts of the two external runs. The discovery needs about 30 seconds in the worst case (every port dropped, see
+// ExternalRate); 2 minutes leave room for nmap slowing down on a lossy path. The -sV run reads at most
+// commonports.MaxBelievableOpen open ports, about 20 at a time at the default timing: 3 minutes, as before the discovery existed.
+// exposure's step bound (ServicesTimeout there) holds both, the waits for the worker and the own-IP checks; cmd/vedette holds the
+// two together in a test.
+const (
+	ExternalDiscoveryTimeout = 2 * time.Minute
+	ExternalVersionsTimeout  = 3 * time.Minute
+	externalDiscoveryTimeout = "2m"
+	externalHostTimeout      = "3m"
+)
 
 // The host discovery probes of the sweep. nmap's own -sn default for an address outside the box's segment is an ICMP
 // echo, a SYN to 443, an ACK to 80 and an ICMP timestamp request (https://nmap.org/book/man-host-discovery.html); a Windows PC
@@ -120,10 +138,6 @@ var SweepProbes = 2 + strings.Count(sweepSYNPorts, ",") + 1 + strings.Count(swee
 // lanMaxRetries caps the retransmissions of a normal or versions scan's port probes: nmap's default allows ten, -T4 six
 // (https://nmap.org/book/man-performance.html); a LAN loses few packets, and a lossy Wi-Fi client stops stretching a run.
 const lanMaxRetries = "3"
-
-// externalHostTimeout bounds -sV on the one host, inside exposure's 5-minute step (ServicesTimeout there) with room for the
-// wait for the nmap slot and the own-IP checks.
-const externalHostTimeout = "3m"
 
 // The two full shapes, tuned from nmap's reference guide:
 // https://nmap.org/book/man-performance.html (--max-rate "only affect[s] port scans and host discovery"; version detection and
@@ -325,8 +339,10 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		if rate != ExternalRate {
 			return nil, fmt.Errorf("nmapargv: the external shape runs at %d packets/s, not %d", ExternalRate, rate)
 		}
-		// -Pn: the box's own address need not answer a ping (routers drop it); it is up by definition.
-		return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, flagMaxRate, r, flagMaxRetries, "2", flagHostTimeout, externalHostTimeout, "-p", ExternalPorts}, nil
+		// The discovery run; the -sV run is FlagsFor's (its ports vary). -Pn: the box's own address need not answer a ping
+		// (routers drop it); it is up by definition.
+		return []string{flagPrivileged, "-sS", "-Pn", flagNoDNS, flagMaxRate, r, flagMaxRetries, "2", flagHostTimeout, externalDiscoveryTimeout,
+			flagTopPorts, strconv.Itoa(ExternalTopPorts)}, nil
 	case ExternalFull, ExternalDisruptive:
 		if rate != FullRate {
 			return nil, fmt.Errorf("nmapargv: the %s shape runs at %d packets/s, not %d", kind.Name(), FullRate, rate)
@@ -379,9 +395,12 @@ func targetRule(kind Kind, n int) (ok func(netip.Addr) bool, err error) {
 	return validTarget, nil
 }
 
-// FlagsFor is Flags with the ports of a PortVersions run (1..MaxPortVersions distinct ports, ascending); every other kind takes
-// none.
+// FlagsFor is Flags with the ports of a PortVersions run (1..MaxPortVersions distinct ports, ascending) or of the -sV run of the
+// External shape (ExternalVersionPorts); every other kind takes none, and External without ports is its discovery run.
 func FlagsFor(kind Kind, rate int, ports []int) ([]string, error) {
+	if kind == External && len(ports) > 0 {
+		return externalVersionFlags(rate, ports)
+	}
 	if kind != PortVersions {
 		if len(ports) != 0 {
 			return nil, fmt.Errorf("nmapargv: the %s shape takes no port list", kind.Name())
@@ -394,18 +413,68 @@ func FlagsFor(kind Kind, rate int, ports []int) ([]string, error) {
 	if len(ports) == 0 || len(ports) > MaxPortVersions {
 		return nil, fmt.Errorf("nmapargv: a port_versions run reads 1 to %d ports, got %d", MaxPortVersions, len(ports))
 	}
+	list, err := portList(ports)
+	if err != nil {
+		return nil, err
+	}
+	return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, lanMaxRetries,
+		"-p", list, flagHostTimeout, normalHostTimeout}, nil
+}
+
+// portList writes ascending, distinct ports 1..65535 as a plain comma-separated -p value.
+func portList(ports []int) (string, error) {
 	list := make([]string, len(ports))
 	for i, p := range ports {
 		if p < 1 || p > 65535 || (i > 0 && p <= ports[i-1]) {
-			return nil, errors.New("nmapargv: the ports of a port_versions run must be ascending, distinct, 1..65535")
+			return "", errors.New("nmapargv: the ports of a run must be ascending, distinct, 1..65535")
 		}
 		list[i] = strconv.Itoa(p)
 	}
-	return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, lanMaxRetries,
-		"-p", strings.Join(list, ","), flagHostTimeout, normalHostTimeout}, nil
+	return strings.Join(list, ","), nil
 }
 
-// BuildFor is Build with the ports of a PortVersions run (one target).
+// ExternalVersionPorts is the -p list of the External shape's -sV run after a discovery that found open: ExtraPortNumbers and the
+// ports of open outside it, ascending. More than commonports.MaxBelievableOpen such ports is an error: the address answers on
+// almost every port and no -sV run is made (the caller says so).
+func ExternalVersionPorts(open []int) ([]int, error) {
+	out := slices.Clone(ExtraPortNumbers)
+	for _, p := range open {
+		if p < 1 || p > 65535 {
+			return nil, fmt.Errorf("nmapargv: port %d is outside 1..65535", p)
+		}
+		out = append(out, p)
+	}
+	slices.Sort(out)
+	out = slices.Compact(out)
+	if len(out)-len(ExtraPortNumbers) > commonports.MaxBelievableOpen {
+		return nil, fmt.Errorf("nmapargv: %d open ports outside the fixed list, more than %d", len(out)-len(ExtraPortNumbers), commonports.MaxBelievableOpen)
+	}
+	return out, nil
+}
+
+// externalVersionFlags is the -sV run of the External shape: exactly the list ExternalVersionPorts can return (every port of
+// ExtraPortNumbers, at most commonports.MaxBelievableOpen others), at ExternalRate.
+func externalVersionFlags(rate int, ports []int) ([]string, error) {
+	if rate != ExternalRate {
+		return nil, fmt.Errorf("nmapargv: the external shape runs at %d packets/s, not %d", ExternalRate, rate)
+	}
+	list, err := portList(ports)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range ExtraPortNumbers {
+		if _, found := slices.BinarySearch(ports, p); !found {
+			return nil, fmt.Errorf("nmapargv: the -sV run of the external shape lacks port %d of the fixed list", p)
+		}
+	}
+	if len(ports) > MaxExternalPorts {
+		return nil, fmt.Errorf("nmapargv: the -sV run of the external shape names %d ports, more than %d", len(ports), MaxExternalPorts)
+	}
+	return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, "2", flagHostTimeout, externalHostTimeout,
+		"-p", list}, nil
+}
+
+// BuildFor is Build with the ports of a PortVersions run or of the External shape's -sV run (one target).
 func BuildFor(kind Kind, rate int, ports []int, targets []netip.Addr) ([]string, error) {
 	if kind == PortVersions && len(targets) != 1 {
 		return nil, fmt.Errorf("nmapargv: a port_versions run takes exactly one target, got %d", len(targets))
@@ -428,10 +497,11 @@ func BuildFor(kind Kind, rate int, ports []int, targets []netip.Addr) ([]string,
 	return args, nil
 }
 
-// portsOf reads the -p list of flags that may be a PortVersions line: plain decimal ports separated by commas; nil otherwise.
+// portsOf reads the -p list of flags that may be a PortVersions line or the External shape's -sV run: plain decimal ports separated
+// by commas; nil otherwise.
 func portsOf(flags []string) []int {
 	i := slices.Index(flags, "-p")
-	if i < 0 || i+1 >= len(flags) || len(flags[i+1]) > 6*MaxPortVersions {
+	if i < 0 || i+1 >= len(flags) || len(flags[i+1]) > 6*MaxExternalPorts {
 		return nil
 	}
 	var out []int
@@ -459,8 +529,8 @@ func atoi5(s string) (int, bool) {
 	return n, err == nil
 }
 
-// shapeOf is the kind, rate and ports of the flag part of an argv: one of the fixed shapes, or a PortVersions line whose flags are
-// exactly FlagsFor of its own rate and ports.
+// shapeOf is the kind, rate and ports of the flag part of an argv: one of the fixed shapes, or a PortVersions line or an External
+// -sV run whose flags are exactly FlagsFor of its own rate and ports.
 func shapeOf(flags []string) (Kind, int, []int, bool) {
 	rate := 1
 	if j := slices.Index(flags, flagMaxRate); j >= 0 && j+1 < len(flags) {
@@ -474,8 +544,10 @@ func shapeOf(flags []string) (Kind, int, []int, bool) {
 		}
 	}
 	if ports := portsOf(flags); ports != nil {
-		if want, err := FlagsFor(PortVersions, rate, ports); err == nil && slices.Equal(flags, want) {
-			return PortVersions, rate, ports, true
+		for _, k := range []Kind{PortVersions, External} {
+			if want, err := FlagsFor(k, rate, ports); err == nil && slices.Equal(flags, want) {
+				return k, rate, ports, true
+			}
 		}
 	}
 	return 0, 0, nil, false
@@ -506,7 +578,8 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 // starts, independently of how Build made it (SYS-2). It accepts exactly the eleven shapes of FlagsFor
 // (sweep, normal, gentle, versions, gentle_titles, external, external_full, external_disruptive, all_ports, extra_ports,
 // port_versions), where only the rate of sweep, normal, versions, all_ports (at most AllPortsMaxRate), extra_ports and
-// port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports), then "--stats-every 5s -oX -", then 1 to MaxBatch
+// port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports) and of the external shape's -sV run
+// (every port of ExtraPortNumbers and at most commonports.MaxBelievableOpen others, ascending), then "--stats-every 5s -oX -", then 1 to MaxBatch
 // canonical, unique, private IPv4 addresses (port_versions: exactly one; the three external shapes: exactly one canonical public
 // IPv4 address).
 // Everything else is rejected.
@@ -560,7 +633,7 @@ func Parse(args []string) (Kind, int, []netip.Addr, error) {
 	return k, rate, targets, err
 }
 
-// ParseFor is Parse with the ports of a PortVersions line (nil for every other shape).
+// ParseFor is Parse with the ports of a PortVersions line or of the external shape's -sV run (nil for every other line).
 func ParseFor(args []string) (Kind, int, []int, []netip.Addr, error) {
 	if err := Validate(args); err != nil {
 		return 0, 0, nil, nil, err

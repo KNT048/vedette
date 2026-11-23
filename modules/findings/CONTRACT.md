@@ -38,8 +38,10 @@ readers until they read the view of the finding; nothing of it is stored.
   An accepted risk reopens once its last day is over everywhere (`AcceptanceEnds`) while detected.
 - **M-4 Invariants (database CHECKs, `Finding.Validate` and `vedette selfcheck`).** Open exactly when there is no resolution, way,
   who or when; accepted exactly with a last day; `version_moved` exactly with two different versions; every open vocabulary value
-  is one the Go type lists; open total = sum by device = sum by `fix_key` (never NULL). `TestTransition_InvariantsHoldForAnySequence`,
-  `findings.handled_complete`, `findings.version_moved_versions`, `findings.open_sums_agree`, `findings.*vocabulary`.
+  is one the Go type lists; open total = sum by device = sum by `fix_key` (never NULL; every open row is in exactly one group of
+  each, so the API test proves it, not a selfcheck query). `TestTransition_InvariantsHoldForAnySequence`,
+  `TestModelAPI_OpenEqualsSumByDeviceEqualsSumByFix`, `findings.handled_complete`, `findings.version_moved_versions`,
+  `findings.fix_key_names_stored_fix`, `findings.*vocabulary`.
 - **M-5 Patch credit by structure.** How a finding went away depends on what changed, never on which source read the version
   (agent, SNMP, banner, a person's entry, a distribution's package). A person's correction of what a source reads is no update.
   `TestCredit_EverySourceAndEveryWayAFlawGoesAway` (15 of 20 credited; the 5 range corrections are not), `TestCredit_APersonsCorrectionIsNoUpdate`.

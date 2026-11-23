@@ -18,10 +18,17 @@
 - A new scheme is declared in `content/catalog/products` (`scheme`, `record`) and written in `core/versionscheme`; feeds then leaves the
   product's record rows to it (`recordSkipped`) and reports their changes as `feeds.ranges.updated`.
 
+## Modifying: `View`, `StatusOf`, `DeviceStatusOf`, `DeviceStatuses`, `lineGroups`, `combine`, `compareFix`, `FixFindings`, `Input`, `Handled`, `Overview` (M-9)
+- **web** `features/findings` (By device, By fix, Needs your input, Handled, the device's Findings tab), `features/feeds` Home and the nav
+  badge read these answers; `model.conformance.test.ts` runs against the mock and, with `VITE_FINDINGS_REAL_URL`, the real box.
+- **inventory** shows `DeviceStatuses` as each device's badge (INV-40) and filters on it.
+- The count open = Σ By device = Σ By fix holds only while both lists group the same rows with the same filter: change `where`
+  for both or neither. `TestModelAPI_OpenEqualsSumByDeviceEqualsSumByFix`, `TestFixCount_ListAndPageReadTheStoredFix`.
+
 ## Modifying: `classify`, `classified`, `RiskOf`, `RiskMap`, `AssetRisk`, `riskyUpdate`, `risk` and `risks` of to-fix and plan (INV-26)
 - **One rule**: the marker is `RiskOf` of To fix's own classification (`actionable`, `Planned`), never a cheaper test of its own. Change To fix and the marker changes with it, by design.
 - **Cost and freshness**: `classified` does To fix's per-device work for every device once per change (`gen`, `plan.ver`, the feeds switch, `riskTTL`) and serves both the To fix page (display cap `ToFixLimit`) and every marker; a new input to To fix's classification must also move that key. `ToFix(…, id)` stays uncached (the device's own page).
-- **inventory** shows it on the Devices list, the device page and the CSV (inventory INV-40, through cmd/vedette `findingCounts.RiskByAsset`) and filters on it (`?risk=`).
+- **inventory** no longer reads it: its badge is `DeviceStatuses` (M-9, through cmd/vedette `findingCounts.DeviceStatuses`); only `GET /findings/to-fix` still reads the classification.
 - **web**: `features/inventory/RiskMarker.tsx`; the Findings page (device column and filter from `risks`, To fix cards from each card's `risk`) and Recommended updates (`risk` of each item); the mocks' `deviceRisk`/`riskOfCard` mirror `RiskOf`.
 
 ## Modifying: `Finding.ShownConfidence`, `ConfScan`, `ConfVersion`

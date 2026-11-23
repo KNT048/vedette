@@ -184,7 +184,7 @@ func allCards(t *testing.T, e *httpEnv, path string) (pages, findings int) {
 	}
 }
 
-// D7 on the API: open findings == the sum over By device == the sum over By fix, for every filter, page by page.
+// On the API: open findings == the sum over By device == the sum over By fix, for every filter, page by page.
 func TestModelAPI_OpenEqualsSumByDeviceEqualsSumByFix(t *testing.T) {
 	e := modelEnv(t)
 	_, ov := e.call("GET", "/findings/overview", "viewer", "")

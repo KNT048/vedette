@@ -430,11 +430,6 @@ func TestContract_INV24_PlainTextAndWebServices(t *testing.T) {
 			t.Errorf("plainText(%q) = %q, want %q", in, got, want)
 		}
 	}
-	for name, want := range map[string]bool{"http": true, "https": true, "ssl/http": true, "http-alt": true, "https-alt": true, "http-proxy": false, "http-rpc-epmap": false, "http?": false, "ssh": false, "": false} {
-		if isWebService(name) != want {
-			t.Errorf("isWebService(%q) = %v", name, !want)
-		}
-	}
 }
 
 // INV-24: a page the scanner skipped for a reason of its own (its name now points elsewhere) gets its own line, and the next

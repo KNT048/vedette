@@ -1,8 +1,8 @@
 // S-INV-2: a device added by hand, from CSV or by an agent is matched right away against the exploited-CVE list
 // (mock: the recent KEV fixture). The mock has no affected-version ranges, so a software with a version gets
 // "suspected, product only" (basis 'product', severity medium: the version was not compared) and never
-// "confirmed"; a scan or the vendor advisory decides. A software WITHOUT a usable version gets no finding at all:
-// it is one "add the version" item (versionNeeded). Adds only, never removes.
+// "confirmed"; a scan or the vendor advisory decides. A software WITHOUT a usable version gets no finding at all.
+// Adds only, never removes.
 import kev from './fixtures/kev.json'
 import { newId, nowIso } from './db'
 import { assetsStore, findingsStore } from './stores'
@@ -56,20 +56,6 @@ export function matchAssetToKev(assetId: string): number {
   }
   if (fresh.length) findingsStore.update((l) => [...fresh, ...l])
   return fresh.length
-}
-
-/** Per device, each software on the exploited list with no usable version, and how many CVEs its version would decide. */
-export function versionNeeded(assetId?: string | null) {
-  const out: { asset: Asset; software: Sw; cves: number }[] = []
-  for (const a of assetsStore.get()) {
-    if (assetId && a.id !== assetId) continue
-    for (const s of liveSoftware(a)) {
-      if (usableVersion(s.version)) continue
-      const cves = vulns.filter((v) => keyed(s, v)).length
-      if (cves > 0) out.push({ asset: a, software: s, cves })
-    }
-  }
-  return out.sort((x, y) => y.cves - x.cves)
 }
 
 /** The note of a finding closed because a person said its software is not installed (findings INV-6c, NotInstalledNote). */

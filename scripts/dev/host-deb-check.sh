@@ -241,7 +241,7 @@ EOT
 	# the AppArmor profile is a conffile: remove keeps it, purge deletes it (checked after the purge below)
 	x 'test -e /etc/apparmor.d/vedette-container' || fail "remove deleted the AppArmor profile (a conffile stays until purge)"
 	x 'test ! -e /etc/systemd/system/multi-user.target.wants/vedette-host.service' || fail "remove left the enable link"
-	x 'test "$(cat /var/lib/vedette/marker /etc/vedette/host.conf /var/lib/vedette-honeypot/config/marker | tr -d "\n")" = keepkeepkeep && test -d /var/lib/vedette-host && test -d /var/lib/vedette-honeypot/log' || fail "remove deleted data"
+	x 'test "$(cat /var/lib/vedette/marker /etc/vedette/host.conf /var/lib/vedette-honeypot/config/marker | tr -d "\n")" = keepkeepkeep && test -d /var/lib/vedette-host' || fail "remove deleted data"
 	x 'getent passwd vedette vedette-sensor >/dev/null && getent group vedette vedette-sensor >/dev/null' || fail "remove deleted a user or group"
 	ok "remove: binary, unit and enable link gone; data, host.conf, users and groups stay"
 

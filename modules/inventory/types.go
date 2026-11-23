@@ -55,7 +55,6 @@ const (
 	EventAssetDiscovered = "inventory.asset.discovered"
 	EventAssetUpdated    = "inventory.asset.updated"
 	EventAssetDeleted    = "inventory.asset.deleted"
-	EventAssetMerged     = "inventory.asset.merged"
 	EventAssetApproved   = "inventory.asset.approved"  // a person approved a discovered device (B9b)
 	EventAssetIgnored    = "inventory.asset.ignored"   // a person ignored a device: {asset_id, actor}
 	EventAssetUnignored  = "inventory.asset.unignored" // a person stopped ignoring a device: {asset_id, actor}
@@ -81,14 +80,6 @@ type AssetEvent struct {
 	// Actor is the person who approved (inventory.asset.approved), ignored (inventory.asset.ignored) or deleted
 	// (inventory.asset.deleted) the device; "" for the system.
 	Actor string `json:"actor,omitempty"`
-}
-
-// MergeEvent is the data of inventory.asset.merged: device From was the same device as Into and is gone; what other modules
-// keep about From belongs to Into now. It goes out before the inventory.asset.deleted of From.
-type MergeEvent struct {
-	From  string `json:"from"`
-	Into  string `json:"into"`
-	Actor string `json:"actor"`
 }
 
 // MatchEvent is the data of inventory.match.changed: the asset now matches an exploited CVE by product.

@@ -1,4 +1,4 @@
-// Hợp đồng API module findings. Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// API contract of the findings module. The UI types are derived from the schema here (types.ts), so UI ↔ mock ↔ OpenAPI cannot drift.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { TYPE_IDS } from '@/lib/deviceTypes'

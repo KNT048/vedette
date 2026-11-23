@@ -109,7 +109,3 @@ func (s *Service) HTTPSTargetProblem(ctx context.Context, target string) string 
 	}
 	return ""
 }
-
-// CleanLine makes text from a server fit in a message: one line, no control or invisible characters, at most 200 characters, every
-// string in redact replaced first.
-func CleanLine(s string, redact ...string) string { return transport.CleanLine(s, redact...) }

@@ -815,7 +815,7 @@ func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error)
 const matchStampFeeds = `'alpine-osv', 'cisa-kev', 'cisco-psirt', 'cve-org', 'debian-tracker', 'epss-all', 'exploit-db', 'fortinet-psirt', 'metasploit',
 'msrc', 'nuclei-templates', 'nvd-kev', 'nvd-recent', 'poc-in-github', 'ubuntu-osv', 'ubuntu-vex', 'vulncheck-kev'`
 
-// MatchStamp changes whenever what KevVulns, KevAffected, DistroFixes and TierRecords return may have changed: the last pull time and
+// MatchStamp changes whenever what KevVulns, KevAffected and DistroFixes return may have changed: the last pull time and
 // rev (turned on or off) of the feeds that write them (each written in the pull's own transaction), and the count and newest change
 // of the exploited-list entries and of their catalogue rows. findings (through cmd/vedette) keeps one read of the list per stamp,
 // instead of reading the ranges once per device.
@@ -827,20 +827,6 @@ func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 || ';' || (SELECT count(*) || '/' || COALESCE(max(c.updated_at), '') FROM feeds_cve c WHERE c.cve IN (SELECT cve FROM feeds_kev))`).Scan(&stamp)
 	if err != nil {
 		return "", fmt.Errorf("feeds: match stamp: %w", err)
-	}
-	return stamp.String, nil
-}
-
-// TierStamp changes whenever what TierRecords and TierDistroRecords return may have changed: the last pull time and rev (turned on or
-// off) of epss-all, nvd-recent, nvd-kev and the distribution feeds ubuntu-osv and debian-tracker (ubuntu-vex keeps no tier row), and
-// of windows-releases, whose monthly updates are the target builds of the plan's Windows items. The hourly exploited-list pulls are
-// not in it: findings' hourly full pass takes their new CVEs out of the plan.
-func (s *Store) TierStamp(ctx context.Context) (string, error) {
-	var stamp sql.NullString
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev || '/' || enabled, ',') FROM
-(SELECT id, last_fetch, rev, enabled FROM feeds_source WHERE id IN ('alpine-osv', 'debian-tracker', 'epss-all', 'nvd-kev', 'nvd-recent', 'ubuntu-osv', 'windows-releases') ORDER BY id)`).Scan(&stamp)
-	if err != nil {
-		return "", fmt.Errorf("feeds: tier stamp: %w", err)
 	}
 	return stamp.String, nil
 }

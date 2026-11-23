@@ -61,7 +61,7 @@ export function useDismissSnmpNotices() {
   return useMutation({ mutationFn: () => api.post('/inventory/snmp/notices/dismiss'), onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'snmp'] }) })
 }
 
-/** Sau mọi thay đổi thiết bị: làm mới cả danh sách, chi tiết và các trang module khác đọc tài sản (feeds, findings). */
+/** After every device change: refresh the list, the detail and the other module pages that read assets (feeds, findings). */
 function useInvalidate() {
   const qc = useQueryClient()
   return () => Promise.all([qc.invalidateQueries({ queryKey: ['inventory'] }), qc.invalidateQueries({ queryKey: ['feeds'] }), qc.invalidateQueries({ queryKey: ['findings'] })])
@@ -184,7 +184,7 @@ export function useNotifyNew() {
 }
 export function useSaveSettings() {
   const inv = useInvalidate()
-  // Toast ở đây (không ở callback của form): sau khi lưu, làm mới cài đặt đổi `key` của form nên form được dựng lại và callback của nó không bao giờ chạy.
+  // The toast is here (not in the form's callback): after saving, refreshing the settings changes the form's `key`, so the form is rebuilt and its callback never runs.
   return useMutation({
     mutationFn: (b: SettingsInput) => api.put<SettingsSaved>('/inventory/settings', b),
     onSuccess: async (r) => {
@@ -220,7 +220,7 @@ export function useAgentActions() {
     revoke: useMutation({ mutationFn: (id: string) => api.del(`/inventory/agents/tokens/${encodeURIComponent(id)}`), onSuccess: inv }),
     /** One stale agent record goes (the token and the other machines stay); the device page reads the report again. */
     removeNode: useMutation({ mutationFn: (id: string) => api.del(`/inventory/agents/nodes/${encodeURIComponent(id)}`), onSuccess: inv }),
-    /** Chỉ bản xem thử có mock API. */
+    /** Only the preview build has the mock API. */
     sampleToken: useMutation({ mutationFn: (id: string) => api.post<SampleResult>(`/inventory/agents/tokens/${encodeURIComponent(id)}/sample-data`), onSuccess: inv }),
   }
 }

@@ -315,10 +315,10 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     }
     await expect(rows).toHaveCount(2)
     // an address without a prefix length is never guessed: it is refused with a clear message, then accepted once the size is typed
-    await input.fill('192.168.18.0'); await input.press('Enter')
-    await expect(err).toContainText('"192.168.18.0" has no prefix length. Add it so Vedette scans the right size of network, for example 192.168.18.0/24 or 192.168.18.0/25.')
+    await input.fill('192.168.142.0'); await input.press('Enter')
+    await expect(err).toContainText('"192.168.142.0" has no prefix length. Add it so Vedette scans the right size of network, for example 192.168.142.0/24 or 192.168.142.0/25.')
     await expect(rows).toHaveCount(2)
-    await input.fill('192.168.18.0/25'); await input.press('Enter')
+    await input.fill('192.168.142.0/25'); await input.press('Enter')
     await expect(rows).toHaveCount(3)
     // host bits are cleared (keeping the typed prefix), with a visible note
     await input.fill('192.168.30.77/24'); await input.press('Enter')
@@ -329,7 +329,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(input).toHaveValue('192.168.30.0/24')
     await expect(rows).toHaveCount(3)
     await input.fill('192.168.31.0/24'); await input.press('Enter')
-    await page.getByRole('button', { name: 'Remove range 192.168.18.0/25' }).click()
+    await page.getByRole('button', { name: 'Remove range 192.168.142.0/25' }).click()
     await expect(rows).toHaveCount(3)
     await shot(page, 'inventory', 'ranges-edited')
     // scope must be confirmed again after the ranges changed
@@ -375,19 +375,19 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await expect(page.getByRole('alert')).toHaveCount(0)
   })
 
-  test('regression: a range stored without a prefix ("192.168.18.0") shows an error on its row and never blocks add, edit or remove', async ({ page }) => {
+  test('regression: a range stored without a prefix ("192.168.142.0") shows an error on its row and never blocks add, edit or remove', async ({ page }) => {
     await page.goto('/devices')
-    await patchDb(page, 'inv_settings', { lan_ranges: ['192.168.18.0'], scope_confirmed_at: null, scope_confirmed_by: null }, SETTINGS_FALLBACK)
+    await patchDb(page, 'inv_settings', { lan_ranges: ['192.168.142.0'], scope_confirmed_at: null, scope_confirmed_by: null }, SETTINGS_FALLBACK)
     await page.goto('/devices/setup')
     const rows = page.getByRole('list', { name: 'Ranges added' }).getByRole('listitem')
     await expect(rows).toHaveCount(1)
-    await expect(rows.first().getByRole('alert')).toContainText('"192.168.18.0" has no prefix length')
+    await expect(rows.first().getByRole('alert')).toContainText('"192.168.142.0" has no prefix length')
     await expect(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
     await page.locator('#range-input').fill('192.168.19.0/24'); await page.locator('#range-input').press('Enter') // adding still works
     await expect(rows).toHaveCount(2)
-    await page.getByRole('button', { name: 'Edit range 192.168.18.0' }).click()
-    await expect(page.locator('#range-input')).toHaveValue('192.168.18.0')
-    await page.locator('#range-input').fill('192.168.18.0/25'); await page.locator('#range-input').press('Enter')
+    await page.getByRole('button', { name: 'Edit range 192.168.142.0' }).click()
+    await expect(page.locator('#range-input')).toHaveValue('192.168.142.0')
+    await page.locator('#range-input').fill('192.168.142.0/25'); await page.locator('#range-input').press('Enter')
     await expect(page.getByRole('alert').filter({ hasText: 'prefix' })).toHaveCount(0)
     await page.getByLabel(/I confirm these network ranges/).check()
     await page.getByRole('button', { name: 'Save changes' }).click()
@@ -397,7 +397,7 @@ test.describe('Admin: scan scope, sensor, agents', () => {
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByText('You have unsaved changes.')).toBeHidden()
     await page.reload()
-    await expect(rows).toHaveText([/^192\.168\.18\.0\/25/])
+    await expect(rows).toHaveText([/^192\.168\.142\.0\/25/])
   })
 
   test('regression: a truly invalid stored range shows an error on its own row; others stay editable', async ({ page }) => {
@@ -548,9 +548,9 @@ test.describe('Admin: scan scope, sensor, agents', () => {
 test.describe('Clean install: first-time user', () => {
   test('first-run wizard: a bare address is refused (no guessing), then a /24 range works; list holds only the box itself; subnets can be added, edited, deleted', async ({ page }) => {
     const errors = collectErrors(page)
-    await cleanInstall(page, '192.168.18.0')
+    await cleanInstall(page, '192.168.142.0')
     await expect(page.getByText(/no prefix length/i).first()).toBeVisible() // the wizard keeps the owner on this step with a message
-    await page.getByRole('textbox', { name: 'Range 1' }).fill('192.168.18.0/24')
+    await page.getByRole('textbox', { name: 'Range 1' }).fill('192.168.142.0/24')
     await page.getByRole('button', { name: 'Continue' }).click()
     await finishWizard(page)
     await page.goto('/devices')
@@ -565,7 +565,7 @@ test.describe('Clean install: first-time user', () => {
     await expectEnglishOnly(page, 'clean list')
     await page.goto('/devices/setup')
     const rows = page.getByRole('list', { name: 'Ranges added' }).getByRole('listitem')
-    await expect(rows).toHaveText([/^192\.168\.18\.0\/24/])
+    await expect(rows).toHaveText([/^192\.168\.142\.0\/24/])
     await page.getByRole('tab', { name: 'Sensor', exact: true }).click() // The sensor has its own tab
     await expect(page.getByRole('table', { name: 'Sensors on this box' }).getByRole('row')).toHaveCount(2)
     await page.getByRole('tab', { name: 'Scope', exact: true }).click()
@@ -573,7 +573,7 @@ test.describe('Clean install: first-time user', () => {
     await shot(page, 'inventory', 'clean-setup')
     await expectEnglishOnly(page, 'clean setup')
     await page.locator('#range-input').fill('10.5.0.0/16'); await page.locator('#range-input').press('Enter')
-    await page.getByRole('button', { name: 'Remove range 192.168.18.0/24' }).click()
+    await page.getByRole('button', { name: 'Remove range 192.168.142.0/24' }).click()
     await page.getByLabel(/I confirm these network ranges/).check()
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect(page.getByText('You have unsaved changes.')).toBeHidden()
@@ -590,9 +590,9 @@ test.describe('Clean install: first-time user', () => {
   })
 
   test('clean install with a normal CIDR range works the same', async ({ page }) => {
-    await cleanInstall(page, '192.168.18.0/24')
+    await cleanInstall(page, '192.168.142.0/24')
     await finishWizard(page)
     await page.goto('/devices/setup')
-    await expect(page.getByRole('list', { name: 'Ranges added' }).getByRole('listitem')).toHaveText([/^192\.168\.18\.0\/24/])
+    await expect(page.getByRole('list', { name: 'Ranges added' }).getByRole('listitem')).toHaveText([/^192\.168\.142\.0\/24/])
   })
 })

@@ -11,7 +11,7 @@ import { useCan } from '@/lib/session'
 import { useDigest, useRefreshDigest } from './api'
 import { ActionError, ToSettings, useAiGate } from './parts'
 
-/** Slot `logs.panels` (S-AI-4): digest log bằng AI theo mức đã chọn. Log là dữ liệu không tin cậy; AI chỉ tóm tắt, không hành động. */
+/** Slot `logs.panels` (S-AI-4): an AI digest of the logs at the chosen level. Logs are untrusted data; the AI only summarises, it takes no action. */
 export default function LogsPanel() {
   const { t } = useTranslation('ai')
   const admin = useCan('admin') // the Memory tab is the administrator's (S-AI-7)

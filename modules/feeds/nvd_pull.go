@@ -35,7 +35,7 @@ const nvdFeedID = "nvd-kev"
 var nvdRetryWaits = []time.Duration{6 * time.Second, 30 * time.Second, 2 * time.Minute}
 
 // errNVDPaused ends a pull of nvd-kev that kept its pages to go on later (nvdRun): nothing is written, it is not a
-// failure of the feed (no error status, no back-off, no fetch.failed), and the feed row tells how far it got.
+// failure of the feed (no error status, no back-off), and the feed row tells how far it got.
 var errNVDPaused = errors.New("feeds: the NVD pull is paused and goes on later")
 
 // nvdRun is one pull of the NVD affected versions, kept between ticks while it is not finished. Only the pulling

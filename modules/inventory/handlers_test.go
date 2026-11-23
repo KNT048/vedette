@@ -191,10 +191,10 @@ func TestHandlersRolesAndShapes(t *testing.T) {
 	body := func(ranges string, on, confirmed bool) string {
 		return `{"lan_ranges":` + ranges + `,"active":{"enabled":` + boolStr(on) + `,"days":[1,2,3],"from":"23:00","to":"05:00","rate":50,"exclusions":[]},"fragile_kinds":["nas"],"regular_scan_kinds":[],"scope_confirmed":` + boolStr(confirmed) + `,"scope_confirmed_at":null,"scope_confirmed_by":null}`
 	}
-	a.want("PUT", "/inventory/settings", "admin", body(`["192.168.18.0"]`, false, false), 400, "no_prefix")
-	a.want("PUT", "/inventory/settings", "admin", body(`["192.168.18.0/24"]`, true, false), 400, "scope_not_confirmed")
-	saved := a.want("PUT", "/inventory/settings", "admin", body(`["192.168.18.0/25"]`, true, true), 200, "")
-	if saved["scope_confirmed_by"] != "admin@acme.example" || saved["scope_confirmed_at"] == nil || len(saved["adjusted"].([]any)) != 0 || saved["lan_ranges"].([]any)[0] != "192.168.18.0/25" {
+	a.want("PUT", "/inventory/settings", "admin", body(`["192.168.142.0"]`, false, false), 400, "no_prefix")
+	a.want("PUT", "/inventory/settings", "admin", body(`["192.168.142.0/24"]`, true, false), 400, "scope_not_confirmed")
+	saved := a.want("PUT", "/inventory/settings", "admin", body(`["192.168.142.0/25"]`, true, true), 200, "")
+	if saved["scope_confirmed_by"] != "admin@acme.example" || saved["scope_confirmed_at"] == nil || len(saved["adjusted"].([]any)) != 0 || saved["lan_ranges"].([]any)[0] != "192.168.142.0/25" {
 		t.Fatalf("saved = %v", saved)
 	}
 

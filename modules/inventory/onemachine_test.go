@@ -92,16 +92,11 @@ func TestContract_APrivateWiFiAddressIsOneDevice(t *testing.T) {
 	if e.devices() != 2 || len(e.ev.named(inventory.EventAssetDiscovered)) != 1 {
 		t.Fatalf("ARP only: %d devices, %d announced; want 2 and 1", e.devices(), len(e.ev.named(inventory.EventAssetDiscovered)))
 	}
-	arpID := e.idOf("10.0.18.137")
 	e.tick(time.Minute)
 	e.record(dhcp(privMac3, "10.0.18.137", "Annas-MacBook-Air")...)
 	d = e.only()
 	if d.ID != id || d.IP != "10.0.18.137" || !d.Approved {
 		t.Errorf("after the name: id %s ip %s approved %v", d.ID, d.IP, d.Approved)
-	}
-	merged := e.ev.named(inventory.EventAssetMerged)
-	if len(merged) != 1 || merged[0].Data.(inventory.MergeEvent).From != arpID || merged[0].Data.(inventory.MergeEvent).Into != id {
-		t.Errorf("merged events: %+v, want %s into %s", merged, arpID, id)
 	}
 	if len(e.ev.named(inventory.EventAssetDeleted)) != 1 {
 		t.Errorf("deleted events: %v", e.ev.named(inventory.EventAssetDeleted))
@@ -131,7 +126,7 @@ func TestContract_WhatANameAloneDoesNotJoin(t *testing.T) {
 		{"model name", dhcp(privMac1, "10.0.18.10", "Galaxy-A52"), dhcp(privMac2, "10.0.18.11", "Galaxy-A52"), nil},
 		{"Windows default name", dhcp(privMac1, "10.0.18.10", "DESKTOP-7GH2K1L"), dhcp(privMac2, "10.0.18.11", "DESKTOP-7GH2K1L"), nil},
 		{"localhost", dhcp(privMac1, "10.0.18.10", "localhost"), dhcp(privMac2, "10.0.18.11", "localhost.localdomain"), nil},
-		{"name from the address", dhcp(privMac1, "10.0.18.10", "dhcp-192-168-18-10"), dhcp(privMac2, "10.0.18.11", "dhcp-192-168-18-10"), nil},
+		{"name from the address", dhcp(privMac1, "10.0.18.10", "dhcp-192-168-142-10"), dhcp(privMac2, "10.0.18.11", "dhcp-192-168-142-10"), nil},
 		{"two rows known only by address", byAddress("10.20.0.5", "erp01"), byAddress("10.20.0.6", "erp01"), nil},
 		{"three rows of one name", dhcp(privMac1, "10.0.18.10", "lab-tablet"), dhcp(privMac2, "10.0.18.11", "lab-tablet"), dhcp(privMac3, "10.0.18.12", "lab-tablet")},
 	}

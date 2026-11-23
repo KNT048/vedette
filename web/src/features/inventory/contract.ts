@@ -1,4 +1,4 @@
-// Hợp đồng API module inventory. Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// API contract of the inventory module. The UI types are derived from the schema here (types.ts), so UI ↔ mock ↔ OpenAPI cannot drift.
 import { z } from 'zod'
 import { DEVICE_STATUSES } from '@/lib/statusCodes'
 import { defineEndpoints } from '@/lib/contract'
@@ -49,12 +49,12 @@ export const Asset = z.object({
   quiet: z.boolean().describe('Not approved, but held out of To review and of the new-device notice: a private-address device with no open service that has not stayed past a day. It is listed with the approved devices and moves to To review when it earns a look; false for every approved device'),
 })
 
-/** Một lần quan sát một trường. Không bao giờ bị ghi đè: giá trị mới thêm vào, "đang dùng" chọn theo khai tay > tin cậy cao > mới hơn (ARCHITECTURE §4). */
+/** One observation of one field. Never overwritten: a new value is added, and the "in use" value is chosen by manual > high confidence > newer (ARCHITECTURE §4). */
 export const Observation = z.object({ id: z.string(), field: ObsField, value: z.string(), source: ObsSource, confidence, seen_at: dt, current: z.boolean(),
   contradicts_type: z.boolean().optional().describe('An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS; absent otherwise'),
   basis: basis.describe('On an OS or model observation, as Observed.basis') })
 
-/** Chỉ osquery dùng token (Vedette là máy chủ TLS của osquery). Wazuh là kết nối kéo qua API (WazuhConnection), không có token. Không hỗ trợ Trivy. */
+/** Only osquery uses a token (Vedette is osquery's TLS server). Wazuh is a pull connection over its API (WazuhConnection), with no token. Trivy is not supported. */
 export const AgentKind = z.enum(['osquery'])
 export const AgentToken = z.object({
   id: z.string(), name: z.string(), kind: AgentKind, last4: z.string(), created_at: dt, created_by: z.string().nullable().describe('Who made it (null for a token made before this was kept)'), last_received: dt.nullable(), hosts: z.number().int(),
@@ -303,11 +303,11 @@ export const SettingsInput = InventorySettings.extend({
   version: z.string().max(64).optional().describe('The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (#860). Left out: no check, so a range or exclusion added since the page loaded is replaced; this page is being replaced by Settings › Scanning (#850)'),
 })
 export const SettingsSaved = InventorySettings.extend({
-  adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24'),
+  adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24'),
 })
 
 export const SensorStatus = z.enum(['online', 'offline', 'never_connected', 'starting']).describe('online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever; starting: not online while the box is still starting the sensor container (an appliance after setup or after the module is turned on: the start is being retried, for up to 10 minutes, or was confirmed less than 3 minutes ago). A container-only install never says starting: the customer starts it')
-/** Chỉ cảm biến của chính hộp này (chưa hỗ trợ nhiều site). */
+/** Only the sensor of this box itself (multiple sites are not supported yet). */
 export const Sensor = z.object({
   id: z.string(), name: z.string(), interface: z.string().nullable().describe('The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default card, the management port; null: none. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id}'), interfaces: z.array(z.string()).describe('The cards the sensor reported in its last heartbeat'), span: z.boolean(),
   chosen: z.boolean().describe('true: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen with PATCH on a container-only install); false: interface is the default card or null'),
@@ -452,22 +452,6 @@ export const SnmpDeviceRow = z.object({
   state: SnmpState.exclude(['not_set_up']), last_answer_at: dt.nullable(),
   blocked: SnmpBlocked.nullable().describe('As DeviceSnmp.blocked'),
 })
-/** Use one device's working SNMP settings on similar devices (S-INV-1): the box copies the settings and the secret itself (as copy_from),
- * every target is read only at its own address, and the person's choice of targets is what allows sending the secret there. */
-export const SnmpSimilarDevice = z.object({
-  device_id: z.string(), name: z.string().describe('How a person knows the device; empty when none'), ip: z.string().nullable(),
-  vendor: z.string().describe('The device\'s maker as the inventory holds it; empty when unknown'), kind: z.string().describe('The device type id'),
-  same_maker: z.boolean().describe('Same maker as the source device (the checklist prechecks these)'), same_type: z.boolean().describe('Same device type as the source (never true for an unknown type)'),
-  approved: z.boolean().describe('false: a person has not approved the device yet, so the box saves the settings but sends nothing until it is approved'),
-})
-export const SnmpSimilarResponse = z.object({ devices: z.array(SnmpSimilarDevice).describe('Devices with no SNMP settings of their own, not ignored, not the box, with an address, of the same maker or the same type; same maker first, then by name') })
-export const SnmpApplyInput = z.object({ device_ids: z.array(z.string().min(1).max(96)).min(1).max(50).describe('The devices the person ticked; each must still be a candidate of the source') })
-export const SnmpApplyResult = z.object({
-  device_id: z.string(), name: z.string(), ok: z.boolean().describe('The settings were saved on this device and a read was queued'),
-  code: z.string().describe('When not ok: the error code (not_a_candidate, no_ip, read_from_taken, secret_lost, device_ignored, box_device, read_from_box…); empty when ok'),
-  message: z.string().describe('Plain words for the person; empty when ok'),
-})
-export const SnmpApplyResponse = z.object({ results: z.array(SnmpApplyResult).describe('One row per requested device, in the order asked. The reads queued run in the background one device at a time; each device\'s SNMP state (GET /inventory/snmp) shows the outcome') })
 export const SnmpNotice = z.object({ id: z.number().int(), at: dt, text: z.string().describe('Plain words, e.g. what the move to per-device SNMP did to a saved credential') })
 export const SnmpResponse = z.object({
   ready: z.boolean().describe('false while the scan container cannot read SNMP (not reporting, or older than this version)'), message: z.string().nullable().describe('Why not ready'),
@@ -546,8 +530,6 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/inventory/snmp/notices/dismiss', summary: 'Dismiss every SNMP notice', stories: ['S-INV-1'], role: 'admin', response: ok },
   { method: 'get', path: '/inventory/snmp/devices/{id}', summary: 'The SNMP settings and state of one device: working, not answering, waiting or not set up; read from, last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such device', stories: ['S-INV-1'], role: 'admin', params: id, response: DeviceSnmp },
   { method: 'put', path: '/inventory/snmp/devices/{id}', summary: 'Set up or edit the SNMP of one device: version, community or v3 user, port, Read from; or copy_from another device (the secret is copied on the box). Saving is the person\'s consent: it turns the device\'s SNMP source on when it was not. A blank secret keeps the saved one, unless Read from changes. One audit row. 400 bad_version, bad_secret, secret_required (also copy_from with a read_from other than the device\'s IP), bad_user, bad_auth, bad_priv, bad_port, bad_read_from, read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP set up). 409 no_ip (the device has no address yet), read_from_taken (another device reads from that address; the message names it), box_device, read_from_box (the box or a trap address), secret_lost (a kept or copied secret this box cannot open), device_ignored', stories: ['S-INV-1'], role: 'admin', params: id, body: DeviceSnmpInput, response: DeviceSnmp },
-  { method: 'get', path: '/inventory/snmp/devices/{id}/similar', summary: 'Candidates for "Use these settings on similar devices": devices of the same maker or the same type as this one, with no SNMP settings of their own, not ignored, not the box, with an address. 404 not_found; 409 not_set_up (this device has no SNMP settings to share), secret_lost', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpSimilarResponse },
-  { method: 'post', path: '/inventory/snmp/devices/{id}/apply-similar', summary: 'Copy this device\'s SNMP settings (secret included, on the box) to the chosen similar devices in one call: each target keeps its own address as the read address, is turned on for SNMP as with a normal save, and gets a read queued. One audit row per device and one for the action, with the person. Per-device results; a target that is no longer a candidate is not_a_candidate. 404 not_found; 409 not_set_up, secret_lost, unavailable; 400 too many or no devices', stories: ['S-INV-1'], role: 'admin', params: id, body: SnmpApplyInput, response: SnmpApplyResponse },
   { method: 'delete', path: '/inventory/snmp/devices/{id}', summary: 'Remove the SNMP settings of one device and its secrets; what it said stays in the inventory; its SNMP source switch is left as it is. 404 not_found when the device has none', stories: ['S-INV-1'], role: 'admin', params: id, response: null },
   { method: 'post', path: '/inventory/snmp/devices/{id}/check', summary: 'Check now: read this device at once at its Read from address (read-only GETs from the scan container, logged in the probe log, every rule but the window) and say what it answered, or why not; an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the module or scanning was turned off), changed (the settings changed while it started)', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpCheckResult },
 ])

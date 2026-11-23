@@ -16091,9 +16091,9 @@ type CoreGetCoreSetupModulesOK struct {
 	// Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
 	// install on the customer's Docker or Podman, no helper. The one place the GUI learns it.
 	Install CoreGetCoreSetupModulesOKInstall `json:"install"`
-	// The network of the box's management address (CIDR, like 192.168.18.0/24), offered as the first range
-	// of the network step; null when setup is done, on a container-only install, or when the box has no
-	// private IPv4 address.
+	// The network of the box's management address (CIDR, like 192.168.142.0/24), offered as the first
+	// range of the network step; null when setup is done, on a container-only install, or when the box has
+	// no private IPv4 address.
 	Lan     NilString                              `json:"lan"`
 	Modules []CoreGetCoreSetupModulesOKModulesItem `json:"modules"`
 }
@@ -148487,120 +148487,6 @@ func (s *InventoryGetInventorySnmpDevicesIDOKVersion) UnmarshalText(data []byte)
 	}
 }
 
-type InventoryGetInventorySnmpDevicesIDSimilarOK struct {
-	// Devices with no SNMP settings of their own, not ignored, not the box, with an address, of the same
-	// maker or the same type; same maker first, then by name.
-	Devices []InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem `json:"devices"`
-}
-
-// GetDevices returns the value of Devices.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOK) GetDevices() []InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem {
-	return s.Devices
-}
-
-// SetDevices sets the value of Devices.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOK) SetDevices(val []InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) {
-	s.Devices = val
-}
-
-type InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem struct {
-	// False: a person has not approved the device yet, so the box saves the settings but sends nothing
-	// until it is approved.
-	Approved bool      `json:"approved"`
-	DeviceID string    `json:"device_id"`
-	IP       NilString `json:"ip"`
-	// The device type id.
-	Kind string `json:"kind"`
-	// How a person knows the device; empty when none.
-	Name string `json:"name"`
-	// Same maker as the source device (the checklist prechecks these).
-	SameMaker bool `json:"same_maker"`
-	// Same device type as the source (never true for an unknown type).
-	SameType bool `json:"same_type"`
-	// The device's maker as the inventory holds it; empty when unknown.
-	Vendor string `json:"vendor"`
-}
-
-// GetApproved returns the value of Approved.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) GetApproved() bool {
-	return s.Approved
-}
-
-// GetDeviceID returns the value of DeviceID.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) GetDeviceID() string {
-	return s.DeviceID
-}
-
-// GetIP returns the value of IP.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) GetIP() NilString {
-	return s.IP
-}
-
-// GetKind returns the value of Kind.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) GetKind() string {
-	return s.Kind
-}
-
-// GetName returns the value of Name.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) GetName() string {
-	return s.Name
-}
-
-// GetSameMaker returns the value of SameMaker.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) GetSameMaker() bool {
-	return s.SameMaker
-}
-
-// GetSameType returns the value of SameType.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) GetSameType() bool {
-	return s.SameType
-}
-
-// GetVendor returns the value of Vendor.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) GetVendor() string {
-	return s.Vendor
-}
-
-// SetApproved sets the value of Approved.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) SetApproved(val bool) {
-	s.Approved = val
-}
-
-// SetDeviceID sets the value of DeviceID.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) SetDeviceID(val string) {
-	s.DeviceID = val
-}
-
-// SetIP sets the value of IP.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) SetIP(val NilString) {
-	s.IP = val
-}
-
-// SetKind sets the value of Kind.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) SetKind(val string) {
-	s.Kind = val
-}
-
-// SetName sets the value of Name.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) SetName(val string) {
-	s.Name = val
-}
-
-// SetSameMaker sets the value of SameMaker.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) SetSameMaker(val bool) {
-	s.SameMaker = val
-}
-
-// SetSameType sets the value of SameType.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) SetSameType(val bool) {
-	s.SameType = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *InventoryGetInventorySnmpDevicesIDSimilarOKDevicesItem) SetVendor(val string) {
-	s.Vendor = val
-}
-
 type InventoryGetInventorySnmpOK struct {
 	// Every device with SNMP set up, by name: the Copy from list and the Scanning card.
 	Devices []InventoryGetInventorySnmpOKDevicesItem `json:"devices"`
@@ -152844,99 +152730,6 @@ func (s *InventoryPostInventoryImportReq) SetText(val string) {
 	s.Text = val
 }
 
-type InventoryPostInventorySnmpDevicesIDApplySimilarOK struct {
-	// One row per requested device, in the order asked. The reads queued run in the background one device
-	// at a time; each device's SNMP state (GET /inventory/snmp) shows the outcome.
-	Results []InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem `json:"results"`
-}
-
-// GetResults returns the value of Results.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOK) GetResults() []InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem {
-	return s.Results
-}
-
-// SetResults sets the value of Results.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOK) SetResults(val []InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) {
-	s.Results = val
-}
-
-type InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem struct {
-	// When not ok: the error code (not_a_candidate, no_ip, read_from_taken, secret_lost, device_ignored,
-	// box_device, read_from_box…); empty when ok.
-	Code     string `json:"code"`
-	DeviceID string `json:"device_id"`
-	// Plain words for the person; empty when ok.
-	Message string `json:"message"`
-	Name    string `json:"name"`
-	// The settings were saved on this device and a read was queued.
-	Ok bool `json:"ok"`
-}
-
-// GetCode returns the value of Code.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) GetCode() string {
-	return s.Code
-}
-
-// GetDeviceID returns the value of DeviceID.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) GetDeviceID() string {
-	return s.DeviceID
-}
-
-// GetMessage returns the value of Message.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) GetMessage() string {
-	return s.Message
-}
-
-// GetName returns the value of Name.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) GetName() string {
-	return s.Name
-}
-
-// GetOk returns the value of Ok.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) GetOk() bool {
-	return s.Ok
-}
-
-// SetCode sets the value of Code.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) SetCode(val string) {
-	s.Code = val
-}
-
-// SetDeviceID sets the value of DeviceID.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) SetDeviceID(val string) {
-	s.DeviceID = val
-}
-
-// SetMessage sets the value of Message.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) SetMessage(val string) {
-	s.Message = val
-}
-
-// SetName sets the value of Name.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) SetName(val string) {
-	s.Name = val
-}
-
-// SetOk sets the value of Ok.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarOKResultsItem) SetOk(val bool) {
-	s.Ok = val
-}
-
-type InventoryPostInventorySnmpDevicesIDApplySimilarReq struct {
-	// The devices the person ticked; each must still be a candidate of the source.
-	DeviceIds []string `json:"device_ids"`
-}
-
-// GetDeviceIds returns the value of DeviceIds.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarReq) GetDeviceIds() []string {
-	return s.DeviceIds
-}
-
-// SetDeviceIds sets the value of DeviceIds.
-func (s *InventoryPostInventorySnmpDevicesIDApplySimilarReq) SetDeviceIds(val []string) {
-	s.DeviceIds = val
-}
-
 type InventoryPostInventorySnmpDevicesIDCheckOK struct {
 	// What the device said, when it answered; it is also recorded on this device in the inventory with
 	// source snmp.
@@ -154780,7 +154573,7 @@ func (s *InventoryPutInventoryNotifyNewReq) SetEnabled(val bool) {
 
 type InventoryPutInventorySettingsOK struct {
 	Active InventoryPutInventorySettingsOKActive `json:"active"`
-	// Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24.
+	// Ranges normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24.
 	Adjusted []InventoryPutInventorySettingsOKAdjustedItem `json:"adjusted"`
 	// Device types scanned only once, gently, when first seen; passive-only after that. Every type acting
 	// as one of them counts.
@@ -259459,7 +259252,7 @@ type ScanningGetScanningHistoryOKItemsItem struct {
 	// Check this device now, the first step of Scan now); snmp: SNMP reads; external: a scan of a public
 	// target (one per target and day).
 	Kind ScanningGetScanningHistoryOKItemsItemKind `json:"kind"`
-	// What it scanned: "LAN 192.168.18.0/24", "192.168.18.20", "SNMP read of 3 devices", "203.0.113.10".
+	// What it scanned: "LAN 192.168.142.0/24", "192.168.142.20", "SNMP read of 3 devices", "203.0.113.10".
 	Label string `json:"label"`
 	// Partial: it ended, but part of it found nothing usable (an SNMP device of several that did not
 	// answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that
@@ -259471,12 +259264,12 @@ type ScanningGetScanningHistoryOKItemsItem struct {
 	TargetID NilString `json:"target_id"`
 	// The outcome in words, only from what the run stored: "Swept 254 addresses: 12 hosts answered, 2 new
 	// devices", "2 of 3 devices answered over SNMP", "Failed: the device did not answer over SNMP." (an
-	// SNMP read nothing answered is failed, never partial), "Scanned 192.168.18.20: 3 open ports (22 ssh,
+	// SNMP read nothing answered is failed, never partial), "Scanned 192.168.142.20: 3 open ports (22 ssh,
 	// 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check" (a device
 	// check: its open ports; the OS it recorded only when it is the OS the device page shows now, "OS
 	// guess " for nmap's fingerprint, "OS " for the device's own answer, "OS guess now (changed since the
 	// previous check)"; otherwise "OS: scan guess not used now", never a second OS value; "since the
-	// previous check: port 8080 newly open, port 23 no longer open"), "Scanned 192.168.18.20: it did not
+	// previous check: port 8080 newly open, port 23 no longer open"), "Scanned 192.168.142.20: it did not
 	// answer", "Stopped: . Swept 64 addresses … before it ended", "Failed: .".
 	Text string `json:"text"`
 	// Sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart);
@@ -260797,7 +260590,7 @@ type ScanningGetScanningOKRunningItem struct {
 	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
 	// /scanning/engines/nmap-discovery/run.
 	ID string `json:"id"`
-	// What it scans, e.g. "LAN sweep 192.168.18.0/24", "Check 192.168.18.20", "203.0.113.10".
+	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
 	Progress  NilScanningGetScanningOKRunningItemProgress `json:"progress"`
@@ -262726,7 +262519,7 @@ type ScanningPatchScanningEnginesIDOKRunningItem struct {
 	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
 	// /scanning/engines/nmap-discovery/run.
 	ID string `json:"id"`
-	// What it scans, e.g. "LAN sweep 192.168.18.0/24", "Check 192.168.18.20", "203.0.113.10".
+	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
 	Progress  NilScanningPatchScanningEnginesIDOKRunningItemProgress `json:"progress"`
@@ -264682,7 +264475,7 @@ type ScanningPostScanningEnginesNmapDiscoveryRunAccepted struct {
 	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
 	// /scanning/engines/nmap-discovery/run.
 	ID string `json:"id"`
-	// What it scans, e.g. "LAN sweep 192.168.18.0/24", "Check 192.168.18.20", "203.0.113.10".
+	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
 	Progress  NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress `json:"progress"`
@@ -265784,7 +265577,7 @@ func (s *ScanningPostScanningSafetyExclusionsOKWindow) SetTo(val string) {
 
 type ScanningPostScanningSafetyExclusionsReq struct {
 	// One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g.
-	// 192.168.18.9 or 192.168.18.64/28.
+	// 192.168.142.9 or 192.168.142.64/28.
 	Entry string `json:"entry"`
 }
 
@@ -265799,7 +265592,7 @@ func (s *ScanningPostScanningSafetyExclusionsReq) SetEntry(val string) {
 }
 
 type ScanningPostScanningSafetyRangesOK struct {
-	// Ranges and exclusions normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24.
+	// Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24.
 	Adjusted []ScanningPostScanningSafetyRangesOKAdjustedItem `json:"adjusted"`
 	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
 	// 200 a save accepts).
@@ -266364,7 +266157,7 @@ func (s *ScanningPostScanningSafetyRangesReq) SetShownRanges(val []string) {
 }
 
 type ScanningPutScanningSafetyOK struct {
-	// Ranges and exclusions normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24.
+	// Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24.
 	Adjusted []ScanningPutScanningSafetyOKAdjustedItem `json:"adjusted"`
 	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
 	// 200 a save accepts).

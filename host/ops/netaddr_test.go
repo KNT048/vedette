@@ -37,18 +37,18 @@ func TestDynamicAddrsReadsTheLeaseFlag(t *testing.T) {
 	t.Parallel()
 	perm, lease := uint32(ifaFPermanent), uint32(0x100) // IFA_F_NOPREFIXROUTE alone: not permanent
 	dump := slices.Concat(
-		nlAddr(2, "192.168.18.141/24", 0, nil),                // DHCP: no IFA_F_PERMANENT
-		nlAddr(2, "fe80::1/64", ifaFPermanent, nil),           // link-local: permanent
-		nlAddr(3, "192.168.18.140/24", ifaFPermanent, &lease), // IFA_FLAGS wins over the 8-bit field
-		nlAddr(4, "192.168.50.2/24", 0, &perm),                // static, said by IFA_FLAGS only
-		nlAddr(5, "2001:db8::5/64", 0, nil),                   // SLAAC
+		nlAddr(2, "192.168.142.141/24", 0, nil),                // DHCP: no IFA_F_PERMANENT
+		nlAddr(2, "fe80::1/64", ifaFPermanent, nil),            // link-local: permanent
+		nlAddr(3, "192.168.142.140/24", ifaFPermanent, &lease), // IFA_FLAGS wins over the 8-bit field
+		nlAddr(4, "192.168.50.2/24", 0, &perm),                 // static, said by IFA_FLAGS only
+		nlAddr(5, "2001:db8::5/64", 0, nil),                    // SLAAC
 		nlMsg(nlmsgDone, make([]byte, 4)),
 		nlAddr(6, "192.168.60.2/24", 0, nil), // after the end of the dump: not read
 	)
 	got := dynamicAddrs(dump)
 	want := map[int][]netip.Prefix{
-		2: {netip.MustParsePrefix("192.168.18.141/24")},
-		3: {netip.MustParsePrefix("192.168.18.140/24")},
+		2: {netip.MustParsePrefix("192.168.142.141/24")},
+		3: {netip.MustParsePrefix("192.168.142.140/24")},
 		5: {netip.MustParsePrefix("2001:db8::5/64")},
 	}
 	if len(got) != len(want) {
@@ -65,7 +65,7 @@ func TestDynamicAddrsReadsTheLeaseFlag(t *testing.T) {
 }
 
 func FuzzDynamicAddrs(f *testing.F) {
-	f.Add(nlAddr(2, "192.168.18.141/24", 0, nil))
+	f.Add(nlAddr(2, "192.168.142.141/24", 0, nil))
 	f.Add([]byte{})
 	f.Fuzz(func(t *testing.T, dump []byte) {
 		for i, ps := range dynamicAddrs(dump) {
@@ -82,7 +82,7 @@ func FuzzDynamicAddrs(f *testing.F) {
 func TestNetStateSaysWhichAddressesHaveALease(t *testing.T) {
 	t.Parallel()
 	o, root := netOps(t, withIfaces(
-		HostIface{Name: "enp2s0", Index: 2, MAC: "02:00:00:00:00:01", Addrs: pfx("192.168.18.141/24", "fe80::1/64"), Dynamic: pfx("192.168.18.141/24")},
+		HostIface{Name: "enp2s0", Index: 2, MAC: "02:00:00:00:00:01", Addrs: pfx("192.168.142.141/24", "fe80::1/64"), Dynamic: pfx("192.168.142.141/24")},
 		HostIface{Name: "eth1", Index: 3, MAC: "02:00:00:00:00:02", Addrs: pfx("192.168.50.2/24")},
 	))
 	card(t, root, "enp2s0", stats("1", "1"), true)
@@ -92,7 +92,7 @@ func TestNetStateSaysWhichAddressesHaveALease(t *testing.T) {
 	for _, i := range st.Interfaces {
 		byName[i.Name] = i.Dynamic
 	}
-	if d := byName["enp2s0"]; !slices.Equal(d, []string{"192.168.18.141/24"}) {
+	if d := byName["enp2s0"]; !slices.Equal(d, []string{"192.168.142.141/24"}) {
 		t.Fatalf("enp2s0 dynamic %v", d)
 	}
 	if d := byName["eth1"]; d == nil || len(d) != 0 {

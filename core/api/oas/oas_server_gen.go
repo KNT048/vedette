@@ -1706,14 +1706,6 @@ type Handler interface {
 	//
 	// GET /inventory/snmp/devices/{id}
 	InventoryGetInventorySnmpDevicesID(ctx context.Context, params InventoryGetInventorySnmpDevicesIDParams) (*InventoryGetInventorySnmpDevicesIDOK, error)
-	// InventoryGetInventorySnmpDevicesIDSimilar implements inventory_get_inventory_snmp_devices_id_similar operation.
-	//
-	// Candidates for "Use these settings on similar devices": devices of the same maker or the same type
-	// as this one, with no SNMP settings of their own, not ignored, not the box, with an address. 404
-	// not_found; 409 not_set_up (this device has no SNMP settings to share), secret_lost.
-	//
-	// GET /inventory/snmp/devices/{id}/similar
-	InventoryGetInventorySnmpDevicesIDSimilar(ctx context.Context, params InventoryGetInventorySnmpDevicesIDSimilarParams) (*InventoryGetInventorySnmpDevicesIDSimilarOK, error)
 	// InventoryPatchInventoryDevicesID implements inventory_patch_inventory_devices_id operation.
 	//
 	// Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the
@@ -1914,16 +1906,6 @@ type Handler interface {
 	//
 	// POST /inventory/import
 	InventoryPostInventoryImport(ctx context.Context, req *InventoryPostInventoryImportReq) (*InventoryPostInventoryImportOK, error)
-	// InventoryPostInventorySnmpDevicesIDApplySimilar implements inventory_post_inventory_snmp_devices_id_apply_similar operation.
-	//
-	// Copy this device's SNMP settings (secret included, on the box) to the chosen similar devices in one
-	// call: each target keeps its own address as the read address, is turned on for SNMP as with a normal
-	// save, and gets a read queued. One audit row per device and one for the action, with the person.
-	// Per-device results; a target that is no longer a candidate is not_a_candidate. 404 not_found; 409
-	// not_set_up, secret_lost, unavailable; 400 too many or no devices.
-	//
-	// POST /inventory/snmp/devices/{id}/apply-similar
-	InventoryPostInventorySnmpDevicesIDApplySimilar(ctx context.Context, req *InventoryPostInventorySnmpDevicesIDApplySimilarReq, params InventoryPostInventorySnmpDevicesIDApplySimilarParams) (*InventoryPostInventorySnmpDevicesIDApplySimilarOK, error)
 	// InventoryPostInventorySnmpDevicesIDCheck implements inventory_post_inventory_snmp_devices_id_check operation.
 	//
 	// Check now: read this device at once at its Read from address (read-only GETs from the scan

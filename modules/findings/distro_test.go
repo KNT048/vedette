@@ -202,7 +202,7 @@ func TestDistroHWEKernel(t *testing.T) {
 }
 
 // The feeds module pulls a distribution's files only for a device the distribution's word can apply to.
-func TestDeviceDistro(t *testing.T) {
+func TestDevicePackages_Distro(t *testing.T) {
 	t.Parallel()
 	deb := Software{Source: "agent", Packaged: true, PkgVersion: "1:9.6p1-3ubuntu13.14", PkgSource: "openssh"}
 	manual := deb
@@ -221,7 +221,7 @@ func TestDeviceDistro(t *testing.T) {
 		{"another OS", Asset{OS: "Windows Server 2022", Software: []Software{deb}}, ""},
 		{"no OS", Asset{Software: []Software{deb}}, ""},
 	} {
-		if got := DeviceDistro(tc.a); got != tc.want {
+		if got, _, _ := DevicePackages(tc.a); got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
 		}
 	}

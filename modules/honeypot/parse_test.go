@@ -58,7 +58,7 @@ func TestHTTPRedirectAndRefusedMethodAreHTTPHits(t *testing.T) {
 		ltHTTPRedirect: "request GET / (redirected to the login page), User-Agent: curl/8",
 		ltHTTPOther:    "request with a method the page refuses, / , User-Agent: curl/8",
 	} {
-		line := `{"logtype":` + strconv.Itoa(lt) + `,"src_host":"192.168.18.50","dst_host":"192.168.18.240","src_port":5,"dst_port":80,"utc_time":"2026-11-12 10:00:00.1","logdata":{"HOSTNAME":"192.168.18.240","PATH":"/","USERAGENT":"curl/8"}}`
+		line := `{"logtype":` + strconv.Itoa(lt) + `,"src_host":"192.168.142.50","dst_host":"192.168.142.240","src_port":5,"dst_port":80,"utc_time":"2026-11-12 10:00:00.1","logdata":{"HOSTNAME":"192.168.142.240","PATH":"/","USERAGENT":"curl/8"}}`
 		r, err := ParseLine([]byte(line))
 		if err != nil {
 			t.Fatal(err)

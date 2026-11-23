@@ -1,4 +1,4 @@
-// Kiểu API module inventory — suy ra từ hợp đồng Zod (contract.ts), không khai tay.
+// API types of the inventory module — derived from the Zod contract (contract.ts), not declared by hand.
 import type { z } from 'zod'
 import * as C from './contract'
 
@@ -70,9 +70,6 @@ export type SnmpAnswer = z.infer<typeof C.SnmpAnswer>
 export type DeviceSnmp = z.infer<typeof C.DeviceSnmp>
 export type DeviceSnmpInput = z.infer<typeof C.DeviceSnmpInput>
 export type SnmpCheckResult = z.infer<typeof C.SnmpCheckResult>
-export type SnmpSimilarResponse = z.infer<typeof C.SnmpSimilarResponse>
-export type SnmpSimilarDevice = z.infer<typeof C.SnmpSimilarDevice>
-export type SnmpApplyResponse = z.infer<typeof C.SnmpApplyResponse>
 export type SnmpDeviceRow = z.infer<typeof C.SnmpDeviceRow>
 export type SnmpNotice = z.infer<typeof C.SnmpNotice>
 export type DeviceSource = z.infer<typeof C.DeviceSource>

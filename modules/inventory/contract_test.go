@@ -522,7 +522,7 @@ func TestMigrationsUsePrefix(t *testing.T) {
 func TestSummaryOfADeviceSeenOnlyByARP(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.record(obs(netip.MustParseAddr("192.168.18.1"), macB, observe.MAC, macB, observe.Passive, 0.9))
+	e.record(obs(netip.MustParseAddr("192.168.142.1"), macB, observe.MAC, macB, observe.Passive, 0.9))
 	summary := func() *inventory.Summary {
 		l, err := e.svc.Devices(e.ctx())
 		if err != nil {

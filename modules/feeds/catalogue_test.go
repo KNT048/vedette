@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"maps"
-	"math"
 	"net/http"
 	"slices"
 	"strings"
@@ -78,64 +76,9 @@ GROUP BY cve, origin, cpe, start_incl, start_excl, end_incl, end_excl HAVING cou
 	}
 }
 
-// oldTierSeverity is the rule the plan used to show a CVE's severity before one pick (severityOf, kept here only to count how often
-// it disagreed with the score findings showed): newest CVSS 4.0, 3.1, 3.0 entry, NVD's own before the CNA's, no vector needed and
-// never CVSS 2.0.
-func oldTierSeverity(raw []byte) (string, *float64) {
-	var m cvssMetrics
-	if err := json.Unmarshal(raw, &m); err != nil {
-		return "", nil
-	}
-	for _, l := range [][]cvssEntry{m.V40, m.V31, m.V30} {
-		for _, want := range []string{"Primary", "Secondary"} {
-			for _, e := range l {
-				sev := strings.ToUpper(strings.TrimSpace(e.CVSSData.BaseSeverity))
-				if e.Type != want || !cvssSeverities[sev] {
-					continue
-				}
-				if sc := e.CVSSData.BaseScore; sc != nil && *sc >= 0 && *sc <= 10 {
-					v := *sc
-					return sev, &v
-				}
-				return sev, nil
-			}
-		}
-	}
-	return "", nil
-}
-
-// oldFindingCVSS is the rule findings used to show a CVE's CVSS score before one pick (cvssOf, kept here only for the count): newest
-// version 4.0, 3.1, 3.0, 2.0, NVD's own ("Primary") before any other scorer in the record's order, only with a valid vector.
-func oldFindingCVSS(raw []byte) (float64, bool) {
-	var m cvssMetrics
-	if err := json.Unmarshal(raw, &m); err != nil {
-		return 0, false
-	}
-	for _, l := range []struct {
-		version string
-		list    []cvssEntry
-	}{{"4.0", m.V40}, {"3.1", m.V31}, {"3.0", m.V30}, {"2.0", m.V2}} {
-		for _, want := range []string{"Primary", "Secondary"} {
-			for _, e := range l.list {
-				sev := e.CVSSData.BaseSeverity
-				if l.version == "2.0" {
-					sev = e.BaseSeverity
-				}
-				sc, vec := e.CVSSData.BaseScore, vectorOf(e, l.version)
-				if e.Type != want || !cvssSeverities[strings.ToUpper(strings.TrimSpace(sev))] || sc == nil || *sc < 0 || *sc > 10 || vec == "" {
-					continue
-				}
-				return math.Round(*sc*10) / 10, true
-			}
-		}
-	}
-	return 0, false
-}
-
-// Count test, one CVSS pick: the plan's severity and the score a finding shows came from two rules and could disagree (a CVE with only
-// a CVSS 2.0 score, an entry without a valid vector). Both now read PickCVSS: on the frozen samples plus the edge cases, the score and
-// band the plan shows (TierRecords) equal the score findings show (CVSSOf) for every CVE.
-func TestCount_OneCVSSPick(t *testing.T) {
+// One CVSS pick: edge cases of the single choosing rule PickCVSS as findings read it (CVSSOf): CVSS 2.0 when nothing newer exists, a
+// 3.1 score without a vector is no score, and CISA's ADP score comes after the CNA's.
+func TestCVSSPick_EdgeCases(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.setNow(sampleDay)
@@ -155,57 +98,17 @@ func TestCount_OneCVSSPick(t *testing.T) {
 	if err != nil || len(edgePage.Records) != 3 {
 		t.Fatalf("%+v %v", edgePage, err)
 	}
-	kevPage, recentPage := samplePage(t, "nvd-sample-kev.json.gz"), samplePage(t, "nvd-sample-recent.json.gz")
-	all := slices.Concat(kevPage.Records, recentPage.Records, edgePage.Records)
-	// before: the old two rules on the same records (the raw metrics are read again from the samples)
-	raw := map[string][]byte{}
-	for _, name := range []string{"nvd-sample-kev.json.gz", "nvd-sample-recent.json.gz"} {
-		for cve, m := range rawMetrics(t, fixtureGunzip(t, name)) {
-			raw[cve] = m
-		}
-	}
-	for cve, m := range rawMetrics(t, []byte(edge)) {
-		raw[cve] = m
-	}
-	before := 0
-	for _, r := range all {
-		_, tier := oldTierSeverity(raw[r.CVE])
-		finding, ok := oldFindingCVSS(raw[r.CVE])
-		if (tier == nil) != !ok || ok && tier != nil && *tier != finding {
-			before++
-		}
-	}
-	// after: what the plan and the findings read from the catalogue
 	write(t, e.db, func(tx *sql.Tx) error {
-		_, err := writeNVDRecords(t.Context(), tx, all, retention{all: true}, sampleDay)
+		_, err := writeNVDRecords(t.Context(), tx, edgePage.Records, retention{all: true}, sampleDay)
 		return err
 	})
-	write(t, e.db, func(tx *sql.Tx) error {
-		return saveNVDCursor(t.Context(), tx, selectorRecent, recentCursor{URL: "https://nvd.example.com/x", Mode: modeDone, From: sampleDay, To: sampleDay, Until: sampleDay})
-	})
-	recs, err := e.svc.st.TierRecords(t.Context(), sampleDay, func(string) bool { return true })
-	if err != nil {
-		t.Fatal(err)
-	}
-	cves := make([]string, len(all))
-	for i, r := range all {
+	cves := make([]string, len(edgePage.Records))
+	for i, r := range edgePage.Records {
 		cves[i] = r.CVE
 	}
 	shown, err := e.svc.st.CVSSOf(t.Context(), cves)
 	if err != nil {
 		t.Fatal(err)
-	}
-	after := 0
-	for _, r := range recs {
-		c, ok := shown[r.CVE]
-		if (r.Score == nil) != !ok || ok && (*r.Score != c.Score || r.Severity != Severity(c.Score, c.Version)) {
-			after++
-			t.Errorf("%s: plan %v %s, finding %+v", r.CVE, r.Score, r.Severity, c)
-		}
-	}
-	t.Logf("CVSS pick disagreements between the plan's and the findings' rule: before %d, after %d (%d records, %d in the plan)", before, after, len(all), len(recs))
-	if before != 2 || after != 0 || len(recs) < 50 {
-		t.Fatalf("before %d (want 2: the v2-only and the vector-less edge cases), after %d, plan records %d", before, after, len(recs))
 	}
 	// the edge cases: CVSS 2.0 when nothing newer; a 3.1 score without a vector is no score; CISA's ADP after the CNA
 	want := map[string]CVSS{
@@ -218,39 +121,6 @@ func TestCount_OneCVSSPick(t *testing.T) {
 			t.Errorf("%s = %+v, want %+v", cve, shown[cve], w)
 		}
 	}
-}
-
-func fixtureGunzip(t testing.TB, name string) []byte {
-	t.Helper()
-	zr, err := gzip.NewReader(bytes.NewReader(fixture(t, name)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, err := io.ReadAll(zr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return b
-}
-
-func rawMetrics(t testing.TB, page []byte) map[string][]byte {
-	t.Helper()
-	var a struct {
-		V []struct {
-			CVE struct {
-				ID      string          `json:"id"`
-				Metrics json.RawMessage `json:"metrics"`
-			} `json:"cve"`
-		} `json:"vulnerabilities"`
-	}
-	if err := json.Unmarshal(page, &a); err != nil {
-		t.Fatal(err)
-	}
-	out := map[string][]byte{}
-	for _, v := range a.V {
-		out[v.CVE.ID] = v.CVE.Metrics
-	}
-	return out
 }
 
 // INV-28: nvd-kev keeps each KEV CVE's scores from the answer it already reads (no new request); an update replaces the scores of the

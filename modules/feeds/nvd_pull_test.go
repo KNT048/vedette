@@ -12,8 +12,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/knt048/vedette/core/events"
 )
 
 // nvdBody is one ?hasKev answer: the records CVE-2024-<start>… of total.
@@ -107,12 +105,6 @@ func TestNVDPull_BusyPageIsTriedAgain(t *testing.T) {
 func TestNVDPull_PausesAndResumesFromTheLastGoodPage(t *testing.T) {
 	t.Parallel()
 	e, n := nvdEnv(t)
-	var failed []events.Event
-	e.svc.Events = publishFunc(func(ev events.Event) {
-		if ev.Name == EventFetchFailed {
-			failed = append(failed, ev)
-		}
-	})
 	n.set(100, 503)
 	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
 		t.Fatal(err)
@@ -121,8 +113,8 @@ func TestNVDPull_PausesAndResumesFromTheLastGoodPage(t *testing.T) {
 		t.Fatalf("waits %v", got)
 	}
 	f := e.feed("nvd-kev")
-	if f.Status != "never" || f.Failures != 0 || len(failed) != 0 {
-		t.Fatalf("a paused first fill is recorded as a failure: %+v, events %v", f, failed)
+	if f.Status != "never" || f.Failures != 0 {
+		t.Fatalf("a paused first fill is recorded as a failure: %+v", f)
 	}
 	if c, _ := e.svc.st.affectedCount(t.Context()); c != 0 {
 		t.Fatalf("%d entries written by a pull that did not finish", c)

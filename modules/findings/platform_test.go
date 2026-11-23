@@ -132,7 +132,7 @@ func TestPlatform_UnknownPlatformAsks(t *testing.T) {
 		a    Asset
 		want UncheckedReason
 	}{
-		{Asset{ID: "fw", Name: "192.168.18.1", Software: []Software{sshRow("10.2", "protocol 2.0", "nmap")}}, UncheckedPlatformUnknown},
+		{Asset{ID: "fw", Name: "192.168.142.1", Software: []Software{sshRow("10.2", "protocol 2.0", "nmap")}}, UncheckedPlatformUnknown},
 		{Asset{ID: "host", Name: "docker1", OS: "Ubuntu 24.04.3 LTS", Software: []Software{sshRow("10.2", "", "nmap")}}, UncheckedPlatformUnknown},
 		{Asset{ID: "bn340", Name: "gw-alpine", OS: "Alpine Linux", SNMPOS: "Alpine Linux", Software: []Software{sshRow("10.2", "protocol 2.0", "nmap")}}, UncheckedPackageUnknown},
 		{Asset{ID: "alp", Name: "alp1", OS: "Alpine Linux v3.23", AgentOS: "Alpine Linux v3.23", Software: []Software{sshRow("10.2", "", "agent")}}, UncheckedPackageUnknown},

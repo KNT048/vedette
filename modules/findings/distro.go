@@ -126,19 +126,14 @@ func distroOf(in swInfo) (string, string) {
 	return "", ""
 }
 
-// DeviceDistro is the distribution whose own security data the feeds supply ("ubuntu", "debian", "alpine") when it can say something
-// about this device: its OS is that distribution and it has at least one package row that data names (distroRows); "" otherwise. The
-// feeds module pulls a distribution's files only while some device needs them (LEAN).
-func DeviceDistro(a Asset) string {
-	d, _, _ := DevicePackages(a)
-	return d
-}
-
-// DevicePackages is DeviceDistro with the release as the distribution's data is asked for it ("24.04", "12"; "" for a distribution
+// DevicePackages is the distribution whose own security data the feeds supply ("ubuntu", "debian", "alpine") when it can say something
+// about this device: its OS is that distribution and it has at least one package row that data names (distroRows); "" otherwise (the
+// feeds module pulls a distribution's files only while some device needs them). With it come the release as the distribution's data
+// is asked for it ("24.04", "12"; "" for a distribution
 // whose rows of every release are read, Alpine: the branch is chosen per row, distroData.anyRelease) and the source packages of the
 // device's package rows as the security data names them (securitySource: "linux" for linux-signed), sorted, each once (the
 // distribution feeds keep their rows for these packages only). A kernel's packages count only for the running kernel
-// (distroRows). "" and nil when DeviceDistro is "".
+// (distroRows). "" and nil when no distribution's data can say something about the device.
 func DevicePackages(a Asset) (distro, release string, pkgs []string) {
 	d, rel, rows := distroRows(a)
 	if d == nil || len(rows) == 0 {

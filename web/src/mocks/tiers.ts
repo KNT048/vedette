@@ -51,7 +51,6 @@ export const tierFact = (cve: string) => tierFacts.find((f) => f.cve === cve)
 export const tierOf = (f: TierFact): 'likely' | 'recent' => (f.epss ?? 0) >= EPSS_LIKELY ? 'likely' : 'recent'
 export const withinYear = (f: TierFact) => f.published >= day(YEAR_DAYS)
 export const epssDate = () => day(1)
-export const recentSince = () => day(YEAR_DAYS)
 
 /** NVD's published day of a few sample KEV CVEs (the KEV fixture has none); null = not answered, counts as recent. One table for
  *  the findings and feeds mocks and the mock matcher (match.ts), which drops product-only matches of older ones like the box. */

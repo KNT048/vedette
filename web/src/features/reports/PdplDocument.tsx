@@ -12,7 +12,7 @@ import { kindLabel } from '@/lib/deviceTypes'
 
 const MEASURE_TONE: Record<string, Tone> = { ok: 'ok', attention: 'warn', unknown: 'off' }
 
-/** Báo cáo đánh giá an toàn theo Luật BVDLCN (S-REP-2). Câu miễn trừ nằm ở đầu và cuối mọi bản. */
+/** Safety assessment report under the Personal Data Protection Law (S-REP-2). The disclaimer sits at the top and the bottom of every copy. */
 /** `aiAction` is the Write AI commentary control; only the live view passes it, so print never shows it. */
 export function PdplDocument({ report: full, aiAction }: { report: PdplReport; aiAction?: ReactNode }) {
   const { t } = useTranslation('reports')

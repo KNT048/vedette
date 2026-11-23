@@ -15210,7 +15210,7 @@
                       "description": "appliance: installed by install.sh, with the system helper vedette-host; container: container-only install on the customer's Docker or Podman, no helper. The one place the GUI learns it"
                     },
                     "lan": {
-                      "description": "The network of the box's management address (CIDR, like 192.168.18.0/24), offered as the first range of the network step; null when setup is done, on a container-only install, or when the box has no private IPv4 address",
+                      "description": "The network of the box's management address (CIDR, like 192.168.142.0/24), offered as the first range of the network step; null when setup is done, on a container-only install, or when the box has no private IPv4 address",
                       "type": [
                         "string",
                         "null"
@@ -65799,7 +65799,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24"
+                      "description": "Ranges normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24"
                     }
                   },
                   "required": [
@@ -66879,119 +66879,6 @@
         }
       }
     },
-    "/inventory/snmp/devices/{id}/apply-similar": {
-      "post": {
-        "operationId": "inventory_post_inventory_snmp_devices_id_apply_similar",
-        "summary": "Copy this device's SNMP settings (secret included, on the box) to the chosen similar devices in one call: each target keeps its own address as the read address, is turned on for SNMP as with a normal save, and gets a read queued. One audit row per device and one for the action, with the person. Per-device results; a target that is no longer a candidate is not_a_candidate. 404 not_found; 409 not_set_up, secret_lost, unavailable; 400 too many or no devices",
-        "tags": [
-          "inventory"
-        ],
-        "x-stories": [
-          "S-INV-1"
-        ],
-        "x-min-role": "admin",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "device_ids": {
-                    "minItems": 1,
-                    "maxItems": 50,
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 96
-                    },
-                    "description": "The devices the person ticked; each must still be a candidate of the source"
-                  }
-                },
-                "required": [
-                  "device_ids"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "results": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "device_id": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "ok": {
-                            "type": "boolean",
-                            "description": "The settings were saved on this device and a read was queued"
-                          },
-                          "code": {
-                            "type": "string",
-                            "description": "When not ok: the error code (not_a_candidate, no_ip, read_from_taken, secret_lost, device_ignored, box_device, read_from_box…); empty when ok"
-                          },
-                          "message": {
-                            "type": "string",
-                            "description": "Plain words for the person; empty when ok"
-                          }
-                        },
-                        "required": [
-                          "device_id",
-                          "name",
-                          "ok",
-                          "code",
-                          "message"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "description": "One row per requested device, in the order asked. The reads queued run in the background one device at a time; each device's SNMP state (GET /inventory/snmp) shows the outcome"
-                    }
-                  },
-                  "required": [
-                    "results"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/inventory/snmp/devices/{id}/check": {
       "post": {
         "operationId": "inventory_post_inventory_snmp_devices_id_check",
@@ -67447,110 +67334,6 @@
                     "message",
                     "answer",
                     "snmp"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/inventory/snmp/devices/{id}/similar": {
-      "get": {
-        "operationId": "inventory_get_inventory_snmp_devices_id_similar",
-        "summary": "Candidates for \"Use these settings on similar devices\": devices of the same maker or the same type as this one, with no SNMP settings of their own, not ignored, not the box, with an address. 404 not_found; 409 not_set_up (this device has no SNMP settings to share), secret_lost",
-        "tags": [
-          "inventory"
-        ],
-        "x-stories": [
-          "S-INV-1"
-        ],
-        "x-min-role": "admin",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "devices": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "device_id": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string",
-                            "description": "How a person knows the device; empty when none"
-                          },
-                          "ip": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "vendor": {
-                            "type": "string",
-                            "description": "The device's maker as the inventory holds it; empty when unknown"
-                          },
-                          "kind": {
-                            "type": "string",
-                            "description": "The device type id"
-                          },
-                          "same_maker": {
-                            "type": "boolean",
-                            "description": "Same maker as the source device (the checklist prechecks these)"
-                          },
-                          "same_type": {
-                            "type": "boolean",
-                            "description": "Same device type as the source (never true for an unknown type)"
-                          },
-                          "approved": {
-                            "type": "boolean",
-                            "description": "false: a person has not approved the device yet, so the box saves the settings but sends nothing until it is approved"
-                          }
-                        },
-                        "required": [
-                          "device_id",
-                          "name",
-                          "ip",
-                          "vendor",
-                          "kind",
-                          "same_maker",
-                          "same_type",
-                          "approved"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "description": "Devices with no SNMP settings of their own, not ignored, not the box, with an address, of the same maker or the same type; same maker first, then by name"
-                    }
-                  },
-                  "required": [
-                    "devices"
                   ],
                   "additionalProperties": false
                 }
@@ -97567,7 +97350,7 @@
                           },
                           "label": {
                             "type": "string",
-                            "description": "What it scans, e.g. \"LAN sweep 192.168.18.0/24\", \"Check 192.168.18.20\", \"203.0.113.10\""
+                            "description": "What it scans, e.g. \"LAN sweep 192.168.142.0/24\", \"Check 192.168.142.20\", \"203.0.113.10\""
                           },
                           "target_id": {
                             "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
@@ -98294,7 +98077,7 @@
                           },
                           "label": {
                             "type": "string",
-                            "description": "What it scans, e.g. \"LAN sweep 192.168.18.0/24\", \"Check 192.168.18.20\", \"203.0.113.10\""
+                            "description": "What it scans, e.g. \"LAN sweep 192.168.142.0/24\", \"Check 192.168.142.20\", \"203.0.113.10\""
                           },
                           "target_id": {
                             "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
@@ -98589,7 +98372,7 @@
                     },
                     "label": {
                       "type": "string",
-                      "description": "What it scans, e.g. \"LAN sweep 192.168.18.0/24\", \"Check 192.168.18.20\", \"203.0.113.10\""
+                      "description": "What it scans, e.g. \"LAN sweep 192.168.142.0/24\", \"Check 192.168.142.20\", \"203.0.113.10\""
                     },
                     "target_id": {
                       "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
@@ -98859,7 +98642,7 @@
                           },
                           "label": {
                             "type": "string",
-                            "description": "What it scanned: \"LAN 192.168.18.0/24\", \"192.168.18.20\", \"SNMP read of 3 devices\", \"203.0.113.10\""
+                            "description": "What it scanned: \"LAN 192.168.142.0/24\", \"192.168.142.20\", \"SNMP read of 3 devices\", \"203.0.113.10\""
                           },
                           "target_id": {
                             "description": "The exposure target of a public scan, for a link; null otherwise (a LAN job does not record its device)",
@@ -98898,7 +98681,7 @@
                           },
                           "text": {
                             "type": "string",
-                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 192.168.18.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, \"OS guess <x>\" for nmap's fingerprint, \"OS <x>\" for the device's own answer, \"OS guess now <x> (changed since the previous check)\"; otherwise \"OS: scan guess not used now\", never a second OS value; \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
+                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 192.168.142.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, \"OS guess <x>\" for nmap's fingerprint, \"OS <x>\" for the device's own answer, \"OS guess now <x> (changed since the previous check)\"; otherwise \"OS: scan guess not used now\", never a second OS value; \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 192.168.142.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
                           }
                         },
                         "required": [
@@ -99307,7 +99090,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24"
+                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24"
                     }
                   },
                   "required": [
@@ -99517,7 +99300,7 @@
                   "entry": {
                     "type": "string",
                     "maxLength": 64,
-                    "description": "One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 192.168.18.9 or 192.168.18.64/28"
+                    "description": "One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 192.168.142.9 or 192.168.142.64/28"
                   }
                 },
                 "required": [
@@ -99986,7 +99769,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24"
+                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24"
                     }
                   },
                   "required": [

@@ -104,8 +104,7 @@ func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) 
 }
 
 // Distros implements feeds.DistroLister: the distributions of the devices whose packages the distributions' data names, as
-// findings decides it (findings.DeviceDistro), each with those devices' source packages as the security data names them
-// (findings.DevicePackages), so a distribution feed is pulled only while a device needs it and keeps tier rows for those packages;
+// findings decides it, each with those devices' source packages as the security data names them (findings.DevicePackages), so a distribution feed is pulled only while a device needs it and keeps tier rows for those packages;
 // and "alpine" while a device states Alpine Linux (findings.StatesAlpine), with its apk source packages when an agent read them.
 func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool, error) {
 	ids, err := a.inv.AssetIDs(ctx)
@@ -211,7 +210,7 @@ func (a findingsInventory) Assets(ctx context.Context, ids []string) (map[string
 }
 
 // assetDisplay is what a finding's device is shown running when the finding's page cannot name the matched software (findings
-// matchedOn): its operating system, else its kind; never the device's first software by name, which read "Microsoft Edge" under a
+// matchedRow): its operating system, else its kind; never the device's first software by name, which read "Microsoft Edge" under a
 // Windows finding (#905). DeviceRef.Display keeps that first row for the callers that name a declared device by it (notify, audit).
 func assetDisplay(r inventory.DeviceRef) string {
 	if os := strings.TrimSpace(r.OS); os != "" {

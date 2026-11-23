@@ -210,7 +210,6 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 		return err
 	}}
 	// a 304 keeps the stored rows: only when they were kept for every package needed now (a removed package needs nothing)
-	// (and never when new code reads the feed again, INV-32)
 	if src.Status == "ok" && (len(keep) == 0 || kept != nil && covers(kept, keep)) {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
@@ -240,7 +239,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 var distroFeeds = map[string]bool{ubuntuOSVFeedID: true, ubuntuVEXFeedID: true, debianTrackerFeedID: true, alpineOSVFeedID: true}
 
 // distroCVEs lists the CVEs of the CISA list a distribution feed has rows for, sorted: the findings it may change (its tier rows
-// change only "Updates to plan", which the feed's switch reaches through TierStamp).
+// decide no finding).
 func distroCVEs(ctx context.Context, tx *sql.Tx, sourceID string) ([]string, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_distro_fix WHERE source_id = ? AND cve IN (SELECT cve FROM feeds_kev WHERE list = 'cisa') ORDER BY cve`, sourceID)
 	if err != nil {
@@ -419,6 +418,10 @@ AND d.cve IN (SELECT value FROM json_each(?)) ORDER BY d.cve, d.distro, d.releas
 	}
 	return out, nil
 }
+
+// DistroPackage is a source package of one release as the distributions' security data names it ("ubuntu", "24.04", "openssl").
+// Release "" asks for every release of the distribution.
+type DistroPackage struct{ Distro, Release, Package string }
 
 // DistroCVEs returns the CVEs the enabled distribution feeds say something about (fixed or not affected) for these packages: a CVE a
 // distribution has fixed in a package reaches the match pass before NVD names the upstream product. Sorted.

@@ -5,6 +5,7 @@
 import { http, HttpResponse, type JsonBodyType } from 'msw'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, newId, nowIso } from '@/mocks/db'
+import { dayOf } from '@/lib/format'
 import { assetsStore, isOn } from '@/mocks/stores'
 import { SAMPLE_SEVERITY, seedFindingRecords, seedQuestions, type FindingRecord, type QuestionRecord } from '@/mocks/seed/findings'
 import type { Asset } from '@/lib/types'
@@ -224,7 +225,7 @@ export function overview(): Overview {
     open: { findings: open.length, by_status: statusCounts(open) },
     devices: { total: assets.length, not_added: assets.filter((a) => !a.approved).length, by_status: byStatus, affected },
     input: inputItems().length,
-    first, trend, trend_start: new Date(Date.now() - (TREND_DAYS - 1) * 864e5).toISOString().slice(0, 10),
+    first, trend, trend_start: dayOf(new Date(Date.now() - (TREND_DAYS - 1) * 864e5).toISOString()),
     alerts: notifyOn ? { ...sentSince(new Date(Date.now() - 7 * 864e5).toISOString()), days: 7 } : null,
     incidents: notifyOn ? openIncidents() : null,
     generated_at: nowIso(),

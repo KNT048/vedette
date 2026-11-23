@@ -394,13 +394,17 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 	if err != nil {
 		return Detail{}, err
 	}
+	var cves func([]string) []string // read once for the page, when a line has keys
 	for i := range lines {
-		if lines[i].NotInstalled {
+		if lines[i].NotInstalled || len(lines[i].kev) == 0 {
 			continue // it matches nothing
 		}
-		if lines[i].KevCVEs, err = s.cves(ctx, lines[i].kev); err != nil {
-			return Detail{}, err
+		if cves == nil {
+			if cves, err = s.kevIndex(ctx); err != nil {
+				return Detail{}, err
+			}
 		}
+		lines[i].KevCVEs = cves(lines[i].kev)
 	}
 	osc, err := osCorrection(ctx, db, id)
 	if err != nil {
@@ -433,19 +437,26 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 	}, nil
 }
 
-// cves returns the CVE ids feeds knows for the keys; none when feeds gives none.
-func (s *Service) cves(ctx context.Context, keys []string) ([]string, error) {
-	if s.kev == nil || len(keys) == 0 {
-		return []string{}, nil
+// kevIndex reads the exploited lists once (KEV.CVEIndex) and returns the lookup of the CVE ids feeds knows for a set of keys: never
+// nil, empty when feeds gives none. A request reads it once and looks up all of its lines or devices in it.
+func (s *Service) kevIndex(ctx context.Context) (func(keys []string) []string, error) {
+	if s.kev == nil {
+		return func([]string) []string { return []string{} }, nil
 	}
-	list, err := s.kev.CVEs(ctx, keys)
+	idx, err := s.kev.CVEIndex(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: KEV match: %w", err)
 	}
-	if list == nil {
-		list = []string{}
-	}
-	return list, nil
+	return func(keys []string) []string {
+		var list []string
+		if len(keys) > 0 && idx != nil {
+			list = idx(keys)
+		}
+		if list == nil {
+			list = []string{}
+		}
+		return list
+	}, nil
 }
 
 // NoDevice ends the name of a device added by hand that has neither a name nor an IP: it is only a product someone

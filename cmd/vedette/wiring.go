@@ -177,12 +177,17 @@ func (k feedsKEV) Products(ctx context.Context) (string, []inventory.KEVProduct,
 	return version, out, nil
 }
 
-func (k feedsKEV) CVEs(ctx context.Context, keys []string) ([]string, error) {
+// CVEIndex is feeds' index of the exploited-list CVEs by product key (Store.KevIndex, kept under its stamp): no CVE while feeds is off.
+func (k feedsKEV) CVEIndex(ctx context.Context) (inventory.KEVIndex, error) {
 	st, ok := k.store()
 	if !ok {
-		return nil, nil
+		return inventory.EmbeddedKEV{}.CVEIndex(ctx)
 	}
-	return st.KevCVEsByKeys(ctx, keys)
+	idx, err := st.KevIndex(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return idx.CVEs, nil
 }
 
 // ---- inventory -> findings (findings.Inventory) and feeds -> findings (findings.Feeds) ----

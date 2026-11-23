@@ -148,35 +148,37 @@ func pkgOf(it SoftwareItem, source string) (version, src string) {
 // matchEvents is run after the commit: the CVEs of the keys after the change that were not matched before
 // become inventory.match.changed events, basis "product" (KEV has no affected ranges, and only a scan confirms).
 func (s *Service) matchEvents(assetID string, before, after []string) func(context.Context) []Event {
-	return func(ctx context.Context) []Event {
-		if s.kev == nil || slices.Equal(before, after) {
-			return nil
-		}
-		was, err1 := s.cves(ctx, before)
-		now, err2 := s.cves(ctx, after)
-		if err1 != nil || err2 != nil {
-			s.log.WarnContext(ctx, "inventory: KEV match failed", "asset", assetID, "error", fmt.Sprint(err1, err2))
-			return nil
-		}
-		var out []Event
-		for _, cve := range slices.Compact(slices.Sorted(slices.Values(now))) {
-			if !slices.Contains(was, cve) {
-				out = append(out, Event{Name: EventMatchChanged, Data: MatchEvent{AssetID: assetID, CVE: cve, Basis: "product"}})
-			}
-		}
-		return out
-	}
+	return s.matchAfter(assetID, before, after, false)
 }
 
-// rematchEvent is one match event for a device whose keys did not change but whose versions did (a package update, a person's
-// version): findings matches the whole device again on it.
-func (s *Service) rematchEvent(assetID string, keys []string) func(context.Context) []Event {
+// matchAfter is matchEvents; with rematch it adds one match event naming the device's first CVE after the change, for a device whose
+// versions changed (a package update, a person's version): findings matches the whole device again on it. The exploited lists are
+// read once for both.
+func (s *Service) matchAfter(assetID string, before, after []string, rematch bool) func(context.Context) []Event {
 	return func(ctx context.Context) []Event {
-		cves, err := s.cves(ctx, keys)
-		if err != nil || len(cves) == 0 {
+		changed := !slices.Equal(before, after)
+		if s.kev == nil || !changed && !rematch {
 			return nil
 		}
-		return []Event{{Name: EventMatchChanged, Data: MatchEvent{AssetID: assetID, CVE: slices.Min(cves), Basis: "product"}}}
+		cves, err := s.kevIndex(ctx)
+		if err != nil {
+			s.log.WarnContext(ctx, "inventory: KEV match failed", "asset", assetID, "error", err)
+			return nil
+		}
+		now := cves(after)
+		var out []Event
+		if changed {
+			was := cves(before)
+			for _, cve := range slices.Compact(slices.Sorted(slices.Values(now))) {
+				if !slices.Contains(was, cve) {
+					out = append(out, Event{Name: EventMatchChanged, Data: MatchEvent{AssetID: assetID, CVE: cve, Basis: "product"}})
+				}
+			}
+		}
+		if rematch && len(now) > 0 {
+			out = append(out, Event{Name: EventMatchChanged, Data: MatchEvent{AssetID: assetID, CVE: slices.Min(now), Basis: "product"}})
+		}
+		return out
 	}
 }
 
@@ -352,10 +354,8 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 		return err
 	}
 	o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID})
-	o.after = append(o.after, s.matchEvents(assetID, before, after))
-	if released && slices.Equal(before, after) { // the keys did not change, so matchEvents says nothing
-		o.after = append(o.after, s.rematchEvent(assetID, after))
-	}
+	// the keys did not change but a version did: matchEvents says nothing, so the device is matched again
+	o.after = append(o.after, s.matchAfter(assetID, before, after, released && slices.Equal(before, after)))
 	return nil
 }
 

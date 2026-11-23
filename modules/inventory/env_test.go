@@ -54,12 +54,14 @@ type fakeKEV struct {
 	cves map[string][]string
 }
 
-func (f fakeKEV) CVEs(_ context.Context, keys []string) ([]string, error) {
-	var out []string
-	for _, k := range keys {
-		out = append(out, f.cves[k]...)
-	}
-	return out, nil
+func (f fakeKEV) CVEIndex(context.Context) (inventory.KEVIndex, error) {
+	return func(keys []string) []string {
+		var out []string
+		for _, k := range keys {
+			out = append(out, f.cves[k]...)
+		}
+		return out
+	}, nil
 }
 
 type fakeBox struct{ items []inventory.SoftwareItem }

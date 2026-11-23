@@ -887,12 +887,13 @@ func (s *Service) RematchAll(ctx context.Context) (int, error) {
 		slices.Sort(k)
 		keys[id] = slices.Compact(k)
 	}
+	lookup, err := s.kevIndex(ctx) // one read of the lists for every device
+	if err != nil {
+		return 0, err
+	}
 	n := 0
 	for _, id := range order {
-		cves, err := s.cves(ctx, keys[id])
-		if err != nil {
-			return n, err
-		}
+		cves := lookup(keys[id])
 		if len(cves) == 0 {
 			continue
 		}

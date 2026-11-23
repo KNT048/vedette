@@ -29,6 +29,7 @@ type selfcheckCase struct {
 	drop     string // an index that would refuse the breaking rows; dropped first, so the count is what is tested
 	noFK     bool   // planted with foreign keys off: the rule is that a reference has its row
 	provedBy string
+	control  []row // valid rows the invariant must not count: planted first, they count 0, and the break planted next to them counts
 }
 
 // selfcheckCases has a case for every registered invariant (TestSelfcheck_EveryInvariantHasACase).
@@ -75,14 +76,23 @@ var selfcheckCases = map[string]selfcheckCase{
 		plant: []row{{"inv_observation", map[string]any{"id": "o-other", "asset_id": "a-other"}}, {"inv_asset", map[string]any{"id": "a1", "ip": nil, "mac": nil, "kind_obs_id": "o-other"}}}},
 	"inventory.one_line_per_product_and_train": {rule: "one software line per device, product and release train", drop: "inv_software_line_uq",
 		plant: []row{{"inv_software", map[string]any{"id": "s1", "product_key": "acme|box", "line": ""}}, {"inv_software", map[string]any{"id": "s2", "product_key": "acme|box", "line": ""}}}},
-	"inventory.line_value_is_the_resolvers": {rule: "a line's stored value is one of its readings, the strongest one",
-		plant: []row{{"inv_software", map[string]any{"state": "present", "source": "nmap", "version": "2.0"}}}},
+	"inventory.line_value_is_the_resolvers": {rule: "a line's stored value, state and differs flag are what the resolver says of its readings",
+		control: []row{plantLine("s1", "acme|box", "", "1.0"), plantReading("s1", "1.0")},
+		plant:   []row{plantLine("s2", "acme|box", "x", "2.0"), plantReading("s2", "1.0"), {"inv_software", map[string]any{"state": "present", "source": "nmap", "version": "2.0"}}}},
+	"inventory.line_is_the_train_of_its_readings": {rule: "every reading of a line with a release is of the line's release train",
+		control: []row{plantLine("s1", "oracle|java se", "21", "21.0.7"), plantReading("s1", "21.0.7"), plantLine("s3", "acme|box", "", "1.0"), plantReading("s3", "1.0")},
+		plant:   []row{plantLine("s2", "oracle|java se", "8", "21.0.7"), plantReading("s2", "21.0.7")}},
 	"inventory.removed_line_has_no_reading": {rule: "a removed line has no reading",
 		plant: []row{{"inv_software", map[string]any{"state": "removed"}}, {"inv_software_reading", nil}}},
 	"inventory.address_has_one_home": {rule: "an address is the address of one device",
 		plant: []row{{"inv_asset", map[string]any{"id": "a1", "ip": "10.0.0.1", "mac": nil}}, {"inv_asset_address", map[string]any{"asset_id": "a1", "ip": "10.0.0.1", "mac": nil}}}},
 	"inventory.present_line_has_a_reading": {rule: "a present line has a reading",
 		plant: []row{{"inv_software", map[string]any{"state": "present"}}}},
+
+	"sensor-active.no_pending_run_about_a_deleted_device": {rule: "no queued or waiting check is about a device that was deleted",
+		control: []row{{"inv_asset", map[string]any{"id": "a1", "ip": nil, "mac": nil}}, {"core_run", deviceRun("r1", "lane-1", "waiting", "a1")},
+			{"core_run", deviceRun("r2", "lane-2", "stopped", "a-gone")}}, // a finished run stays as a log of the device it ran on
+		plant: []row{{"core_run", deviceRun("r3", "lane-3", "queued", "a-gone")}}},
 
 	"findings.handled_complete": {rule: "a finding is open exactly when it has no resolution; a handled one says how, by whom and when",
 		plant: []row{{"fnd_finding", map[string]any{"state": "open", "resolution": "patched"}}}},
@@ -106,6 +116,24 @@ var selfcheckCases = map[string]selfcheckCase{
 		provedBy: "cmd/vedette/matchset_schemes_test.go:TestSelfcheck_RangePrecedenceResolvesTheLineProduct"},
 	"findings.urgency_recomputed": {rule: "a finding's stored urgency is the urgency rule recomputed",
 		provedBy: "cmd/vedette/urgency_wiring_test.go:TestUrgencyWiring_StoresTheLayersAndTheSelfcheckAgrees"},
+}
+
+// plantLine is a present software line of a device whose stored value is the version of one agent reading, with no "differs".
+func plantLine(id, productKey, train, version string) row {
+	return row{"inv_software", map[string]any{"id": id, "product_key": productKey, "line": train, "state": "present", "source": "osquery", "version": version,
+		"pkg_version": nil, "differs": 0, "not_installed_at": nil, "removed_at": nil}}
+}
+
+// plantReading is what an agent reads of line id: version, with no package release, at the device's main address.
+func plantReading(id, version string) row {
+	return row{"inv_software_reading", map[string]any{"software_id": id, "source": "osquery", "instance": "", "version": version, "pkg_version": nil,
+		"packaged": 0, "set_by": nil, "first_seen": "2026-01-01T00:00:00.000Z", "seen_at": "2026-01-01T00:00:00.000Z", "addr_id": ""}}
+}
+
+// deviceRun is a sensor-active check of a device in a lane, in status.
+func deviceRun(id, lane, status, device string) map[string]any {
+	return map[string]any{"id": id, "module": "sensor-active", "lane": lane, "status": status, "subject_kind": "device", "subject_id": device,
+		"ended_at": nil, "waiting_for": nil, "parent_id": nil, "schedule_id": nil}
 }
 
 // liveRun is a run in a lane that is going (status), with no parent and no schedule.
@@ -168,16 +196,18 @@ func TestSelfcheck_EachInvariantCountsABreak(t *testing.T) {
 			}
 			t.Cleanup(func() { _ = db.Close() })
 			p := newPlanter(t, db)
-			plant := func(ctx context.Context, tx *sql.Tx) error {
-				if c.drop != "" {
+			dropped := false
+			plant := func(ctx context.Context, tx *sql.Tx, rows []row) error {
+				if c.drop != "" && !dropped {
 					if _, err := tx.ExecContext(ctx, `DROP INDEX "`+c.drop+`"`); err != nil {
 						return err
 					}
+					dropped = true
 				}
 				if err := p.begin(ctx, tx); err != nil {
 					return err
 				}
-				for _, r := range c.plant {
+				for _, r := range rows {
 					if c.noFK {
 						if err := p.write(ctx, tx, r.table, r.set, "INSERT", 8); err != nil { // depth 8: no referenced rows are written
 							return err
@@ -188,7 +218,14 @@ func TestSelfcheck_EachInvariantCountsABreak(t *testing.T) {
 				}
 				return p.end(ctx, tx)
 			}
-			if c.noFK {
+			plantAll := func(rows []row) {
+				t.Helper()
+				if !c.noFK {
+					if err := db.Write(ctx, func(tx *sql.Tx) error { return plant(ctx, tx, rows) }); err != nil {
+						t.Fatal(err)
+					}
+					return
+				}
 				raw, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: path}).String()) // SQLite's default: foreign keys off
 				if err != nil {
 					t.Fatal(err)
@@ -198,16 +235,21 @@ func TestSelfcheck_EachInvariantCountsABreak(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if err := plant(ctx, tx); err != nil {
+				if err := plant(ctx, tx, rows); err != nil {
 					_ = tx.Rollback()
 					t.Fatal(err)
 				}
 				if err := tx.Commit(); err != nil {
 					t.Fatal(err)
 				}
-			} else if err := db.Write(ctx, func(tx *sql.Tx) error { return plant(ctx, tx) }); err != nil {
-				t.Fatal(err)
 			}
+			if len(c.control) > 0 {
+				plantAll(c.control)
+				if res := selfcheck.Run(ctx, db.Reader(), []selfcheck.Invariant{inv})[0]; res.Err != nil || res.Count != 0 {
+					t.Fatalf("%s (%s): the valid control rows count %d (%v), want 0", name, c.rule, res.Count, res.Err)
+				}
+			}
+			plantAll(c.plant)
 			res := selfcheck.Run(ctx, db.Reader(), []selfcheck.Invariant{inv})[0]
 			if res.Err != nil || res.Count == 0 {
 				t.Errorf("%s (%s): the planted break counts %d (%v), want more than zero", name, c.rule, res.Count, res.Err)

@@ -56,7 +56,9 @@ detail is in its doc comment.
   (a version move is an update with a `version_changed` event). Readings per source are `inv_software_reading`; history is the
   append-only `inv_software_event`. Removal is a state; a removed line is deleted after 400 days.
 - **INV-52** The effective reading is written only by `Resolve` (`resolve.go`), in every write path: a person's entry holds until
-  a reading first seen after it reads a newer release; otherwise the strongest source, newest release among equals.
+  a reading first seen after it reads a newer release; otherwise the strongest source, newest release among equals. The selfcheck
+  `inventory.line_value_is_the_resolvers` recomputes `Resolve` on every line, and `inventory.line_is_the_train_of_its_readings` checks
+  that every reading's release is of its line's train (`selfcheck.go`).
 - **INV-50** `SoftwareLine` is the one read model of a device's software: the device page reads it, and other modules get it
   through `cmd/vedette/wiring.go`, never from the readings.
 - **INV-24** Agent readings (osquery, Wazuh) not reported again for 30 days are deleted (the job counts only while inventory and
@@ -164,7 +166,7 @@ and to the feeds events (re-match: `feeds.vuln.new_kev`, `feeds.vuln.updated`, `
   `content/catalog/kev-products.json` and matches nothing). Optional: agent-intake (`WazuhAgentAddresses`), honeypot (`DecoyIPs`), findings (`DeviceStatuses`).
 - **Used by** (adapters in `cmd/vedette`): findings (`MatchInput`, `SoftwareLines`, `DeviceRefs`, `AssetIDs`), sensor-active
   (`ScanPolicy`, `AddressMap`, `KnownMACs`), scan (`VulnScanPolicy`, `Checks`), feeds (`AddManualDevice`,
-  `DevicesRunning`), agent-intake (`ApproveEnrolled`, `AgentDevice`), response, ai and logs (`DevicesOfKind`), reports, ai,
+  `DevicesRunning`), agent-intake (`ApproveEnrolled`, `AgentDevice`), the selfcheck (`ReadIgnoredIDs`, `ReadDeviceIDs` on its read-only handle), response, ai and logs (`DevicesOfKind`), reports, ai,
   honeypot and the exposure gateway (`AllDevices`), notify and audit names (`DeviceRefs`), core setup (`SetupScope`), the reach
   audit (`Catalog.Curated`).
 

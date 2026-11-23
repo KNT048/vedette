@@ -186,6 +186,28 @@ func TestSoftwareLines_EntryLapsesOnANewerReading(t *testing.T) {
 	}
 }
 
+// A person who sets a version below a scan's reading has seen that reading: the scan reading the same newer release again keeps the
+// entry (it was not first seen after it), and nothing says a reading "not newer" than the entry was kept.
+func TestSoftwareLines_EntryBelowASeenReadingIsNotSaidKept(t *testing.T) {
+	t.Parallel()
+	c := newLineCase(t)
+	c.send(observe.Nmap, nil, ssh("9.6", "tcp/22"))
+	id := c.line("OpenSSH").ID
+	c.e.tick(time.Minute)
+	v := "9.3"
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &v}); err != nil {
+		t.Fatal(err)
+	}
+	c.e.tick(time.Minute)
+	c.send(observe.Nmap, nil, ssh("9.6", "tcp/22"))
+	if l := c.line("OpenSSH"); ver(l) != "9.3" || l.Source != "manual" {
+		t.Fatalf("the reading the person saw keeps the entry: %+v", l)
+	}
+	if n, h := countOf(c.e.auditActions(), "inventory.software_correction_kept"), countOf(c.history(id), "entry_kept"); n != 0 || h != 0 {
+		t.Fatalf("a newer reading is not one that is not newer: audit %v, history %v", c.e.auditActions(), c.history(id))
+	}
+}
+
 // "Not installed" takes the line out of matching (findings read it in NotInstalled) until a source reads something new on it.
 func TestSoftwareLines_NotInstalledHoldsUntilANewReading(t *testing.T) {
 	t.Parallel()

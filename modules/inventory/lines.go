@@ -406,6 +406,9 @@ func keptEntry(ctx context.Context, tx *sql.Tx, l lineRow, lineID string, e Read
 		if r.entry() || r.guess() || r.SeenAt <= e.SeenAt || r.Version == "" || r.Version == e.Version && r.PkgVersion == e.PkgVersion {
 			continue
 		}
+		if newerRelease(r.Version, r.PkgVersion, e.Version, e.PkgVersion) {
+			continue // a newer reading the person saw when they set their version (first seen before it): not "not newer"
+		}
 		if later == nil || r.SeenAt > later.SeenAt {
 			later = r
 		}

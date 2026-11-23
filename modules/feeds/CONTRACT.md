@@ -64,9 +64,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   no version scheme can order is shown, never matched. A record row that states no version is never read in a version scheme (it stays
   the generic comparison's); for a scheme whose vendor states its fixed releases in the description only (DSM: "before 7.2.1-69057-10,
   7.2.2-72806-7"), those releases are the record's rows (`describedRows`), each from the start of its line. A line the description
-  says is not affected ("(7.2.1-69057 is not affected)"), and a line older than every line the list names that the vendor still
-  patches (another CVE names a fix on it beside a fix at or after this record's on a shared line, `lineFixes.patchedWith`), is an
-  empty row ("7.2.1" before "7.2.1": not affected). An older line no such CVE patches gets no row (a question, never a finding).
+  says is not affected ("(7.2.1-69057 is not affected)") is an empty row ("7.2.1" before "7.2.1": not affected). A line older than
+  every line the list names gets no row (a question, never a finding, never "not affected"): a fix the vendor ships on that line for
+  another CVE does not say this one leaves it unaffected.
   NVD's rows of a product NVD writes in the vendor's notation (DSM) are read in the scheme too (`SchemeRangesOf`).
 - **INV-28** A CVSS score is stored per assessor and version and chosen only by `PickCVSS`, banded only by `Severity`.
 - **BRIEF-1** `Store.Brief` is the one read model of a CVE (the CVE page, the finding page, the AI context, MCP). Its product name is

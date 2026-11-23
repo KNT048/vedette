@@ -31,7 +31,7 @@ func TestDSMRanges(t *testing.T) {
 	}
 	desc := "An improper neutralization of special elements used in an SQL command ('SQL injection') vulnerability in Sharing API in Synology " +
 		"DiskStation Manager (DSM) before 7.2.1-69057-10, 7.2.2-72806-7 and 7.3.2-86009-2 allows remote authenticated users to obtain arbitrary sharing files."
-	rows := describedRows(silent, desc, nil)
+	rows := describedRows(silent, desc)
 	var got []string
 	for _, r := range rows {
 		got = append(got, r.StartIncl+" < "+r.EndExcl)
@@ -53,21 +53,17 @@ func TestDSMRanges(t *testing.T) {
 	if v := versionscheme.Judge(installed, spans); v.State != versionscheme.Affected || v.Fix == nil || v.Fix.Label != "7.2.1-69057 Update 10" {
 		t.Fatalf("7.2.1-69057-5 against the description: %+v", v)
 	}
-	// a line older than every line the description names is left out unless the vendor still patches it: then an empty row of the
-	// line says it is not affected (the row of each named line still starts at its line)
+	// a line older than every line the description names gets no row (a question): the row of each named line starts at its line
 	later := "An incorrect authorization vulnerability in Synology DiskStation Manager (DSM) before 7.4.1-90080-1 and 7.3.2-86009-5 allows remote attackers to read specific files."
-	line721, _ := versionscheme.SynologyDSM.Parse("7.2.1")
-	line711, _ := versionscheme.SynologyDSM.Parse("7.1.1")
-	line741, _ := versionscheme.SynologyDSM.Parse("7.4.1")
 	got = nil
-	for _, r := range describedRows(silent, later, []versionscheme.Version{line721, line711, line741}) {
+	for _, r := range describedRows(silent, later) {
 		got = append(got, r.StartIncl+" < "+r.EndExcl)
 	}
-	if want := []string{"7.4.1 < 7.4.1-90080-1", "7.3.2 < 7.3.2-86009-5", "7.2.1 < 7.2.1", "7.1.1 < 7.1.1"}; !slices.Equal(got, want) {
+	if want := []string{"7.4.1 < 7.4.1-90080-1", "7.3.2 < 7.3.2-86009-5"}; !slices.Equal(got, want) {
 		t.Fatalf("described rows %v, want %v", got, want)
 	}
 	// the list ends at the first word that is no release; another product's "before" is not this one's
-	rows = describedRows(silent, "Synology BeeStation OS (BSM) before 1.1-65374 and Synology DiskStation Manager (DSM) before 7.2.1-69057-2 and 7.2.2-72806 and Synology Unified Controller (DSMUC) before 3.1.4-23079 allows remote attackers to execute arbitrary code.", nil)
+	rows = describedRows(silent, "Synology BeeStation OS (BSM) before 1.1-65374 and Synology DiskStation Manager (DSM) before 7.2.1-69057-2 and 7.2.2-72806 and Synology Unified Controller (DSMUC) before 3.1.4-23079 allows remote attackers to execute arbitrary code.")
 	got = nil
 	for _, r := range rows {
 		got = append(got, r.EndExcl)
@@ -76,7 +72,7 @@ func TestDSMRanges(t *testing.T) {
 		t.Fatalf("described rows %v, want %v", got, want)
 	}
 	for _, d := range []string{"", "Synology DiskStation Manager (DSM) allows remote attackers to read files.", "Synology Photos before 1.7.0-0794 allows …"} {
-		if rows := describedRows(silent, d, nil); len(rows) != 0 {
+		if rows := describedRows(silent, d); len(rows) != 0 {
 			t.Errorf("%q: %+v", d, rows)
 		}
 	}

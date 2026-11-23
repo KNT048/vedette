@@ -63,19 +63,19 @@ type BriefFix struct {
 // fixed releases there (versionscheme Described: Synology's records name "DiskStation Manager (DSM)" with no version, and say "Synology
 // DiskStation Manager (DSM) before 7.2.1-69057-10, 7.2.2-72806-7 and 7.3.2-86009-2 allows …"). Each release of the list that the
 // product's scheme reads is the fixed release of its line: one row from the start of that line to it (origin and product of r, kept in
-// the vendor's notation, unaffected from the fix on). A line the description says is not affected ("(7.2.1-69057 is not affected)"),
-// and a line older than every line the list names that the vendor still patches (patched: Synology names the fixed release of every
-// line it maintains, so a record that leaves one out says it is not affected), is an empty row (unaffectedLine). An older line the vendor
-// no longer patches gets no row: the record says nothing about it, and the row without a version stays the generic comparison's (a
-// question). A line between two named ones, or after the last, is left to what the other rows say. Nothing when the description does
-// not name the product right before "before", or names no release the scheme reads; the list ends at the first word that is no release
-// ("and Synology Unified Controller").
-func describedRows(r Range, description string, patched []versionscheme.Version) []Range {
+// the vendor's notation, unaffected from the fix on). A line the description says is not affected ("(7.2.1-69057 is not affected)") is an
+// empty row (unaffectedLine): the vendor's own word. A line older than every line the list names gets no row: a fix the vendor ships
+// on that line for another CVE does not say this CVE leaves it unaffected (Synology patches lines past their support for selected
+// critical flaws only), and the list does not say it is affected either, so the row without a version stays the generic comparison's
+// (a question). A line between two named ones, or after the last, is left to what the other rows say. Nothing when the description
+// does not name the product right before "before", or names no release the scheme reads; the list ends at the first word that is no
+// release ("and Synology Unified Controller").
+func describedRows(r Range, description string) []Range {
 	fixed, unaffected := describedList(r, description)
 	if len(fixed) == 0 {
 		return nil
 	}
-	out := make([]Range, 0, len(fixed)+len(unaffected)+len(patched))
+	out := make([]Range, 0, len(fixed)+len(unaffected))
 	for _, f := range fixed {
 		out = append(out, Range{CVE: r.CVE, Origin: r.Origin, Part: r.Part, Vendor: r.Vendor, Product: r.Product, CPE: r.CPE, StartIncl: f.Train,
 			EndExcl: f.text, Fixed: f.text, VersionType: VendorNotation + "text", DefaultStatus: DefaultUnaffected, Platforms: []string{}})
@@ -86,19 +86,6 @@ func describedRows(r Range, description string, patched []versionscheme.Version)
 	}
 	for _, l := range unaffected {
 		if t := versionscheme.LineStart(l).Train; !named[t] {
-			named[t] = true
-			out = append(out, unaffectedLine(r, l))
-		}
-	}
-	for _, l := range patched {
-		older := true // older than every line the list names
-		for _, f := range fixed {
-			if c, ok := versionscheme.Compare(versionscheme.LineStart(l), versionscheme.LineStart(f.Version)); !ok || c >= 0 {
-				older = false
-				break
-			}
-		}
-		if t := versionscheme.LineStart(l).Train; older && !named[t] {
 			named[t] = true
 			out = append(out, unaffectedLine(r, l))
 		}

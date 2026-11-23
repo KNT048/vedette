@@ -510,8 +510,7 @@ OR r.part || ':' || r.vendor || ':' || r.product IN (SELECT value FROM json_each
 	if err != nil {
 		return nil, err
 	}
-	var fixes map[string]lineFixes // read once, when a row states no version
-	stated := map[string]bool{}    // CVE and product whose stated lines are added
+	stated := map[string]bool{} // CVE and product whose stated lines are added
 	for _, r := range worded {
 		if recordBounded(r) {
 			if k := r.CVE + "|" + r.Part + ":" + r.Vendor + ":" + r.Product; !stated[k] {
@@ -520,16 +519,7 @@ OR r.part || ':' || r.vendor || ':' || r.product IN (SELECT value FROM json_each
 			}
 			continue
 		}
-		if fixes == nil {
-			if fixes, err = s.describedFixes(ctx); err != nil {
-				return nil, err
-			}
-		}
-		var patched []versionscheme.Version
-		if p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product); ok {
-			patched = fixes[p.Key].patchedWith(r.CVE)
-		}
-		out = append(out, describedRows(r, desc[r.CVE], patched)...)
+		out = append(out, describedRows(r, desc[r.CVE])...)
 	}
 	slices.SortStableFunc(out, func(a, b Range) int { return strings.Compare(a.CVE, b.CVE) })
 	return out, nil
@@ -591,6 +581,17 @@ JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product
 func SchemeProduct(r Range) bool {
 	p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
 	return ok && p.Scheme != ""
+}
+
+// describedProduct says r names a product whose vendor may state its fixed releases in a record's description (versionscheme
+// Described: Synology's DSM).
+func describedProduct(r Range) bool {
+	p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
+	if !ok || p.Scheme == "" {
+		return false
+	}
+	s, ok := versionscheme.Lookup(p.Scheme)
+	return ok && s.Described
 }
 
 // nvdNotationCPEs is "part:vendor:product" of every NVD name of a product whose scheme NVD writes in the vendor's notation

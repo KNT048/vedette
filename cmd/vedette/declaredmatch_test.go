@@ -47,8 +47,8 @@ func TestDeclaredDevices_GetTheirCVEsFindings(t *testing.T) {
 VALUES ('CVE-2026-4036', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '', '', '', '', 'affected')`)
 				return err
 			},
-			// DSM: a record whose description names only later lines than the device's, while a record of the same batch names a fix
-			// of the device's line: Synology still patches that line, so leaving it out means it is not affected
+			// DSM: two records of one batch: one names a fix of the device's line, the other names only later lines. The fix on the
+			// device's line for one CVE says nothing about the other: that one stays a question, never a finding
 			func() error { return seedNVD(ctx, tx, "CVE-2026-176954", recent, 0) },
 			func() error {
 				_, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET nvd_status = 'Received', description = ? WHERE cve = 'CVE-2026-176954'`,
@@ -158,7 +158,10 @@ VALUES ('CVE-2026-124993', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '
 				t.Errorf("%s: open findings %v, must not have %s", c.device, got, cve)
 			}
 		}
-		if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve IN ('CVE-2024-10441', 'CVE-2026-4036', 'CVE-2026-124993', 'CVE-2026-176954', 'CVE-2026-123007', 'CVE-2026-114938', 'CVE-2025-22225')`, c.device); q != 0 {
+		if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve = 'CVE-2026-124993'`, c.device); (c.device == nas || c.device == nasPicked) && q == 0 {
+			t.Errorf("%s: no question about a CVE whose record names only later DSM lines", c.device)
+		}
+		if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve IN ('CVE-2024-10441', 'CVE-2026-4036', 'CVE-2026-176954', 'CVE-2026-123007', 'CVE-2026-114938', 'CVE-2025-22225')`, c.device); q != 0 {
 			t.Errorf("%s: %d questions about CVEs whose record has versions", c.device, q)
 		}
 	}

@@ -93,36 +93,32 @@ const (
 	statedNotTwo   = "An improper limitation vulnerability in Synology DiskStation Manager (DSM) before 7.2.2-72806-5 and 7.3.1-86003-1 (7.1.1-42962 and 7.2.1-69057 are not affected) allows remote attackers to read files."
 )
 
-// A record naming only later DSM lines than the device's says nothing about the device's line by itself. Synology names the fixed
-// release of every line it still patches: when another record names a fix on the device's line alongside a fix as late as this record's
-// (the same batch or a later one), the line is still patched and this record leaving it out means it is not affected. A line no such
-// record patches (out of support) gets no word: a question, never a finding. A line the record says outright is not affected is not.
+// A record naming only later DSM lines than the device's says nothing about the device's line: a question, never a finding, and
+// never "not affected" because another record names a fix on that line (Synology fixes selected flaws only on a line past its
+// support, so a fix there for one CVE does not say another CVE leaves the line alone). A line the record says outright is not
+// affected is not; a named line is judged by its own fix.
 func TestSchemeRangesOf_DSMLineTheRecordLeavesOut(t *testing.T) {
 	t.Parallel()
 	s := seedDSM(t, [2]string{"CVE-2026-124993", laterLinesOnly}, [2]string{"CVE-2026-76954", sameBatch}, [2]string{"CVE-2024-5401", earlierBatch},
 		[2]string{"CVE-2025-13392", statedNot}, [2]string{"CVE-2025-15716", statedNotTwo})
-	alone := seedDSM(t, [2]string{"CVE-2026-124993", laterLinesOnly}, [2]string{"CVE-2024-5401", earlierBatch})
 	for _, c := range []struct {
-		s             *Store
 		cve, ver, say string
 	}{
-		{s, "CVE-2026-124993", "7.2.1-69057-5", "not affected"}, // 7.2.1 patched in the same batch
-		{s, "CVE-2026-124993", "7.2.2-72806-3", "not affected"}, // and 7.2.2
-		{s, "CVE-2026-124993", "7.1.1-42962-5", ""},             // 7.1.1 patched only with an earlier 7.2.1 fix
-		{s, "CVE-2026-124993", "7.3.1-86003", ""},               // 7.3.1 never patched alongside 7.3.2 or 7.4.1
-		{s, "CVE-2026-124993", "7.3.2-86009-4", "affected, fixed in 7.3.2-86009 Update 5"},
-		{s, "CVE-2026-76954", "7.2.1-69057-5", "affected, fixed in 7.2.1-69057 Update 13"}, // the fix of the device's own line
-		{s, "CVE-2026-76954", "7.2.2-72806-3", "affected, fixed in 7.2.2-72806 Update 10"},
-		{s, "CVE-2026-76954", "7.1.1-42962-5", ""},
-		{s, "CVE-2024-5401", "7.2.1-69057-5", "not affected"},
-		{s, "CVE-2025-13392", "7.2.1-69057-5", "not affected"}, // "(7.2.1-69057 is not affected)"
-		{s, "CVE-2025-13392", "7.2.2-72806-3", "affected, fixed in 7.2.2-72806 Update 5"},
-		{s, "CVE-2025-15716", "7.2.1-69057-5", "not affected"}, // "(7.1.1-42962 and 7.2.1-69057 are not affected)"
-		{s, "CVE-2025-15716", "7.1.1-42962-5", "not affected"},
-		{alone, "CVE-2026-124993", "7.2.1-69057-5", ""}, // no record patches 7.2.1 alongside 7.3.2-86009-5
-		{alone, "CVE-2026-124993", "7.1.1-42962-5", ""},
+		{"CVE-2026-124993", "7.2.1-69057-5", ""}, // a fix of 7.2.1 in the same batch is no word about this CVE
+		{"CVE-2026-124993", "7.2.2-72806-3", ""},
+		{"CVE-2026-124993", "7.1.1-42962-5", ""},
+		{"CVE-2026-124993", "7.3.1-86003", ""},
+		{"CVE-2026-124993", "7.3.2-86009-4", "affected, fixed in 7.3.2-86009 Update 5"},
+		{"CVE-2026-76954", "7.2.1-69057-5", "affected, fixed in 7.2.1-69057 Update 13"}, // the fix of the device's own line
+		{"CVE-2026-76954", "7.2.2-72806-3", "affected, fixed in 7.2.2-72806 Update 10"},
+		{"CVE-2026-76954", "7.1.1-42962-5", ""},
+		{"CVE-2024-5401", "7.2.1-69057-5", "not affected"},
+		{"CVE-2025-13392", "7.2.1-69057-5", "not affected"}, // "(7.2.1-69057 is not affected)"
+		{"CVE-2025-13392", "7.2.2-72806-3", "affected, fixed in 7.2.2-72806 Update 5"},
+		{"CVE-2025-15716", "7.2.1-69057-5", "not affected"}, // "(7.1.1-42962 and 7.2.1-69057 are not affected)"
+		{"CVE-2025-15716", "7.1.1-42962-5", "not affected"},
 	} {
-		if got := vendorWord(t, c.s, c.cve, c.ver); got != c.say {
+		if got := vendorWord(t, s, c.cve, c.ver); got != c.say {
 			t.Errorf("%s on %s: %q, want %q", c.cve, c.ver, got, c.say)
 		}
 	}

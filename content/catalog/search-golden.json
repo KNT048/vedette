@@ -1989,6 +1989,52 @@
     "cisco|pan-os"
    ],
    "kev_count": 0
+  },
+  {
+   "vendor": "Automattic",
+   "product": "WordPress",
+   "kev": [
+    "automattic|wordpress"
+   ],
+   "kev_count": 0
+  },
+  {
+   "vendor": "Cisco",
+   "product": "switch",
+   "kev": [
+    "cisco|switch"
+   ],
+   "kev_count": 0
+  },
+  {
+   "vendor": "Apache",
+   "product": "web",
+   "kev": [
+    "apache|web"
+   ],
+   "kev_count": 0
+  },
+  {
+   "vendor": "Amazon",
+   "product": "openjdk",
+   "kev": [
+    "oracle|java runtime environment (jre)",
+    "oracle|java se",
+    "oracle|java se and jrockit",
+    "oracle|java se jdk and jre"
+   ],
+   "kev_count": 13
+  },
+  {
+   "vendor": "Red Hat",
+   "product": "jdk",
+   "kev": [
+    "oracle|java runtime environment (jre)",
+    "oracle|java se",
+    "oracle|java se and jrockit",
+    "oracle|java se jdk and jre"
+   ],
+   "kev_count": 13
   }
  ]
 }

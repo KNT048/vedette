@@ -201,16 +201,18 @@ export function operatingSystemsOf(text: string): string[] {
 }
 
 /** A product the user typed (vendor + product): matches the exact pair in KEV if there is one, else the curated product of that name and
- * vendor, else that vendor's curated product known by that name ("Red Hat" "OpenJDK" is Red Hat's build of OpenJDK: Java, as the server
- * says), else its own key. Never another maker's product ("Acme" "FortiOS" is not Fortinet's) and never every product of the vendor: a
+ * vendor, else that vendor's curated product known by that word when the word alone is a product with the same exploited keys ("Red Hat"
+ * "OpenJDK" is Red Hat's build of OpenJDK: Java; "Cisco" "switch" is no product, "Automattic" "WordPress" is not WooCommerce), else its
+ * own key. As the Go catalog's custom. Never another maker's product ("Acme" "FortiOS" is not Fortinet's) and never every product of the vendor: a
  * product nobody listed is not "exploited". */
 export function customEntry(vendor: string, product: string): CatalogEntry {
   const v = fold(vendor)
   const p = fold(product)
   const exact = KEV.filter((r) => fold(r.vendor) === v && fold(r.product) === p).map(kevKey)
   const byName = findCatalog(product)
+  const sameKeys = (a: CatalogEntry, b: CatalogEntry) => [...a.kev].sort().join('\n') === [...b.kev].sort().join('\n')
   const named = curated.find((e) => fold(e.vendor) === v && fold(e.product) === p) ?? (byName?.curated && fold(byName.vendor) === v ? byName : undefined) ??
-    curated.find((e) => fold(e.vendor) === v && HAY.get(e.id)!.al.includes(p))
+    (byName?.curated ? curated.find((e) => fold(e.vendor) === v && HAY.get(e.id)!.al.includes(p) && sameKeys(e, byName)) : undefined)
   const kev = exact.length ? exact : named ? [...named.kev] : [`${vendor}|${product}`.toLowerCase()]
   return {
     id: '', display: `${vendor} ${product}`.trim(), category: OTHER, hint: `${vendor}, ${product}`, vendor, product, kind: 'unknown', kev, aliases: [],

@@ -196,8 +196,9 @@ describe('reports: the security report (S-REP-1)', () => {
     await userEvent.click(within(table).getAllByRole('link', { name: /^Open the report sent / })[0]!)
     const doc = await report()
     expect(within(doc).getByText(/^Last 7 days · /)).toBeInTheDocument() // as sent, not today's 30 days
-    // the page says what the e-mail carried (its summary and this link), not "exactly as it was sent"
-    expect(screen.getByText(/^The report as it stood when it was sent to director@acme\.example, it@acme\.example\. The e-mail carried its summary and a link to this page\.$/)).toBeInTheDocument()
+    // the page says what the e-mail carried (its summary), not "exactly as it was sent", and no link the mail may not have had (a box
+    // with no web address sends none)
+    expect(screen.getByText(/^The report as it stood when it was sent to director@acme\.example, it@acme\.example\. The e-mail carried only its summary\.$/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/reports')
     expect(screen.queryByText('nav.reports')).toBeNull()
     expect(doc.closest('.print-report')).not.toBeNull()

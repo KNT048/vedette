@@ -37,7 +37,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   closes an open finding as `patched` when something changed on the device (`version_moved`, `software_removed`, `distro_fixed`,
   `scan_clear`) and as `not_relevant` when only data changed (`data_corrected`) or a person said the software is not installed
   (`not_installed`). When the match's proof explains Vedette's close (the distribution's fixed package release, its word on the package),
-  the proof's sentence is the closing note, so the handled line says the real reason. A safe check's or a person's confirmation is undone only by a newer reading of the device, never by range data.
+  the proof's sentence is the closing note, so the handled line says the real reason; the proof is that of the finding's own CVE and
+  software line, so of two lines of one product each closes with its own sentence. A safe check's or a person's confirmation is undone only by a newer reading of the device, never by range data.
 - **M-4 Invariants.** Held by database CHECKs, `Finding.Validate` and `vedette selfcheck`: open exactly when there is no
   resolution, `via`, `resolved_by` or `resolved_at`; accepted exactly with a last day; `version_moved` exactly with two different
   versions; every open vocabulary value is one the Go type lists; every open finding's `fix_key` names its stored fix (`findings.fix_key_names_stored_fix`).
@@ -68,7 +69,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen
   draws one status the same way; `View.ReasonsLine` and `View.VerificationLine` are those lines as text for notices, mails and reports.
   By device and By fix group the same open rows in SQL, so their totals always agree. The Needs your input queue is computed from
-  rows, never stored; a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).
+  rows, never stored, and searched like the other lists (`q`: the device's name or address, the software, the CVE id); a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).
 
 ## Invariants
 

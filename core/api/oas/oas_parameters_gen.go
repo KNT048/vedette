@@ -8640,12 +8640,22 @@ func decodeFindingsGetFindingsIDViewParams(args [1]string, argsEscaped bool, r *
 
 // FindingsGetFindingsInputParams is parameters of findings_get_findings_input operation.
 type FindingsGetFindingsInputParams struct {
+	Q      OptString `json:",omitempty,omitzero"`
 	Device OptString `json:",omitempty,omitzero"`
 	Offset OptString `json:",omitempty,omitzero"`
 	Limit  OptString `json:",omitempty,omitzero"`
 }
 
 func unpackFindingsGetFindingsInputParams(packed middleware.Parameters) (params FindingsGetFindingsInputParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "q",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Q = v.(OptString)
+		}
+	}
 	{
 		key := middleware.ParameterKey{
 			Name: "device",
@@ -8678,6 +8688,74 @@ func unpackFindingsGetFindingsInputParams(packed middleware.Parameters) (params 
 
 func decodeFindingsGetFindingsInputParams(args [0]string, argsEscaped bool, r *http.Request) (params FindingsGetFindingsInputParams, _ error) {
 	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: q.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "q",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotQVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotQVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Q.SetTo(paramsDotQVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Q.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     200,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "q",
+			In:   "query",
+			Err:  err,
+		}
+	}
 	// Decode query: device.
 	if err := func() error {
 		cfg := uri.QueryParameterDecodingConfig{

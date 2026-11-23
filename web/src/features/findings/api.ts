@@ -82,8 +82,8 @@ export const useFixCards = (f: { q?: string; status?: string }, page: Page, enab
   const path = `/findings/fixes${qs({ q: f.q, status: f.status, offset: page.offset, limit: page.limit })}`
   return useQuery({ queryKey: model('fixes', path), queryFn: () => api.get<FixCards>(path), enabled, placeholderData: keepPreviousData })
 }
-export const useInputList = (f: { device?: string }, page: Page, enabled = true) => {
-  const path = `/findings/input${qs({ device: f.device, offset: page.offset, limit: page.limit })}`
+export const useInputList = (f: { q?: string; device?: string }, page: Page, enabled = true) => {
+  const path = `/findings/input${qs({ q: f.q, device: f.device, offset: page.offset, limit: page.limit })}`
   return useQuery({ queryKey: model('input', path), queryFn: () => api.get<InputList>(path), enabled, placeholderData: keepPreviousData })
 }
 /** The questions answered "not affected": each can be asked again (useUnanswer). */

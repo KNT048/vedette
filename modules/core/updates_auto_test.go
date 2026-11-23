@@ -193,6 +193,30 @@ func TestUpdateAutoInstallsInTheWindowAsSystem(t *testing.T) {
 	}
 }
 
+// A box whose host never looked for operating system updates (nobody pressed Check now under Operating system) still
+// installs the Vedette release on offer in automatic mode: no OS check means no reboot is scheduled, not an error that
+// stops every tick.
+func TestUpdateAutoInstallsOnABoxThatNeverCheckedTheOS(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	fh.mu.Lock()
+	fh.noOSCheck = true
+	fh.mu.Unlock()
+	wantOK(t, e.admin.patch("/core/updates", map[string]any{"mode": "auto"}), 200)
+	fh.hold["start core"] = true
+	if err := e.handler.UpdateTick(t.Context()); err != nil {
+		t.Fatalf("tick on a box without an OS check: %v", err)
+	}
+	waitCall(t, fh, "start core")
+	if run := runOf(t, e.admin.get("/core/updates")); run["status"] != "running" || run["user"] != "system" || run["to"] != "1.4.0" {
+		t.Fatalf("automatic run = %v", run)
+	}
+	fh.release("start core")
+	if run := endedRun(t, e); run["status"] != "done" {
+		t.Fatalf("automatic run at the end = %v", run)
+	}
+}
+
 // A check that fails installs nothing, and while the last good check is older than one interval nothing installs either:
 // a held-back index must not hide a revocation (§13).
 func TestUpdateAutoNeedsAFreshGoodCheck(t *testing.T) {

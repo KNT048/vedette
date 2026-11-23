@@ -2,6 +2,7 @@ package notify_test
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"runtime"
 	"strings"
@@ -135,6 +136,43 @@ func TestContract_ZaloQRSignInThenSave(t *testing.T) {
 	in.Secret = zaloSession // a pasted session (API only): the signed-in account's name no longer applies
 	if c := e.save(channel.ZaloPersonal, in); c.Fields["account"] != "" {
 		t.Errorf("account after a pasted session: %+v", c.Fields)
+	}
+}
+
+// The sign-in is in the audit log before an administrator can see it: whoever sees "signed in" and saves finds it there,
+// also when the database is busy at that moment (another write holds the one writer).
+func TestZaloSignInIsAuditedBeforeItShows(t *testing.T) {
+	e := newEnv(t)
+	f := newFakeQR()
+	f.finish = channel.ZaloSignedIn{Session: secrets.NewValue(zaloSession), Name: "Vedette Box"}
+	useQR(e, f, nil)
+	const admin = "it@acme.example" // any administrator
+	if _, err := e.svc.StartZaloLogin(e.ctx(), admin); err != nil {
+		t.Fatal(err)
+	}
+	f.scan <- "Phone owner"
+	waitLogin(t, e, admin, "scanned")
+
+	held, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	free := func() { once.Do(func() { close(release) }) }
+	t.Cleanup(free)
+	go func() {
+		_ = e.db.Write(context.Background(), func(*sql.Tx) error { close(held); <-release; return nil })
+	}()
+	<-held
+	audited := `SELECT COUNT(*) FROM core_audit WHERE action = 'notify.zalo_login' AND detail = 'QR sign-in: signed in as Vedette Box'`
+	f.confirm <- nil
+	// While the writer is held the audit row cannot be written, so the page must not show the sign-in yet.
+	for end := time.Now().Add(500 * time.Millisecond); time.Now().Before(end); runtime.Gosched() {
+		if e.svc.ZaloLoginState(admin).State == "signed_in" {
+			t.Fatalf("the page shows the sign-in while its audit row is not written (rows: %d)", e.count(audited))
+		}
+	}
+	free()
+	waitLogin(t, e, admin, "signed_in")
+	if n := e.count(audited); n != 1 {
+		t.Fatalf("audit rows of the sign-in when it shows: %d, want 1", n)
 	}
 }
 

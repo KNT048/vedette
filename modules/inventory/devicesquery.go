@@ -156,10 +156,10 @@ func macFragment(q string) (string, bool) {
 	return strings.Join(bytes, ":"), true
 }
 
-// where is the WHERE clause on inv_asset a that keeps the devices of f, and its arguments. sources, counts and risks are every device's
-// sources, finding counts and risk markers (deviceSources, findingCounts, risks). Sets of ids go in as one JSON argument (json_each),
+// where is the WHERE clause on inv_asset a that keeps the devices of f, and its arguments. sources and risks are every device's
+// sources and statuses (deviceSources, risks); has_findings reads the open findings from the statuses. Sets of ids go in as one JSON argument (json_each),
 // never as text.
-func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, risks map[string]*Risk) (string, []any) {
+func (f DeviceFilter) where(sources map[string][]string, risks map[string]*Risk) (string, []any) {
 	var conds []string
 	var args []any
 	add := func(cond string, arg any) { conds, args = append(conds, cond), append(args, arg) }
@@ -195,10 +195,10 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 		}
 		add("a.id IN (SELECT value FROM json_each(?))", jsonList(ids))
 	}
-	if f.HasFindings != nil {
+	if f.HasFindings != nil { // open findings: the device has a status of one of the five layers (needs_input alone is no finding)
 		var ids []string
-		for id, n := range counts {
-			if n > 0 {
+		for id, r := range risks {
+			if r != nil && r.Code != RiskNeedsInput {
 				ids = append(ids, id)
 			}
 		}

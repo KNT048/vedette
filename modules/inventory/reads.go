@@ -266,16 +266,16 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 		}
 	}
 	risks, riskOK := map[string]*Risk{}, true
-	if withRisk {
+	if withRisk || f.HasFindings != nil { // has_findings reads the open findings from the same statuses
 		risks, riskOK = s.risks(ctx)
 	}
-	if withRisk && !riskOK && len(f.Risks) > 0 { // never "every device" for a risk filter (#949)
+	if !riskOK && (len(f.Risks) > 0 || f.HasFindings != nil) { // never "every device" for a risk or findings filter (#949)
 		return nil, false, riskUnavailable()
 	}
 	if !withRisk {
 		f.Risks = nil
 	}
-	where, args := f.where(sources, counts, risks)
+	where, args := f.where(sources, risks)
 	if items, err = s.loadDevices(ctx, db, where, limit, args...); err != nil {
 		return nil, false, err
 	}
@@ -292,7 +292,7 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	for i := range items {
 		d := &items[i]
 		d.FindingsCount = counts[d.ID]
-		if !d.IsBox { // the box's own updates are in To fix; the box is never marked
+		if withRisk && !d.IsBox { // the box's own updates are in To fix; the box is never marked
 			d.Risk = risks[d.ID]
 		}
 		d.Summary = summaryOf(d)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -267,5 +268,44 @@ func TestContract_TheBoxIsNeverMarked(t *testing.T) {
 	f, _ := inventory.ParseDeviceSearch("", "", "", "", "", "", "none", "")
 	if l, _ := e.svc.DevicesPage(e.ctx(), f); len(l.Items) != 1 || !l.Items[0].IsBox {
 		t.Errorf("risk=none: %+v", l.Items)
+	}
+}
+
+// has_findings keeps the devices with open findings, read from their status: a device whose findings are all closed
+// (findings_count still counts them) or that only waits for an answer has none. Statuses unreadable: 503, never every device.
+func TestContract_HasFindingsIsOpenFindings(t *testing.T) {
+	t.Parallel()
+	src := &countingRisk{m: fakeRisk{}}
+	e := newEnv(t, withRisk(src))
+	open, input, closed := riskDevices(e)
+	src.m[open] = inventory.Risk{Code: "exploited", Count: 1}
+	src.m[input] = inventory.Risk{Code: "needs_input", Count: 1}
+	e.findg[open], e.findg[input], e.findg[closed] = 1, 2, 3 // every state counts in findings_count; closed's are all patched
+	ids := func(v string) []string {
+		f, err := inventory.ParseDeviceSearch("", "", v, "", "", "", "", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		l, err := e.svc.DevicesPage(e.ctx(), f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, d := range l.Items {
+			out = append(out, d.ID)
+		}
+		return out
+	}
+	if got := ids("true"); len(got) != 1 || got[0] != open {
+		t.Errorf("has_findings=true = %v, want only %s", got, open)
+	}
+	if got := ids("false"); len(got) != 2 || slices.Contains(got, open) {
+		t.Errorf("has_findings=false = %v, want the other two", got)
+	}
+	src.err = errors.New("findings is down")
+	f, _ := inventory.ParseDeviceSearch("", "", "true", "", "", "", "", "")
+	var ae *apierr.Error
+	if _, err := e.svc.DevicesPage(e.ctx(), f); !errors.As(err, &ae) || ae.Status != 503 || ae.Code != "risk_unavailable" {
+		t.Errorf("has_findings while the statuses fail: %v, want 503 risk_unavailable", err)
 	}
 }

@@ -15,9 +15,9 @@ function row(p: Partial<DeviceRow> & { id: string }): DeviceRow {
 }
 const SW = row({ id: 'sw', hostname: 'SW-CORE', ip: '192.168.1.3', mac: 'F8:7B:20:30:33:03', kind: 'switch', kind_source: 'snmp', vendor: obs('Cisco', 'snmp'), model: obs('CBS350-24P', 'snmp'), sources: ['passive', 'snmp'] })
 const SRV = row({ id: 'srv', hostname: 'SRV-AD', ip: '192.168.1.10', kind: 'server', vendor: obs('Dell', 'passive'), os: obs('Windows Server 2016', 'agent'),
-  software_count: 1, findings_count: 2, sources: ['passive', 'osquery'] })
-const CAM = row({ id: 'cam', hostname: 'CAM-GATE', ip: '192.168.2.11', kind: 'camera', fragile: true, service_count: 2, vendor: obs('Hikvision', 'passive'), approved_at: '2026-11-16T08:00:00Z', sources: ['passive'] })
-const MAN = row({ id: 'man', hostname: 'branch-fw', ip: '192.168.3.1', origin: 'manual', kind: 'firewall', kind_source: 'manual', sources: ['manual'] })
+  software_count: 1, findings_count: 2, risk: { code: 'exploited', count: 1 }, sources: ['passive', 'osquery'] })
+const CAM = row({ id: 'cam', hostname: 'CAM-GATE', ip: '192.168.2.11', kind: 'camera', fragile: true, findings_count: 3, risk: null, service_count: 2, vendor: obs('Hikvision', 'passive'), approved_at: '2026-11-16T08:00:00Z', sources: ['passive'] })
+const MAN = row({ id: 'man', hostname: 'branch-fw', ip: '192.168.3.1', origin: 'manual', findings_count: 1, risk: { code: 'needs_input', count: 1 }, kind: 'firewall', kind_source: 'manual', sources: ['manual'] })
 const ALL = [SW, SRV, CAM, MAN]
 // what GET /inventory/devices?software= answers: the lines of each device that hold the words
 const OFFICE = { id: 's1', display: 'Microsoft Office', vendor: 'Microsoft', product: 'Office', version: '2019', kev: [], source: 'agent' as const, confidence: 1, not_installed: false }
@@ -45,6 +45,7 @@ describe('Devices search (#849)', () => {
   })
   it('fragile, has:findings, software:, approved:24h', () => {
     expect(ids('fragile')).toEqual(['cam'])
+    // open findings only: the camera's findings are all closed, the firewall only waits for an answer
     expect(ids('has:findings')).toEqual(['srv'])
     expect(ids('software:office')).toEqual(['srv'])
     expect(ids('software:excel')).toEqual([]) // the server's lines are read again: a stale answer never keeps a row

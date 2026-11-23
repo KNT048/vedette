@@ -113,7 +113,7 @@ func TestDeviceSourcesAgentRowThroughTheWiring(t *testing.T) {
 	// a token made for the other row follows it into this device when a person merges the two, and is let go when it is deleted
 	_, v = s.do("POST", "/inventory/agents/tokens", "admin", `{"name":"files-41","device_id":"`+other+`"}`)
 	otherTok, _ := v["token"].(map[string]any)
-	if code, v := s.do("POST", "/inventory/devices/"+id+"/merge", "admin", `{"from":"`+other+`"}`); code != 200 {
+	if code, v := s.do("POST", "/inventory/devices/"+id+"/merge", "admin", `{"from":["`+other+`"]}`); code != 200 {
 		t.Fatalf("merge: %d %v", code, v)
 	}
 	if got := tokenDevice(otherTok["id"].(string)); got != id {

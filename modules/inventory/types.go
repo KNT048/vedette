@@ -259,6 +259,8 @@ type ServiceRow struct {
 	Detail     *string `json:"detail,omitempty"` // what the service said about the device besides product and version
 	Source     string  `json:"source"`
 	Confidence float64 `json:"confidence"`
+	// Address is the other address of the device a scan found the port on (INV-57); nil for the main address and an agent's list.
+	Address *string `json:"address,omitempty"`
 }
 
 // AssetCore is what a device row and a device detail share. The JSON names are the wire names.
@@ -361,6 +363,8 @@ type Detail struct {
 	ManualAt *string `json:"manual_at"`
 	// DetectedDiffers are the fields where a trusted source reads something other than what a person entered (INV-47); empty when none.
 	DetectedDiffers []Differs `json:"detected_differs"`
+	// Addresses are every address of the device, the main one first (INV-57).
+	Addresses []Address `json:"addresses"`
 }
 
 // Counts are the numbers behind the filter chips of the device list.

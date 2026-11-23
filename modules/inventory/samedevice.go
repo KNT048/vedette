@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/store"
 )
@@ -28,9 +29,11 @@ const maxOffered = 5
 
 // PossibleSame is another device that may be the same machine as the one read: GET /inventory/devices/{id} possible_same.
 type PossibleSame struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Why      string `json:"why"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Why  string `json:"why"`
+	// Reason is what the two share, as a code the page may key on: one of the Reason* constants.
+	Reason   string `json:"reason"`
 	Approved bool   `json:"approved"`
 	// Ignored: a person ignored the other device; the Merge dialog says which watch state the kept device ends with.
 	Ignored  bool   `json:"ignored"`
@@ -47,10 +50,22 @@ type SameRef struct {
 
 // SamePair is one pair of GET /inventory/possible-same.
 type SamePair struct {
-	A   SameRef `json:"a"`
-	B   SameRef `json:"b"`
-	Why string  `json:"why"`
+	A      SameRef `json:"a"`
+	B      SameRef `json:"b"`
+	Why    string  `json:"why"`
+	Reason string  `json:"reason"`
 }
+
+// The reasons two devices are offered as possibly the same machine (PossibleSame.Reason), strongest first. An open vocabulary: the
+// page shows Why, and may key an icon or a hint on the code.
+const (
+	ReasonSameMAC          = "same_mac"            // both were seen with one MAC, never online at once
+	ReasonMACBlock         = "mac_block"           // burned-in MACs of one maker's block on network gear: the interfaces of one box (INV-57)
+	ReasonSameNameCards    = "same_name_cards"     // one host name on two cards with burned-in MACs: Wi-Fi and cable, two ports (INV-57)
+	ReasonRotatingName     = "rotating_name"       // one name, a private Wi-Fi address, never online at once
+	ReasonRotatingModel    = "rotating_model"      // one stated model, a private Wi-Fi address, never online at once
+	ReasonMACAtAddedDevice = "mac_at_added_device" // a MAC seen at the address of a device added by hand
+)
 
 // SamePairs is GET /inventory/possible-same.
 type SamePairs struct {
@@ -218,6 +233,19 @@ func sameCandidates(ctx context.Context, q *sql.Tx, only string) ([]string, erro
 			}
 		}
 	}
+	for _, m := range r.burned { // the rows with a burned-in MAC of the same block (byBlock), read through the MAC indexes
+		lo, hi := m[:14], m[:14]+";"
+		byBlock, err := candidates(ctx, q, `SELECT id FROM inv_asset WHERE is_box = 0 AND (mac >= ?1 AND mac < ?2
+			OR id IN (SELECT asset_id FROM inv_observation WHERE field = 'mac' AND value >= ?1 AND value < ?2))`, lo, hi)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range byBlock {
+			if !slices.Contains(ids, id) {
+				ids = append(ids, id)
+			}
+		}
+	}
 	return ids, nil
 }
 
@@ -263,6 +291,7 @@ const (
 	byName
 	byModel
 	byAddress // a MAC seen at the address of a hand-added row known by that address only (#829, n71), and a row carrying that MAC
+	byBlock   // burned-in MACs from one block of a maker (the first five bytes): the interfaces of one router or firewall (INV-57)
 )
 
 // samePairs lists the pairs of rows that may be one machine, only the pairs of device only when it is not "". A pair shares
@@ -299,7 +328,7 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 	for _, p := range sep {
 		separate[p] = true
 	}
-	groups := [4]map[string][]*sameRow{{}, {}, {}, {}}
+	groups := [5]map[string][]*sameRow{{}, {}, {}, {}, {}}
 	ids := make([]string, 0, len(rows))
 	for id := range rows {
 		ids = append(ids, id)
@@ -320,6 +349,11 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 		}
 		for _, m := range r.atAddr {
 			groups[byAddress][m] = append(groups[byAddress][m], r)
+		}
+		for _, m := range r.burned {
+			if b := m[:14]; !slices.Contains(groups[byBlock][b], r) {
+				groups[byBlock][b] = append(groups[byBlock][b], r)
+			}
 		}
 	}
 	for m, g := range groups[byAddress] { // with the rows that carry the MAC
@@ -349,18 +383,19 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 			for i, x := range members {
 				for _, y := range members[i+1:] {
 					key := [2]string{min(x.id, y.id), max(x.id, y.id)}
-					// a pair another signal tried may still share a hand-added address: that has rules of its own (addressWhy)
-					if tried[key] && (signal(sig) != byAddress || offered[key]) || separate[key] || only != "" && x.id != only && y.id != only || !recent(x) && !recent(y) {
+					// a pair another signal tried may still share a hand-added address or a MAC block: those have rules of their own
+					// (addressWhy, cardsWhy)
+					if tried[key] && (signal(sig) != byAddress && signal(sig) != byBlock || offered[key]) || separate[key] || only != "" && x.id != only && y.id != only || !recent(x) && !recent(y) {
 						continue
 					}
 					tried[key] = true
-					why, err := pairWhy(ctx, tx, x, y, signal(sig), k, now)
+					why, reason, err := pairWhy(ctx, tx, x, y, signal(sig), k, now)
 					if err != nil {
 						return nil, err
 					}
 					if why != "" {
 						offered[key] = true
-						out = append(out, samePair{x: x, y: y, why: why})
+						out = append(out, samePair{x: x, y: y, why: why, reason: reason})
 					}
 				}
 			}
@@ -374,9 +409,9 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 
 // samePair is one pair samePairs found.
 type samePair struct {
-	x, y *sameRow
-	a, b SameRef
-	why  string
+	x, y        *sameRow
+	a, b        SameRef
+	why, reason string
 }
 
 // candidatePairs reads (a, b) rows.
@@ -397,48 +432,98 @@ func candidatePairs(ctx context.Context, q querier, query string, args ...any) (
 	return out, rows.Err()
 }
 
-// pairWhy is the reason to offer x and y as one machine, in plain words for the device page; "" when they must not be offered (see
-// samePairs). value is what the signal matched: the MAC, the lower-case name or the model.
-func pairWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, sig signal, value string, now time.Time) (string, error) {
+// pairWhy is the reason to offer x and y as one machine, in plain words for the device page, and its code (Reason*); "" when they must
+// not be offered (see samePairs). value is what the signal matched: the MAC, the lower-case name, the model or the MAC block.
+func pairWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, sig signal, value string, now time.Time) (why, reason string, err error) {
+	if sig == byBlock || sig == byName && x.burnedOnly() && y.burnedOnly() {
+		return cardsWhy(ctx, tx, x, y, sig, value)
+	}
 	if strongConflict(x, y) != "" {
-		return "", nil
+		return "", "", nil
 	}
 	if sig == byAddress {
-		return addressWhy(ctx, tx, x, y, value)
+		why, err := addressWhy(ctx, tx, x, y, value)
+		return why, ReasonMACAtAddedDevice, err
 	}
 	if sig != byMAC && (x.burnedOnly() || y.burnedOnly() || len(x.private) == 0 && len(y.private) == 0) {
-		return "", nil
+		return "", "", nil
 	}
 	fx, err := facts(ctx, tx, x.id)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	fy, err := facts(ctx, tx, y.id)
 	if err != nil || differ(fx, fy) {
-		return "", err
+		return "", "", err
 	}
 	if sig == byModel && (fx["model"] == "" || !strings.EqualFold(fx["model"], fy["model"])) {
-		return "", nil
+		return "", "", nil
 	}
 	// "Never online at the same time" must be true for a person (review r1 of #871 H2): one row was last seen online (lastOnline)
 	// before the other was first seen. The join's own test (onlineTogether) forgives a short overlap; a visitor's phone seen while the approved one was
 	// online must not be offered as it.
 	if x.lastOnline() >= y.first && y.lastOnline() >= x.first {
-		return "", nil
+		return "", "", nil
 	}
 	if together, err := onlineTogether(ctx, tx, x.id, y.id, now); together || err != nil {
-		return "", err
+		return "", "", err
 	}
 	const rotates = ", never online at the same time, and a private Wi-Fi address (phones and laptops change it)."
 	switch sig {
 	case byMAC:
-		return "Both were seen with the MAC address " + value + ", never online at the same time.", nil
+		return "Both were seen with the MAC address " + value + ", never online at the same time.", ReasonSameMAC, nil
 	case byName:
 		label, _, _ := strings.Cut(strings.TrimSpace(x.host), ".")
-		return `Same name "` + label + `"` + rotates, nil
+		return `Same name "` + label + `"` + rotates, ReasonRotatingName, nil
 	default:
-		return `Same model "` + fx["model"] + `"` + rotates, nil
+		return `Same model "` + fx["model"] + `"` + rotates, ReasonRotatingModel, nil
 	}
+}
+
+// cardsWhy is the reason to offer two rows that each carry burned-in MACs as two network cards of one machine (INV-57), which may be
+// online at the same time: the same host name (not a generic or system-made one, machineName), or MACs from one block of a maker
+// (the first five bytes, at most chassisBlock apart) when one of them is network gear (a switch, router, access point or firewall) and
+// the other is network gear too or of no known type. Never when two agents report from them or they state another name, model or OS.
+func cardsWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, sig signal, value string) (string, string, error) {
+	if twoAgents(map[string]*sameRow{x.id: x, y.id: y}, []string{x.id, y.id}) != "" {
+		return "", "", nil
+	}
+	fx, err := facts(ctx, tx, x.id)
+	if err != nil {
+		return "", "", err
+	}
+	fy, err := facts(ctx, tx, y.id)
+	if err != nil || differ(fx, fy) {
+		return "", "", err
+	}
+	if sig == byName {
+		name := machineName(x.host)
+		if name == "" || machineName(y.host) != name {
+			return "", "", nil
+		}
+		label, _, _ := strings.Cut(strings.TrimSpace(x.host), ".")
+		return `Same name "` + label + `" on two network cards, each with its own hardware MAC address: one machine connected twice (Wi-Fi and cable, or two ports).`,
+			ReasonSameNameCards, nil
+	}
+	gear := func(f map[string]string) bool { return slices.Contains(netGear, devicetypes.ActsAs(f["kind"])) }
+	unknown := func(f map[string]string) bool { return f["kind"] == "" || f["kind"] == "unknown" }
+	if ok := gear(fx) && (gear(fy) || unknown(fy)) || gear(fy) && unknown(fx); !ok {
+		return "", "", nil
+	}
+	in := func(r *sameRow) string {
+		for _, m := range r.burned {
+			if m[:14] == value {
+				return m
+			}
+		}
+		return ""
+	}
+	mx, my := in(x), in(y)
+	if d := lastByte(mx) - lastByte(my); mx == "" || my == "" || mx == my || d > chassisBlock || -d > chassisBlock {
+		return "", "", nil
+	}
+	return "Their MAC addresses " + min(mx, my) + " and " + max(mx, my) + " come from one block of the same maker, as the interfaces of one router, firewall or switch do.",
+		ReasonMACBlock, nil
 }
 
 // addressWhy is the reason to offer a hand-added row known by its address only and a row carrying a MAC seen at that address since
@@ -487,7 +572,7 @@ func (s *Service) PossibleSameAs(ctx context.Context, id string) ([]PossibleSame
 		if other.ID == id {
 			other = p.a
 		}
-		out = append(out, PossibleSame{ID: other.ID, Name: other.Name, Why: p.why, Approved: other.Approved, Ignored: ignored[other.ID], LastSeen: other.LastSeen})
+		out = append(out, PossibleSame{ID: other.ID, Name: other.Name, Why: p.why, Reason: p.reason, Approved: other.Approved, Ignored: ignored[other.ID], LastSeen: other.LastSeen})
 	}
 	slices.SortFunc(out, func(a, b PossibleSame) int {
 		if c := strings.Compare(b.LastSeen, a.LastSeen); c != 0 {
@@ -514,7 +599,7 @@ func (s *Service) PossibleSamePairs(ctx context.Context) (SamePairs, error) {
 		if b.Approved && !a.Approved || a.Approved == b.Approved && p.y.first < p.x.first {
 			a, b = b, a
 		}
-		out.Items = append(out.Items, SamePair{A: a, B: b, Why: p.why})
+		out.Items = append(out.Items, SamePair{A: a, B: b, Why: p.why, Reason: p.reason})
 	}
 	slices.SortFunc(out.Items, func(x, y SamePair) int {
 		if c := strings.Compare(max(y.A.LastSeen, y.B.LastSeen), max(x.A.LastSeen, x.B.LastSeen)); c != 0 {
@@ -523,81 +608,6 @@ func (s *Service) PossibleSamePairs(ctx context.Context) (SamePairs, error) {
 		return strings.Compare(x.A.ID+x.B.ID, y.A.ID+y.B.ID)
 	})
 	return out, nil
-}
-
-// Merge is a person's answer "the same device" (POST /inventory/devices/{into}/merge): device from joins device into with the
-// join rules' own primitive (joinAs, a machine join): into keeps its id, its approval, its notes, its name in Vedette (from's when it has
-// none) and its findings; from's MACs, address
-// (when from was seen later and into is not a declared row known by its address only, #829), sources, software, open ports, agent binding and findings move to it; from is
-// gone. A person decides, so unlike the join rules: into is approved when from was (approved_at from from, the suspicious mark cleared
-// as Approve does), both notes are kept, and an approved into keeps its own suspicious mark only (from's mark is answered by the merge).
-// Refused: the same device twice (400 invalid), an unknown device (404), the box (409 box_device), two rows strongConflict says are two
-// machines (409 not_same_device). Any pair may be merged, offered or not. One audit row inventory.merge by the person; events as a
-// join: merged, from deleted, into updated (matched again), into approved when it was not.
-func (s *Service) Merge(ctx context.Context, actor, into, from string) error {
-	if into == from {
-		return apierr.Invalid("A device cannot be merged with itself. Pick the other device.")
-	}
-	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-		if err := pairCheck(ctx, tx, into, from, "merged with another device"); err != nil {
-			return err
-		}
-		rows, err := loadSameRows(ctx, tx, []string{into, from})
-		if err != nil {
-			return err
-		}
-		if msg := strongConflict(rows[into], rows[from]); msg != "" {
-			return conflict("not_same_device", msg)
-		}
-		var intoNotes, fromNotes, fromApprovedAt sql.NullString
-		if err := tx.QueryRowContext(ctx, `SELECT i.notes, f.notes, f.approved_at FROM inv_asset i, inv_asset f WHERE i.id = ? AND f.id = ?`, into, from).
-			Scan(&intoNotes, &fromNotes, &fromApprovedAt); err != nil {
-			return fmt.Errorf("inventory: read devices: %w", err)
-		}
-		var intoSuspicious bool
-		if err := tx.QueryRowContext(ctx, `SELECT suspicious FROM inv_asset WHERE id = ?`, into).Scan(&intoSuspicious); err != nil {
-			return fmt.Errorf("inventory: read device: %w", err)
-		}
-		gains := rows[from].approved && !rows[into].approved
-		watch, err := s.joinAs(ctx, tx, o, from, into, "a person merged them", joinMachine, actor)
-		if err != nil {
-			return err
-		}
-		if notes := joinNotes(intoNotes.String, fromNotes.String); notes != intoNotes.String {
-			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET notes = ? WHERE id = ?`, nullStr(notes), into); err != nil {
-				return fmt.Errorf("inventory: merge notes: %w", err)
-			}
-		}
-		if gains {
-			at := fromApprovedAt.String
-			if at == "" {
-				at = s.now()
-			}
-			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET approved = 1, approved_at = ?, suspicious = 0 WHERE id = ?`, at, into); err != nil {
-				return fmt.Errorf("inventory: merge the approval: %w", err)
-			}
-		} else if rows[into].approved { // the person says the other row is this known device: its mark is answered, this one's own stays
-			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET suspicious = ? WHERE id = ?`, intoSuspicious, into); err != nil {
-				return fmt.Errorf("inventory: merge the mark: %w", err)
-			}
-		}
-		if _, err := s.RecomputeAsset(ctx, tx, into); err != nil {
-			return err
-		}
-		o.add(EventAssetMerged, MergeEvent{From: from, Into: into, Actor: actor})
-		o.add(EventAssetDeleted, AssetEvent{AssetID: from, Actor: actor})
-		if watch != "" { // The moved findings follow into's watch state
-			o.add(watch, AssetEvent{AssetID: into, Actor: actor})
-		}
-		o.add(EventAssetUpdated, AssetEvent{AssetID: into, Match: true})
-		if err := s.earnReview(ctx, tx, o, into, false); err != nil { // the merge may carry the first sighting past a day (INV-49)
-			return err
-		}
-		if gains {
-			o.add(EventAssetApproved, AssetEvent{AssetID: into, Actor: actor})
-		}
-		return nil
-	})
 }
 
 // KeepSeparate is a person's answer "two devices" (POST /inventory/devices/{id}/keep-separate): the pair is stored and never

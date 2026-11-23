@@ -2,6 +2,7 @@ package inventory_test
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,30 @@ func (e *env) sameAs(id string) []inventory.PossibleSame {
 		e.t.Fatal(err)
 	}
 	return got
+}
+
+// addresses lists a device's addresses as "ip mac [main]" (a missing part is "-"), as GET /inventory/devices/{id} gives them.
+func (e *env) addresses(id string) []string {
+	e.t.Helper()
+	d, err := e.svc.Detail(e.ctx(), id)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	var out []string
+	for _, a := range d.Addresses {
+		v := func(p *string) string {
+			if p == nil {
+				return "-"
+			}
+			return *p
+		}
+		line := v(a.IP) + " " + v(a.MAC)
+		if a.Main {
+			line += " main"
+		}
+		out = append(out, line)
+	}
+	return out
 }
 
 func (e *env) auditBy(action string) []string {
@@ -155,8 +180,10 @@ func deref(p *string) string {
 	return *p
 }
 
-// Two different burned-in MACs or two different agents are two machines: never offered, and a merge is refused with plain
-// words (409 not_same_device), nothing changed. The same device twice is 400, an unknown one 404, the box 409 box_device.
+// Two different agents are two machines: never offered, and a merge is refused with plain words (409 not_same_device), nothing
+// changed. Two different burned-in MACs are not (INV-57): one machine with two cards carries two, so a host name both rows state is
+// offered as two cards of one machine and a person may merge them. The same device twice is 400, an unknown one 404, the box 409
+// box_device.
 func TestContract_MergeRefusesTwoMachines(t *testing.T) {
 	t.Parallel()
 	t.Run("burned-in MACs", func(t *testing.T) {
@@ -166,13 +193,16 @@ func TestContract_MergeRefusesTwoMachines(t *testing.T) {
 		e.tick(time.Hour)
 		e.record(dhcp(burnt2, "192.168.18.11", "accounting-pc")...)
 		a, b := e.idOf("192.168.18.10"), e.idOf("192.168.18.11")
-		if got := e.sameAs(a); len(got) != 0 {
-			t.Errorf("offered: %+v", got)
+		got := e.sameAs(a)
+		if len(got) != 1 || got[0].ID != b || got[0].Reason != inventory.ReasonSameNameCards || !strings.Contains(got[0].Why, `Same name "accounting-pc" on two network cards`) {
+			t.Fatalf("offered: %+v", got)
 		}
-		err := e.svc.Merge(e.ctx(), admin, a, b)
-		wantAPIError(t, err, 409, "not_same_device")
-		if !strings.Contains(err.Error(), "each has its own hardware MAC address") || e.devices() != 2 {
-			t.Errorf("refusal: %v; %d devices", err, e.devices())
+		if err := e.svc.Merge(e.ctx(), admin, a, b); err != nil || e.devices() != 1 {
+			t.Fatalf("merge: %v; %d devices", err, e.devices())
+		}
+		// both cards stay; the one seen last is the main address, as a merge of one machine's rows always had it
+		if got := e.addresses(a); !slices.Equal(got, []string{"192.168.18.11 " + burnt2 + " main", "192.168.18.10 " + burnt1}) {
+			t.Errorf("addresses after the merge: %v", got)
 		}
 	})
 	t.Run("agents", func(t *testing.T) {
@@ -278,10 +308,10 @@ func TestHandlers_MergeAndKeepSeparateAreForAdmins(t *testing.T) {
 	a := newAPI(t)
 	old, newer := phonePair(a.env)
 	for _, user := range []string{"viewer", "operator"} {
-		a.want("POST", "/inventory/devices/"+old+"/merge", user, `{"from":"`+newer+`"}`, 403, "forbidden")
+		a.want("POST", "/inventory/devices/"+old+"/merge", user, `{"from":["`+newer+`"]}`, 403, "forbidden")
 		a.want("POST", "/inventory/devices/"+old+"/keep-separate", user, `{"other":"`+newer+`"}`, 403, "forbidden")
 	}
-	a.want("POST", "/inventory/devices/"+old+"/merge", "", `{"from":"`+newer+`"}`, 401, "unauthenticated")
+	a.want("POST", "/inventory/devices/"+old+"/merge", "", `{"from":["`+newer+`"]}`, 401, "unauthenticated")
 	if a.devices() != 2 {
 		t.Fatalf("%d devices after refused calls", a.devices())
 	}
@@ -294,9 +324,9 @@ func TestHandlers_MergeAndKeepSeparateAreForAdmins(t *testing.T) {
 	if ps := d["possible_same"].([]any); len(ps) != 1 || ps[0].(map[string]any)["id"] != old || ps[0].(map[string]any)["why"] == "" {
 		t.Fatalf("possible_same: %v", d["possible_same"])
 	}
-	a.want("POST", "/inventory/devices/"+old+"/merge", "admin", `{"from":"`+old+`"}`, 400, "invalid")
-	a.want("POST", "/inventory/devices/"+old+"/merge", "admin", `{"from":"a-nope"}`, 404, "not_found")
-	m := a.want("POST", "/inventory/devices/"+old+"/merge", "admin", `{"from":"`+newer+`"}`, 200, "")
+	a.want("POST", "/inventory/devices/"+old+"/merge", "admin", `{"from":["`+old+`"]}`, 400, "invalid")
+	a.want("POST", "/inventory/devices/"+old+"/merge", "admin", `{"from":["a-nope"]}`, 404, "not_found")
+	m := a.want("POST", "/inventory/devices/"+old+"/merge", "admin", `{"from":["`+newer+`"]}`, 200, "")
 	if m["id"] != old || a.devices() != 1 {
 		t.Fatalf("merge = %v; %d devices", m, a.devices())
 	}

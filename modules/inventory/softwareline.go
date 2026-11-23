@@ -170,7 +170,7 @@ func softwareLines(ctx context.Context, q querier, assetID string) ([]SoftwareLi
 	for rrows.Next() {
 		var id string
 		var r Reading
-		if err := rrows.Scan(&id, &r.Source, &r.Instance, &r.Display, &r.Version, &r.PkgVersion, &r.PkgSource, &r.CPE, &r.SetBy, &r.Packaged, &r.Confidence, &r.FirstSeen, &r.SeenAt); err != nil {
+		if err := rrows.Scan(&id, &r.Source, &r.Instance, &r.Display, &r.Version, &r.PkgVersion, &r.PkgSource, &r.CPE, &r.SetBy, &r.Packaged, &r.Confidence, &r.FirstSeen, &r.SeenAt, &r.Addr); err != nil {
 			_ = rrows.Close()
 			return nil, fmt.Errorf("inventory: read software readings: %w", err)
 		}
@@ -248,6 +248,16 @@ func (s *Service) SoftwareLines(ctx context.Context, assetID string) ([]Software
 		return nil, ErrNotFound
 	}
 	return softwareLines(ctx, q, assetID)
+}
+
+// fedBy says whether source has a reading on a line device id still has (a Wazuh agent that sent only its software list).
+func fedBy(ctx context.Context, q querier, id, source string) (bool, error) {
+	var ok bool
+	if err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_software_reading r JOIN inv_software w ON w.id = r.software_id
+		WHERE w.asset_id = ? AND w.state <> 'removed' AND r.source = ?)`, id, source).Scan(&ok); err != nil {
+		return false, fmt.Errorf("inventory: read the device's sources: %w", err)
+	}
+	return ok, nil
 }
 
 // readingSourcesSQL selects (asset_id, source class) for every source with a reading on a line a device still has: the agents as

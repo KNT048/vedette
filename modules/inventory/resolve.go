@@ -53,6 +53,10 @@ type Reading struct {
 	Packaged                     bool
 	Confidence                   float64
 	FirstSeen, SeenAt            string // fixed-width UTC times: text order is time order
+	// Addr is the address a network scan read it at: "" for the device's main address and for every source that reads the whole
+	// machine, else the id of one of the device's other addresses (INV-57). Two interfaces of one device read by one scan are two
+	// readings.
+	Addr string
 }
 
 // entry says whether the reading is a person's entry.
@@ -128,7 +132,8 @@ func Resolve(line LineState, readings []Reading) Resolution {
 	rs := slices.Clone(readings)
 	// a stable order first, so the result never depends on the order the database returned
 	slices.SortFunc(rs, func(a, b Reading) int {
-		return cmp.Or(readingRank(b)-readingRank(a), strings.Compare(b.SeenAt, a.SeenAt), strings.Compare(a.Source, b.Source), strings.Compare(a.Instance, b.Instance))
+		return cmp.Or(readingRank(b)-readingRank(a), strings.Compare(b.SeenAt, a.SeenAt), strings.Compare(a.Source, b.Source), strings.Compare(a.Instance, b.Instance),
+			strings.Compare(a.Addr, b.Addr))
 	})
 	res := Resolution{State: line.State}
 	var entry *Reading
@@ -195,7 +200,7 @@ func Resolve(line LineState, readings []Reading) Resolution {
 	// rule 4
 	eff := res.Effective
 	for _, r := range rs {
-		if r.entry() || r.guess() || r.Source == eff.Source && r.Instance == eff.Instance {
+		if r.entry() || r.guess() || r.Source == eff.Source && r.Instance == eff.Instance && r.Addr == eff.Addr {
 			continue
 		}
 		if pkgrel.Same(eff.Version, eff.PkgVersion, r.Version, r.PkgVersion) {

@@ -141,7 +141,7 @@ func (s *Service) RefreshBoxServices(ctx context.Context) error {
 		if err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE is_box = 1`).Scan(&id); err != nil {
 			return fmt.Errorf("inventory: find the box: %w", err)
 		}
-		_, err := replaceServicesTx(ctx, tx, id, clean, string(observe.Agent), s.seen(s.clock()), true, nil, s.clock())
+		_, err := replaceServicesTx(ctx, tx, id, clean, string(observe.Agent), s.seen(s.clock()), true, nil, s.clock(), "")
 		return err
 	})
 }

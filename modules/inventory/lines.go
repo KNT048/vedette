@@ -95,17 +95,17 @@ func readLine(ctx context.Context, q querier, id string) (lineRow, error) {
 }
 
 const readingCols = `r.source, r.instance, r.display, ifnull(r.version, ''), ifnull(r.pkg_version, ''), ifnull(r.pkg_source, ''), ifnull(r.cpe, ''),
-	ifnull(r.set_by, ''), r.packaged, r.confidence, r.first_seen, r.seen_at`
+	ifnull(r.set_by, ''), r.packaged, r.confidence, r.first_seen, r.seen_at, r.addr_id`
 
 func scanReading(sc interface{ Scan(...any) error }, extra ...any) (Reading, error) {
 	var r Reading
-	dst := append([]any{&r.Source, &r.Instance, &r.Display, &r.Version, &r.PkgVersion, &r.PkgSource, &r.CPE, &r.SetBy, &r.Packaged, &r.Confidence, &r.FirstSeen, &r.SeenAt}, extra...)
+	dst := append([]any{&r.Source, &r.Instance, &r.Display, &r.Version, &r.PkgVersion, &r.PkgSource, &r.CPE, &r.SetBy, &r.Packaged, &r.Confidence, &r.FirstSeen, &r.SeenAt, &r.Addr}, extra...)
 	return r, sc.Scan(dst...)
 }
 
 // readingsOf reads the readings of one line.
 func readingsOf(ctx context.Context, tx *sql.Tx, lineID string) ([]Reading, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT `+readingCols+` FROM inv_software_reading r WHERE r.software_id = ? ORDER BY r.source, r.instance`, lineID)
+	rows, err := tx.QueryContext(ctx, `SELECT `+readingCols+` FROM inv_software_reading r WHERE r.software_id = ? ORDER BY r.source, r.instance, r.addr_id`, lineID)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read software readings: %w", err)
 	}
@@ -152,15 +152,15 @@ func (s *Service) lineOf(ctx context.Context, tx *sql.Tx, assetID string, id lin
 // putReading writes one reading of a line: a new one, or the same source and instance read again. first_seen stays while the
 // release stays (version and package release); a new release is a new reading (the lapse and "not installed" rules read it).
 func putReading(ctx context.Context, tx *sql.Tx, lineID string, r Reading) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO inv_software_reading (software_id, source, instance, display, version, pkg_version, pkg_source, packaged, cpe, confidence, set_by, first_seen, seen_at)
-		VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
-		ON CONFLICT (software_id, source, instance) DO UPDATE SET
+	_, err := tx.ExecContext(ctx, `INSERT INTO inv_software_reading (software_id, source, instance, display, version, pkg_version, pkg_source, packaged, cpe, confidence, set_by, first_seen, seen_at, addr_id)
+		VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+		ON CONFLICT (software_id, source, instance, addr_id) DO UPDATE SET
 			first_seen = CASE WHEN ifnull(inv_software_reading.version, '') = ifnull(excluded.version, '') AND ifnull(inv_software_reading.pkg_version, '') = ifnull(excluded.pkg_version, '')
 				AND excluded.source <> 'manual' THEN inv_software_reading.first_seen ELSE excluded.first_seen END,
 			display = excluded.display, version = excluded.version, pkg_version = excluded.pkg_version, pkg_source = excluded.pkg_source, packaged = excluded.packaged,
 			cpe = excluded.cpe, confidence = excluded.confidence, set_by = excluded.set_by, seen_at = excluded.seen_at`,
 		lineID, r.Source, r.Instance, clip(r.Display, maxSwField), nullStr(r.Version), nullStr(r.PkgVersion), nullStr(r.PkgSource), r.Packaged, nullStr(r.CPE), r.Confidence,
-		nullStr(r.SetBy), r.FirstSeen, r.SeenAt)
+		nullStr(r.SetBy), r.FirstSeen, r.SeenAt, r.Addr)
 	if err != nil {
 		return fmt.Errorf("inventory: store software reading: %w", err)
 	}

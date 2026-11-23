@@ -27,7 +27,11 @@ CREATE TABLE inv_service (
 , detail TEXT CHECK (detail IS NULL OR length(detail) <= 200),
     -- when the source last read the port's name, product and version (a scan with version detection, an agent's report); NULL: only
     -- found open. A scan that only finds open ports leaves it; the weekly version read picks the ports read longest ago by it.
-    read_at TEXT CHECK (read_at IS NULL OR read_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'));
+    read_at TEXT CHECK (read_at IS NULL OR read_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    -- the address a network scan found the port on: '' for the device's main address (inv_asset.ip) and for sources that read the
+    -- whole machine (an agent), else the id of one of its other addresses (inv_asset_address). A scan of one address replaces only
+    -- the ports it found there, so two interfaces of one device never replace each other's ports.
+    addr_id TEXT NOT NULL DEFAULT '' CHECK (length(addr_id) <= 96));
 
 -- One row per installed software line of a device: one product (core/productid), or one release train of a product whose trains
 -- install side by side (line '8' and line '21' of Java). What the sources read are its readings (inv_software_reading); the
@@ -79,7 +83,10 @@ CREATE TABLE inv_software_reading (
     set_by      TEXT CHECK (set_by IS NULL OR (source = 'manual' AND length(set_by) BETWEEN 1 AND 320)),
     first_seen  TEXT NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     seen_at     TEXT NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    PRIMARY KEY (software_id, source, instance)
+    -- the address a network scan read it at: '' for the device's main address and for sources that read the whole machine, else the
+    -- id of one of the device's other addresses (inv_asset_address), as inv_service.addr_id
+    addr_id     TEXT NOT NULL DEFAULT '' CHECK (length(addr_id) <= 96),
+    PRIMARY KEY (software_id, source, instance, addr_id)
 ) WITHOUT ROWID;
 
 -- The history of a software line on a device, append-only. The text copies keep a row readable after its line is pruned.
@@ -134,6 +141,23 @@ CREATE TABLE "inv_asset" (
     approved_at    TEXT    CHECK (approved_at IS NULL OR approved_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
 , agent_key TEXT CHECK (agent_key IS NULL OR length(agent_key) BETWEEN 3 AND 81), agent_ip TEXT CHECK (agent_ip IS NULL OR length(agent_ip) BETWEEN 7 AND 15), ip_confirmed_at TEXT, user_name TEXT CHECK (user_name IS NULL OR length(user_name) BETWEEN 1 AND 64), scan_source TEXT CHECK (scan_source IN ('on', 'off')), snmp_source TEXT CHECK (snmp_source IN ('on', 'off')), agent_source TEXT CHECK (agent_source IN ('on', 'off')), ignored_at TEXT, review_earned_at TEXT);
 
+-- The addresses a device answers on besides its main one: the interfaces of a firewall, router or server, a laptop's Wi-Fi and
+-- Ethernet. The main address stays on inv_asset (ip, mac), where every identity rule reads it; an address is held in exactly one place
+-- (the main columns of one device or one row here), which inventory's writers keep (claimIP, resolve) and a test checks. One row is one
+-- interface as it was seen: an IPv4 address, a MAC, or both. The resolver finds a device by any of its addresses. source is what last
+-- tied the address to the device: the sensor that last saw it there (passive, nmap, scan, agent, snmp) or merge (a person's merge
+-- brought it and nothing has seen it since). A person's split moves a row to a device of its own. Forward-only (DATA_MODEL 6).
+CREATE TABLE inv_asset_address (
+    id         TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
+    asset_id   TEXT NOT NULL REFERENCES inv_asset (id) ON DELETE CASCADE,
+    ip         TEXT CHECK (ip IS NULL OR length(ip) BETWEEN 7 AND 15),
+    mac        TEXT CHECK (mac IS NULL OR length(mac) = 17),
+    source     TEXT NOT NULL CHECK (length(source) BETWEEN 1 AND 40 AND source NOT GLOB '*[^a-z0-9_]*'),
+    first_seen TEXT NOT NULL CHECK (first_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    last_seen  TEXT NOT NULL CHECK (last_seen GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
+    CHECK (ip IS NOT NULL OR mac IS NOT NULL)
+);
+
 -- When each source first reported to this box, so inventory.asset.discovered can say a device was found while the
 -- source that found it was still learning the network (its first 36 hours). One row per source (agent, snmp, nmap, passive, scan;
 -- never manual), written once by the first observation, software or service list of that source; it only moves back to now when it
@@ -184,7 +208,7 @@ CREATE UNIQUE INDEX inv_observation_uq ON inv_observation (asset_id, field, sour
 
 CREATE INDEX inv_observation_field_ix ON inv_observation (asset_id, field);
 
-CREATE UNIQUE INDEX inv_service_uq ON inv_service (asset_id, port, proto, source);
+CREATE UNIQUE INDEX inv_service_uq ON inv_service (asset_id, port, proto, source, addr_id);
 
 CREATE INDEX inv_service_asset_ix ON inv_service (asset_id);
 
@@ -229,6 +253,13 @@ CREATE INDEX inv_observation_mac_ix ON inv_observation (value) WHERE field = 'ma
 CREATE INDEX inv_separate_b_ix ON inv_separate (b);
 
 CREATE INDEX inv_hand_seen_mac_ix ON inv_hand_seen (mac);
+
+-- One address, one device: an IP or a MAC is in one row at most (and never also a device's main address, inventory's writers).
+CREATE UNIQUE INDEX inv_asset_address_ip_uq ON inv_asset_address (ip) WHERE ip IS NOT NULL;
+
+CREATE UNIQUE INDEX inv_asset_address_mac_uq ON inv_asset_address (mac) WHERE mac IS NOT NULL;
+
+CREATE INDEX inv_asset_address_asset_ix ON inv_asset_address (asset_id);
 
 INSERT INTO inv_setting (key, value, updated_at, updated_by) VALUES ('lan_ranges', '[]', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), 'system');
 INSERT INTO inv_setting (key, value, updated_at, updated_by) VALUES ('active', '{"enabled":false,"days":[1,2,3,4,5,6,7],"from":"22:00","to":"05:00","rate":50,"exclusions":[]}', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), 'system');

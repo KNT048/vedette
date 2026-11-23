@@ -103,12 +103,12 @@ func checkAdd(c *Catalog, in AddInput, requireProduct bool) (addChecked, *apierr
 // scanned, source "manual" at confidence 1.
 func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a addChecked, kind string) (string, error) {
 	if a.ip != "" {
-		var dup string
-		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = ?`, a.ip).Scan(&dup)
-		if err == nil { // named as every page names it
+		dup, err := addressHolder(ctx, tx, a.ip) // its main address or one of its others (INV-57)
+		if err != nil {
+			return "", err
+		}
+		if dup != "" { // named as every page names it
 			return "", conflict("duplicate_ip", fmt.Sprintf("IP %s is already in the list (%s). Open that device instead of adding a new one.", a.ip, deviceName(ctx, tx, dup)))
-		} else if !errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("inventory: check IP: %w", err)
 		}
 	}
 	if kind == "" { // the catalog's suggestion; a type a person or a CSV gave is kept as it is (review M2 of #722)
@@ -301,7 +301,12 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 	if p.Notes != nil && len([]rune(*p.Notes)) > maxNotes {
 		return badRequest("bad_notes", "Notes are at most 2000 characters.")
 	}
-	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+	return s.write(ctx, func(tx *sql.Tx, o *outbox) error { return s.patchTx(ctx, tx, o, actor, id, p) })
+}
+
+// patchTx is PatchDevice inside a write, with p already checked (a merge applies the values a person chose in its own write).
+func (s *Service) patchTx(ctx context.Context, tx *sql.Tx, o *outbox, actor, id string, p Patch) error {
+	{
 		var kind string
 		var kindSrc sql.NullString
 		err := tx.QueryRowContext(ctx, `SELECT a.kind, o.source FROM inv_asset a LEFT JOIN inv_observation o ON o.id = a.kind_obs_id WHERE a.id = ?`, id).Scan(&kind, &kindSrc)
@@ -385,7 +390,7 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 		}
 		o.add(EventAssetUpdated, AssetEvent{AssetID: id, Match: match})
 		return nil
-	})
+	}
 }
 
 // Sources is the state of a device's active sources (PUT /inventory/devices/{id}/sources): SourceOn or SourceOff each, the

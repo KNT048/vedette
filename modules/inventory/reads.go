@@ -126,8 +126,9 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 }
 
 func loadServices(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
-	rows, err := q.QueryContext(ctx, `SELECT asset_id, port, proto, name, product, version, detail, source, confidence FROM inv_service
-		WHERE asset_id IN `+sub+` ORDER BY asset_id, port, proto, source`, args...)
+	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.port, s.proto, s.name, s.product, s.version, s.detail, s.source, s.confidence, coalesce(x.ip, x.mac)
+		FROM inv_service s LEFT JOIN inv_asset_address x ON x.id = s.addr_id AND s.addr_id <> ''
+		WHERE s.asset_id IN `+sub+` ORDER BY s.asset_id, s.port, s.proto, s.source, s.addr_id`, args...)
 	if err != nil {
 		return fmt.Errorf("inventory: read services: %w", err)
 	}
@@ -135,11 +136,11 @@ func loadServices(ctx context.Context, q querier, sub string, idx map[string]int
 	for rows.Next() {
 		var asset string
 		var sv ServiceRow
-		var product, version, detail sql.NullString
-		if err := rows.Scan(&asset, &sv.Port, &sv.Proto, &sv.Name, &product, &version, &detail, &sv.Source, &sv.Confidence); err != nil {
+		var product, version, detail, addr sql.NullString
+		if err := rows.Scan(&asset, &sv.Port, &sv.Proto, &sv.Name, &product, &version, &detail, &sv.Source, &sv.Confidence, &addr); err != nil {
 			return fmt.Errorf("inventory: read services: %w", err)
 		}
-		sv.Product, sv.Version, sv.Detail = ptr(product), ptr(version), ptr(detail)
+		sv.Product, sv.Version, sv.Detail, sv.Address = ptr(product), ptr(version), ptr(detail), ptr(addr)
 		d := &out[idx[asset]]
 		d.Services = append(d.Services, sv)
 	}
@@ -279,8 +280,12 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	if items, err = s.loadDevices(ctx, db, where, limit, args...); err != nil {
 		return nil, false, err
 	}
-	if f.Q != "" { // the query found the candidates; a device stays when what its row shows holds the text
-		items = slices.DeleteFunc(items, func(d Device) bool { return !d.shows(f.Q) })
+	if f.Q != "" { // the query found the candidates; a device stays when what its row shows holds the text, or one of its other addresses (INV-57)
+		other, err := otherAddressHits(ctx, db, f.Q)
+		if err != nil {
+			return nil, false, err
+		}
+		items = slices.DeleteFunc(items, func(d Device) bool { return !d.shows(f.Q) && !other[d.ID] })
 	}
 	if len(f.Software) > 0 {
 		items = slices.DeleteFunc(items, func(d Device) bool { return len(d.matchedSoftware(f.Software)) == 0 })
@@ -428,7 +433,12 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 	if differs == nil {
 		differs = []Differs{}
 	}
+	addrs, err := s.addresses(ctx, db, id)
+	if err != nil {
+		return Detail{}, err
+	}
 	return Detail{
+		Addresses:       addrs,
 		DetectedDiffers: differs,
 		ManualAt:        manualAt,
 		PossibleSame:    same,

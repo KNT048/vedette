@@ -1670,6 +1670,15 @@ type Handler interface {
 	//
 	// GET /inventory/devices/{id}
 	InventoryGetInventoryDevicesID(ctx context.Context, params InventoryGetInventoryDevicesIDParams) (*InventoryGetInventoryDevicesIDOK, error)
+	// InventoryGetInventoryDevicesIDMergePreview implements inventory_get_inventory_devices_id_merge_preview operation.
+	//
+	// What merging the devices `from` into this device would do, without changing anything: both sides
+	// (addresses, software, ports, findings, badge), what moves, the fields they state differently with
+	// the value the kept device gets, and the refusal the merge would answer. 400 invalid: no device, more
+	// than 8, one twice or this device itself. 404 not_found: any device.
+	//
+	// GET /inventory/devices/{id}/merge-preview
+	InventoryGetInventoryDevicesIDMergePreview(ctx context.Context, params InventoryGetInventoryDevicesIDMergePreviewParams) (*InventoryGetInventoryDevicesIDMergePreviewOK, error)
 	// InventoryGetInventoryDevicesIDSources implements inventory_get_inventory_devices_id_sources operation.
 	//
 	// The device's sources as three rows (network scan, SNMP, agent): each with its state, colour, last
@@ -1887,13 +1896,15 @@ type Handler interface {
 	InventoryPostInventoryDevicesIDKeepSeparate(ctx context.Context, req *InventoryPostInventoryDevicesIDKeepSeparateReq, params InventoryPostInventoryDevicesIDKeepSeparateParams) (*InventoryPostInventoryDevicesIDKeepSeparateOK, error)
 	// InventoryPostInventoryDevicesIDMerge implements inventory_post_inventory_devices_id_merge operation.
 	//
-	// The same machine: device `from` joins this device and is gone. This device keeps its id, approval
-	// (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept),
-	// findings and settings; the MACs, sources, software and open ports of `from` move to it, and its
-	// address when it was seen later and this device was found by a sensor (a device added by hand keeps
-	// the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409
-	// box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in
-	// MACs, say two machines.
+	// The same machine: every device of `from` joins this device and is gone, in one step. This device
+	// keeps its id, main address, approval (it becomes approved when one of them was, and loses a
+	// suspicious mark as on Approve), notes (all kept), findings and settings; the addresses of each (with
+	// what a scan read at each one: the device is found by any of them, and a scan of one address never
+	// replaces what another address showed), MACs, sources, software, open ports and findings move to it.
+	// `fields` sets the name, type or OS a person picked where the devices differ. 400 invalid: no device,
+	// more than 8, one twice or this device itself. 400 bad_choice: a picked value none of the devices
+	// has. 404 not_found: any device. 409 box_device: one is the Vedette box. 409 not_same_device: two
+	// agents say two machines.
 	//
 	// POST /inventory/devices/{id}/merge
 	InventoryPostInventoryDevicesIDMerge(ctx context.Context, req *InventoryPostInventoryDevicesIDMergeReq, params InventoryPostInventoryDevicesIDMergeParams) (*InventoryPostInventoryDevicesIDMergeOK, error)
@@ -1903,6 +1914,21 @@ type Handler interface {
 	//
 	// POST /inventory/devices/{id}/software
 	InventoryPostInventoryDevicesIDSoftware(ctx context.Context, req *InventoryPostInventoryDevicesIDSoftwareReq, params InventoryPostInventoryDevicesIDSoftwareParams) (*InventoryPostInventoryDevicesIDSoftwareCreated, error)
+	// InventoryPostInventoryDevicesIDSplit implements inventory_post_inventory_devices_id_split operation.
+	//
+	// Split off an address (the undo of a merge): that interface, its IP and MAC together, becomes a
+	// device of its own with what was read only there (the MAC's observations, the readings and open ports
+	// a scan took at that address); what an agent or SNMP read of the whole machine stays. When it was the
+	// main address, the other address seen last becomes the main one. The new device is approved when this
+	// one was (no new-device alert), and the pair is kept separate: never offered as possibly the same
+	// device again. Findings follow the software (matched again on both). One audit row. Returns the new
+	// device. 400 bad_address: not an IPv4 address or MAC. 404 not_found; 404 address_not_found: not one
+	// of this device's addresses. 409 box_device; 409 only_address: the device has no other address; 409
+	// agent_address: the device's agent reports from this address (DeviceAddress.agent), so it stays with
+	// the agent's machine: split off the other addresses.
+	//
+	// POST /inventory/devices/{id}/split
+	InventoryPostInventoryDevicesIDSplit(ctx context.Context, req *InventoryPostInventoryDevicesIDSplitReq, params InventoryPostInventoryDevicesIDSplitParams) (*InventoryPostInventoryDevicesIDSplitOK, error)
 	// InventoryPostInventoryDevicesIDSuspicious implements inventory_post_inventory_devices_id_suspicious operation.
 	//
 	// Mark or unmark a device as suspicious.

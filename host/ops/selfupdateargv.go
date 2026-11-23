@@ -11,7 +11,7 @@ import (
 	vexec "github.com/knt048/vedette/core/exec"
 )
 
-// The argv of host.self_update (docs/specs/host-api.md section 6.14 "Argv mới"). There are two
+// The argv of host.self_update (docs/specs/host-api.md section 6.14 new argv). There are two
 // runners. The host runner (newRunner) gains the read-only and simulated forms and the one systemd-run that
 // starts the applier; it never accepts apt-get install of a file, dpkg -i, or a restart of vedette-host
 // itself (INV-27). The applier runner (newApplierRunner) is built only in -self-update-apply mode, outside

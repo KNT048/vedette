@@ -1,4 +1,4 @@
-// TOTP thật (RFC 6238, SHA-1, 6 số, 30 giây) bằng Web Crypto: ứng dụng xác thực thật cũng quét/nhập được khoá này.
+// Real TOTP (RFC 6238, SHA-1, 6 digits, 30 seconds) with Web Crypto: a real authenticator app can also scan/enter this key.
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 
 export function base32Encode(bytes: Uint8Array): string {
@@ -44,7 +44,7 @@ export async function totpAt(secret: string, ms: number): Promise<string> {
   return String(bin % 1_000_000).padStart(6, '0')
 }
 
-/** Chấp nhận lệch ±1 bước (30 giây) như ứng dụng xác thực thông thường. */
+/** Accept a drift of ±1 step (30 seconds) like an ordinary authenticator app. */
 export async function verifyTotp(secret: string, code: string, now = Date.now()): Promise<boolean> {
   for (const d of [-1, 0, 1]) if ((await totpAt(secret, now + d * 30000)) === code) return true
   return false

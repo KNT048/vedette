@@ -1,4 +1,4 @@
-// Gom features/*/contract.ts thành OpenAPI 3.1. Không sửa tay api/openapi.json: chạy `pnpm openapi`.
+// Gathers features/*/contract.ts into OpenAPI 3.1. Do not edit api/openapi.json by hand: run `pnpm openapi`.
 import { z } from 'zod'
 import type { Endpoint } from './contract'
 

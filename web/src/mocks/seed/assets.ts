@@ -1,5 +1,5 @@
-// 30 thiết bị giống một SMB Việt Nam (tên hiển thị tiếng Anh). DỮ LIỆU MẪU — hiển thị nhãn "Dữ liệu mẫu".
-// ID cố định để module khác tham chiếu: a-fw01, a-nas02 (phát hiện f-1), a-web01 (f-2), a-srvad (f-3)…
+// 30 devices like a Vietnamese SMB (display names in English). SAMPLE DATA, shown with the "Sample data" label.
+// Fixed IDs for other modules to reference: a-fw01, a-nas02 (finding f-1), a-web01 (f-2), a-srvad (f-3)...
 import type { Asset, AssetKind, ObsSource, Service, Software } from '@/lib/types'
 
 const D = (days: number) => new Date(Date.now() - days * 864e5).toISOString()

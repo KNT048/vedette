@@ -1,9 +1,9 @@
 
-/** Tách ra để test thay được (jsdom không cho đổi location.reload). */
+/** Split out so a test can replace it (jsdom does not allow changing location.reload). */
 export const nav = { reload: () => window.location.reload(), toSetup: () => window.location.assign('/setup') }
 
-/** Dải LAN phải là địa chỉ nội bộ: đúng luật của module kiểm kê (một bản duy nhất), 10/8, 172.16/12, 192.168/16 và 100.64/10
- * (RFC 6598). Tiền tố rộng hơn (ví dụ 10.0.0.0/0, 100.0.0.0/8) bao trùm cả Internet nên bị từ chối. Đầu vào là CIDR đã
+/** A LAN range must be an internal address: exactly the rule of the inventory module (one single copy), 10/8, 172.16/12, 192.168/16 and 100.64/10
+ * (RFC 6598). A wider prefix (for example 10.0.0.0/0, 100.0.0.0/8) covers the whole Internet so it is refused. The input is a CIDR already
  * qua CIDR_RE. */
 export { isPrivateCidr, LOCAL_RANGE_NAMES } from '@/features/inventory/validate'
 
@@ -51,11 +51,11 @@ export function guessablePassword(password: string, email: string): boolean {
 
 const IPV4_BARE = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/
 export interface NormalisedCidr { value: string; note: 'prefix' | 'network' | null }
-/** Địa chỉ trần, thiếu độ dài tiền tố: KHÔNG tự đoán /24 (dải có thể là /25, /23…). */
+/** A bare address without the prefix length: do NOT guess /24 (the range could be /25, /23...). */
 export const isBareIp = (raw: string) => IPV4_BARE.test(raw.trim())
 /**
- * Chuẩn hoá một dải mạng người dùng gõ. Bắt buộc có tiền tố ("192.168.18.0/24"); thiếu tiền tố → null
- * (dùng isBareIp để báo đúng lỗi). "192.168.18.5/24" có bit máy → "192.168.18.0/24" (note 'network', giữ nguyên tiền tố).
+ * Normalise a network range the user typed. A prefix is required ("192.168.18.0/24"); without a prefix → null
+ * (use isBareIp to report the right error). "192.168.18.5/24" has host bits → "192.168.18.0/24" (note 'network', the prefix is kept).
  */
 export function normaliseCidr(raw: string): NormalisedCidr | null {
   const s = raw.trim()
@@ -94,7 +94,7 @@ export function fromBase64(b64: string): string {
   return new TextDecoder().decode(Uint8Array.from(s, (c) => c.charCodeAt(0)))
 }
 
-/** So sánh phiên bản dạng 1.2.3 / 20261106.08 / 0.10.0-beta.1 (bản beta nhỏ hơn bản chính thức cùng số). */
+/** Compare versions like 1.2.3 / 20261106.08 / 0.10.0-beta.1 (a beta is lower than the release of the same number). */
 export function compareVersion(a: string, b: string): number {
   const [ma = '', pa] = a.split('-')
   const [mb = '', pb] = b.split('-')

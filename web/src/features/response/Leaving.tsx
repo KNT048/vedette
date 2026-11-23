@@ -12,7 +12,7 @@ import { undoable } from './state'
 import type { ActionRequest, RequestItem } from './types'
 
 // AI response is left out of v1. A box that has it on keeps seeing it (the pattern of a leaving module): no new action, every way back
-// stays (frozen.ts), and turning the module off is offered with the list of what stays in force (CONTRACT "Khi tắt module").
+// stays (frozen.ts), and turning the module off is offered with the list of what stays in force (CONTRACT "when a module is turned off").
 
 /** Disables every form control inside: for the parts that only create or edit (catalog, never-touch list, settings form). */
 export function Frozen({ on, children }: { on: boolean; children: ReactNode }) {
@@ -57,7 +57,7 @@ function ItemList({ list, execution }: { list: InForceItem[]; execution: boolean
   )
 }
 
-/** What stays in force once the module is off (CONTRACT "Khi tắt module"): executed changes are not undone, firewalls keep the block
+/** What stays in force once the module is off (CONTRACT "when a module is turned off"): executed changes are not undone, firewalls keep the block
  *  list they last pulled, waiting requests can no longer be approved. Never claims "nothing" before the data is there. */
 export function InForce({ onRollBack }: { onRollBack?: () => void }) {
   const { t } = useTranslation('response')

@@ -1,10 +1,10 @@
-id: example            # trùng tên thư mục
-name: { vi: "Ví dụ", en: "Example" }
-summary: { vi: "Một câu nói module làm gì cho ai.", en: "" }
+id: example            # same as the folder name
+name: { en: "Example" }
+summary: { en: "" }
 tier: optional         # core | standard | optional
-depends: [core]        # module phải bật trước
+depends: [core]        # modules that must be on first
 permissions: []        # net_raw | net_bind_low | pcap | exec:nmap | docker | outbound:https
-ports: []              # cổng mở khi bật, ví dụ "udp/514"
+ports: []              # ports opened when the module is on, for example "udp/514"
 tables_prefix: ex_
-stories: [S-XXX-1]     # bắt buộc ≥1
+stories: [S-XXX-1]     # required, at least 1
 milestone: M9

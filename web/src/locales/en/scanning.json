@@ -1,5 +1,4 @@
 {
-  "nav": "Scanning",
   "page": {
     "title": "Scanning",
     "meta": "{{on}} of {{total}} engines on. Next run {{time}}.",

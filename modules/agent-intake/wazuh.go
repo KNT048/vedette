@@ -886,7 +886,7 @@ func (s *Service) wazuhServices(ctx context.Context, c *wazuhClient, id string, 
 	if len(rows) == 0 {
 		return nil
 	}
-	if err := s.cfg.Services.ReplaceServices(ctx, hint, observe.Agent, mapServices(wazuhListening(rows))); err != nil {
+	if err := s.cfg.Services.ReplaceServices(ctx, hint, observe.Agent, observe.ServiceScope{}, mapServices(wazuhListening(rows))); err != nil {
 		if transient(err) {
 			return fmt.Errorf("agentintake: services: %w", err)
 		}

@@ -3,7 +3,7 @@
 <!-- hand-written fixture shaped after nmap 7.94 output for an office laser printer; no live network was scanned. Its print
      ports answer without a product, and the OS fingerprint is only a guess below 85% (nmap's "Aggressive OS guesses"). -->
 <nmaprun scanner="nmap" args="nmap --privileged -sS -sV -O -n --max-rate 100 --top-ports 1000 --host-timeout 30m -oX - 192.168.10.20" start="1762650000" version="7.94" xmloutputversion="1.05">
-<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<scaninfo type="syn" protocol="tcp" numservices="1001" services="1-1000,9100"/>
 <host starttime="1762650001" endtime="1762650090"><status state="up" reason="arp-response" reason_ttl="0"/>
 <address addr="192.168.10.20" addrtype="ipv4"/>
 <address addr="AA:BB:CC:00:00:23" addrtype="mac" vendor="Hewlett Packard"/>

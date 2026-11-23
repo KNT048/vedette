@@ -14,6 +14,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
@@ -72,9 +73,11 @@ type host struct {
 	// closed and filtered count the ports nmap found in those states (listed ports and <extraports>): with no open port they
 	// say whether the device refused the probes (closed) or something dropped them (filtered).
 	closed, filtered int
-	ntlm             ntlmInfo    // what the device said about itself in an NTLM challenge; zero when no script answered
-	scripts          []nseScript // every NSE script result of an open port or of the host (<hostscript>), read for the full shapes
-	says             []selfSays  // what the device stated about itself to the scripts of selfScripts (a web page's version), no login involved
+	// scanned are the TCP ports the run looked at (nmap's <scaninfo services>); nil when it printed none
+	scanned []observe.PortRange
+	ntlm    ntlmInfo    // what the device said about itself in an NTLM challenge; zero when no script answered
+	scripts []nseScript // every NSE script result of an open port or of the host (<hostscript>), read for the full shapes
+	says    []selfSays  // what the device stated about itself to the scripts of selfScripts (a web page's version), no login involved
 }
 
 // nseScript is one NSE script result: the script's id, its text output (scriptText, or outputWithheld) and the findings
@@ -375,6 +378,30 @@ var readAttrs = map[string]bool{
 
 const maxAttrLen = 4096 // longest attribute that is read, a script's output apart
 
+// scaninfoServices is the attribute of <scaninfo> that lists the ports a run looked at, as nmap's ranges ("1-1000,1002").
+const scaninfoServices = "services"
+
+// maxScanRanges bounds the ranges read from a <scaninfo>: nmap's top 1000 ports are about a hundred ranges.
+const maxScanRanges = 2000
+
+// parsePortRanges reads nmap's port list ("22,80-90"); nil when it is empty, over maxScanRanges ranges or not a list of ports.
+func parsePortRanges(list string) []observe.PortRange {
+	var out []observe.PortRange
+	for part := range strings.SplitSeq(list, ",") {
+		lo, hi, isRange := strings.Cut(part, "-")
+		from, err := strconv.Atoi(lo)
+		to := from
+		if err == nil && isRange {
+			to, err = strconv.Atoi(hi)
+		}
+		if err != nil || from < 1 || to > 65535 || from > to || len(out) >= maxScanRanges {
+			return nil
+		}
+		out = append(out, observe.PortRange{From: from, To: to})
+	}
+	return out
+}
+
 func clamp(n, lo, hi int) int { return max(lo, min(hi, n)) }
 
 func num(s string, hi int) int {
@@ -418,6 +445,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 		inIDs    bool        // inside fnd's <table key="ids">
 		fKey     string      // the field of fnd an <elem> being read fills ("state", "title", "ids"); "" when none
 		fBuf     strings.Builder
+		scanned  []observe.PortRange // the TCP ports of the run's <scaninfo>; set on each host
 	)
 	for tokens := 0; ; tokens++ {
 		if tokens > maxXMLTokens {
@@ -487,11 +515,15 @@ func parseNmapXML(data []byte) ([]host, error) {
 				fBuf.Reset()
 			}
 			switch p {
+			case "nmaprun/scaninfo":
+				if a["protocol"] == "tcp" && scanned == nil {
+					scanned = parsePortRanges(a[scaninfoServices]) // not a readAttrs key: the -p list may be long, and is only parsed
+				}
 			case "nmaprun/host":
 				if len(hosts) >= maxXMLHosts {
 					return nil, fmt.Errorf("%w: too many hosts", errXMLInvalid)
 				}
-				cur, up = &host{timedOut: a["timedout"] == "true"}, false
+				cur, up = &host{timedOut: a["timedout"] == "true", scanned: scanned}, false
 			case "nmaprun/host/status":
 				up = cur != nil && a["state"] == "up"
 			case "nmaprun/host/address":

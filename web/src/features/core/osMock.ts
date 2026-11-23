@@ -1,11 +1,11 @@
-// Mock API: hệ điều hành của chính hộp (S-CORE-7). Bản thật chạy qua `vedette-host` (systemd, đặc quyền) với danh sách lệnh apt cố định;
-// web không bao giờ chạy shell. Tiến trình cài đặt mô phỏng theo đồng hồ: log hiện dần theo thời gian từ lúc bắt đầu, không cần timer phía máy chủ.
+// Mock API: the box's own operating system (S-CORE-7). The real version runs through `vedette-host` (systemd, privileged) with a fixed list of apt commands;
+// the web never runs a shell. The install progress is simulated by the clock: the log appears gradually with the time since the start, no server-side timer needed.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
 import type { MaintenanceWindow, OsPackage, OsRebootBody, OsRun, OsState, UpdateHistory } from './types'
 
-/** Mỗi dòng log hiện sau từng ấy mili giây (test: gần như tức thì). */
+/** Each log line appears after this many milliseconds (tests: almost instant). */
 const STEP_MS = import.meta.env.MODE === 'test' ? 20 : 450
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/
 
@@ -58,7 +58,7 @@ const RELEASE_UPGRADE: Record<string, OsState['release_upgrade']> = {
 
 const dayOf = (d: Date) => (d.getDay() === 0 ? 7 : d.getDay())
 const minutes = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3))
-/** Mốc `d` có nằm trong cửa sổ bảo trì không (cửa sổ qua nửa đêm tính cho ngày bắt đầu). */
+/** Whether the moment `d` falls inside the maintenance window (a window that crosses midnight counts for its start day). */
 export function inWindow(d: Date, w: MaintenanceWindow): boolean {
   if (w.mode === 'always') return true
   const t = d.getHours() * 60 + d.getMinutes()
@@ -70,7 +70,7 @@ export function inWindow(d: Date, w: MaintenanceWindow): boolean {
 function atTime(day: number, hhmm: string): Date {
   const d = new Date(); d.setDate(d.getDate() + day); d.setHours(Number(hhmm.slice(0, 2)), Number(hhmm.slice(3)), 0, 0); return d
 }
-/** Lần đầu tiên sau bây giờ mà cửa sổ bắt đầu. */
+/** The first moment after now at which the window starts. */
 function nextWindowStart(w: MaintenanceWindow): Date | null {
   for (let i = 0; i < 8; i++) { const c = atTime(i, w.from); if (c.getTime() > Date.now() && w.days.includes(dayOf(c))) return c }
   return null
@@ -89,7 +89,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
   const elapsed = (r: RunStore) => Date.now() - new Date(r.started_at).getTime()
   const running = (r: RunStore | null) => !!r && elapsed(r) < total(r)
 
-  /** Khi lần chạy vừa xong: áp hiệu ứng đúng một lần (gói biến mất khỏi danh sách chờ, cần khởi động lại, lịch sử, kiểm toán). */
+  /** When a run has just finished: apply the effect exactly once (the package leaves the pending list, a restart is needed, history, audit). */
   function settle() {
     const r = runStore.get()
     if (!r || r.settled || running(r)) return
@@ -213,7 +213,7 @@ export const osHandlers = (deps: { updateCheckOn: () => boolean; addHistory: (e:
       store.update((s) => ({
         ...s, auto_security: b.auto_security ?? s.auto_security,
         window: w ? (w.mode === 'always' ? { ...s.window, mode: 'always' } : { mode: 'window', days: [...new Set(w.days)].sort(), from: w.from, to: w.to }) : s.window,
-        // Lịch khởi động lại cũ có thể rơi ra ngoài cửa sổ mới: bỏ, người dùng đặt lại.
+        // An old restart schedule may fall outside the new window: drop it, the user sets it again.
         reboot_scheduled_at: w && s.reboot_scheduled_at && !inWindow(new Date(s.reboot_scheduled_at), w.mode === 'always' ? { ...s.window, mode: 'always' } : w) ? null : s.reboot_scheduled_at,
       }))
       audit('os.settings', 'operating system', `auto security ${store.get().auto_security ? 'on' : 'off'}, window ${store.get().window.mode}`)

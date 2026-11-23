@@ -68,6 +68,9 @@ CHILD_ENV = {"PATH": "/usr/bin:/bin", "HOME": "/tmp/home", "PYTHONPATH": "/opt/o
 # the connection at its next packet (AttributeError: no dhSecretKey), after the 4000 line and before the login attempt (4002) is logged. Many
 # scanners offer group exchange first. The wrapper runs OpenCanary's method unchanged and then the missing step; it fails at start (KeyError,
 # AttributeError: the container exits) when a new OpenCanary or Twisted no longer has what it wraps, so an upgrade has to look at it again.
+# Fixed upstream in thinkst/opencanary#531 (commit 1d33ac3, merged 2026-11-16), not yet in a release (latest is 0.9.10). When the pin
+# moves to the first release with that fix, delete this wrapper and keep the group-exchange login check in scripts/dev/honeypot-check.sh.
+# Until then the wrapper is harmless on a fixed build: it only starts the exchange when OpenCanary did not (no dhSecretKey yet).
 TWISTD = """
 from twisted.scripts.twistd import run
 from twisted.conch.ssh.transport import SSHServerTransport

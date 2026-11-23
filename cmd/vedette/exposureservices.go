@@ -12,8 +12,9 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// exposureServiceScan is exposure's ServiceScanner over sensor-active's ScanExternal (S-EXP-2, exposure INV-19): nmap -sV
-// in the scan container on the box's own verified public IP. exposureService sets it as cfg.Services; the commitment sentence of
+// exposureServiceScan is exposure's ServiceScanner over sensor-active's ScanExternal (S-EXP-2, exposure INV-19): nmap in the scan
+// container on the box's own verified public IP, port discovery over nmap's 1000 most common TCP ports, then -sV on the open ones
+// and the fixed list; the ports it probed reach exposure as ServiceScan.Probed. exposureService sets it as cfg.Services; the commitment sentence of
 // NoticeVersion 2026-11-14 (K-4) names service identification, and PRIVACY flow 9 and THIRD_PARTY_NOTICES say what is sent.
 // A target whose testing terms are accepted (ScanTarget.Mode.Full) gets the deep scan instead: every TCP
 // port with nmap's default, safe and vuln scripts (nmapargv.ExternalFull), and the dos and brute scripts too with the disruptive
@@ -150,7 +151,8 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 	default:
 		return exposure.ServiceScan{}, err // logged by exposure, shown as a failure without its text (a failed ModeNow too: fail closed)
 	}
-	out := exposure.ServiceScan{Services: make([]exposure.ServiceRow, 0, len(got.Services)), Ports: got.Ports}
+	out := exposure.ServiceScan{Services: make([]exposure.ServiceRow, 0, len(got.Services)), Ports: got.Ports, Probed: got.Probed, DiscoveryCut: got.DiscoveryCut,
+		AnswersEverywhere: got.AnswersEverywhere, Unfinished: got.Unfinished}
 	for _, s := range got.Services {
 		out.Services = append(out.Services, exposure.ServiceRow{IP: ip.String(), Port: s.Port, Name: s.Name, Product: s.Product, Version: s.Version, CPE: s.CPE, Extra: s.Extra, Method: s.Method, Conf: s.Conf})
 	}

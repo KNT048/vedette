@@ -19,7 +19,7 @@ import { errMsg, ReadOnlyNote, useGate } from './parts'
 
 type Confirm = { kind: 'disable'; mod: ModuleId; affected: ModuleId[] } | { kind: 'deps'; mod: ModuleId; missing: ModuleId[] } | null
 
-/** Tắt module notify khi còn người dùng mã email: họ sẽ không đăng nhập được. Chỉ mở khi hộp thoại hiện, và chỉ quản trị đọc được danh sách người dùng. */
+/** Turning off the notify module while email-code users remain: they would not be able to sign in. Only fetched when the dialog shows, and only an admin can read the user list. */
 function EmailCodeWarning() {
   const { t } = useTranslation('core')
   const count = (useUsers().data?.items ?? []).filter((u) => !u.disabled && u.twofa_method === 'email').length
@@ -119,7 +119,7 @@ export default function ModulesSection() {
           ) : null}
           {confirm?.kind === 'disable' && confirm.mod === 'notify' ? <EmailCodeWarning /> : null}
           {confirm?.kind === 'disable' && confirm.mod === 'auth-oidc' ? <SsoUsersWarning /> : null}
-          {/* what a module says stays in force once it is off (response: CONTRACT "Khi tắt module") */}
+          {/* what a module says stays in force once it is off (response: CONTRACT "when a module is turned off") */}
           {confirm?.kind === 'disable' ? <Slot name="modules.disable" props={{ module: confirm.mod, onClose: () => setConfirm(null) }} /> : null}
           <DialogFooter>
             <Button onClick={() => setConfirm(null)}>{t('common:cancel')}</Button>

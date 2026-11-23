@@ -1,4 +1,4 @@
-// Gói chẩn đoán báo lỗi (S-CORE-5). Hộp không gửi gì: người dùng tải tệp và tự mở GitHub issue trong trình duyệt của mình.
+// The bug-report diagnostic bundle (S-CORE-5). The box sends nothing: the user downloads the file and opens a GitHub issue in their own browser.
 import { getClientErrors, redact, type ClientError } from '@/lib/clientErrors'
 import type { ModuleState } from '@/lib/modules'
 import { dayOf } from '@/lib/format'
@@ -15,7 +15,7 @@ export interface DiagnosticBundle {
   recent_errors: ClientError[]
 }
 
-/** Chỉ các trường này, không thiết bị, log, phát hiện, khoá, email hay IP. */
+/** Only these fields: no devices, logs, findings, keys, emails or IPs. */
 export function buildBundle(modules: ModuleState[] | undefined): DiagnosticBundle {
   return {
     app_version: String(import.meta.env.VITE_APP_VERSION ?? '0.0.0-preview'),

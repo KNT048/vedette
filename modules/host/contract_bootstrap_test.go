@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// vedette-host -bootstrap, the first install (WP-07b part 3, slice 3-8b; spec "Khởi động lần đầu").
+// vedette-host -bootstrap, the first install (WP-07b part 3, slice 3-8b; spec first-start section).
 // Ops.Bootstrap is what the command line calls; the daemon check and the exit codes are tested in
 // cmd/vedette-host. The machine is the stateful fake of opstest and a signing environment made for the test.
 

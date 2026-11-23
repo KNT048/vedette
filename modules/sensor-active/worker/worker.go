@@ -590,10 +590,22 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(j.Ports) > 0 && kind != nmapargv.PortVersions {
+	if len(j.Ports) > 0 && kind != nmapargv.PortVersions && kind != nmapargv.External {
 		return nil, fmt.Errorf("a %s job carries no ports", j.Shape)
 	}
-	argv, err := nmapargv.BuildFor(kind, j.Rate, j.Ports, targets) // port_versions: its 1..20 ports
+	batch := kind == nmapargv.External && len(j.Ports) > 0 // an external -sV batch: its ports and its host timeout
+	if j.HostTimeoutS != 0 && !batch {
+		return nil, fmt.Errorf("a %s job carries no host timeout", j.Shape)
+	}
+	if batch && (j.HostTimeoutS < int(nmapargv.BatchMinTimeout/time.Second) || j.HostTimeoutS > int(nmapargv.BatchMaxTimeout/time.Second)) {
+		return nil, fmt.Errorf("host timeout %d s is outside the batch range", j.HostTimeoutS) // checked before it becomes a duration
+	}
+	var argv []string
+	if batch {
+		argv, err = nmapargv.BuildBatch(j.Rate, j.Ports, time.Duration(j.HostTimeoutS)*time.Second, targets)
+	} else {
+		argv, err = nmapargv.BuildFor(kind, j.Rate, j.Ports, targets) // port_versions: its 1..20 ports
+	}
 	if err != nil {
 		return nil, err
 	}

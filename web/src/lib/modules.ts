@@ -22,7 +22,7 @@ export function useModules() {
   return useQuery({ queryKey: ['modules'], queryFn: () => api.get<{ modules: ModuleState[]; install: InstallKind }>('/modules'), staleTime: 30_000 })
 }
 
-/** true/false khi đã biết; undefined khi đang tải. */
+/** true/false when known; undefined while loading. */
 export function useModuleEnabled(id: ModuleId): boolean | undefined {
   const { data } = useModules()
   return data?.modules.find((m) => m.id === id)?.enabled

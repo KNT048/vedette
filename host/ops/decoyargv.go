@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// The argv of the decoy commands (spec 18, "Tiến trình con"): fixed grammars for ip, with sysctl and
+// The argv of the decoy commands (spec 18, child processes): fixed grammars for ip, with sysctl and
 // nft reachable only as "ip netns exec vedette-hp <absolute path> <fixed words>" (they are never
 // allowlisted on their own: run outside the namespace, nft would change the box's own firewall).
 // Every value is a typed value rendered by a builder below, and validateIP re-checks the whole

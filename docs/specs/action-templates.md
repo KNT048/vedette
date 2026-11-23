@@ -1,106 +1,106 @@
-# Gói hành động theo hãng (action packs)
+# Vendor action packs
 
-> **đây là thư viện MẪU hành động ở dạng dữ liệu, không phải code.** Lõi Vedette chỉ có các kiểu kết nối chung (HTTP API, SSH/CLI, NETCONF/RESTCONF, nền tảng tự động hoá như Ansible AWX/n8n, MCP, danh sách chặn). Mỗi mục dưới đây là một template ví dụ phát hành kèm bản cập nhật; khách sửa/thêm được, AI soạn được cho thiết bị khác rồi người duyệt. Tên hãng chỉ là ví dụ.
+> **This is a library of action TEMPLATES in the form of data, not code.** The Vedette core has only generic connection kinds (HTTP API, SSH/CLI, NETCONF/RESTCONF, automation platforms such as Ansible AWX/n8n, MCP, block lists). Each entry below is an example template shipped with an update; customers can edit/add them, and the AI can draft one for another device for a person to approve. Vendor names are only examples.
 
 
-Trạng thái: bản nháp M2-0, viết 2026-11-09. Căn cứ: danh mục hiện tại của GUI ở `web/src/features/response/data.ts`, `logic.ts`, `CatalogEditor.tsx`. Danh sách chặn cho firewall kéo: `docs/specs/blocklist-format.md` (spec riêng).
+Status: draft, written 2026-11-09. Basis: the current GUI catalogue in `web/src/features/response/data.ts`, `logic.ts`, `CatalogEditor.tsx`. Block lists that a firewall pulls: `docs/specs/blocklist-format.md` (a separate spec).
 
-Tài liệu này là hợp đồng của backend cho module `response`: mỗi hành động gồm lệnh/API chính xác, tham số có kiểu, hoàn tác, kiểm lại, quyền tối thiểu, rủi ro. Thay đổi GUI nêu ở mục 12 cần người duy trì duyệt (quy tắc gui-first), không tự sửa.
+This document is the backend's contract for the `response` module: each action has an exact command/API, typed parameters, rollback, re-check, minimum permission and risk. GUI changes listed in section 12 need the maintainer's approval (the GUI-first rule) and are not made on their own.
 
-## 0. Cách đọc nhãn xác minh
+## 0. How to read the verification labels
 
-Mỗi lệnh, đường dẫn API, trường JSON thuộc một trong hai loại:
+Every command, API path and JSON field belongs to one of two kinds:
 
-- **[xác minh]**: đã đọc trong tài liệu chính thức của hãng (URL ghi ngay dưới mục). Nếu chỉ thấy qua trang không chính thức của hãng (cộng đồng Fortinet, wrapper) thì ghi rõ "nguồn cộng đồng".
-- **chưa xác minh**: viết từ kiến thức chung hoặc nguồn không chính thức, chưa tìm thấy trong tài liệu chính thức khi soạn. **Không đưa vào mã sản xuất** trước khi chạy thử trên thiết bị thật/lab và đổi nhãn thành [xác minh] kèm URL hoặc "đã thử trên <model, phiên bản> ngày <ngày>".
+- **[verified]**: read in the vendor's official documentation (the URL is given right under the entry). If it was seen only on an unofficial vendor page (the Fortinet community, a wrapper) it is labelled "community source".
+- **unverified**: written from general knowledge or an unofficial source, not found in the official documentation when drafted. **Do not put it into production code** before running it on a real device/lab and changing the label to [verified] with a URL or "tried on <model, version> on <date>".
 
-Hai trang tài liệu Fortinet rất dài (hàng trăm nghìn ký tự) nên công cụ tải trang chỉ trả về menu; các điểm lấy từ đó được ghi nguồn là kết quả tìm kiếm tới trang `docs.fortinet.com`. Tham chiếu REST API đầy đủ của FortiOS nằm sau đăng nhập Fortinet Developer Network, nên các đường dẫn `cmdb`/`monitor` của FortiGate mặc định ở mức chưa xác minh cho tới khi thử trên máy.
+Two Fortinet documentation pages are very long (hundreds of thousands of characters) so the page-fetching tool returned only the menu; points taken from them are sourced to search results leading to the page on `docs.fortinet.com`. The full FortiOS REST API reference is behind a Fortinet Developer Network login, so FortiGate `cmdb`/`monitor` paths are unverified by default until tried on a device.
 
-## 1. Quy ước chung cho mọi gói
+## 1. Common conventions for every pack
 
-### 1.1 Bản ghi một hành động (schema logic)
+### 1.1 The record of an action (logical schema)
 
-| Trường | Ý nghĩa |
+| Field | Meaning |
 |---|---|
-| `id` | định danh ổn định, chữ thường, ví dụ `fgt_addrgrp_add` |
-| `pack`, `name`, `description` | gói, tên và mô tả bằng lời người thường |
-| `connection` | loại kết nối cần (fortigate-rest, mikrotik-rest, ssh-cisco...) |
-| `params` | danh sách tham số có kiểu, xem 1.2 |
-| `run`, `rollback`, `verify` | mẫu lệnh/API cho từng bước |
-| `precheck` | bước đọc trạng thái trước khi ghi (để quyết định idempotent và để lưu giá trị cũ cho hoàn tác) |
-| `ttl` | thời hạn tự gỡ, xem 1.4 |
+| `id` | a stable identifier, lowercase, for example `fgt_addrgrp_add` |
+| `pack`, `name`, `description` | the pack, the name and a description in plain words |
+| `connection` | the kind of connection needed (fortigate-rest, mikrotik-rest, ssh-cisco...) |
+| `params` | a list of typed parameters, see 1.2 |
+| `run`, `rollback`, `verify` | command/API templates for each step |
+| `precheck` | a step that reads the state before writing (to decide idempotency and to save the old value for rollback) |
+| `ttl` | the deadline for automatic removal, see 1.4 |
 | `risk` | `low`, `medium`, `high` (1.5) |
-| `ai_may_propose` | cờ cho phép AI đề xuất |
-| `min_version` | khoảng phiên bản hỗ trợ |
+| `ai_may_propose` | a flag that lets the AI propose it |
+| `min_version` | the supported version range |
 
-### 1.2 Tham số có kiểu và cách escape
+### 1.2 Typed parameters and escaping
 
-Dữ liệu tác nhân (IP nguồn, tên miền, tên thiết bị, SNI, nội dung log) do kẻ tấn công kiểm soát. Hai lớp bắt buộc: (1) kiểm kiểu, từ chối nếu sai; (2) escape theo đường truyền khi đặt vào mẫu. Giá trị không qua lớp 1 thì không bao giờ tới lớp 2.
+Agent data (source IP, domain, device name, SNI, log content) is controlled by an attacker. Two mandatory layers: (1) type checking, rejecting if wrong; (2) escaping for the transport when it is put into a template. A value that does not pass layer 1 never reaches layer 2.
 
-| Kiểu | Kiểm (lớp 1) | Ghi chú theo đường truyền (lớp 2) |
+| Type | Check (layer 1) | Notes by transport (layer 2) |
 |---|---|---|
-| `ip` | `netip.ParseAddr`, bỏ zone, `Unmap()`, dạng chuẩn do Go in ra; từ chối unspecified, loopback, multicast, link-local, và mọi IP nằm trong danh sách không bao giờ đụng | đã chuẩn hoá nên chỉ gồm `[0-9a-f.:]`; vẫn escape theo JSON/URL/CLI bên dưới |
-| `cidr` | `netip.ParsePrefix` rồi `Masked()`; chặn prefix rộng hơn trần cấu hình (mặc định IPv4 `/16`, IPv6 `/48`) và mọi dải giao với danh sách không bao giờ đụng | dạng mask đặt theo hãng (FortiGate `a.b.c.d m.m.m.m`, Cisco wildcard); backend tự đổi, không để người dùng gõ |
-| `domain` | chữ thường, đổi punycode, regex nhãn RFC 1123 (`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`), tối đa 253 ký tự, không wildcard, không IP | nếu hành động dùng regex (Pi-hole `regex`): chèn `regexp.QuoteMeta` rồi mới ghép; **bản đầu không hỗ trợ regex**, chỉ `exact` |
-| `port` | số nguyên 1 đến 65535 | số, không escape |
-| `mac` | 6 byte, chuẩn hoá `aa:bb:cc:dd:ee:ff` | đổi định dạng theo hãng ở backend (Cisco `aabb.ccdd.eeff`) |
-| `vlan` | số nguyên 1 đến 4094, loại VLAN quản trị và VLAN khai báo trong danh sách không đụng | số, không escape |
-| `interface` | regex theo hãng (xem từng gói) **và** phải có trong ảnh chụp danh sách cổng đọc từ thiết bị (`precheck`), **và** không nằm trong danh sách không đụng (uplink, cổng nối hộp Vedette) | chỉ ký tự `[A-Za-z0-9/.:-]` |
-| `name` | `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$` (security.md) | an toàn trong dấu nháy kép của CLI FortiOS và RouterOS |
-| `id` (đề xuất mới) | số nguyên 1 đến 2^31-1; dùng cho `policyid` của FortiGate | số, không escape. Hiện GUI chưa có kiểu này, xem mục 12 |
+| `ip` | `netip.ParseAddr`, drop the zone, `Unmap()`, the canonical form Go prints; reject unspecified, loopback, multicast, link-local, and every IP in the never-touch list | already normalised so it contains only `[0-9a-f.:]`; still escaped per JSON/URL/CLI below |
+| `cidr` | `netip.ParsePrefix` then `Masked()`; block a prefix wider than the configured cap (default IPv4 `/16`, IPv6 `/48`) and every range that intersects the never-touch list | the mask form is set per vendor (FortiGate `a.b.c.d m.m.m.m`, Cisco wildcard); the backend converts it, the user does not type it |
+| `domain` | lowercase, convert to punycode, RFC 1123 label regex (`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`), at most 253 characters, no wildcard, no IP | if the action uses a regex (Pi-hole `regex`): insert `regexp.QuoteMeta` and only then compose; **the first version does not support regex**, only `exact` |
+| `port` | an integer 1 to 65535 | a number, no escaping |
+| `mac` | 6 bytes, normalised `aa:bb:cc:dd:ee:ff` | the format is converted per vendor in the backend (Cisco `aabb.ccdd.eeff`) |
+| `vlan` | an integer 1 to 4094, excluding the management VLAN and VLANs declared in the never-touch list | a number, no escaping |
+| `interface` | a per-vendor regex (see each pack) **and** it must be in the snapshot of the port list read from the device (`precheck`), **and** not in the never-touch list (uplinks, the port connecting the Vedette box) | only characters `[A-Za-z0-9/.:-]` |
+| `name` | `^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$` (security.md) | safe inside double quotes of the FortiOS and RouterOS CLI |
+| `id` (new proposal) | an integer 1 to 2^31-1; used for FortiGate's `policyid` | a number, no escaping. The GUI does not have this type yet, see section 12 |
 
-Escape theo đường truyền (khớp `escapeFor` trong `logic.ts`, chặt hơn ở chỗ ghi rõ):
+Escaping by transport (matches `escapeFor` in `logic.ts`, stricter where stated):
 
-- **JSON**: không ghép chuỗi vào văn bản JSON. Phân tích mẫu thành cây JSON, gán giá trị vào nút chuỗi hoặc mảng, rồi serialize (Go `encoding/json`). Không đổi được cấu trúc, không thêm trường.
-- **Đường dẫn URL**: `url.PathEscape` cho từng đoạn; cấm tham số làm cả đoạn có `/`. Không đặt tham số vào scheme, host, port, userinfo.
+- **JSON**: never concatenate strings into JSON text. Parse the template into a JSON tree, assign values to string nodes or arrays, and then serialise (Go `encoding/json`). The structure cannot change and no field can be added.
+- **URL path**: `url.PathEscape` for each segment; a parameter that makes up a whole segment containing `/` is forbidden. No parameter goes into the scheme, host, port or userinfo.
 - **Query**: `url.Values.Encode`.
-- **Header**: không cho tham số vào tên header; giá trị header từ chối `\r`, `\n`.
-- **CLI qua SSH**: mỗi dòng lệnh là một lần gửi riêng; tham số đã qua lớp 1 nên không chứa khoảng trắng, `"`, `\`, `;`, `|`, `?`, `$`, `[`, `]`, ký tự điều khiển (`?` mở trợ giúp trong CLI FortiOS/Cisco; `[` `]` `$` có nghĩa trong script RouterOS). Giá trị cuối cùng phải khớp từng dòng của mẫu đã lưu: sau khi thay, số dòng bằng số dòng mẫu.
+- **Header**: no parameter goes into a header name; a header value rejects `\r`, `\n`.
+- **CLI over SSH**: each command line is sent separately; a parameter that has passed layer 1 contains no whitespace, `"`, `\`, `;`, `|`, `?`, `$`, `[`, `]`, or control characters (`?` opens help in the FortiOS/Cisco CLI; `[` `]` `$` have meaning in RouterOS scripts). The final value must match line by line the stored template: after substitution, the number of lines equals the number of lines of the template.
 
-### 1.3 Dấu vết sở hữu (chống gỡ nhầm của quản trị viên)
+### 1.3 Ownership mark (protecting against removing an administrator's object by mistake)
 
-Mọi đối tượng Vedette tạo trên thiết bị phải có dấu: tiền tố tên `vedette-` hoặc `comment`/`description` = `vedette:<request_id>`. Hoàn tác chỉ gỡ đối tượng có dấu này **và** khớp request. Nếu cùng IP đã tồn tại do quản trị viên tạo (không có dấu): hành động báo "đã có, không phải của Vedette", không ghi, không hoàn tác.
+Every object Vedette creates on a device must carry a mark: a name prefix `vedette-` or `comment`/`description` = `vedette:<request_id>`. Rollback removes only an object that has this mark **and** matches the request. If the same IP already exists because an administrator created it (no mark): the action reports "already exists, not Vedette's", writes nothing and does not roll back.
 
 ### 1.4 TTL
 
-- Ưu tiên TTL **của thiết bị** (còn chạy khi hộp Vedette tắt): MikroTik `timeout=`, FortiGate banned `expiry`, danh sách chặn kéo (mục vào/ra theo `expires_at`).
-- Thiết bị không có TTL gốc (FortiGate address group, pfSense/OPNsense alias qua API, Cisco/Aruba ACL, Pi-hole, AdGuard): Vedette lưu `expires_at` và chạy hoàn tác khi đến hạn. Hộp tắt lúc đến hạn: chạy bù khi khởi động lại, hiện "quá hạn" trên màn hình Phản ứng. Hoàn tác tự động tới hạn cũng ghi kiểm toán và vẫn cần mục chặn nằm trong danh sách "hoàn tác được không cần duyệt" (hoàn tác không làm thêm hại).
-- TTL tối đa theo rủi ro: low 30 ngày, medium 7 ngày, high 24 giờ. Không TTL chỉ cho hành động có cờ `permanent` do quản trị viên đặt tay.
+- Prefer the **device's own** TTL (it keeps running while the Vedette box is off): MikroTik `timeout=`, FortiGate banned `expiry`, a pulled block list (entries come in/out by `expires_at`).
+- A device with no native TTL (FortiGate address group, pfSense/OPNsense alias through the API, Cisco/Aruba ACL, Pi-hole, AdGuard): Vedette stores `expires_at` and runs the rollback when it is due. If the box is off at the due time: run it late on restart and show "overdue" on the Response screen. An automatic rollback at expiry also writes an audit entry and still requires the block entry to be on the "reversible without approval" list (a rollback adds no further harm).
+- Maximum TTL by risk: low 30 days, medium 7 days, high 24 hours. No TTL only for an action with the `permanent` flag set by an administrator by hand.
 
-### 1.5 Mức rủi ro
+### 1.5 Risk levels
 
-- **low**: thêm mục vào danh sách chặn ngoài LAN (IP/domain đích), thông báo; gỡ lại không ảnh hưởng gì khác.
-- **medium**: chặn một IP **nguồn** trong LAN hoặc trên cổng vào; tắt/bật cổng switch; thêm dòng ACL ở switch.
-- **high**: chuyển VLAN cách ly; tắt VIP/chính sách đang phục vụ người dùng thật; mọi thứ cắt dịch vụ. Cần 2 người duyệt.
+- **low**: adding an entry to a block list outside the LAN (a destination IP/domain), a notification; removing it again affects nothing else.
+- **medium**: blocking a **source** IP inside the LAN or on an inbound port; turning a switch port off/on; adding an ACL line on a switch.
+- **high**: moving to a quarantine VLAN; disabling a VIP/policy that serves real users; anything that cuts a service. Needs 2 approvers.
 
-Rủi ro còn tăng bậc khi nhiều mục tiêu (quy tắc rủi ro) hoặc mục tiêu là thiết bị cùng nhóm dịch vụ.
+Risk also rises one step with many targets (the rule's risk) or when the target is a device in the same service group.
 
-### 1.6 Đọc lại sau khi chạy (verify)
+### 1.6 Re-reading after running (verify)
 
-Mỗi hành động có một `verify` chỉ-đọc, chạy sau `run` và sau `rollback`, so với kỳ vọng cụ thể (ví dụ "mục có trong danh sách", "trạng thái là disable"). Sai khác thì: đánh dấu hành động `chưa chắc`, không tự thử lại quá 1 lần, thông báo người duyệt, dừng chuỗi. Mã trả về HTTP 2xx hoặc dòng lệnh không lỗi **không** được coi là xác minh (ships-as-code).
+Each action has a read-only `verify`, run after `run` and after `rollback`, compared with a specific expectation (for example "the entry is in the list", "the state is disable"). On a mismatch: mark the action `uncertain`, do not retry on its own more than once, notify the approver, and stop the chain. An HTTP 2xx return code or a command line without an error is **not** treated as verification (ships-as-code).
 
-### 1.7 Đường kéo ưu tiên
+### 1.7 The preferred pull path
 
-Chặn IP/domain đích: ưu tiên hành động `blocklist_add` rồi để firewall kéo, vì không cần quyền ghi lên firewall. Gói bên dưới là đường đẩy, dùng khi (a) cần chặn ngay (chu kỳ kéo chậm), (b) thiết bị không kéo được, (c) cần hành động không phải danh sách (VIP, cổng, VLAN). Chu kỳ kéo khác nhau rõ rệt: FortiGate 1 đến 43200 phút [xác minh], OPNsense có "Refresh frequency" [xác minh nhưng đơn vị chưa rõ], pfSense URL Table chưa xác minh (có thể tính theo ngày), MikroTik tự viết lịch `fetch`.
+Blocking a destination IP/domain: prefer the `blocklist_add` action and let the firewall pull it, because it needs no write permission on the firewall. The packs below are the push path, used when (a) an immediate block is needed (the pull cycle is slow), (b) the device cannot pull, (c) an action that is not a list is needed (VIP, port, VLAN). Pull cycles differ markedly: FortiGate 1 to 43200 minutes [verified], OPNsense has "Refresh frequency" [verified but the unit is unclear], pfSense URL Table is unverified (may be counted in days), and MikroTik writes its own `fetch` schedule.
 
 ---
 
 ## 2. FortiGate (FortiOS REST API)
 
-**Phiên bản**: mục tiêu FortiOS 7.2 đến 7.6; 7.0 chỉ cố gắng. Lệnh CLI `diagnose user banned-ip` có từ 7.2; bản 6.0/7.0 dùng `diagnose user quarantine list` [xác minh, nguồn cộng đồng Fortinet]. Đã thấy hướng dẫn quản trị 7.2.7, 7.4.6, 7.6.5 cho trang REST API.
+**Versions**: the target is FortiOS 7.2 to 7.6; 7.0 is best effort only. The CLI command `diagnose user banned-ip` exists from 7.2; versions 6.0/7.0 use `diagnose user quarantine list` [verified, Fortinet community source]. Administration guides 7.2.7, 7.4.6, 7.6.5 have been seen for the REST API page.
 
-**Nguồn**:
-- Dùng API, token Bearer, quản trị viên REST API: https://docs.fortinet.com/document/fortigate/7.4.6/administration-guide/940602 và https://docs.fortinet.com/document/fortigate/7.4.0/administration-guide/399023
+**Sources**:
+- Using the API, the Bearer token, the REST API administrator: https://docs.fortinet.com/document/fortigate/7.4.6/administration-guide/940602 and https://docs.fortinet.com/document/fortigate/7.4.0/administration-guide/399023
 - Threat feed (External Block List): https://docs.fortinet.com/document/fortigate/7.4.0/administration-guide/891236/external-blocklist-threat-feed
 - CLI `config system external-resource`: https://docs.fortinet.com/document/fortigate/7.4.0/cli-reference/72620
-- Danh sách banned IP: https://community.fortinet.com/fortigate-3/technical-tip-how-to-list-or-remove-a-banned-ip-from-the-list-on-a-fortigate-92714 (cộng đồng Fortinet, không phải tài liệu chính thức)
-- Tham chiếu REST API đầy đủ: Fortinet Developer Network, cần đăng nhập (chưa đọc được)
+- The banned IP list: https://community.fortinet.com/fortigate-3/technical-tip-how-to-list-or-remove-a-banned-ip-from-the-list-on-a-fortigate-92714 (the Fortinet community, not official documentation)
+- The full REST API reference: Fortinet Developer Network, needs a login (could not be read)
 
-### 2.1 Kết nối và quyền tối thiểu
+### 2.1 Connection and minimum permissions
 
-- Xác thực: token API gửi bằng header `Authorization: Bearer <token>` [xác minh]. Token **chỉ hiện một lần** khi tạo, FortiGate không cung cấp lại [xác minh]. Không dùng token trong URL (từ 7.6 phải bật cài đặt toàn cục mới cho phép) [xác minh]. Chỉ quản trị viên hồ sơ `super_admin` mới tạo được quản trị viên REST API [xác minh].
-- Trusted hosts: bắt buộc chỉ IP hộp Vedette; `0.0.0.0/0` không được phép [xác minh]. FortiGate kiểm trusted host của quản trị viên thường trước rồi mới tới trusted host của api-user (nguồn cộng đồng).
-- Hồ sơ quản trị (`accprofile`) chỉ cấp những gì cần. Đề xuất tối thiểu (chưa xác minh tên trường; xác nhận trong CLI của đúng phiên bản):
+- Authentication: an API token sent in the header `Authorization: Bearer <token>` [verified]. The token is **shown only once** at creation and FortiGate does not provide it again [verified]. A token in a URL is not used (from 7.6 a new global setting must be turned on to allow it) [verified]. Only an administrator with the `super_admin` profile can create a REST API administrator [verified].
+- Trusted hosts: required, only the Vedette box's IP; `0.0.0.0/0` is not allowed [verified]. FortiGate checks the trusted hosts of an ordinary administrator first and then the api-user's trusted hosts (community source).
+- The administration profile (`accprofile`) grants only what is needed. Proposed minimum (field names unverified; confirm in the CLI of the exact version):
 
 ```
 config system accprofile
@@ -118,7 +118,7 @@ config system api-user
         set accprofile "vedette-response"
         config trusted-hosts
             edit 1
-                set ipv4-trusted-host <ip-hop-vedette>/32
+                set ipv4-trusted-host <vedette-box-ip>/32
             next
         end
     next
@@ -126,21 +126,21 @@ end
 execute api-user generate-key vedette
 ```
 
-  Ghi chú: `authgrp` chỉ cần cho `user/banned`; bỏ nếu không dùng hành động ban. `policy` chỉ cần cho tắt/bật chính sách và VIP. Hộp Vedette chỉ yêu cầu đúng quyền của hành động khách bật (giao diện hiện "quyền cần cấp" theo hành động đã bật). Tuyệt đối không dùng hồ sơ `super_admin` và không cấp `sysgrp` (cấu hình hệ thống) cho Vedette.
-- Khoá sai nhiều lần có thể khoá quản trị viên API một thời gian (tiêu đề bài cộng đồng "administrative lockout durations for FortiGate API users", chưa đọc nội dung): hộp không thử lại token sai, báo lỗi xác thực ngay.
-- VDOM: mọi lệnh REST thêm `?vdom=<name>` khi dùng VDOM (chưa xác minh). Lưu `vdom` trong kết nối.
-- Không có bước commit: REST `cmdb` có hiệu lực ngay. CLI qua SSH cũng có hiệu lực khi `next` hoặc `end` (chưa xác minh). HA: thay đổi trên máy chủ đạo được đồng bộ sang máy phụ (chưa xác minh); FortiGate do FortiManager quản lý có thể ghi đè đối tượng cục bộ khi cài lại chính sách (chưa xác minh), cần lab nếu khách dùng FortiManager.
+  Note: `authgrp` is needed only for `user/banned`; drop it if the ban action is not used. `policy` is needed only for disabling/enabling policies and VIPs. The Vedette box requests exactly the permissions of the actions the customer turned on (the interface shows the "permissions to grant" per enabled action). Never use the `super_admin` profile and never grant `sysgrp` (system configuration) to Vedette.
+- Repeated wrong keys can lock out an API administrator for a while (the title of a community post "administrative lockout durations for FortiGate API users", content not read): the box does not retry a wrong token and reports the authentication error at once.
+- VDOM: every REST command adds `?vdom=<name>` when VDOMs are used (unverified). Store `vdom` in the connection.
+- There is no commit step: REST `cmdb` takes effect at once. The CLI over SSH also takes effect at `next` or `end` (unverified). HA: a change on the primary is synchronised to the secondary (unverified); a FortiGate managed by FortiManager may have local objects overwritten when the policy is reinstalled (unverified), so a lab is needed if the customer uses FortiManager.
 
-### 2.2 `fgt_addrgrp_add` / `fgt_addrgrp_remove`: thêm/gỡ địa chỉ trong nhóm địa chỉ
+### 2.2 `fgt_addrgrp_add` / `fgt_addrgrp_remove`: add/remove an address in an address group
 
-- Mô tả: "Thêm IP hoặc dải vào nhóm địa chỉ `Vedette-Blocked`; chính sách chặn có sẵn dùng nhóm đó sẽ cắt IP đó". Chính sách chặn khách tạo một lần (hộp có thể in sẵn đoạn CLI hướng dẫn, không tự tạo).
-- Tham số: `ip` hoặc `cidr` (một trong hai, kiểu cố định theo mẫu); `name` của nhóm mặc định `Vedette-Blocked` cấu hình ở kết nối, không lấy từ tác nhân.
-- Tên đối tượng địa chỉ: `vedette-<ip>` với IPv4 (dấu `.` hợp lệ); CIDR: `vedette-<ip>_<len>`. Chiều dài tên tối đa chưa xác minh (nghĩ 79 ký tự). Tên sinh bởi backend từ giá trị đã kiểm, không từ tác nhân.
-- Truyền tải REST (đường dẫn chưa xác minh, theo quy ước `cmdb` của FortiOS):
-  1. `precheck`: `GET /api/v2/cmdb/firewall/address/vedette-{ip}` và `GET /api/v2/cmdb/firewall/addrgrp/Vedette-Blocked`. Nếu địa chỉ đã là thành viên: `đã có`, không ghi.
+- Description: "Add an IP or range to the address group `Vedette-Blocked`; an existing block policy that uses that group will cut that IP". The customer creates the block policy once (the box may print the CLI snippet as guidance, and does not create it itself).
+- Parameters: `ip` or `cidr` (one of the two, the type fixed by the template); the group's `name` defaults to `Vedette-Blocked`, configured on the connection, not taken from the agent.
+- Address object name: `vedette-<ip>` for IPv4 (the `.` is valid); CIDR: `vedette-<ip>_<len>`. The maximum name length is unverified (believed to be 79 characters). The name is generated by the backend from a checked value, not from the agent.
+- REST transport (paths unverified, following FortiOS's `cmdb` convention):
+  1. `precheck`: `GET /api/v2/cmdb/firewall/address/vedette-{ip}` and `GET /api/v2/cmdb/firewall/addrgrp/Vedette-Blocked`. If the address is already a member: `already exists`, no write.
   2. `POST /api/v2/cmdb/firewall/address` body `{"name":"vedette-{ip}","type":"ipmask","subnet":"{ip} 255.255.255.255","comment":"vedette:<request_id>"}`
   3. `POST /api/v2/cmdb/firewall/addrgrp/Vedette-Blocked/member` body `{"name":"vedette-{ip}"}`
-- CLI tương đương (chưa xác minh):
+- Equivalent CLI (unverified):
 
 ```
 config firewall address
@@ -156,204 +156,204 @@ config firewall addrgrp
 end
 ```
 
-- Hoàn tác (đúng thứ tự: gỡ khỏi nhóm trước, xoá đối tượng sau, vì đối tượng đang được nhóm tham chiếu thì không xoá được):
+- Rollback (in the right order: remove from the group first, delete the object afterwards, because an object that a group references cannot be deleted):
   1. `DELETE /api/v2/cmdb/firewall/addrgrp/Vedette-Blocked/member/vedette-{ip}`
   2. `DELETE /api/v2/cmdb/firewall/address/vedette-{ip}`
-  CLI: `config firewall addrgrp` / `edit "Vedette-Blocked"` / `unselect member "vedette-{ip}"` / `next` / `end`, rồi `config firewall address` / `delete "vedette-{ip}"` / `end`.
-- Kiểm lại: `GET /api/v2/cmdb/firewall/addrgrp/Vedette-Blocked`; kỳ vọng `member[]` chứa/không chứa `vedette-{ip}`. CLI: `show firewall addrgrp Vedette-Blocked`.
-- Rủi ro: `medium` nếu `ip` là nguồn trong LAN; `low` nếu là IP ngoài. Phân loại theo cờ "nguồn/đích" của trigger.
-- Điểm vấp:
-  - **Nhóm địa chỉ FortiOS cần ít nhất một thành viên** (chưa xác minh trong tài liệu, nhưng là hành vi phổ biến): gỡ thành viên cuối sẽ lỗi. Giải pháp: nhóm luôn có thành viên neo `vedette-anchor` = `192.0.2.1/32` (TEST-NET-1, địa chỉ tài liệu, không bao giờ định tuyến). Hộp dựng neo ở bước hướng dẫn một lần và không bao giờ gỡ nó.
-  - Chính sách chặn phải nằm **trên** các chính sách cho phép; hộp chỉ kiểm sau cùng (`GET /api/v2/cmdb/firewall/policy`, chưa xác minh) và cảnh báo nếu thứ tự sai, không tự đổi.
-  - Đối tượng địa chỉ có trần số lượng tuỳ model; hộp đặt `max_per_hour` thấp và đếm thành viên nhóm, từ chối khi quá 80% trần cấu hình.
-  - Không có TTL gốc: Vedette tự hoàn tác (1.4).
-  - Idempotent: hai lần `run` cho cùng IP không tạo bản sao nhờ `precheck`; POST trùng tên trả lỗi nên không được coi là thành công im lặng.
-- Phiên bản: REST API token từ FortiOS 5.6 trở lên (chưa xác minh); mục tiêu 7.2 đến 7.6.
+  CLI: `config firewall addrgrp` / `edit "Vedette-Blocked"` / `unselect member "vedette-{ip}"` / `next` / `end`, then `config firewall address` / `delete "vedette-{ip}"` / `end`.
+- Re-check: `GET /api/v2/cmdb/firewall/addrgrp/Vedette-Blocked`; expect `member[]` to contain/not contain `vedette-{ip}`. CLI: `show firewall addrgrp Vedette-Blocked`.
+- Risk: `medium` if `ip` is a source inside the LAN; `low` if it is an outside IP. Classified by the trigger's "source/destination" flag.
+- Pitfalls:
+  - **A FortiOS address group needs at least one member** (unverified in the documentation, but common behaviour): removing the last member gives an error. Solution: the group always has an anchor member `vedette-anchor` = `192.0.2.1/32` (TEST-NET-1, a documentation address, never routed). The box builds the anchor in a one-time guidance step and never removes it.
+  - The block policy must be **above** the allow policies; the box only checks at the end (`GET /api/v2/cmdb/firewall/policy`, unverified) and warns if the order is wrong, and does not change it itself.
+  - An address object has a count cap that depends on the model; the box sets a low `max_per_hour` and counts group members, refusing when above 80% of the configured cap.
+  - No native TTL: Vedette rolls back by itself (1.4).
+  - Idempotent: two `run`s for the same IP do not create a copy thanks to `precheck`; a POST with a duplicate name returns an error so it must not be treated as a silent success.
+- Version: the REST API token from FortiOS 5.6 and above (unverified); target 7.2 to 7.6.
 
-### 2.3 `fgt_ban_ip` / `fgt_unban_ip`: cấm (ban) một IP
+### 2.3 `fgt_ban_ip` / `fgt_unban_ip`: ban an IP
 
-- Mô tả: "Đưa IP vào danh sách cấm của FortiGate: mọi phiên của IP bị ngắt và phiên mới bị từ chối đến khi hết hạn hoặc bị gỡ". Không cần chính sách riêng và có TTL gốc, nên là cách chặn nguồn trong LAN gọn nhất.
-- Tham số: `ip`; `ttl` giây (bước quy ra giây bởi backend, không phải người dùng gõ); `ttl` nên khớp TTL của hành động.
-- REST (chưa xác minh đường dẫn và trường):
-  - `POST /api/v2/monitor/user/banned/add_users` body `{"ip_addresses":["{ip}"],"expiry":<giây>}`
-  - Căn cứ: mô-đun Ansible `fortios_monitor` liệt kê hành động `add_users.user.banned`, `clear_users.user.banned`, `clear_all.user.banned`, `add_users` nhận mảng IP, hỗ trợ IPv4 và IPv6 [xác minh qua tài liệu Ansible, không phải tài liệu Fortinet]: https://docs.ansible.com/ansible/latest/collections/fortinet/fortios/fortios_monitor_module.html . Trường `expiry` suy ra từ wrapper bên thứ ba (hfortix), **chưa xác minh**.
-- CLI (nguồn cộng đồng Fortinet cho `list`, `stat`, `clear`, `delete`; **lệnh `add` chưa xác minh**, bài đó nói rõ không đề cập lệnh thêm tay):
-  - Xem: `diagnose user banned-ip list`; đếm: `diagnose user banned-ip stat`
-  - Gỡ một mục: `diagnose user banned-ip delete src4 {ip}` (IPv6: `src6`) [xác minh, cộng đồng]
-  - Thêm: `diagnose user banned-ip add src4 {ip}` là lệnh GUI hiện đang dùng, **chưa xác minh**; hỏi `diagnose user banned-ip ?` trên máy thật để lấy cú pháp có `expiry`.
-- Hoàn tác: `POST /api/v2/monitor/user/banned/clear_users` body `{"ip_addresses":["{ip}"]}` (chưa xác minh), CLI `diagnose user banned-ip delete src4 {ip}`.
-- Kiểm lại: `GET /api/v2/monitor/user/banned` (chưa xác minh) kỳ vọng IP có/không trong `results`; CLI `diagnose user banned-ip list`.
-- Rủi ro: `medium` (cắt hoàn toàn một máy trong LAN); đích ngoài LAN không dùng được cách này.
-- Điểm vấp: danh sách cấm có thể **không giữ qua khởi động lại** trừ khi `config firewall global` / `set banned-ip-persistency {disabled|permanent-only|all}` [xác minh, cộng đồng]. Với `ban` có TTL ngắn thì chấp nhận mất khi khởi động lại; hộp phải đọc lại và coi mục đã mất là "đã gỡ", không báo lỗi. Cấm không thay thế được "không bao giờ đụng": hộp tự chặn IP trong danh sách không đụng trước khi gọi.
-- Phiên bản: lệnh CLI 7.2 trở lên; 6.0/7.0 dùng `diagnose user quarantine` (khác cú pháp, không hỗ trợ ở M2).
+- Description: "Put the IP on FortiGate's banned list: every session of the IP is cut and new sessions are refused until it expires or is removed". It needs no separate policy and has a native TTL, so it is the tidiest way to block a source inside the LAN.
+- Parameters: `ip`; `ttl` in seconds (converted to seconds by the backend, not typed by the user); `ttl` should match the action's TTL.
+- REST (path and fields unverified):
+  - `POST /api/v2/monitor/user/banned/add_users` body `{"ip_addresses":["{ip}"],"expiry":<seconds>}`
+  - Basis: the Ansible module `fortios_monitor` lists the actions `add_users.user.banned`, `clear_users.user.banned`, `clear_all.user.banned`, and `add_users` takes an array of IPs and supports IPv4 and IPv6 [verified through Ansible documentation, not Fortinet documentation]: https://docs.ansible.com/ansible/latest/collections/fortinet/fortios/fortios_monitor_module.html . The `expiry` field is inferred from a third-party wrapper (hfortix) and is **unverified**.
+- CLI (a Fortinet community source for `list`, `stat`, `clear`, `delete`; **the `add` command is unverified**, the post says plainly that it does not mention a manual add command):
+  - View: `diagnose user banned-ip list`; count: `diagnose user banned-ip stat`
+  - Remove one entry: `diagnose user banned-ip delete src4 {ip}` (IPv6: `src6`) [verified, community]
+  - Add: `diagnose user banned-ip add src4 {ip}` is the command the GUI currently uses, **unverified**; ask `diagnose user banned-ip ?` on a real device to get the syntax that has `expiry`.
+- Rollback: `POST /api/v2/monitor/user/banned/clear_users` body `{"ip_addresses":["{ip}"]}` (unverified), CLI `diagnose user banned-ip delete src4 {ip}`.
+- Re-check: `GET /api/v2/monitor/user/banned` (unverified) expecting the IP to be/not be in `results`; CLI `diagnose user banned-ip list`.
+- Risk: `medium` (completely cuts off a machine inside the LAN); a destination outside the LAN cannot use this method.
+- Pitfall: the banned list may **not survive a restart** unless `config firewall global` / `set banned-ip-persistency {disabled|permanent-only|all}` [verified, community]. With a `ban` of short TTL, losing it on restart is acceptable; the box must read again and treat a lost entry as "already removed", not report an error. A ban cannot replace "never touch": the box itself refuses an IP in the never-touch list before calling.
+- Version: the CLI command from 7.2 and above; 6.0/7.0 use `diagnose user quarantine` (different syntax, not supported in the first backend phase).
 
-### 2.4 `fgt_vip_disable` / `fgt_vip_enable`: tắt/bật một VIP (chuyển tiếp cổng/NAT)
+### 2.4 `fgt_vip_disable` / `fgt_vip_enable`: turn a VIP (port forwarding/NAT) off/on
 
-- Mô tả: "Tắt ánh xạ VIP đưa dịch vụ ra Internet; người dùng ngoài mất truy cập tới khi bật lại; mạng trong văn phòng không đổi".
-- Tham số: `name` (tên VIP, phải có trong danh sách VIP đọc được ở `precheck`).
-- **Cảnh báo**: trường `status` trên `firewall vip` **chưa xác minh**; GUI hiện giả định `set status disable`. Nếu trên máy thật không có, dùng cách thay thế dưới đây (tắt chính sách, 2.5).
-- REST (chưa xác minh): `PUT /api/v2/cmdb/firewall/vip/{name}` body `{"status":"disable"}`; hoàn tác `{"status":"enable"}`. Lưu trạng thái cũ ở `precheck` (`GET /api/v2/cmdb/firewall/vip/{name}`); nếu VIP đã `disable` từ trước, hành động không hoàn tác thành `enable`.
-- CLI (chưa xác minh): `config firewall vip` / `edit "{name}"` / `set status disable` / `next` / `end`.
-- Kiểm lại: `GET /api/v2/cmdb/firewall/vip/{name}` kỳ vọng `status`.
-- Rủi ro: `high`. Điểm vấp: VIP đang được chính sách tham chiếu; tắt VIP không xoá phiên đang mở (có thể cần `diagnose sys session clear` bằng tay, hộp không làm).
-- Phiên bản: mục tiêu 7.2 đến 7.6, chờ xác nhận lab.
+- Description: "Turn off the VIP mapping that exposes a service to the Internet; outside users lose access until it is turned back on; the office network is unchanged".
+- Parameters: `name` (the VIP name, which must be in the VIP list read in `precheck`).
+- **Warning**: the `status` field on `firewall vip` is **unverified**; the GUI currently assumes `set status disable`. If it does not exist on a real device, use the alternative below (disable the policy, 2.5).
+- REST (unverified): `PUT /api/v2/cmdb/firewall/vip/{name}` body `{"status":"disable"}`; rollback `{"status":"enable"}`. Save the old state in `precheck` (`GET /api/v2/cmdb/firewall/vip/{name}`); if the VIP was already `disable` beforehand, the action does not roll back to `enable`.
+- CLI (unverified): `config firewall vip` / `edit "{name}"` / `set status disable` / `next` / `end`.
+- Re-check: `GET /api/v2/cmdb/firewall/vip/{name}` expecting `status`.
+- Risk: `high`. Pitfall: the VIP is referenced by a policy; turning the VIP off does not delete open sessions (a manual `diagnose sys session clear` may be needed, which the box does not do).
+- Version: target 7.2 to 7.6, pending lab confirmation.
 
-### 2.5 `fgt_policy_disable` / `fgt_policy_enable`: tắt/bật một chính sách tường lửa
+### 2.5 `fgt_policy_disable` / `fgt_policy_enable`: turn a firewall policy off/on
 
-- Mô tả: "Tắt hẳn một chính sách firewall theo số chính sách; lưu lượng khớp chính sách đó rơi xuống chính sách kế tiếp".
-- Tham số: `id` (policyid, kiểu số nguyên mới), danh sách policyid cho phép do quản trị viên khai báo cho hành động (hộp không cho chọn policyid ngoài danh sách đó).
-- REST (chưa xác minh): `PUT /api/v2/cmdb/firewall/policy/{id}` body `{"status":"disable"}`; hoàn tác `{"status":"enable"}`.
-- CLI (chưa xác minh): `config firewall policy` / `edit {id}` / `set status disable` / `next` / `end`.
-- Kiểm lại: `GET /api/v2/cmdb/firewall/policy/{id}` kỳ vọng `status`.
-- Rủi ro: `high` (tắt chính sách "cho phép" làm mất dịch vụ; tắt chính sách "từ chối" mở thêm lưu lượng). Hộp từ chối nếu chính sách có `action` = `deny` (đọc ở `precheck`): tắt chính sách chặn không bao giờ là hành động an toàn.
-- Điểm vấp: `policyid` là số, không phải tên; số có thể đổi nếu quản trị viên xoá và tạo lại chính sách; lưu cả `name` của chính sách ở `precheck` và so khớp trước khi hoàn tác.
+- Description: "Fully turn off a firewall policy by its policy number; traffic that matched that policy falls to the next policy".
+- Parameters: `id` (policyid, the new integer type), a list of allowed policyids declared by an administrator for the action (the box does not allow choosing a policyid outside that list).
+- REST (unverified): `PUT /api/v2/cmdb/firewall/policy/{id}` body `{"status":"disable"}`; rollback `{"status":"enable"}`.
+- CLI (unverified): `config firewall policy` / `edit {id}` / `set status disable` / `next` / `end`.
+- Re-check: `GET /api/v2/cmdb/firewall/policy/{id}` expecting `status`.
+- Risk: `high` (turning off an "allow" policy loses a service; turning off a "deny" policy lets more traffic through). The box refuses if the policy has `action` = `deny` (read in `precheck`): turning off a block policy is never a safe action.
+- Pitfall: `policyid` is a number, not a name; the number can change if an administrator deletes and recreates the policy; save the policy's `name` too in `precheck` and compare it before rolling back.
 
-### 2.6 `fgt_ebl_setup`: kết nối External Block List (Threat Feed)
+### 2.6 `fgt_ebl_setup`: connect an External Block List (Threat Feed)
 
-- Mô tả: "Tạo kết nối danh sách chặn ngoài trên FortiGate trỏ tới URL danh sách chặn của hộp Vedette; FortiGate tự kéo theo chu kỳ". Đây là đường ưu tiên: firewall tự kéo.
-- Khác các hành động trên: đây là **thiết lập một lần**, không gắn sự kiện. Cấu hình `system external-resource` thuộc nhóm quyền hệ thống (chưa xác minh); Vedette **không** xin quyền đó. Mặc định hộp **hiển thị đoạn CLI để quản trị viên dán**, không gọi API.
-- Cú pháp [xác minh] (trang CLI FortiOS và bài cộng đồng Fortinet):
+- Description: "Create an external block list connection on the FortiGate that points to the block list URL of the Vedette box; the FortiGate pulls it by itself on a cycle". This is the preferred path: the firewall pulls by itself.
+- Unlike the actions above: this is a **one-time setup**, not tied to an event. The configuration `system external-resource` belongs to the system permission group (unverified); Vedette does **not** ask for that permission. By default the box **shows the CLI snippet for the administrator to paste** and does not call the API.
+- Syntax [verified] (the FortiOS CLI page and a Fortinet community post):
 
 ```
 config system external-resource
     edit "Vedette-Blocklist"
         set type address
-        set resource "https://<ip-hop>:<port>/blocklist/<token>/ip.txt"
+        set resource "https://<box-ip>:<port>/blocklist/<token>/ip.txt"
         set refresh-rate 5
     next
 end
 ```
 
-  `refresh-rate` 1 đến 43200 phút, mặc định 5 [xác minh]. Loại feed trên FortiOS 7.4: IP address, domain name, MAC address (mới), malware hash, FortiGuard category [xác minh, từ mục lục tài liệu]. Định dạng tệp (một mục một dòng) và đường dẫn URL do `docs/specs/blocklist-format.md` quy định, không nhắc lại ở đây.
-- Dùng trong chính sách: feed loại `address` đưa vào chính sách như đối tượng địa chỉ (chưa xác minh); dùng trong DNS filter qua `set external-ip-blocklist "<tên>"` [xác minh, bài cộng đồng].
-- Tuỳ chọn REST nếu quản trị viên tự cấp token tạm: `POST /api/v2/cmdb/system/external-resource` (chưa xác minh). Khuyến nghị không làm.
-- Hoàn tác: `config system external-resource` / `delete "Vedette-Blocklist"` / `end`.
-- Kiểm lại: bước kiểm nằm ở phía hộp: hộp thấy **yêu cầu tải đầu tiên** từ IP firewall tới URL có token (ghi log truy cập) trong 2 chu kỳ `refresh-rate`. Không thấy thì báo "firewall chưa kéo". Trạng thái kéo trên firewall: `diagnose sys external-resource` kiểu lệnh chưa xác minh.
-- Rủi ro: `low` cho hộp (không ghi vào firewall); `medium` cho firewall (chính sách chặn dựa trên feed). Token trong URL xem `blocklist-format.md` về xoay vòng; HTTPS với chứng chỉ của hộp phải được FortiGate tin (FortiGate kiểm chứng chỉ, tuỳ phiên bản, chưa xác minh).
-- Điểm vấp: thiết bị không tới được địa chỉ hộp (NAT, VLAN quản trị) thì feed trống; chu kỳ kéo là độ trễ chặn tối thiểu.
+  `refresh-rate` 1 to 43200 minutes, default 5 [verified]. Feed types on FortiOS 7.4: IP address, domain name, MAC address (new), malware hash, FortiGuard category [verified, from the documentation's table of contents]. The file format (one entry per line) and the URL path are defined by `docs/specs/blocklist-format.md` and are not repeated here.
+- Use in a policy: a feed of type `address` goes into a policy as an address object (unverified); use in a DNS filter through `set external-ip-blocklist "<name>"` [verified, community post].
+- An optional REST path if an administrator issues a temporary token themselves: `POST /api/v2/cmdb/system/external-resource` (unverified). Recommended not to.
+- Rollback: `config system external-resource` / `delete "Vedette-Blocklist"` / `end`.
+- Re-check: the check is on the box side: the box sees the **first download request** from the firewall IP to the URL with the token (written in the access log) within 2 `refresh-rate` cycles. If it does not, it reports "the firewall has not pulled yet". The pull status on the firewall: `diagnose sys external-resource` (a command form that is unverified).
+- Risk: `low` for the box (nothing is written to the firewall); `medium` for the firewall (a feed-based block policy). For the token in the URL see `blocklist-format.md` on rotation; HTTPS with the box's certificate must be trusted by the FortiGate (FortiGate verifies certificates, depending on version, unverified).
+- Pitfall: a device that cannot reach the box's address (NAT, a management VLAN) gets an empty feed; the pull cycle is the minimum blocking delay.
 
 ---
 
-## 3. MikroTik RouterOS (REST API v7 và CLI)
+## 3. MikroTik RouterOS (REST API v7 and CLI)
 
-**Phiên bản**: REST có từ RouterOS v7.1beta4 [xác minh]; truy cập HTTP (không TLS) từ v7.9 [xác minh] (không dùng). Mục tiêu RouterOS 7.9 trở lên; v6 không có REST nên chỉ SSH/API cũ (ngoài phạm vi M2).
+**Versions**: REST exists from RouterOS v7.1beta4 [verified]; HTTP access (no TLS) from v7.9 [verified] (not used). The target is RouterOS 7.9 and above; v6 has no REST, so only SSH/the old API (outside the scope of the first backend phase).
 
-**Nguồn**:
+**Sources**:
 - REST API: https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST+API
-- Address lists: https://help.mikrotik.com/docs/spaces/ROS/pages/130220135/Address-lists (trang trỏ sang https://manual.mikrotik.com/docs/ , bản đóng băng)
+- Address lists: https://help.mikrotik.com/docs/spaces/ROS/pages/130220135/Address-lists (the page points to https://manual.mikrotik.com/docs/ , a frozen copy)
 - Firewall matchers/actions: https://help.mikrotik.com/docs/spaces/ROS/pages/250708064/Common+Firewall+Matchers+and+Actions
 
-### 3.1 Kết nối và quyền tối thiểu
+### 3.1 Connection and minimum permissions
 
-- Xác thực: HTTP Basic với người dùng RouterOS [xác minh]; gốc đường dẫn `https://<router>/rest` qua dịch vụ `www-ssl` [xác minh]. Ánh xạ: `GET`=print, `PUT`=add (một bản ghi mỗi yêu cầu), `PATCH`=set, `DELETE`=remove theo ID, `POST`=mọi lệnh console [xác minh].
-- Chứng chỉ: dùng chứng chỉ do quản trị viên nhập vào Vedette (CA hoặc ghim vân tay); không `-k`.
-- Người dùng riêng `vedette` trong nhóm riêng, chỉ quyền cần (chưa xác minh tên chính sách; xác nhận bằng `/user group print` của đúng phiên bản):
+- Authentication: HTTP Basic with a RouterOS user [verified]; the path root is `https://<router>/rest` through the `www-ssl` service [verified]. Mapping: `GET`=print, `PUT`=add (one record per request), `PATCH`=set, `DELETE`=remove by ID, `POST`=any console command [verified].
+- Certificate: use the certificate an administrator imports into Vedette (a CA or a pinned fingerprint); no `-k`.
+- A dedicated user `vedette` in a dedicated group, with only the permissions needed (policy names unverified; confirm with `/user group print` of the exact version):
 
 ```
 /user group add name=vedette-response policy=read,write,rest-api,api comment="Vedette response"
-/user add name=vedette group=vedette-response address=<ip-hop-vedette>/32 password=<mạnh> comment="Vedette response"
-/ip service set www-ssl disabled=no address=<ip-hop-vedette>/32
+/user add name=vedette group=vedette-response address=<vedette-box-ip>/32 password=<strong> comment="Vedette response"
+/ip service set www-ssl disabled=no address=<vedette-box-ip>/32
 ```
 
-  Không cấp `policy`, `ftp`, `sniff`, `sensitive`, `password`, `reboot`, `test`. Giới hạn `address=` ở người dùng và dịch vụ về IP hộp. Giả thuyết `rest-api` là tên chính sách riêng và `write` đủ để `address-list add` đều **chưa xác minh**.
-- Firewall bắt buộc có trước, khách tạo một lần: một luật `drop` (input/forward, hoặc `raw` prerouting để tiết kiệm CPU) khớp `src-address-list=vedette-block` và/hoặc `dst-address-list=vedette-block`. Vedette không tạo luật này bằng REST (cần quyền `policy`/`write` rộng hơn).
+  Do not grant `policy`, `ftp`, `sniff`, `sensitive`, `password`, `reboot`, `test`. Limit `address=` on the user and the services to the box's IP. The hypotheses that `rest-api` is a separate policy name and that `write` is enough for `address-list add` are both **unverified**.
+- A firewall rule is required first, created once by the customer: a `drop` rule (input/forward, or `raw` prerouting to save CPU) that matches `src-address-list=vedette-block` and/or `dst-address-list=vedette-block`. Vedette does not create this rule with REST (it needs wider `policy`/`write` permission).
 
-### 3.2 `mt_addrlist_add`: thêm địa chỉ vào address-list kèm timeout
+### 3.2 `mt_addrlist_add`: add an address to an address-list with a timeout
 
-- Mô tả: "Thêm IP/dải vào danh sách địa chỉ `vedette-block` của router, router tự gỡ sau thời hạn".
-- Tham số: `ip` hoặc `cidr` (RouterOS nhận `1.2.3.0/24` ở trường `address`); `ttl` đổi sang dạng RouterOS (`1d`, `1h30m`, `00:30:00`); tên danh sách `vedette-block` cố định ở kết nối. Không dùng `domain` ở bản đầu (RouterOS phân giải tên và gắn nhiều IP vào mục, TTL của tên có thể bị gỡ cùng lúc, chưa xác minh).
-- REST: `PUT /rest/ip/firewall/address-list` body `{"list":"vedette-block","address":"{ip}","timeout":"<ttl>","comment":"vedette:<request_id>"}` [xác minh phương thức/đường dẫn; trường lấy từ ví dụ `PUT /rest/ip/address` của tài liệu; tên trường `list`, `address`, `timeout`, `comment` chưa xác minh trong trang REST nhưng trùng thuộc tính CLI]. Trả về đối tượng vừa tạo có `.id`, **lưu `.id` làm bằng chứng cho hoàn tác** [xác minh: PUT trả về đối tượng với `.id`].
+- Description: "Add an IP/range to the router's address list `vedette-block`; the router removes it by itself after the deadline".
+- Parameters: `ip` or `cidr` (RouterOS accepts `1.2.3.0/24` in the `address` field); `ttl` converted to the RouterOS form (`1d`, `1h30m`, `00:30:00`); the list name `vedette-block` is fixed on the connection. `domain` is not used in the first version (RouterOS resolves the name and attaches several IPs to the entry, and a name's TTL may be removed at the same time, unverified).
+- REST: `PUT /rest/ip/firewall/address-list` body `{"list":"vedette-block","address":"{ip}","timeout":"<ttl>","comment":"vedette:<request_id>"}` [verified method/path; the fields are taken from the documentation's example `PUT /rest/ip/address`; the field names `list`, `address`, `timeout`, `comment` are unverified on the REST page but coincide with the CLI properties]. It returns the object just created with `.id`, **store `.id` as the evidence for rollback** [verified: PUT returns the object with `.id`].
 - CLI: `/ip firewall address-list add list=vedette-block address={ip} timeout=<ttl> comment="vedette:<request_id>"`
-- `precheck`: `GET /rest/ip/firewall/address-list?list=vedette-block&address={ip}` [xác minh kiểu lọc bằng tham số query, ví dụ `GET /rest/ip/address?network=...&dynamic=true` trong tài liệu]. Có sẵn thì bỏ qua và ghi "đã có".
-- Hoàn tác: `DELETE /rest/ip/firewall/address-list/<id>` [xác minh `DELETE` theo ID; lặp lại trả `{"error":404,"message":"Not Found"}`, hoàn tác coi 404 là đã gỡ]. Không biết `id` (hộp khởi động lại): `GET` lọc như `precheck` để tìm `id` trước, chỉ gỡ mục có `comment` bắt đầu bằng `vedette:`. CLI: `/ip firewall address-list remove [find list=vedette-block address={ip} comment~"^vedette:"]` (chưa xác minh toán tử `~`).
-- Kiểm lại: `GET /rest/ip/firewall/address-list?list=vedette-block&address={ip}` kỳ vọng có/không có mục.
-- Rủi ro: `low` nếu IP ngoài LAN và luật chỉ dùng `dst-address-list`; `medium` nếu IP nguồn trong LAN và luật dùng `src-address-list`.
-- Điểm vấp:
-  - **Mục có `timeout` nằm trong RAM và mất khi router khởi động lại**; không `timeout` thì lưu vĩnh viễn [xác minh, wiki MikroTik: https://wiki.mikrotik.com/Address_list]. Với chặn tạm thì đây là điều mong muốn; đừng bỏ `timeout`.
-  - Thêm trùng (cùng `list`+`address`) trên RouterOS thường báo lỗi "already have such entry" (chưa xác minh): `precheck` tránh va chạm, và lỗi này vẫn đi qua bước đọc lại chứ không bị bỏ qua.
-  - Một yêu cầu `PUT` chỉ tạo một bản ghi [xác minh]; chuỗi nhiều IP là nhiều yêu cầu, nằm dưới giới hạn mục/giờ của quy tắc.
-  - `address-list-timeout` của luật firewall có hành vi khác (mục động do luật tạo); Vedette không đụng tới.
-- Quyền: xem 3.1. Phiên bản: 7.9 trở lên.
+- `precheck`: `GET /rest/ip/firewall/address-list?list=vedette-block&address={ip}` [verified: filtering with query parameters, for example `GET /rest/ip/address?network=...&dynamic=true` in the documentation]. If it is already there, skip and record "already exists".
+- Rollback: `DELETE /rest/ip/firewall/address-list/<id>` [verified: `DELETE` by ID; repeating returns `{"error":404,"message":"Not Found"}`, and rollback treats 404 as already removed]. If `id` is not known (the box restarted): first `GET` with a filter like `precheck` to find `id`, removing only an entry whose `comment` starts with `vedette:`. CLI: `/ip firewall address-list remove [find list=vedette-block address={ip} comment~"^vedette:"]` (the `~` operator is unverified).
+- Re-check: `GET /rest/ip/firewall/address-list?list=vedette-block&address={ip}` expecting the entry to be present/absent.
+- Risk: `low` if the IP is outside the LAN and the rule uses only `dst-address-list`; `medium` if the IP is a source inside the LAN and the rule uses `src-address-list`.
+- Pitfalls:
+  - **An entry with `timeout` lives in RAM and is lost when the router restarts**; without `timeout` it is stored permanently [verified, MikroTik wiki: https://wiki.mikrotik.com/Address_list]. For a temporary block this is desirable; do not drop `timeout`.
+  - A duplicate add (the same `list`+`address`) on RouterOS usually reports the error "already have such entry" (unverified): `precheck` avoids the collision, and this error still goes through the re-read step rather than being ignored.
+  - One `PUT` request creates only one record [verified]; a chain of several IPs is several requests, subject to the rule's entries/hour limit.
+  - A firewall rule's `address-list-timeout` behaves differently (a dynamic entry created by the rule); Vedette does not touch it.
+- Permissions: see 3.1. Version: 7.9 and above.
 
-### 3.3 `mt_addrlist_remove`: gỡ địa chỉ
+### 3.3 `mt_addrlist_remove`: remove an address
 
-- Đây là hoàn tác của 3.2, và cũng là hành động độc lập cho "gỡ chặn". Mẫu REST/CLI như hoàn tác ở 3.2; `precheck` bắt buộc đọc `comment` (không gỡ mục của quản trị viên); `verify` như 3.2. Rủi ro `low`.
+- This is the rollback of 3.2, and also a standalone action for "unblock". The REST/CLI template is like the rollback in 3.2; `precheck` must read `comment` (an administrator's entry is not removed); `verify` as in 3.2. Risk `low`.
 
 ---
 
-## 4. pfSense và OPNsense
+## 4. pfSense and OPNsense
 
-Cả hai có đường **kéo** chính thức (URL Table). Đường đẩy khác nhau nhiều: OPNsense có REST API chính thức; pfSense **không** có REST API chính thức của Netgate.
+Both have an official **pull** path (URL Table). The push paths differ greatly: OPNsense has an official REST API; pfSense has **no** official REST API from Netgate.
 
-### 4.1 OPNsense (REST API chính thức)
+### 4.1 OPNsense (official REST API)
 
-**Nguồn**:
+**Sources**:
 - API firewall (alias, alias_util): https://docs.opnsense.org/development/api/core/firewall.html
-- Cách dùng API, khoá/bí mật: https://docs.opnsense.org/development/how-tos/api.html
-- Alias và loại External: https://docs.opnsense.org/manual/aliases.html
+- Using the API, key/secret: https://docs.opnsense.org/development/how-tos/api.html
+- Aliases and the External type: https://docs.opnsense.org/manual/aliases.html
 
-**Kết nối và quyền**
-- Xác thực: HTTP Basic, khoá là tên người dùng, bí mật là mật khẩu; tạo ở quản lý người dùng, bí mật **tải về một lần** [xác minh]. Quyền của khoá = quyền người dùng sở hữu (tài liệu không nói cách tính chi tiết) [xác minh một phần].
-- Người dùng riêng `vedette-api` chỉ thuộc nhóm có quyền trang cần cho alias (tên quyền chính xác chưa xác minh, thử bằng cách cấp tối thiểu rồi kiểm lỗi 403). Không cấp quyền quản trị toàn bộ.
-- Chứng chỉ HTTPS hợp lệ cho môi trường thật; không bỏ kiểm chứng chỉ [xác minh khuyến nghị trong tài liệu].
-- Khách tạo trước một alias loại **External (advanced)** tên `Vedette_Blocklist` và một luật chặn trên alias đó. Chỉ alias loại Host, Network, External mới nhận `alias_util/add` [xác minh]; loại External là loại tạo để chương trình bên ngoài đẩy mục [xác minh]. Vedette không tạo alias bằng REST (cần `alias/add_item` và `reconfigure`, quyền rộng hơn).
+**Connection and permissions**
+- Authentication: HTTP Basic, the key is the user name and the secret is the password; created in user management, and the secret is **downloaded once** [verified]. The key's permissions = the permissions of the user that owns it (the documentation does not describe the detailed computation) [partly verified].
+- A dedicated user `vedette-api` belonging only to a group that has the page permissions needed for aliases (the exact permission names are unverified; try by granting the minimum and checking for a 403 error). Do not grant full administration rights.
+- A valid HTTPS certificate for a real environment; do not skip certificate verification [verified: a recommendation in the documentation].
+- The customer first creates an alias of type **External (advanced)** named `Vedette_Blocklist` and a block rule on that alias. Only aliases of type Host, Network, External accept `alias_util/add` [verified]; the External type is the type created for an outside program to push entries [verified]. Vedette does not create aliases with REST (it needs `alias/add_item` and `reconfigure`, wider permissions).
 
 **`opn_alias_add` / `opn_alias_remove`**
-- Mô tả: "Thêm/gỡ IP trong alias `Vedette_Blocklist` của OPNsense; luật chặn trên alias làm phần còn lại".
-- Tham số: `ip` hoặc `cidr`; tên alias `name` cố định ở kết nối.
-- REST [xác minh phương thức/đường dẫn từ tài liệu và trang alias]:
-  - Thêm: `POST /api/firewall/alias_util/add/Vedette_Blocklist` body `{"address":"{ip}"}`
-  - Gỡ: `POST /api/firewall/alias_util/delete/Vedette_Blocklist` body `{"address":"{ip}"}`
-  - Danh sách: `GET /api/firewall/alias_util/list/Vedette_Blocklist`
-  - Làm rỗng: `POST /api/firewall/alias_util/flush/Vedette_Blocklist` (không dùng; ngoài danh sách cho phép vì xoá cả mục của người khác)
-  - Chưa xác minh: tên trường của mảng `address` khi thêm nhiều IP, và dạng phản hồi.
-- `precheck`/`verify`: `GET /api/firewall/alias_util/list/Vedette_Blocklist` kỳ vọng IP có/không có trong mảng phản hồi.
-- Rủi ro: `low` (IP ngoài) / `medium` (nguồn trong LAN).
-- Điểm vấp:
-  - **Mục thêm bằng API không được giữ qua khởi động lại; `flush` cũng không bền** [xác minh, trang aliases]. Chấp nhận với chặn tạm; hộp đồng bộ lại danh sách theo bảng yêu cầu đang mở sau khi phát hiện OPNsense khởi động lại (giữ `connection.last_seen_boot`, chưa xác minh cách đọc).
-  - Cần xoá trạng thái (states) đã có nếu luật dùng theo dõi trạng thái, nếu không kết nối đang mở vẫn sống [xác minh, trang aliases]. Hộp **không** tự xoá states ở bản đầu; ghi trong kết quả "kết nối đang mở có thể còn".
-  - Báo cáo diễn đàn về phiên bản cũ (19.1): thêm mục thứ ba làm mất mục cũ (kết quả tìm kiếm, nguồn diễn đàn); cần kiểm lại trên phiên bản đích bằng bài thử "thêm 3 mục rồi đọc lại" trước khi bật.
-  - Không có TTL gốc: Vedette tự hoàn tác.
-- Phiên bản: chưa xác minh phiên bản đầu tiên có `alias_util`; mục tiêu OPNsense 24.x trở lên, lab xác nhận.
+- Description: "Add/remove an IP in OPNsense's alias `Vedette_Blocklist`; the block rule on the alias does the rest".
+- Parameters: `ip` or `cidr`; the alias name `name` is fixed on the connection.
+- REST [verified method/path from the documentation and the alias page]:
+  - Add: `POST /api/firewall/alias_util/add/Vedette_Blocklist` body `{"address":"{ip}"}`
+  - Remove: `POST /api/firewall/alias_util/delete/Vedette_Blocklist` body `{"address":"{ip}"}`
+  - List: `GET /api/firewall/alias_util/list/Vedette_Blocklist`
+  - Empty: `POST /api/firewall/alias_util/flush/Vedette_Blocklist` (not used; outside the allowlist because it deletes other people's entries too)
+  - Unverified: the field name of the `address` array when adding several IPs, and the response form.
+- `precheck`/`verify`: `GET /api/firewall/alias_util/list/Vedette_Blocklist` expecting the IP to be/not be in the response array.
+- Risk: `low` (outside IP) / `medium` (a source inside the LAN).
+- Pitfalls:
+  - **Entries added through the API are not kept across a restart; `flush` is not durable either** [verified, the aliases page]. Acceptable for a temporary block; the box re-synchronises the list from the table of open requests after it detects that OPNsense restarted (keeping `connection.last_seen_boot`, how to read it is unverified).
+  - Existing states need to be cleared if the rule uses state tracking, otherwise open connections stay alive [verified, the aliases page]. The box does **not** clear states by itself in the first version; the result records "open connections may remain".
+  - A forum report about an old version (19.1): adding a third entry loses the old entries (a search result, a forum source); it must be checked again on the target version with a "add 3 entries and read back" trial before it is turned on.
+  - No native TTL: Vedette rolls back by itself.
+- Version: the first version that has `alias_util` is unverified; the target is OPNsense 24.x and above, confirmed in a lab.
 
-**`opn_urltable_setup`** (thiết lập một lần, đường kéo): tạo alias loại **URL Table (IPs)** trỏ tới URL danh sách chặn của hộp, đặt "Refresh frequency" [xác minh tồn tại loại và tuỳ chọn; đơn vị chưa rõ]. Hộp in hướng dẫn, quản trị viên làm trong giao diện. Kiểm lại phía hộp: thấy yêu cầu tải đầu tiên từ IP firewall. Rủi ro `low`.
+**`opn_urltable_setup`** (a one-time setup, the pull path): create an alias of type **URL Table (IPs)** pointing at the box's block list URL, and set "Refresh frequency" [verified that the type and option exist; the unit is unclear]. The box prints the instructions and the administrator does it in the interface. Re-check on the box side: it sees the first download request from the firewall IP. Risk `low`.
 
 ### 4.2 pfSense
 
-**Thực trạng, nói thẳng**: Netgate không phát hành REST API chính thức cho pfSense. Gói REST API (`pfsense-pkg-restapi`, tài liệu pfrest.org, người bảo trì Jared Hendrickson) là **không chính thức**, "không liên kết hay được hỗ trợ bởi Netgate hay đội pfSense" [xác minh: https://pfrest.org/]. Netgate có lưu một đặc tả OpenAPI tại https://netgate.github.io/pfsense-api/ (phạm vi và mức hỗ trợ chưa xác minh). FauxAPI là gói bên thứ ba khác, không dùng. Không tìm thấy trang `docs.netgate.com` nào nói về REST API.
+**The actual situation, said plainly**: Netgate does not publish an official REST API for pfSense. The REST API package (`pfsense-pkg-restapi`, documentation pfrest.org, maintainer Jared Hendrickson) is **unofficial**, "not affiliated with or supported by Netgate or the pfSense team" [verified: https://pfrest.org/]. Netgate keeps an OpenAPI specification at https://netgate.github.io/pfsense-api/ (scope and level of support unverified). FauxAPI is another third-party package, not used. No `docs.netgate.com` page was found that talks about a REST API.
 
-Vì thế Vedette xếp ba lựa chọn theo mức tin cậy:
+So Vedette ranks three options by level of trust:
 
-1. **Kéo (chính thức)**: alias loại URL Table (IPs) trỏ tới danh sách chặn của hộp. Mô tả loại alias nằm ở https://docs.netgate.com/pfsense/en/latest/firewall/aliases.html (trang chỉ nhắc có URL Table, chi tiết ở trang "Alias Types", chưa đọc được). **Chu kỳ cập nhật tối thiểu của pfSense URL Table chưa xác minh** (có thể theo ngày, nghĩa là quá chậm cho chặn tức thì): kiểm trước khi giới thiệu cho khách như cách chính.
-2. **Đẩy qua gói REST không chính thức**: dùng khi khách đã tự cài gói. Ghi "không chính thức" trên giao diện (tương tự cách ghi Zalo cá nhân). Gói v2: đường dẫn `/api/v2/firewall/alias` (cập nhật mảng `address` của alias) và `/api/v2/firewall/apply` (áp dụng) **chưa xác minh** (trang pfrest.org không liệt kê endpoint ở phần đọc được; Swagger tự phục vụ ở System > REST API > Documentation sau khi cài [xác minh]). GUI hiện dùng `/api/v1/firewall/alias/entry`, nhánh v1 cũ, **không** dùng trong spec này.
-3. **Đẩy qua SSH + `pfctl`** (chưa xác minh trong tài liệu Netgate; `pfctl` là công cụ FreeBSD): `pfctl -t Vedette_Blocklist -T add {ip}`, `pfctl -t Vedette_Blocklist -T delete {ip}`, `pfctl -t Vedette_Blocklist -T show`. Điểm vấp: chạy `pfctl` cần quyền root nên tài khoản SSH quyền rất cao (không có quyền tối thiểu nhỏ hơn), mục thêm bằng `pfctl` thường mất khi bộ lọc được nạp lại (chưa xác minh). Chỉ cho vào danh sách "mẫu tuỳ chỉnh" với cảnh báo, không đưa vào mẫu dựng sẵn.
+1. **Pull (official)**: an alias of type URL Table (IPs) pointing at the box's block list. The description of the alias type is at https://docs.netgate.com/pfsense/en/latest/firewall/aliases.html (the page only mentions that URL Table exists, with details on the "Alias Types" page, which could not be read). **The minimum update cycle of the pfSense URL Table is unverified** (it may be in days, which is too slow for an immediate block): check before presenting it to customers as the main method.
+2. **Push through the unofficial REST package**: used when the customer has installed the package themselves. Label it "unofficial" in the interface (like the way personal Zalo is labelled). The v2 package: the paths `/api/v2/firewall/alias` (update the alias's `address` array) and `/api/v2/firewall/apply` (apply) are **unverified** (the pfrest.org page does not list endpoints in the part that could be read; Swagger is self-served at System > REST API > Documentation after installation [verified]). The GUI currently uses `/api/v1/firewall/alias/entry`, the old v1 branch, which is **not** used in this spec.
+3. **Push through SSH + `pfctl`** (unverified in Netgate documentation; `pfctl` is a FreeBSD tool): `pfctl -t Vedette_Blocklist -T add {ip}`, `pfctl -t Vedette_Blocklist -T delete {ip}`, `pfctl -t Vedette_Blocklist -T show`. Pitfall: running `pfctl` needs root, so the SSH account has very high privilege (no smaller minimum permission exists), and entries added with `pfctl` are usually lost when the filter is reloaded (unverified). Only for the "custom template" list with a warning, and not in the built-in templates.
 
-**`pf_alias_add` / `pf_alias_remove` (cách 2, không chính thức)**
-- Mô tả: "Thêm/gỡ IP trong alias `Vedette_Blocklist` của pfSense qua gói REST không chính thức".
-- Tham số: `ip`; tên alias cố định ở kết nối.
-- Run/rollback: đọc alias rồi `PATCH` mảng `address` (thêm/bớt đúng một phần tử) rồi `POST /api/v2/firewall/apply`. Tất cả **chưa xác minh**; viết mã chỉ sau khi đọc Swagger của chính gói trên máy lab.
-- Quyền: gói dùng người dùng pfSense; cấp quyền trang `Firewall: Aliases` tối thiểu (chưa xác minh tên quyền). Không dùng `admin`.
-- Rủi ro: `low` (IP ngoài) / `medium` (nguồn trong LAN). Điểm vấp: phải gọi `apply` sau mỗi thay đổi, apply tải lại bộ lọc và có thể ngắt kết nối thoáng chốc; gộp thay đổi và dùng `max_per_hour`.
-- Hoàn tác và kiểm lại: gỡ phần tử rồi `apply`; đọc lại alias.
+**`pf_alias_add` / `pf_alias_remove` (option 2, unofficial)**
+- Description: "Add/remove an IP in pfSense's alias `Vedette_Blocklist` through the unofficial REST package".
+- Parameters: `ip`; the alias name is fixed on the connection.
+- Run/rollback: read the alias, then `PATCH` the `address` array (add/remove exactly one element), then `POST /api/v2/firewall/apply`. All **unverified**; write code only after reading the package's own Swagger on a lab machine.
+- Permissions: the package uses a pfSense user; grant the minimum page permission `Firewall: Aliases` (permission name unverified). Do not use `admin`.
+- Risk: `low` (outside IP) / `medium` (a source inside the LAN). Pitfall: `apply` must be called after each change, apply reloads the filter and may drop connections briefly; merge changes and use `max_per_hour`.
+- Rollback and re-check: remove the element and then `apply`; read the alias again.
 
 ---
 
 ## 5. Cisco IOS / IOS-XE (SSH)
 
-**Nguồn**:
-- Số thứ tự ACL (named standard/extended): https://www.cisco.com/c/en/us/td/docs/routers/ios/config/17-x/sec-vpn/b-security-vpn/m_sec-acl-seq-num.html và https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/sec_data_acl/configuration/xe-3s/sec-data-acl-xe-3s-book/sec-acl-seq-num.html
-- Cấu hình ACL trên Catalyst: https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst2960xr/software/15-2_4_e/configuration_guide/b_1524e_consolidated_2960xr_cg/b_1524e_consolidated_2960xr_cg_chapter_01100000.html
+**Sources**:
+- ACL sequence numbers (named standard/extended): https://www.cisco.com/c/en/us/td/docs/routers/ios/config/17-x/sec-vpn/b-security-vpn/m_sec-acl-seq-num.html and https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/sec_data_acl/configuration/xe-3s/sec-data-acl-xe-3s-book/sec-acl-seq-num.html
+- ACL configuration on Catalyst: https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst2960xr/software/15-2_4_e/configuration_guide/b_1524e_consolidated_2960xr_cg/b_1524e_consolidated_2960xr_cg_chapter_01100000.html
 
-**Phiên bản**: IOS 15.x, IOS-XE 16.x/17.x (dùng được cho Catalyst 9000, 2960-XR trở lên). Các lệnh bên dưới ghi theo thiết kế; từng lệnh đã nêu rõ nhãn.
+**Versions**: IOS 15.x, IOS-XE 16.x/17.x (usable for Catalyst 9000, 2960-XR and above). The commands below are written per design; each command is labelled explicitly.
 
-### 5.1 Kết nối, quyền tối thiểu
+### 5.1 Connection, minimum permissions
 
-- SSH v2 qua thư viện Go (không qua shell của hộp), khoá máy chủ được ghim lần đầu và **dừng nếu khoá đổi** (không bỏ qua), ưu tiên khoá công khai, không gửi mật khẩu `enable` trong mẫu. Mỗi kết nối một phiên tại một thời điểm (hàng đợi theo thiết bị). Khởi đầu: `terminal length 0`, `terminal width 511` (chưa xác minh `width` ở mọi nền tảng).
-- Đọc đầu ra theo dấu nhắc lệnh với timeout; mọi dòng bắt đầu bằng `%` (lỗi IOS như `% Invalid input detected`) là **thất bại**, dừng chuỗi và chạy `end`.
-- Quyền tối thiểu: tạo người dùng cục bộ cấp đặc quyền riêng chỉ có các lệnh cần. Mẫu dựa trên `privilege` (**chưa xác minh**, tên chế độ con của ACL khác nhau theo phiên bản; thử trên máy lab):
+- SSH v2 through a Go library (not through the box's shell), the host key pinned the first time and **stopping if the key changes** (never ignored), public-key authentication preferred, and no `enable` password sent in a template. One session at a time per connection (a queue per device). Startup: `terminal length 0`, `terminal width 511` (`width` is unverified on every platform).
+- Read the output by the command prompt with a timeout; every line beginning with `%` (an IOS error such as `% Invalid input detected`) is a **failure**: stop the chain and run `end`.
+- Minimum permissions: create a local user with its own privilege level that has only the commands needed. The template is based on `privilege` (**unverified**, the name of the ACL sub-mode differs by version; try on a lab machine):
 
 ```
-username vedette privilege 7 secret <mạnh>
+username vedette privilege 7 secret <strong>
 privilege exec level 7 configure terminal
 privilege exec level 7 show ip access-lists
 privilege exec level 7 show interfaces
@@ -365,14 +365,14 @@ privilege interface level 7 shutdown
 privilege interface level 7 switchport access vlan
 ```
 
-  Cách mạnh hơn: AAA với TACACS+/ISE ủy quyền từng lệnh (`aaa authorization commands`), hoặc `parser view`; cả hai chưa xác minh chi tiết. Nếu khách dùng cấp 15 vì tiện: giao diện cảnh báo và ghi vào kiểm toán.
-- Bảo vệ danh sách cổng không đụng: uplink, Port-channel, cổng nối hộp Vedette và AP/camera quan trọng khách khai báo.
-- Danh sách lệnh **cấm** trong mọi mẫu Cisco (hộp từ chối lưu): `reload`, `erase`, `write erase`, `delete`, `format`, `copy` (trừ `copy running-config startup-config` ở hành động lưu), `no ip access-list`, `no interface`, `crypto`, `username`, `enable`, `aaa`.
+  A stronger way: AAA with TACACS+/ISE authorising each command (`aaa authorization commands`), or `parser view`; both are unverified in detail. If the customer uses level 15 for convenience: the interface warns and it is written to the audit.
+- Protecting the never-touch port list: uplinks, Port-channel, the port connecting the Vedette box and important APs/cameras the customer declares.
+- The list of **forbidden** commands in every Cisco template (the box refuses to save them): `reload`, `erase`, `write erase`, `delete`, `format`, `copy` (except `copy running-config startup-config` in the save action), `no ip access-list`, `no interface`, `crypto`, `username`, `enable`, `aaa`.
 
-### 5.2 `cisco_acl_deny` / `cisco_acl_remove`: chặn IP bằng ACL (extended có tên, chèn ở đầu)
+### 5.2 `cisco_acl_deny` / `cisco_acl_remove`: block an IP with an ACL (a named extended ACL, inserted at the top)
 
-- Mô tả: "Thêm dòng `deny` cho IP vào ACL `VEDETTE-BLOCK` trước mọi dòng khác; ACL đã được khách gắn vào cổng uplink (một lần)". Hộp **không** gắn ACL vào cổng, khách làm một lần.
-- Thiết kế ACL (khách tạo một lần, hộp in mẫu):
+- Description: "Add a `deny` line for the IP to the ACL `VEDETTE-BLOCK` before every other line; the ACL has been attached by the customer to the uplink port (once)". The box does **not** attach the ACL to a port; the customer does that once.
+- ACL design (the customer creates it once, the box prints a template):
 
 ```
 ip access-list extended VEDETTE-BLOCK
@@ -382,10 +382,10 @@ interface <uplink>
  ip access-group VEDETTE-BLOCK in
 ```
 
-  Điểm quan trọng: ACL kết thúc bằng `deny ip any any` ngầm; một ACL chỉ có dòng `deny` sẽ chặn **toàn bộ** lưu lượng. Dòng `permit ip any any` ở số thứ tự rất lớn là bắt buộc, và Vedette chỉ chèn ở số **nhỏ hơn** nó. Số thứ tự tối đa của IOS là chưa xác minh trong nguồn đã đọc (kỳ vọng 2147483647).
-- Tham số: `ip` (nguồn) hoặc `cidr` (đổi sang `wildcard`); tên ACL cố định ở kết nối (`name`).
-- Chèn ở đầu: thiết kế quy ước số thứ tự: dòng Vedette dùng số trong khoảng `1`-`1000000`, cấp bằng "số nhỏ nhất đang dùng trừ 1" (`precheck`: `show ip access-lists VEDETTE-BLOCK` rồi tính). Nếu số nhỏ nhất đã là `1`, chạy `ip access-list resequence VEDETTE-BLOCK 100 10` (tạo khoảng trống, **không** đổi thứ tự; dòng cũ giữ nguyên thứ tự) [xác minh: resequence chỉ tạo/nới khoảng cách, không sắp lại; ví dụ `ip access-list resequence 150 1 2`, nguồn cộng đồng Cisco]. Vì ACL của Vedette chỉ chứa dòng `deny host` rời nhau nên thứ tự giữa chúng không ảnh hưởng.
-- Run (dòng lệnh, mỗi dòng gửi riêng):
+  An important point: an ACL ends with an implicit `deny ip any any`; an ACL with only `deny` lines would block **all** traffic. A `permit ip any any` line at a very large sequence number is mandatory, and Vedette inserts only at a number **smaller** than it. The maximum IOS sequence number is unverified in the sources read (expected 2147483647).
+- Parameters: `ip` (source) or `cidr` (converted to `wildcard`); the ACL name is fixed on the connection (`name`).
+- Inserting at the top: the sequence number convention in the design: Vedette lines use a number in the range `1`-`1000000`, assigned as "the smallest number in use minus 1" (`precheck`: `show ip access-lists VEDETTE-BLOCK` and then compute). If the smallest number is already `1`, run `ip access-list resequence VEDETTE-BLOCK 100 10` (it creates a gap, and does **not** change the order; old lines keep their order) [verified: resequence only creates/widens the spacing and does not reorder; for example `ip access-list resequence 150 1 2`, a Cisco community source]. Because Vedette's ACL contains only separate `deny host` lines, the order among them has no effect.
+- Run (command lines, each sent separately):
 
 ```
 configure terminal
@@ -394,68 +394,68 @@ ip access-list extended VEDETTE-BLOCK
 end
 ```
 
-  Dạng có số thứ tự trong ACL có tên [xác minh: tính năng áp dụng cho ACL standard/extended có tên, số mặc định cách nhau 10]. Từ khoá `log` chưa xác minh trên mọi nền tảng, bỏ nếu máy báo lỗi. Với `cidr`: `{seq} deny ip <mạng> <wildcard> any`.
-- Hoàn tác (theo **số thứ tự đã lưu**, không theo nội dung, để không gỡ nhầm): `configure terminal` / `ip access-list extended VEDETTE-BLOCK` / `no {seq}` / `end`. Số thứ tự **không được lưu qua khởi động lại** (đánh lại từ đầu) [xác minh] nên sau khi thiết bị khởi động lại hộp đọc lại ACL và dò theo nội dung `deny ip host {ip} any` để lấy lại số.
-- Kiểm lại: `show ip access-lists VEDETTE-BLOCK`; kỳ vọng dòng `{seq} deny ip host {ip} any` có/không có. Số lần khớp (`(N matches)`) là thông tin phụ, chưa dùng làm tiêu chí.
-- Rủi ro: `medium`. Rủi ro tăng nếu `ip` là nguồn nội bộ cần thiết (gateway, DNS) nên danh sách không đụng áp dụng mạnh.
-- Điểm vấp:
-  - **Không lưu cấu hình sẽ mất khi khởi động lại**: mặc định hộp không lưu (xem 5.5). Với chặn có TTL thì mất khi reload là hành vi an toàn.
-  - Trùng nội dung với số thứ tự khác vẫn được IOS chấp nhận (chưa xác minh); `precheck` đọc ACL để tránh.
-  - ACL lớn tốn TCAM trên switch; đặt `max_per_hour` và trần số mục (ví dụ 200) ở kết nối.
-  - Chỉ hiệu lực với hướng/giao diện đã gắn ACL; hộp không biết trước, nên `verify` chỉ khẳng định dòng có trong ACL chứ **không** khẳng định lưu lượng đã bị chặn.
-  - Không có TTL gốc: Vedette tự hoàn tác (có thể dùng `time-range absolute end`, chưa xác minh, tốn một đối tượng thời gian mỗi mục: chưa dùng).
+  The form with a sequence number in a named ACL [verified: the feature applies to named standard/extended ACLs, the default numbers 10 apart]. The `log` keyword is unverified on every platform, drop it if the device reports an error. With `cidr`: `{seq} deny ip <network> <wildcard> any`.
+- Rollback (by the **stored sequence number**, not by content, so that nothing is removed by mistake): `configure terminal` / `ip access-list extended VEDETTE-BLOCK` / `no {seq}` / `end`. Sequence numbers are **not kept across a restart** (they are renumbered from the start) [verified], so after the device restarts the box reads the ACL again and searches by the content `deny ip host {ip} any` to recover the number.
+- Re-check: `show ip access-lists VEDETTE-BLOCK`; expecting the line `{seq} deny ip host {ip} any` to be present/absent. The match count (`(N matches)`) is extra information and is not used as a criterion yet.
+- Risk: `medium`. The risk rises if `ip` is a needed internal source (gateway, DNS), so the never-touch list applies strongly.
+- Pitfalls:
+  - **A configuration that is not saved is lost on restart**: by default the box does not save (see 5.5). For a block with a TTL, losing it on reload is safe behaviour.
+  - IOS accepts duplicate content under a different sequence number (unverified); `precheck` reads the ACL to avoid that.
+  - A large ACL costs TCAM on the switch; set `max_per_hour` and a cap on the number of entries (for example 200) on the connection.
+  - It takes effect only in the direction/interface where the ACL is attached; the box cannot know that in advance, so `verify` only confirms that the line is in the ACL and does **not** confirm that traffic has been blocked.
+  - No native TTL: Vedette rolls back by itself (`time-range absolute end` could be used, unverified, costing one time object per entry: not used yet).
 
-### 5.3 `cisco_port_shut` / `cisco_port_noshut`: tắt/bật cổng
+### 5.3 `cisco_port_shut` / `cisco_port_noshut`: turn a port off/on
 
-- Mô tả: "Tắt một cổng switch; thứ cắm vào mất mạng đến khi bật lại".
-- Tham số: `interface` (regex `^(Fa|Gi|Te|Twe|Fo|Hu|Eth)[A-Za-z]*\d+(/\d+){0,3}$`, không Port-channel và không cổng nằm trong danh sách không đụng ở bản đầu); phải có trong ảnh chụp `show interfaces status` ở `precheck`.
-- Run: `configure terminal` / `interface {interface}` / `shutdown` / `end`. Hoàn tác: `no shutdown`. Cả hai [lệnh chuẩn IOS, chưa xác minh trên trang đã đọc].
-- `precheck`: `show interfaces {interface} status` ghi trạng thái cũ; nếu đã `disabled`, hành động ghi "đã tắt từ trước" và hoàn tác **không** bật lại (không phải do Vedette tắt).
-- Kiểm lại: `show interfaces {interface} status`, kỳ vọng cột Status `disabled` sau tắt, `connected`/`notconnect` sau bật.
-- Rủi ro: `medium` (tắt) ; thiết bị PoE (camera, điện thoại, AP) mất cả nguồn. Rủi ro `high` nếu cổng có nhiều thiết bị phía sau (ảnh chụp thấy nhiều MAC: `show mac address-table interface {interface}`, chưa xác minh dạng lệnh); hộp tự nâng bậc.
-- Điểm vấp: tắt cổng mà hộp Vedette/khách đang SSH qua đó sẽ cắt chính phiên điều khiển: cổng nối hộp nằm trong danh sách không đụng.
+- Description: "Turn off a switch port; whatever is plugged in loses its network until it is turned back on".
+- Parameters: `interface` (regex `^(Fa|Gi|Te|Twe|Fo|Hu|Eth)[A-Za-z]*\d+(/\d+){0,3}$`, no Port-channel and no port in the never-touch list in the first version); it must be in the snapshot of `show interfaces status` in `precheck`.
+- Run: `configure terminal` / `interface {interface}` / `shutdown` / `end`. Rollback: `no shutdown`. Both [standard IOS commands, unverified on the pages read].
+- `precheck`: `show interfaces {interface} status` records the old state; if it is already `disabled`, the action records "already off beforehand" and the rollback does **not** turn it back on (it was not turned off by Vedette).
+- Re-check: `show interfaces {interface} status`, expecting the Status column `disabled` after turning off, `connected`/`notconnect` after turning on.
+- Risk: `medium` (turning off); a PoE device (camera, phone, AP) loses power as well. Risk `high` if the port has several devices behind it (the snapshot shows several MACs: `show mac address-table interface {interface}`, command form unverified); the box raises the level itself.
+- Pitfall: turning off a port through which the Vedette box/customer is connected by SSH would cut the control session itself: the port that connects the box is in the never-touch list.
 
-### 5.4 `cisco_port_vlan_quarantine` / `cisco_port_vlan_restore`: chuyển cổng truy cập sang VLAN cách ly
+### 5.4 `cisco_port_vlan_quarantine` / `cisco_port_vlan_restore`: move an access port to a quarantine VLAN
 
-- Mô tả: "Chuyển một cổng truy cập sang VLAN cách ly (không có đường tới máy chủ); thiết bị còn liên kết nhưng mất mọi thứ khác".
-- Tham số: `interface`, `vlan` (VLAN cách ly do khách chọn ở kết nối, không lấy từ tác nhân).
-- `precheck` bắt buộc (không có thì không chạy):
-  1. `show interfaces {interface} switchport`: phải ở chế độ **access** tĩnh (`Administrative Mode: static access`); trunk hoặc dynamic thì từ chối.
-  2. Ghi VLAN truy cập hiện tại (`Access Mode VLAN: <n>`) làm giá trị hoàn tác.
-  3. `show vlan id {vlan}`: VLAN cách ly phải **đã tồn tại** (trên một số switch, `switchport access vlan` tới VLAN chưa có sẽ tạo VLAN mới, nên tự kiểm; chưa xác minh trong nguồn Cisco đã đọc).
+- Description: "Move an access port to a quarantine VLAN (with no path to the servers); the device keeps its link but loses everything else".
+- Parameters: `interface`, `vlan` (the quarantine VLAN chosen by the customer on the connection, not taken from the agent).
+- A mandatory `precheck` (without it, it does not run):
+  1. `show interfaces {interface} switchport`: it must be in static **access** mode (`Administrative Mode: static access`); trunk or dynamic is refused.
+  2. Record the current access VLAN (`Access Mode VLAN: <n>`) as the rollback value.
+  3. `show vlan id {vlan}`: the quarantine VLAN must **already exist** (on some switches `switchport access vlan` to a VLAN that does not exist creates a new VLAN, so check it yourself; unverified in the Cisco sources read).
 - Run: `configure terminal` / `interface {interface}` / `switchport access vlan {vlan}` / `end`.
-- Hoàn tác: `switchport access vlan <giá trị cũ đã lưu>` (khi cũ là 1 mặc định: `no switchport access vlan`).
-- Kiểm lại: `show interfaces {interface} switchport`, kỳ vọng `Access Mode VLAN: {vlan}`; sau hoàn tác kỳ vọng VLAN cũ.
-- Rủi ro: `high` (2 người duyệt). Gắn nhãn `ai_may_propose` (GUI hiện bật `true` cho hành động này).
-- Điểm vấp:
-  - Thiết bị giữ địa chỉ DHCP của VLAN cũ tới khi liên kết nhấp nháy; VLAN cách ly vì thế có thể phải có DHCP riêng. Không tự `shutdown`/`no shutdown` trong cùng hành động.
-  - 802.1X/MAB gán VLAN động có thể ghi đè giá trị tĩnh (chưa xác minh), `verify` đọc lại cả `Operational Mode`/VLAN thực tế.
-  - Cổng có VLAN thoại hoặc `port-security` cần kiểm riêng (chưa xác minh).
+- Rollback: `switchport access vlan <the stored old value>` (when the old one was the default 1: `no switchport access vlan`).
+- Re-check: `show interfaces {interface} switchport`, expecting `Access Mode VLAN: {vlan}`; after rollback expecting the old VLAN.
+- Risk: `high` (2 approvers). Labelled `ai_may_propose` (the GUI currently has `true` for this action).
+- Pitfalls:
+  - The device keeps the DHCP address of the old VLAN until the link flaps; the quarantine VLAN may therefore need its own DHCP. It does not `shutdown`/`no shutdown` by itself within the same action.
+  - 802.1X/MAB dynamic VLAN assignment may override the static value (unverified), and `verify` also re-reads the `Operational Mode`/the actual VLAN.
+  - A port with a voice VLAN or `port-security` needs a separate check (unverified).
 
-### 5.5 `cisco_save_config`: lưu cấu hình
+### 5.5 `cisco_save_config`: save the configuration
 
-- Mô tả: "Ghi cấu hình đang chạy vào bộ nhớ khởi động để còn sau khi khởi động lại".
-- Run: `write memory` hoặc `copy running-config startup-config` (chưa xác minh trong nguồn đã đọc; chuẩn IOS). Kiểm lại: kết quả `[OK]`, cộng đọc `show startup-config | include VEDETTE` (chưa xác minh).
-- **Mặc định hộp KHÔNG lưu** sau các hành động ở 5.2 đến 5.4. Lý do: lưu cũng ghi luôn mọi thay đổi chưa lưu của quản trị viên khác, và chặn tạm đã nên biến mất khi khởi động lại. Chỉ hành động `permanent` hoặc người duyệt chọn "lưu" mới gọi hành động này.
-- Rủi ro: `medium` (hậu quả vĩnh viễn nếu cấu hình có lỗi). Hoàn tác: không có hoàn tác tự động (cần bản sao lưu cấu hình); hộp ghi `show running-config | include <đối tượng của Vedette>` vào kiểm toán trước khi lưu.
+- Description: "Write the running configuration to startup memory so that it remains after a restart".
+- Run: `write memory` or `copy running-config startup-config` (unverified in the sources read; standard IOS). Re-check: the result `[OK]`, plus reading `show startup-config | include VEDETTE` (unverified).
+- **By default the box does NOT save** after the actions in 5.2 to 5.4. Reason: saving also writes every unsaved change of other administrators, and a temporary block should disappear on restart. Only a `permanent` action or an approver who chooses "save" calls this action.
+- Risk: `medium` (a permanent consequence if the configuration has an error). Rollback: there is no automatic rollback (a configuration backup is needed); the box writes `show running-config | include <Vedette's objects>` to the audit before saving.
 
 ---
 
-## 6. Aruba CX và ArubaOS-Switch / HPE
+## 6. Aruba CX and ArubaOS-Switch / HPE
 
-Hai nền tảng **khác nhau hoàn toàn**: AOS-CX (CX 6000/6100/6200/6300/8xxx, có REST) và ArubaOS-Switch (ProVision, 2530/2920/2930F/5400R, chủ yếu CLI). Cả hai ở bản đầu: SSH CLI; REST của AOS-CX là đường phụ.
+Two **completely different** platforms: AOS-CX (CX 6000/6100/6200/6300/8xxx, has REST) and ArubaOS-Switch (ProVision, 2530/2920/2930F/5400R, mostly CLI). Both in the first version: SSH CLI; the AOS-CX REST is a secondary path.
 
-**Nguồn**:
-- AOS-CX REST API (v10.04 đến v10.16 có trang tham chiếu): https://developer.arubanetworks.com/aoscx/v10.13/reference/get_system
+**Sources**:
+- AOS-CX REST API (v10.04 to v10.16 have a reference page): https://developer.arubanetworks.com/aoscx/v10.13/reference/get_system
 - POST ACL: https://developer.arubanetworks.com/aoscx/v10.13/reference/post_system-acls
 - ACL entry: https://developer.arubanetworks.com/aoscx/v10.13/reference/acl_entry
-- ArubaOS-Switch: không tìm thấy trang chính thức khi soạn
+- ArubaOS-Switch: no official page was found when drafting
 
 ### 6.1 Aruba AOS-CX
 
-- Quyền: AOS-CX có nhóm người dùng dựng sẵn (administrators, operators, auditors), **chưa xác minh** nhóm nào cho phép cấu hình ACL/cổng với quyền nhỏ nhất. Mặc định phải dùng `administrators`: nêu rõ trên giao diện, và khuyên giảm rủi ro bằng (a) VRF quản trị và ACL chỉ cho IP hộp vào SSH/REST, (b) TACACS+/RADIUS ủy quyền lệnh nếu khách có.
-- Kết nối SSH: mô hình như 5.1 (khoá máy chủ ghim, mỗi dòng gửi riêng, lỗi bắt đầu bằng `%` hoặc dòng thông báo lỗi riêng của CX được coi là thất bại, kiểu thông báo chưa xác minh).
-- **ACL chặn IP (SSH, cú pháp chưa xác minh, thử trên máy lab)**:
+- Permissions: AOS-CX has built-in user groups (administrators, operators, auditors), and it is **unverified** which one allows ACL/port configuration with the smallest permission. By default `administrators` must be used: state this plainly in the interface and advise reducing the risk with (a) a management VRF and an ACL that lets only the box's IP into SSH/REST, (b) TACACS+/RADIUS command authorisation if the customer has it.
+- SSH connection: the model of 5.1 (host key pinned, each line sent separately, an error beginning with `%` or CX's own error message line is treated as a failure, the message form being unverified).
+- **ACL that blocks an IP (SSH, syntax unverified, try on a lab machine)**:
 
 ```
 configure terminal
@@ -464,18 +464,18 @@ access-list ip VEDETTE-BLOCK
 exit
 ```
 
-  Hoàn tác: `no {seq}` trong chế độ `access-list ip VEDETTE-BLOCK`. Gắn một lần: `interface <uplink>` / `apply access-list ip VEDETTE-BLOCK in`. ACL AOS-CX cũng có `deny` ngầm cuối: cần `permit any any any` ở số thứ tự lớn (chưa xác minh dạng viết). Kiểm lại: `show access-list ip VEDETTE-BLOCK` (chưa xác minh).
-- **ACL qua REST** (đường dẫn theo trang tham chiếu): `POST /rest/v10.xx/system/acls/{name},{list_type}/cfg_aces` tạo dòng, và sửa/xoá từng dòng theo số thứ tự (`.../cfg_aces/{sequence_number}`) [xác minh: tồn tại đường dẫn và địa chỉ hoá theo số thứ tự; **chưa xác minh** các trường của thân yêu cầu, tên ACL 1 đến 64 ký tự]. Phiên đăng nhập `POST /rest/v10.xx/login` là chưa xác minh trong nguồn đã tải (bài đã thấy trang `post_login` nhưng chưa đọc). Bật REST trên switch (`https-server rest access-mode read-write`, `https-server vrf mgmt`) chưa xác minh.
-- **Tắt/bật cổng** (CLI, chưa xác minh): `interface 1/1/{n}` / `shutdown`; hoàn tác `no shutdown`; kiểm lại `show interface 1/1/{n}`. Tên cổng AOS-CX có dạng `1/1/1`; regex `^\d{1,2}/\d{1,2}/\d{1,3}$`. Lưu ý trên AOS-CX giao diện chưa dùng có thể đang `shutdown` mặc định (chưa xác minh): `precheck` đọc trạng thái cũ như 5.3.
-- **Chuyển cổng sang VLAN cách ly** (CLI, chưa xác minh): `interface 1/1/{n}` / `vlan access {vlan}`; hoàn tác trả giá trị cũ đã đọc (`show interface 1/1/{n}` hoặc `show running-config interface 1/1/{n}`); điều kiện `precheck` như 5.4 (cổng access, VLAN cách ly tồn tại).
-- **Lưu cấu hình**: AOS-CX tách cấu hình chạy và khởi động; `write memory` hoặc `copy running-config startup-config` (chưa xác minh). Nguyên tắc 5.5 áp dụng nguyên văn: mặc định không lưu.
-- Rủi ro, TTL, hoàn tác: như Cisco (5.2 đến 5.5), `high` cho VLAN cách ly.
+  Rollback: `no {seq}` in the `access-list ip VEDETTE-BLOCK` mode. Attach once: `interface <uplink>` / `apply access-list ip VEDETTE-BLOCK in`. An AOS-CX ACL also has an implicit `deny` at the end: a `permit any any any` at a large sequence number is needed (the written form is unverified). Re-check: `show access-list ip VEDETTE-BLOCK` (unverified).
+- **ACL through REST** (paths per the reference page): `POST /rest/v10.xx/system/acls/{name},{list_type}/cfg_aces` creates a line, and each line is edited/deleted by sequence number (`.../cfg_aces/{sequence_number}`) [verified: the path exists and addressing is by sequence number; the fields of the request body are **unverified**, ACL name 1 to 64 characters]. The login session `POST /rest/v10.xx/login` is unverified in the sources downloaded (the page `post_login` was seen but not read). Enabling REST on the switch (`https-server rest access-mode read-write`, `https-server vrf mgmt`) is unverified.
+- **Turn a port off/on** (CLI, unverified): `interface 1/1/{n}` / `shutdown`; rollback `no shutdown`; re-check `show interface 1/1/{n}`. AOS-CX port names have the form `1/1/1`; regex `^\d{1,2}/\d{1,2}/\d{1,3}$`. Note that on AOS-CX an unused interface may be `shutdown` by default (unverified): `precheck` reads the old state as in 5.3.
+- **Move a port to the quarantine VLAN** (CLI, unverified): `interface 1/1/{n}` / `vlan access {vlan}`; rollback returns the old value that was read (`show interface 1/1/{n}` or `show running-config interface 1/1/{n}`); the `precheck` conditions are as in 5.4 (an access port, the quarantine VLAN exists).
+- **Save the configuration**: AOS-CX separates running and startup configuration; `write memory` or `copy running-config startup-config` (unverified). The principle of 5.5 applies verbatim: by default do not save.
+- Risk, TTL, rollback: as for Cisco (5.2 to 5.5), `high` for the quarantine VLAN.
 
 ### 6.2 ArubaOS-Switch (HPE ProVision)
 
-- **Chưa tìm được tài liệu chính thức khi soạn**: mọi lệnh dưới đây chưa xác minh. Không có xác nhận về REST v7 cho ACL; bản đầu **chỉ SSH**.
-- Quyền: vai trò `operator` chỉ xem, `manager` đầy đủ (chưa xác minh); cần `manager`. Giảm rủi ro bằng TACACS+ ủy quyền lệnh và danh sách `ip authorized-managers` chỉ chứa IP hộp (chưa xác minh tên lệnh).
-- ACL chặn IP (cú pháp suy đoán):
+- **No official documentation could be found when drafting**: every command below is unverified. There is no confirmation of REST v7 for ACLs; the first version is **SSH only**.
+- Permissions: the `operator` role can only view and `manager` has full rights (unverified); `manager` is needed. Reduce the risk with TACACS+ command authorisation and an `ip authorized-managers` list that contains only the box's IP (command name unverified).
+- ACL that blocks an IP (speculative syntax):
 
 ```
 configure
@@ -484,235 +484,235 @@ ip access-list extended VEDETTE-BLOCK
 exit
 ```
 
-  GUI hiện ghi `deny any {ip} 0.0.0.0` (thứ tự hướng nguồn/đích đáng ngờ). Phải thử trên máy thật. Gắn ACL: `vlan <n>` / `ip access-group VEDETTE-BLOCK in` hoặc theo cổng (chưa xác minh). Hoàn tác: `no {seq}` (chưa xác minh).
-- Tắt/bật cổng: `interface {n}` / `disable`; hoàn tác `enable` (chưa xác minh). Tên cổng dạng `5`, `A1` (chưa xác minh).
-- Chuyển VLAN: gắn **untagged** vào VLAN cách ly: `vlan {vlan}` / `untagged {n}`; hoàn tác `vlan <VLAN cũ>` / `untagged {n}` (chưa xác minh; lệnh này tự rút cổng khỏi VLAN untagged cũ, nên VLAN cũ phải đọc ở `precheck` bằng `show vlans ports {n} detail`, chưa xác minh).
-- Lưu: `write memory` (chưa xác minh); nguyên tắc 5.5.
-- Rủi ro như Cisco. Cho ArubaOS-Switch: không đưa vào mẫu dựng sẵn, chỉ làm mẫu tuỳ chỉnh có cảnh báo "chưa kiểm thử" cho tới khi lab xác nhận.
+  The GUI currently writes `deny any {ip} 0.0.0.0` (the source/destination order is doubtful). It must be tried on a real device. Attaching the ACL: `vlan <n>` / `ip access-group VEDETTE-BLOCK in` or per port (unverified). Rollback: `no {seq}` (unverified).
+- Turn a port off/on: `interface {n}` / `disable`; rollback `enable` (unverified). Port names have the form `5`, `A1` (unverified).
+- Move to a VLAN: attach **untagged** to the quarantine VLAN: `vlan {vlan}` / `untagged {n}`; rollback `vlan <old VLAN>` / `untagged {n}` (unverified; this command removes the port from the old untagged VLAN by itself, so the old VLAN must be read in `precheck` with `show vlans ports {n} detail`, unverified).
+- Save: `write memory` (unverified); the principle of 5.5.
+- Risk as for Cisco. For ArubaOS-Switch: not in the built-in templates, only a custom template with a warning "not tested" until a lab confirms it.
 
 ---
 
 ## 7. Pi-hole v6
 
-**Phiên bản**: Pi-hole v6 (API REST tích hợp trong FTL). Bản v5 không có API này.
+**Versions**: Pi-hole v6 (the REST API integrated in FTL). Version v5 does not have this API.
 
-**Nguồn**:
-- Tổng quan API: https://docs.pi-hole.net/api/
-- Xác thực: https://docs.pi-hole.net/api/auth/
-- Đặc tả máy đọc được của `domains`: https://github.com/pi-hole/FTL/blob/master/src/api/docs/content/specs/domains.yaml (tệp YAML; đã đọc nội dung)
-- Tài liệu tương tác chạy trên chính máy: `http://pi.hole/api/docs` [xác minh]
+**Sources**:
+- API overview: https://docs.pi-hole.net/api/
+- Authentication: https://docs.pi-hole.net/api/auth/
+- The machine-readable specification of `domains`: https://github.com/pi-hole/FTL/blob/master/src/api/docs/content/specs/domains.yaml (a YAML file; its content was read)
+- Interactive documentation running on the device itself: `http://pi.hole/api/docs` [verified]
 
-### 7.1 Kết nối và quyền
+### 7.1 Connection and permissions
 
-- Đăng nhập: `POST /api/auth` body `{"password":"<mật khẩu ứng dụng>"}` (thêm `"totp":123456` nếu bật 2FA). Trả `session.sid`, `session.csrf`, `session.validity` giây [xác minh]. Gửi sid bằng header `X-FTL-SID: <sid>` (ngoài ra có thể qua query, JSON, cookie) [xác minh]; dùng header, không dùng query (tránh vào log).
-- Mật khẩu ứng dụng: sinh ở trang cài đặt web; trang tài liệu nói chỉ có **một** mật khẩu ứng dụng [xác minh]. Số phiên đồng thời bị giới hạn (không rõ con số) [xác minh]: hộp **luôn** `DELETE /api/auth` (204) khi xong [xác minh] và dùng lại một phiên cho cả lô, không đăng nhập mỗi yêu cầu. Quá giới hạn đăng nhập trả 429 [xác minh]: không thử lại liên tục.
-- Quyền tối thiểu: tài liệu đã đọc **không** có khái niệm mật khẩu ứng dụng chỉ-ghi-miền hay quyền theo điểm cuối; mật khẩu ứng dụng coi như quyền quản trị Pi-hole (chưa xác minh `app_sudo`). Giảm rủi ro: Pi-hole chạy trên máy riêng cho DNS, giao diện web/API chỉ nghe từ IP hộp (tường lửa), không dùng cùng mật khẩu ở nơi khác.
-- HTTPS: Pi-hole v6 có thể phục vụ HTTPS; dùng, ghim chứng chỉ do quản trị viên nhập.
+- Login: `POST /api/auth` body `{"password":"<app password>"}` (add `"totp":123456` if 2FA is on). It returns `session.sid`, `session.csrf`, `session.validity` seconds [verified]. Send the sid in the header `X-FTL-SID: <sid>` (it can also go through the query, JSON, a cookie) [verified]; use the header, not the query (to keep it out of logs).
+- App password: generated on the web settings page; the documentation page says there is only **one** app password [verified]. The number of concurrent sessions is limited (the figure is not stated) [verified]: the box **always** does `DELETE /api/auth` (204) when done [verified] and reuses one session for a whole batch, not logging in on every request. Exceeding the login limit returns 429 [verified]: do not retry continuously.
+- Minimum permissions: the documentation read has **no** concept of a write-only-for-domains app password or permission per endpoint; an app password is treated as Pi-hole administrator permission (`app_sudo` unverified). Risk reduction: run Pi-hole on a separate machine for DNS, let the web/API interface listen only from the box's IP (firewall), and do not use the same password elsewhere.
+- HTTPS: Pi-hole v6 can serve HTTPS; use it, pinning the certificate the administrator imports.
 
-### 7.2 `pihole_block` / `pihole_unblock`: chặn/gỡ chặn tên miền
+### 7.2 `pihole_block` / `pihole_unblock`: block/unblock a domain
 
-- Mô tả: "Thêm tên miền vào danh sách từ chối của Pi-hole; thiết bị trong mạng không phân giải được tên đó nữa".
-- Tham số: `domain` (chuẩn hoá và kiểm ở 1.2). Chỉ `exact`; **không** hỗ trợ `regex` ở bản đầu (escape regex của giá trị do tác nhân điều khiển là rủi ro riêng).
-- Run [xác minh từ đặc tả FTL]: `POST /api/domains/deny/exact` body `{"domain":"{domain}","comment":"vedette:<request_id>","groups":[0],"enabled":true}`. Thành công: 201 kèm header `Location`; lỗi 400/401. `groups: [0]` (nhóm mặc định) là suy luận, chưa xác minh giá trị nhóm.
-- `precheck`/`verify`: `GET /api/domains/deny/exact/{domain}` (đường dẫn `{domain}` phải qua `url.PathEscape`) trả 200 với mảng `domains` (mỗi phần tử có `domain`, `type`, `kind`, `comment`, `enabled`, `id`) [xác minh]. Chưa có thì phản hồi lỗi không phải 200 (mã chính xác chưa xác minh, coi 404/400 là "chưa có").
-- Hoàn tác: `DELETE /api/domains/deny/exact/{domain}` → 204 khi xong, 404 khi không có, 400 khi thiếu/không chính xác [xác minh]. Chỉ gỡ khi `comment` của mục đọc được bắt đầu bằng `vedette:` (mục của quản trị viên không đụng).
-- Cũng có xoá lô `POST` (thân là mảng `{item, type, kind}`) nhưng đường dẫn không hiện trong đặc tả [xác minh một phần]; bản đầu dùng xoá từng mục.
-- Rủi ro: `low`. Điểm vấp:
-  - **Thêm trùng trả 400** `database_error` "The item is already present." [xác minh]: hộp phân biệt "đã có" và "lỗi thật" bằng `precheck`, không bỏ qua mọi 400.
-  - Chặn `exact` chỉ chặn đúng tên đó, không chặn miền con (cần regex để chặn cả cây; chưa hỗ trợ).
-  - Bộ nhớ đệm DNS ở máy khách và trình phân giải trước đó vẫn có thể còn đáp án cũ đến hết TTL; kết quả giải thích rõ "áp dụng ở truy vấn mới".
-  - Domain danh sách cho phép (`allow`) thắng hay thua `deny` theo quy tắc Pi-hole (chưa xác minh); `precheck` cảnh báo nếu tên có trong `allow`.
-  - Cần cập nhật "gravity" để domain danh sách có hiệu lực: chưa xác minh (khả năng không cần với domain tuỳ chỉnh). `verify` thật sự kiểm bằng truy vấn DNS thử (`dig @<pihole> {domain}`) chỉ khi hộp có quyền gọi DNS tới Pi-hole; không bắt buộc.
-  - Không có TTL gốc: Vedette tự hoàn tác.
-- Phiên bản: Pi-hole v6.0 trở lên.
+- Description: "Add a domain to Pi-hole's deny list; devices on the network can no longer resolve that name".
+- Parameters: `domain` (normalised and checked in 1.2). Only `exact`; **no** `regex` in the first version (regex-escaping a value controlled by the agent is a separate risk).
+- Run [verified from the FTL specification]: `POST /api/domains/deny/exact` body `{"domain":"{domain}","comment":"vedette:<request_id>","groups":[0],"enabled":true}`. Success: 201 with a `Location` header; errors 400/401. `groups: [0]` (the default group) is an inference, and the group value is unverified.
+- `precheck`/`verify`: `GET /api/domains/deny/exact/{domain}` (the path `{domain}` must go through `url.PathEscape`) returns 200 with a `domains` array (each element has `domain`, `type`, `kind`, `comment`, `enabled`, `id`) [verified]. If it is not there the response is an error that is not 200 (the exact code is unverified, treat 404/400 as "not there yet").
+- Rollback: `DELETE /api/domains/deny/exact/{domain}` → 204 when done, 404 when absent, 400 when missing/inexact [verified]. Remove only when the `comment` of the entry read starts with `vedette:` (an administrator's entries are not touched).
+- There is also a batch delete `POST` (the body is an array of `{item, type, kind}`) but the path does not appear in the specification [partly verified]; the first version deletes entry by entry.
+- Risk: `low`. Pitfalls:
+  - **A duplicate add returns 400** `database_error` "The item is already present." [verified]: the box tells "already exists" from "a real error" with `precheck`, and does not ignore every 400.
+  - Blocking `exact` blocks only that exact name, not subdomains (a regex is needed to block the whole tree; not supported yet).
+  - The DNS cache on clients and on earlier resolvers can keep the old answer until the TTL ends; the result explains clearly "applies to new queries".
+  - Whether an allow-list (`allow`) domain wins or loses against `deny` follows Pi-hole's rules (unverified); `precheck` warns if the name is in `allow`.
+  - Whether the "gravity" needs updating for a list domain to take effect: unverified (it probably is not needed for a custom domain). `verify` really checks with a trial DNS query (`dig @<pihole> {domain}`) only when the box has permission to send DNS to Pi-hole; not mandatory.
+  - No native TTL: Vedette rolls back by itself.
+- Version: Pi-hole v6.0 and above.
 
 ---
 
 ## 8. AdGuard Home
 
-**Phiên bản**: đặc tả OpenAPI đã đọc ghi phiên bản 0.107 [xác minh]. Gốc đường dẫn `/control` [xác minh].
+**Versions**: the OpenAPI specification read states version 0.107 [verified]. The path root is `/control` [verified].
 
-**Nguồn**: đặc tả OpenAPI chính thức: https://github.com/AdguardTeam/AdGuardHome/blob/master/openapi/openapi.yaml (đọc qua `raw.githubusercontent.com`); mô tả: https://github.com/AdguardTeam/AdGuardHome/wiki/Configuration và https://adguard-dns.io/kb/adguard-home/ (chưa đọc).
+**Sources**: the official OpenAPI specification: https://github.com/AdguardTeam/AdGuardHome/blob/master/openapi/openapi.yaml (read through `raw.githubusercontent.com`); descriptions: https://github.com/AdguardTeam/AdGuardHome/wiki/Configuration and https://adguard-dns.io/kb/adguard-home/ (not read).
 
-### 8.1 Kết nối và quyền
+### 8.1 Connection and permissions
 
-- Xác thực mặc định HTTP Basic cho mọi điểm cuối [xác minh]; có `POST /login` (`name`, `password`) và `GET /logout` [xác minh]. Dùng Basic với người dùng riêng; AdGuard Home **không có quyền theo vai trò**: người dùng đã xác thực là quản trị toàn phần (chưa xác minh, không thấy trong đặc tả). Giảm rủi ro: AdGuard Home chạy riêng, API chỉ nghe từ IP hộp (tường lửa), HTTPS.
+- Authentication is HTTP Basic for every endpoint by default [verified]; there are `POST /login` (`name`, `password`) and `GET /logout` [verified]. Use Basic with a dedicated user; AdGuard Home has **no role-based permissions**: an authenticated user is a full administrator (unverified, not seen in the specification). Risk reduction: run AdGuard Home separately, let the API listen only from the box's IP (firewall), and use HTTPS.
 
-### 8.2 `adguard_block` / `adguard_unblock`: chặn/gỡ chặn tên miền
+### 8.2 `adguard_block` / `adguard_unblock`: block/unblock a domain
 
-- Mô tả: "Thêm luật chặn tên miền vào bộ luật của người dùng trong AdGuard Home".
-- Tham số: `domain` (1.2). Luật sinh ra: `||{domain}^` [xác minh ví dụ cú pháp trong đặc tả; chặn cả miền và miền con theo cú pháp AdGuard, bảng cú pháp đầy đủ chưa đọc]. Hộp **tự sinh** chuỗi luật từ `domain` đã kiểm, không nhận chuỗi luật từ tác nhân. Thêm dòng chú thích `# vedette:<request_id>` trước luật để hoàn tác (đặc tả có ví dụ `# comment` [xác minh]).
-- Giao thức: **không có điểm cuối "thêm một luật"** trong phần đã đọc. Chỉ có `POST /control/filtering/set_rules` body `{"rules":[ ... ]}` ("Set user-defined filter rules"), mà đặc tả không nói rõ có thay thế toàn bộ không [xác minh một phần]. Coi như **thay toàn bộ**.
-  1. `GET /control/filtering/status` → mảng `user_rules` [xác minh].
-  2. Hộp tính danh sách mới = cũ + (chú thích + luật), bỏ nếu luật đã có.
-  3. `POST /control/filtering/set_rules` body `{"rules":<danh sách mới>}`.
-  4. Lưu danh sách cũ nguyên văn vào kiểm toán (có thể phục hồi toàn bộ nếu hỏng).
-- Hoàn tác: đọc lại `user_rules`, bỏ đúng cặp (chú thích, luật) mang `request_id`, ghi lại toàn bộ.
-- Kiểm lại: `GET /control/filtering/check_host?name={domain}` (`name` bắt buộc) trả `reason` và `rules` [xác minh tên trường; giá trị `reason` chưa xác minh]; kỳ vọng mảng `rules` chứa luật của Vedette hoặc `reason` biểu thị bị lọc. Bước kiểm thay thế: đọc lại `user_rules` có chứa luật.
-- Rủi ro: `low`. Điểm vấp:
-  - **Đọc-sửa-ghi toàn bộ** nên có thể ghi đè thay đổi đồng thời của quản trị viên hoặc hộp khác: khoá theo kết nối (một người ghi một lúc), đọc lại ngay trước khi ghi, và từ chối ghi nếu số dòng cũ đã đổi giữa lúc đọc và lúc ghi (so sánh băm).
-  - Sai sót làm mất toàn bộ luật người dùng: bắt buộc lưu bản sao trước khi ghi và có nút "khôi phục luật người dùng" trong kiểm toán.
-  - Tham số `domain` phải qua kiểm tra chặt: các ký tự `||`, `^`, `$`, `*`, `/`, `@@` có nghĩa trong cú pháp luật, không được lọt vào (kiểm tra regex ở 1.2 đã loại).
-  - Không có TTL gốc: Vedette tự hoàn tác.
-- Cách kéo thay thế: `POST /control/filtering/add_url` body `{"name":"Vedette","url":"https://<ip-hop>/blocklist/<token>/domains.txt","whitelist":false}` để AdGuard tự kéo danh sách của hộp [xác minh điểm cuối và các trường; `url` có thể là URL hoặc đường dẫn tệp]. Chu kỳ kéo là cài đặt chung của AdGuard (`interval` trong `filtering/status`, giờ). Định dạng tệp theo `blocklist-format.md`. Đường này là cách ưu tiên (thiết bị tự kéo); là thiết lập một lần.
-- Phiên bản: AdGuard Home 0.107 trở lên (đặc tả đã đọc).
-
----
-
-## 9. Hành động chung (mẫu HTTP và SSH tuỳ chỉnh)
-
-Hành động tuỳ chỉnh do khách thêm cũng bắt buộc cùng quy tắc như hành động dựng sẵn. Máy chủ kiểm khi **lưu** mẫu và lần nữa khi **chạy**; vi phạm = từ chối lưu, không có "cảnh báo rồi cho qua".
-
-> **Trạng thái 13b-6 (bộ ghi `core/conn/write`; đã làm).** Máy chủ kiểm khi lưu (`ValidateTpl`, `cliProblem`) và lần nữa khi chạy (`readOnlyProblem` cho kiểm trước và đọc lại; bộ ghi cho mọi bước). Khác với các câu bên dưới: (1) một lời gọi mỗi lần cho mỗi kết nối (và một bước thiết bị mỗi lần trên cả hộp, `execMu`); không có giới hạn 30 yêu cầu/phút riêng, hạn mức là `max_per_hour` và cầu dao. (2) Sau một dòng SSH bị thiết bị từ chối ở vị trí sau dòng đầu của một bước ghi (chạy, hoàn tác), bộ ghi gõ **đúng một** dòng rời chế độ cấu hình trên cùng phiên rồi đóng phiên (quy tắc "dừng chuỗi và đóng phiên" giữ nguyên, không dòng nào của mẫu được gửi tiếp). Dòng rời theo dòng gần nhất trước đó đã vào chế độ cấu hình mà chưa bị một dòng `end` sau nó đóng lại (hết khối mở thì không gõ gì), là dữ liệu `core/conn/write/leave.json`: `configure terminal`/`conf t` → `end` (Cisco IOS/IOS-XE, Aruba AOS-CX: dòng ở cấu hình toàn cục và chế độ con thường có hiệu lực khi gõ, `end` chỉ về dấu nhắc exec); `spanning-tree mst configuration` → `abort` (IOS/NX-OS: thay đổi vùng MST chờ tới khi rời chế độ con, `exit`/`end` **áp dụng** chúng); `config …` → `abort` (FortiOS: `next`/`end` **lưu** mục đang gõ dở, `abort` bỏ; thay chữ "`exit` trên FortiOS" ở 9.3). Dòng rời có hạn riêng 5 giây (`LeaveBudget`, ngoài 60 giây của phiên, trong 90 giây của bước), lỗi hay im lặng của nó bị bỏ qua. Không gửi gì khi lỗi ở dòng đầu, khi trước đó không có dòng vào cấu hình khớp luật (kể cả `configure` trơn của ArubaOS-Switch/Junos: Vedette chưa có gói Junos, Junos cần `rollback 0` chứ không phải `end`), khi dòng hết giờ hay phiên đã đóng, khi bước bị dừng (dừng khẩn cấp), và ở bước chỉ đọc. Lỗi của FortiOS (`command parse error`, `value parse error`, `Command fail. Return code -N`) nay cũng là dòng bị từ chối; trước đây bộ ghi không thấy chúng, gõ tiếp `next`/`end` và báo OK. Kết quả không đổi: lỗi sau khi một dòng trước đã được nhận là "State unknown" (đọc lại thiết bị, không gửi lại). Chưa thử trên thiết bị thật (LAB). (3) Bộ ghi tự đặt `Accept: application/json` và, khi có thân, `Content-Type: application/json` nếu mẫu không đặt. (4) Kiểm trước, chạy, đọc lại và hoàn tác mỗi bước mở một phiên SSH hoặc một lời gọi HTTP riêng; MCP làm `initialize` cho mỗi bước. (5) Bộ ghi từ chối dòng lệnh có ký tự điều khiển hoặc ký tự shell (`;|&$` và các ký tự trong INV-14b), dòng dài quá 512 ký tự, và quá 64 dòng mỗi bước; giới hạn số dòng lúc lưu giữ như cũ. (6) Bước kiểm trước chạy **cả khi** hành động không ghi đè giá trị cũ, nếu mẫu có `precheck`; đầu ra được `normalizeOutput` rồi so với `precheck_refuse`/`precheck_expect` (rỗng thì từ chối); đọc lại chỉ gửi khi mẫu có `expect`. (7) Kết nối chưa qua Test gần nhất (`NotReady`) không chạy được hành động và không chạy được kiểm trước; hoàn tác và đọc lại chỉ cần đã có khoá ghim. (8) Mẫu có `expect` thì chữ đó được đọc ngay trước `run` (đầu ra của `precheck` khi nó là cùng bước với `verify`, không thì thêm một bước `verify`); chỉ giữ có/không. Lần chạy chưa rõ mà đọc lại thấy chữ chỉ tính là đã áp dụng khi chữ không có trước đó.
-
-### 9.1 Quy tắc chung
-
-1. Mẫu chỉ chứa tham số có kiểu trong bảng 1.2; không có `{text}` trong lệnh/API (chỉ được dùng ở hành động gửi tin).
-2. Có `rollback`, trừ khi người tạo ghi "không hoàn tác được"; khi đó rủi ro tối thiểu `high`, bắt buộc 2 người duyệt, không `ai_may_propose`, không "duyệt sẵn".
-3. Có `verify` chỉ-đọc; không có `verify` thì hành động mang nhãn "chưa kiểm lại" và rủi ro nâng một bậc.
-4. Có `ttl` bắt buộc cho mọi hành động chặn, trừ cờ `permanent` của quản trị viên.
-5. Có `precheck` đọc trạng thái cũ cho mọi hành động ghi đè giá trị hiện có.
-6. Dấu sở hữu (1.3) bắt buộc trong mọi đối tượng tạo ra.
-7. Người tạo mẫu phải chạy khô (dry run) với sự kiện mẫu trước khi bật; mẫu tuỳ chỉnh tắt mặc định và không bao giờ `ai_may_propose` cho tới khi quản trị viên bật.
-8. Không bao giờ để bí mật (token, mật khẩu, khoá) nằm trong mẫu; chỉ tham chiếu tới `core/secrets` qua kết nối. Không ghi bí mật vào log hay kiểm toán (security.md).
-
-### 9.2 HTTP tuỳ chỉnh
-
-> **Cập nhật 2026-11-09, thay các điểm sau của mục này**: chỉ HTTPS, không có "kết nối phòng thí nghiệm" HTTP thường (để sau); chứng chỉ không qua kho gốc hệ thống thì ghim SHA-256 chứng chỉ lá ở lần Test đầu; **không theo chuyển hướng nào** (kể cả cùng host); **không thử lại**, kể cả `GET`; header bị cấm: `Authorization`, `Cookie`, `Host`, `Proxy-*`, hop-by-hop, `Forwarded`, `X-Forwarded-*`. Các số 64 KB / 1 MB, 5 s / 15 s giữ nguyên.
-
-- Chỉ HTTPS, kiểm chứng chỉ bật, cho phép ghim CA/vân tay. HTTP thường chỉ ở "kết nối phòng thí nghiệm" được quản trị viên đánh dấu và hiện cảnh báo.
-- Scheme, host, cổng lấy **từ kết nối**, không từ mẫu hay tham số. Mẫu chỉ có phần đường dẫn (có tham số ở đoạn riêng, `url.PathEscape`), query (`url.Values`), thân JSON.
-- Phương thức: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. Không cho `CONNECT`, `TRACE`, phương thức lạ.
-- Header: danh sách cho phép (`Content-Type`, `Accept`, header xác thực do kết nối đặt); **bổ sung sau rà soát 13b-2 (2026-11-10)**: ngoài `Authorization`, `Cookie`, `Host`, `Proxy-*`, hop-by-hop, `Forwarded`, `X-Forwarded*`, còn cấm `Via`, `X-Real-IP`, `X-Original-URL`, `X-Rewrite-URL` và các header ghi đè phương thức (`X-HTTP-Method-Override`, `X-HTTP-Method`, `X-Method-Override`) vì chúng đổi nghĩa của lời gọi hay giả danh máy gọi; từ chối `\r`, `\n` trong giá trị; không tham số trong tên header.
-- Thân: bắt buộc JSON hợp lệ; thay giá trị trên cây JSON, không nối chuỗi. Kích thước thân và phản hồi giới hạn (đề xuất 64 KB / 1 MB).
-- Không theo chuyển hướng (30x) trừ cùng host; timeout 15 giây (kết nối 5 giây); tối đa 1 lần thử lại cho `GET`, không thử lại `POST`/`PUT`/`DELETE` tự động (kết quả mơ hồ nên đọc lại bằng `verify` thay vì gửi lại).
-- Phản hồi coi là dữ liệu không tin cậy: parser giới hạn độ sâu và kích thước, không đưa nguyên văn vào lời nhắc AI hay HTML.
-- Trạng thái thành công xác định bằng `verify`, không bằng mã 2xx.
-- Giới hạn tốc độ theo kết nối (mặc định 30 yêu cầu/phút) và một yêu cầu đồng thời.
-
-### 9.3 SSH tuỳ chỉnh
-
-> **Cập nhật 2026-11-09, thay**: hết giờ **20 giây mỗi dòng, 60 giây mỗi phiên** (thay 30 giây và 2 phút), cả item tối đa 90 giây; đầu ra thiết bị **không** ghi vào kiểm toán (chỉ một dòng đã làm sạch ≤ 200 ký tự trong kết quả item), không còn "ghi log đầu ra sau khi lọc bí mật"; khoá máy chủ đổi bị từ chối trước khi gửi thông tin xác thực; chỉ danh sách thuật toán **an toàn** của `x/crypto/ssh` (`ssh.SupportedAlgorithms()`: không `ssh-rsa` SHA-1, không CBC/RC4, không DH group1 hay SHA-1; hẹp hơn danh sách "mặc định" của thư viện, còn nhận cả chúng để nói chuyện với thiết bị cũ; chữ "mặc định" ở đây mang ý này).
-
-- Dùng thư viện SSH của Go; không gọi `ssh` qua shell của hộp (`core/exec` allowlist, security.md). Khoá máy chủ ghim, đổi khoá thì dừng.
-- Thiết bị mạng dùng phiên tương tác có PTY; mỗi dòng lệnh gửi **riêng**, chờ dấu nhắc, có timeout mỗi dòng (30 giây) và tổng (2 phút). Mẫu lưu theo từng dòng; tham số thay vào một dòng không bao giờ làm tăng số dòng (kiểm sau thay thế).
-- Mẫu có số dòng tối đa (đề xuất 20) và danh sách lệnh **cấm** theo hãng (xem 5.1), cộng chặn chung: `reload`, `reboot`, `erase`, `format`, `delete`, `factory`, `write erase`, `no username`, `username`, `enable secret`, `crypto key`, `copy` tới đích mạng.
-- Mọi phiên cấu hình luôn kết thúc bằng lệnh thoát chế độ cấu hình (`end` trên Cisco/Aruba; khối `config` của FortiOS đóng bằng `end`), kể cả khi lỗi. Khi lỗi, lệnh thoát là dạng **không lưu**: `end` trên Cisco/Aruba, `abort` trên FortiOS và trong chế độ con MST của Cisco (`spanning-tree mst configuration`), vì ở đó `end`/`next`/`exit` **lưu** phần đang gõ dở.
-- Lỗi của thiết bị (dòng bắt đầu `%`, `Error`, `Invalid`, `Unknown command`; FortiOS `command parse error`, `value parse error`, `Command fail`) = thất bại, dừng chuỗi.
-- Lưu cấu hình là hành động **riêng** (5.5), không gộp vào hành động khác.
-- Ghi log đầu ra của thiết bị vào kiểm toán sau khi lọc bí mật (mật khẩu, khoá, SNMP community).
-
-### 9.4 Bảo vệ ở tầng quy tắc và cầu dao
-
-Mẫu tuỳ chỉnh dùng chung vỏ an toàn chung: danh sách không đụng, gộp trùng, `max_per_hour`, cầu dao, cửa sổ bảo trì, nút dừng khẩn cấp, nhật ký chuỗi băm. Hành động tuỳ chỉnh không được tắt các bảo vệ này.
+- Description: "Add a domain-block rule to the user's rule set in AdGuard Home".
+- Parameters: `domain` (1.2). The generated rule: `||{domain}^` [verified: an example of the syntax in the specification; it blocks both the domain and its subdomains per AdGuard syntax, the full syntax table was not read]. The box **generates** the rule string from the checked `domain` and does not accept a rule string from the agent. Add a comment line `# vedette:<request_id>` before the rule for rollback (the specification has an example `# comment` [verified]).
+- Protocol: there is **no "add one rule" endpoint** in the part read. There is only `POST /control/filtering/set_rules` body `{"rules":[ ... ]}` ("Set user-defined filter rules"), and the specification does not say clearly whether it replaces everything [partly verified]. Treat it as **replacing everything**.
+  1. `GET /control/filtering/status` → the `user_rules` array [verified].
+  2. The box computes the new list = old + (comment + rule), skipping it if the rule already exists.
+  3. `POST /control/filtering/set_rules` body `{"rules":<the new list>}`.
+  4. Store the old list verbatim in the audit (the whole thing can be restored if it breaks).
+- Rollback: read `user_rules` again, remove exactly the pair (comment, rule) carrying the `request_id`, and write the whole list back.
+- Re-check: `GET /control/filtering/check_host?name={domain}` (`name` is mandatory) returns `reason` and `rules` [verified field names; the `reason` values are unverified]; expecting the `rules` array to contain Vedette's rule or `reason` to indicate it is filtered. A substitute check: read `user_rules` again and see that it contains the rule.
+- Risk: `low`. Pitfalls:
+  - **A full read-modify-write**, so it can overwrite a concurrent change by an administrator or another box: lock per connection (one writer at a time), read again right before writing, and refuse to write if the old lines changed between the read and the write (compare a hash).
+  - A mistake can lose all user rules: a copy must be saved before writing, and there is a "restore user rules" button in the audit.
+  - The `domain` parameter must pass a strict check: the characters `||`, `^`, `$`, `*`, `/`, `@@` have meaning in the rule syntax and must not get in (the regex check in 1.2 already excludes them).
+  - No native TTL: Vedette rolls back by itself.
+- An alternative pull method: `POST /control/filtering/add_url` body `{"name":"Vedette","url":"https://<box-ip>/blocklist/<token>/domains.txt","whitelist":false}` so AdGuard pulls the box's list by itself [verified endpoint and fields; `url` may be a URL or a file path]. The pull cycle is AdGuard's general setting (`interval` in `filtering/status`, in hours). The file format follows `blocklist-format.md`. This path is the preferred one (the device pulls by itself); it is a one-time setup.
+- Version: AdGuard Home 0.107 and above (the specification read).
 
 ---
 
-## 10. Quyền tối thiểu: tóm tắt để in trên giao diện
+## 9. General actions (custom HTTP and SSH templates)
 
-| Gói | Tài khoản cần tạo | Quyền | Không được cấp |
+A custom action added by a customer is also subject to the same rules as a built-in action. The server checks when the template is **saved** and again when it **runs**; a violation = refusing to save, with no "warn and let it through".
+
+> **Implementation status (the `core/conn/write` writer; done).** The server checks at save time (`ValidateTpl`, `cliProblem`) and again at run time (`readOnlyProblem` for the pre-check and the re-read; the writer for every step). Different from the sentences below: (1) one call at a time per connection (and one device step at a time on the whole box, `execMu`); there is no separate limit of 30 requests/minute, the budget is `max_per_hour` and the circuit breaker. (2) After an SSH line is refused by the device at a position after the first line of a write step (run, rollback), the writer types **exactly one** line that leaves configuration mode on the same session and then closes the session (the rule "stop the chain and close the session" stays, and no further line of the template is sent). The leaving line follows the nearest earlier line that entered configuration mode and has not been closed by an `end` line after it (when no block is open, nothing is typed), and is the data `core/conn/write/leave.json`: `configure terminal`/`conf t` → `end` (Cisco IOS/IOS-XE, Aruba AOS-CX: lines in global configuration and sub-modes usually take effect when typed, `end` only returns to the exec prompt); `spanning-tree mst configuration` → `abort` (IOS/NX-OS: MST region changes wait until the sub-mode is left, `exit`/`end` **apply** them); `config …` → `abort` (FortiOS: `next`/`end` **save** the entry being typed, `abort` discards; this replaces the words "`exit` on FortiOS" in 9.3). The leaving line has its own 5-second limit (`LeaveBudget`, outside the 60 seconds of the session, within the 90 seconds of the step), and its error or silence is ignored. Nothing is sent when the error is at the first line, when there was no earlier configuration-entering line matching a rule (including a bare `configure` of ArubaOS-Switch/Junos: Vedette has no Junos pack, and Junos needs `rollback 0` rather than `end`), when the line timed out or the session is already closed, when the step was stopped (an emergency stop), and in a read-only step. FortiOS errors (`command parse error`, `value parse error`, `Command fail. Return code -N`) are now also refused lines; previously the writer did not see them, typed `next`/`end` and reported OK. The result is unchanged: an error after an earlier line was accepted is "State unknown" (read the device again, do not resend). Not yet tried on a real device (lab). (3) The writer sets `Accept: application/json` itself and, when there is a body, `Content-Type: application/json` if the template does not set it. (4) The pre-check, run, re-read and rollback each open a separate SSH session or HTTP call per step; MCP does `initialize` for every step. (5) The writer refuses a command line containing control or shell characters (`;|&$` and the characters in INV-14b), a line longer than 512 characters, and more than 64 lines per step; the limit on the number of lines at save time is kept as before. (6) The pre-check step runs **even when** the action does not overwrite an old value, if the template has `precheck`; its output is passed through `normalizeOutput` and then compared with `precheck_refuse`/`precheck_expect` (empty → refuse); the re-read is sent only when the template has `expect`. (7) A connection that has not passed its most recent Test (`NotReady`) cannot run an action and cannot run a pre-check; rollback and re-read need only an existing pinned key. (8) A template with `expect` has that text read right before `run` (the output of `precheck` when it is the same step as `verify`, otherwise one more `verify` step); only presence/absence is kept. An unclear run whose re-read finds the text counts as applied only when the text was not there before.
+
+### 9.1 General rules
+
+1. A template contains only the typed parameters of table 1.2; there is no `{text}` in a command/API (it may be used only in a send-message action).
+2. There must be a `rollback`, unless the author writes "cannot be undone"; in that case the minimum risk is `high`, 2 approvers are mandatory, and there is no `ai_may_propose` and no "pre-approval".
+3. There must be a read-only `verify`; without `verify` the action carries the label "not re-checked" and its risk is raised one step.
+4. A `ttl` is mandatory for every block action, except the administrator's `permanent` flag.
+5. A `precheck` that reads the old state is mandatory for every action that overwrites an existing value.
+6. The ownership mark (1.3) is mandatory in every object created.
+7. The template's author must do a dry run with a sample event before turning it on; a custom template is off by default and is never `ai_may_propose` until an administrator turns it on.
+8. Never leave a secret (token, password, key) in a template; only reference `core/secrets` through the connection. Do not write a secret into a log or the audit (security.md).
+
+### 9.2 Custom HTTP
+
+> **Update 2026-11-09, replacing the following points of this section**: HTTPS only, with no plain-HTTP "lab connection" (left for later); a certificate that does not pass the system root store is pinned by the SHA-256 of the leaf certificate at the first Test; **no redirect is followed** (even to the same host); **no retry**, even for `GET`; forbidden headers: `Authorization`, `Cookie`, `Host`, `Proxy-*`, hop-by-hop, `Forwarded`, `X-Forwarded-*`. The figures 64 KB / 1 MB, 5 s / 15 s stay.
+
+- HTTPS only, certificate verification on, with CA/fingerprint pinning allowed. Plain HTTP only on a "lab connection" marked by an administrator, with a warning shown.
+- Scheme, host and port are taken **from the connection**, not from the template or a parameter. A template has only the path part (with parameters in their own segment, `url.PathEscape`), the query (`url.Values`), and the JSON body.
+- Methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`. `CONNECT`, `TRACE` and unknown methods are not allowed.
+- Headers: an allowlist (`Content-Type`, `Accept`, authentication headers set by the connection); **added after a review (2026-11-10)**: besides `Authorization`, `Cookie`, `Host`, `Proxy-*`, hop-by-hop, `Forwarded`, `X-Forwarded*`, the following are also forbidden: `Via`, `X-Real-IP`, `X-Original-URL`, `X-Rewrite-URL` and the method-override headers (`X-HTTP-Method-Override`, `X-HTTP-Method`, `X-Method-Override`), because they change the meaning of the call or impersonate the caller; `\r`, `\n` are rejected in values; no parameter in a header name.
+- Body: valid JSON is mandatory; values are replaced on the JSON tree, never by string concatenation. Body and response sizes are limited (proposed 64 KB / 1 MB).
+- Redirects (30x) are not followed except to the same host; timeout 15 seconds (connection 5 seconds); at most 1 retry for `GET`, and no automatic retry of `POST`/`PUT`/`DELETE` (the result is ambiguous so it should be re-read with `verify` instead of resent).
+- A response is treated as untrusted data: the parser limits depth and size, and it is never put verbatim into an AI prompt or HTML.
+- Success is determined by `verify`, not by a 2xx code.
+- Rate limit per connection (default 30 requests/minute) and one concurrent request.
+
+### 9.3 Custom SSH
+
+> **Update 2026-11-09, replacing**: timeouts are **20 seconds per line, 60 seconds per session** (replacing 30 seconds and 2 minutes), and a whole item at most 90 seconds; device output is **not** written to the audit (only one cleaned line of ≤ 200 characters in the item's result), and "write the output to the log after filtering secrets" no longer applies; a changed host key is rejected before credentials are sent; only the **safe** algorithm list of `x/crypto/ssh` (`ssh.SupportedAlgorithms()`: no `ssh-rsa` SHA-1, no CBC/RC4, no DH group1 or SHA-1; narrower than the library's "default" list, which also accepts them in order to talk to old devices; the word "default" here has this meaning).
+
+- Use Go's SSH library; do not call `ssh` through the box's shell (the `core/exec` allowlist, security.md). The host key is pinned, and a changed key stops the connection.
+- Network devices use an interactive session with a PTY; each command line is sent **separately**, waiting for the prompt, with a timeout per line (30 seconds) and in total (2 minutes). A template is stored line by line; a parameter substituted into a line never increases the number of lines (checked after substitution).
+- A template has a maximum number of lines (proposed 20) and a list of **forbidden** commands per vendor (see 5.1), plus a general block: `reload`, `reboot`, `erase`, `format`, `delete`, `factory`, `write erase`, `no username`, `username`, `enable secret`, `crypto key`, `copy` to a network destination.
+- Every configuration session always ends with a command that leaves configuration mode (`end` on Cisco/Aruba; a FortiOS `config` block is closed with `end`), even on an error. On an error, the leaving command is the **non-saving** form: `end` on Cisco/Aruba, `abort` on FortiOS and in Cisco's MST sub-mode (`spanning-tree mst configuration`), because there `end`/`next`/`exit` **save** the part being typed.
+- A device error (a line beginning `%`, `Error`, `Invalid`, `Unknown command`; FortiOS `command parse error`, `value parse error`, `Command fail`) = failure, stop the chain.
+- Saving the configuration is a **separate** action (5.5) and is not merged into another action.
+- Write the device output to the audit after filtering secrets (passwords, keys, SNMP communities).
+
+### 9.4 Protection at the rule layer and the circuit breaker
+
+A custom template shares the common safety shell: the never-touch list, duplicate merging, `max_per_hour`, the circuit breaker, the maintenance window, the emergency stop button, and the hash-chain log. A custom action must not turn off these protections.
+
+---
+
+## 10. Minimum permissions: a summary to print in the interface
+
+| Pack | Account to create | Permissions | Must not be granted |
 |---|---|---|---|
-| FortiGate | quản trị viên REST API + `accprofile` riêng | `fwgrp custom`: `address`, `policy` read-write; `authgrp` nếu dùng ban (tên trường chưa xác minh) | `super_admin`, `sysgrp`; không `0.0.0.0/0` ở trusted host |
-| MikroTik | người dùng + nhóm riêng | `read`, `write`, `rest-api` (chưa xác minh) | `policy`, `ftp`, `sniff`, `sensitive`, `password`, `reboot` |
-| OPNsense | người dùng + khoá API | chỉ quyền alias cần (tên chưa xác minh) | quyền quản trị toàn bộ |
-| pfSense | người dùng riêng cho gói REST không chính thức | chỉ alias (chưa xác minh) | `admin`, root qua SSH |
-| Cisco | người dùng cục bộ cấp đặc quyền riêng hoặc ủy quyền lệnh AAA | cấu hình ACL, giao diện, `show` cần thiết (chưa xác minh tên chế độ) | cấp 15 |
-| Aruba CX | nhóm quản trị (hiện chưa xác minh quyền nhỏ hơn) | ACL, giao diện | |
-| ArubaOS-Switch | `manager` (chưa xác minh) | ACL, cổng, VLAN | |
-| Pi-hole v6 | mật khẩu ứng dụng (một cái) | coi như quản trị | dùng chung mật khẩu khác |
-| AdGuard Home | người dùng Basic | coi như quản trị | |
+| FortiGate | a REST API administrator + a separate `accprofile` | `fwgrp custom`: `address`, `policy` read-write; `authgrp` if ban is used (field names unverified) | `super_admin`, `sysgrp`; no `0.0.0.0/0` in trusted hosts |
+| MikroTik | a user + a separate group | `read`, `write`, `rest-api` (unverified) | `policy`, `ftp`, `sniff`, `sensitive`, `password`, `reboot` |
+| OPNsense | a user + an API key | only the alias permission needed (name unverified) | full administration rights |
+| pfSense | a separate user for the unofficial REST package | aliases only (unverified) | `admin`, root over SSH |
+| Cisco | a local user with its own privilege level or AAA command authorisation | ACL configuration, interfaces, the needed `show` (mode names unverified) | level 15 |
+| Aruba CX | the administrators group (a smaller permission is unverified for now) | ACL, interfaces | |
+| ArubaOS-Switch | `manager` (unverified) | ACL, ports, VLAN | |
+| Pi-hole v6 | an app password (one) | treated as administrator | sharing another password |
+| AdGuard Home | a Basic user | treated as administrator | |
 
-Ở mọi nền: giới hạn nguồn truy cập về IP hộp Vedette (trusted host, `address=`, ACL quản trị, tường lửa).
+On every platform: limit the source of access to the Vedette box's IP (trusted host, `address=`, management ACL, firewall).
 
 ---
 
-## 11. Phiên bản và thử nghiệm bắt buộc trước khi chuyển nhãn
+## 11. Versions and the tests required before a label changes
 
-| Gói | Mục tiêu | Việc bắt buộc thử trên máy thật |
+| Pack | Target | Required test on a real device |
 |---|---|---|
-| FortiGate | FortiOS 7.2 đến 7.6 | tên trường `accprofile`; đường dẫn `monitor/user/banned/add_users` và trường `expiry`; có/không `status` trên `firewall vip`; nhóm địa chỉ không rỗng; hành vi sau reboot (`banned-ip-persistency`) |
-| MikroTik | RouterOS 7.9 trở lên | tên chính sách `rest-api`; lỗi trùng mục; lọc `?list=&address=`; hành vi `timeout` sau reboot |
-| OPNsense | 24.x trở lên | `alias_util` thêm nhiều mục; mất mục sau reboot; tên quyền tối thiểu; thêm nhiều IP một lần |
-| pfSense | CE 2.7.x / Plus (gói REST v2) | chu kỳ tối thiểu URL Table; endpoint v2; `apply` |
-| Cisco | IOS 15.x, IOS-XE 16.x/17.x | `privilege` cho từng chế độ con; số thứ tự tối đa; `log`; tạo VLAN tự động |
-| Aruba CX | 10.04 đến 10.16 | cú pháp ACL CLI; thân REST ACE; quyền nhỏ nhất |
-| ArubaOS-Switch | còn hỗ trợ (2530/2930) | toàn bộ lệnh |
-| Pi-hole | v6.0 trở lên | `groups`; chặn/cho phép ưu tiên; gravity |
-| AdGuard Home | 0.107 trở lên | `set_rules` thay thế hay thêm; giá trị `reason` |
+| FortiGate | FortiOS 7.2 to 7.6 | the `accprofile` field names; the path `monitor/user/banned/add_users` and the `expiry` field; whether `status` exists on `firewall vip`; a non-empty address group; behaviour after a reboot (`banned-ip-persistency`) |
+| MikroTik | RouterOS 7.9 and above | the policy name `rest-api`; the duplicate-entry error; filtering `?list=&address=`; `timeout` behaviour after a reboot |
+| OPNsense | 24.x and above | `alias_util` adding several entries; entries lost after a reboot; the minimum permission name; adding several IPs at once |
+| pfSense | CE 2.7.x / Plus (REST package v2) | the minimum URL Table cycle; the v2 endpoint; `apply` |
+| Cisco | IOS 15.x, IOS-XE 16.x/17.x | `privilege` for each sub-mode; the maximum sequence number; `log`; automatic VLAN creation |
+| Aruba CX | 10.04 to 10.16 | the CLI ACL syntax; the REST ACE body; the smallest permission |
+| ArubaOS-Switch | still supported (2530/2930) | all commands |
+| Pi-hole | v6.0 and above | `groups`; block/allow precedence; gravity |
+| AdGuard Home | 0.107 and above | `set_rules` replacing or adding; the `reason` values |
 
 ---
 
-## 12. Chênh lệch với GUI hiện tại (người duy trì duyệt, không tự sửa)
+## 12. Differences from the current GUI (the maintainer approves, not changed on its own)
 
-> **WP-06 (2026-11-09) đã áp dụng** 11 điểm dưới đây vào thư viện mẫu (dữ liệu) `web/src/features/response/templates/action-templates.sample.json` (kèm test `templates.test.ts`). Cách thể hiện: mỗi `{...}` là tham số có kiểu (`ip`, `cidr`, `domain`, `port`, `mac`, `vlan`, `interface`, `id`, `name`; `text` chỉ cho hành động gửi tin) hoặc **giá trị Vedette tự đọc/tính khi chạy** (`{seq}`, `{previous_vlan}`, `{found_id}`, `{expiry_s}`, `{timeout}`, `{rules_before}`; luật không cung cấp, giao diện hiện `<seq>`...). Mẫu nào spec còn ghi "chưa xác minh" mang câu "Not verified on a device yet — test in a lab first" trong mô tả. **Còn thiếu so với spec** (mô hình mẫu hiện là một lời gọi mỗi bước): chuỗi nhiều lời gọi REST (tạo đối tượng địa chỉ rồi thêm vào nhóm FortiGate; apply của pfSense; đọc-sửa-ghi AdGuard), `precheck` và `ttl` gốc của thiết bị chỉ nằm trong mô tả/giá trị runtime. Backend (WP-13) cần `steps[]`.
+> **Applied (2026-11-09)**: the 11 points below were applied to the template library (data) `web/src/features/response/templates/action-templates.sample.json` (with the test `templates.test.ts`). How it is expressed: each `{...}` is a typed parameter (`ip`, `cidr`, `domain`, `port`, `mac`, `vlan`, `interface`, `id`, `name`; `text` only for a send-message action) or a **value Vedette reads/computes itself at run time** (`{seq}`, `{previous_vlan}`, `{found_id}`, `{expiry_s}`, `{timeout}`, `{rules_before}`; the rule does not supply it, and the interface shows `<seq>`...). A template that the spec still marks "unverified" carries the sentence "Not verified on a device yet — test in a lab first" in its description. **Still missing against the spec** (the template model is currently one call per step): a chain of several REST calls (create an address object and then add it to the group on FortiGate; pfSense apply; AdGuard read-modify-write), `precheck` and the device's native `ttl` appear only in the description/runtime value. The backend needs `steps[]`.
 
-Danh mục hiện tại ở `web/src/features/response/data.ts`:
+The current catalogue in `web/src/features/response/data.ts`:
 
-1. `nat_off` (FortiGate VIP): dùng `{text}` cho tên VIP; spec dùng `{name}`. `set status` trên `firewall vip` chưa xác minh; đề xuất lab trước khi giữ hành động này; thay thế `fgt_policy_disable` (2.5).
-2. `fgt_ban_ip`: lệnh CLI `diagnose user banned-ip add src4 {ip}` chưa xác minh; GUI chưa có tham số TTL gốc (`expiry`).
-3. `block_ip` (FortiGate nhóm địa chỉ): rollback chưa gỡ đối tượng địa chỉ; nhóm FortiOS cần thành viên neo (2.2).
-4. `mt_addrlist_add`: rollback REST đang trống (chỉ CLI); REST cần `GET` rồi `DELETE /rest/ip/firewall/address-list/<id>`.
-5. `pf_alias_add`: dùng nhánh API v1 cũ và gói không chính thức; cần ghi "không chính thức" trên giao diện và nhắm tới v2.
-6. `opn_alias_add`: đúng đường dẫn, nhưng cần alias loại **External** và hộp báo "mất sau khởi động lại" (4.1).
-7. `sw_acl_deny`: dùng một mẫu cho Cisco và Aruba/HPE; cú pháp ACL khác nhau, cần tách `cisco_acl_deny`, `aoscx_acl_deny`, `arubasw_acl_deny`; thiếu dòng `permit ip any any` cuối; thiếu số thứ tự để chèn ở đầu (5.2); hoàn tác nên theo số thứ tự.
-8. `sw_port_shut`, `sw_vlan_quarantine`: dùng chung mẫu cho ba hãng; cú pháp khác nhau (AOS-CX `vlan access`, ArubaOS-Switch `untagged`); `sw_vlan_quarantine.rollback` dùng `no switchport access vlan` thay vì khôi phục VLAN cũ đã đọc (GUI mô tả có đọc VLAN cũ, mẫu chưa thể hiện).
-9. `pihole_block`: mô tả nói "AdGuard Home người dùng sao chép và đổi lệnh API", nhưng AdGuard khác bản chất (đọc-sửa-ghi toàn bộ luật, 8.2); nên là hành động riêng.
-10. Kiểu tham số: thiếu `id` (policyid) và `name`; `{text}` đang lẫn vào mẫu thiết bị.
-11. Thiếu hành động `cisco_save_config` (5.5) và `fgt_ebl_setup`/`opn_urltable_setup`/`adguard_add_url` (thiết lập một lần, kéo) dưới dạng hướng dẫn.
+1. `nat_off` (FortiGate VIP): uses `{text}` for the VIP name; the spec uses `{name}`. `set status` on `firewall vip` is unverified; a lab is proposed before keeping this action; it replaces `fgt_policy_disable` (2.5).
+2. `fgt_ban_ip`: the CLI command `diagnose user banned-ip add src4 {ip}` is unverified; the GUI does not yet have the native TTL parameter (`expiry`).
+3. `block_ip` (FortiGate address group): the rollback does not yet remove the address object; a FortiOS group needs an anchor member (2.2).
+4. `mt_addrlist_add`: the REST rollback is empty (CLI only); REST needs `GET` and then `DELETE /rest/ip/firewall/address-list/<id>`.
+5. `pf_alias_add`: uses the old API v1 branch and an unofficial package; "unofficial" must be stated in the interface and v2 targeted.
+6. `opn_alias_add`: the path is right, but it needs an alias of type **External** and the box reports "lost after a restart" (4.1).
+7. `sw_acl_deny`: uses one template for Cisco and Aruba/HPE; the ACL syntaxes differ, so it must be split into `cisco_acl_deny`, `aoscx_acl_deny`, `arubasw_acl_deny`; the final `permit ip any any` line is missing; the sequence number for inserting at the top is missing (5.2); rollback should be by sequence number.
+8. `sw_port_shut`, `sw_vlan_quarantine`: share one template for three vendors; the syntaxes differ (AOS-CX `vlan access`, ArubaOS-Switch `untagged`); `sw_vlan_quarantine.rollback` uses `no switchport access vlan` instead of restoring the old VLAN that was read (the GUI describes reading the old VLAN, but the template does not yet express it).
+9. `pihole_block`: the description says "AdGuard Home: the user copies and changes the API command", but AdGuard is different in nature (a full read-modify-write of the rules, 8.2); it should be its own action.
+10. Parameter types: `id` (policyid) and `name` are missing; `{text}` is mixed into device templates.
+11. The actions `cisco_save_config` (5.5) and `fgt_ebl_setup`/`opn_urltable_setup`/`adguard_add_url` (one-time setup, pull) are missing in the form of instructions.
 
-### 12.1 Sửa dữ liệu ở lát 13b-2 (13b-0 chốt) — **đã làm ở 13b-2**
+### 12.1 Data fixes (applied)
 
-**Sửa sau rà soát 13b-2 (2026-11-10):** ArubaOS-Switch **bị gỡ khỏi mẫu dựng sẵn** (mục 6.2 nói không đưa vào cho tới khi lab xác nhận; ba hành động `arubasw_*` chỉ còn làm được như hành động tuỳ chỉnh); `cisco_port_shut` đọc thêm `show interfaces {interface}` và từ chối `administratively down`, `aoscx_port_shut` từ chối `Admin state is down` (hoàn tác `no shutdown` sẽ bật lại cổng mà người quản trị đã tắt); hai hành động cổng Cisco đòi `Administrative Mode: static access` (`precheck_expect`) và từ chối `Mode: trunk`, `Mode: dynamic`, `Mode: private-vlan trunk`, `Mode: tunnel`, `Switchport: Disabled`; `fgt_policy_disable` có kiểm trước đọc chính sách và từ chối `"action":"deny"` (sau khi nén JSON) hoặc `set action deny`. Chuỗi từ chối của AOS-CX và `show full-configuration firewall policy {id}` của FortiOS chưa thử trên máy; AOS-CX chưa có `precheck_expect` (cần lab xác nhận dòng `VLAN Mode: access`).
+**Fixes after a review (2026-11-10):** ArubaOS-Switch **was removed from the built-in templates** (section 6.2 says not to include it until a lab confirms; the three `arubasw_*` actions can now only be done as custom actions); `cisco_port_shut` also reads `show interfaces {interface}` and refuses `administratively down`, `aoscx_port_shut` refuses `Admin state is down` (a `no shutdown` rollback would turn on a port that the administrator turned off); the two Cisco port actions require `Administrative Mode: static access` (`precheck_expect`) and refuse `Mode: trunk`, `Mode: dynamic`, `Mode: private-vlan trunk`, `Mode: tunnel`, `Switchport: Disabled`; `fgt_policy_disable` has a pre-check that reads the policy and refuses `"action":"deny"` (after JSON compaction) or `set action deny`. The AOS-CX refusal strings and FortiOS's `show full-configuration firewall policy {id}` have not been tried on a device; AOS-CX does not yet have `precheck_expect` (a lab is needed to confirm the line `VLAN Mode: access`).
 
-**Trạng thái (13b-2):** cả sáu mục dưới đây đã nằm trong dữ liệu và có test (Go: `TestContract_INV14c_LibraryDataFixes`, `TestBuiltinActionsNeedingADeviceReadAreNotAvailableYet`; GUI: `templates.test.ts` §12.1). Mục 5 được cài ở `unavailable()` (tính từ mẫu, không có cờ trong dữ liệu). Các dòng lệnh, chuỗi từ chối và `expect` vẫn mang nhãn chưa thử trên máy; chưa có mã nào chạy chúng (13b-6).
+**Status:** all six items below are in the data and have tests (Go: `TestContract_INV14c_LibraryDataFixes`, `TestBuiltinActionsNeedingADeviceReadAreNotAvailableYet`; GUI: `templates.test.ts` §12.1). Item 5 is implemented in `unavailable()` (computed from the template, with no flag in the data). The command lines, refusal strings and `expect` still carry the label not tried on a device; no code runs them yet.
 
-Áp dụng cho cả `modules/response/data/action-templates.json` và bản mock `web/src/features/response/templates/action-templates.sample.json` (test lệch thư viện phải xanh). Nhãn "chưa xác minh" giữ nguyên như các mục trên.
+Applies to both `modules/response/data/action-templates.json` and the mock copy `web/src/features/response/templates/action-templates.sample.json` (the library-drift test must be green). The "unverified" label stays as in the sections above.
 
-1. **`tool` chỉ dành cho kết nối MCP**. `fgt_addrgrp_add` (`block_address`), `fgt_vip_disable` (`disable_virtual_ip`), `fgt_policy_disable` (`disable_firewall_policy`) đổi thành `tool: null`. Kiểu HTTP và SSH dùng công cụ cố định của loại kết nối (`send_request`, `run_approved_command`, `apply_config`, `launch_job`); giữ tên kiểu MCP trên hành động HTTP thì hành động bị coi là không khả dụng trên kết nối HTTP thật.
-2. **Chuỗi dòng SSH đầy đủ.** Lõi không biết lệnh của hãng, nên tắt phân trang và vào/ra chế độ cấu hình nằm trong dữ liệu. Mỗi bước (`precheck`, `run`, `rollback`, `verify`) là một phiên riêng:
+1. **`tool` is only for MCP connections**. `fgt_addrgrp_add` (`block_address`), `fgt_vip_disable` (`disable_virtual_ip`), `fgt_policy_disable` (`disable_firewall_policy`) change to `tool: null`. The HTTP and SSH kinds use the fixed tool of the connection kind (`send_request`, `run_approved_command`, `apply_config`, `launch_job`); keeping an MCP tool name on an HTTP action makes the action count as unavailable on a real HTTP connection.
+2. **A complete SSH line sequence.** The core does not know vendor commands, so turning off paging and entering/leaving configuration mode are in the data. Each step (`precheck`, `run`, `rollback`, `verify`) is a separate session:
 
-| Nền | Dòng đầu của mọi bước | Bọc `run`/`rollback` | Nhãn |
+| Platform | First line of every step | Wraps `run`/`rollback` | Label |
 |---|---|---|---|
-| Cisco IOS/IOS-XE | `terminal length 0` | `configure terminal` … `end` | lệnh chuẩn IOS (5.1), chưa thử trên máy |
-| Aruba AOS-CX | `no page` | `configure terminal` … `end` | chưa xác minh |
-| ArubaOS-Switch | `no page` | `configure` … `end` | chưa xác minh |
+| Cisco IOS/IOS-XE | `terminal length 0` | `configure terminal` … `end` | standard IOS commands (5.1), not tried on a device |
+| Aruba AOS-CX | `no page` | `configure terminal` … `end` | unverified |
+| ArubaOS-Switch | `no page` | `configure` … `end` | unverified |
 
-   Ví dụ `cisco_port_shut`: `run` = `terminal length 0` / `configure terminal` / `interface {interface}` / `shutdown` / `end`; `rollback` như vậy với `no shutdown`; `verify` = `terminal length 0` / `show interfaces {interface} status`. `cisco_save_config`: `run` = `terminal length 0` / `write memory`; `verify` = `terminal length 0` / `show startup-config` (thiếu dòng đầu thì phiên dừng ở `--More--` tới hết 20 s).
-3. **Kiểm trước và chuỗi từ chối cho hành động cổng** (bảng dưới là bản ban đầu 13b-0; chuỗi hiện hành sau rà soát nằm ở đoạn "Sửa sau rà soát" phía trên) (đóng M4 của rà WP-13a: không đụng cổng trunk/uplink):
+   Example `cisco_port_shut`: `run` = `terminal length 0` / `configure terminal` / `interface {interface}` / `shutdown` / `end`; `rollback` the same with `no shutdown`; `verify` = `terminal length 0` / `show interfaces {interface} status`. `cisco_save_config`: `run` = `terminal length 0` / `write memory`; `verify` = `terminal length 0` / `show startup-config` (without the first line the session stops at `--More--` until the 20 s timeout).
+3. **Pre-check and refusal strings for port actions** (the table below is the original version; the current strings after the review are in the paragraph "Fixes after a review" above) (closes a review finding: do not touch a trunk/uplink port):
 
-| Hành động | `precheck` | `precheck_refuse` | Nhãn |
+| Action | `precheck` | `precheck_refuse` | Label |
 |---|---|---|---|
-| `cisco_port_shut`, `cisco_port_vlan_quarantine` | `terminal length 0` / `show interfaces {interface} switchport` | `Administrative Mode: trunk`, `Operational Mode: trunk`, `Administrative Mode: dynamic` | dạng dòng theo 5.4 (`Administrative Mode: static access`); chưa thử trên máy |
-| `aoscx_port_shut`, `aoscx_vlan_quarantine` | `no page` / `show interface {interface}` | `VLAN Mode: trunk`, `VLAN Mode: native-untagged`, `VLAN Mode: native-tagged` | chưa xác minh |
-| `arubasw_port_shut`, `arubasw_vlan_quarantine` | `no page` / `show vlans ports {interface} detail` | `Tagged` (phân biệt hoa thường, không khớp `Untagged`) | chưa xác minh |
+| `cisco_port_shut`, `cisco_port_vlan_quarantine` | `terminal length 0` / `show interfaces {interface} switchport` | `Administrative Mode: trunk`, `Operational Mode: trunk`, `Administrative Mode: dynamic` | the line form per 5.4 (`Administrative Mode: static access`); not tried on a device |
+| `aoscx_port_shut`, `aoscx_vlan_quarantine` | `no page` / `show interface {interface}` | `VLAN Mode: trunk`, `VLAN Mode: native-untagged`, `VLAN Mode: native-tagged` | unverified |
+| `arubasw_port_shut`, `arubasw_vlan_quarantine` | `no page` / `show vlans ports {interface} detail` | `Tagged` (case-sensitive, does not match `Untagged`) | unverified |
 
-   Uplink ở chế độ access không bị chuỗi trên bắt: vẫn phải khai trong danh sách không bao giờ đụng (INV-10).
-4. **`expect` ở `verify`** (so chuỗi con, JSON đã nén, sau hoàn tác chuỗi phải mất):
+   An uplink in access mode is not caught by the strings above: it still has to be declared in the never-touch list (INV-10).
+4. **`expect` in `verify`** (substring match, JSON compacted, and after a rollback the string must disappear):
 
-| Hành động | `verify.expect` | Ghi chú |
+| Action | `verify.expect` | Notes |
 |---|---|---|
-| `fgt_addrgrp_add` | `"vedette-{ip}"` | dấu nháy để `1.2.3.4` không khớp `vedette-1.2.3.45`; đúng cho cả JSON và `show firewall addrgrp` |
-| `fgt_ban_ip` | `{ip}` | khớp cả IP dài hơn cùng tiền tố (chấp nhận: `verified` là thông tin, không phải cổng) |
-| `fgt_vip_disable`, `fgt_policy_disable` | `"status":"disable"` | chỉ đường API (`verify.cli` rỗng) |
+| `fgt_addrgrp_add` | `"vedette-{ip}"` | quotes so that `1.2.3.4` does not match `vedette-1.2.3.45`; right for both JSON and `show firewall addrgrp` |
+| `fgt_ban_ip` | `{ip}` | also matches a longer IP with the same prefix (accepted: `verified` is information, not a gate) |
+| `fgt_vip_disable`, `fgt_policy_disable` | `"status":"disable"` | the API path only (`verify.cli` is empty) |
 | `opn_alias_add` | `"{ip}"` | |
 | `pihole_block` | `"domain":"{domain}"` | |
-| `cisco_port_shut` | `disabled` | cột Status của `show interfaces status` |
-| `aoscx_port_shut` | `Admin state is down` | chưa xác minh |
-| `cisco_acl_deny` | `deny ip host {ip} any` | chưa khả dụng (mục 5) |
-| `cisco_port_vlan_quarantine` | `Access Mode VLAN: {vlan} ` (dấu cách cuối) | chưa khả dụng (mục 5) |
-| `cisco_save_config`, `pf_alias_add`, ArubaOS-Switch | không đặt | `verified = null` ("not checked") |
+| `cisco_port_shut` | `disabled` | the Status column of `show interfaces status` |
+| `aoscx_port_shut` | `Admin state is down` | unverified |
+| `cisco_acl_deny` | `deny ip host {ip} any` | not yet available (section 5) |
+| `cisco_port_vlan_quarantine` | `Access Mode VLAN: {vlan} ` (trailing space) | not yet available (section 5) |
+| `cisco_save_config`, `pf_alias_add`, ArubaOS-Switch | not set | `verified = null` ("not checked") |
 
-5. **Giá trị lúc chạy chưa có tới 13c**: mẫu còn `{seq}`, `{previous_vlan}`, `{found_id}`, `{rules_before}` hoặc `{timeout}` là "không khả dụng" kèm lý do: `cisco_acl_deny`, `aoscx_acl_deny`, `arubasw_acl_deny`, `cisco_port_vlan_quarantine`, `aoscx_vlan_quarantine`, `arubasw_vlan_quarantine`, `mt_addrlist_add`, `adguard_block`. Chỉ `{expiry_s}` = `ttl_min` × 60 được tính ở 13b-6 (`fgt_ban_ip`; item không có TTL thì hành động này không khả dụng).
-6. **Mẫu dựng sẵn chưa thử trên máy thì tắt mặc định** (rủi ro của kế hoạch WP-13b): `fgt_addrgrp_add`, `fgt_ban_ip`, `fgt_vip_disable` đang `enabled: true` dù `unverified: true`; đổi `enabled: false` cho bản cài mới (`enabled` của hộp đã cài vẫn là của người dùng).
+5. **Run-time values that do not exist yet**: a template that still has `{seq}`, `{previous_vlan}`, `{found_id}`, `{rules_before}` or `{timeout}` is "not available" with a reason: `cisco_acl_deny`, `aoscx_acl_deny`, `arubasw_acl_deny`, `cisco_port_vlan_quarantine`, `aoscx_vlan_quarantine`, `arubasw_vlan_quarantine`, `mt_addrlist_add`, `adguard_block`. Only `{expiry_s}` = `ttl_min` × 60 is computed in the writer (`fgt_ban_ip`; an item with no TTL makes this action unavailable).
+6. **Built-in templates not yet tried on a device are off by default** (a risk in the backend plan): `fgt_addrgrp_add`, `fgt_ban_ip`, `fgt_vip_disable` are `enabled: true` although `unverified: true`; change to `enabled: false` for a new install (the `enabled` of an installed box remains the user's).
 
-## 13. Câu hỏi mở
+## 13. Open questions
 
-1. FortiGate: cấp `sysgrp` cho thiết lập External Block List bằng REST, hay luôn để quản trị viên dán CLI? Đề xuất: luôn dán CLI (2.6).
-2. pfSense: có chấp nhận đường dẫn không chính thức (gói REST) làm đường đẩy mặc định, hay chỉ kéo và cho khách tự bật gói?
-3. Nhóm địa chỉ FortiOS cần thành viên neo `192.0.2.1/32`: chấp nhận cách này hay dùng cách khác (đối tượng địa chỉ cô lập cho từng mục)?
-4. Kiểu tham số `id` (policyid): thêm vào danh sách `PARAM_TYPES` (story mới, người duy trì duyệt).
-5. Cisco: có cho phép hành động `cisco_save_config` tự động sau chặn kéo dài (TTL lớn) không, hay luôn là bước duyệt riêng?
-6. Hộp có tự `clear` trạng thái kết nối đang mở (OPNsense states, FortiGate session) sau khi chặn không? Đề xuất: không ở bản đầu.
-7. Thêm kiểu `regex` cho Pi-hole để chặn cả cây miền con (cần quy tắc escape regex riêng, 7.2).
+1. FortiGate: grant `sysgrp` for setting up an External Block List through REST, or always let the administrator paste the CLI? Proposal: always paste the CLI (2.6).
+2. pfSense: accept the unofficial path (the REST package) as the default push path, or only pull and let the customer turn on the package themselves?
+3. A FortiOS address group needs an anchor member `192.0.2.1/32`: accept this, or use another way (an isolated address object for each entry)?
+4. The parameter type `id` (policyid): add it to the list `PARAM_TYPES` (a new story, the maintainer approves).
+5. Cisco: allow the `cisco_save_config` action automatically after a long-lasting block (a large TTL), or always as a separate approval step?
+6. Does the box `clear` the state of open connections (OPNsense states, FortiGate sessions) after blocking? Proposal: not in the first version.
+7. Add a `regex` type for Pi-hole to block a whole subdomain tree (needs its own regex escaping rule, 7.2).
 
-Mọi mục "chưa xác minh" ở trên cần một lượt lab (FortiGate-VM, CHR của MikroTik, OPNsense VM, Cisco CML/Catalyst, AOS-CX OVA) trước khi viết mã (không quét mạng thật).
+Every "unverified" item above needs a lab pass (FortiGate-VM, MikroTik CHR, an OPNsense VM, Cisco CML/Catalyst, AOS-CX OVA) before code is written (no scanning of a real network).

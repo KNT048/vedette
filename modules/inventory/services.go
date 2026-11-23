@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"time"
 	"unicode/utf8"
 
@@ -83,8 +84,48 @@ func checkService(i int, it observe.Service) (observe.Service, error) {
 // rows of that source not in items are removed, rows of other sources stay. The device is found by MAC or IP, or created
 // unapproved, as for ReplaceSoftware; a box-owned address is no device (INV-17). No event and no audit row: nothing listens
 // for a port change yet.
-func (s *Service) ReplaceServices(ctx context.Context, hint observe.AssetHint, source observe.Source, items []observe.Service) error {
-	return s.services(ctx, hint, source, items, true)
+//
+// A non-zero scope (observe.ServiceScope) makes it a scoped replace, as ReplaceSoftware has: the list covers only the TCP ports
+// in scope.Ports, so a scan of a few ports replaces the rows of those ports and leaves the rows of the others. A row of the source
+// outside the scope that it has not seen for scope.KeepFor goes too. A port that closes (its row removed) takes the software that
+// source read on it (observe.PortInstance).
+func (s *Service) ReplaceServices(ctx context.Context, hint observe.AssetHint, source observe.Source, scope observe.ServiceScope, items []observe.Service) error {
+	if err := checkScope(scope, items); err != nil {
+		return err
+	}
+	return s.services(ctx, hint, source, &scope, items, true)
+}
+
+// maxScopeRanges bounds the ranges of a scope (nmap's top 1000 ports are about a hundred ranges).
+const maxScopeRanges = 2000
+
+// checkScope validates a scope and that every listed service lies inside it.
+func checkScope(scope observe.ServiceScope, items []observe.Service) error {
+	if scope.KeepFor < 0 || scope.KeepFor > ServiceRetention {
+		return invalid("a service scope keeps rows for at most %d days", int(ServiceRetention.Hours()/24))
+	}
+	if scope.Ports == nil {
+		return nil
+	}
+	if len(scope.Ports) > maxScopeRanges {
+		return invalid("a service scope has at most %d port ranges", maxScopeRanges)
+	}
+	for _, r := range scope.Ports {
+		if r.From < 1 || r.To > 65535 || r.From > r.To {
+			return invalid("a service scope range must be within 1 to 65535")
+		}
+	}
+	for i, it := range items {
+		if it.Proto != "tcp" || !inScope(scope, it.Port) {
+			return invalid("service %d: a scoped list holds only TCP ports inside its scope", i)
+		}
+	}
+	return nil
+}
+
+// inScope says whether a TCP port is inside the ranges of a scope that has them.
+func inScope(scope observe.ServiceScope, port int) bool {
+	return slices.ContainsFunc(scope.Ports, func(r observe.PortRange) bool { return port >= r.From && port <= r.To })
 }
 
 // AddServices implements observe.ServiceSink for a partial look (INV-23, PRE-2b): a port not listed yet is added, a
@@ -92,10 +133,36 @@ func (s *Service) ReplaceServices(ctx context.Context, hint observe.AssetHint, s
 // names a product (a -sV read of that port; a gentle look names none, so what a fuller scan said stays); no row
 // is removed. Everything else is as ReplaceServices.
 func (s *Service) AddServices(ctx context.Context, hint observe.AssetHint, source observe.Source, items []observe.Service) error {
-	return s.services(ctx, hint, source, items, false)
+	return s.services(ctx, hint, source, nil, items, false)
 }
 
-func (s *Service) services(ctx context.Context, hint observe.AssetHint, source observe.Source, items []observe.Service, replace bool) error {
+// PortReadTimes is when source last read each open TCP port of a device with version detection (inv_service.read_at, INV-23), by
+// port; a port only found open is not in it. sensor-active's weekly version read picks its ports by it. An unknown device has none.
+func (s *Service) PortReadTimes(ctx context.Context, assetID string, source observe.Source) (map[int]time.Time, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT port, read_at FROM inv_service
+		WHERE asset_id = ? AND source = ? AND proto = 'tcp' AND read_at IS NOT NULL`, assetID, string(source))
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read the port read times: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[int]time.Time{}
+	for rows.Next() {
+		var port int
+		var at string
+		if err := rows.Scan(&port, &at); err != nil {
+			return nil, fmt.Errorf("inventory: read the port read times: %w", err)
+		}
+		t, err := time.Parse(time.RFC3339Nano, at)
+		if err != nil {
+			return nil, fmt.Errorf("inventory: port %d read time %q: %w", port, at, err)
+		}
+		out[port] = t
+	}
+	return out, rows.Err()
+}
+
+// services writes a list: scope is nil for a whole list (or an added one), replace says rows of the source not listed go.
+func (s *Service) services(ctx context.Context, hint observe.AssetHint, source observe.Source, scope *observe.ServiceScope, items []observe.Service, replace bool) error {
 	ip, mac, err := checkHint(hint)
 	if err != nil {
 		return err
@@ -130,79 +197,117 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 				return err
 			}
 		}
-		if err := replaceServicesTx(ctx, tx, id, clean, string(source), now, replace); err != nil {
+		removed, err := replaceServicesTx(ctx, tx, id, clean, string(source), now, replace, scope, s.clock())
+		if err != nil {
 			return err
+		}
+		if source == observe.Nmap && len(removed) > 0 {
+			// the software a scan read on a port that is gone is gone with it
+			inst := make([]string, len(removed))
+			for i, p := range removed {
+				inst[i] = observe.PortInstance(p)
+			}
+			if err := s.replaceSoftwareTx(ctx, tx, o, id, nil, string(source), inst, now); err != nil {
+				return err
+			}
 		}
 		return s.earnReview(ctx, tx, o, id, false) // an open service is a reason to look (INV-49)
 	})
 }
 
-// upsertService is the write of one item: a full list overwrites the row of the same port, a partial one only moves seen_at.
+// upsertService is the write of one item: a full list overwrites the row of the same port, a partial one only moves seen_at. The
+// last parameter is read_at: the item's seen time when the write reads the port's name, product and version, else NULL; a row
+// keeps its read_at when the write does not read it (coalesce).
 const (
-	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
-	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, detail = excluded.detail, confidence = excluded.confidence, seen_at = excluded.seen_at`
+	upsertService = `INSERT INTO inv_service (id, asset_id, port, proto, name, product, version, detail, source, confidence, seen_at, read_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asset_id, port, proto, source) DO UPDATE SET `
+	replaceSet = `name = excluded.name, product = excluded.product, version = excluded.version, detail = excluded.detail, confidence = excluded.confidence, seen_at = excluded.seen_at,
+		read_at = coalesce(excluded.read_at, read_at)`
 	// a gentle look with titles adds what a port said; a partial look that read a product (the -sV follow-up of the weekly scan
 	// of every port) updates the name, product, version and confidence of that port; one that did not (a gentle
 	// scan) keeps them
 	addSet = `seen_at = excluded.seen_at, detail = coalesce(excluded.detail, detail), product = coalesce(excluded.product, product),
 		version = CASE WHEN excluded.product IS NULL THEN version ELSE excluded.version END,
 		name = CASE WHEN excluded.product IS NULL THEN name ELSE excluded.name END,
-		confidence = CASE WHEN excluded.product IS NULL THEN confidence ELSE excluded.confidence END`
+		confidence = CASE WHEN excluded.product IS NULL THEN confidence ELSE excluded.confidence END,
+		read_at = coalesce(excluded.read_at, read_at)`
 )
 
-func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []observe.Service, source, seenAt string, replace bool) error {
+// replaceServicesTx writes a list and returns the TCP ports whose rows it removed. replace removes the rows of source that the list
+// does not hold, inside scope when there is one (a nil scope, or one without ports, is the source's whole list); a scope that says
+// the scan read no versions only updates a port that names a product, as an added list does.
+//
+// read_at (INV-23) moves to seenAt on every row a write reads: each listed row of a list that read versions (a replace whose scope
+// does not say NoVersions), and a listed row that names a product in the others; an added or NoVersions row that names none keeps
+// its read_at (NULL for a new row).
+func replaceServicesTx(ctx context.Context, tx *sql.Tx, assetID string, items []observe.Service, source, seenAt string, replace bool, scope *observe.ServiceScope, now time.Time) ([]int, error) {
+	versions := replace && (scope == nil || !scope.NoVersions)
 	q := upsertService + addSet
-	if replace {
+	if versions {
 		q = upsertService + replaceSet
 	}
 	keep := map[[2]any]bool{}
 	for _, it := range items {
 		keep[[2]any{it.Port, it.Proto}] = true
-		_, err := tx.ExecContext(ctx, q, store.NewID("sv"), assetID, it.Port, it.Proto, it.Name, nullStr(it.Product), nullStr(it.Version), nullStr(it.Detail), source, it.Confidence, seenAt)
+		var readAt any
+		if versions || it.Product != "" {
+			readAt = seenAt
+		}
+		_, err := tx.ExecContext(ctx, q, store.NewID("sv"), assetID, it.Port, it.Proto, it.Name, nullStr(it.Product), nullStr(it.Version), nullStr(it.Detail), source, it.Confidence, seenAt, readAt)
 		if err != nil {
-			return fmt.Errorf("inventory: store service: %w", err)
+			return nil, fmt.Errorf("inventory: store service: %w", err)
 		}
 	}
 	if !replace {
 		_, err := tx.ExecContext(ctx, `UPDATE inv_asset SET last_seen = max(last_seen, ?) WHERE id = ?`, seenAt, assetID)
 		if err != nil {
-			return fmt.Errorf("inventory: touch device: %w", err)
+			return nil, fmt.Errorf("inventory: touch device: %w", err)
 		}
-		return nil
+		return nil, nil
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT id, port, proto FROM inv_service WHERE asset_id = ? AND source = ?`, assetID, source)
+	scoped := scope != nil && scope.Ports != nil
+	stale := ""
+	if scoped && scope.KeepFor > 0 {
+		stale = store.FormatTS(now.Add(-scope.KeepFor))
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT id, port, proto, seen_at FROM inv_service WHERE asset_id = ? AND source = ?`, assetID, source)
 	if err != nil {
-		return fmt.Errorf("inventory: read services: %w", err)
+		return nil, fmt.Errorf("inventory: read services: %w", err)
 	}
 	var gone []string
+	var removed []int
 	for rows.Next() {
-		var id, proto string
+		var id, proto, seen string
 		var port int
-		if err := rows.Scan(&id, &port, &proto); err != nil {
+		if err := rows.Scan(&id, &port, &proto, &seen); err != nil {
 			_ = rows.Close()
-			return fmt.Errorf("inventory: read services: %w", err)
+			return nil, fmt.Errorf("inventory: read services: %w", err)
 		}
-		if !keep[[2]any{port, proto}] {
+		in := !scoped || (proto == "tcp" && inScope(*scope, port))
+		switch {
+		case in && !keep[[2]any{port, proto}], !in && stale != "" && seen < stale:
 			gone = append(gone, id)
+			if proto == "tcp" {
+				removed = append(removed, port)
+			}
 		}
 	}
 	if err := rows.Err(); err != nil {
 		_ = rows.Close()
-		return err
+		return nil, err
 	}
 	if err := rows.Close(); err != nil {
-		return err
+		return nil, err
 	}
 	for _, id := range gone {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM inv_service WHERE id = ?`, id); err != nil {
-			return fmt.Errorf("inventory: remove service: %w", err)
+			return nil, fmt.Errorf("inventory: remove service: %w", err)
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET last_seen = max(last_seen, ?) WHERE id = ?`, seenAt, assetID); err != nil {
-		return fmt.Errorf("inventory: touch device: %w", err)
+		return nil, fmt.Errorf("inventory: touch device: %w", err)
 	}
-	return nil
+	return removed, nil
 }
 
 // PruneServices removes the services no source has reported for ServiceRetention (INV-23) and writes one audit row when it removed

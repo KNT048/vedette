@@ -15,7 +15,7 @@ export function buildRoutes(): RouteObject[] {
     {
       element: <RequireSession><Layout /></RequireSession>,
       errorElement: <RouteError />,
-      // Trang `lazy` mở thẳng từ URL: hiện đang tải thay vì trang trắng (và hết cảnh báo HydrateFallback của React Router).
+      // A `lazy` page opened straight from a URL: show a loading state instead of a blank page (and no more React Router HydrateFallback warning).
       hydrateFallbackElement: <PageLoading />,
       children: [...features.flatMap((f) => f.routes), { path: '*', Component: NotFound }],
     },

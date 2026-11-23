@@ -1166,7 +1166,7 @@ func (s *Service) recomputeColumns(ctx context.Context, tx *sql.Tx, assetID stri
 		return false, err
 	}
 	// The chassis MAC a join left is a mark, never the device's MAC.
-	rows, err := tx.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ? AND NOT (field = 'mac' AND evidence IS ?) AND NOT `+declaredObsSQL, assetID, chassisEvidence)
+	rows, err := tx.QueryContext(ctx, `SELECT id, field, value, source, confidence, seen_at FROM inv_observation WHERE asset_id = ? AND NOT (field = 'mac' AND evidence IS ?) AND source <> 'declared'`, assetID, chassisEvidence)
 	if err != nil {
 		return false, fmt.Errorf("inventory: read observations: %w", err)
 	}

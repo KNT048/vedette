@@ -1,7 +1,4 @@
 {
-  "nav": {
-    "incidents": "Incidents"
-  },
   "ch": {
     "telegram": "Telegram",
     "slack": "Slack",
@@ -11,7 +8,6 @@
     "zalo-personal": "Zalo personal"
   },
   "channels": {
-    "nav": "Alert channels",
     "title": "Alert channels",
     "description": "Choose where Vedette sends alerts.",
     "descriptionInfo": "With no channel on, alerts only appear in the app. Each channel has its own minimum severity, and quiet hours and grouping below apply to all of them.",

@@ -9,11 +9,11 @@ export const Dialog = DialogPrimitive.Root
 export const DialogTrigger = DialogPrimitive.Trigger
 export const DialogClose = DialogPrimitive.Close
 
-/** `description`: một dòng ngắn (≈ 12 từ); giải thích dài vào `info` (ⓘ cạnh tiêu đề, #824). */
+/** `description`: one short line (about 12 words); a long explanation goes into `info` (ⓘ next to the heading, #824). */
 export function DialogContent({ className, children, title, description, info, wide, onCloseAutoFocus, ...props }: ComponentProps<typeof DialogPrimitive.Content> & { title: string; description?: ReactNode; info?: ReactNode; wide?: boolean }) {
   const { t } = useTranslation()
-  // Hộp thoại mở bằng state (không có DialogTrigger): Radix không biết trả focus về đâu khi đóng.
-  // Nhớ phần tử đang focus lúc mở và trả focus về đó (WCAG 2.4.3).
+  // A dialog opened by state (no DialogTrigger): Radix does not know where to return focus when it closes.
+  // Remember the element that had focus when it opened and return focus to it (WCAG 2.4.3).
   const [opener] = useState(() => (typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null))
   return (
     <DialogPrimitive.Portal>

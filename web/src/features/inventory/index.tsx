@@ -5,8 +5,8 @@ import { Loading } from '@/components/common/States'
 
 const DeclaredSoftware = lazy(() => import('./DeclaredSoftwareSection'))
 
-// Module inventory (S-INV-1..4): danh sách thiết bị (Devices, To review), chi tiết, Add a device, phạm vi và cảm biến, agent;
-// Settings › Declared software (#849): sản phẩm khai mà không có thiết bị.
+// The inventory module (S-INV-1..4): the device list (Devices, To review), detail, Add a device, scope and sensors, agents;
+// Settings › Declared software (#849): products declared without a device.
 export const feature: Feature = {
   id: 'inventory',
   routes: [
@@ -14,6 +14,6 @@ export const feature: Feature = {
     { path: 'devices/setup', lazy: () => import('./SetupPage').then((m) => ({ Component: m.default })) },
     { path: 'devices/:id', lazy: () => import('./DevicePage').then((m) => ({ Component: m.default })) },
   ],
-  nav: [{ to: '/devices', label: 'inventory:nav.devices', icon: Laptop, module: 'inventory', group: 'assets', order: 10 }],
-  settings: [{ id: 'declared-software', label: 'inventory:declaredPage.nav', module: 'inventory', minRole: 'viewer', order: 27, element: <Suspense fallback={<Loading />}><DeclaredSoftware /></Suspense> }],
+  nav: [{ to: '/devices', label: 'common:shell.devices', icon: Laptop, module: 'inventory', group: 'assets', order: 10 }],
+  settings: [{ id: 'declared-software', label: 'common:shell.declared', module: 'inventory', minRole: 'viewer', order: 27, element: <Suspense fallback={<Loading />}><DeclaredSoftware /></Suspense> }],
 }

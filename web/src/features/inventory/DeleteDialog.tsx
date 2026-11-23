@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
-/** Xác nhận xoá thiết bị khỏi kiểm kê (không xoá thật trên mạng). */
+/** Confirm removing a device from the inventory (nothing is deleted on the real network). */
 export function DeleteDialog({ open, onOpenChange, name, findings, pending, onConfirm }: { open: boolean; onOpenChange: (o: boolean) => void; name: string; findings: number; pending: boolean; onConfirm: () => void }) {
   const { t } = useTranslation('inventory')
   return (

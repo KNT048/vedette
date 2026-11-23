@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { BEHAVIOUR_KINDS, TYPE_IDS } from '@/lib/deviceTypes'
 
-export const ObsSource = z.enum(['manual', 'agent', 'snmp', 'nmap', 'passive', 'scan'])
+export const ObsSource = z.enum(['manual', 'declared', 'agent', 'snmp', 'nmap', 'passive', 'scan'])
 /** Device type: one of content/devicetypes/types.json, grouped in categories; the 13 types of before keep their ids. */
 export const AssetKind = z.enum(TYPE_IDS).describe('Device type (content/devicetypes/types.json)')
 /** The 13 kinds behaviour is keyed on (fragile defaults, never-touch gateways, …); every device type acts as one of them. */

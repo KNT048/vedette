@@ -6,7 +6,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { useSkills, useToggleSkill } from '../harness-api'
 import { List, Row, Toggle } from './shared'
 
-/** Skill của sản phẩm (docs/AI_ASSISTANT.md §2): mỗi skill một việc cụ thể, bật/tắt riêng. */
+/** The product's skills (docs/AI_ASSISTANT.md §2): each skill does one specific job, turned on/off separately. */
 export default function SkillsTab() {
   const { t } = useTranslation('ai')
   const skills = useSkills()

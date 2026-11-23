@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -119,6 +120,22 @@ func sweepComesDue(t *testing.T, d deps, svc *sensoractive.Service) {
 	}
 }
 
+// tickUntil runs the window job again and again, as the schedule does every minute, until done reports true; it fails the
+// test when that does not happen before the deadline.
+func tickUntil(t *testing.T, svc *sensoractive.Service, done func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(30 * time.Second)
+	for !done() {
+		if time.Now().After(deadline) {
+			t.Fatal("the window job did not reach the expected state before the deadline")
+		}
+		if err := svc.Tick(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		runtime.Gosched()
+	}
+}
+
 func (s *stack) saveScope(t *testing.T, fragile ...string) {
 	t.Helper()
 	_, err := s.d.Inventory.SaveSettings(t.Context(), "admin@acme.example", inventory.SettingsInput{
@@ -180,9 +197,10 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 		t.Fatalf("queue = %d, the discovered event did not queue the device", n)
 	}
 	sweepComesDue(t, *s.d, svc)
-	if err := svc.Tick(t.Context()); err != nil {
-		t.Fatal(err)
-	}
+	// The window job runs every minute and each run of it does what is ready: the weekly scan of every port starts only once the
+	// check's own run has left the nmap lane, which can be a moment after Tick returned. Run it again until the device has its
+	// three scans, with a deadline, the way the schedule would.
+	tickUntil(t, svc, func() bool { return len(scanTargets(nm.calls(t), "192.168.10.20")) >= 3 })
 	calls := nm.calls(t)
 	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	// the queue's normal scan and its extra ports, then the device's first weekly scan of every port in the same window

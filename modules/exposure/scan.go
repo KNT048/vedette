@@ -363,10 +363,23 @@ func sanitize(c Content) Content {
 			out.Listed = append(out.Listed, r)
 		}
 	}
+	var probed map[string][]int
+	for ip, ports := range c.Probed {
+		a, err := netip.ParseAddr(ip)
+		if err != nil || len(probed) >= maxContentRows {
+			continue
+		}
+		if ps := sanitizeProbed(ports); len(ps) > 0 {
+			if probed == nil {
+				probed = map[string][]int{}
+			}
+			probed[a.Unmap().String()] = ps
+		}
+	}
 	return Content{Hosts: nz(out.Hosts), Listed: out.Listed, Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
 		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
 		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts), WebPages: sanitizeWebPages(c.WebPages),
-		TemplatesRan: boundedKeys(c.TemplatesRan), ScriptsRan: boundedKeys(c.ScriptsRan)}
+		TemplatesRan: boundedKeys(c.TemplatesRan), ScriptsRan: boundedKeys(c.ScriptsRan), Probed: probed}
 }
 
 // The ports a scan probed on one address (the outcome of the run item of the address, INV-22): a service a scan checked and did not
@@ -375,13 +388,22 @@ const (
 	coverAll  = "checked_all"  // every TCP port: a deep scan of the address, or the runner's port scan when it says it probed them all
 	coverList = "checked_list" // the runner's fixed list of common ports (a scan that says it did not probe every port)
 	coverWeb  = "checked_web"  // ports 80 and 443, by name: a domain's address that is not the box's, checked by name only
+	// coverTop: the runner's fixed list, and the ports the default scan's service step said it probed there (Content.Probed). A port
+	// outside the fixed list counts as checked by such a scan only when the scan probed it: in this scan by its Probed, in an earlier
+	// one by a run item of kind itemPort (coverage of one port) that the scan wrote for it. A scan whose service step failed, did not
+	// finish a port's batch, or ran before Probed existed is coverList and checks only the fixed list.
+	coverTop = "checked_top"
 )
 
-// coverOutcomes are the coverages that probe a port.
+// itemPort is the kind of a run item that says a coverTop scan probed one port outside the fixed list on an address (its subject is
+// portKey); the scan writes one for each open service there it probed, the only ports a later scan's closing asks about.
+const itemPort = "port"
+
+// coverOutcomes are the address coverages that probe a port.
 func coverOutcomes(port int) []string {
 	out := []string{coverAll}
 	if slices.Contains(commonports.Numbers(), port) {
-		out = append(out, coverList)
+		out = append(out, coverList, coverTop)
 	}
 	if port == 80 || port == 443 {
 		out = append(out, coverWeb)
@@ -389,9 +411,16 @@ func coverOutcomes(port int) []string {
 	return out
 }
 
-// covers says a scan with coverage class probed port.
-func covers(class string, port int) bool {
-	return class != "" && slices.Contains(coverOutcomes(port), class)
+// covers says a scan with coverage class on an address, whose service step probed probed there, probed port.
+func covers(class string, probed []int, port int) bool {
+	if class == "" {
+		return false
+	}
+	if slices.Contains(coverOutcomes(port), class) {
+		return true
+	}
+	_, ok := slices.BinarySearch(probed, port)
+	return class == coverTop && ok
 }
 
 // ipKey is the one spelling of an address that two scans are compared by (an IPv4-mapped form is the same address).
@@ -402,7 +431,7 @@ func ipKey(s string) string {
 	return s
 }
 
-// coverage says, for each address this scan reached, which ports it probed there (coverAll, coverList or coverWeb), and which
+// coverage says, for each address this scan reached, which ports it probed there (coverAll, coverList, coverTop or coverWeb), and which
 // addresses of the services open before left the domain (gone: no name of the domain points at them any more). An IP target is
 // checked by every scan that wrote its rows; a domain scan port-scans the addresses its names point at that are scannable IP
 // targets (the gate the runner asked, ScannableIP) and the addresses its deep scan reached, and checks the others by name on 80 and
@@ -425,8 +454,11 @@ func (s *Service) coverage(ctx context.Context, user string, t Target, c Content
 		}
 	}
 	full := func(ip string) string {
-		if deep[ip] || !partial {
+		switch {
+		case deep[ip] || !partial:
 			return coverAll
+		case len(c.Probed[ip]) > 0: // the default scan's service step said which ports it probed here
+			return coverTop
 		}
 		return coverList
 	}

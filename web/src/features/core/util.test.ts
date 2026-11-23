@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { deviceLabel, guessablePassword, isBareIp, isPrivateCidr, normaliseCidr } from './util'
 
-describe('normaliseCidr (bước nhập dải mạng ở cài đặt ban đầu)', () => {
-  it('địa chỉ trần thiếu tiền tố bị từ chối, không tự đoán /24', () => { expect(normaliseCidr('192.168.18.0')).toBeNull(); expect(isBareIp('192.168.18.0')).toBe(true) })
-  it('giữ đúng tiền tố người dùng gõ, kể cả /25', () => { expect(normaliseCidr('192.168.18.128/25')).toEqual({ value: '192.168.18.128/25', note: null }) })
-  it('có bit máy thì về địa chỉ mạng và báo network', () => { expect(normaliseCidr('192.168.18.77/24')).toEqual({ value: '192.168.18.0/24', note: 'network' }) })
-  it('đã đúng thì giữ nguyên, không ghi chú', () => { expect(normaliseCidr(' 10.20.0.0/16 ')).toEqual({ value: '10.20.0.0/16', note: null }) })
-  it.each(['', 'abc', '192.168.1.0/33', '300.1.1.1/24', '192.168.1/24', '1.2.3.4/'])('từ chối "%s"', (x) => { expect(normaliseCidr(x)).toBeNull() })
+describe('normaliseCidr (the network range step of initial setup)', () => {
+  it('a bare address without a prefix is refused, /24 is not guessed', () => { expect(normaliseCidr('192.168.18.0')).toBeNull(); expect(isBareIp('192.168.18.0')).toBe(true) })
+  it('keeps the prefix the user typed, /25 included', () => { expect(normaliseCidr('192.168.18.128/25')).toEqual({ value: '192.168.18.128/25', note: null }) })
+  it('host bits go back to the network address and report network', () => { expect(normaliseCidr('192.168.18.77/24')).toEqual({ value: '192.168.18.0/24', note: 'network' }) })
+  it('already correct stays as is, no note', () => { expect(normaliseCidr(' 10.20.0.0/16 ')).toEqual({ value: '10.20.0.0/16', note: null }) })
+  it.each(['', 'abc', '192.168.1.0/33', '300.1.1.1/24', '192.168.1/24', '1.2.3.4/'])('refuses "%s"', (x) => { expect(normaliseCidr(x)).toBeNull() })
 })
 
 describe('isPrivateCidr', () => {
   it.each(['10.0.0.0/8', '172.16.0.0/12', '172.31.5.0/24', '192.168.0.0/16', '10.255.255.7/8',
-    '100.64.0.0/10', '100.65.254.0/24', '100.127.255.0/24', '100.65.254.9/24'])('nhận %s', (x) => { expect(isPrivateCidr(x)).toBe(true) })
+    '100.64.0.0/10', '100.65.254.0/24', '100.127.255.0/24', '100.65.254.9/24'])('accepts %s', (x) => { expect(isPrivateCidr(x)).toBe(true) })
   it.each(['8.8.8.0/24', '172.32.0.0/16', '10.0.0.0/0', '10.0.0.0/7', '172.16.0.0/11', '192.168.0.0/15', '0.0.0.0/0',
-    '100.0.0.0/8', '100.64.0.0/9', '100.128.0.0/24', '100.63.255.0/24'])('từ chối %s', (x) => { expect(isPrivateCidr(x)).toBe(false) })
+    '100.0.0.0/8', '100.64.0.0/9', '100.128.0.0/24', '100.63.255.0/24'])('refuses %s', (x) => { expect(isPrivateCidr(x)).toBe(false) })
 })
 
 describe('deviceLabel (sessions table)', () => {

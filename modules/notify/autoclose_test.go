@@ -63,7 +63,7 @@ func TestApprovedDeviceClosesItsIncidentWithTheApprover(t *testing.T) {
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a2", Notify: true})
 	publish(notify.EventAssetApproved, map[string]string{"asset_id": "a1", "actor": "an@acme.example"})
 	l, _ := e.svc.Incidents(e.ctx())
-	if len(l) != 1 || l[0].Title != "1 device found on your network: approve it in Devices" || l[0].Status != notify.StatusNew {
+	if len(l) != 1 || l[0].Title != "1 device found on your network: add it in Devices" || l[0].Status != notify.StatusNew {
 		t.Fatalf("summary after approving a1 = %+v", l)
 	}
 	e.clock.Add(37 * time.Hour) // past the first discovery: a device has its own incident
@@ -90,7 +90,7 @@ func TestApprovedDeviceClosesItsIncidentWithTheApprover(t *testing.T) {
 		t.Fatalf("reopened = %+v, %v", d.Incident, err)
 	}
 	e.deleteDevice("a2", "")
-	if i := e.detail(summary.ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: every device on it was approved, ignored or deleted in Devices." {
+	if i := e.detail(summary.ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: every device on it was added, ignored or deleted in Devices." {
 		t.Fatalf("summary = %+v", i)
 	}
 }
@@ -340,7 +340,7 @@ func TestApprovedInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	devs.set("a1", notify.DeviceState{Name: "PC-01", Address: "10.0.0.1", Approved: true})
 	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "a1"})
 	l, _ := e.svc.Incidents(e.ctx())
-	if len(l) != 1 || l[0].Title != "1 device found on your network: approve it in Devices" || l[0].Status != notify.StatusNew ||
+	if len(l) != 1 || l[0].Title != "1 device found on your network: add it in Devices" || l[0].Status != notify.StatusNew ||
 		len(l[0].Devices) != 1 || l[0].Devices[0].Name != "NAS-01 (10.0.0.2)" {
 		t.Fatalf("summary after approving a1 = %+v", l)
 	}

@@ -771,9 +771,9 @@ func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason s
 		}
 		n := max(rows-1, count-1)
 		if n == 0 {
-			why := "Closed by Vedette: every device on it was approved, ignored or deleted in Devices."
+			why := "Closed by Vedette: every device on it was added, ignored or deleted in Devices."
 			if strings.HasPrefix(reason, mergedInto) { // the last one was merged: say where it went
-				why = "Closed by Vedette: every device on it was approved, ignored or deleted in Devices, the last one " + strings.TrimPrefix(reason, "Closed by Vedette: ")
+				why = "Closed by Vedette: every device on it was added, ignored or deleted in Devices, the last one " + strings.TrimPrefix(reason, "Closed by Vedette: ")
 			}
 			if err := s.closeBySystem(ctx, tx, o.id, o.title, why); err != nil {
 				return err
@@ -847,8 +847,8 @@ func (s *Service) discoveryIncident(ctx context.Context, d Device, learning bool
 			"per device, the devices it finds while it learns the network are listed together here."
 	}
 	id, created, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentUnknownDevice, Source: firstDiscoverySource, Severity: Medium,
-		Title: "Devices found on your network: approve them in Devices", What: what,
-		Action: "Open Devices, approve the devices you know, and find out about the ones you do not.",
+		Title: "Devices found on your network: add them in Devices", What: what,
+		Action: "Open Devices, add the devices you know, and find out about the ones you do not.",
 		Link:   "/devices", Devices: []Device{d}})
 	if err != nil || id == "" {
 		return err
@@ -897,9 +897,9 @@ func (s *Service) discoveryIncident(ctx context.Context, d Device, learning bool
 // discoveryTitle is the title of the discovery summary with count devices.
 func discoveryTitle(count int) string {
 	if count == 1 {
-		return "1 device found on your network: approve it in Devices"
+		return "1 device found on your network: add it in Devices"
 	}
-	return fmt.Sprintf("%d devices found on your network: approve them in Devices", count)
+	return fmt.Sprintf("%d devices found on your network: add them in Devices", count)
 }
 
 // tellDiscovery queues the short "N more devices found" update of the discovery summary id when devices were added since its last
@@ -917,7 +917,7 @@ func (s *Service) tellDiscovery(ctx context.Context, tx *sql.Tx, id string, coun
 	}
 	if err := s.enqueue(ctx, tx, Notice{ID: id, Kind: KindIncident, IncidentKind: string(IncidentUnknownDevice), Severity: Medium, Title: discoveryTitle(count),
 		What:   plural(count-told, "more device found", "more devices found") + " since the last message. Devices found while Vedette or a new sensor learns your network are listed together for 36 hours.",
-		Action: "Open Devices, approve the devices you know, and find out about the ones you do not.", Link: s.link("/incidents/" + id), At: now}); err != nil {
+		Action: "Open Devices, add the devices you know, and find out about the ones you do not.", Link: s.link("/incidents/" + id), At: now}); err != nil {
 		return err
 	}
 	_, err := tx.ExecContext(ctx, `UPDATE notify_box SET discovery_told_at = ?, discovery_told_count = ? WHERE id = 1`, store.FormatTS(now), count)

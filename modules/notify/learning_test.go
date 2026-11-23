@@ -28,7 +28,7 @@ func TestLearningSensorFoldsItsDevicesIntoOneSummary(t *testing.T) {
 	found(inventory.AssetEvent{AssetID: "a2", Notify: true, Learning: true})
 	found(inventory.AssetEvent{AssetID: "a3", Notify: false, Learning: true})
 	l, _ := e.svc.Incidents(e.ctx())
-	if len(l) != 1 || l[0].Title != "2 devices found on your network: approve them in Devices" || l[0].Link != "/devices" || len(l[0].Devices) != 2 {
+	if len(l) != 1 || l[0].Title != "2 devices found on your network: add them in Devices" || l[0].Link != "/devices" || len(l[0].Devices) != 2 {
 		t.Fatalf("incidents = %+v", l)
 	}
 	e.clock.Add(37 * time.Hour)
@@ -91,12 +91,12 @@ func TestMergedDeviceLeavesItsIncidentNamingWhereItWent(t *testing.T) {
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "lldp-2", Notify: true})
 	e.mergeDevices("lldp-2", "ip-2", "EX4300")
 	l, _ := e.svc.Incidents(e.ctx())
-	if l[0].Link != "/devices" || l[0].Title != "1 device found on your network: approve it in Devices" || len(l[0].Devices) != 1 || l[0].Devices[0].ID != "s2" {
+	if l[0].Link != "/devices" || l[0].Title != "1 device found on your network: add it in Devices" || len(l[0].Devices) != 1 || l[0].Devices[0].ID != "s2" {
 		t.Fatalf("summary = %+v", l[0])
 	}
 	e.mergeDevices("s2", "ip-2", "EX4300")
 	if i := e.detail(l[0].ID); i.Status != notify.StatusResolved || i.ResolvedReason == nil ||
-		*i.ResolvedReason != "Closed by Vedette: every device on it was approved, ignored or deleted in Devices, the last one merged into EX4300." {
+		*i.ResolvedReason != "Closed by Vedette: every device on it was added, ignored or deleted in Devices, the last one merged into EX4300." {
 		t.Fatalf("summary whose last device was merged = %+v", i)
 	}
 }

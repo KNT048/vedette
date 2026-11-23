@@ -154,7 +154,7 @@ func TestFirstDiscoveryIsOneSummaryIncident(t *testing.T) {
 		e.clock.Add(10 * time.Minute)
 	}
 	l, _ := e.svc.Incidents(e.ctx())
-	if len(l) != 1 || l[0].Title != "3 devices found on your network: approve them in Devices" || len(l[0].Devices) != 3 || l[0].Link != "/devices" {
+	if len(l) != 1 || l[0].Title != "3 devices found on your network: add them in Devices" || len(l[0].Devices) != 3 || l[0].Link != "/devices" {
 		t.Fatalf("incidents = %+v", l)
 	}
 	e.flush()
@@ -169,7 +169,7 @@ func TestFirstDiscoveryIsOneSummaryIncident(t *testing.T) {
 	if len(calls) != 2 || !strings.Contains(calls[1].Body, "4 devices found on your network") || !strings.Contains(calls[1].Body, "3 more devices found since the last message") {
 		t.Fatalf("calls = %d, last = %.300s", len(calls), calls[len(calls)-1].Body)
 	}
-	if l, _ = e.svc.Incidents(e.ctx()); len(l) != 1 || l[0].Title != "5 devices found on your network: approve them in Devices" {
+	if l, _ = e.svc.Incidents(e.ctx()); len(l) != 1 || l[0].Title != "5 devices found on your network: add them in Devices" {
 		t.Fatalf("incidents = %+v", l)
 	}
 	e.clock.Add(16 * time.Hour) // the first discovery is over: a new device is news again
@@ -411,7 +411,7 @@ func TestDeletedDeviceLeavesTheNewDeviceIncidents(t *testing.T) {
 	}
 	e.deleteDevice("a2", "")
 	l, _ := e.svc.Incidents(e.ctx())
-	if len(l) != 1 || l[0].Title != "2 devices found on your network: approve them in Devices" || len(l[0].Devices) != 2 || l[0].Status != notify.StatusNew {
+	if len(l) != 1 || l[0].Title != "2 devices found on your network: add them in Devices" || len(l[0].Devices) != 2 || l[0].Status != notify.StatusNew {
 		t.Fatalf("after deleting a2: %+v", l)
 	}
 	e.clock.Add(37 * time.Hour) // past the first discovery: a new device has its own incident

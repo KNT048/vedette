@@ -738,7 +738,7 @@ test.describe('a real send that fails: the record in History, the finding and th
 
       // the finding says who was told and that it failed; a viewer may read it
       const notices = await call(viewer, 'GET', `/notify/findings/${s.findingId}/notices`)
-      expect(notices).toEqual({ status: 200, body: { sends: [{ id: row.id, channel: 'email', to: 'it@e2e.test', at: row.at, ok: false, error: ERR_UNREACHABLE }] } })
+      expect(notices).toEqual({ status: 200, body: { sends: [{ id: row.id, channel: 'email', to: 'it@e2e.test', at: row.at, ok: false, delayed: false, error: ERR_UNREACHABLE }] } })
       await page.goto(`/findings/${s.findingId}`)
       await expect(page.locator('#notified')).toContainText(`Notified: Email (failed: ${ERR_UNREACHABLE})`)
 

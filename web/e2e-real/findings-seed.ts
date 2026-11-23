@@ -1,61 +1,92 @@
 // Getting a real finding onto the box through public APIs only, for the specs that need one (mitigation packs, scans, alerts).
-// A finding is made from the CISA list only (feeds `Store` answers from `cisa-kev` rows: "a custom feed's CVE is not a KEV entry"; inventory and
-// findings read nothing else), so a custom vulnerability feed cannot make one. The public path that works with no internet: the built-in CISA
-// KEV feed lets an administrator set a mirror address (PUT /feeds/sources/cisa-kev {url}); a node `http` server on 127.0.0.1 (INV-2 of feeds
-// lets internal hosts use http) serves a KEV-format catalog with one entry per test for a made-up vendor and product, "Fetch now" pulls it,
-// and a device declared in the inventory with that vendor and product is matched at once (inventory INV-10, `inventory.match.changed`); the
-// findings module creates the finding (`suspected`, basis `product`: the list has no affected version ranges).
-// This is box-wide state (the built-in feed's address and rows), so the specs that use it are `.global.spec.ts`, and the address is reset to
-// the default at the end. The CVE-2099-* rows stay until the next successful CISA pull replaces them (or the run ends: the box is thrown away).
+// A finding needs version evidence (findings INV-4f: a product name alone is only a question), and it starts from the CISA list: a custom
+// vulnerability feed cannot make one. Two built-in feeds each take a mirror address (PUT /feeds/sources/{id} {url}), and a node `http`
+// server on 127.0.0.1 (INV-2 of feeds lets internal hosts use http) serves both with no internet: a KEV-format catalog (`cisa-kev`) with one
+// entry per test for a made-up vendor and product, and an NVD CVE API 2.0 page (`nvd-kev`) that gives each of those CVEs an affected range
+// `< 2.0` for the same product. "Fetch now" pulls both, and a device declared in the inventory with that vendor, product and version 1.0 is
+// matched at once (inventory `inventory.match.changed`); the findings module creates the finding (`suspected`, basis `version`: the version
+// is a person's typed one, so nothing confirms it until a scan or the device does).
+// This is box-wide state (the two feeds' addresses and rows), so the specs that use it are `.global.spec.ts`, and both addresses are reset to
+// the default at the end. The CVE-2099-* rows stay until the next successful pull replaces them (or the run ends: the box is thrown away).
 // Vendor, product, device, address and CVE are unique per seed (CVE-2099-*, a year no real list has reached), so tests never share a finding.
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { expect, request, type APIRequestContext } from '@playwright/test'
+import { expect, request, test, type APIRequestContext } from '@playwright/test'
 import { api, authFile, box, uniq, type Role } from './box'
+import type { FindingDetail, FindingRow } from '../src/features/findings/types'
 
 export const as = (role: Role) => request.newContext({ baseURL: box().base_url, storageState: authFile(role) })
 
-export interface Row {
-  id: string; asset_id: string; cve: string; status: 'confirmed' | 'suspected' | 'mitigated' | 'patched' | 'false_positive' | 'not_relevant'
-  severity: string; confidence: number; basis: 'scan' | 'version' | 'product'; first_seen: string; last_seen: string
-  resolved_by: string | null; resolved_at: string | null; resolution_note: string | null
-  evidence: unknown; history: { ts: string; user: string; action: string; note?: string }[]
-  asset: { id: string; hostname: string | null; ip: string; kind: string; display: string } | null
-  kev: { name: string; vendor: string; product: string; display: string; required_action: string; links: string[]; date_added: string; due_date: string | null; ransomware: boolean; epss: number | null; has_template: boolean } | null
-}
-export interface Detail extends Row {
-  pack: unknown; compromise: unknown; recheck: { steps: string[] }; applied: unknown[]
-  ai: { explain: unknown; config: unknown }; ai_available: { explain: boolean; config: boolean }
-}
+// The shapes are the API contract's own (zod-derived), so a change to the findings answer fails tsc here instead of passing silently.
+export type Row = FindingRow
+export type Detail = FindingDetail
 export interface Seed { deviceId: string; host: string; ip: string; cve: string; vendor: string; product: string; findingId: string }
 
 let srv: Server | undefined
 let base = ''
 let catalog = ''
+let nvd = ''
 const entries: Record<string, unknown>[] = []
-const render = () => { catalog = JSON.stringify({ title: 'QA catalog', catalogVersion: '2099.11.11', dateReleased: '2026-11-11T00:00:00.000Z', count: entries.length, vulnerabilities: entries }) }
+const nvdRecords: Record<string, unknown>[] = []
+const PLACEHOLDER = 'CVE-2099-000001' // lets the NVD feed's first pull from the mirror succeed before any test has an entry
+const render = () => {
+  catalog = JSON.stringify({ title: 'QA catalog', catalogVersion: '2099.11.11', dateReleased: '2026-11-11T00:00:00.000Z', count: entries.length, vulnerabilities: entries })
+  nvd = JSON.stringify({ resultsPerPage: nvdRecords.length, startIndex: 0, totalResults: nvdRecords.length, format: 'NVD_CVE', version: '2.0', timestamp: '2026-11-11T00:00:00.000', vulnerabilities: nvdRecords })
+}
+/** The NVD record of one test CVE: affected `cpe:2.3:a:<vendor>:<product>` below 2.0, published recently (a missing or old date would change the match). */
+const nvdRecord = (cve: string, vendor: string, product: string, tag: string) => ({ cve: {
+  id: cve, sourceIdentifier: 'qa@example.test', published: '2026-10-20T10:00:00.000', lastModified: '2026-11-01T10:00:00.000', vulnStatus: 'Analyzed',
+  descriptions: [{ lang: 'en', value: `QA ${tag} remote code execution in ${product} before 2.0.` }],
+  configurations: [{ nodes: [{ operator: 'OR', negate: false, cpeMatch: [{ vulnerable: true, criteria: `cpe:2.3:a:${vendor}:${product}:*:*:*:*:*:*:*:*`, versionEndExcluding: '2.0' }] }] }],
+} })
+const source = async (admin: APIRequestContext, id: string) => (await api<{ items: { id: string; status: string; error: string | null; url: string }[] }>(admin, 'GET', '/feeds/sources')).body.items.find((i) => i.id === id)
 
-/** Starts the loopback server and points the CISA feed's mirror address at it (call in beforeAll). */
+/** "Fetch now" until the feed's own pull from the mirror finished. A pull already running (the box's schedule at its start, asking the real address
+ *  with no internet, keeps one feed busy for a few minutes) answers "fetch now" with how far it got, and its result is dropped when the address
+ *  changed under it, so the request is repeated until the pull from the mirror is the one that ended. */
+async function pullFromMirror(admin: APIRequestContext, id: string, timeout: number) {
+  await expect.poll(async () => {
+    const pulled = await api(admin, 'POST', `/feeds/sources/${id}/fetch`)
+    expect(pulled.status, `fetch ${id}: ${JSON.stringify(pulled.body)}`).toBe(200)
+    const row = await source(admin, id)
+    expect(row?.status, `the ${id} feed pulled from the loopback mirror: ${row?.error}`).not.toBe('error') // on success `error` may hold a note about the pull
+    return row?.status === 'ok' && row.url.startsWith(base)
+  }, { message: `the ${id} feed pulled from the loopback mirror`, timeout, intervals: [2_000, 5_000] }).toBe(true)
+}
+
+/** Starts the loopback server and points the CISA and NVD feeds' mirror addresses at it (call in beforeAll). */
 export async function startFeedServer() {
   render()
-  srv = createServer((req, res) => { const ok = req.url === '/kev.json'; res.writeHead(ok ? 200 : 404, { 'Content-Type': 'application/json' }); res.end(ok ? catalog : '{}') })
+  srv = createServer((req, res) => {
+    const path = (req.url ?? '').split('?')[0] // the NVD puller adds its own query string to the address
+    const body = path === '/kev.json' ? catalog : path === '/nvd.json' ? nvd : undefined
+    res.writeHead(body === undefined ? 404 : 200, { 'Content-Type': 'application/json' }); res.end(body ?? '{}')
+  })
   await new Promise<void>((ok) => srv!.listen(0, '127.0.0.1', ok))
   base = `http://e2e-loopback.lan:${(srv.address() as AddressInfo).port}` // the box sends this name to 127.0.0.1 (e2eOffline): a loopback address is refused at save
   const admin = await as('admin')
   try {
     const r = await api(admin, 'PUT', '/feeds/sources/cisa-kev', { url: `${base}/kev.json` })
     expect(r.status, `mirror address of the CISA feed: ${JSON.stringify(r.body)}`).toBe(200)
+    const n = await api(admin, 'PUT', '/feeds/sources/nvd-kev', { url: `${base}/nvd.json` })
+    expect(n.status, `mirror address of the NVD affected versions feed: ${JSON.stringify(n.body)}`).toBe(200)
+    test.setTimeout(330_000)
+    if (!nvdRecords.length) { entries.push({ cveID: PLACEHOLDER, vendorProject: 'VendQaBase', product: 'WidgetQaBase', vulnerabilityName: 'QA base entry', dateAdded: '2026-11-01', shortDescription: 'QA base entry', requiredAction: 'None.', dueDate: '2099-12-01', knownRansomwareCampaignUse: 'Unknown', notes: '' }); nvdRecords.push(nvdRecord(PLACEHOLDER, 'vendqabase', 'widgetqabase', 'base')); render() }
+    await pullFromMirror(admin, 'cisa-kev', 60_000)
+    await pullFromMirror(admin, 'nvd-kev', 300_000) // waits out a pull of the real address that the box started by itself
   } finally { await admin.dispose() }
 }
-/** Gives the CISA feed its default address back and stops the server (call in afterAll); the server is closed whatever the reset did. */
+/** Gives both feeds their default address back and stops the server (call in afterAll); the server is closed whatever the reset did. */
 export async function stopFeedServer() {
   const s = srv; srv = undefined
   const admin = await as('admin')
   try {
-    expect((await api(admin, 'PUT', '/feeds/sources/cisa-kev', { url: '' })).status, 'reset of the CISA feed address').toBe(200)
-    const after = (await api<{ items: { id: string; url: string }[] }>(admin, 'GET', '/feeds/sources')).body.items.find((i) => i.id === 'cisa-kev')
-    expect(after, 'the CISA feed is listed').toBeDefined()
-    expect(after!.url, 'the CISA feed no longer points at the loopback server').not.toBe(`${base}/kev.json`)
+    for (const [id, file] of [['cisa-kev', 'kev.json'], ['nvd-kev', 'nvd.json']] as const) {
+      expect((await api(admin, 'PUT', `/feeds/sources/${id}`, { url: '' })).status, `reset of the ${id} feed address`).toBe(200)
+      const after = await source(admin, id)
+      expect(after, `the ${id} feed is listed`).toBeDefined()
+      expect(after!.url, `the ${id} feed no longer points at the loopback server`).not.toBe(`${base}/${file}`)
+    }
   } finally {
     await admin.dispose()
     if (s) await new Promise((ok) => s.close(ok))
@@ -86,15 +117,14 @@ export async function seed(over: { cve?: string; ip?: string } = {}): Promise<Se
   try {
     const tag = uniq('qa')
     const n = seq++
-    const vendor = `Vend-${tag}`, product = `Widget-${tag}`, host = `host-${tag}`
+    const flat = tag.toLowerCase().replace(/[^a-z0-9]/g, '') // a CPE name is lowercase letters and digits here: the device and the NVD record use the same one
+    const vendor = `vend${flat}`, product = `widget${flat}`, host = `host-${tag}`
     const cve = over.cve ?? `CVE-2099-${String(100000 + (Date.now() % 800000) + n)}`
     const ip = over.ip ?? `10.231.${Math.floor(n / 250) % 250}.${(n % 250) + 1}` // a counter: this file's addresses never repeat in a run
     entries.push({ cveID: cve, vendorProject: vendor, product, vulnerabilityName: `QA ${tag} remote code execution`, dateAdded: '2026-11-01', shortDescription: `QA entry ${tag}`, requiredAction: `Apply the QA update for ${tag}.`, dueDate: '2099-12-01', knownRansomwareCampaignUse: 'Unknown', notes: 'https://advisory.example/qa' })
+    nvdRecords.push(nvdRecord(cve, vendor, product, tag))
     render()
-    const pulled = await api(admin, 'POST', '/feeds/sources/cisa-kev/fetch')
-    expect(pulled.status, `fetch: ${JSON.stringify(pulled.body)}`).toBe(200)
-    const src = (await api<{ items: { id: string; status: string; error: string | null }[] }>(admin, 'GET', '/feeds/sources')).body.items.find((i) => i.id === 'cisa-kev')
-    expect(src, 'the CISA feed pulled from the loopback mirror').toMatchObject({ status: 'ok', error: null })
+    for (const id of ['cisa-kev', 'nvd-kev']) await pullFromMirror(admin, id, 60_000) // the list first: the NVD pull keeps only the CVEs that are on it
     const dev = await api<{ id: string }>(admin, 'POST', '/inventory/devices', { vendor, product, version: '1.0', name: host, ip })
     expect(dev.status, `device: ${JSON.stringify(dev.body)}`).toBe(201)
     made.devices.push(dev.body.id)

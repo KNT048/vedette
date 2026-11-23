@@ -58,9 +58,9 @@ func TestExternalDiscoveryReadsTheProbedPortsFromScaninfo(t *testing.T) {
 	if len(scanned) != 1000 || scanned[0] != 1 || scanned[999] != 1000 || !slices.Equal(open, []int{22, 443, 666}) {
 		t.Fatalf("scanned %d ports, open %v", len(scanned), open)
 	}
-	ports, err := nmapargv.ExternalVersionPorts(open)
-	if err != nil || !slices.Contains(ports, 666) || !slices.Contains(ports, 22) || len(ports) != len(nmapargv.ExtraPortNumbers)+1 {
-		t.Fatalf("-sV ports %v %v", ports, err)
+	batches, err := nmapargv.ExternalBatches(open)
+	if err != nil || !slices.Equal(batches[len(batches)-1], []int{666}) {
+		t.Fatalf("-sV batches %v %v", batches, err)
 	}
 	ports1 := `<port protocol="tcp" portid="22">`
 	var many strings.Builder
@@ -115,11 +115,11 @@ func TestDefaultPublicScanProbesAtLeastTheTopThousand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ports, err := nmapargv.ExternalVersionPorts(open)
+	batches, err := nmapargv.ExternalBatches(open)
 	if err != nil {
 		t.Fatal(err)
 	}
-	after := unionPorts(scanned, ports)
+	after := unionPorts(scanned, slices.Concat(batches...))
 	t.Logf("ports probed by the default public scan: before %d, after %d", before, len(after))
 	if before != 99 || len(after) < 1000 {
 		t.Fatalf("before %d, after %d", before, len(after))
@@ -511,5 +511,83 @@ func TestExternalServiceMethodAndConf(t *testing.T) {
 		if w := want[s.Port]; (mc{s.Name, s.Method, s.Conf}) != w {
 			t.Errorf("port %d: %q %q %d, want %+v", s.Port, s.Name, s.Method, s.Conf, w)
 		}
+	}
+}
+
+// Each -sV batch's host timeout is what is left once its job overhead is set aside, in whole seconds, at most two minutes; below
+// one minute the batch is not started.
+func TestBatchTimeout(t *testing.T) {
+	t.Parallel()
+	for left, want := range map[time.Duration]struct {
+		h  time.Duration
+		ok bool
+	}{
+		10 * time.Minute:                       {nmapargv.BatchMaxTimeout, true},
+		140 * time.Second:                      {100 * time.Second, true},
+		100*time.Second + 900*time.Millisecond: {60 * time.Second, true},
+		100 * time.Second:                      {60 * time.Second, true},
+		99 * time.Second:                       {59 * time.Second, false},
+		0:                                      {-externalStep, false},
+	} {
+		if h, ok := batchTimeout(left); h != want.h || ok != want.ok {
+			t.Errorf("left %s: %s %v, want %s %v", left, h, ok, want.h, want.ok)
+		}
+	}
+}
+
+// The budget of the default scan within its 8-minute step (exposure's ServicesTimeout, externalRun here). Worst case: every
+// allowance is used up (the wait for the nmap slot as long as the run's need allows, core's and the worker's own-IP checks at their
+// longest, the discovery at its host timeout): one batch still gets a host timeout above the minimum, and the rest wait for the next
+// scan. A SYN proxy that holds every connection with no allowance used (the discovery in 30 s, every batch at its host timeout):
+// three batches a run. A normal box finishes every batch in seconds.
+func TestBatchBudgetWorstCase(t *testing.T) {
+	t.Parallel()
+	const step = 8 * time.Minute
+	simulate := func(wait, fence, job, discovery time.Duration, batchTakes func(h time.Duration) time.Duration) (hosts []time.Duration) {
+		at := wait + fence + job + discovery
+		for {
+			at += fence
+			h, ok := batchTimeout(step - at)
+			if !ok {
+				return hosts
+			}
+			hosts = append(hosts, h)
+			at += job + batchTakes(h)
+		}
+	}
+	wait := min(busyWait, step-externalNeed-coreFenceTime)
+	worst := simulate(wait, coreFenceTime, externalStep, nmapargv.ExternalDiscoveryTimeout, func(h time.Duration) time.Duration { return h })
+	proxy := simulate(0, 0, 0, 30*time.Second, func(h time.Duration) time.Duration { return h })
+	t.Logf("worst case: slot wait %s, batches %v; SYN proxy: batches %v", wait, worst, proxy)
+	if wait != busyWait || len(worst) != 1 || worst[0] != 100*time.Second {
+		t.Fatalf("worst case: wait %s, batches %v", wait, worst)
+	}
+	if len(proxy) != 3 || proxy[0] != nmapargv.BatchMaxTimeout {
+		t.Fatalf("SYN proxy: batches %v", proxy)
+	}
+	if externalNeed+coreFenceTime > step {
+		t.Fatalf("the run's need %s does not fit the step", externalNeed+coreFenceTime)
+	}
+}
+
+// The batches of a run put the ports the last run left unfinished first: a batch of the fixed list holding one of them moves to the
+// front (the others keep their order), and an unfinished port outside the fixed list joins this run's extras, first.
+func TestPlanBatchesRotation(t *testing.T) {
+	t.Parallel()
+	plain, err := planBatches([]int{50000}, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := planBatches([]int{50000}, []int{plain[2][0], 60000}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	extras := []int{50000, 60000}
+	if !slices.Equal(got[0], plain[2]) || !slices.Equal(got[1], extras) || !slices.Equal(got[2], plain[0]) || !slices.Equal(got[3], plain[1]) || len(got) != len(plain) {
+		t.Fatalf("rotated batches %v (plain %v)", got, plain)
+	}
+	every, err := planBatches([]int{50000}, []int{60000, plain[4][0]}, true) // answers everywhere: the fixed list only
+	if err != nil || len(every) != 5 || !slices.Equal(every[0], plain[4]) {
+		t.Fatalf("answers everywhere: %v %v", every, err)
 	}
 }

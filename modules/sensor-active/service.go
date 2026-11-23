@@ -693,8 +693,13 @@ func (s *Service) insertProbe(ctx context.Context, runID string, kind nmapargv.K
 	if err != nil {
 		return 0, err
 	}
+	return s.insertProbeFlags(ctx, runID, kind, rate, targets, note, flags)
+}
+
+// insertProbeFlags is insertProbe with the flag part already built (an external -sV batch carries its host timeout).
+func (s *Service) insertProbeFlags(ctx context.Context, runID string, kind nmapargv.Kind, rate int, targets []netip.Addr, note probeNote, flags []string) (int64, error) {
 	var id int64
-	err = s.db.Write(ctx, func(tx *sql.Tx) error {
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			s.now(), nullable(runID), kind.Name(), rate, len(targets), strings.Join(append(flags, nmapargv.StatsFlags()...), " "), compactTargets(targets), note.with("started"))
 		if err != nil {

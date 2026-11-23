@@ -98,47 +98,112 @@ func externalEnvWithNmap(t *testing.T, egress netip.Addr, o fakeOpts) *env {
 	return e
 }
 
-// The default scan of the box's own public IP through the scan container, two nmap jobs under one job row: the discovery (SYN
-// only, --top-ports 1000) and the -sV run over the fixed list plus the open port the discovery found outside it (666), each with its
-// probe row and core's fence asked right before it; the services read from the -sV run, the probed ports from both (the
-// discovery's scaninfo and the -sV run's list), and nothing written to the inventory. The LAN settings do not bind it: scanning
-// switched off and an empty scope change nothing.
+// svXML writes an -sV batch's XML about the box's address with the given <port> rows (timedOut: nmap gave up on the host) to a
+// temporary file for the fake nmap.
+func svXML(t *testing.T, timedOut bool, rows ...string) string {
+	t.Helper()
+	to := ""
+	if timedOut {
+		to = ` timedout="true"`
+	}
+	doc := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sS -sV" start="1762650000" version="7.95" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1" services="1"/>
+<host starttime="1762650001" endtime="1762650010"` + to + `><status state="up" reason="user-set" reason_ttl="0"/>
+<address addr="8.8.8.8" addrtype="ipv4"/>
+<hostnames/>
+<ports>` + strings.Join(rows, "") + `</ports>
+</host>
+<runstats><finished time="1762650010" elapsed="9.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>
+`
+	p := filepath.Join(t.TempDir(), "sv.xml")
+	if err := os.WriteFile(p, []byte(doc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// svPort is one open port of an -sV batch's XML: a service a probe named (product may be empty) or tcpwrapped.
+func svPort(port int, name, product string) string {
+	return fmt.Sprintf(`<port protocol="tcp" portid="%d"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="%s" product="%s" method="probed" conf="10"/></port>`, port, name, product)
+}
+
+// batchArgv is the argv of an external -sV batch on the box's address with the given host timeout.
+func batchArgv(ports []int, host string) []string {
+	return []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", host, "-p", joinPorts(ports), "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
+}
+
+func joinPorts(ports []int) string {
+	ss := make([]string, len(ports))
+	for i, p := range ports {
+		ss[i] = strconv.Itoa(p)
+	}
+	return strings.Join(ss, ",")
+}
+
+// batchCase is the fake nmap's output for one -sV batch: the run whose -p is exactly ports prints file.
+func batchCase(ports []int, file string) fakeCase {
+	return fakeCase{match: " -p " + joinPorts(ports) + " ", file: file}
+}
+
+// sVArgvs are the -sV batch argvs of a run, in order.
+func sVArgvs(calls [][]string) [][]string {
+	var out [][]string
+	for _, c := range calls {
+		if slices.Contains(c, "-sV") {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// The default scan of the box's own public IP through the scan container, under one job row and one nmap slot: the discovery (SYN
+// only, --top-ports 1000; 22, 443 and 666 open), then -sV in batches, each its own nmap job with its own host timeout and probe row
+// and core's fence asked right before it: the surface list in three batches (22 and 443 in the first), the admin ports in two, then
+// the open port found outside both (666). The services come from the batches, the probed ports from the discovery's scaninfo and
+// every finished batch, and nothing is written to the inventory. The LAN settings do not bind it.
 func TestScanExternalThroughTheWorker(t *testing.T) {
 	t.Parallel()
-	e := externalEnv(t, boxIP)
+	batches, err := nmapargv.ExternalBatches([]int{22, 443, 666})
+	if err != nil || len(batches) != 6 {
+		t.Fatalf("batches %v %v", batches, err)
+	}
+	empty := svXML(t, false)
+	e := externalEnvWithNmap(t, boxIP, fakeOpts{always: empty, topPorts: discoveryFixture(t, boxIP), cases: []fakeCase{
+		batchCase(batches[0], svXML(t, false, svPort(22, "ssh", "OpenSSH"), svPort(443, "https", "nginx"))),
+		batchCase(batches[5], svXML(t, false, svPort(666, "http", "Apache httpd"))),
+	}})
 	e.inv.set(func(s *sa.Settings) { s.Enabled, s.LANRanges = false, nil })
 	own := &ownFence{ok: []netip.Addr{boxIP}}
 	got, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, own)
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantPorts, err := nmapargv.ExternalVersionPorts([]int{22, 443, 666})
-	if err != nil {
-		t.Fatal(err)
+	if len(got.Services) != 3 || got.Services[0].Port != 22 || got.Services[2].Port != 666 || got.Services[2].Product != "Apache httpd" {
+		t.Fatalf("services %+v", got.Services)
 	}
-	if len(got.Services) != 4 || got.Services[2].Product != "Apache httpd" || got.Services[2].Version != "2.4.49" || got.Services[2].CPE != "cpe:/a:apache:http_server:2.4.49" {
-		t.Fatalf("got %+v", got)
+	if got.Ports != len(got.Probed) || got.Ports < 1000 || !slices.Contains(got.Probed, 666) || !slices.Contains(got.Probed, 37777) || len(got.Unfinished) != 0 {
+		t.Fatalf("probed %d ports, unfinished %v", got.Ports, got.Unfinished)
 	}
-	if got.Ports != len(got.Probed) || got.Ports < 1000 || !slices.Contains(got.Probed, 666) || !slices.Contains(got.Probed, 37777) || !slices.Contains(got.Probed, 1) {
-		t.Fatalf("probed %d ports: %v", got.Ports, got.Probed)
-	}
-	if own.asked != 2 {
+	if own.asked != 1+len(batches) {
 		t.Fatalf("the fence was asked %d times", own.asked)
 	}
-	list := make([]string, len(wantPorts))
-	for i, p := range wantPorts {
-		list[i] = strconv.Itoa(p)
-	}
 	calls := e.nm.calls(t)
-	if len(calls) != 2 ||
-		!slices.Equal(calls[0], []string{"--privileged", "-sS", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "2m", "--top-ports", "1000", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}) ||
-		!slices.Equal(calls[1], []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", strings.Join(list, ","), "--stats-every", "5s", "-oX", "-", "8.8.8.8"}) {
+	if len(calls) != 1+len(batches) ||
+		!slices.Equal(calls[0], []string{"--privileged", "-sS", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "2m", "--top-ports", "1000", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}) {
 		t.Fatalf("nmap argv = %q", calls)
 	}
-	if s := e.str(`SELECT group_concat(shape || '|' || rate || '|' || hosts || '|' || targets || '|' || result, ';') FROM (SELECT * FROM sa_probe ORDER BY id)`); s != "external|100|1|8.8.8.8|ok: 3 of 1000 ports open;external|100|1|8.8.8.8|ok: 4 open ports" {
+	for i, b := range batches { // in order, each at the longest host timeout: the run has its whole time left
+		if !slices.Equal(calls[1+i], batchArgv(b, "120s")) {
+			t.Fatalf("batch %d argv = %q", i+1, calls[1+i])
+		}
+	}
+	if s := e.str(`SELECT group_concat(result, ';') FROM (SELECT * FROM sa_probe ORDER BY id)`); s != "ok: 3 of 1000 ports open;batch 1 of 6: ok: 2 open ports;batch 2 of 6: ok: 0 open ports;batch 3 of 6: ok: 0 open ports;batch 4 of 6: ok: 0 open ports;batch 5 of 6: ok: 0 open ports;batch 6 of 6: ok: 1 open ports" {
 		t.Fatalf("probe rows = %s", s)
 	}
-	if f := e.str(`SELECT flags FROM sa_probe ORDER BY id DESC LIMIT 1`); !strings.HasSuffix(f, "-p "+strings.Join(list, ",")+" --stats-every "+nmapargv.StatsEvery) {
+	if f := e.str(`SELECT flags FROM sa_probe ORDER BY id DESC LIMIT 1`); f != strings.Join(batchArgv(batches[5], "120s")[:13], " ")+" --stats-every 5s" {
 		t.Fatalf("flags = %s", f)
 	}
 	if s := e.str(`SELECT kind || '|' || reason || '|' || status FROM jobs_v`); s != "external|exposure|done" {
@@ -163,25 +228,20 @@ func discoveryVariant(t *testing.T, edit func([]byte) []byte) string {
 	return p
 }
 
-// The fixed list always gets its -sV run, whatever the discovery said. A discovery that hit its host timeout, or whose output is not
-// believed (a <scaninfo> that is not the top 1000), is followed by the -sV run over the fixed list alone: Probed is that list and
-// DiscoveryCut says why. A discovery that saw the address answer on almost every port (a router or SYN proxy) is followed by the -sV
-// run over the fixed list alone, and only the ports where -sV named a real service are kept (10443's tcpwrapped is dropped).
-// The -sV options are those of the shape before the discovery existed.
+// The fixed list always gets its -sV batches, whatever the discovery said. After a discovery that hit its host timeout, or whose
+// output is not believed (a <scaninfo> that is not the top 1000), the batches are the fixed list's alone (the surface list, then the
+// admin ports): Probed is that list and DiscoveryCut says why. After a discovery that saw the address answer on almost every port
+// (a router or SYN proxy), the batches are the fixed list's alone and only the ports where -sV named a real service are kept (the
+// tcpwrapped 23 is dropped). The -sV options are those of the shape before the batches.
 func TestScanExternalAlwaysReadsTheFixedList(t *testing.T) {
 	t.Parallel()
 	var many strings.Builder
 	for p := range 60 {
 		fmt.Fprintf(&many, `<port protocol="tcp" portid="%d"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="tcpwrapped" method="table" conf="3"/></port>`, 100+p)
 	}
-	fixed := make([]string, len(nmapargv.ExtraPortNumbers))
-	for i, p := range nmapargv.ExtraPortNumbers {
-		fixed[i] = strconv.Itoa(p)
-	}
-	wantArgv := []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", strings.Join(fixed, ","), "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
-	fx, err := filepath.Abs(filepath.Join("testdata", "external.xml"))
-	if err != nil {
-		t.Fatal(err)
+	fixed, err := nmapargv.ExternalBatches(nil)
+	if err != nil || len(fixed) != 5 {
+		t.Fatalf("batches %v %v", fixed, err)
 	}
 	for name, c := range map[string]struct {
 		edit       func([]byte) []byte
@@ -191,20 +251,24 @@ func TestScanExternalAlwaysReadsTheFixedList(t *testing.T) {
 	}{
 		"discovery timed out": {func(b []byte) []byte {
 			return bytes.Replace(b, []byte("<host starttime"), []byte(`<host timedout="true" starttime`), 1)
-		}, true, false, 4,
+		}, true, false, 2,
 			"failed: nmap gave up on the address at its host timeout"},
 		"discovery not believed": {func(b []byte) []byte {
 			return bytes.Replace(b, []byte(`services="1-1000"`), []byte(`services="1-999"`), 1)
-		}, true, false, 4,
+		}, true, false, 2,
 			"failed: nmap probed 999 ports, not its top 1000; output discarded"},
 		"answers everywhere": {func(b []byte) []byte {
 			return bytes.Replace(b, []byte("</ports>"), []byte(many.String()+"</ports>"), 1)
-		}, false, true, 3,
+		}, false, true, 1,
 			"ok: more than 40 ports open, the address answers on almost every port; -sV reads the fixed list next"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			e := externalEnvWithNmap(t, boxIP, fakeOpts{always: fx, topPorts: discoveryVariant(t, c.edit)})
+			first := svXML(t, false, svPort(22, "ssh", "OpenSSH"), svPort(23, "tcpwrapped", ""))
+			if !c.every {
+				first = svXML(t, false, svPort(22, "ssh", "OpenSSH"), svPort(443, "https", "nginx"))
+			}
+			e := externalEnvWithNmap(t, boxIP, fakeOpts{always: svXML(t, false), topPorts: discoveryVariant(t, c.edit), cases: []fakeCase{batchCase(fixed[0], first)}})
 			got, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, &ownFence{ok: []netip.Addr{boxIP}})
 			if err != nil {
 				t.Fatal(err)
@@ -214,17 +278,98 @@ func TestScanExternalAlwaysReadsTheFixedList(t *testing.T) {
 				t.Fatalf("got cut=%v everywhere=%v %d ports, services %+v", got.DiscoveryCut, got.AnswersEverywhere, got.Ports, got.Services)
 			}
 			for _, x := range got.Services {
-				if x.Name == "tcpwrapped" && c.every {
+				if x.Name == "tcpwrapped" {
 					t.Fatalf("kept a tcpwrapped port: %+v", x)
 				}
 			}
-			if calls := e.nm.calls(t); len(calls) != 2 || !slices.Equal(calls[1], wantArgv) {
-				t.Fatalf("nmap argv = %q", calls)
+			sv := sVArgvs(e.nm.calls(t))
+			if len(sv) != len(fixed) {
+				t.Fatalf("%d -sV batches: %q", len(sv), sv)
+			}
+			for i, b := range fixed {
+				if !slices.Equal(sv[i], batchArgv(b, "120s")) {
+					t.Fatalf("batch %d argv = %q", i+1, sv[i])
+				}
 			}
 			if r := e.str(`SELECT result FROM sa_probe ORDER BY id LIMIT 1`); r != c.discovery {
 				t.Fatalf("discovery row = %s", r)
 			}
 		})
+	}
+}
+
+// nmap drops every result of a host it gives up on, so a batch that times out loses only its own ports: the earlier batch's services
+// are kept, the timed-out batch's ports are Unfinished and not Probed (that run never calls them closed), the later batches still
+// run, and the probe row says which batch and why. The next run of the address starts with those ports; the batch that failed
+// before is first, then the others in their usual order. A run where no batch finished says nmap gave up, as before.
+func TestScanExternalBatchTimeoutKeepsTheRestAndRotates(t *testing.T) {
+	t.Parallel()
+	batches, err := nmapargv.ExternalBatches([]int{22, 443, 666})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := externalEnvWithNmap(t, boxIP, fakeOpts{always: svXML(t, false), topPorts: discoveryFixture(t, boxIP), cases: []fakeCase{
+		batchCase(batches[0], svXML(t, false, svPort(22, "ssh", "OpenSSH"))),
+		batchCase(batches[1], svXML(t, true)),
+	}})
+	own := &ownFence{ok: []netip.Addr{boxIP}}
+	got, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, own)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Services) != 1 || got.Services[0].Port != 22 || !slices.Equal(got.Unfinished, batches[1]) {
+		t.Fatalf("services %+v, unfinished %v", got.Services, got.Unfinished)
+	}
+	for _, p := range batches[1] {
+		if slices.Contains(got.Probed, p) {
+			t.Fatalf("port %d of the timed-out batch counted as probed", p)
+		}
+	}
+	if !slices.Contains(got.Probed, 22) || !slices.Contains(got.Probed, 666) {
+		t.Fatalf("probed %v", got.Probed)
+	}
+	if r := e.str(`SELECT result FROM sa_probe WHERE result LIKE 'batch 2 of %'`); r != "batch 2 of 6: failed: nmap gave up on the address at its host timeout" {
+		t.Fatalf("batch 2 row = %s", r)
+	}
+	if n := len(sVArgvs(e.nm.calls(t))); n != len(batches) {
+		t.Fatalf("%d -sV batches ran, want all %d", n, len(batches))
+	}
+	before := len(e.nm.calls(t))
+	if _, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, own); err != nil {
+		t.Fatal(err)
+	}
+	second := sVArgvs(e.nm.calls(t)[before:])
+	want := append([][]int{batches[1], batches[0]}, batches[2:]...)
+	for i, b := range want {
+		if i >= len(second) || !slices.Equal(second[i], batchArgv(b, "120s")) {
+			t.Fatalf("the next run's batch %d = %q, want ports %v", i+1, second, b)
+		}
+	}
+
+	none := externalEnvWithNmap(t, boxIP, fakeOpts{always: svXML(t, true), topPorts: discoveryFixture(t, boxIP)})
+	if _, err := none.svc.ScanExternal(none.ctx(), boxIP, nmapargv.External, own); !errors.Is(err, sa.ErrHostTimedOut) {
+		t.Fatalf("no batch finished: err = %v", err)
+	}
+}
+
+// A batch that was not started for want of time leaves a probe row that names its ports and why, and the next run starts with it,
+// like a batch that timed out.
+func TestScanExternalNotStartedBatchRotates(t *testing.T) {
+	t.Parallel()
+	batches, err := nmapargv.ExternalBatches(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := externalEnvWithNmap(t, boxIP, fakeOpts{always: svXML(t, false), topPorts: discoveryFixture(t, boxIP)})
+	at := "2026-11-01T10:00:00.000Z"
+	flags := strings.Join(batchArgv(batches[3], "60s")[:13], " ") + " --stats-every 5s"
+	e.exec(runRow("r-old", sa.RunService, "event", "done", at, ""),
+		`INSERT INTO sa_probe (time, run_id, shape, rate, hosts, flags, targets, result) VALUES ('`+at+`', 'r-old', 'external', 100, 1, '`+flags+`', '8.8.8.8', 'batch 4 of 5: not started: too little time left in this scan; the next scan starts with these ports')`)
+	if _, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, &ownFence{ok: []netip.Addr{boxIP}}); err != nil {
+		t.Fatal(err)
+	}
+	if sv := sVArgvs(e.nm.calls(t)); len(sv) == 0 || !slices.Equal(sv[0], batchArgv(batches[3], "120s")) {
+		t.Fatalf("the first -sV batch = %q, want ports %v", sv, batches[3])
 	}
 }
 

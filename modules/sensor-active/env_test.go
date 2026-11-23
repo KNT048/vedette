@@ -30,9 +30,14 @@ import (
 type fakeOpts struct {
 	always   string // when set, print this file whatever the argv (but topPorts)
 	topPorts string // when set, a run with --top-ports prints this file (the external shape's discovery)
-	slowFrom int    // from this call number (1-based) the script sleeps 30 s before printing; 0 never
-	exitCode int    // non-zero: exit with it after printing
+	// cases are tried first, in order: a run whose argv (joined by spaces) contains match prints file
+	cases    []fakeCase
+	slowFrom int // from this call number (1-based) the script sleeps 30 s before printing; 0 never
+	exitCode int // non-zero: exit with it after printing
 }
+
+// fakeCase is one output of the fake nmap: a run whose argv contains match prints file.
+type fakeCase struct{ match, file string }
 
 type fakeNmap struct {
 	path string
@@ -59,6 +64,9 @@ printf '%%s\n' "$@" >> "$LOG"
 echo '--' >> "$LOG"
 if [ %d -gt 0 ] && [ "$((n + 1))" -ge %d ]; then sleep 30; fi
 `, log, o.slowFrom, o.slowFrom)
+	for _, c := range o.cases {
+		body += fmt.Sprintf("case \" $* \" in *%q*) cat %q; exit 0;; esac\n", c.match, c.file)
+	}
 	if o.topPorts != "" {
 		body += fmt.Sprintf("case \" $* \" in *\" --top-ports \"*) cat %q; exit 0;; esac\n", o.topPorts)
 	}

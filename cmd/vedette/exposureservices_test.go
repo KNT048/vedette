@@ -109,6 +109,19 @@ func xmlResult(b []byte) *sensorlink.JobResult {
 	return r
 }
 
+// onlyPorts is an nmap XML fixture with only the <port> rows (one a line) of ports.
+func onlyPorts(b []byte, ports []int) []byte {
+	var out [][]byte
+	for _, line := range bytes.Split(b, []byte("\n")) {
+		var n int
+		if _, err := fmt.Sscanf(string(line), `<port protocol="tcp" portid="%d">`, &n); err == nil && !slices.Contains(ports, n) {
+			continue
+		}
+		out = append(out, line)
+	}
+	return bytes.Join(out, []byte("\n"))
+}
+
 // gateFor is exposure's gate as the adapter calls it: yes for ok, and it records the actor.
 type gateFor struct {
 	mu     sync.Mutex
@@ -132,16 +145,24 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	s := newStack(t)
 	s.startRuns()
 	var mu sync.Mutex
-	// The external shape is two jobs: the discovery (no ports; nmap's top ports, 22, 443 and 666 open) and the -sV run (its ports).
+	// The external shape is the discovery (no ports; nmap's top ports, 22, 443 and 666 open) and -sV batches (their ports): each
+	// batch answers with the rows of the fixture that are its own ports.
 	discovery := xmlResult(bytes.ReplaceAll(nmapFixture(t, "external_top_ports.xml"), []byte("198.51.100.7"), []byte(ownPublicIP.String())))
-	disc, answer := discovery, xmlResult(nmapFixture(t, "external.xml"))
+	rowsOf := func(name string) func(sensorlink.Job) *sensorlink.JobResult {
+		b := nmapFixture(t, name)
+		return func(j sensorlink.Job) *sensorlink.JobResult { return xmlResult(onlyPorts(b, j.Ports)) }
+	}
+	same := func(r *sensorlink.JobResult) func(sensorlink.Job) *sensorlink.JobResult {
+		return func(sensorlink.Job) *sensorlink.JobResult { return r }
+	}
+	disc, answer := discovery, rowsOf("external.xml")
 	w := startFakeScanWorker(t, s, func(j sensorlink.Job) *sensorlink.JobResult {
 		mu.Lock()
 		defer mu.Unlock()
 		if len(j.Ports) == 0 {
 			return disc
 		}
-		return answer
+		return answer(j)
 	})
 	g := &gateFor{ok: true}
 	sc := exposureServicesFor(*s.d, g.gate, nil) // the K-4 scope: ModeNow is never asked
@@ -161,26 +182,31 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 	jobs := w.received()
-	wantPorts, err := nmapargv.ExternalVersionPorts([]int{22, 443, 666})
+	batches, err := nmapargv.ExternalBatches([]int{22, 443, 666})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(jobs) != 2 || len(jobs[0].Ports) != 0 || !slices.Equal(jobs[1].Ports, wantPorts) {
+	if len(jobs) != 1+len(batches) || len(jobs[0].Ports) != 0 || jobs[0].HostTimeoutS != 0 {
 		t.Fatalf("jobs = %+v", jobs)
+	}
+	for i, b := range batches { // in order, each with its host timeout
+		if !slices.Equal(jobs[1+i].Ports, b) || jobs[1+i].HostTimeoutS < 60 || jobs[1+i].HostTimeoutS > 120 {
+			t.Fatalf("batch %d = %+v", i+1, jobs[1+i])
+		}
 	}
 	for _, j := range jobs {
 		if j.Shape != "external" || j.Rate != 100 || len(j.Targets) != 1 || j.Targets[0] != "8.8.8.8" {
 			t.Fatalf("jobs = %+v", jobs)
 		}
 	}
-	if len(g.actors) != 2 || g.actors[0] != "ops@acme.example" || g.actors[1] != "ops@acme.example" {
+	if len(g.actors) != 1+len(batches) || g.actors[0] != "ops@acme.example" || g.actors[len(batches)] != "ops@acme.example" {
 		t.Fatalf("the gate was asked as %v", g.actors)
 	}
 
 	refusal := func(name string, res *sensorlink.JobResult, want string) {
 		t.Helper()
 		mu.Lock()
-		disc, answer = res, res
+		disc, answer = res, same(res)
 		mu.Unlock()
 		_, err := sc.ScanServices(ctx, target, ownPublicIP)
 		var un *exposure.Unavailable
@@ -191,8 +217,8 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	refusal("the worker's fence", &sensorlink.JobResult{Status: "refused", Reason: "not_own_ip", ExitCode: -1}, "no longer reaches the Internet through 8.8.8.8")
 	refusal("the worker could not check", &sensorlink.JobResult{Status: "refused", Reason: "egress_unverified", ExitCode: -1}, "could not reach the public IP services to check that 8.8.8.8")
 	refusal("an older worker", &sensorlink.JobResult{Status: "refused", Reason: "invalid_job", ExitCode: -1}, "may be older than the rest of Vedette")
-	mu.Lock() // the discovery gave up, the -sV run of the fixed list that still follows gave up too
-	disc, answer = xmlResult(nmapFixture(t, "external_timedout.xml")), xmlResult(nmapFixture(t, "external_timedout.xml"))
+	mu.Lock() // the discovery gave up, and every -sV batch of the fixed list that still follows gave up too
+	disc, answer = xmlResult(nmapFixture(t, "external_timedout.xml")), same(xmlResult(nmapFixture(t, "external_timedout.xml")))
 	mu.Unlock()
 	if _, err := sc.ScanServices(ctx, target, ownPublicIP); !errors.Is(err, exposure.ErrServicesTimedOut) { // Its own line
 		t.Fatalf("nmap gave up: err = %v", err)
@@ -202,7 +228,7 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	g.mu.Lock()
 	g.ok = false
 	g.mu.Unlock()
-	refusal("exposure's gate", answer, "no longer reaches the Internet through 8.8.8.8")
+	refusal("exposure's gate", disc, "no longer reaches the Internet through 8.8.8.8")
 	if n := len(w.received()); n != before {
 		t.Fatalf("a job went to the worker after exposure's gate said no (%d jobs, %d before)", n, before)
 	}
@@ -211,7 +237,7 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	g.ok = true
 	g.mu.Unlock()
 	mu.Lock()
-	disc, answer = discovery, xmlResult(nmapFixture(t, "external_unprobed.xml"))
+	disc, answer = discovery, same(xmlResult(nmapFixture(t, "external_unprobed.xml")))
 	mu.Unlock()
 	var un *exposure.Unavailable
 	if _, err := sc.ScanServices(ctx, target, ownPublicIP); err == nil || errors.As(err, &un) {
@@ -303,10 +329,12 @@ func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 	}
 	// The default scan's two jobs: each the worker's fence (25 s) and the pickup and the result (15 s) around nmap's host timeout,
 	// core's fence (30 s), and room to wait for the nmap slot. exposure's lines name 2 and 3 minutes, 8 minutes and nmap's top 1000.
-	if exposure.ServicesTimeout < nmapargv.ExternalDiscoveryTimeout+nmapargv.ExternalVersionsTimeout+2*40*time.Second+30*time.Second+time.Minute ||
-		exposure.ServicesTimeout != 8*time.Minute || nmapargv.ExternalDiscoveryTimeout != 2*time.Minute || nmapargv.ExternalVersionsTimeout != 3*time.Minute ||
+	// One -sV batch at its shortest host timeout must fit with the discovery, the slot wait and the checks; exposure's lines name
+	// 2 minutes for the discovery, up to 2 a batch, 8 minutes and nmap's top 1000.
+	if exposure.ServicesTimeout < nmapargv.ExternalDiscoveryTimeout+nmapargv.BatchMinTimeout+2*40*time.Second+2*30*time.Second+2*time.Minute ||
+		exposure.ServicesTimeout != 8*time.Minute || nmapargv.ExternalDiscoveryTimeout != 2*time.Minute || nmapargv.BatchMaxTimeout != 2*time.Minute ||
 		nmapargv.ExternalTopPorts != 1000 {
-		t.Fatalf("exposure %s against nmap's %s + %s", exposure.ServicesTimeout, nmapargv.ExternalDiscoveryTimeout, nmapargv.ExternalVersionsTimeout)
+		t.Fatalf("exposure %s against nmap's %s + %s", exposure.ServicesTimeout, nmapargv.ExternalDiscoveryTimeout, nmapargv.BatchMinTimeout)
 	}
 }
 

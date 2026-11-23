@@ -1,50 +1,50 @@
-# Update manifest: phát hành, ký, rollout, thu hồi, hoàn tác
+# Update manifest: release, signing, rollout, revocation, rollback
 
-Trạng thái: bản nháp M2-0 (docs-first), 2026-11-09. Văn xuôi tiếng Việt; tên trường, định dạng, đường dẫn bằng tiếng Anh.
-Truy vết: yêu cầu thiết kế (ký, cohort, A/B, thu hồi, SBOM; GitHub chỉ phát hành bản cập nhật phần mềm ký số, gói nội dung đi kèm; cập nhật OS, hộp là thiết bị đầu tiên; appliance container, cosign, lô, hoàn tác bằng tag cũ, hai kiểu cài; ghcr, cosign bằng khoá, kiểm ngoại tuyến; kiểm chữ ký trong mã, cosign trong manifest; image `scan` là image nền, nmap cài khi dựng trên hộp; kéo, khởi động, hoàn tác, thu hồi); `docs/UPDATES.md`; story S-CORE-2, S-CORE-7; GUI mock `web/src/features/core` (`UpdatesSection.tsx`, `OsUpdates.tsx`, `bundles.ts`, `contract.ts`).
+Status: draft (docs-first), 2026-11-09. Field names, formats and paths are in English.
+Traceability: design requirements (signing, cohort, A/B, revocation, SBOM; GitHub publishes only signed software updates, with the content packs that go with them; OS updates, the box being the first device; appliance container, cosign, batches, rollback with an old tag, two install modes; ghcr, cosign with a key, offline verification; signature check in code, cosign in the manifest; the `scan` image is a base image, nmap is installed on the box at build time; pull, start, rollback, revocation); `docs/UPDATES.md`; stories S-CORE-2, S-CORE-7; GUI mock `web/src/features/core` (`UpdatesSection.tsx`, `OsUpdates.tsx`, `bundles.ts`, `contract.ts`).
 
-## 1. Mục đích
+## 1. Purpose
 
-Định nghĩa **thứ hộp tải về và cách hộp tin nó**: manifest phát hành, chữ ký (minisign cho manifest, cosign cho image container), rollout theo lô (cohort), danh sách thu hồi, hoàn tác bằng tag cũ, luồng cập nhật OS qua `vedette-host`, và gói offline cho mạng cách ly.
+Defines **what the box downloads and how the box trusts it**: the release manifest, the signatures (minisign for the manifest, cosign for the container images), rollout in batches (cohort), the revocation list, rollback with an old tag, the OS update flow through `vedette-host`, and the offline bundle for air-gapped networks.
 
-Nguyên tắc (UPDATES): chữ ký bắt buộc, khoá công khai trong binary, không bao giờ bật toàn cục một thay đổi (bài học Cloudflare 2025-12-05), cập nhật phải hoàn tác được. Dữ liệu feed không còn đi qua kênh này; **kênh "1. Dữ liệu" của UPDATES §1 nay là hộp tự kéo từng feed từ nguồn**, ngoài spec này (`DATA_PIPELINE.md`).
+Principles (UPDATES): signatures are mandatory, the public key is in the binary, a change is never switched on globally (a lesson from Cloudflare 2025-12-05), and an update must be reversible. Feed data no longer goes through this channel; **the "1. Data" channel of UPDATES §1 is now the box pulling each feed from its source by itself**, outside this spec (`DATA_PIPELINE.md`).
 
-Phạm vi kênh: **2. Gói nội dung** (skill, gói khuyến nghị đã xác nhận, parser log, recog…) và **3. Phần mềm** (image container, binary `vedette-host`), cộng **4. Advisory sản phẩm**. Cập nhật **gói của hệ điều hành** do apt của distro lo (§9), **không** nằm trong manifest.
+Channel scope: **2. Content packs** (skills, confirmed recommendation packs, log parsers, recog…) and **3. Software** (container images, the `vedette-host` binary), plus **4. Product advisories**. Updating **operating-system packages** is handled by the distribution's apt (§9) and is **not** in the manifest.
 
 ## 2. Actors
 
-| Actor | Vai trò |
+| Actor | Role |
 |---|---|
-| Người duy trì (người duyệt phát hành) | tạo tag tay, giữ khoá ký |
-| CI GitHub Actions | build, SBOM, ký, đăng GitHub Release |
-| GitHub Releases + registry image | kho phân phối (xem §14: registry) |
-| `core` | kiểm tra bản mới, xác minh chữ ký manifest, hiển thị, điều phối |
-| `vedette-host` | **bên xác minh cuối cùng** của image (không tin `core`), kéo và khởi động container, rollback (`host-api.md`) |
-| Quản trị viên | chọn kênh/chế độ, bấm cập nhật/rollback, nhập bundle |
+| Maintainer (the release approver) | creates the tag by hand, holds the signing key |
+| CI GitHub Actions | builds, SBOM, signs, publishes the GitHub Release |
+| GitHub Releases + image registry | the distribution store (see §14: registry) |
+| `core` | checks for a new version, verifies the manifest signature, displays, orchestrates |
+| `vedette-host` | **the final verifier** of the image (does not trust `core`), pulls and starts containers, rollback (`host-api.md`) |
+| Administrator | chooses the channel/mode, presses update/rollback, imports a bundle |
 
-## 3. Transport và xác thực
+## 3. Transport and authentication
 
-- Hộp tải bằng HTTPS tới GitHub (Releases/API) và registry image (PRIVACY luồng 6: yêu cầu chỉ mang phiên bản Vedette hiện tại; không dữ liệu khách).
-- **Xác thực nguồn là chữ ký, không phải TLS.** Mọi tệp (index, manifest, image) bị từ chối nếu không ký/sai ký, bất kể đến từ đâu (mirror, bundle, USB). TLS chỉ chống nghe lén.
-- Không gửi token/tài khoản tới GitHub; repo riêng tư tới go/no-go M0 cần cơ chế khác cho hộp thử nghiệm (câu hỏi mở §14).
+- The box downloads over HTTPS from GitHub (Releases/API) and the image registry (PRIVACY flow 6: a request carries only the current Vedette version; no customer data).
+- **The source is authenticated by signature, not by TLS.** Every file (index, manifest, image) is rejected if unsigned or wrongly signed, no matter where it comes from (mirror, bundle, USB). TLS only protects against eavesdropping.
+- No token/account is sent to GitHub; while the repository is private, test boxes need a different mechanism before the first public release (open question §14).
 
-## 4. Định nghĩa dữ liệu
+## 4. Data definitions
 
-Hai tài liệu JSON, cả hai có chữ ký detached minisign (`<file>.minisig`).
+Two JSON documents, both with a detached minisign signature (`<file>.minisig`).
 
-### 4.1 `index.json`: trạng thái từng kênh (nổi, ký, tải mỗi lần kiểm tra)
+### 4.1 `index.json`: the state of each channel (floating, signed, downloaded on every check)
 
-| Trường | Kiểu | Quy tắc |
+| Field | Type | Rule |
 |---|---|---|
 | `schema` | int | `1` |
-| `sequence` | uint64 | **tăng đơn điệu**; hộp từ chối `sequence` nhỏ hơn đã thấy (chống rollback/replay) |
-| `generated_at`, `expires_at` | datetime | `expires_at` ≤ `generated_at` + 14 ngày; quá hạn → "update info is stale" (cảnh báo, chưa chặn cập nhật bằng bundle) |
+| `sequence` | uint64 | **strictly increasing**; the box rejects a `sequence` lower than one it has seen (against rollback/replay) |
+| `generated_at`, `expires_at` | datetime | `expires_at` ≤ `generated_at` + 14 days; once expired → "update info is stale" (a warning; it does not yet block updating by bundle) |
 | `channels` | object | `stable`, `beta` → `{ "latest": "<version>", "manifest": "<url>", "manifest_sha256": "<hex>", "rollout": { "percent": 0–100 } }` |
 | `revoked` | object[] | xem §8 |
-| `advisories` | object[] | `{ "id", "severity", "title", "affects": "<semver range>", "fixed_in": "<version>"?, "url" }`: kênh 4 của UPDATES, hiện banner (`UpdatesState.advisories`) |
-| `keys` | object[] | `{ "key_id", "kind": "minisign"\|"cosign", "status": "active"\|"retired", "not_after" }`: để hộp biết khoá nào đang dùng; **không** là gốc tin cậy (gốc nằm trong binary) |
+| `advisories` | object[] | `{ "id", "severity", "title", "affects": "<semver range>", "fixed_in": "<version>"?, "url" }`: channel 4 of UPDATES, shown as a banner (`UpdatesState.advisories`) |
+| `keys` | object[] | `{ "key_id", "kind": "minisign"\|"cosign", "status": "active"\|"retired", "not_after" }`: so the box knows which key is in use; it is **not** a root of trust (the root is in the binary) |
 
-### 4.2 `release-manifest.json`: một bản phát hành (bất biến, ký)
+### 4.2 `release-manifest.json`: one release (immutable, signed)
 
 ```json
 {
@@ -68,76 +68,76 @@ Hai tài liệu JSON, cả hai có chữ ký detached minisign (`<file>.minisig`
 }
 ```
 
-| Trường | Ghi chú |
+| Field | Notes |
 |---|---|
-| `images[].digest` | **khoá tin cậy thật**: hộp kéo theo digest, không theo tag; tag chỉ để hiển thị. Image đa nền tảng: digest của index đa nền tảng (kiểm ở lab) |
-| `images[].ref` | phải đúng `ghcr.io/knt048/vedette-<service>:<version>`; host so với hằng biên dịch (`registry_not_allowed`) và tự dựng tham chiếu kéo `…@sha256:<digest>`, không dùng chuỗi này để kéo |
-| `images[].size` | chỉ để kiểm chỗ trống (`low_disk`: < 2 × `size`); **không** so với số byte đã tải |
-| `images[].cosign` | `{ "payload": base64, "signature": base64 }`: payload Simple Signing của cosign và chữ ký ECDSA P-256 (DER) trên SHA-256 của payload, sinh bằng cosign ghim phiên bản với `sign --key --new-bundle-format=false --use-signing-config=false` (định dạng cũ), cùng chữ ký đó cũng đẩy lên ghcr cho người muốn tự kiểm. Payload phải có `critical.type` = `cosign container image signature`, `critical.image.docker-manifest-digest` bằng `digest` và `critical.identity.docker-reference` **đúng bằng** `ghcr.io/knt048/vedette-<service>` (kho, không tag, không digest; chữ ký đi trong manifest nên không còn gì khác buộc nó vào một kho, và chữ ký của image `core` không được xác minh cho mục `sensor`). **Cách ký của job phát hành:** `cosign sign --key <khoá> --new-bundle-format=false --use-signing-config=false --upload=false --output-payload payload.json --output-signature sig.b64 ghcr.io/knt048/vedette-<service>@sha256:<digest>` (ký theo `<kho>@<digest>`, không theo tag, không `--sign-container-identity`; đó chính là điều khiến cosign ghi `docker-reference` = kho), rồi `base64` của `payload.json` và nội dung `sig.b64` vào `images[].cosign`; kiểm lại bằng `internal/release` trước khi đăng. Trường lạ và khoá trùng bị từ chối; trường lạ và khoá trùng bị từ chối. Vì manifest đã ký minisign, chữ ký image đi cùng tài liệu đã ký, không cần đọc chữ ký từ registry |
-| `images[].service` | ∈ `core`, `sensor`, `honeypot`, `scan`, `greenbone`; mọi giá trị khác → từ chối manifest |
-| `min_upgrade_from` | nhảy phiên bản quá xa phải qua bản trung gian; bản tăng proto sensor lên N đặt nó không thấp hơn bản đầu tiên có proto N-1 (`core` chỉ nhận N và N-1); `release-manifest` đọc proto của bản này và của mọi tag phát hành trước (`v<SemVer>`, không `-test.`) từ git và từ chối khi thiếu |
-| `db_schema`, `rollback` | hoàn tác an toàn hay cần khôi phục DB (§10) |
-| `host` | gói `vedette-host` của bản phát hành; xem cuối §9. **Bắt buộc, và `host.version` = `version`** (bổ sung 2026-11-12: `install.sh` luôn cài `vedette-host_<version>_<arch>.deb` của bản phát hành; kênh thử không qua builder). Builder (`scripts/release` `buildHostPart`) từ chối: thiếu phần `host`; `host.version` khác `version`; `host.version` có `-test.`; tên tệp khác `vedette-host_<host.version>_<amd64\|arm64>.deb` theo quy tắc tên duy nhất `release.ParseHostPackageName` (dạng SemVer, prerelease không có `-` bên trong, không build metadata; `host-api.md` §6.14); một kiến trúc hai tệp; thiếu tệp cho một kiến trúc mà image được dựng |
-| `content[]` | gói nội dung **đóng chung** với bản cập nhật; chỉ là chỉ mục và băm để hiển thị/xác minh, tệp nằm trong image `core` |
-| `bundled[]` | phiên bản các phụ thuộc ghim **nằm trong image đã ký** (OpenCanary trong `honeypot`…) hiển thị ở "Managed packages", không cài bằng apt. **nmap không bao giờ có ở đây** (`LEGAL.md`): image `scan` của `images[]` chỉ là image nền (Debian slim + `vedette-sensor`), và `vedette-host` dựng `localhost/vedette-scan-nmap:<version>` **trên hộp** với nmap từ kho gói Debian (`host-api.md` §18); phiên bản nmap đang chạy lấy từ heartbeat của `scan` (`sensor-protocol.md` §6.3), không từ manifest. Mỗi mục: `service`, `name`, `version` bắt buộc; `sha256` (64 hex thường) và `license` (biểu thức SPDX, ≤ 64 ký tự) tuỳ chọn, kiểm khi có. `release-in` điền từ `pins.env` và chỉ mục gói đã commit, đọc từ git ở tag `v<version>`. Image `scan` liệt kê `{"service":"scan","name":"nuclei","version":"3.11.1","license":"MIT"}` (không `sha256`: nuclei dựng từ nguồn cho từng kiến trúc, không một hash nào gọi tên nó; digest image đã ký thì có) và `{"service":"scan","name":"nuclei-templates-pack","version":"2026.11.1","sha256":"<nhãn sha256 trong index.json của gói>","license":"MIT"}`; giá trị lấy từ `deploy/containers/pins.env` và chỉ mục gói do `make scan-pack` sinh |
-| `sbom` | CycloneDX mỗi phát hành |
-| `install_modes` | `appliance` và/hoặc `container`, không rỗng, không lặp (builder `manifest` và `internal/release` cùng từ chối). Có `container` thì bản phát hành **phải** đăng bốn tệp của bản chỉ container cạnh manifest: `vedette.env` (ba dòng image điền đúng `ghcr.io/knt048/vedette-<service>@sha256:<64 hex>` từ `images[]`), `compose.yaml`, `compose.sensors.yaml`, `compose.syslog.yaml`, mỗi tệp một `.minisig` do khoá của manifest ký, trusted comment `file:<tệp> version:<version>`; `release verify` từ chối khi thiếu, và từ chối các tệp đó khi không có `container` (`release container-assets`) |
+| `images[].digest` | **the real key of trust**: the box pulls by digest, not by tag; the tag is for display only. A multi-platform image: the digest of the multi-platform index (checked in a lab) |
+| `images[].ref` | must be exactly `ghcr.io/knt048/vedette-<service>:<version>`; the host compares it with a compile-time constant (`registry_not_allowed`) and builds the pull reference `…@sha256:<digest>` itself, and does not use this string to pull |
+| `images[].size` | used only to check free space (`low_disk`: < 2 × `size`); it is **not** compared with the number of bytes downloaded |
+| `images[].cosign` | `{ "payload": base64, "signature": base64 }`: cosign's Simple Signing payload and the ECDSA P-256 signature (DER) over the SHA-256 of the payload, produced by a version-pinned cosign with `sign --key --new-bundle-format=false --use-signing-config=false` (the legacy format); the same signature is also pushed to ghcr for anyone who wants to verify it themselves. The payload must have `critical.type` = `cosign container image signature`, `critical.image.docker-manifest-digest` equal to `digest`, and `critical.identity.docker-reference` **exactly equal** to `ghcr.io/knt048/vedette-<service>` (the repository, with no tag and no digest; because the signature travels inside the manifest nothing else ties it to a repository, and the signature of the `core` image is not accepted for a `sensor` entry). **How the release job signs:** `cosign sign --key <key> --new-bundle-format=false --use-signing-config=false --upload=false --output-payload payload.json --output-signature sig.b64 ghcr.io/knt048/vedette-<service>@sha256:<digest>` (signing by `<repository>@<digest>`, not by tag, with no `--sign-container-identity`; that is exactly what makes cosign write `docker-reference` = the repository), then the `base64` of `payload.json` and the content of `sig.b64` go into `images[].cosign`; verify again with `internal/release` before publishing. Unknown fields and duplicate keys are rejected. Because the manifest is signed with minisign, the image signature travels with the signed document, and there is no need to read the signature from the registry |
+| `images[].service` | ∈ `core`, `sensor`, `honeypot`, `scan`, `greenbone`; any other value → the manifest is rejected |
+| `min_upgrade_from` | a version jump that is too far must go through an intermediate release; a release that raises the sensor proto to N sets it no lower than the first release that has proto N-1 (`core` accepts only N and N-1); `release-manifest` reads the proto of this release and of every earlier release tag (`v<SemVer>`, not `-test.`) from git and refuses when it is missing |
+| `db_schema`, `rollback` | whether rollback is safe or a DB restore is needed (§10) |
+| `host` | the `vedette-host` package of the release; see the end of §9. **Mandatory, and `host.version` = `version`** (added 2026-11-12: `install.sh` always installs the release's `vedette-host_<version>_<arch>.deb`; the test channel does not go through the builder). The builder (`scripts/release` `buildHostPart`) refuses: a missing `host` part; `host.version` different from `version`; `host.version` containing `-test.`; a file name different from `vedette-host_<host.version>_<amd64\|arm64>.deb` under the unique naming rule `release.ParseHostPackageName` (SemVer form, a prerelease with no `-` inside, no build metadata; `host-api.md` §6.14); two files for one architecture; a missing file for an architecture for which an image is built |
+| `content[]` | content packs **shipped together** with the update; only an index and hashes for display/verification, the files are in the `core` image |
+| `bundled[]` | versions of pinned dependencies that live **inside the signed image** (OpenCanary in `honeypot`…), shown under "Managed packages", not installed with apt. **nmap is never listed here** (`LEGAL.md`): the `scan` image in `images[]` is only a base image (Debian slim + `vedette-sensor`), and `vedette-host` builds `localhost/vedette-scan-nmap:<version>` **on the box** with nmap from the Debian package repository (`host-api.md` §18); the running nmap version comes from the `scan` heartbeat (`sensor-protocol.md` §6.3), not from the manifest. Each entry: `service`, `name`, `version` are mandatory; `sha256` (64 lowercase hex) and `license` (an SPDX expression, ≤ 64 characters) are optional and checked when present. `release-in` fills it from `pins.env` and the committed package index, read from git at the tag `v<version>`. The `scan` image lists `{"service":"scan","name":"nuclei","version":"3.11.1","license":"MIT"}` (no `sha256`: nuclei is built from source for each architecture, and no single hash names it; the signed image digest does) and `{"service":"scan","name":"nuclei-templates-pack","version":"2026.11.1","sha256":"<the sha256 label in the pack's index.json>","license":"MIT"}`; values come from `deploy/containers/pins.env` and the package index generated by `make scan-pack` |
+| `sbom` | a CycloneDX per release |
+| `install_modes` | `appliance` and/or `container`, non-empty, with no duplicates (the `manifest` builder and `internal/release` both refuse). When `container` is present the release **must** publish the four files of the container-only build next to the manifest: `vedette.env` (three image lines filled with exactly `ghcr.io/knt048/vedette-<service>@sha256:<64 hex>` from `images[]`), `compose.yaml`, `compose.sensors.yaml`, `compose.syslog.yaml`, each file with a `.minisig` signed by the manifest's key, trusted comment `file:<file> version:<version>`; `release verify` refuses when they are missing, and refuses those files when there is no `container` (`release container-assets`) |
 
-Quan hệ với `UpdatesState` trong mock: `components` ↔ `images[]`/`content[]`; `signature: valid|invalid|unsigned` ↔ kết quả xác minh §5.
+Relation to `UpdatesState` in the mock: `components` ↔ `images[]`/`content[]`; `signature: valid|invalid|unsigned` ↔ the verification result of §5.
 
-## 5. Ký và xác minh
+## 5. Signing and verification
 
-### 5.1 Hai lớp chữ ký
+### 5.1 Two signature layers
 
-| Đối tượng | Công cụ | Ai xác minh | Khoá |
+| Object | Tool | Who verifies | Key |
 |---|---|---|---|
-| `index.json`, `release-manifest.json`, tệp `host` | **minisign** (Ed25519 trên BLAKE2b-512, định dạng `ED`; `Ed` cũ bị từ chối) | `core` (để hiển thị), **và `vedette-host`** (trước khi hành động) | hai public key nhúng trong binary `core` và `vedette-host`: khoá đang dùng và khoá dự phòng ngoại tuyến do người duy trì giữ |
-| Image container | **cosign** (ECDSA P-256, định dạng cũ; chữ ký đi **trong manifest** ở `images[].cosign`, bản sao đẩy lên ghcr cho người tự kiểm) | `vedette-host` khi `container.pull`, **trước** khi kéo | public key cosign nhúng trong `vedette-host` |
+| `index.json`, `release-manifest.json`, the `host` file | **minisign** (Ed25519 over BLAKE2b-512, format `ED`; the legacy `Ed` is rejected) | `core` (for display), **and `vedette-host`** (before acting) | two public keys embedded in the `core` and `vedette-host` binaries: the active key and an offline backup key held by the maintainer |
+| Container image | **cosign** (ECDSA P-256, legacy format; the signature travels **in the manifest** at `images[].cosign`, a copy is pushed to ghcr for people to verify themselves) | `vedette-host` at `container.pull`, **before** pulling | the cosign public key embedded in `vedette-host` |
 
-`core` không phải bên xác minh duy nhất: **host tự kiểm** manifest, digest, chữ ký image (xem `host-api.md` §6.7). Nếu `core` bị chiếm, nó **không** thể bắt host chạy một image không ký, vì host chỉ chấp nhận digest có mặt trong một manifest ký đúng và tự dựng tham chiếu kéo từ hằng.
+`core` is not the only verifier: **the host verifies by itself** the manifest, the digest and the image signature (see `host-api.md` §6.7). If `core` is taken over, it **cannot** make the host run an unsigned image, because the host accepts only a digest present in a correctly signed manifest and builds the pull reference from a constant itself.
 
-Triển khai xác minh (**đã chốt**): gói `internal/release` của dự án, thuần, dùng chung cho host và `core`, chỉ dùng thư viện chuẩn (`crypto/ed25519`, `crypto/ecdsa` `VerifyASN1`) và `golang.org/x/crypto/blake2b` đã ghim. Không kiểm Rekor (kiểm ngoại tuyến); không dùng `policy.json` `sigstoreSigned` của Podman (cấu hình chung của Podman, cần `use-sigstore-attachments` trong registries.d, phụ thuộc mức hỗ trợ cosign của Podman 4.9), không dùng `sigstore-go` (79 module trong tiến trình root), không chạy CLI cosign trên hộp. JSON giải mã chặt (trường lạ, khoá trùng, khoá trùng sau gập chữ bị từ chối). Hợp đồng không đổi: **kéo theo digest, chỉ chạy khi chữ ký hợp lệ**. Rủi ro: cosign v4 sẽ bỏ định dạng cũ; trước lúc đó phải kiểm bundle mới (DSSE) trong mã.
+Verification implementation (**decided**): the project's `internal/release` package, pure, shared by host and `core`, using only the standard library (`crypto/ed25519`, `crypto/ecdsa` `VerifyASN1`) and the pinned `golang.org/x/crypto/blake2b`. Rekor is not checked (offline verification); Podman's `policy.json` `sigstoreSigned` is not used (it is Podman-wide configuration, needs `use-sigstore-attachments` in registries.d, and depends on the level of cosign support in Podman 4.9), `sigstore-go` is not used (79 modules in a root process), and the cosign CLI is not run on the box. JSON is decoded strictly (unknown fields, duplicate keys, and duplicate keys after case folding are rejected). The contract is unchanged: **pull by digest, run only when the signature is valid**. Risk: cosign v4 will drop the legacy format; before then the new bundle format (DSSE) must be verified in code.
 
-**Đã cài (WP-07b phần 3, lát 3-2):** `internal/release` (gói `internal/jsonstrict` giữ quy tắc JSON chặt dùng chung với host). API: `VerifyIndex(raw, sig, trust, stored)`, `VerifyManifest(raw, sig, trust, idx)`, `VerifyImage(m, service, digest, trust)`, `CheckUpgrade`, `CheckRollback`, `CheckPlatform`, `CheckInstallMode`, `CheckManifestSHA256`, `PullRef`; lỗi có kiểu (`ErrBadSignature`, `ErrKeyRevoked`/`ErrReleaseRevoked` đều khớp `ErrRevoked`, `ErrSequenceRegress`, `ErrDowngrade`, `ErrUpgradePath`, `ErrRollbackNotAllowed`, `ErrPlatform`, `ErrRegistryNotAllowed`, `ErrDigestNotInManifest`, `ErrUnknownSchema`, `ErrNoTrustKeys`…). Khoá công khai là hằng biên dịch trong `keys.go` (khoá thật từ nghi thức 2026-11-11, `docs/RELEASE_KEYS.md`): bản dựng có hằng rỗng hay khoá không hợp lệ **từ chối mọi thứ** và ghi log lý do; khoá thử nghiệm chỉ có khi dựng với tag `releasetestkeys` (`Trust.TestOnly`). Quy tắc thu hồi khoá (§8) do mã thi hành: chỉ index ký bằng khoá dự phòng mới thu hồi được khoá nhúng, không index nào thu hồi được khoá dự phòng, thu hồi khoá nhúng được giữ qua mọi index sau (sticky); thu hồi bản và digest thì index mới thay thế. Chữ ký cosign ECDSA dạng S cao vẫn được nhận (cosign không chuẩn hoá S). `critical.identity.docker-reference` bị bỏ qua đúng như SIGNATURE_SPEC. **Sửa đổi sau rà soát độc lập (bản sửa):** (1) thu hồi bản và digest cũng **được giữ** (sticky) như thu hồi khoá; chỉ index ký bằng khoá dự phòng mới bỏ được một thu hồi bản/digest (danh sách của nó là chuẩn), index ký bằng khoá đang dùng bỏ sót thì vẫn bị giữ lại; (2) thu hồi khoá (`kind=key`) chỉ nhận từ index ký bằng khoá dự phòng: trong index ký bằng khoá đang dùng chúng bị bỏ và ghi log, dù binary có nhúng khoá đó hay không; thu hồi đã lưu của khoá dự phòng hiện tại bị bỏ qua; (3) `sequence`: index ký bằng khoá dự phòng và thu hồi người ký của index đã lưu được đặt `sequence` tuỳ ý, thấp hơn cũng được (chỉ một lần cho mỗi khoá lộ vì thu hồi được giữ); `sequence` bằng nhau chỉ được nhận khi SHA-256 của byte index trùng bản đã lưu; (4) danh sách thu hồi được mang theo không thuộc phần đã ký nên có thể dài hơn 256 mục (trần 4096; vượt thì cần index ký bằng khoá dự phòng); (5) `VerifyImage` từ chối `Manifest` không do `VerifyManifest` tạo; `Embedded()` từ chối khoá thử nghiệm ngoài tệp test; `CheckRollback` đòi bản đích thấp hơn bản đang chạy. Khoá cosign cũng thu hồi được bằng `kind=key` (id: SHA-256 hex của PKIX DER), và có thể nhúng hai khoá cosign khi xoay khoá. Ngoài phạm vi lát này: lưu index/manifest (host 3-7), cohort (core), kiểm bundle.
+**Installed:** `internal/release` (the `internal/jsonstrict` package holds the strict JSON rule shared with the host). API: `VerifyIndex(raw, sig, trust, stored)`, `VerifyManifest(raw, sig, trust, idx)`, `VerifyImage(m, service, digest, trust)`, `CheckUpgrade`, `CheckRollback`, `CheckPlatform`, `CheckInstallMode`, `CheckManifestSHA256`, `PullRef`; typed errors (`ErrBadSignature`, `ErrKeyRevoked`/`ErrReleaseRevoked` both match `ErrRevoked`, `ErrSequenceRegress`, `ErrDowngrade`, `ErrUpgradePath`, `ErrRollbackNotAllowed`, `ErrPlatform`, `ErrRegistryNotAllowed`, `ErrDigestNotInManifest`, `ErrUnknownSchema`, `ErrNoTrustKeys`…). The public keys are compile-time constants in `keys.go` (the real keys come from the key ceremony of 2026-11-11, `docs/RELEASE_KEYS.md`): a build with an empty constant or an invalid key **rejects everything** and logs the reason; test keys exist only when built with the tag `releasetestkeys` (`Trust.TestOnly`). The key revocation rule (§8) is enforced by code: only an index signed with the backup key can revoke an embedded key, no index can revoke the backup key, and revoking an embedded key is retained through every later index (sticky); release and digest revocations are replaced by the new index. A cosign ECDSA signature with a high S is still accepted (cosign does not normalise S). `critical.identity.docker-reference` is checked as in SIGNATURE_SPEC. **Changes after an independent review (fixes):** (1) revoking a release and a digest is also **retained** (sticky) like key revocation; only an index signed with the backup key can drop a release/digest revocation (its list is authoritative), while an index signed with the active key that omits one still has it retained; (2) key revocations (`kind=key`) are accepted only from an index signed with the backup key: in an index signed with the active key they are dropped and logged, whether or not the binary embeds that key; a stored revocation of the current backup key is ignored; (3) `sequence`: an index signed with the backup key that revokes the signer of the stored index may set any `sequence`, even a lower one (only once per exposed key because revocation is retained); an equal `sequence` is accepted only when the SHA-256 of the index bytes equals the stored copy; (4) the revocation list that is carried along is not part of the signed portion, so it can be longer than 256 entries (cap 4096; beyond that an index signed with the backup key is needed); (5) `VerifyImage` refuses a `Manifest` that was not produced by `VerifyManifest`; `Embedded()` refuses test keys outside test files; `CheckRollback` requires the target version to be lower than the running one. A cosign key can also be revoked with `kind=key` (id: the hex SHA-256 of the PKIX DER), and two cosign keys can be embedded during key rotation. Out of scope for this part: storing the index/manifest (host), cohort (core), bundle verification.
 
-### 5.2 Khoá hay keyless (cosign): đánh đổi
+### 5.2 Key or keyless (cosign): the trade-off
 
-| | **Khoá (cosign `--key`)** | **Keyless (Sigstore: Fulcio + Rekor, danh tính GitHub OIDC)** |
+| | **Key (cosign `--key`)** | **Keyless (Sigstore: Fulcio + Rekor, GitHub OIDC identity)** |
 |---|---|---|
-| Xác minh trên hộp offline | Có, chỉ cần public key nhúng sẵn | Cần "trusted root" của Sigstore (TUF) và bằng chứng log (Rekor); xác minh offline được bằng bundle nhưng root cũ trên hộp ít cập nhật có thể hỏng |
-| Rủi ro khoá dài hạn | Khoá riêng nằm ở CI/máy người duy trì: lộ = ký giả mạo mãi tới khi thu hồi | Không có khoá dài hạn; danh tính = workflow `…/release.yml@refs/tags/v*` |
-| Thu hồi | thu hồi `key_id` trong `index.json` + bản binary mới nhúng khoá mới | không thu hồi khoá; thu hồi theo digest/phát hành |
-| Phụ thuộc dịch vụ ngoài khi ký | Không | Có (Fulcio, Rekor; vấn đề nếu hạ tầng free đổi) |
-| Rò thông tin | Không | **Rekor công khai ghi danh tính/repo**: lộ tên repo riêng tư tới khi repo công khai |
-| Kẻ có quyền ghi repo/workflow | ký được | ký được (cùng mức) |
+| Verification on an offline box | Yes, only the embedded public key is needed | Needs Sigstore's "trusted root" (TUF) and log evidence (Rekor); offline verification is possible with a bundle but an old root on a rarely updated box may break |
+| Long-term key risk | The private key sits in CI/on the maintainer's machine: a leak = forged signatures until revoked | No long-term key; identity = the workflow `…/release.yml@refs/tags/v*` |
+| Revocation | revoke the `key_id` in `index.json` + a new binary embeds the new key | no key revocation; revoke by digest/release |
+| Dependency on an external service when signing | None | Yes (Fulcio, Rekor; a problem if the free infrastructure changes) |
+| Information leak | None | **The public Rekor records identity/repository**: it exposes the name of a private repository until the repository is made public |
+| Someone with write access to the repository/workflow | can sign | can sign (the same level) |
 
-**Đã chốt:** hộp **chỉ xác minh bằng khoá cosign công khai nhúng sẵn** (offline, không phụ thuộc Sigstore, hợp mạng cách ly). Phần sau vẫn là đề xuất, chưa có quyết định: đồng thời CI **vẫn đăng chữ ký keyless** song song cho người dùng/kiểm toán muốn tự xác minh (đúng ý UPDATES §4.4 "minisign cho hộp, cosign cho người"). Hộp không đòi chữ ký keyless. Khoá cosign **tách** khỏi khoá minisign và tách khỏi mọi bí mật CI khác; xoay khoá = bản binary mới nhúng cả khoá cũ và mới trong một giai đoạn chuyển (ký bằng cả hai).
+**Decided:** the box **verifies only with the embedded public cosign key** (offline, no dependence on Sigstore, suitable for an air-gapped network). The rest is still a proposal and not yet decided: CI **would also publish a keyless signature** in parallel for users/auditors who want to verify by themselves (matching UPDATES §4.4 "minisign for the box, cosign for people"). The box does not require a keyless signature. The cosign key is **separate** from the minisign key and from every other CI secret; key rotation = a new binary embeds both the old and the new key during a transition period (signed with both).
 
-**Xoay khoá minisign và index đã lưu (sửa đổi L1).** Bản dựng nhúng thêm danh sách **khoá đã nghỉ** (`Trust.Retired`, hằng `prodMinisignRetired`, rỗng tới lần xoay đầu). Khoá đã nghỉ **chỉ** dùng để xác minh lại index mà hộp đã lưu lúc khoá còn dùng (`release.VerifyStoredIndex`), nên số `sequence` và danh sách thu hồi đã lưu còn nguyên qua lần xoay; nó **không bao giờ** nhận index hay manifest mới (`VerifyIndex`, `VerifyManifest` không biết nó). Quy trình xoay: bản dựng mới có khoá mới là khoá đang dùng và khoá cũ trong `Retired`; không cần người vận hành xoá `releases/index.json`.
+**Rotating the minisign key and the stored index.** A build also embeds a list of **retired keys** (`Trust.Retired`, the constant `prodMinisignRetired`, empty until the first rotation). A retired key is used **only** to re-verify an index that the box stored while the key was still in use (`release.VerifyStoredIndex`), so the `sequence` number and the stored revocation list survive the rotation; it **never** accepts a new index or manifest (`VerifyIndex`, `VerifyManifest` do not know it). The rotation procedure: the new build has the new key as the active key and the old key in `Retired`; the operator does not need to delete `releases/index.json`.
 
-**Sàn `sequence` lúc dựng.** Khi chưa lưu index nào, host nhận index có `sequence` ≥ `release.MinSequenceText` của bản dựng (job phát hành đặt bằng `-ldflags "-X github.com/knt048/vedette/internal/release.MinSequenceText=<n>"` bằng `sequence` của index hiện hành lúc dựng; mặc định 0 là không có sàn), để một bản cài mới không bị mớm index cũ. Có index đã lưu thì số đã lưu là sàn.
+**The `sequence` floor at build time.** When no index has been stored, the host accepts an index whose `sequence` ≥ the build's `release.MinSequenceText` (the release job sets it with `-ldflags "-X github.com/knt048/vedette/internal/release.MinSequenceText=<n>"` equal to the `sequence` of the current index at build time; the default 0 means no floor), so a fresh install cannot be fed an old index. When there is a stored index, the stored number is the floor.
 
-### 5.3 Quy trình xác minh của hộp (`core`, rồi `host` lặp lại)
+### 5.3 The box's verification procedure (`core`, then `host` repeats it)
 
-1. Tải `index.json` + `.minisig`; kiểm chữ ký bằng khoá nhúng, kiểm `key_id` không bị thu hồi.
-2. `sequence` ≥ giá trị đã lưu (`core_audit` lưu giá trị cao nhất đã thấy); `expires_at` chưa qua (hoặc hiện "stale").
-3. Chọn bản: kênh đã chọn, `rollout.percent` so với cohort (§6), `min_upgrade_from` thoả.
-4. Tải `release-manifest.json` theo URL trong index; kiểm `sha256` bằng `manifest_sha256` và kiểm chữ ký minisign.
-5. Kiểm manifest không bị thu hồi (§8).
-6. Hiển thị cho admin (hoặc tự động nếu chế độ `auto`).
-7. Cập nhật: `host` lặp lại bước 1, 2, 4, 5 với tài liệu `core` đưa, kiểm chữ ký cosign trong manifest và `platform`, rồi kéo từng image theo **digest** (không đối chiếu `size`; `host-api.md` §6.7).
+1. Download `index.json` + `.minisig`; check the signature with the embedded key, and check that `key_id` is not revoked.
+2. `sequence` ≥ the stored value (`core_audit` stores the highest value seen); `expires_at` has not passed (or show "stale").
+3. Choose the release: the chosen channel, `rollout.percent` against the cohort (§6), `min_upgrade_from` satisfied.
+4. Download `release-manifest.json` by the URL in the index; check `sha256` against `manifest_sha256` and check the minisign signature.
+5. Check that the manifest is not revoked (§8).
+6. Show it to the admin (or install automatically if the mode is `auto`).
+7. Update: `host` repeats steps 1, 2, 4, 5 with the documents `core` hands over, checks the cosign signature in the manifest and `platform`, then pulls each image by **digest** (without matching `size`; `host-api.md` §6.7).
 
-Mỗi lần kiểm tra ghi `core_audit` (ai, khi nào, phiên bản, sha256) như UPDATES §5.
+Each check writes `core_audit` (who, when, version, sha256) as in UPDATES §5.
 
-## 6. Cohort và rollout theo lô
+## 6. Cohort and batch rollout
 
-- `install_id` = chuỗi ngẫu nhiên 256 bit sinh lúc cài (cũng là `install_id` của tín hiệu ẩn danh); **không gửi đi** chỉ để rollout. `cohort = uint32(SHA-256(install_id || "vedette-cohort")[0:4]) mod 100`, tính cục bộ.
-- Hộp **đủ điều kiện** cho một phát hành khi `cohort < rollout.percent` của phát hành đó trong `index.json`. Lịch mặc định: 10 % → 50 % → 100 %, mỗi bước sau ≥ 24 giờ không có báo lỗi (UPDATES §2). Phần mềm: `beta` trước `stable` ít nhất 7 ngày.
-- "Kiểm tra ngay" của admin vẫn tôn trọng cohort; **không có** nút "Install anyway" cho bản chưa tới cohort (tránh bật toàn cục qua nút; câu hỏi mở §15).
-- Hạ `percent` (tạm dừng rollout): hộp chưa cập nhật sẽ không nhận; hộp đã cập nhật không bị ép lùi (muốn ép lùi dùng `revoked`, §8).
-- Kênh: `stable` và `beta` (như `UpdateChannel`); chọn trong Settings → Updates. Chế độ `auto|manual` như `UpdatesState.mode`; ở `auto`, chỉ tự cài trong cửa sổ bảo trì và chỉ bản **không** bị thu hồi.
+- `install_id` = a random 256-bit string generated at install (also the `install_id` of the anonymous signal); it is **not sent out** only for rollout. `cohort = uint32(SHA-256(install_id || "vedette-cohort")[0:4]) mod 100`, computed locally.
+- A box is **eligible** for a release when `cohort < rollout.percent` of that release in `index.json`. Default schedule: 10 % → 50 % → 100 %, each later step after ≥ 24 hours with no error reports (UPDATES §2). Software: `beta` before `stable` for at least 7 days.
+- The admin's "Check now" still respects the cohort; there is **no** "Install anyway" button for a release whose cohort has not arrived (to avoid a global switch-on through a button; open question §15).
+- Lowering `percent` (pausing a rollout): boxes that have not updated will not receive it; boxes that have updated are not forced back (to force a rollback use `revoked`, §8).
+- Channels: `stable` and `beta` (like `UpdateChannel`); chosen in Settings → Updates. Mode `auto|manual` like `UpdatesState.mode`; in `auto`, it installs by itself only within the maintenance window and only a release that is **not** revoked.
 
-## 7. Cập nhật phần mềm (appliance)
+## 7. Software update (appliance)
 
 ```mermaid
 sequenceDiagram
@@ -149,139 +149,139 @@ sequenceDiagram
     C->>C: verify (minisign, sequence, expires, cohort)
     C->>G: GET release-manifest.json + .minisig
     C->>C: verify, show "1.4.0 available"
-    A->>C: Install (hoặc auto trong cửa sổ bảo trì)
-    C->>H: container.pull {service, version, index+sig, manifest+sig}  (mỗi service)
+    A->>C: Install (or auto within the maintenance window)
+    C->>H: container.pull {service, version, index+sig, manifest+sig}  (each service)
     H->>H: verify minisign(index, manifest) + revocation + cosign(images[].cosign)
     H->>G: pull ghcr.io/knt048/vedette-<service>@sha256:<digest>
     H-->>C: pulled
-    C->>C: chụp bản (snapshots/<id>)
-    C->>H: container.start {service: core, version, snapshot} (trước tiên)
+    C->>C: take a snapshot (snapshots/<id>)
+    C->>H: container.start {service: core, version, snapshot} (first)
     H->>H: backup pre_update, ghi unit, restart, health (≤ 120 s)
-    alt khoẻ
-        H-->>C: succeeded, bản cũ thành previous (N-1)
-        C->>H: core mới tiếp tục run: container.start {service, version} (sensor/honeypot/scan)
-        H->>H: health của sensor/scan = heartbeat được core mới nhận
-        C->>C: ghi lịch sử
-    else hỏng
-        H->>H: tự đặt lại unit cũ (và DB nếu rollback.safe=false)
-        H-->>C: reverted (unit_failed), không service nào khác đã đổi
+    alt healthy
+        H-->>C: succeeded, the old version becomes previous (N-1)
+        C->>H: the new core continues the run: container.start {service, version} (sensor/honeypot/scan)
+        H->>H: health of sensor/scan = a heartbeat received by the new core
+        C->>C: write the history
+    else broken
+        H->>H: restores the old unit by itself (and the DB if rollback.safe=false)
+        H-->>C: reverted (unit_failed), no other service has changed
     end
 ```
 
-Quy tắc: A/B theo **tag/digest** (thay "A/B slot binary" của thiết kế cũ bằng tag cũ); `core` được đổi **trước** các service khác (sensor/worker không bao giờ mới hơn `core`, `core` nhận proto của chúng và bản liền trước, `sensor-protocol.md` §10), quá trình tiếp tục khi `core` mới lên lại nhờ host giữ trạng thái run (xem `host-api.md` §6 về `run` bền) và chính `core` mới đổi các service còn lại. Một service hỏng sau đó tự quay về bản cũ, `core` ở lại bản mới (run `failed`, có lịch sử); Rollback đưa cả hộp về. Rollback đi ngược: service khác trước, `core` sau cùng. Chỉ một lần cập nhật tại một thời điểm.
+Rule: A/B by **tag/digest** (replacing the old design's "A/B slot binary" with the old tag); `core` is changed **before** the other services (a sensor/worker is never newer than `core`, and `core` accepts their proto and the one just before, `sensor-protocol.md` §10), and the process continues when the new `core` comes back up because the host keeps the run state (see `host-api.md` §6 on the durable `run`), and the new `core` itself changes the remaining services. A service that then breaks returns to its old version by itself, and `core` stays on the new version (run `failed`, with history); Rollback returns the whole box. Rollback goes the other way: the other services first, `core` last. Only one update at a time.
 
-**Kiểu cài "Chỉ container"** (Docker/Podman sẵn có của khách, không có `vedette-host`): hộp **không tự cập nhật** image; Settings → Updates hiển thị bản mới, lệnh `pull`/`up` và hướng dẫn xác minh chữ ký (cosign) để khách chạy; không thao tác OS. Hạn chế ghi rõ trên GUI.
+**The "Container only" install mode** (the customer's existing Docker/Podman, with no `vedette-host`): the box **does not update images by itself**; Settings → Updates shows the new version, the `pull`/`up` commands, and instructions to verify the signature (cosign) for the customer to run; no OS operations. The limitation is stated plainly in the GUI.
 
-## 8. Danh sách thu hồi
+## 8. Revocation list
 
 `index.json.revoked[]`:
 
-| Trường | Ví dụ |
+| Field | Example |
 |---|---|
-| `kind` | `release` (một phiên bản), `image_digest`, `key` (khoá ký), `advisory_only` |
+| `kind` | `release` (one version), `image_digest`, `key` (a signing key), `advisory_only` |
 | `id` | `1.3.2`, `sha256:…`, `key_id` |
-| `reason` | chuỗi tiếng Anh ngắn |
+| `reason` | a short English string |
 | `since` | datetime |
 | `action` | `block_install` \| `block_install_and_warn` \| `rollback_if_possible` |
 
-Hành vi hộp:
+Box behaviour:
 
-- `block_install`: không bao giờ cài bản/digest đó (cả khi auto, cả bằng bundle).
-- Bản **đang chạy** bị thu hồi: banner mức nghiêm trọng trên mọi trang khi `action` là `block_install_and_warn` hay `rollback_if_possible`, chỉ ghi chú trên trang Updates khi là `block_install` (`UpdatesState.running_revoked`) + thông báo kênh admin (chưa xây); `rollback_if_possible` chỉ tự lùi khi chế độ `auto`, tag N−1 còn, không bị thu hồi và `rollback.safe`; còn lại để admin quyết.
-- Khoá bị thu hồi: manifest ký bằng khoá đó bị từ chối kể cả đã cài trước đó (hộp không gỡ phần mềm, chỉ ngừng tin thêm).
-- Revocation tự có chữ ký trong `index.json`; `index.json` mới hơn thay thế (theo `sequence`). Hộp lưu bản cao nhất đã thấy để một index cũ không "hồi sinh" bản bị thu hồi.
+- `block_install`: never install that release/digest (including under auto, and by bundle).
+- A **running** release that is revoked: a severity banner on every page when `action` is `block_install_and_warn` or `rollback_if_possible`, only a note on the Updates page when it is `block_install` (`UpdatesState.running_revoked`) + a notification on the admin channel (not built yet); `rollback_if_possible` goes back automatically only in `auto` mode, when tag N−1 still exists, is not revoked, and `rollback.safe`; otherwise the admin decides.
+- A revoked key: a manifest signed with that key is rejected even if it was installed earlier (the box does not remove the software, it only stops trusting any further).
+- The revocation itself is signed within `index.json`; a newer `index.json` replaces it (by `sequence`). The box stores the highest version it has seen so an old index cannot "resurrect" a revoked release.
 
-## 9. Cập nhật hệ điều hành qua `vedette-host`
+## 9. OS updates through `vedette-host`
 
-Cập nhật OS **không** qua manifest/cohort/cosign: chữ ký là của **apt** (kho Debian/Ubuntu). Manifest chỉ hiện trạng thái. Luồng:
+OS updates do **not** go through the manifest/cohort/cosign: the signature is **apt's** (the Debian/Ubuntu repository). The manifest only shows status. Flow:
 
-1. Admin vào Settings → Updates (mock `/core/updates/os*`); `core` gọi `os.check` của host → `apt-get update` + liệt kê gói nâng cấp, đánh dấu security, cần reboot (`/var/run/reboot-required`), hạn hỗ trợ bản phát hành (`OsState`).
-2. `os.install {scope: security|all}`: host **sao lưu DB trước** (`backup.create`), chạy danh sách lệnh apt cố định (SYS-1), stream tiến trình, chạy health check sau, báo cần reboot.
-3. Reboot ngay/theo cửa sổ (`os.reboot`); tự cập nhật bảo mật = `unattended-upgrades` do host cấu hình (`os.auto_security`), cửa sổ bảo trì.
-4. Nâng bản phát hành OS (Ubuntu 24.04 → 26.04, Debian 13 → bản sau): **chỉ hướng dẫn** (`release_upgrade`), không bao giờ tự làm.
-5. Kho gói là luồng ra đã có trong PRIVACY luồng 6; người dùng có thể trỏ apt tới mirror nội bộ.
+1. The admin goes to Settings → Updates (mock `/core/updates/os*`); `core` calls the host's `os.check` → `apt-get update` + lists the upgradable packages, marking security ones, a needed reboot (`/var/run/reboot-required`), and the release's support deadline (`OsState`).
+2. `os.install {scope: security|all}`: the host **backs up the DB first** (`backup.create`), runs a fixed list of apt commands (SYS-1), streams progress, runs a health check afterwards, and reports whether a reboot is needed.
+3. Reboot now/within a window (`os.reboot`); automatic security updates = `unattended-upgrades` configured by the host (`os.auto_security`), a maintenance window.
+4. Upgrading the OS release (Ubuntu 24.04 → 26.04, Debian 13 → a later release): **instructions only** (`release_upgrade`), never done automatically.
+5. The package repository is an outbound flow already listed in PRIVACY flow 6; the user can point apt at an internal mirror.
 
-Hai kiểu cài: chế độ "Chỉ container" không có luồng này.
+Two install modes: the "Container only" mode has no such flow.
 
-### Cập nhật chính `vedette-host`
+### Updating `vedette-host` itself
 
-Host là tiến trình root nhỏ; cập nhật nó là việc nhạy cảm nhất. Manifest có mục `host` (§4.2) để bản `.deb` do host/installer xử lý. **Đã chốt**: host tự cập nhật bằng gói `.deb` đã ký trên GitHub Release, kiểm sức khoẻ, hỏng thì về bản trước. **Thiết kế:** `host-api.md` §6.14 `host.self_update`: host kiểm index và manifest như `container.pull`, chỉ cài tệp có SHA-256 bằng mục `host.files[]` `vedette-host_<host.version>_<arch>.deb`, chỉ đi lên (`host.version` so với bản host đang chạy, không so `version` của manifest).
+The host is a small root process; updating it is the most sensitive task. The manifest has a `host` entry (§4.2) so the `.deb` is handled by the host/installer. **Decided**: the host updates itself with the signed `.deb` on the GitHub Release, checks its health, and returns to the previous version if it breaks. **Design:** `host-api.md` §6.14 `host.self_update`: the host checks the index and manifest like `container.pull`, installs only a file whose SHA-256 equals the entry `host.files[]` `vedette-host_<host.version>_<arch>.deb`, and only goes upward (`host.version` compared with the running host version, not with the manifest's `version`).
 
-## 10. Hoàn tác
+## 10. Rollback
 
-- Giữ **N−1** cho mỗi service: host giữ bản đang chạy, `previous` và bản mới nhất đã kéo (tag `localhost/vedette-<service>:<version>`), gỡ bản khác bằng `podman rmi <digest>` sau mỗi lần khởi động thành công, không bao giờ `prune -a`; cùng bản sao lưu DB `pre_update` mà **host tạo trong `container.start` của `core`** từ bản chụp `core` đưa (`host-api.md` §6.8). `container.rollback {service}` đưa service về `previous`; GUI nút Rollback từng thành phần (S-CORE-2).
-- **Hoàn tác phần mềm khác hoàn tác DB.** Manifest khai `db_schema` và `rollback.safe`: nếu `true`, mã bản mới chỉ thêm cột/bảng tương thích ngược nên bản cũ chạy được trên DB mới; nếu `false`, rollback **phải** kèm khôi phục DB từ bản `pre_update` của lần cập nhật đó (mất dữ liệu ghi từ lúc cập nhật): host làm cả hai **trong cùng một run** `container.rollback` (dừng `core` → khôi phục → unit cũ → khởi động → kiểm sức khoẻ, hỏng thì đặt lại cả hai); `core` không gọi `backup.restore` riêng. GUI cảnh báo "data written since the update is lost" và chỉ gọi host khi người dùng xác nhận (`confirm_data_loss`, S-CORE-2). Bản `pre_update` không còn → `rollback_backup_missing`.
-- `rollback.min_version` là phiên bản thấp nhất được rollback tới: `previous` thấp hơn → `rollback_not_allowed`. Hạ bản bằng `container.start` luôn bị từ chối (`downgrade_not_allowed`, thứ tự SemVer); chỉ rollback về `previous` đã xác minh mới được hạ.
-- Rollback không đi qua kiểm cohort/rollout, nhưng **vẫn** phải: bản đích đã từng xác minh trên host này, không bị thu hồi theo index đã lưu (`previous_revoked`), `sequence` anti-downgrade không áp dụng cho rollback người dùng chủ động tới bản N−1 đã cài (được phép), và ghi `core_audit` + lịch sử `action: rollback`.
-- Khởi động hỏng sau cập nhật: host **tự** đặt lại unit cũ (và DB khi `rollback.safe=false`) trong chính run `container.start` (`reverted`, `unit_failed`). Rollback hỏng (hiếm) → host đặt lại bản đang chạy; nếu chính bước đó hỏng thì `vedette-host` giữ trạng thái cuối và báo để admin xử lý tay (`rollback_revert_failed`): không vòng lặp tự động. Host không bao giờ tự rollback vì thu hồi (§8: `core` quyết).
+- Keep **N−1** for each service: the host keeps the running version, `previous` and the newest version pulled (tag `localhost/vedette-<service>:<version>`), removes any other version with `podman rmi <digest>` after each successful start, and never uses `prune -a`; together with the `pre_update` DB backup that **the host creates inside `core`'s `container.start`** from the `core` snapshot handed over (`host-api.md` §6.8). `container.rollback {service}` returns a service to `previous`; the GUI has a Rollback button for each component (S-CORE-2).
+- **Software rollback differs from DB rollback.** The manifest declares `db_schema` and `rollback.safe`: if `true`, the new version's code only adds backward-compatible columns/tables, so the old version can run on the new DB; if `false`, rollback **must** be accompanied by restoring the DB from the `pre_update` backup of that update (losing data written since the update): the host does both **in the same run** `container.rollback` (stop `core` → restore → old unit → start → health check, and if it fails, restore both); `core` does not call `backup.restore` separately. The GUI warns "data written since the update is lost" and calls the host only when the user confirms (`confirm_data_loss`, S-CORE-2). The `pre_update` backup no longer exists → `rollback_backup_missing`.
+- `rollback.min_version` is the lowest version that can be rolled back to: a lower `previous` → `rollback_not_allowed`. Lowering the version with `container.start` is always refused (`downgrade_not_allowed`, SemVer order); only a rollback to the verified `previous` may lower it.
+- Rollback does not go through the cohort/rollout check, but it **still** must: the target version has been verified on this host before, is not revoked per the stored index (`previous_revoked`), the anti-downgrade `sequence` does not apply to a user-initiated rollback to the installed N−1 (allowed), and it writes `core_audit` + the history `action: rollback`.
+- A failed start after an update: the host **itself** restores the old unit (and the DB when `rollback.safe=false`) in the very run of `container.start` (`reverted`, `unit_failed`). A failed rollback (rare) → the host restores the running version; if that step itself fails, `vedette-host` keeps the last state and reports it for the admin to handle by hand (`rollback_revert_failed`): no automatic loop. The host never rolls back by itself because of a revocation (§8: `core` decides).
 
-## 11. Gói offline (mạng cách ly)
+## 11. Offline bundle (air-gapped network)
 
-Khớp `/core/updates/bundle` trong mock (xuất ký, nhập từ chối chữ ký sai) và `vedette bundle export|import` (UPDATES §3).
+Matches `/core/updates/bundle` in the mock (export signed, import rejects a wrong signature) and `vedette bundle export|import` (UPDATES §3).
 
-Cấu trúc `vedette-bundle-<version>.tar` (không nén lồng; image đã nén sẵn):
+Structure of `vedette-bundle-<version>.tar` (no nested compression; images are already compressed):
 
 ```
 bundle.json                 { schema, version, channel, created_at, files:[{path,sha256,size}] }
-index.json  + .minisig      bản index tại lúc xuất
+index.json  + .minisig      the index as of the time of export
 release-manifest.json + .minisig
-images/<service>.oci.tar    oci-archive đúng digest trong manifest
-host/*.deb                  (nếu có bản host)
+images/<service>.oci.tar    an oci-archive with exactly the digest in the manifest
+host/*.deb                  (if there is a host release)
 sbom.json
 ```
 
-- **Gói không có chữ ký riêng của hộp xuất**: tin cậy đến từ chữ ký phát hành có sẵn (minisign cho manifest, cosign cho image; chữ ký cosign đã nằm trong manifest ở `images[].cosign`, nên bundle không cần thư mục `signatures/`). Nhập bundle vào host: `container.pull` với `source: bundle` (`host-api.md` §6.7 "Nguồn `bundle`"); `core` ghi tệp vào `<core_data>/bundles/<bundle_id>.tar` và chỉ gửi id. `bundle.json` chỉ là danh sách băm để `core` phát hiện hỏng sớm; host không đọc nó: mọi byte host dùng hoặc được ký, hoặc được băm đối chiếu với thứ được ký.
-- **Luật của tar (host kiểm)**: chỉ đúng các tên trên (thêm thư mục `images/`, `host/`), chỉ tệp thường (không symlink, hard link, thiết bị, FIFO, sparse), không trùng tên, ≤ 64 mục; trần: tài liệu 256 KiB, chữ ký 2 KiB, `bundle.json` 1 MiB, `sbom.json` 64 MiB, mỗi `.deb` 256 MiB, cả gói 8 GiB. Thứ tự mục tự do.
-- **Luật của `images/<service>.oci.tar` (bộ dựng phải theo)**: một OCI image layout dạng tar (`oci-layout`, `index.json`, `blobs/sha256/<hex>`, không gì khác) mà `index.json` nêu **đúng một** ảnh, có digest **bằng `images[].digest`** của manifest (digest của index đa nền tảng như đã đẩy lên `ghcr.io`), xuất **giữ nguyên digest**: `skopeo copy --all --preserve-digests docker://ghcr.io/knt048/vedette-<service>@<digest> oci-archive:images/<service>.oci.tar:ghcr.io/knt048/vedette-<service>:<version>` (hoặc `podman manifest push --all <list> oci-archive:…`, đã thử trên Podman 5.7.0: `index.json` giữ digest của list); phải có blob của mọi nền tảng manifest liệt kê trong `platforms`. Chú thích `ref.name` của archive không được dùng: host tự viết `index.json` khi nạp.
-- **`host/*.deb`**: `core` chép ra `<core_data>/host-packages/<id>.deb` và gọi `host.self_update` với bốn tài liệu của gói (host kiểm SHA-256 với `host.files[]` đã ký); `container.pull` không đọc nó.
-- **Nhập:** (1) kiểm chữ ký manifest và index bằng khoá nhúng; (2) kiểm `sequence`, thu hồi, `min_upgrade_from`; (3) với mỗi image kiểm digest **của chính archive** (`oci-archive` tính lại) khớp manifest và chữ ký cosign; (4) mới yêu cầu host nạp (`container.pull` với `source: bundle`). Sai chữ ký ⇒ `Import rejected` (GUI mock nói "a bad signature is rejected"), không có đường bỏ qua.
-- Bundle **không** thay `expires_at` của index: index trong bundle đã hết hạn vẫn được nhập một lần (đây là đường offline) nhưng hiện cảnh báo "stale".
-- Bundle chỉ chứa **gói phần mềm + nội dung**; dữ liệu feed của máy cách ly nhập bằng bundle feed ("switch to offline bundles" ở PRIVACY luồng 1): ngoài spec này.
-- Kích thước: bundle gồm image nên vài trăm MiB tới vài GiB; **upload từ GUI cần truyền dòng (multipart) tới tệp tạm trong volume**, không qua JSON base64 như mock (mock chỉ để xem trước, `BundleUpload.content`).
+- **The bundle has no signature of the exporting box**: trust comes from the existing release signatures (minisign for the manifest, cosign for the image; the cosign signature is already in the manifest at `images[].cosign`, so the bundle needs no `signatures/` directory). Importing a bundle into the host: `container.pull` with `source: bundle` (`host-api.md` §6.7 "The `bundle` source"); `core` writes the file to `<core_data>/bundles/<bundle_id>.tar` and sends only the id. `bundle.json` is only a list of hashes so `core` detects damage early; the host does not read it: every byte the host uses is either signed, or hashed and compared against something that is signed.
+- **The tar rules (checked by the host)**: only the names above (plus the directories `images/`, `host/`), only regular files (no symlink, hard link, device, FIFO, sparse), no duplicate names, ≤ 64 entries; caps: documents 256 KiB, signatures 2 KiB, `bundle.json` 1 MiB, `sbom.json` 64 MiB, each `.deb` 256 MiB, the whole bundle 8 GiB. The order of entries is free.
+- **The rules of `images/<service>.oci.tar` (the builder must follow)**: an OCI image layout in tar form (`oci-layout`, `index.json`, `blobs/sha256/<hex>`, nothing else) whose `index.json` names **exactly one** image with a digest **equal to the manifest's `images[].digest`** (the digest of the multi-platform index as pushed to `ghcr.io`), exported **preserving the digest**: `skopeo copy --all --preserve-digests docker://ghcr.io/knt048/vedette-<service>@<digest> oci-archive:images/<service>.oci.tar:ghcr.io/knt048/vedette-<service>:<version>` (or `podman manifest push --all <list> oci-archive:…`, tried on Podman 5.7.0: `index.json` keeps the digest of the list); it must contain the blobs of every platform the manifest lists in `platforms`. The archive's `ref.name` annotation is not used: the host writes `index.json` itself when loading.
+- **`host/*.deb`**: `core` copies it to `<core_data>/host-packages/<id>.deb` and calls `host.self_update` with the four documents of the package (the host checks the SHA-256 against the signed `host.files[]`); `container.pull` does not read it.
+- **Import:** (1) verify the manifest and index signatures with the embedded key; (2) check `sequence`, revocation, `min_upgrade_from`; (3) for each image, verify that the digest **of the archive itself** (`oci-archive` recomputed) matches the manifest and the cosign signature; (4) only then ask the host to load it (`container.pull` with `source: bundle`). A bad signature → `Import rejected` (the mock GUI says "a bad signature is rejected"), and there is no way to skip this.
+- A bundle does **not** replace the index's `expires_at`: an expired index inside a bundle is still imported once (this is the offline path) but shows a "stale" warning.
+- A bundle contains only **software packages + content**; feed data for an air-gapped machine is imported with a feed bundle ("switch to offline bundles" in PRIVACY flow 1): outside this spec.
+- Size: a bundle includes images so it is several hundred MiB to several GiB; **an upload from the GUI needs streaming (multipart) to a temporary file in the volume**, not JSON base64 as in the mock (the mock is only a preview, `BundleUpload.content`).
 
-## 12. Giới hạn
+## 12. Limits
 
-| Mục | Giới hạn mặc định |
+| Item | Default limit |
 |---|---|
-| `index.json`, `release-manifest.json` | ≤ 256 KiB mỗi tệp; thân `container.pull` (hai tài liệu + hai chữ ký, base64) ≤ 1 MiB (`host-api.md` §10) |
-| Số image mỗi manifest | ≤ 16 |
-| Kích thước image | `size` chỉ để kiểm chỗ trống (≥ 2 × `size` trống); **không** so với số byte đã tải: Podman không cho biết số byte, và kéo theo digest đã bảo đảm toàn vẹn |
-| Image giữ lại mỗi service | bản đang chạy, `previous`, bản mới nhất đã kéo |
-| Bundle tải lên | trần cấu hình (đề xuất 8 GiB; host từ chối tệp > 8 GiB), đòi dung lượng trống ≥ 2× ở `core` khi nhận; host khi nạp một image đòi ≥ 3 × kích thước archive của nó (chỗ chứa ảnh và trạng thái host) |
-| Tần suất kiểm tra | tối đa mỗi 6 giờ + jitter ± 30 phút (mặc định, tắt được ở Privacy → `update_check`) |
-| Hết hạn index | ≤ 14 ngày |
-| Thời hạn health check sau cập nhật | 120 giây (mặc định) |
-| Lịch sử hiện ở GUI | 20 lần gần nhất (UpdatesState.history) |
+| `index.json`, `release-manifest.json` | ≤ 256 KiB each; the `container.pull` body (two documents + two signatures, base64) ≤ 1 MiB (`host-api.md` §10) |
+| Number of images per manifest | ≤ 16 |
+| Image size | `size` is only for checking free space (≥ 2 × `size` free); it is **not** compared with the number of bytes downloaded: Podman does not report the byte count, and pulling by digest already guarantees integrity |
+| Images kept per service | the running version, `previous`, and the newest version pulled |
+| Uploaded bundle | a configured cap (proposed 8 GiB; the host refuses a file > 8 GiB), requires ≥ 2× free space on `core` when receiving; when loading an image the host requires ≥ 3 × the size of its archive (room for the image and the host state) |
+| Check frequency | at most every 6 hours + jitter ± 30 minutes (default, can be turned off at Privacy → `update_check`) |
+| Index expiry | ≤ 14 days |
+| Health-check deadline after an update | 120 seconds (default) |
+| History shown in the GUI | the 20 most recent entries (UpdatesState.history) |
 
-## 13. Cân nhắc bảo mật (ánh xạ SYS)
+## 13. Security considerations (mapping to SYS)
 
-| SYS | Áp dụng |
+| SYS | Applies |
 |---|---|
-| SYS-1 | Cập nhật không có shell; chỉ lệnh trong allowlist của `vedette-host` (`host-api.md`); `core` không chạm apt/podman |
-| SYS-2 | JSON manifest/index validate theo schema, `service` theo enum, digest theo `^sha256:[a-f0-9]{64}$`, URL chỉ `https` và host nằm trong danh sách khai báo |
-| SYS-3 | Mọi kiểm tra/cài/rollback/nhập bundle ghi `core_audit` và nhật ký của host |
-| SYS-4 | Khoá ký **riêng** không bao giờ vào hộp; chỉ khoá công khai nhúng |
-| SYS-5 | Tắt kiểm tra (`update_check=false`) → không job, không request ra; dữ liệu giữ |
-| SYS-6 | Manifest/index/bundle từ mạng/USB là **không tin cậy** tới khi ký; giới hạn kích thước, parse fail-closed |
-| SYS-7 | URL tải thuộc **danh sách host cố định** khai trong PRIVACY (GitHub, registry, mirror apt); không theo redirect ra ngoài danh sách |
-| SYS-8 | AI không có đường kích hoạt cập nhật |
+| SYS-1 | Updates have no shell; only commands in the `vedette-host` allowlist (`host-api.md`); `core` does not touch apt/podman |
+| SYS-2 | The manifest/index JSON is validated against a schema, `service` against an enum, digest against `^sha256:[a-f0-9]{64}$`, URLs only `https` and the host in the declared list |
+| SYS-3 | Every check/install/rollback/bundle import writes `core_audit` and the host's log |
+| SYS-4 | The **private** signing key never enters the box; only the public key is embedded |
+| SYS-5 | Turning the check off (`update_check=false`) → no job, no outbound request; data is kept |
+| SYS-6 | A manifest/index/bundle from the network/USB is **untrusted** until signed; size limits, fail-closed parsing |
+| SYS-7 | Download URLs belong to the **fixed host list** declared in PRIVACY (GitHub, the registry, the apt mirror); redirects outside the list are not followed |
+| SYS-8 | The AI has no path to trigger an update |
 
-Mối đe doạ và biện pháp: (a) chiếm kho GitHub/registry → không ký được nên hộp từ chối; (b) lộ khoá ký → thu hồi khoá trong `index.json` ký bằng khoá dự phòng ngoại tuyến đã nhúng sẵn + binary mới (điểm yếu nếu cả hai lộ); (c) rollback/replay manifest cũ có lỗ hổng → `sequence`; (d) freeze (giữ index cũ để hộp không thấy bản vá) → `expires_at` + cảnh báo trên trang Updates (`UpdatesState.stale_since`); (e) đầu độc bundle → kiểm lại toàn bộ chữ ký; (f) lan rộng bản lỗi → cohort + `beta` ≥ 7 ngày + health check + rollback; (g) `core` bị chiếm → host xác minh độc lập.
+Threats and measures: (a) taking over the GitHub repository/registry → it cannot sign, so the box refuses; (b) a leaked signing key → revoke the key in an `index.json` signed with the embedded offline backup key + a new binary (a weakness if both leak); (c) rollback/replay of an old manifest with a vulnerability → `sequence`; (d) freeze (holding back an old index so the box does not see the fix) → `expires_at` + a warning on the Updates page (`UpdatesState.stale_since`); (e) bundle poisoning → re-verify all signatures; (f) spread of a bad release → cohort + `beta` ≥ 7 days + health check + rollback; (g) `core` taken over → the host verifies independently.
 
 ## 14. Versioning
 
-- `schema` của `index.json` và manifest là số nguyên; `schema` khác bản hộp hiểu → "Update the box through bundle or reinstall" (hộp không đoán). **Trong cùng một `schema`, trường lạ bị từ chối** (fail closed, SYS-6): thêm trường phải tăng `schema`. Để hộp cũ vẫn nhận được thu hồi, người phát hành **tiếp tục đăng index của schema trước** cạnh bản mới (ví dụ `index.v1.json`) ít nhất 12 tháng sau mỗi lần tăng `schema`. Điều này thay câu "trường lạ bị bỏ qua" trước đây, vốn mâu thuẫn với §5.1.
-- Nhãn phiên bản: SemVer 2.0; kênh `beta` dùng hậu tố `-beta.N`.
-- `min_upgrade_from` bảo vệ nhảy phiên bản; `db_schema` tăng đơn điệu.
-- Giao thức host (`host-api.md`) có số phiên bản riêng; manifest ghi `host.version` tối thiểu cần để cài bản này.
+- The `schema` of `index.json` and the manifest is an integer; a `schema` different from the one the box understands → "Update the box through bundle or reinstall" (the box does not guess). **Within the same `schema`, unknown fields are rejected** (fail closed, SYS-6): adding a field must raise `schema`. So that old boxes can still receive revocations, the publisher **keeps publishing the previous schema's index** next to the new one (for example `index.v1.json`) for at least 12 months after each `schema` increase. This replaces the earlier sentence "unknown fields are ignored", which contradicted §5.1.
+- Version label: SemVer 2.0; the `beta` channel uses the suffix `-beta.N`.
+- `min_upgrade_from` protects against version jumps; `db_schema` increases monotonically.
+- The host protocol (`host-api.md`) has its own version number; the manifest records the minimum `host.version` needed to install this release.
 
-## 15. Câu hỏi mở
+## 15. Open questions
 
-1. ~~**Cosign: khoá hay keyless**~~ **Đã chốt:** hộp kiểm bằng khoá cosign nhúng, ngoại tuyến, trong mã của dự án, chữ ký đi trong manifest; khoá minisign dự phòng ngoại tuyến do người duy trì giữ được nhúng cùng khoá đang dùng. Còn mở: CI có đăng thêm chữ ký keyless cho người dùng không. Mã kiểm đã có (lát 3-2, mục 5.1); người duy trì còn phải tạo ba khoá ngoại tuyến và dán phần công khai vào `internal/release/keys.go`.
-2. **Registry image và nơi lưu `index.json`**: thiết kế dùng GitHub chỉ để phát hành phần mềm; GHCR hợp lý nhưng chưa chốt. Hộp thử nghiệm khi repo còn riêng tư cần token đọc (credential nằm ở đâu?). `channels.json` + mirror thứ hai của UPDATES §6 còn giữ không khi đã bỏ builder/Cloudflare cho dữ liệu?
-3. ~~**Cập nhật chính `vedette-host`**~~ **Đã chốt:** `.deb` ký trên GitHub Release, host tự nâng cấp; lệnh chưa có trong allowlist (để sau).
-4. Có nên cho nút "Install anyway" với bản chưa tới cohort (spec: không)?
-5. Khoá `K_cohort`/`install_id`: giữ chung với tín hiệu ẩn danh hay riêng để tắt tín hiệu không đổi cohort.
-6. `rollback_if_possible` tự động: bật mặc định hay luôn cần admin?
-7. Thời gian health check, tần suất kiểm tra, trần bundle là điểm xuất phát chưa đo.
-8. Chữ ký của phụ thuộc bên thứ ba trong image (nuclei, OpenCanary; nmap không nằm trong image ký nào, nó được cài lúc dựng `scan` trên hộp): Vedette đóng gói và ký **toàn image**; cần ghi vào `THIRD_PARTY_NOTICES` cách dùng (tiến trình riêng trong container) khi xây (rule `legal.md`).
+1. ~~**Cosign: key or keyless**~~ **Decided:** the box verifies with an embedded, offline cosign key, in the project's own code, with the signature travelling in the manifest; the offline backup minisign key held by the maintainer is embedded together with the active key. Still open: whether CI also publishes a keyless signature for users. The verification code exists (section 5.1); the maintainer still has to create the three offline keys and paste the public parts into `internal/release/keys.go`.
+2. **The image registry and where `index.json` is stored**: the design uses GitHub only to publish software; GHCR is reasonable but not settled. A test box needs a read token while the repository is still private (where does the credential live?). Should `channels.json` + the second mirror of UPDATES §6 be kept now that the builder/Cloudflare has been dropped for data?
+3. ~~**Updating `vedette-host` itself**~~ **Decided:** the `.deb` signed on the GitHub Release, the host upgrades itself; the command is not yet in the allowlist (left for later).
+4. Should there be an "Install anyway" button for a release whose cohort has not arrived (spec: no)?
+5. The key `K_cohort`/`install_id`: shared with the anonymous signal or separate, so turning off the signal does not change the cohort.
+6. Automatic `rollback_if_possible`: on by default or always needing an admin?
+7. The health-check time, check frequency and bundle cap are starting points, not measured.
+8. Signatures of third-party dependencies in the image (nuclei, OpenCanary; nmap is in no signed image, it is installed when `scan` is built on the box): Vedette packages and signs the **whole image**; how they are used (a separate process in a container) must be recorded in `THIRD_PARTY_NOTICES` when building (rule `legal.md`).

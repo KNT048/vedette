@@ -148,6 +148,10 @@ func TestIdentify(t *testing.T) {
 		{"no signal", Facts{Vendor: "Hewlett Packard", VendorFromCard: true, Services: []Service{svc(80, "http"), svc(443, "https"), svc(8000, "http-alt")}},
 			"", "", ""},
 		{"udp ports do not count", Facts{Services: []Service{{Port: 554, Proto: "udp"}}}, "", "", ""},
+		// An HP server whose OS a scan read as VMware ESXi is a virtualization host, not the HP switch its card and ports suggest.
+		{"ESXi on an HP server", Facts{Vendor: "Hewlett Packard", VendorFromCard: true, OS: "VMware ESXi 8.0 Update 3 (build 24022510)",
+			Services: []Service{svc(22, "ssh"), svc(80, "http"), svc(443, "https"), svc(8000, "http-alt")}}, "hypervisor", "", `Operating system "VMware ESXi 8.0 Update 3`},
+		{"Proxmox VE", Facts{Vendor: "Supermicro", VendorFromCard: true, OS: "Proxmox VE 8.2"}, "hypervisor", "", "virtualization host"},
 	}
 	if g, ok := Identify(Facts{Vendor: "Intelbras", VendorFromCard: true, Services: []Service{svc(22, "ssh")}}); ok {
 		t.Errorf("Intelbras + SSH guessed %+v: it is no PC maker", g)

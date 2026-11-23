@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, screen, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import { renderApp } from '@/test/render'
 import { assetsStore } from '@/mocks/stores'
 import { fmtDateTime } from '@/lib/format'
@@ -111,6 +111,19 @@ describe('Device page and list: what a person entered, what the network saw', ()
       expect(await screen.findByText('Firewall, last seen 2 hours ago', undefined, T)).toBeInTheDocument()
       assetsStore.update((l) => l.map((a) => (a.id === 'a-hand-live' ? { ...a, last_seen: new Date().toISOString() } : a))) // an agent report
       expect(await screen.findByText(/^Firewall, last seen (now|less than a minute ago|\d+ seconds? ago)$/, undefined, T)).toBeInTheDocument()
+    } finally { devicePoll.ms = 60_000 }
+  })
+
+  it('the open Devices list reads again by itself: a device that moved to To review is not left claiming it is not there', async () => {
+    devicePoll.ms = 200
+    try {
+      addFirewall('a-moved', '192.168.10.84', ago(1))
+      renderApp('/devices?tab=devices')
+      const table = await screen.findByRole('table', { name: 'Device list' }, T)
+      expect(await within(table).findByText('fw-edge-01', undefined, T)).toBeInTheDocument()
+      assetsStore.update((l) => l.map((a) => (a.id === 'a-moved' ? { ...a, approved: false, origin: 'discovered' as const } : a))) // no longer added
+      await waitFor(() => expect(within(table).queryByText('fw-edge-01')).toBeNull(), T)
+      expect(screen.getByRole('tab', { name: /To review/ })).toHaveTextContent(/\d+ not added yet/)
     } finally { devicePoll.ms = 60_000 }
   })
 })

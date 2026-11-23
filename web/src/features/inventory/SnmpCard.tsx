@@ -222,7 +222,7 @@ function Blocked({ d, s, onEdit }: { d: DeviceDetail; s: DeviceSnmp; onEdit: () 
         onClick={() => sources.mutate({ snmp: 'on' }, { onSuccess: () => toast.success(t('sources.saved.snmp.on', { name })), onError: (e) => toast.error(errMsg(e)) })}>{t('deviceSnmp.blocked.fix.turnOn')}</Button>
     )
     : reason === 'not_approved' ? (
-      <Button size="sm" busy={approve.isPending} busyLabel={t('common:busy.approving')}
+      <Button size="sm" busy={approve.isPending} busyLabel={t('inventory:pending.adding')}
         onClick={() => approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name })), onError: (e) => toast.error(errMsg(e)) })}>{t('deviceSnmp.blocked.fix.approve')}</Button>
     )
     : reason === 'scope_not_confirmed' ? <ScopeButton />

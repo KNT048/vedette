@@ -36,9 +36,10 @@ import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
 import { EnteredNote } from './EnteredNote'
 import { NotInstalledDialog } from './NotInstalledDialog'
-import { errMsg } from './kinds'
+import { errMsg, shownKind } from './kinds'
 import { badUserName, declaredSoftwareOnly, hasSourcesCard, nameOf, neverSeen } from './nameOf'
 import { DeviceSources } from './DeviceSources'
+import { DeviceIncidents } from './DeviceIncidents'
 import { PossibleSameNotice } from './SameDevice'
 import { AddressesSection } from './AddressesSection'
 import { MergeFlow } from './MergeDialog'
@@ -471,7 +472,7 @@ function Approval({ d }: { d: DeviceDetail }) {
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
     <Notice tone="warn" title={d.suspicious ? t('approval.suspicious') : d.asset.quiet ? t('approval.quiet') : t('approval.pending')} info={t('approval.bodyInfo')} actions={<>
-        <Button variant="primary" disabled={!can} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
+        <Button variant="primary" disabled={!can} busy={act.approve.isPending} busyLabel={t('inventory:pending.adding')} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
         <Button disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
         <Button disabled={!can} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </>}>
@@ -510,6 +511,9 @@ function Body() {
   const d = q.data
   const a = d.asset
   const name = nameOf(a, kindLabel(a.kind))
+  // the type the Devices list shows: the kind, or while it is unknown the type the rules guess, marked likely (one type everywhere)
+  const shown = shownKind(a)
+  const headerKind = shown.guessed ? t('guess.likelyKind', { kind: kindLabel(shown.kind) }) : kindLabel(shown.kind)
   const tabCount = (n: number, label: string) => ({ count: n, label, tone: 'off' as const })
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const badge = summary ? summary.badge : badgeOfRisk(d.risk)
@@ -520,7 +524,7 @@ function Body() {
   return (
     <>
       <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2', 'S-INV-3']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<DeviceBadge id={a.id} badge={badge} label={!summary && d.risk ? `${riskWord(t, d.risk)}: ${riskDescription(t, d.risk)}` : undefined} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{neverSeen(a) ? t('detail.metaLineNeverSeen', { kind: kindLabel(a.kind), when: fmtRelative(a.first_seen) }) : t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<DeviceBadge id={a.id} badge={badge} label={!summary && d.risk ? `${riskWord(t, d.risk)}: ${riskDescription(t, d.risk)}` : undefined} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{neverSeen(a) ? t('detail.metaLineNeverSeen', { kind: headerKind, when: fmtRelative(a.first_seen) }) : t('detail.metaLine', { kind: headerKind, when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
         titleAction={<RenameDevice d={d} />} />
       {a.is_box ? <BoxNotice assetId={a.id} /> : null}
       {/* #829: before the approval, since merging a new row into the known device answers its approval too */}
@@ -532,6 +536,7 @@ function Body() {
         { id: 'overview', label: t('detail.tabs.overview'), panel: (
           <>
             {summary ? <DeviceFindingsLine summary={summary} /> : null}
+            <DeviceIncidents id={a.id} />
             <Section id="overview" title={t('detail.overview')}><Card><Overview d={d} /></Card></Section>
             <AddressesSection deviceId={a.id} name={name} isBox={a.is_box} addresses={d.addresses ?? []} onMerge={() => setMerging(true)} />
             {hasSourcesCard(a) ? <DeviceSources d={d} /> : null}

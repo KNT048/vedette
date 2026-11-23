@@ -1,16 +1,16 @@
 {
   "off": {
     "title": "The device list is off",
-    "body": "Turn on the Inventory module to view, declare and approve devices. Existing data is kept."
+    "body": "Turn on the Inventory module to view, declare and add devices. Existing data is kept."
   },
   "chip": {
-    "pending": "Not approved",
+    "pending": "Not added yet",
     "suspicious": "Marked unknown",
     "fragile": "Fragile",
     "fragileHint": "Passive listening only, never actively scanned, so it does not hang.",
     "privateMac": "Private address",
     "privateMacHint": "Its MAC is a private (randomised) address the device picks for itself and changes, so it may show up again under a new one.",
-    "quietHint": "Private address, not approved. It is not in To review: it has no open service and has not stayed long. It moves to To review if it opens a service or keeps coming back for more than a day.",
+    "quietHint": "Private address, not added yet. It is not in To review: it has no open service and has not stayed long. It moves to To review if it opens a service or keeps coming back for more than a day.",
     "declared": "Declared software",
     "declaredHint": "A product you said you run, with no address or name. Nothing scans it; it is checked against exploited vulnerabilities by its product."
   },
@@ -132,10 +132,10 @@
   },
   "list": {
     "titleLoading": "Devices",
-    "title_one": "{{count}} device, {{pending}} not yet approved",
-    "title_other": "{{count}} devices, {{pending}} not yet approved",
-    "titleAllApproved_one": "{{count}} device, approved",
-    "titleAllApproved_other": "{{count}} devices, all approved",
+    "title_one": "{{count}} device, {{pending}} not added yet",
+    "title_other": "{{count}} devices, {{pending}} not added yet",
+    "titleAllApproved_one": "{{count}} device, added",
+    "titleAllApproved_other": "{{count}} devices, all added",
     "meta": "Open a device for each value's source and confidence.",
     "metaInfo": "New values are added; old values are never overwritten.",
     "all": "All devices",
@@ -147,7 +147,7 @@
     "label": "Device lists",
     "devices": "Devices",
     "review": "To review",
-    "reviewBadge": "waiting for your approval",
+    "reviewBadge": "not added yet",
     "ignoredCount_one": "Ignored ({{count}})",
     "ignoredCount_other": "Ignored ({{count}})"
   },
@@ -168,7 +168,7 @@
   },
   "table": {
     "caption": "Device list",
-    "emptyApproved": "No approved devices yet. New devices wait under To review."
+    "emptyApproved": "No devices added yet. New devices wait under To review."
   },
   "empty": {
     "title": "No devices yet",
@@ -184,20 +184,22 @@
   },
   "export": "Export CSV",
   "pending": {
-    "title_one": "{{count}} new device not approved",
-    "title_other": "{{count}} new devices not approved",
+    "title_one": "{{count}} new device not added yet",
+    "title_other": "{{count}} new devices not added yet",
     "titleNone": "No new devices waiting",
-    "description": "New devices wait here until you approve them.",
-    "approveAll": "Approve all ({{count}})",
-    "approveAllTitle": "Approve {{count}} devices?",
-    "approveAllBody_one": "This approves the 1 device listed here. A device marked unknown stays in the list.",
-    "approveAllBody_other": "This approves the {{count}} devices listed here (the list as it is filtered now). Devices marked unknown stay in the list.",
-    "approveAllDone": "Approved {{count}} devices.",
-    "approveAllFailed": "Approved {{done}} of {{count}} devices, then it stopped: {{error}}",
-    "descriptionInfo": "A device seen on the network for the first time stays here until you approve it. If it needs no watching, such as a staff phone, ignore it. If you do not recognise it, remove it from the list. Removing does not disconnect it.",
+    "description": "New devices wait here until you add them to your devices.",
+    "approveAll": "Add all ({{count}})",
+    "approveAllTitle": "Add {{count}} devices?",
+    "approveAllConfirm": "Add {{count}} devices",
+    "adding": "Adding…",
+    "approveAllBody_one": "This adds the 1 device listed here to your devices. A device marked unknown stays in the list.",
+    "approveAllBody_other": "This adds the {{count}} devices listed here to your devices (the list as it is filtered now). Devices marked unknown stay in the list.",
+    "approveAllDone": "Added {{count}} devices.",
+    "approveAllFailed": "Added {{done}} of {{count}} devices, then it stopped: {{error}}",
+    "descriptionInfo": "A device seen on the network for the first time stays here until you add it. If it needs no watching, such as a staff phone, ignore it. If you do not recognise it, remove it from the list. Removing does not disconnect it.",
     "firstSeen": "First seen {{when}}.",
-    "approve": "Approve",
-    "approved": "Approved {{name}}.",
+    "approve": "Add device",
+    "approved": "Added {{name}} to your devices.",
     "findLater": "Find it later in Devices.",
     "mark": "Mark unknown",
     "unmark": "Remove unknown mark",
@@ -371,12 +373,12 @@
     "metaLineNeverSeen": "{{kind}}, added by hand {{when}}, never seen on the network"
   },
   "approval": {
-    "pending": "This device is not approved yet",
+    "pending": "This device is not added yet",
     "suspicious": "This device is marked unknown",
-    "body": "Approve it if you recognise it.",
+    "body": "Add it to your devices if you recognise it.",
     "bodyInfo": "Until then it is still tracked but stays in the waiting list.",
-    "quiet": "This device uses a private address and is not approved yet",
-    "quietBody": "Phones and laptops change their private address, so this one is not in To review while it shows nothing to look at. It moves there if it opens a service or keeps coming back for more than a day. Approve it if you recognise it."
+    "quiet": "This device uses a private address and is not added yet",
+    "quietBody": "Phones and laptops change their private address, so this one is not in To review while it shows nothing to look at. It moves there if it opens a service or keeps coming back for more than a day. Add it to your devices if you recognise it."
   },
   "privateMac": {
     "note": "This device uses a private (randomised) MAC address.",
@@ -1006,8 +1008,16 @@
     "source": "This box",
     "origin": "This box (always on the list)"
   },
+  "incidents": {
+    "title_one": "{{count}} open incident",
+    "title_other": "{{count}} open incidents",
+    "info": "What Vedette raised about this device that is not handled yet: a trap it touched, an intrusion attempt against it, a connection to a known-bad address. Open one to acknowledge or resolve it.",
+    "all": "All incidents",
+    "seen": "seen {{when}}"
+  },
   "guess": {
     "likely": "likely",
+    "likelyKind": "{{kind}} (likely)",
     "title": "Most likely: {{kind}} ({{category}})",
     "model": "model {{model}}",
     "hint": "Vedette's guess from what it has seen. Until you confirm it, scans still treat this device as unknown and careful.",
@@ -1100,7 +1110,7 @@
     },
     "shownOf_one": "{{shown}} of {{count}} device shown",
     "shownOf_other": "{{shown}} of {{count}} devices shown",
-    "pending": "{{count}} not yet approved",
+    "pending": "{{count}} not added yet",
     "clear": "Clear filters",
     "none": "No devices match.",
     "softwareWaiting": "Looking for this software…",
@@ -1194,8 +1204,8 @@
   },
   "snmpNext": {
     "edit": "Edit {{name}}",
-    "approve": "Approve {{ip}} and read it",
-    "approved": "Approved {{ip}}. Reading it now.",
+    "approve": "Add {{ip}} and read it",
+    "approved": "Added {{ip}}. Reading it now.",
     "scopeWhy": "An administrator adds it to the scan scope.",
     "scope": "Open the scan scope",
     "confirmScope": "Confirm the scan scope",
@@ -1203,7 +1213,7 @@
     "scanning": "Turn on active scanning in Scope",
     "neverWhy": "This device is set to Never scan.",
     "never": "Change it on the device page",
-    "notListedWhy": "Vedette has not found this address yet. The next scan or the sensor finds it; approve it under To review, then read it here.",
+    "notListedWhy": "Vedette has not found this address yet. The next scan or the sensor finds it; add it under To review, then read it here.",
     "notListed": "Open To review",
     "publicWhy": "{{ip}} is a public address: Vedette only reads devices inside your own network.",
     "excluded": "Change the exclusions in Scope",
@@ -1234,12 +1244,12 @@
     "bulkBoxLeftOut": "The Vedette box is left out: it is always its own device.",
     "title": "Merge {{count}} devices",
     "description": "One device stays; the others join it and leave the lists. Split an address off to undo.",
-    "info": "Use this when several rows are one machine: the interfaces of a firewall or router, a server with two network cards, a phone with a new private Wi-Fi address. The device you keep keeps its id, main address, notes, settings and findings history; the addresses, software, open ports and findings of the others move to it, and it is found by any of its addresses. It becomes approved when one of them was. Split off an address on its Addresses list to make it a device of its own again.",
+    "info": "Use this when several rows are one machine: the interfaces of a firewall or router, a server with two network cards, a phone with a new private Wi-Fi address. The device you keep keeps its id, main address, notes, settings and findings history; the addresses, software, open ports and findings of the others move to it, and it is found by any of its addresses. It is added to your devices when one of them was. Split off an address on its Addresses list to make it a device of its own again.",
     "keep": "Device to keep",
-    "keepHint": "Picked for you: the one with an agent, an approval, a name or the most findings.",
+    "keepHint": "Picked for you: the one with an agent, the one you added, a name or the most findings.",
     "suggested": "Suggested",
-    "approved": "Approved",
-    "pending": "Waiting for review",
+    "approved": "Added",
+    "pending": "Not added yet",
     "ignored": "Ignored",
     "agent": "Agent",
     "addressMore_one": "and {{count}} more address",
@@ -1355,8 +1365,8 @@
     "titleMany_one": "Possibly the same device as {{count}} other device",
     "titleMany_other": "Possibly the same device as one of {{count}} other devices",
     "info": "Vedette could not be sure these rows are one machine: phones and laptops change their private Wi-Fi address, and many share a name such as \"iPhone\". Merge keeps one device with its approval, notes and findings, and moves the other one's addresses, software and findings to it. Keep separate means Vedette will not ask again for these two. Two machines that agents or hardware MAC addresses tell apart are never offered.",
-    "stateApproved": "Approved, seen {{when}}",
-    "statePending": "Waiting for review, seen {{when}}",
+    "stateApproved": "Added, seen {{when}}",
+    "statePending": "Not added yet, seen {{when}}",
     "merge": "Merge",
     "mergeWith": "Merge with {{name}}",
     "keepSeparate": "Keep separate",
@@ -1374,7 +1384,7 @@
     "watch": {
       "staysIgnored": "{{into}} stays ignored: it is not scanned and the open findings that move from {{from}} close.",
       "staysWatched": "{{into}} stays watched: the findings of {{from}} that closed when it was ignored reopen.",
-      "watchedAgain": "{{into}} is watched again, because {{from}} is an approved device you watch: its findings that closed when it was ignored reopen."
+      "watchedAgain": "{{into}} is watched again, because {{from}} is a device you added and watch: its findings that closed when it was ignored reopen."
     }
   },
   "risk": {
@@ -1487,7 +1497,7 @@
         "moved": "Set the read address",
         "secret_lost": "Enter it again",
         "turnOn": "Turn SNMP on",
-        "approve": "Approve",
+        "approve": "Add device",
         "scanning": "Open Settings, Scanning"
       }
     },

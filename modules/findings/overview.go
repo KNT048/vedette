@@ -94,6 +94,16 @@ func (h *FindingHandlers) Overview(ctx context.Context) (*Overview, error) {
 }
 
 func (h *FindingHandlers) computeOverview(ctx context.Context, src HomeSources, notifyOn bool, now time.Time) (*Overview, error) {
+	var out *Overview
+	err := h.svc.readTx(ctx, func(ctx context.Context) error {
+		var err error
+		out, err = h.overviewIn(ctx, src, notifyOn, now)
+		return err
+	})
+	return out, err
+}
+
+func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notifyOn bool, now time.Time) (*Overview, error) {
 	s := h.svc
 	o := &Overview{First: []FirstItem{}, GeneratedAt: store.FormatTS(now)}
 	ignored, err := s.ignoredDevices(ctx)
@@ -114,8 +124,12 @@ func (h *FindingHandlers) computeOverview(ctx context.Context, src HomeSources, 
 	if err != nil {
 		return nil, err
 	}
+	boxes, err := s.cfg.Inventory.Assets(ctx, keysOf(statuses))
+	if err != nil {
+		return nil, fmt.Errorf("findings: overview: reading devices: %w", err)
+	}
 	for id, st := range statuses {
-		if ignored[id] {
+		if ignored[id] || boxes[id].Box { // the Vedette box never carries a badge, as on the Devices list
 			continue
 		}
 		if l, ok := layerOf(st.Code); ok {
@@ -162,7 +176,7 @@ func (s *Service) openByLayer(ctx context.Context, c *StatusCounts) error {
 	if err != nil {
 		return err
 	}
-	r, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT urgency, count(*) FROM fnd_finding WHERE `+rows+` GROUP BY urgency`, args...)
+	r, err := s.rd(ctx).QueryContext(ctx, `SELECT urgency, count(*) FROM fnd_finding WHERE `+rows+` GROUP BY urgency`, args...)
 	if err != nil {
 		return fmt.Errorf("findings: overview: counting open findings: %w", err)
 	}
@@ -249,7 +263,7 @@ func (s *Service) trend(ctx context.Context, now time.Time, ignored map[string]b
 	ends[TrendDays-1] = now
 	out := make([]int, TrendDays)
 	ig, _ := json.Marshal(nonNilStrings(keysOf(ignored)))
-	r, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT first_seen, ifnull(resolved_at, '') FROM fnd_finding
+	r, err := s.rd(ctx).QueryContext(ctx, `SELECT first_seen, ifnull(resolved_at, '') FROM fnd_finding
 		WHERE asset_id NOT IN (SELECT value FROM json_each(?)) AND first_seen <= ? AND (state = 'open' OR resolved_at >= ?)`,
 		string(ig), store.FormatTS(now), store.FormatTS(start))
 	if err != nil {

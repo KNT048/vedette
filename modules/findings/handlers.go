@@ -35,7 +35,7 @@ type FindingHandlers struct {
 	guide        Guidance
 	agents       AgentReports
 	scanReach    ScanReach
-	summaryState // GET /findings/summary (summary.go); sum and home under mu
+	summaryState // GET /findings/overview (overview.go); ov and home under mu
 }
 
 // NewFindingHandlers returns the handlers. gate says whether mitigation is on: while it is off the registered

@@ -74,7 +74,12 @@ type InputList struct {
 // Input reads one page of the queue (of one device when device is set): devices not added yet first, then unconfirmed findings by
 // status, then questions by the CVEs waiting on them.
 func (s *Service) Input(ctx context.Context, device string, p Page) (InputList, error) {
-	items, err := s.inputItems(ctx, device)
+	var items []InputItemJS
+	err := s.readTx(ctx, func(ctx context.Context) error {
+		var err error
+		items, err = s.inputItems(ctx, device)
+		return err
+	})
 	if err != nil {
 		return InputList{}, err
 	}
@@ -87,10 +92,10 @@ func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS,
 	if err != nil {
 		return nil, err
 	}
-	q := s.cfg.DB.Reader()
+	q := s.rd(ctx)
 	// devices not added yet with open findings
 	counts := map[string]int{}
-	r, err := q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_finding WHERE `+rows+` GROUP BY asset_id`, args...) //nolint:gosec // G202: fixed SQL fragments; values are bound
+	r, err := q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_finding WHERE `+rows+` GROUP BY asset_id`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("findings: needs your input: %w", err)
 	}
@@ -207,7 +212,7 @@ func (s *Service) openQuestions(ctx context.Context, device string) ([]Question,
 		return nil, fmt.Errorf("findings: reading the ignored devices: %w", err)
 	}
 	ig, _ := json.Marshal(nonNilStrings(ignored))
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT `+questionColumns+` FROM fnd_question
+	rows, err := s.rd(ctx).QueryContext(ctx, `SELECT `+questionColumns+` FROM fnd_question
 		WHERE answer IS NULL AND asset_id NOT IN (SELECT value FROM json_each(?)) AND (?2 = '' OR asset_id = ?2)
 		ORDER BY cves DESC, asked_at, id`, string(ig), device)
 	if err != nil {
@@ -269,6 +274,16 @@ type HandledList struct {
 
 // Handled reads one page of the handled findings of devices nobody ignored, the newest handling first.
 func (s *Service) Handled(ctx context.Context, f HandledFilter, p Page) (HandledList, error) {
+	var out HandledList
+	err := s.readTx(ctx, func(ctx context.Context) error {
+		var err error
+		out, err = s.handled(ctx, f, p)
+		return err
+	})
+	return out, err
+}
+
+func (s *Service) handled(ctx context.Context, f HandledFilter, p Page) (HandledList, error) {
 	rows, args, cond, cargs, err := s.where(ctx, StateHandled, ListFilter{Device: f.Device, Q: f.Q})
 	if err != nil {
 		return HandledList{}, err
@@ -290,10 +305,10 @@ func (s *Service) Handled(ctx context.Context, f HandledFilter, p Page) (Handled
 		w, args = w+` AND resolved_at <= ?`, append(args, store.FormatTS(f.To))
 	}
 	out := HandledList{Items: []HandledRowJS{}}
-	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM fnd_finding WHERE `+w, args...).Scan(&out.Total); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := s.rd(ctx).QueryRowContext(ctx, `SELECT count(*) FROM fnd_finding WHERE `+w, args...).Scan(&out.Total); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return HandledList{}, fmt.Errorf("findings: counting handled findings: %w", err)
 	}
-	fs, err := selectFindings(ctx, s.cfg.DB.Reader(), w+` ORDER BY resolved_at DESC, id LIMIT ? OFFSET ?`, append(args, p.Limit, p.Offset)...)
+	fs, err := selectFindings(ctx, s.rd(ctx), w+` ORDER BY resolved_at DESC, id LIMIT ? OFFSET ?`, append(args, p.Limit, p.Offset)...)
 	if err != nil {
 		return HandledList{}, err
 	}
@@ -318,10 +333,12 @@ const (
 
 // API errors of answering a question.
 var (
-	ErrNoQuestion       = &APIError{"not_found", 404, "No such question."}
-	ErrAnswered         = &APIError{"already_answered", 409, "This question is answered already."}
-	ErrSeveralCVEs      = &APIError{"invalid", 400, "This question is about several CVEs: give the version on the software line instead."}
-	ErrBadAnswer        = &APIError{"invalid", 400, "Answer affected or not affected."}
+	ErrNoQuestion  = &APIError{"not_found", 404, "No such question."}
+	ErrAnswered    = &APIError{"already_answered", 409, "This question is answered already."}
+	ErrSeveralCVEs = &APIError{"invalid", 400, "This question is about several CVEs: give the version on the software line instead."}
+	ErrBadAnswer   = &APIError{"invalid", 400, "Answer affected or not affected."}
+	// ErrFixTooBig is a fix with more open findings on one device than one handle request may change.
+	ErrFixTooBig        = &APIError{"invalid", 400, fmt.Sprintf("This fix has more than %d open findings on the device: tick the CVEs to handle, %d at a time.", MaxBulk, MaxBulk)}
 	ErrAffectedNeedsWhy = &APIError{"confirm_note_required", 400, "Write what makes you sure (at least 3 characters) so the next person understands."}
 )
 
@@ -402,7 +419,7 @@ func (s *Service) affectedByPerson(ctx context.Context, tx *sql.Tx, x Question, 
 			product = ls[x.SoftwareID].ProductKey
 		}
 		f = Finding{ID: store.NewID("f"), AssetID: x.AssetID, CVE: x.CVE}
-		d := Detection{SoftwareID: x.SoftwareID, Basis: DetectPerson, Verified: VerifiedNo, RangeOrigin: RangeNVD, MatchedVersion: x.Detail.Version,
+		d := Detection{SoftwareID: x.SoftwareID, Basis: DetectPerson, Verified: VerifiedNo, RangeOrigin: RangePerson, MatchedVersion: x.Detail.Version,
 			ProductKey: product, Fix: Fix{Kind: FixUnknown}}
 		if f, _, err = s.step(ctx, tx, f, true, Trigger{Kind: TrDetected, At: now, Detection: d}, emit); err != nil {
 			return "", err

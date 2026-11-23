@@ -215,11 +215,10 @@ export const PlanCve = z.object({
   epss: z.number().min(0).max(1).nullable(),
   percentile: z.number().min(0).max(1).nullable(),
 })
-/** A device's risk marker (the same value as GET /inventory/devices gives, findings.RiskMap); null when clean, for the Vedette box
- * itself, or when the marker could not be read. */
-export const DeviceRiskView = z.object({ code: z.enum(DEVICE_STATUSES), count: z.number().int().min(1) }).nullable().describe('The device badge (the device status every list gives)')
-  .describe('The device\'s risk marker: exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read')
-/** A recommended update a person marked as done (POST /findings/plan/done). */
+/** A device's badge, the device status every list gives (GET /inventory/devices, the findings lists, Home); null when it has none. */
+export const DeviceRiskView = z.object({ code: z.enum(DEVICE_STATUSES), count: z.number().int().min(1) }).nullable()
+  .describe('The device badge: its most urgent open status with the distinct CVEs at it, else needs_input; null when it has none, for the Vedette box itself, or when it could not be read')
+/** A recommended update a person marked as done; no mark is made any more (a person who installed it marks its findings Patched). */
 export const PlanDone = z.object({
   by: z.string().describe('Who marked it done'),
   at: iso.describe('When'),
@@ -244,7 +243,7 @@ export const PlanItem = z.object({
   recent: z.number().int().min(0),
   agent_gone: z.boolean().describe('A CVE of the item rests on an agent\'s row and no agent of this box reports the device now (agent-intake off, no agent bound, the agent silent past its stale limit; the same answer as the finding page\'s "No agent reports" line): `version` is the last one an agent reported'),
   agent_reported: z.iso.date().nullable().describe('With agent_gone: the day the agent last reported the row (YYYY-MM-DD); null otherwise or when not known'),
-  done: PlanDone.nullable().describe('A person marked this item done and the mark still holds (the same version, no new CVE): listed only with ?done=true; null otherwise'),
+  done: PlanDone.nullable().describe('Always null: a recommended update a person installed is Patched on its findings'),
 })
 export const PlanFeed = z.enum(['module_off', 'off', 'loading', 'ready']).describe('module_off = the feeds module is off (SYS-5: its data is not read); off = an admin has not turned the feed on; loading = on, first fill not finished; ready = loaded')
 export const Plan = z.object({
@@ -620,6 +619,7 @@ export const endpoints = defineEndpoints([
       ids: z.array(findingId).min(1).max(MAX_HANDLE).optional().describe('These findings; all of one device (else 400 many_devices). Not with device and fix'),
       device: z.string().max(96).optional().describe('With fix: that device'),
       fix: z.string().max(400).optional().describe('With device: the Fix.key whose open findings on the device are handled'),
+      software: z.string().max(96).optional().describe('With device and fix: the software line of the block (FixBlock.software.id, FixDevice.software.id); absent: the block on no software line. Two lines of one product never share a handle'),
       resolution: Resolution, note: handleNote,
       until: z.iso.date().optional().describe('accepted only: the last day, from tomorrow to 365 days ahead (else 400 bad_until)'),
     }),

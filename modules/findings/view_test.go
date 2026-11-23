@@ -247,7 +247,7 @@ func TestModelAPI_HandleOneFixOnOneDevice(t *testing.T) {
 	key := cards.Items[0].Blocks[0].Fix.Key
 	before := len(e.auditActions())
 	out := conform[oas.FindingsPostFindingsHandleOK](t, e, "POST", "/findings/handle", "operator",
-		fmt.Sprintf(`{"device":"a-nas","fix":%q,"resolution":"accepted","note":"replaced next week","until":"%s"}`, key, t0.AddDate(0, 0, 7).Format(time.DateOnly)))
+		fmt.Sprintf(`{"device":"a-nas","fix":%q,"software":"s-ssh-nas","resolution":"accepted","note":"replaced next week","until":"%s"}`, key, t0.AddDate(0, 0, 7).Format(time.DateOnly)))
 	if out.Handled != 3 || out.Skipped != 0 {
 		t.Errorf("handled %d skipped %d", out.Handled, out.Skipped)
 	}
@@ -318,4 +318,42 @@ func TestDeviceStatuses(t *testing.T) {
 		t.Errorf("fw01 after patching: %+v", got["a-fw"])
 	}
 	_ = url.QueryEscape
+}
+
+// Two lines of one product can share a fix key (no fix known yet on both Java 8 and Java 21): handling one line's block never touches
+// the other line's findings, and a handle without the line acts on the block on no line only.
+func TestModelAPI_HandleOneLineOfTwoSharingAFixKey(t *testing.T) {
+	e := modelEnv(t)
+	ctx := t.Context()
+	if err := e.db.Write(ctx, func(tx *sql.Tx) error {
+		return writeTestFinding(ctx, tx, Finding{ID: "f-j8n", AssetID: "a-fw", CVE: "CVE-2026-2003", SoftwareID: "s-j8", Fix: Fix{Kind: FixNoneYet},
+			FixKey: FixKey("oracle|jre", Fix{Kind: FixNoneYet}), Urgency: 5, FirstSeen: t0.Add(-time.Hour)})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cards := conform[oas.FindingsGetFindingsDevicesOK](t, e, "GET", "/findings/devices?device=a-fw", "viewer", "")
+	var key string
+	shared := 0
+	for _, b := range cards.Items[0].Blocks {
+		if string(b.Fix.Kind) == "none_yet" {
+			key = b.Fix.Key
+			shared++
+		}
+	}
+	if shared != 2 {
+		t.Fatalf("%d none_yet blocks on fw01, want one per Java line", shared)
+	}
+	out := conform[oas.FindingsPostFindingsHandleOK](t, e, "POST", "/findings/handle", "operator",
+		fmt.Sprintf(`{"device":"a-fw","fix":%q,"software":"s-j21","resolution":"mitigated","note":"blocked at the edge"}`, key))
+	if out.Handled != 1 {
+		t.Errorf("handled %d, want Java 21's one", out.Handled)
+	}
+	if f, _ := e.svc.Finding(ctx, "f-j8n"); f.State != StateOpen {
+		t.Errorf("Java 8's finding was handled with Java 21's block: %+v", f)
+	}
+	out = conform[oas.FindingsPostFindingsHandleOK](t, e, "POST", "/findings/handle", "operator",
+		fmt.Sprintf(`{"device":"a-fw","fix":%q,"resolution":"mitigated","note":"blocked at the edge"}`, key))
+	if out.Handled != 0 {
+		t.Errorf("without the line: handled %d, want 0 (no block on no line)", out.Handled)
+	}
 }

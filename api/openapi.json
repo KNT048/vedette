@@ -51835,6 +51835,11 @@
                     "type": "string",
                     "maxLength": 400
                   },
+                  "software": {
+                    "description": "With device and fix: the software line of the block (FixBlock.software.id, FixDevice.software.id); absent: the block on no software line. Two lines of one product never share a handle",
+                    "type": "string",
+                    "maxLength": 96
+                  },
                   "resolution": {
                     "type": "string",
                     "enum": [
@@ -53983,7 +53988,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "The device's risk marker: exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read"
+                            "description": "The device badge: its most urgent open status with the distinct CVEs at it, else needs_input; null when it has none, for the Vedette box itself, or when it could not be read"
                           },
                           "software": {
                             "type": "string",
@@ -54199,7 +54204,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "A person marked this item done and the mark still holds (the same version, no new CVE): listed only with ?done=true; null otherwise"
+                            "description": "Always null: a recommended update a person installed is Patched on its findings"
                           }
                         },
                         "required": [
@@ -54664,7 +54669,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "The device's risk marker: exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read"
+                            "description": "The device badge: its most urgent open status with the distinct CVEs at it, else needs_input; null when it has none, for the Vedette box itself, or when it could not be read"
                           },
                           "open": {
                             "type": "integer",

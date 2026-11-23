@@ -233,7 +233,7 @@ function patch(ids: string[], fn: (r: FindingRecord) => FindingRecord) {
 }
 const one = (id: string) => rows().find((r) => r.id === id)
 
-interface HandleBody { ids: string[]; device: string; fix: string; resolution: Resolution; note: string; until: string }
+interface HandleBody { ids: string[]; device: string; fix: string; software?: string; resolution: Resolution; note: string; until: string }
 
 /** Handlers of the findings model; listed before the older /findings/:id routes so that /findings/devices and the rest are not read as ids. */
 export const modelHandlers = [
@@ -262,7 +262,7 @@ export const modelHandlers = [
     if (byIds === byFix || (byFix && (!b.device || !b.fix)) || (byIds && (!Array.isArray(b.ids) || b.ids.length < 1 || b.ids.length > MAX_HANDLE)))
       return fail(400, 'bad_target', `Choose the findings: up to ${MAX_HANDLE} ids, or a device and one of its fixes.`)
     const all = rows()
-    const target = byIds ? b.ids!.map((id) => all.find((r) => r.id === id)) : all.filter((r) => r.asset_id === b.device && r.fix.key === b.fix && r.state === 'open')
+    const target = byIds ? b.ids!.map((id) => all.find((r) => r.id === id)) : all.filter((r) => r.asset_id === b.device && r.fix.key === b.fix && (r.software?.id ?? undefined) === (b.software || undefined) && r.state === 'open')
     if (!target.length || target.some((r) => !r)) return fail(404, 'not_found', byIds ? 'A finding in the list does not exist.' : 'This device has no open finding for this fix.')
     const found = target as (FindingRecord & { asset: Asset })[]
     if (new Set(found.map((r) => r.asset_id)).size > 1) return fail(400, 'many_devices', 'Mark findings of one device at a time.')

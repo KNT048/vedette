@@ -76,7 +76,7 @@ type Service struct {
 	cfg        ServiceConfig
 	now        func() time.Time
 	plan       planState       // "Updates to plan": in memory, see planpass.go
-	gen        atomic.Uint64   // counts committed writes: GET /findings/summary drops its cached answer when it moves (summary.go)
+	gen        atomic.Uint64   // counts committed writes: GET /findings/overview drops its kept answer when it moves (overview.go)
 	toFixCache classifiedCache // the classification of every device (To fix, RiskMap)
 }
 

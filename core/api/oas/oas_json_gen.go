@@ -181586,6 +181586,12 @@ func (s *FindingsPostFindingsHandleReq) encodeFields(e *jx.Encoder) {
 		s.Resolution.Encode(e)
 	}
 	{
+		if s.Software.Set {
+			e.FieldStart("software")
+			s.Software.Encode(e)
+		}
+	}
+	{
 		if s.Until.Set {
 			e.FieldStart("until")
 			s.Until.Encode(e, json.EncodeDate)
@@ -181593,13 +181599,14 @@ func (s *FindingsPostFindingsHandleReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsHandleReq = [6]string{
+var jsonFieldsNameOfFindingsPostFindingsHandleReq = [7]string{
 	0: "device",
 	1: "fix",
 	2: "ids",
 	3: "note",
 	4: "resolution",
-	5: "until",
+	5: "software",
+	6: "until",
 }
 
 // Decode decodes FindingsPostFindingsHandleReq from json.
@@ -181671,6 +181678,16 @@ func (s *FindingsPostFindingsHandleReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"resolution\"")
+			}
+		case "software":
+			if err := func() error {
+				s.Software.Reset()
+				if err := s.Software.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "until":
 			if err := func() error {

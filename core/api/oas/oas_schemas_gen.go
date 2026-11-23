@@ -99125,8 +99125,7 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	// the page says to check `distro`'s security updates, never that an update fixes them. "" for every
 	// other kind.
 	DistroData FindingsGetFindingsPlanOKItemsItemDistroData `json:"distro_data"`
-	// A person marked this item done and the mark still holds (the same version, no new CVE): listed only
-	// with ?done=true; null otherwise.
+	// Always null: a recommended update a person installed is Patched on its findings.
 	Done NilFindingsGetFindingsPlanOKItemsItemDone `json:"done"`
 	// Fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative
 	// update; distro: the distribution's package version that fixes every CVE of the item on the device's
@@ -99151,9 +99150,8 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	// Distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise.
 	Pro    bool `json:"pro"`
 	Recent int  `json:"recent"`
-	// The device's risk marker: exploited = open exploited findings To fix lists; update = none, but a
-	// recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when
-	// clean, for the Vedette box itself, or when it could not be read.
+	// The device badge: its most urgent open status with the distinct CVEs at it, else needs_input; null
+	// when it has none, for the Vedette box itself, or when it could not be read.
 	Risk NilFindingsGetFindingsPlanOKItemsItemRisk `json:"risk"`
 	// Display name of the software row.
 	Software string `json:"software"`
@@ -100027,9 +100025,8 @@ type FindingsGetFindingsToFixOKDevicesItem struct {
 	PlanCompared bool `json:"plan_compared"`
 	// Recommended updates: CVEs on no exploited list, as GET /findings/plan lists them.
 	Planned []FindingsGetFindingsToFixOKDevicesItemPlannedItem `json:"planned"`
-	// The device's risk marker: exploited = open exploited findings To fix lists; update = none, but a
-	// recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when
-	// clean, for the Vedette box itself, or when it could not be read.
+	// The device badge: its most urgent open status with the distinct CVEs at it, else needs_input; null
+	// when it has none, for the Vedette box itself, or when it could not be read.
 	Risk NilFindingsGetFindingsToFixOKDevicesItemRisk `json:"risk"`
 }
 
@@ -102393,6 +102390,9 @@ type FindingsPostFindingsHandleReq struct {
 	// place, the flaw is still in the software; accepted = a person decided to live with it until a day;
 	// not_relevant = it does not apply to this device; false_positive = the match was wrong.
 	Resolution FindingsPostFindingsHandleReqResolution `json:"resolution"`
+	// With device and fix: the software line of the block (FixBlock.software.id, FixDevice.software.id);
+	// absent: the block on no software line. Two lines of one product never share a handle.
+	Software OptString `json:"software"`
 	// Accepted only: the last day, from tomorrow to 365 days ahead (else 400 bad_until).
 	Until OptDate `json:"until"`
 }
@@ -102420,6 +102420,11 @@ func (s *FindingsPostFindingsHandleReq) GetNote() string {
 // GetResolution returns the value of Resolution.
 func (s *FindingsPostFindingsHandleReq) GetResolution() FindingsPostFindingsHandleReqResolution {
 	return s.Resolution
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsHandleReq) GetSoftware() OptString {
+	return s.Software
 }
 
 // GetUntil returns the value of Until.
@@ -102450,6 +102455,11 @@ func (s *FindingsPostFindingsHandleReq) SetNote(val string) {
 // SetResolution sets the value of Resolution.
 func (s *FindingsPostFindingsHandleReq) SetResolution(val FindingsPostFindingsHandleReqResolution) {
 	s.Resolution = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsHandleReq) SetSoftware(val OptString) {
+	s.Software = val
 }
 
 // SetUntil sets the value of Until.

@@ -125,7 +125,7 @@ const steps: Step[] = [
       const other = b.items.find((d) => d !== two)
       if (!two || !other) throw new Error('the box needs two devices with open findings, one with two or more')
       const blk = two.blocks[0]!
-      c.device = two.device.id; c.fix = blk.fix.key; c.blockSize = String(blk.findings.length)
+      c.device = two.device.id; c.fix = blk.fix.key; c.software = blk.software?.id ?? ''; c.blockSize = String(blk.findings.length)
       c.fid = blk.findings[0]!.id; c.blockIds = blk.findings.map((f) => f.id).join(','); c.otherFid = other.blocks[0]!.findings[0]!.id
     } },
   { name: 'by fix', role: 'viewer', method: 'GET', path: '/findings/fixes?limit=100', status: 200, schema: FixCards,
@@ -185,7 +185,7 @@ const steps: Step[] = [
   { name: 'not relevant needs a note', role: 'operator', method: 'POST', path: '/findings/handle', body: (c) => ({ ids: [c.fid], resolution: 'not_relevant', note: '  ab ' }), status: 400, code: 'note_required' },
   { name: 'accepted needs a last day', role: 'operator', method: 'POST', path: '/findings/handle', body: (c) => ({ ids: [c.fid], resolution: 'accepted', note: 'a test machine' }), status: 400, code: 'bad_until' },
   { name: 'a last day only with accepted', role: 'operator', method: 'POST', path: '/findings/handle', body: (c) => ({ ids: [c.fid], resolution: 'patched', note: '', until: '2099-01-01' }), status: 400, code: 'bad_until' },
-  { name: 'patched: every open finding of one fix on one device', role: 'operator', method: 'POST', path: '/findings/handle', body: (c) => ({ device: c.device, fix: c.fix, resolution: 'patched', note: 'updated by hand' }), status: 200,
+  { name: 'patched: every open finding of one fix on one device', role: 'operator', method: 'POST', path: '/findings/handle', body: (c) => ({ device: c.device, fix: c.fix, ...(c.software ? { software: c.software } : {}), resolution: 'patched', note: 'updated by hand' }), status: 200,
     check: (b, c) => expect(b).toEqual({ handled: Number(c.blockSize), skipped: 0 }) },
   { name: 'the open findings went down by exactly that many, in every list', role: 'viewer', method: 'GET', path: '/findings/overview', status: 200, schema: Overview,
     check: async (b, c) => { expect(b.open.findings).toBe(Number(c.open) - Number(c.blockSize)); expect(await counts()).toBe(b.open.findings) } },

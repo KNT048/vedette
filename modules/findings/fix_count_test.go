@@ -142,10 +142,11 @@ func TestFixCount_FindingsWithTwoFixedVersions(t *testing.T) {
 	}
 }
 
-// The count of the same class through the readers of the findings model: the fixture's findings stored by the match pass, then read
-// as the lists and the finding's view read them. A list row and the finding's page both name the stored fix (one path), and a fix
-// block that combines the CVEs of one software names a release that reaches every finding in it. Before the readers moved to the
-// stored fix, the list row and the page differed on 84 findings of this fixture (TestFixCount_FindingsWithTwoFixedVersions).
+// The count of the same class through the new endpoints: the fixture's findings stored by the match pass, then read as By device and
+// the finding's view (GET /findings/{id}/view) read them. Both name the stored fix, so the view and a list row agree by construction;
+// what this measures is that every combined block names a release that reaches each of its findings' own fix, and that the lists
+// count every open finding once. The older finding page (GET /findings/{id}) still names FixedInFor's release: the older paths
+// differed on 84 findings of this fixture (TestFixCount_FindingsWithTwoFixedVersions), and stay so until that page reads the view.
 func TestFixCount_ListAndPageReadTheStoredFix(t *testing.T) {
 	e := newEnv(t)
 	ctx := t.Context()
@@ -210,7 +211,7 @@ func TestFixCount_ListAndPageReadTheStoredFix(t *testing.T) {
 			break
 		}
 	}
-	t.Logf("open %d; by device %d; by fix %d; rows read %d; list row vs page fix: %d (before: 84); blocks short of a finding's fix: %d; By fix cards %d for %d stored fix keys",
+	t.Logf("open %d; by device %d; by fix %d; rows read %d; view vs stored fix: %d; blocks short of a finding's fix: %d; By fix cards %d for %d stored fix keys",
 		open, byDevice, byFix, rows, pageVsRow, blockShort, cards, keys)
 	if open == 0 || open != byDevice || open != byFix || rows != open {
 		t.Errorf("open %d, by device %d, by fix %d, rows %d: want all equal", open, byDevice, byFix, rows)

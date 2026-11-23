@@ -103,17 +103,20 @@ func (h *FindingHandlers) FindingsPostFindingsHandle(ctx context.Context, req *o
 	device, fix := req.Device.Or(""), req.Fix.Or("")
 	ids := req.Ids
 	switch {
-	case len(ids) > 0 && (device != "" || fix != ""):
+	case len(ids) > 0 && (device != "" || fix != "" || req.Software.Or("") != ""):
 		return nil, apierr.Invalid("Name the findings by their ids, or by a device and one of its fixes, not both.")
 	case len(ids) == 0 && (device == "" || fix == ""):
 		return nil, apierr.Invalid("Name the findings by their ids, or by a device and one of its fixes.")
 	case len(ids) == 0:
 		var err error
-		if ids, err = h.svc.FixFindings(ctx, device, fix); err != nil {
+		if ids, err = h.svc.FixFindings(ctx, device, req.Software.Or(""), fix); err != nil {
 			return nil, ToAPIError(err)
 		}
 		if len(ids) == 0 {
 			return &oas.FindingsPostFindingsHandleOK{}, nil // nothing open under that fix any more: nothing to do
+		}
+		if len(ids) > MaxBulk {
+			return nil, ToAPIError(ErrFixTooBig)
 		}
 	}
 	res := Resolution(req.Resolution)

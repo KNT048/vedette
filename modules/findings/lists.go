@@ -3,6 +3,7 @@ package findings
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,6 +37,30 @@ const (
 	PageDefault = 20
 	PageMax     = 100
 )
+
+type readKey struct{}
+
+// readTx runs fn with one read transaction in its context: every read of one answer (the grouping, the rows of the page, the device
+// counts) sees one state of the findings, so a write between two reads cannot leave a page without its rows.
+func (s *Service) readTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if _, ok := ctx.Value(readKey{}).(*sql.Tx); ok {
+		return fn(ctx)
+	}
+	tx, err := s.cfg.DB.Reader().BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return fmt.Errorf("findings: starting a read: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	return fn(context.WithValue(ctx, readKey{}, tx))
+}
+
+// rd is the read handle of ctx: its read transaction (readTx), else the reader pool.
+func (s *Service) rd(ctx context.Context) querier {
+	if tx, ok := ctx.Value(readKey{}).(*sql.Tx); ok {
+		return tx
+	}
+	return s.cfg.DB.Reader()
+}
 
 // ParsePage reads the offset and limit of a list (the API validated their shape): limit 0 is the default, above the largest the largest.
 func ParsePage(offset, limit string) Page {
@@ -91,7 +116,7 @@ func (s *Service) where(ctx context.Context, state State, f ListFilter) (rows st
 
 // search is the condition of a search: the CVE id, the device's name or address, or the software line's name contains q (any case).
 func (s *Service) search(ctx context.Context, rows string, args []any, q string) (string, []any, error) {
-	r, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT DISTINCT asset_id, ifnull(software_id, '') FROM fnd_finding WHERE `+rows, args...)
+	r, err := s.rd(ctx).QueryContext(ctx, `SELECT DISTINCT asset_id, ifnull(software_id, '') FROM fnd_finding WHERE `+rows, args...)
 	if err != nil {
 		return "", nil, fmt.Errorf("findings: search: %w", err)
 	}
@@ -173,7 +198,7 @@ func (s *Service) lineGroups(ctx context.Context, f ListFilter) ([]lineGroup, er
 		sum(CASE WHEN ` + sel + ` THEN 1 ELSE 0 END), ifnull(min(CASE WHEN ` + sel + ` THEN urgency END), 0)
 		FROM fnd_finding WHERE ` + rows + ` GROUP BY asset_id, ifnull(software_id, ''), fix_key ORDER BY asset_id, 2, fix_key`
 	all := append(append(append([]any{}, sargs...), sargs...), args...)
-	r, err := s.cfg.DB.Reader().QueryContext(ctx, q, all...)
+	r, err := s.rd(ctx).QueryContext(ctx, q, all...)
 	if err != nil {
 		return nil, fmt.Errorf("findings: grouping open findings: %w", err)
 	}
@@ -293,7 +318,7 @@ func (s *Service) listRows(ctx context.Context, f ListFilter, assets []string) (
 		w += ` AND ` + status
 		args = append(args, sargs...)
 	}
-	return selectFindings(ctx, s.cfg.DB.Reader(), w+` ORDER BY urgency, cve, id`, args...)
+	return selectFindings(ctx, s.rd(ctx), w+` ORDER BY urgency, cve, id`, args...)
 }
 
 // SeverityCounts is contract.ts SeverityCounts.
@@ -424,6 +449,16 @@ type deviceAgg struct {
 // ByDevice is the By device list: one card per device with open findings that f selects, the most urgent first, then the most
 // findings, then the name; inside, one block per fix.
 func (s *Service) ByDevice(ctx context.Context, f ListFilter, p Page) (DeviceCards, error) {
+	var out DeviceCards
+	err := s.readTx(ctx, func(ctx context.Context) error {
+		var err error
+		out, err = s.byDevice(ctx, f, p)
+		return err
+	})
+	return out, err
+}
+
+func (s *Service) byDevice(ctx context.Context, f ListFilter, p Page) (DeviceCards, error) {
 	gs, err := s.lineGroups(ctx, f)
 	if err != nil {
 		return DeviceCards{}, err
@@ -528,7 +563,13 @@ func (s *Service) deviceCards(ctx context.Context, f ListFilter, assets []string
 	}
 	out := make([]DeviceCardJS, 0, len(assets))
 	for _, a := range assets {
+		if counts[a] == nil { // no row of the filter on it any more: no card rather than an empty one
+			continue
+		}
 		c := DeviceCardJS{Device: deviceRef(devices[a]), Status: statuses[a], Counts: *counts[a], Findings: found[a], CVEs: len(cves[a])}
+		if devices[a].Box { // the Vedette box itself never carries a badge, as on the Devices list
+			c.Status = nil
+		}
 		for _, k := range byAsset[a] {
 			c.Blocks = append(c.Blocks, block(k.key, fixes[k], groups[k]))
 		}
@@ -570,6 +611,16 @@ type FixCards struct {
 
 // ByFix is the By fix list: one card per combined fix across devices, the most urgent first, then the most findings, then the key.
 func (s *Service) ByFix(ctx context.Context, f ListFilter, p Page) (FixCards, error) {
+	var out FixCards
+	err := s.readTx(ctx, func(ctx context.Context) error {
+		var err error
+		out, err = s.byFix(ctx, f, p)
+		return err
+	})
+	return out, err
+}
+
+func (s *Service) byFix(ctx context.Context, f ListFilter, p Page) (FixCards, error) {
 	f.Ignored = false // ignored devices are never in By fix
 	gs, err := s.lineGroups(ctx, f)
 	if err != nil {
@@ -673,9 +724,20 @@ func (s *Service) ByFix(ctx context.Context, f ListFilter, p Page) (FixCards, er
 	return out, nil
 }
 
-// FixFindings are the open findings of one device listed under one fix (its block key in By device or By fix): what POST
-// /findings/handle with a device and a fix acts on.
-func (s *Service) FixFindings(ctx context.Context, device, key string) ([]string, error) {
+// FixFindings are the open findings of one device listed under one fix on one software line ("" for the block on no line): its block
+// in By device, or its row in By fix. What POST /findings/handle with a device and a fix acts on. Two lines of one product can share a
+// fix key (no fix known yet, or the same release), so the line is part of the handle: handling Java 21's block never touches Java 8's.
+func (s *Service) FixFindings(ctx context.Context, device, software, key string) ([]string, error) {
+	var ids []string
+	err := s.readTx(ctx, func(ctx context.Context) error {
+		var err error
+		ids, err = s.fixFindings(ctx, device, software, key)
+		return err
+	})
+	return ids, err
+}
+
+func (s *Service) fixFindings(ctx context.Context, device, software, key string) ([]string, error) {
 	gs, err := s.lineGroups(ctx, ListFilter{Device: device})
 	if err != nil {
 		return nil, err
@@ -688,7 +750,7 @@ func (s *Service) FixFindings(ctx context.Context, device, key string) ([]string
 	var conds []string
 	var args []any
 	for _, g := range gs {
-		if g.Block == key {
+		if g.Block == key && g.Software == software {
 			conds = append(conds, `(ifnull(software_id, '') = ? AND fix_key = ?)`)
 			args = append(args, g.Software, g.Key)
 		}
@@ -696,7 +758,7 @@ func (s *Service) FixFindings(ctx context.Context, device, key string) ([]string
 	if len(conds) == 0 {
 		return nil, nil
 	}
-	fs, err := selectFindings(ctx, s.cfg.DB.Reader(), `state = 'open' AND asset_id = ? AND (`+strings.Join(conds, " OR ")+`) ORDER BY id`,
+	fs, err := selectFindings(ctx, s.rd(ctx), `state = 'open' AND asset_id = ? AND (`+strings.Join(conds, " OR ")+`) ORDER BY id`,
 		append([]any{device}, args...)...)
 	if err != nil {
 		return nil, err
@@ -731,7 +793,7 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 		as, _ := json.Marshal(nonNilStrings(assets))
 		filter, args = ` AND asset_id IN (SELECT value FROM json_each(?))`, []any{string(as)}
 	}
-	q := s.cfg.DB.Reader()
+	q := s.rd(ctx)
 	out := map[string]*DeviceCounts{}
 	get := func(id string) *DeviceCounts {
 		c := out[id]
@@ -741,7 +803,7 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 		}
 		return c
 	}
-	r, err := q.QueryContext(ctx, `SELECT asset_id, urgency, count(DISTINCT cve) FROM fnd_finding WHERE state = 'open'`+filter+` GROUP BY asset_id, urgency`, args...) //nolint:gosec // G202: fixed SQL fragments; values are bound
+	r, err := q.QueryContext(ctx, `SELECT asset_id, urgency, count(DISTINCT cve) FROM fnd_finding WHERE state = 'open'`+filter+` GROUP BY asset_id, urgency`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("findings: counting device findings: %w", err)
 	}
@@ -759,7 +821,7 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 	if err := errors.Join(r.Err(), r.Close()); err != nil {
 		return nil, fmt.Errorf("findings: counting device findings: %w", err)
 	}
-	r, err = q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_question WHERE answer IS NULL`+filter+` GROUP BY asset_id`, args...) //nolint:gosec // G202: fixed SQL fragments; values are bound
+	r, err = q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_question WHERE answer IS NULL`+filter+` GROUP BY asset_id`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("findings: counting device questions: %w", err)
 	}

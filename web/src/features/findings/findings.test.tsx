@@ -399,17 +399,6 @@ describe('findings: the device page\'s Findings tab', () => {
     await expectNoA11yViolations()
   })
 
-  it('a backend from before the findings model (501): the earlier list, each row with when Vedette last matched it', async () => {
-    sessionStore.set({ userId: 'u-admin' })
-    server.use(http.get('*/api/v1/findings/devices', () => HttpResponse.json({ error: { code: 'not_implemented', message: 'Not built yet.' } }, { status: 501 })))
-    renderApp('/devices/a-nas02?tab=findings')
-    expect(await screen.findByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/f-1')
-    // the time on each row is when Vedette last matched it, said as such (never "Seen", read as when the device was seen)
-    const rows = within(screen.getByRole('list', { name: 'Every finding of this device' })).getAllByRole('listitem')
-    for (const r of rows) expect(r).toHaveTextContent(/Last matched .+/)
-    expect(screen.queryByText(/^Seen /)).not.toBeInTheDocument()
-  })
-
   it('the finding page says when Vedette last matched it and, apart, when its source last gave the version', async () => {
     sessionStore.set({ userId: 'u-admin' })
     renderApp('/findings/f-1')

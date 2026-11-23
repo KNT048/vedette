@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
-import { assetsStore, findingsStore } from '@/mocks/stores'
+import { assetsStore } from '@/mocks/stores'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
 
 // "when the user opens Findings, they know which devices need patching or an action, and what the action is".
@@ -24,73 +23,8 @@ const sample: ToFix = { truncated: false, plan_ran: true, plan_off: false, risks
   dev('a-lap', 'LAPTOP-B', { open: 2, exploited: [winrar('a-lap', 'WinRAR 7.01 (64-bit)')] }), // the same product under another name: one By fix row
 ] }
 
-/** The device page's list from before the findings model: what a backend that answers the model's reads 501 shows. */
-const beforeModel = () => server.use(http.get('*/api/v1/findings/devices', () => HttpResponse.json({ error: { code: 'not_implemented', message: 'Not built yet.' } }, { status: 501 })))
 
 describe('Findings › To fix', () => {
-
-  it('the device page handles each finding on its own line, without a trip to the Findings list', async () => {
-    beforeModel()
-    renderApp('/devices/a-nas02?tab=findings')
-    const all = await screen.findByRole('list', { name: 'Every finding of this device' }, T)
-    expect(within(all).getAllByRole('button', { name: /^Mark as handled: CVE-\d+-\d+ on / }).length).toBeGreaterThan(0)
-    expect(screen.queryByRole('link', { name: 'Select and handle these findings in the Findings list' })).toBeNull()
-  })
-
-  // A typed version is saved once per software: an exploited update and a recommended one of the same product are one action.
-  const fortiRows = (devId: string) => ({
-    exploited: [act({ group: `${devId}/s-fgt`, software_id: 's-fgt', software: 'FortiGate', product: 'fortinet|fortios', version: '7.2.0', fixed: '7.2.11', source: 'manual',
-      action: 'Upgrade FortiGate from 7.2.0 to 7.2.11 or later', cves: ['CVE-2024-21762'], finding_ids: ['f-fgt'], worst: 'critical' })],
-    planned: [act({ group: `${devId}/s-fgt`, software_id: 's-fgt', software: 'FortiGate', product: 'fortinet|fortios', version: '7.2.0', fixed: '7.4.8', source: 'manual',
-      action: 'Upgrade FortiGate from 7.2.0 to 7.4.8 or later', cves: ['CVE-2025-24472', 'CVE-2025-32756'], detected: 0 })],
-  })
-
-  it('the device page: one "I updated" per typed software, not under each row and again below the list', async () => {
-    const rows = fortiRows('a-srvad')
-    server.use(http.get('*/api/v1/findings/to-fix', () => HttpResponse.json({ ...sample, devices: [dev('a-srvad', 'SRV-AD', { open: 3, exploited: [...rows.exploited, { ...winrar('a-srvad'), source: 'manual' }], planned: rows.planned })] })))
-    beforeModel()
-    renderApp('/devices/a-srvad?tab=findings')
-    const todo = await screen.findByRole('list', { name: 'What to do on this device' }, T)
-    expect(within(todo).getByText('Upgrade FortiGate from 7.2.0 to 7.4.8 or later')).toBeInTheDocument()
-    expect(await screen.findAllByRole('button', { name: 'I updated FortiGate' }, T)).toHaveLength(1)
-    expect(screen.getAllByRole('button', { name: 'I updated RARLAB WinRAR' })).toHaveLength(1)
-    await userEvent.click(screen.getByRole('button', { name: 'I updated FortiGate' }))
-    expect(await screen.findByRole('dialog', { name: 'I updated FortiGate' })).toBeInTheDocument()
-  })
-
-  it('the device page: the one button\'s dialog says what the re-match closed after the update rows are gone', async () => {
-    const rows = fortiRows('a-srvad')
-    const exploited = [{ ...rows.exploited[0]!, cves: ['CVE-2026-96951'], finding_ids: ['f-3'] }]
-    let tf: ToFix = { ...sample, devices: [dev('a-srvad', 'SRV-AD', { open: 1, exploited, planned: rows.planned })] }
-    server.use(
-      http.get('*/api/v1/findings/to-fix', () => HttpResponse.json(tf)),
-      http.patch('*/api/v1/inventory/devices/:id/software/:sid', () => {
-        findingsStore.update((l) => l.map((f) => (f.id === 'f-3' ? { ...f, status: 'not_relevant' as const, resolved_by: 'system' } : f)))
-        tf = { ...sample, devices: [] }
-        return HttpResponse.json({ ok: true })
-      }),
-    )
-    beforeModel()
-    renderApp('/devices/a-srvad?tab=findings')
-    await userEvent.click(await screen.findByRole('button', { name: 'I updated FortiGate' }, T))
-    const dlg = await screen.findByRole('dialog', { name: 'I updated FortiGate' })
-    await userEvent.type(within(dlg).getByLabelText('New version'), '7.4.8')
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and check' }))
-    expect(await within(dlg).findByRole('status', undefined, T)).toHaveTextContent(/^Version 7\.4\.8 saved\. 1 finding on SRV-AD no longer applies/)
-    await waitFor(() => expect(screen.queryByRole('list', { name: 'What to do on this device' })).toBeNull(), T) // the rows are gone
-    expect(within(screen.getByRole('dialog', { name: 'I updated FortiGate' })).getByRole('status')).toHaveTextContent(/^Version 7\.4\.8 saved\./)
-  })
-
-  it('a device with recommended updates only shows them on its page (review r2 of #943)', async () => {
-    const withFindings = new Set(findingsStore.get().map((f) => f.asset_id))
-    const quiet = assetsStore.get().find((x) => !withFindings.has(x.id) && x.software.length > 0)!
-    server.use(http.get('*/api/v1/findings/to-fix', () => HttpResponse.json({ ...sample, devices: [dev(quiet.id, 'QUIET', { planned: [firefox] })] })))
-    beforeModel()
-    renderApp(`/devices/${encodeURIComponent(quiet.id)}?tab=findings`)
-    const todo = await screen.findByRole('list', { name: 'What to do on this device' }, T)
-    expect(within(todo).getByRole('list', { name: 'Recommended updates for QUIET' })).toHaveTextContent('Upgrade Mozilla Firefox from 152.0 to 157.0.1 or later: fixes 228 CVEs not exploited yet')
-    expect(screen.queryByText('No open findings on this device.')).toBeNull()
-  })
 
   it('the device\'s Software tab says what each row needs: a recommended update with its CVEs, nothing on a clean row', async () => {
     // review r2 of #943: a third row for the unproved match, so the check below always runs

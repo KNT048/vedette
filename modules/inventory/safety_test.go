@@ -422,7 +422,7 @@ func TestContract_INV32_FullSavesNeverDropAnInlineAdd(t *testing.T) {
 	if again, err := e.svc.SaveSafety(e.ctx(), "admin@acme.example", stale); err != nil || again.Version != saved.Version {
 		t.Fatalf("the same values again: %v, %q vs %q", err, again.Version, saved.Version)
 	}
-	// review #860 r2 L1: the discovery switch is part of the version, so a Devices › Scope page loaded with it on cannot turn it
+	// review #860 r2 L1: the discovery switch is part of the version, so a Settings › Scanning › Safety page loaded with it on cannot turn it
 	// back on after another admin turned it off
 	scopePage := okSettings("192.168.142.0/24")
 	scopePage.ScopeConfirmed, scopePage.Active.Enabled, scopePage.Active.Exclusions, scopePage.Version = true, true, []string{"192.168.142.40"}, e.version()
@@ -432,7 +432,7 @@ func TestContract_INV32_FullSavesNeverDropAnInlineAdd(t *testing.T) {
 	_, err = e.svc.SaveSettings(e.ctx(), "admin@acme.example", scopePage)
 	wantAPIError(t, err, 409, "safety_changed")
 	if st, _ := e.svc.Settings(e.ctx()); st.Active.Enabled {
-		t.Fatal("a stale Devices › Scope save turned discovery back on")
+		t.Fatal("a stale Settings › Scanning › Safety save turned discovery back on")
 	}
 	old.Version = ""
 	old.Active.Exclusions = []string{"192.168.142.40"}

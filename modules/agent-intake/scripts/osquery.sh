@@ -354,7 +354,7 @@ UNIT
   echo "Installed. This machine's operating system and packages appear in Vedette now and are refreshed every hour (minute $MIN, $SCHED)."
 }
 
-[ -n "$TOKEN" ] || { echo "Missing --token. Copy the install command from Vedette, Devices, Scope and sensors." >&2; exit 2; }
+[ -n "$TOKEN" ] || { echo "Missing --token. Copy the install command from Vedette, Devices › Setup › Agents." >&2; exit 2; }
 # The package must match the userland, not the kernel: a 32-bit system on a 64-bit kernel (Raspberry Pi OS armhf) says aarch64 in uname -m.
 ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m)
 # WHY stays empty while osquery can be installed here; the first thing it cannot do is named in it and the reporter is installed instead.

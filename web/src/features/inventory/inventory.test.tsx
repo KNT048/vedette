@@ -1238,7 +1238,7 @@ describe('inventory: range validation helpers', () => {
   })
 })
 
-describe('inventory: scope and sensors (S-INV-1, admin)', () => {
+describe('inventory: sensors (S-INV-1, admin)', () => {
   it('the page has the sensor and agent tabs and a link to the one scan-scope editor; old Scope links land there', async () => {
     const user = userEvent.setup()
     const view = renderApp('/devices/setup')

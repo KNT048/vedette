@@ -10,7 +10,7 @@
 - **inventory** `VulnScanPolicy` (INV-37): a hand-added device whose network scan is off is refused even when picked; `targetReason` lists it as `regular_scan_never`.
 
 ## Modifying: the shared window, rate and exclusions (`Inventory.Checks`, `settings`, `Engine`; INV-16)
-- **inventory** owns the values (INV-32; `safety.go`): `PUT /scans/config` writes there through `SaveChecks`; Settings › Scanning (`PUT /scanning/safety`) and Devices › Scope write the same keys, and each publishes `inventory.settings.changed`, so a change there moves nuclei's window, speed and exclusions too (the scheduled check reads the window through core/schedule's `ScanWindow`, `cmd/vedette/schedules.go`).
+- **inventory** owns the values (INV-32; `safety.go`): `PUT /scans/config` writes there through `SaveChecks`; Settings › Scanning › Safety (`PUT /scanning/safety`) writes the same keys, and each publishes `inventory.settings.changed`, so a change there moves nuclei's window, speed and exclusions too (the scheduled check reads the window through core/schedule's `ScanWindow`, `cmd/vedette/schedules.go`).
 - **`Checks.Version` / `ConfigView.Version` / `Patch.Version`**: the inventory's version of the shared block passes through `SharedChecks`; `PUT /scans/config` with a stale one is 409 `safety_changed` from the inventory's `SaveChecks`, inside this module's transaction (its own row rolls back too).
 - **cmd/vedette** `scanningEngines.nuclei` reads `Engine` for the card.
 - **`scan_setting`** keeps no copy of the window, rate and exclusions: the inventory is their one home.

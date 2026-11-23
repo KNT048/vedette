@@ -328,7 +328,7 @@ func (e scanningEngines) passive(ctx context.Context) (core.EngineStatus, error)
 	case states["offline"]:
 		s.State, s.Reason = core.EngineError, "The passive sensor has not reported for more than 90 seconds."
 	default:
-		s.State, s.Reason = core.EngineNeedsSetup, "No passive sensor has reported yet. Start the sensor container (Devices › Scope and sensors says how)."
+		s.State, s.Reason = core.EngineNeedsSetup, "No passive sensor has reported yet. Start the sensor container (Devices › Setup › Sensor says how)."
 	}
 	return s, nil
 }

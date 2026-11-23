@@ -21,7 +21,7 @@ export const ScanTarget = z.object({
   approved: z.boolean().describe('Approved in the inventory (picker filter); false for external targets'),
   last_seen: iso.nullable().describe('When the inventory last saw the device (picker filter); null for external targets'),
 })
-export const ScanScope = z.object({ networks: z.array(z.string()), commitment: z.object({ confirmed_at: iso, by: z.string() }).nullable().describe('The scope commitment ticked under Devices, Scope and sensors (inventory scope_confirmed_at)') })
+export const ScanScope = z.object({ networks: z.array(z.string()), commitment: z.object({ confirmed_at: iso, by: z.string() }).nullable().describe('The scope commitment ticked under Settings › Scanning › Safety (inventory scope_confirmed_at)') })
 export const ScanConfig = z.object({
   window: z.object({ days: z.array(day).min(1), from: hhmm, to: hhmm }),
   rate: z.number().int().min(1).max(20).describe('requests per second'),

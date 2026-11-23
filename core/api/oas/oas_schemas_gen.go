@@ -255207,7 +255207,7 @@ func (s *ScanGetScansConfigOKConfigWindow) SetTo(val string) {
 }
 
 type ScanGetScansConfigOKScope struct {
-	// The scope commitment ticked under Devices, Scope and sensors (inventory scope_confirmed_at).
+	// The scope commitment ticked under Settings › Scanning › Safety (inventory scope_confirmed_at).
 	Commitment NilScanGetScansConfigOKScopeCommitment `json:"commitment"`
 	Networks   []string                               `json:"networks"`
 }
@@ -260303,7 +260303,7 @@ func (s *ScanPutScansConfigOKConfigWindow) SetTo(val string) {
 }
 
 type ScanPutScansConfigOKScope struct {
-	// The scope commitment ticked under Devices, Scope and sensors (inventory scope_confirmed_at).
+	// The scope commitment ticked under Settings › Scanning › Safety (inventory scope_confirmed_at).
 	Commitment NilScanPutScansConfigOKScopeCommitment `json:"commitment"`
 	Networks   []string                               `json:"networks"`
 }

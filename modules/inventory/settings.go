@@ -69,7 +69,7 @@ type SettingsInput struct {
 }
 
 // SafetyVersion names the safety block's stored values (INV-32): the ranges and their attestation, the switch of active discovery
-// (review #860 r2 L1: a stale Devices › Scope save would turn it back on), the window, both speeds, the exclusions and the fragile
+// (review #860 r2 L1: a stale Settings › Scanning › Safety save would turn it back on), the window, both speeds, the exclusions and the fragile
 // types. The merge stamp is not part of it. Equal values give the same version, so a version names what a person saw, not when.
 func SafetyVersion(st Settings) string {
 	raw, err := json.Marshal([]any{
@@ -435,7 +435,7 @@ func (s *Service) saveSettings(ctx context.Context, actor string, in SettingsInp
 }
 
 // SetupScope stores the LAN ranges and the scan commitment of first-run setup (core INV-15, S-CORE-1) inside the caller's write
-// transaction tx, so that they are the scope of Devices -> Scope and sensors from the first page on (#350): the ranges pass INV-6
+// transaction tx, so that they are the scope of Settings › Scanning › Safety from the first page on (#350): the ranges pass INV-6
 // (an error is an *apierr.Error and the caller's setup fails with it), lan_ranges is replaced, and the scope is confirmed by actor
 // now when confirmed is true and cleared otherwise. The other settings keep their values. No audit row of its own: the caller's
 // core.setup row counts the ranges. inventory.settings.changed goes out at Settle, when the caller's transaction committed.

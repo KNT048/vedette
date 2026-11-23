@@ -27,7 +27,7 @@ The appliance install is `install.sh` (`docs/DEPLOYMENT.md` section 8).
 - Linux, macOS or Windows (WSL2). Docker Desktop on macOS and Windows has no host network, so there you get the web page and the modules that need no real network card, not the sensors.
 - Rootless Docker or Podman: the web page and everything that is not a sensor. A rootless setup cannot publish port 514, cannot read a real network card from a container, and may show every syslog sender as one address.
 - About 4 CPU cores and 8 GB of memory for a network of up to 1,000 devices (`docs/DEPLOYMENT.md` section 4). Core is limited to 2 GB, the sensor to 512 MB, the scan worker to 1 GB.
-- For the sensors: a wired card on the network you want to discover. The sensor listens on the card that has this machine's address, or on the one you choose under Devices, Scope and sensors, Configure. A switch mirror port (SPAN) is not offered in this version.
+- For the sensors: a wired card on the network you want to discover. The sensor listens on the card that has this machine's address, or on the one you choose under Devices › Setup › Sensor, Configure. A switch mirror port (SPAN) is not offered in this version.
 
 ## 1. Get the files and check them
 

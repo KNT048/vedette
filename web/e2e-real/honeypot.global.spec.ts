@@ -77,7 +77,7 @@ test.beforeAll(async () => {
       expect(on.status, `enable honeypot: ${JSON.stringify(on.body)}`).toBe(200)
     }
     // the decoy has to be inside the LAN range the box picks AND inside the network of the host's management card (192.168.1.0/24 on the fake host,
-    // which the wizard's ranges do not hold): declare it, as an administrator does under Devices, Scope and sensors; put back at the end
+    // which the wizard's ranges do not hold): declare it, as an administrator does under Settings › Scanning › Safety; put back at the end
     const cur = await get<Record<string, unknown> & { lan_ranges: string[] }>(admin, '/inventory/settings')
     originalLan = cur.lan_ranges
     lanChanged = true // set before the PUT: afterAll puts the ranges back even if the answer is lost

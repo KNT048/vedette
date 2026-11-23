@@ -437,7 +437,7 @@ func TestDeclaredOSIsItsOwnSourceAndAMergeNeverMixesItWithATypedOS(t *testing.T)
 	// The kept device is the declared one; the other has the person's own OS with the same text.
 	e.record(obsv(macA, observe.Hostname, "fw1", observe.Passive, 0.6))
 	typed := e.idByMAC(macA)
-	if err := e.svc.PatchDevice(e.ctx(), "op@acme.example", typed, inventory.Patch{OS: ptrTo("FortiOS 7.4.1")}); err != nil {
+	if err := e.svc.PatchDevice(e.ctx(), "op@acme.example", typed, inventory.Patch{OS: ptrTo("FortiOS 7.0.1")}); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.svc.Merge(e.ctx(), "op@acme.example", declared, typed); err != nil {
@@ -449,10 +449,24 @@ func TestDeclaredOSIsItsOwnSourceAndAMergeNeverMixesItWithATypedOS(t *testing.T)
 	if got := e.count(row, declared, "declared"); got != 0 {
 		t.Errorf("%d declared OS rows next to the person's OS, want 0", got)
 	}
+	d, err := e.svc.Detail(e.ctx(), declared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Asset.OSCorrection == nil || d.Asset.OSCorrection.Value != "FortiOS 7.0.1" {
+		t.Errorf("OS correction after the merge: %+v, want the person's FortiOS 7.0.1", d.Asset.OSCorrection)
+	}
+	if _, _, os := identityOf(t, e, declared); os == nil || os.Value != "FortiOS 7.0.1" || os.Source != "manual" {
+		t.Errorf("device OS after the merge %+v, want the person's", os)
+	}
+	var by string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT ifnull(evidence, '') FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual'`, declared).Scan(&by); err != nil || by != "op@acme.example" {
+		t.Errorf("who set the OS: %q (err %v), want op@acme.example", by, err)
+	}
 	// The reverse: a declared device merged into one whose OS a person typed leaves the typed OS alone.
 	e.record(obsv(macB, observe.Hostname, "fw2", observe.Passive, 0.6))
 	other := e.idByMAC(macB)
-	if err := e.svc.PatchDevice(e.ctx(), "op@acme.example", other, inventory.Patch{OS: ptrTo("FortiOS 7.4.1")}); err != nil {
+	if err := e.svc.PatchDevice(e.ctx(), "op@acme.example", other, inventory.Patch{OS: ptrTo("FortiOS 7.0.1")}); err != nil {
 		t.Fatal(err)
 	}
 	gone := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.4.1", IP: "10.0.0.10"})
@@ -464,6 +478,12 @@ func TestDeclaredOSIsItsOwnSourceAndAMergeNeverMixesItWithATypedOS(t *testing.T)
 	}
 	if got := e.count(row, other, "declared"); got != 0 {
 		t.Errorf("%d declared OS rows next to the person's OS, want 0", got)
+	}
+	if d, err := e.svc.Detail(e.ctx(), other); err != nil || d.Asset.OSCorrection == nil || d.Asset.OSCorrection.Value != "FortiOS 7.0.1" {
+		t.Errorf("OS correction after the reverse merge: %+v (err %v), want the person's FortiOS 7.0.1", d.Asset.OSCorrection, err)
+	}
+	if _, _, os := identityOf(t, e, other); os == nil || os.Value != "FortiOS 7.0.1" || os.Source != "manual" {
+		t.Errorf("device OS after the reverse merge %+v, want the person's", os)
 	}
 }
 

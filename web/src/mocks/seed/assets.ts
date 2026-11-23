@@ -85,4 +85,3 @@ export function seedAssets(): Asset[] {
     a({ id: 'a-unk01', ip: '192.168.10.157', kind: 'unknown', hostname: null, mac: 'da:a1:19:5c:77:01', vendor: o('Device with a randomized MAC', 'passive', 0.3), approved: false, first_seen: D(0, ), last_seen: D(0), services: [svc(23, 'telnet')] }), // an open service is a reason to review a private address
   ]
 }
-

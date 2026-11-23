@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { networkStore } from '@/mocks/network'
 import { installStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { badAddressRow } from './DetectionPage'
+import type { Watcher } from './types'
 
 const T = { timeout: 5000 }
 const row = async (id: string) => within(await screen.findByTestId(`watcher-${id}`, undefined, T))
@@ -13,7 +15,7 @@ describe('intrusion detection page', () => {
     renderApp('/detection')
     expect(await screen.findByRole('heading', { level: 1, name: 'Intrusion detection' }, T)).toBeInTheDocument()
     const items = (await screen.findAllByTestId(/^watcher-/, undefined, T)).map((x) => x.getAttribute('data-testid'))
-    expect(items).toEqual(['watcher-traps', 'watcher-logs', 'watcher-mirror_port', 'watcher-ips_events'])
+    expect(items).toEqual(['watcher-traps', 'watcher-logs', 'watcher-mirror_port', 'watcher-ips_events', 'watcher-bad-addresses'])
     expect(document.body.textContent).not.toMatch(/Suricata|signature engine/i)
     const mirror = await row('mirror_port')
     expect(mirror.getByText('Watching')).toBeInTheDocument()
@@ -59,5 +61,23 @@ describe('intrusion detection page', () => {
     expect(ips.getByText('Off')).toBeInTheDocument()
     expect(ips.getByRole('link', { name: 'Turn on IPS events' })).toHaveAttribute('href', '/settings/modules#module-ids')
     expect(screen.queryByRole('table', { name: 'Intrusion alerts' })).toBeNull()
+  })
+})
+
+describe('intrusion detection: the bad-address row says what feeds it', () => {
+  const w = (id: Watcher['id'], state: Watcher['state'], last: string | null = null): Watcher => ({ id, module: 'x', state, detail: '', last_input_at: last, detections_7d: 0, action: null })
+  it('watching while the mirror port or received logs are; else it needs one of them, with the step to take', () => {
+    expect(badAddressRow([w('logs', 'watching', '2026-11-24T00:00:00.000Z'), w('mirror_port', 'not_set_up')])).toMatchObject({ state: 'watching', sources: ['logs'], last: '2026-11-24T00:00:00.000Z' })
+    expect(badAddressRow([w('logs', 'quiet'), w('mirror_port', 'not_set_up')])).toMatchObject({ state: 'quiet', to: '/logs?tab=sources' })
+    expect(badAddressRow([w('logs', 'not_set_up'), w('mirror_port', 'not_set_up')])).toMatchObject({ state: 'not_set_up', to: '/logs?tab=sources&add=source' })
+    expect(badAddressRow([w('logs', 'off'), w('mirror_port', 'off')])).toMatchObject({ state: 'not_set_up', to: '/settings/modules#module-logs' })
+  })
+
+  it('on the page, with no input: it says a mirror port or a firewall or DNS log is needed and offers to add a log source', async () => {
+    renderApp('/detection')
+    const r = await row('bad-addresses')
+    expect(r.getByText('Bad addresses')).toBeInTheDocument()
+    expect(r.getByText(/^(Watching|Quiet|Not set up)$/)).toBeInTheDocument()
+    expect(r.getByRole('link')).toHaveAttribute('href', expect.stringMatching(/^\/(logs|settings)/))
   })
 })

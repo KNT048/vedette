@@ -26,7 +26,7 @@ export default function DetectionPage() {
       <PageHeader title={t('title')} meta={t('meta')} stories={['S-IDS-1', 'S-LOG-4', 'S-HP-1']} />
       {ov.error ? <ErrorState error={ov.error} onRetry={() => void ov.refetch()} /> : ov.isPending ? <Loading /> : (
         <>
-          <Watchers watchers={ov.data.watchers} />
+          <Watchers watchers={ov.data.watchers} badAddresses={ov.data.kinds.find((k) => k.kind === 'bad_address')?.incidents ?? 0} />
           <Kinds kinds={ov.data.kinds} />
           <MirrorHits hits={ov.data.mirror_port_hits} />
           {ov.data.watchers.some((w) => w.id === 'ips_events' && w.state !== 'off') ? <Alerts /> : null}
@@ -36,9 +36,28 @@ export default function DetectionPage() {
   )
 }
 
-function Watchers({ watchers }: { watchers: Watcher[] }) {
+/** "Bad addresses": the names and addresses your devices reach, matched against the bad-address lists. Only two inputs feed it, the
+ *  mirror port (DNS names, TLS and HTTP hosts) and received logs (a firewall or DNS log); the box does not read its own DNS. Its
+ *  state is read from those two watchers: watching when one of them is, quiet when one stopped, else what it needs to work. */
+export function badAddressRow(watchers: Watcher[], container = false): { state: 'watching' | 'quiet' | 'not_set_up'; sources: ('mirror_port' | 'logs')[]; last: string | null; to: string } {
+  const feeds = watchers.filter((w): w is Watcher & { id: 'mirror_port' | 'logs' } => w.id === 'mirror_port' || w.id === 'logs')
+  const watching = feeds.filter((w) => w.state === 'watching')
+  const quiet = feeds.filter((w) => w.state === 'quiet')
+  const last = feeds.map((w) => w.last_input_at).filter((x): x is string => !!x).sort().at(-1) ?? null
+  const logs = feeds.find((w) => w.id === 'logs')
+  // what to do when nothing feeds it: a log source is the step every install can take (a mirror port needs a switch that mirrors)
+  const to = !logs || logs.state === 'off' ? '/settings/modules#module-logs' : '/logs?tab=sources&add=source'
+  if (watching.length) return { state: 'watching', sources: watching.map((w) => w.id), last, to: '/logs?tab=digest' }
+  if (quiet.length) return { state: 'quiet', sources: quiet.map((w) => w.id), last, to: quiet[0]!.id === 'logs' ? '/logs?tab=sources' : (actionTarget({ id: 'mirror_port', action: 'fix' }, container) ?? '/settings/network#span') }
+  return { state: 'not_set_up', sources: [], last, to }
+}
+
+function Watchers({ watchers, badAddresses }: { watchers: Watcher[]; badAddresses: number }) {
   const { t } = useTranslation('detection')
   const container = useInstallKind() === 'container'
+  const bad = badAddressRow(watchers, container)
+  const names = bad.sources.map((x) => t(`badAddresses.source.${x}`)).join(t('badAddresses.and'))
+  const logsOff = bad.to.startsWith('/settings/modules')
   return (
     <Section id="watching" title={t('watching.title')}>
       <Card flush>
@@ -59,6 +78,16 @@ function Watchers({ watchers }: { watchers: Watcher[] }) {
               </li>
             )
           })}
+          <li data-testid="watcher-bad-addresses" className="grid gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <div className="grid gap-0.5">
+              <p className="flex flex-wrap items-baseline gap-x-2"><span className="font-medium">{t('badAddresses.name')}</span><span className="text-meta" data-state={bad.state}>{t(`state.${bad.state}`)}</span></p>
+              <p className="text-meta text-muted">{t(`badAddresses.${bad.state}`, { sources: names })}</p>
+              <p className="text-caption text-muted">
+                {bad.last ? t('watching.last', { when: fmtRelative(bad.last) }) : t('watching.never')}{` · ${t('watching.raised', { count: badAddresses })}`}
+              </p>
+            </div>
+            <Link to={bad.to} className={`text-meta ${link}`}>{t(bad.state === 'watching' ? 'badAddresses.view' : bad.state === 'quiet' ? 'badAddresses.check' : logsOff ? 'action.turn_on.logs' : 'action.set_up.logs')}</Link>
+          </li>
         </ul>
       </Card>
     </Section>

@@ -122,7 +122,8 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 			continue
 		}
 		via, from, to, by, corrected := goneVia(a, lines, f, proofs) // a safe check's proof or a person's confirmation holds against data alone (Transition)
-		_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: via, FromVersion: from, ToVersion: to, Actor: by, Corrected: corrected}, emit)
+		_, evs, err := s.step(ctx, tx, f, false, Trigger{Kind: TrGone, At: now, Via: via, FromVersion: from, ToVersion: to, Actor: by, Corrected: corrected,
+			Note: proofReason(via, proofs[f.CVE])}, emit)
 		if err != nil {
 			return res, fmt.Errorf("findings: %s on %s: %w", f.CVE, a.ID, err)
 		}
@@ -257,6 +258,22 @@ func goneVia(a Asset, lines map[string]line, f Finding, proofs map[string]Match)
 		return ViaDistroFixed, "", "", "", false
 	}
 	return ViaDataCorrected, "", "", "", false
+}
+
+// proofReason is why Vedette closed a finding by itself when the match's proof says it (the distribution's fixed package release, its
+// word on the package, the platform): the proof's own sentence without its "Not affected:" head and its "Vedette closed this" tail, kept
+// as the closing note so the handled line says the real reason ("Ubuntu 26.04 fixed CVE-… in linux 7.0.0-43.43, and this device has
+// 7.0.0-43.43"), not only "the match was corrected". "" for a closure no proof explains, and for one a device change explains.
+func proofReason(via Via, p Match) string {
+	if via != ViaDataCorrected && via != ViaDistroFixed {
+		return ""
+	}
+	s := strings.TrimSpace(p.Evidence.Summary)
+	s = strings.TrimSpace(strings.TrimPrefix(s, "Not affected:"))
+	if i := strings.Index(s, " Vedette closed this by itself"); i >= 0 {
+		s = strings.TrimSpace(s[:i])
+	}
+	return clipBytes(oneLine(s, 500), 500)
 }
 
 // moved reports whether cur is a newer release than was: both known, ordered, and not the same release written more or less

@@ -2369,6 +2369,19 @@ func encodeFindingsGetFindingsResponse(response *FindingsGetFindingsOK, w http.R
 	return nil
 }
 
+func encodeFindingsGetFindingsAnsweredResponse(response *FindingsGetFindingsAnsweredOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeFindingsGetFindingsDevicesResponse(response *FindingsGetFindingsDevicesOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2539,6 +2552,19 @@ func encodeFindingsPostFindingsIDVerifyResponse(response *FindingsPostFindingsID
 }
 
 func encodeFindingsPostFindingsQuestionsIDAnswerResponse(response *FindingsPostFindingsQuestionsIDAnswerOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeFindingsPostFindingsQuestionsIDUnanswerResponse(response *FindingsPostFindingsQuestionsIDUnanswerOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

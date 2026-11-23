@@ -66,7 +66,7 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   resetPageOn?: unknown
   /** The server pages the list: `data` is one page, `total` the rows of every page, and `list` (the page's useListParams) the page
    *  and size the page asked for. No search, sort or filter of the table's own: they would act on one page only. */
-  server?: { total: number; list: ListParams }
+  server?: { total: number; list: ListParams; max?: number }
 }) {
   const { t } = useTranslation()
   const own = useListParams(urlKey ?? listKey(caption))
@@ -79,7 +79,8 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
     list.set({ sort: code === encodeSort(initialSort ?? []) ? '' : code, page: 0 })
   }
   const filter = server || !search ? '' : list.q
-  const size = list.size ?? pageSize
+  // a size above what the server sends in one page (an old link) reads as the largest it sends
+  const size = Math.min(list.size ?? pageSize, server?.max ?? Infinity)
   // The page and size are the list's (URL) state; the server's page is `data` itself (manualPagination)
   const pagination = (pageIndex: number) => ({ pageIndex, pageSize: size })
   const table = useReactTable({
@@ -143,7 +144,7 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
           {paged || filter || (filtered && count > 0) ? (
             <div className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
               <RangeText page={page} size={size} count={count} total={filter ? data.length : undefined} />
-              <Pager page={page} pages={pages} onPage={(p) => setPage(p)} label={t('table.pagesTop', { caption })} size={size} onSize={setSize} sizeChanged={sizeChanged} />
+              <Pager page={page} pages={pages} onPage={(p) => setPage(p)} label={t('table.pagesTop', { caption })} size={size} onSize={setSize} sizeChanged={sizeChanged} maxSize={server?.max} />
             </div>
           ) : null}
         </div>

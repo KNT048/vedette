@@ -1359,6 +1359,13 @@ type Handler interface {
 	//
 	// GET /findings
 	FindingsGetFindings(ctx context.Context, params FindingsGetFindingsParams) (*FindingsGetFindingsOK, error)
+	// FindingsGetFindingsAnswered implements findings_get_findings_answered operation.
+	//
+	// The questions a person answered "not affected" (ignored devices left out), the newest first: each
+	// can be asked again.
+	//
+	// GET /findings/answered
+	FindingsGetFindingsAnswered(ctx context.Context, params FindingsGetFindingsAnsweredParams) (*FindingsGetFindingsAnsweredOK, error)
 	// FindingsGetFindingsDevices implements findings_get_findings_devices operation.
 	//
 	// By device: one card per device with open findings (devices not added yet included, ignored ones only
@@ -1454,6 +1461,13 @@ type Handler interface {
 	//
 	// POST /findings/questions/{id}/answer
 	FindingsPostFindingsQuestionsIDAnswer(ctx context.Context, req *FindingsPostFindingsQuestionsIDAnswerReq, params FindingsPostFindingsQuestionsIDAnswerParams) (*FindingsPostFindingsQuestionsIDAnswerOK, error)
+	// FindingsPostFindingsQuestionsIDUnanswer implements findings_post_findings_questions_id_unanswer operation.
+	//
+	// Take back a "not affected" answer: the question is asked again in Needs your input (an "affected"
+	// answer made a finding and is changed on its page: 409 not_answered); audit.
+	//
+	// POST /findings/questions/{id}/unanswer
+	FindingsPostFindingsQuestionsIDUnanswer(ctx context.Context, params FindingsPostFindingsQuestionsIDUnanswerParams) (*FindingsPostFindingsQuestionsIDUnanswerOK, error)
 	// HoneypotDeleteHoneypotTokensID implements honeypot_delete_honeypot_tokens_id operation.
 	//
 	// Delete a honey token; the planted copy stops alerting.

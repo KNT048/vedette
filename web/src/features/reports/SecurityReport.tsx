@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { AiBlock } from '@/components/common/AiBlock'
 import { Chip } from '@/components/common/StatusChip'
-import { HandledLine, SeverityBadge, StatusBadge, useStatusLabel, VerificationLine } from '@/components/common/status'
+import { FindingStatusLines, HandledLine, SeverityBadge, StatusBadge, useStatusLabel } from '@/components/common/status'
 import { Logo } from '@/components/brand/Logo'
 import { NotAddedChip } from '@/features/findings/NotAdded'
 import { useFixTitle } from '@/features/findings/parts'
@@ -220,7 +220,7 @@ function Handled({ h, charts, n }: { h: ReportHandled; charts: boolean; n: numbe
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><CveLink cve={i.cve} finding={i.finding_id} /><SeverityBadge severity={i.severity} compact /></div>
                         <div className="text-meta text-muted">{i.product}</div>
                       </td>
-                      <td className={td}><div className="flex flex-wrap items-center gap-2"><StatusBadge code={i.handled.resolution} until={i.handled.accepted_until} /></div><HandledLine handled={i.handled} software={i.product} className="mt-1 block" /></td>
+                      <td className={td}><div className="flex flex-wrap items-center gap-2"><StatusBadge code={i.handled.resolution} until={i.handled.accepted_until} /></div><HandledLine underBadge handled={i.handled} software={i.product} className="mt-1 block" /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -234,17 +234,9 @@ function Handled({ h, charts, n }: { h: ReportHandled; charts: boolean; n: numbe
   )
 }
 
-/** A finding's status with how Vedette knows, and the day a list asks for the fix (CISA KEV). */
+/** A finding's status as every screen says it: the badge, why (the reasons, with the day a list asks for the fix) and how Vedette knows. */
 function StatusCell({ f }: { f: ReportFinding }) {
-  const { t } = useTranslation()
-  const due = f.reasons.map((r) => r.due).filter((d): d is string => !!d).sort()[0]
-  return (
-    <div className="grid gap-1">
-      <StatusBadge code={f.status} />
-      <VerificationLine verified={f.verification.verified} basis={f.verification.basis} by={f.verification.by} at={f.verification.at} />
-      {due ? <span className="text-meta font-medium text-danger">{t('reasons.due', { date: fmtDate(due) })}</span> : null}
-    </div>
-  )
+  return <FindingStatusLines value={{ status: f.status, urgency: { reasons: f.reasons, internet: null }, verification: f.verification }} />
 }
 
 function Open({ open, n }: { open: ReportOpen; n: number }) {

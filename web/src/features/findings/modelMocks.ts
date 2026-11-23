@@ -16,7 +16,7 @@ import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/l
 import { FIRST_TOP, MAX_HANDLE, PAGE_DEFAULT, PAGE_MAX, TREND_DAYS } from './contract'
 import type {
   CveRow, CveSeverity, DeviceCard, DeviceCards, DeviceRef, DeviceStatus, FixBlock, FixCard, FixCards, FixDevice, HandledList, HandledRow,
-  InputItem, InputList, OpenStatus, Overview, Resolution, SeverityCounts, StatusCode, StatusCounts, View,
+  AnsweredList, AnsweredQuestion, InputItem, InputList, OpenStatus, Overview, Resolution, SeverityCounts, StatusCode, StatusCounts, View,
 } from './types'
 
 export const records = collection<FindingRecord[]>('fnd_finding_model', seedFindingRecords, () => [])
@@ -61,7 +61,9 @@ function rows(): (FindingRecord & { asset: Asset })[] {
 }
 const openRows = (ignored = false) => rows().filter((r) => r.state === 'open' && isIgnored(r.asset_id) === ignored)
 
-const cveRow = (r: FindingRecord): CveRow => ({ id: r.id, cve: r.cve, status: statusOf(r), severity: severityOf(r.cve), verified: r.verified, safe_check: SAFE_CHECKS.has(r.cve) })
+const cveRow = (r: FindingRecord): CveRow => ({ id: r.id, cve: r.cve, status: statusOf(r), severity: severityOf(r.cve), verified: r.verified, safe_check: SAFE_CHECKS.has(r.cve),
+  urgency: { layer: r.layer, since: r.urgency_at, reasons: r.reasons, internet: r.internet },
+  verification: { verified: r.verified, basis: r.basis, by: r.verified_by, at: r.verified_at } })
 const bySeverity = (a: FindingRecord, b: FindingRecord) => sevRank(a.cve) - sevRank(b.cve) || a.layer - b.layer || a.cve.localeCompare(b.cve)
 function severityCounts(l: FindingRecord[]): SeverityCounts {
   const c: SeverityCounts = { critical: 0, high: 0, medium: 0, low: 0, none: 0, unscored: 0 }
@@ -112,7 +114,7 @@ function inputItems(): InputItem[] {
     .map((r): InputItem => ({ kind: 'unconfirmed', id: r.id, cve: r.cve, device: deviceRef(r.asset), software: r.software, status: OPEN_STATUSES[r.layer - 1] as 'exploited',
       severity: severityOf(r.cve), basis: r.basis, safe_check: SAFE_CHECKS.has(r.cve) }))
   const assets = new Map(assetsStore.get().map((a) => [a.id, a]))
-  const asked = questions.get().filter((x) => assets.has(x.asset_id) && visible(x.asset_id)).sort((a, b) => b.cves - a.cves || a.asked_at.localeCompare(b.asked_at))
+  const asked = questions.get().filter((x) => !x.answered && assets.has(x.asset_id) && visible(x.asset_id)).sort((a, b) => b.cves - a.cves || a.asked_at.localeCompare(b.asked_at))
     .map((x): InputItem => ({ kind: 'question', id: x.id, question: x.kind, device: deviceRef(assets.get(x.asset_id)!), software: x.software, cve: x.cve, cves: x.cves,
       asked_at: x.asked_at, url: x.url, command: x.command, choices: x.choices }))
   return [...notAdded, ...unconfirmed, ...asked]
@@ -205,6 +207,8 @@ export function overview(): Overview {
   const assets = assetsStore.get().filter((a) => !isIgnored(a.id))
   const byStatus = { under_attack: 0, exploited: 0, public_exploit: 0, critical_edge: 0, update_recommended: 0, needs_input: 0 }
   for (const a of assets) { const s = deviceStatus(a.id); if (s) byStatus[s.code] += 1 }
+  // devices with open findings by their most urgent status, the box included (it carries no badge on the real box)
+  const affected = statusCounts([...groupBy(open, (r) => r.asset_id).values()].map(mostUrgent))
   const first = [...groupBy(open, (r) => `${r.asset_id}\n${r.fix.key}`).values()].map((g) => ({ device: deviceRef(g[0]!.asset), block: block(g) }))
     .sort((a, b) => byUrgency({ layer: layerOf(a.block.status), n: a.block.findings.length, name: a.device.name }, { layer: layerOf(b.block.status), n: b.block.findings.length, name: b.device.name }))
     .slice(0, FIRST_TOP)
@@ -218,9 +222,9 @@ export function overview(): Overview {
   const notifyOn = isOn('notify')
   return {
     open: { findings: open.length, by_status: statusCounts(open) },
-    devices: { total: assets.length, not_added: assets.filter((a) => !a.approved).length, by_status: byStatus },
+    devices: { total: assets.length, not_added: assets.filter((a) => !a.approved).length, by_status: byStatus, affected },
     input: inputItems().length,
-    first, trend,
+    first, trend, trend_start: new Date(Date.now() - (TREND_DAYS - 1) * 864e5).toISOString().slice(0, 10),
     alerts: notifyOn ? { ...sentSince(new Date(Date.now() - 7 * 864e5).toISOString()), days: 7 } : null,
     incidents: notifyOn ? openIncidents() : null,
     generated_at: nowIso(),
@@ -345,8 +349,30 @@ export const modelHandlers = [
         events: [event(user, 'created', { note: note || null }), event(user, 'confirmed', { note: note || null })],
       }])
     }
-    questions.update((l) => l.filter((q) => q.id !== x.id))
-    audit('findings.answer', x.id, `${x.cve} ${b.answer}${note ? `: ${note}` : ''}`)
+    // a "not affected" answer is kept so it can be taken back; an "affected" one made a finding
+    questions.update((l) => b.answer === 'not_affected' ? l.map((q) => (q.id === x.id ? { ...q, answered: { by: user, at } } : q)) : l.filter((q) => q.id !== x.id))
+    audit('findings.question_answered', x.id, `${x.cve} ${b.answer}${note ? `: ${note}` : ''}`)
     return HttpResponse.json({ finding })
+  }),
+
+  http.get(`${API}/findings/answered`, ({ request }) => read(() => {
+    const p = query(request)
+    const device = p.get('device') ?? ''
+    const assets = new Map(assetsStore.get().map((a) => [a.id, a]))
+    const l = questions.get().filter((x) => x.answered && assets.has(x.asset_id) && !isIgnored(x.asset_id) && (!device || x.asset_id === device))
+      .sort((a, b) => b.answered!.at.localeCompare(a.answered!.at))
+    const items: AnsweredQuestion[] = page(p)(l).map((x) => ({ id: x.id, question: x.kind, device: deviceRef(assets.get(x.asset_id)!), software: x.software,
+      cve: x.cve, cves: x.cves, answer: 'not_affected', by: x.answered!.by, at: x.answered!.at }))
+    return { items, total: l.length } satisfies AnsweredList
+  })),
+
+  http.post(`${API}/findings/questions/:id/unanswer`, ({ params }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const x = questions.get().find((q) => q.id === String(params.id))
+    if (!x) return fail(404, 'not_found', 'No such question.')
+    if (!x.answered) return fail(409, 'not_answered', 'This question has no "not affected" answer to take back. An "affected" answer is changed on its finding\'s page.')
+    questions.update((l) => l.map((q) => (q.id === x.id ? { ...q, answered: undefined } : q)))
+    audit('findings.question_unanswered', x.id, `${x.cve ?? x.kind}: asked again`)
+    return HttpResponse.json({ id: x.id })
   }),
 ]

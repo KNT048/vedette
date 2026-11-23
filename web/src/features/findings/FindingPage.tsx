@@ -18,14 +18,14 @@ import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
 import { FindingStatus, legacySeverity } from './legacyStatus'
 import { overdue } from './accept'
-import { useFinding, useReopen } from './api'
+import { useFinding, useReopen, useView } from './api'
 import { useFindingAgentGone } from './agentNow'
 import { basisLabel, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
 import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, ConfirmWays, UndoButton } from './Confirm'
 import { AskAi, NoPack, PackView } from './Recommendation'
 import { GeneralChecks } from './Hardening'
-import { SeverityBadge } from '@/components/common/status'
+import { FindingStatusLines, SeverityBadge } from '@/components/common/status'
 import type { FindingDetail } from './types'
 import { IUpdatedFinding } from './Updated'
 import { NotAdded } from './NotAdded'
@@ -160,6 +160,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
   const { t } = useTranslation('findings')
   const can = useCan('operator')
   const reopen = useReopen()
+  const view = useView(f.id)
   const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const opener = useRef<HTMLButtonElement>(null)
@@ -190,15 +191,16 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <FindingStatus f={f} /><SeverityBadge severity={legacySeverity(f)} detail />
+            {/* the status lines every list says for this finding (its View); the older row's badge only until the view has loaded */}
+            {view.data ? <FindingStatusLines value={{ status: view.data.status, urgency: view.data.urgency, verification: view.data.verification }} /> : <FindingStatus f={f} />}
+            <SeverityBadge severity={legacySeverity(f)} detail />
             {unverified(f) ? <span className="inline-flex items-center gap-1 text-muted">{t('risk.unverifiedLine')}<InfoTip topic={t('risk.unverifiedLine')}>{t('risk.unverifiedLineInfo')}</InfoTip></span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}
             <span className="inline-flex items-center gap-1">{t('meta.seen', { first: fmtDate(f.first_seen), last: fmtDateTime(f.last_seen) })}<InfoTip topic={t('col.lastSeen')}>{t('matchedInfo')}</InfoTip></span>
             {f.known_version?.seen_at ? <span>{t(`meta.version.${f.known_version.source === 'agent' && agentGone ? 'agentLast' : f.known_version.source}`, { software: f.known_version.software, version: f.known_version.version, date: fmtDateTime(f.known_version.seen_at) })}</span> : null}
-            {f.kev?.due_date && isOpen(f.status) ? <span>{t(overdue(f.kev.due_date) ? 'meta.duePassed' : 'meta.due', { date: fmtDate(f.kev.due_date) })}</span> : null}
-            {f.status === 'risk_accepted' ? (
-              <span className="basis-full [overflow-wrap:anywhere]">{t('accept.line', { date: fmtDate(f.accepted_until), who: f.resolved_by ?? '' })}{f.resolution_note ? ` ${f.resolution_note}` : ''}</span>
-            ) : null}
+            {/* the reasons line says "fix by"; a deadline that passed is said once more, as an alarm */}
+            {f.kev?.due_date && isOpen(f.status) && (overdue(f.kev.due_date) || !view.data) ? <span>{t(overdue(f.kev.due_date) ? 'meta.duePassed' : 'meta.due', { date: fmtDate(f.kev.due_date) })}</span> : null}
+            {/* an accepted risk: the notice under the title says until when, by whom and why (once) */}
           </span>
         }
         actions={

@@ -29,9 +29,10 @@ export function pageItems(page: number, pages: number): (number | null)[] {
   return out
 }
 
-/** The sizes offered for a list whose default is `size`. */
-export function pageSizes(size: number): number[] {
-  return [...new Set([...PAGE_SIZES, size])].filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b)
+/** The sizes offered for a list whose default is `size`; `max`: the most rows the list's server sends in one page, so no size is offered
+ *  that would show fewer rows than it says ("200" that shows "1–100 of 196"). */
+export function pageSizes(size: number, max = Infinity): number[] {
+  return [...new Set([...PAGE_SIZES, size])].filter((n) => Number.isFinite(n) && n > 0 && n <= max).sort((a, b) => a - b)
 }
 
 /**
@@ -39,7 +40,7 @@ export function pageSizes(size: number): number[] {
  * control sits above and below a list; `label` tells the two apart for a screen reader. Page numbers are 0-based here, 1-based on
  * screen. Hidden when there is one page and the size is the list's default (`sizeChanged` false): nothing to move to or undo.
  */
-export function Pager({ page, pages, onPage, label, size, onSize, sizeChanged, className }: {
+export function Pager({ page, pages, onPage, label, size, onSize, sizeChanged, maxSize, className }: {
   page: number
   pages: number
   onPage: (p: number) => void
@@ -48,6 +49,8 @@ export function Pager({ page, pages, onPage, label, size, onSize, sizeChanged, c
   size?: number
   onSize?: (n: number) => void
   sizeChanged?: boolean
+  /** The most rows the server sends in one page: larger sizes are not offered. */
+  maxSize?: number
   className?: string
 }) {
   const { t } = useTranslation()
@@ -91,7 +94,7 @@ export function Pager({ page, pages, onPage, label, size, onSize, sizeChanged, c
         <span className="ml-1 flex items-center gap-1.5">
           <label htmlFor={`${id}-size`} className="whitespace-nowrap">{t('table.size')}</label>
           <Select id={`${id}-size`} value={size} onChange={(e) => onSize(Number(e.target.value))} className="h-9 w-auto sm:h-8">
-            {pageSizes(size).map((n) => <option key={n} value={n}>{n}</option>)}
+            {pageSizes(size, maxSize).map((n) => <option key={n} value={n}>{n}</option>)}
           </Select>
         </span>
       ) : null}

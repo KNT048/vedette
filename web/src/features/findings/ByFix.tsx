@@ -75,7 +75,7 @@ function FixCardView({ card, loading, onHandle }: { card: FixCard; loading: Want
         <StatusBadge code={card.status} />
         {card.findings > 1 ? <span className="text-meta text-muted">{t('byDevice.cause', { cve: card.cause })}</span> : null}
         <SeverityLine counts={card.severity} />
-        <FixLink fix={card.fix} />
+        <FixLink fix={card.fix} cve={card.cause} />
       </div>
       {open ? (
         <ul id={panel} aria-label={t('byFix.devicesOf', { fix: title })} className="ml-6 grid divide-y divide-rule border-l border-rule pl-3">
@@ -112,7 +112,7 @@ export function ByFix({ status }: { status: string }) {
           <>
             <p role="status" className="text-sm" data-count="fix">{t('byFix.summary', { count: d.findings, fixes: t('byFix.fixes', { count: d.total }) })}</p>
             <DataTable urlKey="by-fix" caption={t('byFix.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-              server={{ total: d.total, list }} filtered={filtered} onClearFilters={() => raw.set({ q: '', page: 0 })} resetPageOn={status}
+              server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={() => raw.set({ q: '', page: 0 })} resetPageOn={status}
               mobileRow={(c) => <FixCardView card={c} loading={want} onHandle={setWant} />} />
           </>
         )}

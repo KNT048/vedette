@@ -140,6 +140,8 @@
     "vedette": "Vedette",
     "line": "{{status}} by {{by}} ({{date}})",
     "lineHow": "{{status}} by {{by}}: {{how}} ({{date}})",
+    "by": "By {{by}} ({{date}})",
+    "byHow": "By {{by}}: {{how}} ({{date}})",
     "withNote": "{{line}}: {{note}}",
     "how": {
       "version_moved": "version moved {{from}} → {{to}}",

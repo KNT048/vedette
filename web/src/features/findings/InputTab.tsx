@@ -12,17 +12,19 @@ import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { SeverityBadge, StatusBadge, VerificationLine } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
+import { fmtDate } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useDeviceAction } from '@/features/inventory/api'
 import { useStartRun } from '@/features/scan/api'
-import { useAnswer, useInputList, useVerify } from './api'
+import { useAnswer, useAnswered, useInputList, useUnanswer, useVerify } from './api'
 import { AskDialog, type Ask } from './AskDialog'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { errMsg } from './errors'
 import { HandleDialog } from './HandleDialog'
 import { NotAdded } from './NotAdded'
 import { asAsset, DeviceLine } from './parts'
-import type { InputItem } from './types'
+import { linkLabels } from './links'
+import type { AnsweredQuestion, InputItem } from './types'
 
 /** What PATCH …/software/{sid} accepts as a version (the inventory's versionRE). */
 const VERSION_RE = /^[A-Za-z0-9_.\-+() ]{1,40}$/
@@ -104,6 +106,7 @@ function QuestionDialog({ i, asking, onClose }: { i: Item<'question'>; asking: A
   const { t } = useTranslation('findings')
   const act = useDeviceAction(i.device.id)
   const answer = useAnswer()
+  const unanswer = useUnanswer()
   const sw = i.software
   const words = { software: sw?.name ?? t('queue.theSoftware'), version: sw?.version ?? '', device: i.device.name, count: i.cves, cve: i.cve ?? '' }
   if (asking.kind === 'version') {
@@ -127,8 +130,10 @@ function QuestionDialog({ i, asking, onClose }: { i: Item<'question'>; asking: A
     )
   }
   const a = asking.answer
+  // "not affected" leaves the queue and no finding records it: the toast can take it back (the answer is also listed below the queue)
+  const undo = a === 'not_affected' ? { label: t('queue.undo'), done: t('queue.askedAgain', words), run: () => unanswer.mutateAsync({ id: i.id }) } : undefined
   return (
-    <AskDialog title={t(`queue.${a}Title`, words)} submit={t(`queue.${a}`)} done={t('queue.answerSaved', words)} onClose={onClose}
+    <AskDialog title={t(`queue.${a}Title`, words)} submit={t(`queue.${a}`)} done={t(a === 'not_affected' ? 'queue.notAffectedSaved' : 'queue.answerSaved', words)} undo={undo} onClose={onClose}
       fields={[{ name: 'note', label: t(a === 'affected' ? 'queue.confirmNote' : 'queue.notAffectedNote'), min: a === 'not_affected' ? 3 : undefined, required: a === 'not_affected', max: 500, long: true }]}
       onSend={(v) => answer.mutateAsync({ id: i.id, answer: a, note: v.note ?? '' })} />
   )
@@ -148,7 +153,8 @@ function QuestionItem({ i, link }: { i: Item<'question'>; link: boolean }) {
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <DeviceLine device={i.device} badge={false} link={link} />
         {i.cve ? <Link to={`/cve/${encodeURIComponent(i.cve)}`} className="text-meta text-accent underline-offset-4 hover:underline">{i.cve}</Link> : null}
-        {i.url ? <a href={i.url} target="_blank" rel="noopener noreferrer" className="text-meta text-accent underline-offset-4 hover:underline">{t('fixLine.advisory')}</a> : null}
+        {/* the link says what it is: NVD's entry is not the vendor's advisory */}
+        {i.url ? <a href={i.url} target="_blank" rel="noopener noreferrer" className="text-meta text-accent underline-offset-4 hover:underline">{linkLabels(t, [i.url])[0]}</a> : null}
       </span>
       {i.command && !i.choices.some((c) => c.ask?.includes('pkg_version')) ? <p className="text-meta text-muted">{t('queue.command')} <code className="font-mono">{i.command}</code></p> : null}
       <div className="flex flex-wrap items-center gap-2">
@@ -194,6 +200,48 @@ function deviceLinks(items: InputItem[]): Set<string> {
   return out
 }
 
+/** One question answered "not affected": what it was, who answered, and Ask again (the answer is taken back, the question waits again). */
+function AnsweredRow({ x }: { x: AnsweredQuestion }) {
+  const { t } = useTranslation('findings')
+  const r = useRoles()
+  const unanswer = useUnanswer()
+  const words = { software: x.software?.name ?? t('queue.theSoftware'), version: x.software?.version ?? '', device: x.device.name, count: x.cves, cve: x.cve ?? '' }
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-2 py-2">
+      <span className="grid gap-0.5">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          {x.cve ? <Link to={`/cve/${encodeURIComponent(x.cve)}`} className="text-accent underline-offset-4 hover:underline">{x.cve}</Link> : null}
+          <DeviceLine device={x.device} badge={false} />
+          {x.software ? <span className="text-meta text-muted">{x.software.version ? `${x.software.name} ${x.software.version}` : x.software.name}</span> : null}
+        </span>
+        <span className="text-meta text-muted">{t('queue.answeredBy', { by: x.by, date: fmtDate(x.at) })}</span>
+      </span>
+      <Button size="sm" disabled={!r.operator} title={r.needOperator} busy={unanswer.isPending && unanswer.variables?.id === x.id} busyLabel={t('common:busy.saving')}
+        aria-label={t('queue.askAgainOf', words)}
+        onClick={() => unanswer.mutate({ id: x.id }, { onSuccess: () => toast.success(t('queue.askedAgain', words)), onError: (e) => toast.error(errMsg(e)) })}>
+        {t('queue.askAgain')}
+      </Button>
+    </li>
+  )
+}
+
+/** The questions answered "not affected", behind one click under the queue: a wrong click is never final. */
+function Answered({ device }: { device: string }) {
+  const { t } = useTranslation('findings')
+  const q = useAnswered({ device }, { offset: 0, limit: PAGE_MAX })
+  const total = q.data?.total ?? 0
+  if (!total) return null
+  return (
+    <details className="grid gap-2" data-testid="answered">
+      <summary className="w-fit cursor-pointer text-sm text-accent">{t('queue.answered', { count: total })}</summary>
+      <ul aria-label={t('queue.answeredCaption')} className="mt-2 grid divide-y divide-rule">
+        {q.data!.items.map((x) => <AnsweredRow key={x.id} x={x} />)}
+      </ul>
+      {total > q.data!.items.length ? <p className="text-meta text-muted">{t('queue.answeredMore', { count: total - q.data!.items.length })}</p> : null}
+    </details>
+  )
+}
+
 export function InputTab({ device, onDevice }: { device: string; onDevice: (id: string) => void }) {
   const { t } = useTranslation('findings')
   const raw = useListParams('input')
@@ -211,9 +259,10 @@ export function InputTab({ device, onDevice }: { device: string; onDevice: (id: 
       <QueryState query={q}>
         {(d) => d.total === 0 && !device ? <EmptyState title={t('queue.empty')}>{t('queue.emptyBody')}</EmptyState> : (
           <DataTable urlKey="input" caption={t('queue.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-            server={{ total: d.total, list }} filtered={!!device} onClearFilters={() => onDevice('')} resetPageOn={device} mobileRow={(i) => <QueueItem i={i} linkDevice={links.has(i.id)} />} />
+            server={{ total: d.total, list, max: PAGE_MAX }} filtered={!!device} onClearFilters={() => onDevice('')} resetPageOn={device} mobileRow={(i) => <QueueItem i={i} linkDevice={links.has(i.id)} />} />
         )}
       </QueryState>
+      <Answered device={device} />
     </div>
   )
 }

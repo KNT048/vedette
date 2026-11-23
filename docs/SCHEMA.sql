@@ -598,7 +598,7 @@ CREATE TABLE inv_observation (
     asset_id   TEXT NOT NULL REFERENCES inv_asset (id) ON DELETE CASCADE,
     field      TEXT NOT NULL CHECK (field IN ('kind', 'hostname', 'mac', 'vendor', 'model', 'os')),
     value      TEXT NOT NULL CHECK (length(value) BETWEEN 1 AND 253),
-    source     TEXT NOT NULL CHECK (source IN ('manual', 'agent', 'snmp', 'nmap', 'passive', 'scan')),
+    source     TEXT NOT NULL CHECK (source IN ('manual', 'declared', 'agent', 'snmp', 'nmap', 'passive', 'scan')),
     confidence REAL NOT NULL CHECK (confidence BETWEEN 0 AND 1),
     seen_at    TEXT NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     evidence   TEXT

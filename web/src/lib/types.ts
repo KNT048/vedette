@@ -1,5 +1,5 @@
 // Kiểu dữ liệu dùng chung giữa nhiều module (tài sản là thực thể trung tâm, ARCHITECTURE §4). Kiểu riêng của module ở features/<m>/types.ts.
-export type ObsSource = 'manual' | 'agent' | 'snmp' | 'nmap' | 'passive' | 'scan'
+export type ObsSource = 'manual' | 'declared' | 'agent' | 'snmp' | 'nmap' | 'passive' | 'scan'
 /** A device type id of content/devicetypes/types.json: data, not a hand-written union. */
 export type AssetKind = string
 /** What the identification rules say a device of unknown kind most likely is; never its kind. */

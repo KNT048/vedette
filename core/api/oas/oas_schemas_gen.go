@@ -124779,18 +124779,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetKind) UnmarshalText(data []byte) e
 type InventoryGetInventoryDevicesIDOKAssetKindSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetKindSourceManual  InventoryGetInventoryDevicesIDOKAssetKindSource = "manual"
-	InventoryGetInventoryDevicesIDOKAssetKindSourceAgent   InventoryGetInventoryDevicesIDOKAssetKindSource = "agent"
-	InventoryGetInventoryDevicesIDOKAssetKindSourceSnmp    InventoryGetInventoryDevicesIDOKAssetKindSource = "snmp"
-	InventoryGetInventoryDevicesIDOKAssetKindSourceNmap    InventoryGetInventoryDevicesIDOKAssetKindSource = "nmap"
-	InventoryGetInventoryDevicesIDOKAssetKindSourcePassive InventoryGetInventoryDevicesIDOKAssetKindSource = "passive"
-	InventoryGetInventoryDevicesIDOKAssetKindSourceScan    InventoryGetInventoryDevicesIDOKAssetKindSource = "scan"
+	InventoryGetInventoryDevicesIDOKAssetKindSourceManual   InventoryGetInventoryDevicesIDOKAssetKindSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetKindSourceDeclared InventoryGetInventoryDevicesIDOKAssetKindSource = "declared"
+	InventoryGetInventoryDevicesIDOKAssetKindSourceAgent    InventoryGetInventoryDevicesIDOKAssetKindSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetKindSourceSnmp     InventoryGetInventoryDevicesIDOKAssetKindSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetKindSourceNmap     InventoryGetInventoryDevicesIDOKAssetKindSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetKindSourcePassive  InventoryGetInventoryDevicesIDOKAssetKindSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetKindSourceScan     InventoryGetInventoryDevicesIDOKAssetKindSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetKindSource values.
 func (InventoryGetInventoryDevicesIDOKAssetKindSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetKindSource {
 	return []InventoryGetInventoryDevicesIDOKAssetKindSource{
 		InventoryGetInventoryDevicesIDOKAssetKindSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetKindSourceDeclared,
 		InventoryGetInventoryDevicesIDOKAssetKindSourceAgent,
 		InventoryGetInventoryDevicesIDOKAssetKindSourceSnmp,
 		InventoryGetInventoryDevicesIDOKAssetKindSourceNmap,
@@ -124803,6 +124805,8 @@ func (InventoryGetInventoryDevicesIDOKAssetKindSource) AllValues() []InventoryGe
 func (s InventoryGetInventoryDevicesIDOKAssetKindSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetKindSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetKindSourceAgent:
 		return []byte(s), nil
@@ -124824,6 +124828,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetKindSource) UnmarshalText(data []b
 	switch InventoryGetInventoryDevicesIDOKAssetKindSource(data) {
 	case InventoryGetInventoryDevicesIDOKAssetKindSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetKindSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceAgent
@@ -124981,18 +124988,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModelBasis) UnmarshalText(data []b
 type InventoryGetInventoryDevicesIDOKAssetModelSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetModelSourceManual  InventoryGetInventoryDevicesIDOKAssetModelSource = "manual"
-	InventoryGetInventoryDevicesIDOKAssetModelSourceAgent   InventoryGetInventoryDevicesIDOKAssetModelSource = "agent"
-	InventoryGetInventoryDevicesIDOKAssetModelSourceSnmp    InventoryGetInventoryDevicesIDOKAssetModelSource = "snmp"
-	InventoryGetInventoryDevicesIDOKAssetModelSourceNmap    InventoryGetInventoryDevicesIDOKAssetModelSource = "nmap"
-	InventoryGetInventoryDevicesIDOKAssetModelSourcePassive InventoryGetInventoryDevicesIDOKAssetModelSource = "passive"
-	InventoryGetInventoryDevicesIDOKAssetModelSourceScan    InventoryGetInventoryDevicesIDOKAssetModelSource = "scan"
+	InventoryGetInventoryDevicesIDOKAssetModelSourceManual   InventoryGetInventoryDevicesIDOKAssetModelSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetModelSourceDeclared InventoryGetInventoryDevicesIDOKAssetModelSource = "declared"
+	InventoryGetInventoryDevicesIDOKAssetModelSourceAgent    InventoryGetInventoryDevicesIDOKAssetModelSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetModelSourceSnmp     InventoryGetInventoryDevicesIDOKAssetModelSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetModelSourceNmap     InventoryGetInventoryDevicesIDOKAssetModelSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetModelSourcePassive  InventoryGetInventoryDevicesIDOKAssetModelSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetModelSourceScan     InventoryGetInventoryDevicesIDOKAssetModelSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetModelSource values.
 func (InventoryGetInventoryDevicesIDOKAssetModelSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetModelSource {
 	return []InventoryGetInventoryDevicesIDOKAssetModelSource{
 		InventoryGetInventoryDevicesIDOKAssetModelSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetModelSourceDeclared,
 		InventoryGetInventoryDevicesIDOKAssetModelSourceAgent,
 		InventoryGetInventoryDevicesIDOKAssetModelSourceSnmp,
 		InventoryGetInventoryDevicesIDOKAssetModelSourceNmap,
@@ -125005,6 +125014,8 @@ func (InventoryGetInventoryDevicesIDOKAssetModelSource) AllValues() []InventoryG
 func (s InventoryGetInventoryDevicesIDOKAssetModelSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetModelSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetModelSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetModelSourceAgent:
 		return []byte(s), nil
@@ -125026,6 +125037,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModelSource) UnmarshalText(data []
 	switch InventoryGetInventoryDevicesIDOKAssetModelSource(data) {
 	case InventoryGetInventoryDevicesIDOKAssetModelSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetModelSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetModelSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetModelSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetModelSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetModelSourceAgent
@@ -125407,18 +125421,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis) Unmarsh
 type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual  InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "manual"
-	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent   InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "agent"
-	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceSnmp    InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "snmp"
-	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceNmap    InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "nmap"
-	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourcePassive InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "passive"
-	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceScan    InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "scan"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual   InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceDeclared InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "declared"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent    InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceSnmp     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceNmap     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourcePassive  InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceScan     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource values.
 func (InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource {
 	return []InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource{
 		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceDeclared,
 		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent,
 		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceSnmp,
 		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceNmap,
@@ -125431,6 +125447,8 @@ func (InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) AllValues
 func (s InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent:
 		return []byte(s), nil
@@ -125452,6 +125470,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) Unmars
 	switch InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource(data) {
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent
@@ -125476,18 +125497,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) Unmars
 type InventoryGetInventoryDevicesIDOKAssetOsSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetOsSourceManual  InventoryGetInventoryDevicesIDOKAssetOsSource = "manual"
-	InventoryGetInventoryDevicesIDOKAssetOsSourceAgent   InventoryGetInventoryDevicesIDOKAssetOsSource = "agent"
-	InventoryGetInventoryDevicesIDOKAssetOsSourceSnmp    InventoryGetInventoryDevicesIDOKAssetOsSource = "snmp"
-	InventoryGetInventoryDevicesIDOKAssetOsSourceNmap    InventoryGetInventoryDevicesIDOKAssetOsSource = "nmap"
-	InventoryGetInventoryDevicesIDOKAssetOsSourcePassive InventoryGetInventoryDevicesIDOKAssetOsSource = "passive"
-	InventoryGetInventoryDevicesIDOKAssetOsSourceScan    InventoryGetInventoryDevicesIDOKAssetOsSource = "scan"
+	InventoryGetInventoryDevicesIDOKAssetOsSourceManual   InventoryGetInventoryDevicesIDOKAssetOsSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetOsSourceDeclared InventoryGetInventoryDevicesIDOKAssetOsSource = "declared"
+	InventoryGetInventoryDevicesIDOKAssetOsSourceAgent    InventoryGetInventoryDevicesIDOKAssetOsSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetOsSourceSnmp     InventoryGetInventoryDevicesIDOKAssetOsSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetOsSourceNmap     InventoryGetInventoryDevicesIDOKAssetOsSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetOsSourcePassive  InventoryGetInventoryDevicesIDOKAssetOsSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetOsSourceScan     InventoryGetInventoryDevicesIDOKAssetOsSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetOsSource values.
 func (InventoryGetInventoryDevicesIDOKAssetOsSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetOsSource {
 	return []InventoryGetInventoryDevicesIDOKAssetOsSource{
 		InventoryGetInventoryDevicesIDOKAssetOsSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetOsSourceDeclared,
 		InventoryGetInventoryDevicesIDOKAssetOsSourceAgent,
 		InventoryGetInventoryDevicesIDOKAssetOsSourceSnmp,
 		InventoryGetInventoryDevicesIDOKAssetOsSourceNmap,
@@ -125500,6 +125523,8 @@ func (InventoryGetInventoryDevicesIDOKAssetOsSource) AllValues() []InventoryGetI
 func (s InventoryGetInventoryDevicesIDOKAssetOsSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetOsSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetOsSourceAgent:
 		return []byte(s), nil
@@ -125521,6 +125546,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsSource) UnmarshalText(data []byt
 	switch InventoryGetInventoryDevicesIDOKAssetOsSource(data) {
 	case InventoryGetInventoryDevicesIDOKAssetOsSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetOsSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsSourceAgent
@@ -125773,18 +125801,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetServicesItemProto) UnmarshalText(d
 type InventoryGetInventoryDevicesIDOKAssetServicesItemSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceManual  InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "manual"
-	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceAgent   InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "agent"
-	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceSnmp    InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "snmp"
-	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceNmap    InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "nmap"
-	InventoryGetInventoryDevicesIDOKAssetServicesItemSourcePassive InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "passive"
-	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceScan    InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "scan"
+	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceManual   InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceDeclared InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "declared"
+	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceAgent    InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceSnmp     InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceNmap     InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetServicesItemSourcePassive  InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetServicesItemSourceScan     InventoryGetInventoryDevicesIDOKAssetServicesItemSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetServicesItemSource values.
 func (InventoryGetInventoryDevicesIDOKAssetServicesItemSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetServicesItemSource {
 	return []InventoryGetInventoryDevicesIDOKAssetServicesItemSource{
 		InventoryGetInventoryDevicesIDOKAssetServicesItemSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetServicesItemSourceDeclared,
 		InventoryGetInventoryDevicesIDOKAssetServicesItemSourceAgent,
 		InventoryGetInventoryDevicesIDOKAssetServicesItemSourceSnmp,
 		InventoryGetInventoryDevicesIDOKAssetServicesItemSourceNmap,
@@ -125797,6 +125827,8 @@ func (InventoryGetInventoryDevicesIDOKAssetServicesItemSource) AllValues() []Inv
 func (s InventoryGetInventoryDevicesIDOKAssetServicesItemSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceAgent:
 		return []byte(s), nil
@@ -125818,6 +125850,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetServicesItemSource) UnmarshalText(
 	switch InventoryGetInventoryDevicesIDOKAssetServicesItemSource(data) {
 	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetServicesItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetServicesItemSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetServicesItemSourceAgent
@@ -126214,18 +126249,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItem) SetVersi
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceManual  InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "manual"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceAgent   InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "agent"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceSnmp    InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "snmp"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceNmap    InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "nmap"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourcePassive InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "passive"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceScan    InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "scan"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceManual   InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceDeclared InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "declared"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceAgent    InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceSnmp     InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceNmap     InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourcePassive  InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceScan     InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource values.
 func (InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource {
 	return []InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource{
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceDeclared,
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceAgent,
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceSnmp,
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceNmap,
@@ -126238,6 +126275,8 @@ func (InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource) AllVa
 func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceAgent:
 		return []byte(s), nil
@@ -126259,6 +126298,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource) Un
 	switch InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource(data) {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceAgent
@@ -126534,18 +126576,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) Se
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual  InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "manual"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent   InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "agent"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceSnmp    InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "snmp"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceNmap    InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "nmap"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourcePassive InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "passive"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceScan    InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "scan"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual   InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceDeclared InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "declared"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent    InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceSnmp     InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceNmap     InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourcePassive  InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceScan     InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource values.
 func (InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource {
 	return []InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource{
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceDeclared,
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent,
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceSnmp,
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceNmap,
@@ -126558,6 +126602,8 @@ func (InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource)
 func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent:
 		return []byte(s), nil
@@ -126579,6 +126625,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSour
 	switch InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource(data) {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent
@@ -126603,18 +126652,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSour
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceManual  InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "manual"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceAgent   InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "agent"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceSnmp    InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "snmp"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceNmap    InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "nmap"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourcePassive InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "passive"
-	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceScan    InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "scan"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceManual   InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceDeclared InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "declared"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceAgent    InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceSnmp     InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceNmap     InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourcePassive  InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceScan     InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource values.
 func (InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource {
 	return []InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource{
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceDeclared,
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceAgent,
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceSnmp,
 		InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceNmap,
@@ -126627,6 +126678,8 @@ func (InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource) AllValues() []Inv
 func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceAgent:
 		return []byte(s), nil
@@ -126648,6 +126701,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource) UnmarshalText(
 	switch InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource(data) {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceAgent
@@ -126805,18 +126861,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendorBasis) UnmarshalText(data []
 type InventoryGetInventoryDevicesIDOKAssetVendorSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKAssetVendorSourceManual  InventoryGetInventoryDevicesIDOKAssetVendorSource = "manual"
-	InventoryGetInventoryDevicesIDOKAssetVendorSourceAgent   InventoryGetInventoryDevicesIDOKAssetVendorSource = "agent"
-	InventoryGetInventoryDevicesIDOKAssetVendorSourceSnmp    InventoryGetInventoryDevicesIDOKAssetVendorSource = "snmp"
-	InventoryGetInventoryDevicesIDOKAssetVendorSourceNmap    InventoryGetInventoryDevicesIDOKAssetVendorSource = "nmap"
-	InventoryGetInventoryDevicesIDOKAssetVendorSourcePassive InventoryGetInventoryDevicesIDOKAssetVendorSource = "passive"
-	InventoryGetInventoryDevicesIDOKAssetVendorSourceScan    InventoryGetInventoryDevicesIDOKAssetVendorSource = "scan"
+	InventoryGetInventoryDevicesIDOKAssetVendorSourceManual   InventoryGetInventoryDevicesIDOKAssetVendorSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetVendorSourceDeclared InventoryGetInventoryDevicesIDOKAssetVendorSource = "declared"
+	InventoryGetInventoryDevicesIDOKAssetVendorSourceAgent    InventoryGetInventoryDevicesIDOKAssetVendorSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetVendorSourceSnmp     InventoryGetInventoryDevicesIDOKAssetVendorSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetVendorSourceNmap     InventoryGetInventoryDevicesIDOKAssetVendorSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetVendorSourcePassive  InventoryGetInventoryDevicesIDOKAssetVendorSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetVendorSourceScan     InventoryGetInventoryDevicesIDOKAssetVendorSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKAssetVendorSource values.
 func (InventoryGetInventoryDevicesIDOKAssetVendorSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetVendorSource {
 	return []InventoryGetInventoryDevicesIDOKAssetVendorSource{
 		InventoryGetInventoryDevicesIDOKAssetVendorSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetVendorSourceDeclared,
 		InventoryGetInventoryDevicesIDOKAssetVendorSourceAgent,
 		InventoryGetInventoryDevicesIDOKAssetVendorSourceSnmp,
 		InventoryGetInventoryDevicesIDOKAssetVendorSourceNmap,
@@ -126829,6 +126887,8 @@ func (InventoryGetInventoryDevicesIDOKAssetVendorSource) AllValues() []Inventory
 func (s InventoryGetInventoryDevicesIDOKAssetVendorSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKAssetVendorSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetVendorSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKAssetVendorSourceAgent:
 		return []byte(s), nil
@@ -126850,6 +126910,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendorSource) UnmarshalText(data [
 	switch InventoryGetInventoryDevicesIDOKAssetVendorSource(data) {
 	case InventoryGetInventoryDevicesIDOKAssetVendorSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetVendorSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetVendorSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetVendorSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKAssetVendorSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetVendorSourceAgent
@@ -127067,18 +127130,20 @@ func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItemField) UnmarshalText
 type InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual  InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "manual"
-	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent   InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "agent"
-	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp    InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "snmp"
-	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap    InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "nmap"
-	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "passive"
-	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan    InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "scan"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual   InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "manual"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceDeclared InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "declared"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent    InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "agent"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp     InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "snmp"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap     InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "nmap"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourcePassive  InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "passive"
+	InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceScan     InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource values.
 func (InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) AllValues() []InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource {
 	return []InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource{
 		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual,
+		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceDeclared,
 		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent,
 		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp,
 		InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceNmap,
@@ -127091,6 +127156,8 @@ func (InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) AllValues() []I
 func (s InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent:
 		return []byte(s), nil
@@ -127112,6 +127179,9 @@ func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) UnmarshalTex
 	switch InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource(data) {
 	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent
@@ -128017,18 +128087,20 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemField) UnmarshalText(da
 type InventoryGetInventoryDevicesIDOKObservationsItemSource string
 
 const (
-	InventoryGetInventoryDevicesIDOKObservationsItemSourceManual  InventoryGetInventoryDevicesIDOKObservationsItemSource = "manual"
-	InventoryGetInventoryDevicesIDOKObservationsItemSourceAgent   InventoryGetInventoryDevicesIDOKObservationsItemSource = "agent"
-	InventoryGetInventoryDevicesIDOKObservationsItemSourceSnmp    InventoryGetInventoryDevicesIDOKObservationsItemSource = "snmp"
-	InventoryGetInventoryDevicesIDOKObservationsItemSourceNmap    InventoryGetInventoryDevicesIDOKObservationsItemSource = "nmap"
-	InventoryGetInventoryDevicesIDOKObservationsItemSourcePassive InventoryGetInventoryDevicesIDOKObservationsItemSource = "passive"
-	InventoryGetInventoryDevicesIDOKObservationsItemSourceScan    InventoryGetInventoryDevicesIDOKObservationsItemSource = "scan"
+	InventoryGetInventoryDevicesIDOKObservationsItemSourceManual   InventoryGetInventoryDevicesIDOKObservationsItemSource = "manual"
+	InventoryGetInventoryDevicesIDOKObservationsItemSourceDeclared InventoryGetInventoryDevicesIDOKObservationsItemSource = "declared"
+	InventoryGetInventoryDevicesIDOKObservationsItemSourceAgent    InventoryGetInventoryDevicesIDOKObservationsItemSource = "agent"
+	InventoryGetInventoryDevicesIDOKObservationsItemSourceSnmp     InventoryGetInventoryDevicesIDOKObservationsItemSource = "snmp"
+	InventoryGetInventoryDevicesIDOKObservationsItemSourceNmap     InventoryGetInventoryDevicesIDOKObservationsItemSource = "nmap"
+	InventoryGetInventoryDevicesIDOKObservationsItemSourcePassive  InventoryGetInventoryDevicesIDOKObservationsItemSource = "passive"
+	InventoryGetInventoryDevicesIDOKObservationsItemSourceScan     InventoryGetInventoryDevicesIDOKObservationsItemSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKObservationsItemSource values.
 func (InventoryGetInventoryDevicesIDOKObservationsItemSource) AllValues() []InventoryGetInventoryDevicesIDOKObservationsItemSource {
 	return []InventoryGetInventoryDevicesIDOKObservationsItemSource{
 		InventoryGetInventoryDevicesIDOKObservationsItemSourceManual,
+		InventoryGetInventoryDevicesIDOKObservationsItemSourceDeclared,
 		InventoryGetInventoryDevicesIDOKObservationsItemSourceAgent,
 		InventoryGetInventoryDevicesIDOKObservationsItemSourceSnmp,
 		InventoryGetInventoryDevicesIDOKObservationsItemSourceNmap,
@@ -128041,6 +128113,8 @@ func (InventoryGetInventoryDevicesIDOKObservationsItemSource) AllValues() []Inve
 func (s InventoryGetInventoryDevicesIDOKObservationsItemSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesIDOKObservationsItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKObservationsItemSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKObservationsItemSourceAgent:
 		return []byte(s), nil
@@ -128062,6 +128136,9 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemSource) UnmarshalText(d
 	switch InventoryGetInventoryDevicesIDOKObservationsItemSource(data) {
 	case InventoryGetInventoryDevicesIDOKObservationsItemSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKObservationsItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKObservationsItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKObservationsItemSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesIDOKObservationsItemSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKObservationsItemSourceAgent
@@ -131632,18 +131709,20 @@ func (s *InventoryGetInventoryDevicesOKItemsItemKind) UnmarshalText(data []byte)
 type InventoryGetInventoryDevicesOKItemsItemKindSource string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemKindSourceManual  InventoryGetInventoryDevicesOKItemsItemKindSource = "manual"
-	InventoryGetInventoryDevicesOKItemsItemKindSourceAgent   InventoryGetInventoryDevicesOKItemsItemKindSource = "agent"
-	InventoryGetInventoryDevicesOKItemsItemKindSourceSnmp    InventoryGetInventoryDevicesOKItemsItemKindSource = "snmp"
-	InventoryGetInventoryDevicesOKItemsItemKindSourceNmap    InventoryGetInventoryDevicesOKItemsItemKindSource = "nmap"
-	InventoryGetInventoryDevicesOKItemsItemKindSourcePassive InventoryGetInventoryDevicesOKItemsItemKindSource = "passive"
-	InventoryGetInventoryDevicesOKItemsItemKindSourceScan    InventoryGetInventoryDevicesOKItemsItemKindSource = "scan"
+	InventoryGetInventoryDevicesOKItemsItemKindSourceManual   InventoryGetInventoryDevicesOKItemsItemKindSource = "manual"
+	InventoryGetInventoryDevicesOKItemsItemKindSourceDeclared InventoryGetInventoryDevicesOKItemsItemKindSource = "declared"
+	InventoryGetInventoryDevicesOKItemsItemKindSourceAgent    InventoryGetInventoryDevicesOKItemsItemKindSource = "agent"
+	InventoryGetInventoryDevicesOKItemsItemKindSourceSnmp     InventoryGetInventoryDevicesOKItemsItemKindSource = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemKindSourceNmap     InventoryGetInventoryDevicesOKItemsItemKindSource = "nmap"
+	InventoryGetInventoryDevicesOKItemsItemKindSourcePassive  InventoryGetInventoryDevicesOKItemsItemKindSource = "passive"
+	InventoryGetInventoryDevicesOKItemsItemKindSourceScan     InventoryGetInventoryDevicesOKItemsItemKindSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemKindSource values.
 func (InventoryGetInventoryDevicesOKItemsItemKindSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemKindSource {
 	return []InventoryGetInventoryDevicesOKItemsItemKindSource{
 		InventoryGetInventoryDevicesOKItemsItemKindSourceManual,
+		InventoryGetInventoryDevicesOKItemsItemKindSourceDeclared,
 		InventoryGetInventoryDevicesOKItemsItemKindSourceAgent,
 		InventoryGetInventoryDevicesOKItemsItemKindSourceSnmp,
 		InventoryGetInventoryDevicesOKItemsItemKindSourceNmap,
@@ -131656,6 +131735,8 @@ func (InventoryGetInventoryDevicesOKItemsItemKindSource) AllValues() []Inventory
 func (s InventoryGetInventoryDevicesOKItemsItemKindSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemKindSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemKindSourceAgent:
 		return []byte(s), nil
@@ -131677,6 +131758,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemKindSource) UnmarshalText(data [
 	switch InventoryGetInventoryDevicesOKItemsItemKindSource(data) {
 	case InventoryGetInventoryDevicesOKItemsItemKindSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemKindSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceAgent
@@ -131834,18 +131918,20 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModelBasis) UnmarshalText(data [
 type InventoryGetInventoryDevicesOKItemsItemModelSource string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemModelSourceManual  InventoryGetInventoryDevicesOKItemsItemModelSource = "manual"
-	InventoryGetInventoryDevicesOKItemsItemModelSourceAgent   InventoryGetInventoryDevicesOKItemsItemModelSource = "agent"
-	InventoryGetInventoryDevicesOKItemsItemModelSourceSnmp    InventoryGetInventoryDevicesOKItemsItemModelSource = "snmp"
-	InventoryGetInventoryDevicesOKItemsItemModelSourceNmap    InventoryGetInventoryDevicesOKItemsItemModelSource = "nmap"
-	InventoryGetInventoryDevicesOKItemsItemModelSourcePassive InventoryGetInventoryDevicesOKItemsItemModelSource = "passive"
-	InventoryGetInventoryDevicesOKItemsItemModelSourceScan    InventoryGetInventoryDevicesOKItemsItemModelSource = "scan"
+	InventoryGetInventoryDevicesOKItemsItemModelSourceManual   InventoryGetInventoryDevicesOKItemsItemModelSource = "manual"
+	InventoryGetInventoryDevicesOKItemsItemModelSourceDeclared InventoryGetInventoryDevicesOKItemsItemModelSource = "declared"
+	InventoryGetInventoryDevicesOKItemsItemModelSourceAgent    InventoryGetInventoryDevicesOKItemsItemModelSource = "agent"
+	InventoryGetInventoryDevicesOKItemsItemModelSourceSnmp     InventoryGetInventoryDevicesOKItemsItemModelSource = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemModelSourceNmap     InventoryGetInventoryDevicesOKItemsItemModelSource = "nmap"
+	InventoryGetInventoryDevicesOKItemsItemModelSourcePassive  InventoryGetInventoryDevicesOKItemsItemModelSource = "passive"
+	InventoryGetInventoryDevicesOKItemsItemModelSourceScan     InventoryGetInventoryDevicesOKItemsItemModelSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemModelSource values.
 func (InventoryGetInventoryDevicesOKItemsItemModelSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemModelSource {
 	return []InventoryGetInventoryDevicesOKItemsItemModelSource{
 		InventoryGetInventoryDevicesOKItemsItemModelSourceManual,
+		InventoryGetInventoryDevicesOKItemsItemModelSourceDeclared,
 		InventoryGetInventoryDevicesOKItemsItemModelSourceAgent,
 		InventoryGetInventoryDevicesOKItemsItemModelSourceSnmp,
 		InventoryGetInventoryDevicesOKItemsItemModelSourceNmap,
@@ -131858,6 +131944,8 @@ func (InventoryGetInventoryDevicesOKItemsItemModelSource) AllValues() []Inventor
 func (s InventoryGetInventoryDevicesOKItemsItemModelSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemModelSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemModelSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemModelSourceAgent:
 		return []byte(s), nil
@@ -131879,6 +131967,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModelSource) UnmarshalText(data 
 	switch InventoryGetInventoryDevicesOKItemsItemModelSource(data) {
 	case InventoryGetInventoryDevicesOKItemsItemModelSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemModelSourceManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemModelSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemModelSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemModelSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemModelSourceAgent
@@ -132077,18 +132168,20 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOsBasis) UnmarshalText(data []by
 type InventoryGetInventoryDevicesOKItemsItemOsSource string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemOsSourceManual  InventoryGetInventoryDevicesOKItemsItemOsSource = "manual"
-	InventoryGetInventoryDevicesOKItemsItemOsSourceAgent   InventoryGetInventoryDevicesOKItemsItemOsSource = "agent"
-	InventoryGetInventoryDevicesOKItemsItemOsSourceSnmp    InventoryGetInventoryDevicesOKItemsItemOsSource = "snmp"
-	InventoryGetInventoryDevicesOKItemsItemOsSourceNmap    InventoryGetInventoryDevicesOKItemsItemOsSource = "nmap"
-	InventoryGetInventoryDevicesOKItemsItemOsSourcePassive InventoryGetInventoryDevicesOKItemsItemOsSource = "passive"
-	InventoryGetInventoryDevicesOKItemsItemOsSourceScan    InventoryGetInventoryDevicesOKItemsItemOsSource = "scan"
+	InventoryGetInventoryDevicesOKItemsItemOsSourceManual   InventoryGetInventoryDevicesOKItemsItemOsSource = "manual"
+	InventoryGetInventoryDevicesOKItemsItemOsSourceDeclared InventoryGetInventoryDevicesOKItemsItemOsSource = "declared"
+	InventoryGetInventoryDevicesOKItemsItemOsSourceAgent    InventoryGetInventoryDevicesOKItemsItemOsSource = "agent"
+	InventoryGetInventoryDevicesOKItemsItemOsSourceSnmp     InventoryGetInventoryDevicesOKItemsItemOsSource = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemOsSourceNmap     InventoryGetInventoryDevicesOKItemsItemOsSource = "nmap"
+	InventoryGetInventoryDevicesOKItemsItemOsSourcePassive  InventoryGetInventoryDevicesOKItemsItemOsSource = "passive"
+	InventoryGetInventoryDevicesOKItemsItemOsSourceScan     InventoryGetInventoryDevicesOKItemsItemOsSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemOsSource values.
 func (InventoryGetInventoryDevicesOKItemsItemOsSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemOsSource {
 	return []InventoryGetInventoryDevicesOKItemsItemOsSource{
 		InventoryGetInventoryDevicesOKItemsItemOsSourceManual,
+		InventoryGetInventoryDevicesOKItemsItemOsSourceDeclared,
 		InventoryGetInventoryDevicesOKItemsItemOsSourceAgent,
 		InventoryGetInventoryDevicesOKItemsItemOsSourceSnmp,
 		InventoryGetInventoryDevicesOKItemsItemOsSourceNmap,
@@ -132101,6 +132194,8 @@ func (InventoryGetInventoryDevicesOKItemsItemOsSource) AllValues() []InventoryGe
 func (s InventoryGetInventoryDevicesOKItemsItemOsSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemOsSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemOsSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemOsSourceAgent:
 		return []byte(s), nil
@@ -132122,6 +132217,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOsSource) UnmarshalText(data []b
 	switch InventoryGetInventoryDevicesOKItemsItemOsSource(data) {
 	case InventoryGetInventoryDevicesOKItemsItemOsSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemOsSourceManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemOsSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemOsSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemOsSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemOsSourceAgent
@@ -132457,18 +132555,20 @@ func (s *InventoryGetInventoryDevicesOKItemsItemServicesItemProto) UnmarshalText
 type InventoryGetInventoryDevicesOKItemsItemServicesItemSource string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual  InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "manual"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent   InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "agent"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceSnmp    InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "snmp"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceNmap    InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "nmap"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourcePassive InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "passive"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceScan    InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "scan"
+	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual   InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "manual"
+	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "declared"
+	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent    InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "agent"
+	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceSnmp     InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceNmap     InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "nmap"
+	InventoryGetInventoryDevicesOKItemsItemServicesItemSourcePassive  InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "passive"
+	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceScan     InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemServicesItemSource values.
 func (InventoryGetInventoryDevicesOKItemsItemServicesItemSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemServicesItemSource {
 	return []InventoryGetInventoryDevicesOKItemsItemServicesItemSource{
 		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual,
+		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared,
 		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent,
 		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceSnmp,
 		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceNmap,
@@ -132481,6 +132581,8 @@ func (InventoryGetInventoryDevicesOKItemsItemServicesItemSource) AllValues() []I
 func (s InventoryGetInventoryDevicesOKItemsItemServicesItemSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent:
 		return []byte(s), nil
@@ -132502,6 +132604,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemServicesItemSource) UnmarshalTex
 	switch InventoryGetInventoryDevicesOKItemsItemServicesItemSource(data) {
 	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent
@@ -132747,18 +132852,20 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) UnmarshalText
 type InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual  InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "manual"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent   InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "agent"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceSnmp    InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "snmp"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceNmap    InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "nmap"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourcePassive InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "passive"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceScan    InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "scan"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual   InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "manual"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "declared"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent    InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "agent"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceSnmp     InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceNmap     InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "nmap"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourcePassive  InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "passive"
+	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceScan     InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource values.
 func (InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource {
 	return []InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource{
 		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual,
+		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared,
 		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent,
 		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceSnmp,
 		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceNmap,
@@ -132771,6 +132878,8 @@ func (InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) AllValues() []I
 func (s InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent:
 		return []byte(s), nil
@@ -132792,6 +132901,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) UnmarshalTex
 	switch InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource(data) {
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent
@@ -132910,18 +133022,20 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSummary) SetSource(val Inventory
 type InventoryGetInventoryDevicesOKItemsItemSummarySource string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemSummarySourceManual  InventoryGetInventoryDevicesOKItemsItemSummarySource = "manual"
-	InventoryGetInventoryDevicesOKItemsItemSummarySourceAgent   InventoryGetInventoryDevicesOKItemsItemSummarySource = "agent"
-	InventoryGetInventoryDevicesOKItemsItemSummarySourceSnmp    InventoryGetInventoryDevicesOKItemsItemSummarySource = "snmp"
-	InventoryGetInventoryDevicesOKItemsItemSummarySourceNmap    InventoryGetInventoryDevicesOKItemsItemSummarySource = "nmap"
-	InventoryGetInventoryDevicesOKItemsItemSummarySourcePassive InventoryGetInventoryDevicesOKItemsItemSummarySource = "passive"
-	InventoryGetInventoryDevicesOKItemsItemSummarySourceScan    InventoryGetInventoryDevicesOKItemsItemSummarySource = "scan"
+	InventoryGetInventoryDevicesOKItemsItemSummarySourceManual   InventoryGetInventoryDevicesOKItemsItemSummarySource = "manual"
+	InventoryGetInventoryDevicesOKItemsItemSummarySourceDeclared InventoryGetInventoryDevicesOKItemsItemSummarySource = "declared"
+	InventoryGetInventoryDevicesOKItemsItemSummarySourceAgent    InventoryGetInventoryDevicesOKItemsItemSummarySource = "agent"
+	InventoryGetInventoryDevicesOKItemsItemSummarySourceSnmp     InventoryGetInventoryDevicesOKItemsItemSummarySource = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemSummarySourceNmap     InventoryGetInventoryDevicesOKItemsItemSummarySource = "nmap"
+	InventoryGetInventoryDevicesOKItemsItemSummarySourcePassive  InventoryGetInventoryDevicesOKItemsItemSummarySource = "passive"
+	InventoryGetInventoryDevicesOKItemsItemSummarySourceScan     InventoryGetInventoryDevicesOKItemsItemSummarySource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemSummarySource values.
 func (InventoryGetInventoryDevicesOKItemsItemSummarySource) AllValues() []InventoryGetInventoryDevicesOKItemsItemSummarySource {
 	return []InventoryGetInventoryDevicesOKItemsItemSummarySource{
 		InventoryGetInventoryDevicesOKItemsItemSummarySourceManual,
+		InventoryGetInventoryDevicesOKItemsItemSummarySourceDeclared,
 		InventoryGetInventoryDevicesOKItemsItemSummarySourceAgent,
 		InventoryGetInventoryDevicesOKItemsItemSummarySourceSnmp,
 		InventoryGetInventoryDevicesOKItemsItemSummarySourceNmap,
@@ -132934,6 +133048,8 @@ func (InventoryGetInventoryDevicesOKItemsItemSummarySource) AllValues() []Invent
 func (s InventoryGetInventoryDevicesOKItemsItemSummarySource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemSummarySourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSummarySourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemSummarySourceAgent:
 		return []byte(s), nil
@@ -132955,6 +133071,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSummarySource) UnmarshalText(dat
 	switch InventoryGetInventoryDevicesOKItemsItemSummarySource(data) {
 	case InventoryGetInventoryDevicesOKItemsItemSummarySourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemSummarySourceManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSummarySourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemSummarySourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemSummarySourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemSummarySourceAgent
@@ -133112,18 +133231,20 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendorBasis) UnmarshalText(data 
 type InventoryGetInventoryDevicesOKItemsItemVendorSource string
 
 const (
-	InventoryGetInventoryDevicesOKItemsItemVendorSourceManual  InventoryGetInventoryDevicesOKItemsItemVendorSource = "manual"
-	InventoryGetInventoryDevicesOKItemsItemVendorSourceAgent   InventoryGetInventoryDevicesOKItemsItemVendorSource = "agent"
-	InventoryGetInventoryDevicesOKItemsItemVendorSourceSnmp    InventoryGetInventoryDevicesOKItemsItemVendorSource = "snmp"
-	InventoryGetInventoryDevicesOKItemsItemVendorSourceNmap    InventoryGetInventoryDevicesOKItemsItemVendorSource = "nmap"
-	InventoryGetInventoryDevicesOKItemsItemVendorSourcePassive InventoryGetInventoryDevicesOKItemsItemVendorSource = "passive"
-	InventoryGetInventoryDevicesOKItemsItemVendorSourceScan    InventoryGetInventoryDevicesOKItemsItemVendorSource = "scan"
+	InventoryGetInventoryDevicesOKItemsItemVendorSourceManual   InventoryGetInventoryDevicesOKItemsItemVendorSource = "manual"
+	InventoryGetInventoryDevicesOKItemsItemVendorSourceDeclared InventoryGetInventoryDevicesOKItemsItemVendorSource = "declared"
+	InventoryGetInventoryDevicesOKItemsItemVendorSourceAgent    InventoryGetInventoryDevicesOKItemsItemVendorSource = "agent"
+	InventoryGetInventoryDevicesOKItemsItemVendorSourceSnmp     InventoryGetInventoryDevicesOKItemsItemVendorSource = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemVendorSourceNmap     InventoryGetInventoryDevicesOKItemsItemVendorSource = "nmap"
+	InventoryGetInventoryDevicesOKItemsItemVendorSourcePassive  InventoryGetInventoryDevicesOKItemsItemVendorSource = "passive"
+	InventoryGetInventoryDevicesOKItemsItemVendorSourceScan     InventoryGetInventoryDevicesOKItemsItemVendorSource = "scan"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesOKItemsItemVendorSource values.
 func (InventoryGetInventoryDevicesOKItemsItemVendorSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemVendorSource {
 	return []InventoryGetInventoryDevicesOKItemsItemVendorSource{
 		InventoryGetInventoryDevicesOKItemsItemVendorSourceManual,
+		InventoryGetInventoryDevicesOKItemsItemVendorSourceDeclared,
 		InventoryGetInventoryDevicesOKItemsItemVendorSourceAgent,
 		InventoryGetInventoryDevicesOKItemsItemVendorSourceSnmp,
 		InventoryGetInventoryDevicesOKItemsItemVendorSourceNmap,
@@ -133136,6 +133257,8 @@ func (InventoryGetInventoryDevicesOKItemsItemVendorSource) AllValues() []Invento
 func (s InventoryGetInventoryDevicesOKItemsItemVendorSource) MarshalText() ([]byte, error) {
 	switch s {
 	case InventoryGetInventoryDevicesOKItemsItemVendorSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemVendorSourceDeclared:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesOKItemsItemVendorSourceAgent:
 		return []byte(s), nil
@@ -133157,6 +133280,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendorSource) UnmarshalText(data
 	switch InventoryGetInventoryDevicesOKItemsItemVendorSource(data) {
 	case InventoryGetInventoryDevicesOKItemsItemVendorSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemVendorSourceManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemVendorSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemVendorSourceDeclared
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemVendorSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemVendorSourceAgent

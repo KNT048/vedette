@@ -222728,6 +222728,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetKindSource) Decode(d *jx.Decoder) 
 	switch InventoryGetInventoryDevicesIDOKAssetKindSource(v) {
 	case InventoryGetInventoryDevicesIDOKAssetKindSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceManual
+	case InventoryGetInventoryDevicesIDOKAssetKindSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceDeclared
 	case InventoryGetInventoryDevicesIDOKAssetKindSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetKindSourceAgent
 	case InventoryGetInventoryDevicesIDOKAssetKindSourceSnmp:
@@ -222999,6 +223001,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModelSource) Decode(d *jx.Decoder)
 	switch InventoryGetInventoryDevicesIDOKAssetModelSource(v) {
 	case InventoryGetInventoryDevicesIDOKAssetModelSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetModelSourceManual
+	case InventoryGetInventoryDevicesIDOKAssetModelSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetModelSourceDeclared
 	case InventoryGetInventoryDevicesIDOKAssetModelSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetModelSourceAgent
 	case InventoryGetInventoryDevicesIDOKAssetModelSourceSnmp:
@@ -223678,6 +223682,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) Decode
 	switch InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource(v) {
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceDeclared
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent
 	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceSnmp:
@@ -223726,6 +223732,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsSource) Decode(d *jx.Decoder) er
 	switch InventoryGetInventoryDevicesIDOKAssetOsSource(v) {
 	case InventoryGetInventoryDevicesIDOKAssetOsSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsSourceManual
+	case InventoryGetInventoryDevicesIDOKAssetOsSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsSourceDeclared
 	case InventoryGetInventoryDevicesIDOKAssetOsSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetOsSourceAgent
 	case InventoryGetInventoryDevicesIDOKAssetOsSourceSnmp:
@@ -224107,6 +224115,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetServicesItemSource) Decode(d *jx.D
 	switch InventoryGetInventoryDevicesIDOKAssetServicesItemSource(v) {
 	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetServicesItemSourceManual
+	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetServicesItemSourceDeclared
 	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetServicesItemSourceAgent
 	case InventoryGetInventoryDevicesIDOKAssetServicesItemSourceSnmp:
@@ -224828,6 +224838,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource) De
 	switch InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSource(v) {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceManual
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceDeclared
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceAgent
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemAlsoSeenItemSourceSnmp:
@@ -225404,6 +225416,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSour
 	switch InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource(v) {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceDeclared
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceSnmp:
@@ -225452,6 +225466,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource) Decode(d *jx.D
 	switch InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource(v) {
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceManual
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceDeclared
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceAgent
 	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemSourceSnmp:
@@ -225723,6 +225739,8 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendorSource) Decode(d *jx.Decoder
 	switch InventoryGetInventoryDevicesIDOKAssetVendorSource(v) {
 	case InventoryGetInventoryDevicesIDOKAssetVendorSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKAssetVendorSourceManual
+	case InventoryGetInventoryDevicesIDOKAssetVendorSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKAssetVendorSourceDeclared
 	case InventoryGetInventoryDevicesIDOKAssetVendorSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKAssetVendorSourceAgent
 	case InventoryGetInventoryDevicesIDOKAssetVendorSourceSnmp:
@@ -226038,6 +226056,8 @@ func (s *InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource) Decode(d *jx
 	switch InventoryGetInventoryDevicesIDOKDetectedDiffersItemSource(v) {
 	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceManual
+	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceDeclared
 	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceAgent
 	case InventoryGetInventoryDevicesIDOKDetectedDiffersItemSourceSnmp:
@@ -226621,6 +226641,8 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemSource) Decode(d *jx.De
 	switch InventoryGetInventoryDevicesIDOKObservationsItemSource(v) {
 	case InventoryGetInventoryDevicesIDOKObservationsItemSourceManual:
 		*s = InventoryGetInventoryDevicesIDOKObservationsItemSourceManual
+	case InventoryGetInventoryDevicesIDOKObservationsItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesIDOKObservationsItemSourceDeclared
 	case InventoryGetInventoryDevicesIDOKObservationsItemSourceAgent:
 		*s = InventoryGetInventoryDevicesIDOKObservationsItemSourceAgent
 	case InventoryGetInventoryDevicesIDOKObservationsItemSourceSnmp:
@@ -229767,6 +229789,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemKindSource) Decode(d *jx.Decoder
 	switch InventoryGetInventoryDevicesOKItemsItemKindSource(v) {
 	case InventoryGetInventoryDevicesOKItemsItemKindSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceManual
+	case InventoryGetInventoryDevicesOKItemsItemKindSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceDeclared
 	case InventoryGetInventoryDevicesOKItemsItemKindSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemKindSourceAgent
 	case InventoryGetInventoryDevicesOKItemsItemKindSourceSnmp:
@@ -230038,6 +230062,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModelSource) Decode(d *jx.Decode
 	switch InventoryGetInventoryDevicesOKItemsItemModelSource(v) {
 	case InventoryGetInventoryDevicesOKItemsItemModelSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemModelSourceManual
+	case InventoryGetInventoryDevicesOKItemsItemModelSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemModelSourceDeclared
 	case InventoryGetInventoryDevicesOKItemsItemModelSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemModelSourceAgent
 	case InventoryGetInventoryDevicesOKItemsItemModelSourceSnmp:
@@ -230349,6 +230375,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOsSource) Decode(d *jx.Decoder) 
 	switch InventoryGetInventoryDevicesOKItemsItemOsSource(v) {
 	case InventoryGetInventoryDevicesOKItemsItemOsSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemOsSourceManual
+	case InventoryGetInventoryDevicesOKItemsItemOsSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemOsSourceDeclared
 	case InventoryGetInventoryDevicesOKItemsItemOsSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemOsSourceAgent
 	case InventoryGetInventoryDevicesOKItemsItemOsSourceSnmp:
@@ -230898,6 +230926,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemServicesItemSource) Decode(d *jx
 	switch InventoryGetInventoryDevicesOKItemsItemServicesItemSource(v) {
 	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual
+	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared
 	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent
 	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceSnmp:
@@ -231288,6 +231318,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) Decode(d *jx
 	switch InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource(v) {
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual
+	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent
 	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceSnmp:
@@ -231495,6 +231527,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSummarySource) Decode(d *jx.Deco
 	switch InventoryGetInventoryDevicesOKItemsItemSummarySource(v) {
 	case InventoryGetInventoryDevicesOKItemsItemSummarySourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemSummarySourceManual
+	case InventoryGetInventoryDevicesOKItemsItemSummarySourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemSummarySourceDeclared
 	case InventoryGetInventoryDevicesOKItemsItemSummarySourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemSummarySourceAgent
 	case InventoryGetInventoryDevicesOKItemsItemSummarySourceSnmp:
@@ -231766,6 +231800,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendorSource) Decode(d *jx.Decod
 	switch InventoryGetInventoryDevicesOKItemsItemVendorSource(v) {
 	case InventoryGetInventoryDevicesOKItemsItemVendorSourceManual:
 		*s = InventoryGetInventoryDevicesOKItemsItemVendorSourceManual
+	case InventoryGetInventoryDevicesOKItemsItemVendorSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemVendorSourceDeclared
 	case InventoryGetInventoryDevicesOKItemsItemVendorSourceAgent:
 		*s = InventoryGetInventoryDevicesOKItemsItemVendorSourceAgent
 	case InventoryGetInventoryDevicesOKItemsItemVendorSourceSnmp:

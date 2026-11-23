@@ -330,7 +330,7 @@ func devicesToDecide(ctx context.Context, q querier, keys []string) ([]string, e
 	in := fmt.Sprintf(declaredLineSQL, placeholders(len(keys)))
 	return idsOf(ctx, q, `SELECT a.id FROM inv_asset a WHERE
 		(EXISTS (SELECT 1 FROM inv_software w WHERE w.asset_id = a.id AND `+in+`) AND NOT EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND `+declaredObsSQL+`)
-			AND NOT EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND field = 'os' AND source = 'manual' AND NOT `+declaredObsSQL+`))
+			AND NOT EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND field = 'os' AND source = 'manual'))
 		OR (EXISTS (SELECT 1 FROM inv_observation WHERE asset_id = a.id AND `+declaredObsSQL+`) AND NOT EXISTS (SELECT 1 FROM inv_software w WHERE w.asset_id = a.id AND `+in+`))
 		ORDER BY a.id`, append(anyOf(keys), anyOf(keys)...)...)
 }

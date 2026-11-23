@@ -75,6 +75,7 @@
   },
   "source": {
     "manual": "Manual",
+    "declared": "Declared software",
     "agent": "Agent",
     "snmp": "SNMP",
     "nmap": "Active scan",

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -345,6 +346,18 @@ func VerifyDir(dir, prevDir string, trust release.Trust) (*Summary, error) {
 	}
 	if idx.Channels[m.Channel].Latest != m.Version {
 		return nil, fmt.Errorf("index says channel %s is at %s, the manifest is %s", m.Channel, idx.Channels[m.Channel].Latest, m.Version)
+	}
+	// The other channels stay as published, or move back because the index withdraws the release they offered.
+	if stored != nil {
+		others := func(x *release.Index) *release.Index {
+			c := *x
+			c.Channels = maps.Clone(x.Channels)
+			delete(c.Channels, m.Channel)
+			return &c
+		}
+		if s.Moved, _, err = checkChannelsMovedBack(others(stored), others(idx)); err != nil {
+			return nil, err
+		}
 	}
 	for _, im := range m.Images {
 		if err := release.VerifyImage(m, im.Service, im.Digest, trust); err != nil {

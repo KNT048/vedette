@@ -582,6 +582,9 @@ func cmdVerify(args []string, stdout io.Writer) error {
 	for _, w := range s.Withdrawn {
 		say(stdout, "  revokes %s", w)
 	}
+	for _, m := range s.Moved {
+		say(stdout, "  channel %s", m)
+	}
 	for _, im := range s.Images {
 		say(stdout, "  image %s (cosign verified)", im)
 	}

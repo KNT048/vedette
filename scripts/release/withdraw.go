@@ -34,6 +34,8 @@ type SignedRelease struct {
 	M      *release.Manifest
 	Raw    []byte
 	SHA256 string
+	sig    []byte        // the manifest's minisign signature
+	trust  release.Trust // the keys it was verified with
 }
 
 // LoadSignedRelease reads path and path.minisig (the two files of a GitHub release: gh release download v<version> -p
@@ -49,7 +51,7 @@ func LoadSignedRelease(path string, trust release.Trust) (*SignedRelease, error)
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	sum := sha256.Sum256(raw)
-	return &SignedRelease{M: m, Raw: raw, SHA256: hex.EncodeToString(sum[:])}, nil
+	return &SignedRelease{M: m, Raw: raw, SHA256: hex.EncodeToString(sum[:]), sig: sig, trust: trust}, nil
 }
 
 // Withdrawal is what an index withdraws, and what the channels that offered it offer instead.
@@ -248,10 +250,33 @@ func pointWithdrawnChannels(x *release.Index, w Withdrawal, wd withdrawn, rollou
 		if hasRevocation(x, release.KindRelease, v) != nil || slices.ContainsFunc(to.M.Images, func(im release.Image) bool { return hasRevocation(x, release.KindImageDigest, im.Digest) != nil }) {
 			return fmt.Errorf("-channel-manifest %s is withdrawn too: move channel %s to a release no box refuses", v, name)
 		}
+		// A box verifies the release it is offered against this index: a key the index revokes (the leaked key of a rescue signed
+		// every earlier release) makes it refuse the release, so the channel would offer nothing while the builder said it moved.
+		if err := verifiesAgainst(to, x); err != nil {
+			return fmt.Errorf("-channel-manifest %s: a box refuses it under this index (%w): hold channel %s instead (-hold-channel %s)", v, err, name, name)
+		}
 		if rollout < 0 {
 			rollout = 100
 		}
 		x.Channels[name] = release.Channel{Latest: v, Manifest: manifestURL(v), ManifestSHA256: to.SHA256, Rollout: &release.Rollout{Percent: rollout}}
+	}
+	return nil
+}
+
+// verifiesAgainst is what a box makes of sr under the index x: its manifest signature, key and revocations, then every image's
+// cosign signature.
+func verifiesAgainst(sr *SignedRelease, x *release.Index) error {
+	if sr.sig == nil {
+		return errors.New("its signature was not loaded")
+	}
+	m, err := release.VerifyManifest(sr.Raw, sr.sig, sr.trust, x)
+	if err != nil {
+		return err
+	}
+	for _, im := range m.Images {
+		if err := release.VerifyImage(m, im.Service, im.Digest, sr.trust); err != nil {
+			return fmt.Errorf("image %s: %w", im.Service, err)
+		}
 	}
 	return nil
 }

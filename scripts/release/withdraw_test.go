@@ -313,3 +313,42 @@ func TestWithdrawCommands(t *testing.T) {
 		t.Errorf("%+v", x.Channels)
 	}
 }
+
+// A channel moved back must be offered to the boxes: in a rescue every earlier release is signed by the key the rescue revokes, so
+// a box refuses the release the channel would move back to. The builder refuses the move (hold the channel instead).
+func TestWithdrawRefusesAMoveToAReleaseBoxesRefuse(t *testing.T) {
+	w := newWithdrawRig(t)
+	_, err := w.r.build(buildOpts{version: "0.3.0-beta.1", channel: "beta", cur: addOnlyTree, prevDir: w.pub2, rescue: true,
+		revoke: []string{w.r.trust.Active.KeyID()}, withdraw: Withdrawal{Releases: []string{"0.2.0"}, Evidence: []*SignedRelease{w.rel2}, MoveTo: []*SignedRelease{w.rel1}}})
+	if err == nil || !strings.Contains(err.Error(), "a box refuses") {
+		t.Fatalf("moving stable back to a release signed by the revoked key: %v", err)
+	}
+	dir, err := w.r.build(buildOpts{version: "0.3.0-beta.1", channel: "beta", cur: addOnlyTree, prevDir: w.pub2, rescue: true,
+		revoke: []string{w.r.trust.Active.KeyID()}, withdraw: Withdrawal{Releases: []string{"0.2.0"}, Evidence: []*SignedRelease{w.rel2}, Hold: []string{"stable"}}})
+	must(t, err)
+	if _, err := VerifyDir(dir, w.pub2, w.r.trust); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// verify checks the other channels of an index that announces a release too: one may only stay, or move back because the index
+// withdraws what it offered.
+func TestVerifyRefusesAnotherChannelMovedDownWithARelease(t *testing.T) {
+	w := newWithdrawRig(t)
+	down := func(x *release.Index) {
+		x.Channels["stable"] = release.Channel{Latest: "0.1.0", Manifest: manifestURL("0.1.0"), ManifestSHA256: w.rel1.SHA256, Rollout: &release.Rollout{Percent: 100}}
+	}
+	dir, err := w.r.build(buildOpts{version: "0.3.0-beta.1", channel: "beta", cur: addOnlyTree, prevDir: w.pub2, mutateIndex: down})
+	must(t, err)
+	if _, err := VerifyDir(dir, w.pub2, w.r.trust); err == nil || !strings.Contains(err.Error(), "differs from the published index") {
+		t.Fatalf("stable moved down beside a beta release: %v", err)
+	}
+	dir, err = w.r.build(buildOpts{version: "0.3.0-beta.1", channel: "beta", cur: addOnlyTree, prevDir: w.pub2,
+		withdraw: Withdrawal{Releases: []string{"0.2.0"}, Evidence: []*SignedRelease{w.rel2}, MoveTo: []*SignedRelease{w.rel1}}})
+	must(t, err)
+	s, err := VerifyDir(dir, w.pub2, w.r.trust)
+	must(t, err)
+	if s.Version != "0.3.0-beta.1" || !slices.Equal(s.Moved, []string{"stable 0.2.0 -> 0.1.0"}) {
+		t.Fatalf("%+v", s)
+	}
+}

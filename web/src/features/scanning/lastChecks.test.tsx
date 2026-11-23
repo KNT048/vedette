@@ -90,6 +90,16 @@ describe('the device page says what each check does and when each last ran', () 
     expect(within(snmp).getByRole('link', { name: 'Set it up in Sources' })).toHaveAttribute('href', '/devices/a-nas01#device-snmp')
   })
 
+  it('SNMP set up and not read yet: the row follows the set-up ("Not read yet"), never "Set it up in Sources"', async () => {
+    server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ engine_busy: false, items: [] })))
+    server.use(http.get('*/api/v1/inventory/snmp/devices/a-nas01', () => HttpResponse.json({ device_id: 'a-nas01', state: 'waiting' })))
+    renderApp('/devices/a-nas01')
+    const snmp = await screen.findByRole('group', { name: SNMP }, T)
+    expect(await within(snmp).findByText('Not read yet', {}, T)).toBeInTheDocument()
+    expect(within(snmp).queryByText('Never')).toBeNull()
+    expect(within(snmp).queryByRole('link', { name: 'Set it up in Sources' })).toBeNull()
+  })
+
   it('a viewer gets no link to the SNMP card, which only an admin sees', async () => {
     server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ engine_busy: false, items: [] })))
     renderApp('/devices/a-nas01', { role: 'viewer' })

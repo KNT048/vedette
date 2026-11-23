@@ -52957,9 +52957,11 @@ func (s *Server) handleScanningPostRunsIDStopRequest(args [1]string, argsEscaped
 // /scanning lists in running[] with its progress until it ends. Works while the Vulnerability scans
 // module is off. 400 unknown_device, out_of_scope (outside the ranges, excluded, or the box),
 // scope_not_confirmed, not_scannable (the device's safety rules refuse it); 409 module_off
-// (sensor-active off), engine_off (active discovery off), already_running (a run a person started),
-// busy (discovery is running nmap now), too_soon (a sweep less than 10 minutes ago; retry_after in
-// seconds); 503 scanner_unavailable (nmap is not available).
+// (sensor-active off), engine_off (active discovery off), busy (a LAN sweep is going on now; any other
+// run in the way queues this one behind it, and its progress message says so: "Queued behind
+// “…”; it starts when that run ends"; a device that already has a check queued or going answers
+// that run), too_soon (a sweep less than 10 minutes ago; retry_after in seconds); 503
+// scanner_unavailable (nmap is not available).
 //
 // POST /scanning/engines/nmap-discovery/run
 func (s *Server) handleScanningPostScanningEnginesNmapDiscoveryRunRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -53043,7 +53045,7 @@ func (s *Server) handleScanningPostScanningEnginesNmapDiscoveryRunRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanningPostScanningEnginesNmapDiscoveryRunOperation,
-			OperationSummary: "Scan the LAN now (no targets: a sweep of the whole scope, then the scans of the devices it queued) or check these devices now (targets), whatever the window, for at most one hour (devices not reached by then wait for the window). Audited before anything is sent (scanning.run: the run id and the ranges or devices; no audit row, no run). Runs in the background: the answer is the run, which GET /scanning lists in running[] with its progress until it ends. Works while the Vulnerability scans module is off. 400 unknown_device, out_of_scope (outside the ranges, excluded, or the box), scope_not_confirmed, not_scannable (the device's safety rules refuse it); 409 module_off (sensor-active off), engine_off (active discovery off), already_running (a run a person started), busy (discovery is running nmap now), too_soon (a sweep less than 10 minutes ago; retry_after in seconds); 503 scanner_unavailable (nmap is not available)",
+			OperationSummary: "Scan the LAN now (no targets: a sweep of the whole scope, then the scans of the devices it queued) or check these devices now (targets), whatever the window, for at most one hour (devices not reached by then wait for the window). Audited before anything is sent (scanning.run: the run id and the ranges or devices; no audit row, no run). Runs in the background: the answer is the run, which GET /scanning lists in running[] with its progress until it ends. Works while the Vulnerability scans module is off. 400 unknown_device, out_of_scope (outside the ranges, excluded, or the box), scope_not_confirmed, not_scannable (the device's safety rules refuse it); 409 module_off (sensor-active off), engine_off (active discovery off), busy (a LAN sweep is going on now; any other run in the way queues this one behind it, and its progress message says so: \"Queued behind “…”; it starts when that run ends\"; a device that already has a check queued or going answers that run), too_soon (a sweep less than 10 minutes ago; retry_after in seconds); 503 scanner_unavailable (nmap is not available)",
 			OperationID:      "scanning_post_scanning_engines_nmap_discovery_run",
 			Body:             request,
 			RawBody:          rawBody,

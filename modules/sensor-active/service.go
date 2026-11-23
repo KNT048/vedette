@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
@@ -119,6 +120,11 @@ type Service struct {
 	// beforeSNMPBatch, when set (tests only, export_test.go), runs as a batch starts, before it registers.
 	beforeSNMPBatch func()
 
+	// prog is the last progress report of the worker's nmap, by run (runSink): the summaries of the running device runs read it.
+	// progMu is its own lock: the Dispatcher reports under its lock, and nothing here calls the Dispatcher while holding progMu.
+	progMu sync.Mutex
+	prog   map[string]progress.Update
+
 	mu      sync.Mutex
 	cur     *running // the job holding runMu, for SettingsChanged
 	snmpCur *snmpRun // the snmp batch holding snmpMu, for SettingsChanged, AssetChanged and Stop
@@ -208,8 +214,11 @@ type running struct {
 	external bool
 	// weekly: the weekly scan of every port of a device, with its -sV follow-up. A Scan now identification or an exposure
 	// scan stops it (lockWithin); it stays due.
-	weekly  bool
-	started time.Time // when it was registered (setCur), for Settings › Scanning
+	weekly bool
+	// pace and paceFrom: the rate of the weekly discovery and when it started, for the time it has left (allPortsEstimate).
+	pace     int
+	paceFrom time.Time
+	started  time.Time // when it was registered (setCur), for Settings › Scanning
 	// until: a run of a person's "Scan the LAN now" (INV-21): the window it is checked against is open until then too (windowNow).
 	until time.Time
 	// runID is the run whose work it is (core_run), for Settings › Scanning.
@@ -1030,7 +1039,13 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	var hosts []host
 	recKind, extraFailed := kind, false
 	if all {
+		s.mu.Lock()
+		cur.pace, cur.paceFrom = rate, s.clock()
+		s.mu.Unlock()
 		hosts, err = s.probeAllPorts(jctx, id, assetID, asset.IP, rate, normalRate)
+		if err == nil {
+			err = weeklyAnswered(hosts, asset.IP) // a device that never answered taught the scan nothing: it is not "done"
+		}
 	} else {
 		hosts, recKind, extraFailed, err = s.probeDevice(jctx, id, kind, rate, asset.IP)
 	}
@@ -1055,6 +1070,27 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 		s.finishJob(ctx, id, StatusFailed, 0, 0, err.Error())
 	}
 	return err
+}
+
+// The weekly scan of every port that learned nothing about its device: it never answered on any port (off, or a firewall that drops
+// every probe), or nmap's host timeout cut it before it printed a port table.
+var (
+	errNoAnswer      = errors.New("sensoractive: the device did not answer on any port")
+	errHostTimedOut  = errors.New("sensoractive: the scan of every port did not finish within its time limit")
+	weeklyNoAnswer   = "No answer from the device on any port: it may be off, or a firewall drops every probe. It is tried again in the next window"
+	weeklyTimedOutAt = "The scan of every port did not finish within its %s limit, so nothing was recorded. It is tried again in the next window"
+)
+
+// weeklyAnswered is nil when the weekly discovery heard ip on at least one port, else why it learned nothing.
+func weeklyAnswered(hosts []host, ip netip.Addr) error {
+	i := slices.IndexFunc(hosts, func(h host) bool { return h.addr == ip })
+	switch {
+	case i < 0:
+		return errNoAnswer
+	case hosts[i].timedOut:
+		return errHostTimedOut
+	}
+	return nil
 }
 
 // recordDevice stores what a service scan found about ip. A host that did not answer changes nothing. A host that hit the host

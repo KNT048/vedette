@@ -122,6 +122,36 @@ func (m *Manager) Resume(ctx context.Context, id, by string) error {
 	return nil
 }
 
+// Rewait changes what the waiting runs ids wait for, when the reason changed while they wait (the window opened while the scan
+// worker is not ready yet, the window closed before their turn came). A run that is not waiting, that already waits for that, or
+// that does not exist is left as it is; each run it changes logs the new reason. waitingFor must not be empty.
+func (m *Manager) Rewait(ctx context.Context, waitingFor string, ids ...string) error {
+	w := nullable(waitingFor, 200)
+	if w == nil {
+		return fmt.Errorf("%w: a waiting run needs to say what it waits for", ErrInvalid)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	return m.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+		now := m.now()
+		for _, id := range ids {
+			res, err := tx.ExecContext(ctx, `UPDATE core_run SET waiting_for = ?, updated_at = ? WHERE id = ? AND status = ? AND waiting_for IS NOT ?`,
+				*w, now, id, string(Waiting), *w)
+			if err != nil {
+				return fmt.Errorf("run: rewait %s: %w", id, err)
+			}
+			if n, _ := res.RowsAffected(); n == 0 {
+				continue
+			}
+			if err := logTx(ctx, tx, id, now, Info, "Waiting for "+*w); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // requeue puts a run back in the queue; its steps that are not done start again (stopped, failed and waiting steps queue).
 func (m *Manager) requeue(ctx context.Context, tx *sql.Tx, id, now string) error {
 	_, err := tx.ExecContext(ctx, `UPDATE core_run SET status = ?, waiting_for = NULL, stop_reason = NULL, error = NULL, ended_at = NULL,

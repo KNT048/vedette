@@ -55,6 +55,22 @@ func (f *fakeInv) moveTo(id, ip string) {
 	f.assets[id], f.addrs[a] = a, id
 }
 
+// refuseFor makes device id one SNMP may not read while AssetChanged announces it (a person set it to never and back at once): a
+// change that matters to the batch that holds it. A change that does not matter (a name learned) does not stop a batch.
+func refuseFor(ctx context.Context, svc *sa.Service, inv *fakeInv, id string) error {
+	inv.mu.Lock()
+	if inv.snmpDecision == nil {
+		inv.snmpDecision = map[string]sa.Decision{}
+	}
+	inv.snmpDecision[id] = sa.Decision{Reason: "regular_scan_never", Never: true}
+	inv.mu.Unlock()
+	err := svc.AssetChanged(ctx, id)
+	inv.mu.Lock()
+	delete(inv.snmpDecision, id)
+	inv.mu.Unlock()
+	return err
+}
+
 // answerOrStop answers like the worker unless the batch was stopped while it held the job.
 func answerOrStop(ctx context.Context, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
 	if ctx.Err() != nil {
@@ -144,14 +160,15 @@ func TestSNMPAMoveOfAHeldDeviceStopsTheBatchAndTheRoundReadsItAgain(t *testing.T
 	}
 }
 
-// A device that changes (a field, no move) while each of two tries of its batch is with the worker is read again once, then left
+// A device that changes in a way that matters to its read (refused, then allowed again) while each of two tries of its batch is with the worker is read again once, then left
 // out: the round ends however often a device changes.
 func TestSNMPADeviceThatKeepsChangingIsLeftOutAndTheRoundEnds(t *testing.T) {
 	t.Parallel()
 	var svc *sa.Service
-	svc, _, r := roundOf(t, func(ctx context.Context, n int, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
+	var inv *fakeInv
+	svc, inv, r := roundOf(t, func(ctx context.Context, n int, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
 		if n == 2 || n == 3 {
-			if err := svc.AssetChanged(ctx, "a-76"); err != nil {
+			if err := refuseFor(ctx, svc, inv, "a-76"); err != nil {
 				t.Error(err)
 			}
 		}
@@ -267,9 +284,10 @@ func (h *eachAssetInv) Asset(ctx context.Context, id string) (sa.Asset, error) {
 func TestSNMPABatchWhoseDevicesKeepChangingIsTriedFourTimes(t *testing.T) {
 	t.Parallel()
 	var svc *sa.Service
-	svc, _, r := roundOf(t, func(ctx context.Context, n int, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
+	var inv *fakeInv
+	svc, inv, r := roundOf(t, func(ctx context.Context, n int, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
 		if n <= 4 {
-			if err := svc.AssetChanged(ctx, fmt.Sprintf("a-%d", 10+n)); err != nil {
+			if err := refuseFor(ctx, svc, inv, fmt.Sprintf("a-%d", 10+n)); err != nil {
 				t.Error(err)
 			}
 		}

@@ -72,8 +72,11 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
   // review r1 of #944: one check per device at a time: a run of this one device started anywhere (another row, the device page) is
   // ours too, so every button for that device shows it running
   const ours = running.find((j) => j.id === mine) ?? (targets !== 'lan' && targets.length === 1 ? running.find((j) => j.engine === 'nmap-discovery' && j.target_id === targets[0]) ?? null : null)
-  // nmap is busy with any sensor-active job (a sweep, a version scan, an SNMP round), not only a person's run (review r2 L-h)
-  const other = running.find((j) => (j.engine === 'nmap-discovery' || j.engine === 'nmap-versions' || j.engine === 'snmp') && j.id !== mine && j.id !== ours?.id) ?? null
+  // A busy scanner never blocks a person's ask: the box queues it behind the run in its way and says so (its progress line). The one
+  // refusal left is a second LAN sweep while one goes on: that sweep is the answer, so the button points at it instead.
+  const sweeping = targets === 'lan' && !ours ? running.find((j) => j.engine === 'nmap-discovery' && j.target_id === null && j.label.startsWith('LAN sweep') && j.id !== mine) ?? null : null
+  // the person's own run waits for the scanner: its button says queued, not scanning
+  const queued = !!ours && /^(Queued|Waiting)/.test(ours.progress?.message ?? '')
   const finished = !!mine && !ours && !!q.data && !run.isPending
   const ids = targets === 'lan' ? [] : targets
   const text = label ?? (targets === 'lan' ? t('scanNow.lan') : ids.length === 1 ? t('scanNow.device') : t('scanNow.selected', { count: ids.length }))
@@ -84,14 +87,22 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
     : needsScope ? t('scanNow.needsScope')
     : !disc.enabled ? t('scanNow.discoveryOff')
     : disc.state === 'unavailable' || disc.state === 'error' ? disc.reason
-    : other ? t('scanNow.otherRunning')
+    : sweeping ? t('scanNow.sweepRunning')
     : targets !== 'lan' && ids.length === 0 ? t('scanNow.none')
     : ids.length > MAX_RUN_TARGETS ? t('scanNow.tooMany', { max: MAX_RUN_TARGETS, count: ids.length }) : null
   return (
     <div className={cn('grid min-w-0 gap-2', className)}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button variant={variant} size={size} disabled={!q.data || !!blocked} busy={run.isPending || !!ours} busyLabel={t('scanNow.running')} aria-describedby={describedBy}
-          onClick={() => run.mutate(targets === 'lan' ? undefined : ids, { onSuccess: (j) => { setMine(j.id); toast.success(t('scanNow.started')) }, onError: (e) => toast.error(errMsg(e)) })}>
+        <Button variant={variant} size={size} disabled={!q.data || !!blocked} busy={run.isPending || !!ours} busyLabel={t(queued ? 'scanNow.queued' : 'scanNow.running')} aria-describedby={describedBy}
+          onClick={() => run.mutate(targets === 'lan' ? undefined : ids, {
+            onSuccess: (j) => {
+              setMine(j.id)
+              const msg = j.progress?.message ?? ''
+              if (/^Queued behind/.test(msg)) toast.success(t('scanNow.queuedToast'), { description: msg })
+              else toast.success(t('scanNow.started'))
+            },
+            onError: (e) => toast.error(errMsg(e)),
+          })}>
           <Play />{text}
         </Button>
         {blocked && !ours ? (
@@ -101,7 +112,7 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
             {admin && !needsScope && disc && !disc.enabled ? <Link to="/settings/scanning?tab=engines#engine-nmap-discovery-switch" className="text-accent underline underline-offset-4">{t('scanNow.turnOnDiscovery')}</Link> : null}
             {/* the run in the way opens from the button's own place; a row of a list (showProgress off) leaves it to the page, so a
                 list never repeats the same link on every row */}
-            {other && showProgress ? <Link to={runHref(other.id)} className="text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link> : null}
+            {sweeping && showProgress ? <Link to={runHref(sweeping.id)} className="text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link> : null}
           </span>
         ) : null}
       </div>

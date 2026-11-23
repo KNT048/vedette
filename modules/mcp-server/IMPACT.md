@@ -14,7 +14,7 @@
 - Changing the scope matching or the hashing → old tokens may become invalid or over-privileged; the INV-2/INV-3/INV-4 tests are mandatory.
 
 ## Modifying: `rpc.go` (the protocol)
-- Changing the supported version, a required header or an error code → real MCP clients (Claude Code, etc.) may fail to connect; `TestContract_Transport`, `TestContract_BothEras`.
+- Changing the supported version, a required header or an error code → real MCP clients may fail to connect; `TestContract_Transport`, `TestContract_BothEras`.
 
 ## Modifying: bind/port (`-mcp-listen`, `DefaultListen`)
 - Changing from loopback to another interface = a security + PRIVACY change (INV-5, FORBID-4); `New` and `parseMCPListen` refuse it, tests `TestContract_INV5_LoopbackOnly`, `TestParseMCPListen`. The flag is in `newFlags`; when left empty `parseMCPListen` chooses `0.0.0.0:8765` inside a container and `127.0.0.1:8765` outside one. The `core` Quadlet unit (`host/ops/quadlet.go`, `PublishPort=127.0.0.1:8765:8765`) and `deploy/compose/container-only/compose.yaml` (`127.0.0.1:8765:8765`) rely on that default and **pass no flag**: a new unit/compose with an old image (a rollback, a restart before the image step) must still run, and the old image refuses `0.0.0.0`. Changing the port = changing both places, `install.sh` (the free-port check), `Endpoint` (reports `127.0.0.1` + the same port) and the text on the screen; changing the unit template needs a legacy line in `host/ops/quadlet_legacy.go`. Removing `InContainer`/`inContainer` → MCP becomes unreachable again in both install types.

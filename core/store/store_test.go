@@ -57,6 +57,44 @@ func TestOpenPragmas(t *testing.T) {
 	}
 }
 
+// Every reader connection, not only the first, has the bigger cache, memory-mapped reads and in-memory temp storage: the pragmas
+// are part of the connection string, so a connection the pool opens later gets them too.
+func TestReaderPragmasOnEveryConnection(t *testing.T) {
+	t.Parallel()
+	db := storetest.New(t)
+	var conns []*sql.Conn
+	for range 3 { // held at once, so the pool must open three distinct connections
+		c, err := db.Reader().Conn(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		conns = append(conns, c)
+	}
+	for i, c := range conns {
+		for name, want := range map[string]string{"cache_size": "-16384", "mmap_size": "268435456", "temp_store": "2", "query_only": "1"} {
+			if got := pragma(t, c, name); got != want {
+				t.Errorf("reader connection %d PRAGMA %s = %q, want %q", i, name, got, want)
+			}
+		}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := db.Reader().Stats().MaxOpenConnections; got <= 0 {
+		t.Errorf("reader pool is unbounded (MaxOpenConnections = %d)", got)
+	}
+	// the writer keeps SQLite's defaults for cache and temp storage
+	err := db.Write(t.Context(), func(tx *sql.Tx) error {
+		if got := pragma(t, tx, "temp_store"); got != "0" {
+			t.Errorf("writer PRAGMA temp_store = %q, want 0", got)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestOpenErrors(t *testing.T) {
 	t.Parallel()
 	log := slog.New(slog.DiscardHandler)

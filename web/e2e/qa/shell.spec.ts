@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test'
 import { collectErrors, expectAccessible, shot, startWithSample } from '../helpers'
 
-// QA khung ứng dụng + feeds: như người dùng thật, desktop + điện thoại, sáng/tối, vi/en.
-test('trang chủ, tra cứu, CVE, 404: đọc được, bấm được', async ({ page }, info) => {
+// QA of the app shell + feeds: as a real user, desktop + phone, light/dark.
+test('home, lookup, CVE, 404: readable and clickable', async ({ page }, info) => {
   const tag = info.project.name
   const errors = collectErrors(page)
   await startWithSample(page)
   await shot(page, 'shell', `${tag}-home`)
-  // tra cứu từ ô tìm ở trang chủ (trên điện thoại ô tìm vẫn phải dùng được)
+  // lookup from the search box on the home page (on a phone the search box must still work)
   await page.getByRole('searchbox').or(page.getByPlaceholder('CVE, product, IP or domain')).first().fill('qnap')
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/lookup\?q=qnap/)
@@ -16,7 +16,7 @@ test('trang chủ, tra cứu, CVE, 404: đọc được, bấm được', async 
   await page.getByRole('link', { name: 'CVE-2022-27593' }).click()
   await expect(page.getByRole('heading', { level: 1, name: /CVE-2022-27593/ })).toBeVisible()
   await shot(page, 'shell', `${tag}-cve`)
-  // domain sạch, CVE không có, chuỗi rác
+  // clean domain, unknown CVE, junk string
   for (const q of ['google.com', 'CVE-2019-0001', '<script>alert(1)</script>', '   ']) {
     await page.goto(`/lookup?q=${encodeURIComponent(q)}`)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
@@ -30,8 +30,8 @@ test('trang chủ, tra cứu, CVE, 404: đọc được, bấm được', async 
   expect(errors, errors.join('\n')).toEqual([])
 })
 
-test('tối + tiếng Anh, bàn phím', async ({ page, isMobile }, info) => {
-  test.skip(isMobile, 'menu người dùng nằm trong menu điện thoại; kiểm riêng')
+test('dark + English, keyboard', async ({ page, isMobile }, info) => {
+  test.skip(isMobile, 'the user menu is inside the phone menu; checked separately')
   await page.emulateMedia({ colorScheme: 'dark' })
   await startWithSample(page)
   await expect(page.getByRole('heading', { level: 1, name: /Today/ })).toBeVisible()
@@ -40,15 +40,15 @@ test('tối + tiếng Anh, bàn phím', async ({ page, isMobile }, info) => {
   await page.goto('/cve/CVE-2022-27593')
   await expect(page.getByRole('heading', { level: 1, name: /CVE-2022-27593/ })).toBeVisible()
   await shot(page, 'shell', `${info.project.name}-cve-dark-en`)
-  // Bàn phím: liên kết bỏ qua tới nội dung là thứ đầu tiên
+  // Keyboard: the skip link to the content is the first thing
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: /Skip to content/ })).toBeFocused()
 })
 
-test('điện thoại: menu, đổi ngôn ngữ, đăng xuất', async ({ page, isMobile }, info) => {
-  test.skip(!isMobile, 'chỉ điện thoại')
+test('phone: menu, language switch, sign out', async ({ page, isMobile }, info) => {
+  test.skip(!isMobile, 'phone only')
   await startWithSample(page)
   await page.getByRole('button', { name: 'Open menu' }).click()
   await shot(page, 'shell', `${info.project.name}-menu`)

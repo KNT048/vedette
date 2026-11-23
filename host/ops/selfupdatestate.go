@@ -23,7 +23,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The files of host.self_update under <state>/selfupdate (spec 6.14 "Tệp của host"): versions.json (the
+// The files of host.self_update under <state>/selfupdate (spec 6.14 host files): versions.json (the
 // running package and the one before it), journal.json (one self-update under way), started.json (the
 // witness a host writes after READY), packages/ (the kept .deb of current and previous), staged/ (the copy
 // about to be installed), applier (the copy of the old binary the transient unit runs) and installed-by-us
@@ -449,7 +449,7 @@ func (o *Ops) retainKept(v suVersions) {
 }
 
 // adoptHostPackage records the running version's .deb as current when versions.json does not name it
-// (spec 6.14 "Nhận bản đầu"): install.sh puts the file in packages/ after it checked its SHA-256 and just
+// (spec 6.14 adopting the first package): install.sh puts the file in packages/ after it checked its SHA-256 and just
 // before apt installs it (postinst restarts this host inside that apt run), and the folder is root's, so
 // trust on first use is enough. The current it replaces becomes
 // previous when its file is still there with the recorded hash. dpkg-deb confirms the package, version and

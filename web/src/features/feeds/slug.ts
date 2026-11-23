@@ -1,4 +1,4 @@
-// vendor_product_slug tối thiểu (DATA_PIPELINE §3): tên người dùng nhận ra cho cặp vendor|product của KEV.
+// A minimal vendor_product_slug (DATA_PIPELINE §3): the name the user recognises for the KEV vendor|product pair.
 
 export const keyOf = (vendor: string, product: string) => `${vendor}|${product}`.toLowerCase()
 const SLUG: Record<string, string> = {
@@ -31,7 +31,7 @@ const SLUG: Record<string, string> = {
   'sudo|sudo': 'sudo',
 }
 
-/** Tên người dùng nhận ra (tiếng Anh); product đã bắt đầu bằng vendor thì không lặp vendor (như feeds.DisplayOf). */
+/** The name the user recognises (English); a product that already starts with the vendor does not repeat the vendor (like feeds.DisplayOf). */
 export const displayOf = (vendor: string, product: string) => {
   const slug = SLUG[keyOf(vendor, product)]
   if (slug) return slug
@@ -39,7 +39,7 @@ export const displayOf = (vendor: string, product: string) => {
   const v = vendor.toLowerCase()
   return p === v || p.startsWith(`${v} `) ? product : `${vendor} ${product}`
 }
-/** Gợi ý loại thiết bị khi người dùng bấm "Tôi có" (S-FEED-2 → khai tay). */
+/** A device type hint when the user clicks "I have this" (S-FEED-2 → hand declaration). */
 export const kindOf = (key: string) =>
   key.startsWith('qnap|') || key.startsWith('synology|') ? 'nas' : key.includes('fortios') || key.includes('pan-os') || key.includes('asa') ? 'firewall'
     : key.startsWith('mikrotik|') ? 'router' : key.startsWith('hikvision|') ? 'camera' : key.startsWith('wordpress|') || key.includes('magento') ? 'web'

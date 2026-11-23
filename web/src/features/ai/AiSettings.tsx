@@ -37,14 +37,14 @@ const TABS = ['profiles', 'rules', 'memory', 'skills', 'knowledge', 'hooks'] as 
 type Tab = (typeof TABS)[number]
 const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => React.JSX.Element>> = { rules: RulesTab, memory: MemoryTab, skills: SkillsTab, knowledge: KnowledgeTab, hooks: HooksTab }
 
-// Địa chỉ và model gợi ý, đối chiếu tài liệu chính thức ngày 2026-11-06. Tên model đổi theo thời gian nên người dùng sửa được.
+// Suggested addresses and models, checked against the official documentation on 2026-11-06. Model names change over time, so the user can edit them.
 //  Anthropic: platform.claude.com/docs/en/about-claude/models/overview (claude-haiku-5-5, API https://api.anthropic.com)
-//  OpenAI:    developers.openai.com/api/docs/models (gpt-6-luna là model gọn nhẹ), API https://api.openai.com/v1
+//  OpenAI:    developers.openai.com/api/docs/models (gpt-6-luna is the small model), API https://api.openai.com/v1
 //  Gemini:    aistudio.google.com/docs/models (gemini-3.6-flash), REST https://generativelanguage.googleapis.com (the client adds /v1beta)
 //  OpenCode:  opencode.ai/docs/zen: Chat Completions at https://opencode.ai/inference/openai/v1, model glm-5.3-flash (cheap, tools); a preset on kind custom
-//  Ollama:    docs.ollama.com/api/openai-compatibility (cổng 11434, ví dụ model qwen3:8b); vLLM cổng 8000. Core luôn chạy trong container (cả bản cài install.sh,
-//             Podman root): Ollama trên cùng máy là host.containers.internal, không phải localhost. Bản cài chỉ-container
-//             (Docker hoặc Podman của khách) không có tên đó chắc chắn: không điền sẵn, gợi ý nói dùng IP LAN của máy
+//  Ollama:    docs.ollama.com/api/openai-compatibility (port 11434, example model qwen3:8b); vLLM port 8000. Core always runs in a container (also the install.sh install,
+//             rootful Podman): Ollama on the same machine is host.containers.internal, not localhost. A container-only install
+//             (the customer's Docker or Podman) cannot be sure to have that name: it is not pre-filled, and the hint says to use the machine's LAN IP
 // The provider choice of the dialog: the five kinds and the OpenCode preset, which is a Custom profile (no new kind).
 type Preset = ProfileKind | 'opencode'
 const PRESETS: Preset[] = ['anthropic', 'openai', 'gemini', 'opencode', 'openai-compatible', 'custom']
@@ -69,7 +69,7 @@ const shownJobs = () => (notOffered('response') ? JOBS.filter((j) => j.id !== 'r
 const hostOf = (u: string) => { try { return new URL(u).host } catch { return u || '…' } }
 const usable = (p: AiProfile) => p.usable
 
-/** Settings, AI assistant (S-AI-1, S-AI-4, S-AI-7): tabs for profiles and routing, then the AI harness (rules, memory, skills, knowledge, connections, hooks). Khoá chỉ nhập một chiều: sau khi lưu chỉ còn 4 ký tự cuối (SYS-4). */
+/** Settings, AI assistant (S-AI-1, S-AI-4, S-AI-7): tabs for profiles and routing, then the AI harness (rules, memory, skills, knowledge, connections, hooks). The key is entered one way only: after saving, only its last 4 characters remain (SYS-4). */
 export default function AiSettings() {
   const { t } = useTranslation('ai')
   const cfg = useAiConfig()
@@ -125,7 +125,7 @@ function Flow({ profiles }: { profiles: AiProfile[] }) {
   )
 }
 
-// ---------- Hồ sơ AI
+// ---------- AI profiles
 function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: Assignments | undefined }) {
   const { t } = useTranslation('ai')
   const admin = useCan('admin')
@@ -252,7 +252,7 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
   function pickKind(k: Preset) {
     save.reset(); test.reset(); models.reset(); setErrs({})
     const d = defaultsOf(k)
-    // đổi loại thì điền lại mặc định; tên chỉ đổi khi người dùng chưa tự đặt
+    // changing the kind refills the defaults; the name changes only when the user has not set it themselves
     if (!profile && (name === '' || Object.values(DEFAULTS).some((x) => x.name === name))) setName(d.name && !existing.some((p) => p.name === d.name) ? d.name : '')
     // A key belongs to one provider: never carry it to another one. An address or model the person typed stays; one that is still
     // the previous type's default (or empty) takes the new type's default.
@@ -412,7 +412,7 @@ function RemoveDialog({ profile, assign, onClose }: { profile: AiProfile; assign
   )
 }
 
-// ---------- Phân việc
+// ---------- Job assignments
 /** A refetch of the assignments (a profile added from "+ New AI profile" takes every job without a primary; a save) keeps what the
  *  customer changed: a row they edited stays theirs, an untouched row takes the server's value. With the privacy rule changed in the
  *  draft, the draft stays whole (the server's rows follow the saved rule, not the draft's). Never a remount: focus and the "added
@@ -552,7 +552,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
   )
 }
 
-// ---------- Mức dùng token, ngân sách tháng chung, che thông tin cá nhân
+// ---------- Token usage, the shared monthly budget, masking personal information
 function TierForm({ cfg }: { cfg: AiConfigView }) {
   const { t } = useTranslation('ai')
   const admin = useCan('admin')

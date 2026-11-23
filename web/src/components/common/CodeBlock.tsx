@@ -4,7 +4,7 @@ import { Check, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-/** Đoạn cấu hình/lệnh: mono, nút sao chép. Mono CHỈ dùng ở đây và cho log (FRONTEND §3). */
+/** A config/command snippet: mono, with a copy button. Mono is used ONLY here and for logs (FRONTEND §3). */
 /** wrapOnPhone: on a phone a long line wraps (the IP stays visible) instead of scrolling sideways; from sm up it scrolls as before. */
 export function CodeBlock({ code, label, wrapOnPhone }: { code: string; label?: string; wrapOnPhone?: boolean }) {
   const { t } = useTranslation()
@@ -14,7 +14,7 @@ export function CodeBlock({ code, label, wrapOnPhone }: { code: string; label?: 
       await navigator.clipboard.writeText(code)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
-    } catch { /* clipboard bị chặn: người dùng tự chọn văn bản */ }
+    } catch { /* clipboard blocked: the user selects the text by hand */ }
   }
   return (
     <div className="overflow-hidden rounded-md border border-rule bg-sunken">
@@ -25,7 +25,7 @@ export function CodeBlock({ code, label, wrapOnPhone }: { code: string; label?: 
           {copied ? t('copied') : t('copy')}
         </Button>
       </div>
-      {/* tabIndex: khối cuộn ngang phải dùng được bằng bàn phím (WCAG 2.1.1) */}
+      {/* tabIndex: a horizontally scrolling block must be usable from the keyboard (WCAG 2.1.1) */}
       <pre tabIndex={0} aria-label={label || t('codeBlock')} className={cn('overflow-x-auto p-3 font-mono text-meta leading-relaxed', wrapOnPhone && 'whitespace-pre-wrap [overflow-wrap:anywhere] sm:whitespace-pre sm:[overflow-wrap:normal]')}><code>{code}</code></pre>
     </div>
   )

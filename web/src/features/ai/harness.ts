@@ -1,5 +1,5 @@
-// AI harness (S-AI-7): bảng mock và bộ máy hook. Hook là kiểm tra chạy trước/sau mỗi lần gọi AI.
-// Bộ máy ở đây thuần (không đụng store) để test trực tiếp; mocks gọi nó cho "Ask your data".
+// AI harness (S-AI-7): the mock tables and the hook engine. A hook is a check that runs before/after every AI call.
+// The engine here is pure (it does not touch the store) so it can be tested directly; the mocks call it for "Ask your data".
 import { collection, newId } from '@/mocks/db'
 import type { AiJob, BuiltinHook, BuiltinRule, CustomHook, HookAction, HookHit, HookInput, HookWhen, KnowledgeDoc, MemoryEntry, MemorySuggestion, Rule, Skill } from './types'
 
@@ -49,7 +49,7 @@ export const SKILL_DEFS: Skill[] = [
 export const skillsStore = collection<Record<string, boolean>>('ai_skills', () => ({}))
 export const skillsView = (): Skill[] => SKILL_DEFS.map((s) => ({ ...s, enabled: skillsStore.get()[s.id] ?? true }))
 
-// ---- Knowledge (RAG). Trạng thái tính từ thời điểm tải lên, không cần bộ hẹn giờ.
+// ---- Knowledge (RAG). The state is computed from the upload time, no timer needed.
 export interface StoredDoc { id: string; name: string; size: number; jobs: AiJob[]; uploaded_at: string }
 export const knowledgeStore = collection<StoredDoc[]>('ai_knowledge', () => [
   { id: 'kd-1', name: 'office-network-diagram.pdf', size: 1_840_000, jobs: ['explain-finding', 'ask-my-data', 'response-plan'], uploaded_at: ago(9) },
@@ -81,11 +81,11 @@ export const builtinHooksView = (): BuiltinHook[] => BUILTIN_HOOKS.map((h) => ({
 export const newHookId = () => newId('hk')
 export const newRuleId = () => newId('ru')
 
-// ---- Bộ máy hook
+// ---- Hook engine
 interface Def { id: string; name: string; kind: 'builtin' | 'custom'; when: HookWhen; action: HookAction; message: string; re: RegExp; onlyGroup?: boolean }
 const B = (id: string, name: string, action: HookAction, message: string, re: RegExp, onlyGroup = false): Def => ({ id, name, kind: 'builtin', when: 'before_ai', action, message, re, onlyGroup })
 const PII_NAME = 'Block personal data'
-// Khối trước là chặn, rồi mới che: gặp số định danh thì dừng ngay, không che từng phần.
+// A block comes first, then masking: when an identity number is found, stop at once, do not mask piece by piece.
 const PII: Def[] = [
   B('block-pii', PII_NAME, 'block', 'The text contains an ID number. It was not sent to the AI. Remove the number and ask again.', /(?<![\d.])\d{12}(?!\d)|(?<![\d.])\d{9}(?!\d)/),
   B('block-pii', PII_NAME, 'mask', 'An email address was masked before the text went to the AI.', /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/i),
@@ -95,7 +95,7 @@ const PII: Def[] = [
 const OFF_TOPIC = B('security-only', 'Security work only', 'block', "This box's AI only helps with the security of this network, so it did not take this request. Ask about your devices, findings, logs or exposure.", /\b(?:poems?|poetry|songs?|lyrics|jokes?|haiku|limerick|horoscope|recipes?|essay|homework|movies?|novel|fairy ?tale|bedtime story|write (?:me )?a story)\b/i)
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-/** Dựng biểu thức từ khớp của người dùng; null nếu không hợp lệ. Kiểm ngay lúc lưu (checkMatch) để không lưu hook hỏng. */
+/** Build the expression from the user's match; null if invalid. Checked right when saving (checkMatch) so a broken hook is never stored. */
 export function buildMatch(m: { type: 'keywords' | 'regex'; pattern: string }): RegExp | null {
   try {
     if (m.type === 'regex') return m.pattern.length <= 200 ? new RegExp(m.pattern, 'i') : null
@@ -117,7 +117,7 @@ export const draftDef = (h: HookInput): Def | null => customDef({ ...h, id: 'dra
 
 export interface HookRun { text: string; outcome: 'pass' | 'masked' | 'blocked' | 'held'; hits: HookHit[] }
 const toHit = (d: Def): HookHit => ({ id: d.id, name: d.name, kind: d.kind, when: d.when, action: d.action, message: d.message })
-/** Chạy các hook của một giai đoạn trên văn bản. Chặn/giữ dừng ngay (text = thông báo); che thay đoạn khớp bằng [masked]. */
+/** Run the hooks of one stage on a text. Block/hold stops at once (text = the message); mask replaces the matched part with [masked]. */
 export function runHooks(text: string, when: HookWhen, defs: Def[]): HookRun {
   let out = text
   let masked = false

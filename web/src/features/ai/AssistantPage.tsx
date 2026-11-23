@@ -36,8 +36,8 @@ export default function AssistantPage() {
       : u ? t('page.title', { used: fmtNumber(u.month.total), cap: fmtNumber(u.monthly_budget) }) : t('page.titleLoading')
   const tabs: PageTab[] = [{ id: 'ask', label: t('page.tabAsk'), panel: <Ask q={q} setQ={setQ} /> }]
   if (on) tabs.push({ id: 'history', label: t('page.tabHistory'), panel: <History /> })
-  // Chưa nối AI và chưa từng chạy: đồng hồ 0/trần và nhật ký trống chỉ gây nhiễu; màn trống ở tab Ask đã nói việc cần làm.
-  // Trong lúc tải vẫn có tab Usage: số tab đổi 1 → 2 sẽ dựng lại tab Ask và mất chữ người dùng đang gõ.
+  // AI not connected and never run: a 0/cap gauge and an empty log only add noise; the empty screen in the Ask tab already says what to do.
+  // While loading the Usage tab is still there: the tab count changing 1 → 2 would rebuild the Ask tab and lose what the user is typing.
   if (gate.state !== 'off' && !(gate.state === 'unconfigured' && u && u.month.total === 0)) {
     tabs.push({ id: 'usage', label: t('page.tabUsage'), panel: <><Meter query={usage} renews={cfg.data?.renews_on} /><RunLog /><ActivityPanel /></> })
   }

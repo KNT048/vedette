@@ -1,10 +1,10 @@
-// Kiểu API module scan — suy ra từ hợp đồng Zod (contract.ts), không khai tay.
+// API types of the scan module, derived from the Zod contract (contract.ts), not declared by hand.
 import type { z } from 'zod'
 import type * as C from './contract'
 
 export type ScanTarget = z.infer<typeof C.ScanTarget>
 export type ScanScope = z.infer<typeof C.ScanScope>
-/** window.days: 1 = Thứ Hai … 7 = Chủ nhật; rate = yêu cầu mỗi giây. */
+/** window.days: 1 = Monday ... 7 = Sunday; rate = requests per second. */
 export type ScanConfig = z.infer<typeof C.ScanConfig>
 export type ScanConfigResponse = z.infer<typeof C.ScanConfigResponse>
 export type RunStatus = z.infer<typeof C.RunStatus>

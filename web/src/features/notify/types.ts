@@ -1,4 +1,4 @@
-// Kiểu API module notify — suy ra từ hợp đồng Zod (contract.ts), không khai tay. Hằng số UI ở dưới.
+// API types of the notify module, derived from the Zod contract (contract.ts), not declared by hand. UI constants are below.
 import type { z } from 'zod'
 import type * as C from './contract'
 
@@ -36,17 +36,17 @@ export const CHANNEL_TYPES: ChannelType[] = ['telegram', 'slack', 'zalo', 'zalo-
 export const ROUTE_SEVERITIES: RouteSeverity[] = ['critical', 'high', 'medium', 'low']
 export const INCIDENT_KINDS: IncidentKind[] = ['trap', 'bad_address', 'log_anomaly', 'unknown_device', 'intrusion']
 
-/** Trường không bí mật của từng kênh. Bí mật (token, mật khẩu) tách riêng: chỉ gửi lên, không bao giờ trả về (SYS-4). */
+/** The non-secret fields of each channel. Secrets (tokens, passwords) are kept apart: only sent up, never returned (SYS-4). */
 export const FIELDS: Record<ChannelType, string[]> = {
   telegram: ['chat_id'],
-  slack: ['label'], // channel_id chỉ hiện khi bật duyệt trong chat
+  slack: ['label'], // channel_id shows only when approval in chat is turned on
   zalo: ['oa_id', 'user_id', 'app_id'], // app_id: the refresh-token flow; secret key and refresh token are secrets
   'zalo-personal': ['user_id'],
   email: ['provider', 'host', 'port', 'security', 'username', 'tenant_id', 'client_id', 'from', 'to'], // provider: preset; tenant_id, client_id: Microsoft 365 only
   webhook: ['url'],
 }
 
-/** Kênh có thể nhận duyệt hành động. Zalo OA và webhook chỉ gửi tin kèm liên kết mở Vedette. */
+/** Channels that can receive action approvals. Zalo OA and webhook only send a message with a link that opens Vedette. */
 export const APPROVAL_CHANNELS: ChannelType[] = ['slack', 'telegram', 'email', 'zalo-personal']
 
 const v4Forbidden = (a: number, b: number, c: number, d: number) =>

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# make check — kiểm nhanh, chỉ phần đã đổi so với origin/main.
-# Kể cả khi đổi file dùng chung: bộ đầy đủ chạy trên CI khi push lên main và hằng ngày (không còn merge queue).
-# Go test chỉ chạy gói có file đổi và gói import trực tiếp chúng.
-# Giả định OS: macOS hoặc Linux. Windows: chạy trong WSL2 (Makefile chặn Windows gốc).
+# make check: a quick check of only what changed against origin/main.
+# Even when a shared file changes: the full suite runs on CI on push to main and daily (there is no merge queue any more).
+# Go tests run only for packages with a changed file and the packages that import them directly.
+# Assumed OS: macOS or Linux. Windows: run inside WSL2 (the Makefile blocks native Windows).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 

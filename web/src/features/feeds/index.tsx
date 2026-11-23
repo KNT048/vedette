@@ -5,7 +5,7 @@ import { Loading } from '@/components/common/States'
 
 const FeedsSettings = lazy(() => import('./FeedsSettings'))
 
-// Module feeds (S-FEED-1/2/3, S-FEED-4/5). Mẫu tham chiếu cho mọi module FE: index.tsx · mocks.ts · api.ts · types.ts · *Page.tsx · *.test.tsx · locales/<lng>/feeds.json.
+// The feeds module (S-FEED-1/2/3, S-FEED-4/5). The reference pattern for every FE module: index.tsx · mocks.ts · api.ts · types.ts · *Page.tsx · *.test.tsx · locales/<lng>/feeds.json.
 export const feature: Feature = {
   id: 'feeds',
   routes: [

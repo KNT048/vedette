@@ -1,6 +1,6 @@
-// Kéo dữ liệu THẬT cho prototype M0 (S-FEED-1, S-FEED-2, S-FEED-3). Chạy: `pnpm fixtures` (mỗi thứ Hai trong tuần phỏng vấn).
-// Nguồn: CISA KEV (CC0), FIRST EPSS (ghi nguồn), nuclei-templates cves.json (MIT). Dữ liệu ngoài là không tin cậy (SYS-6):
-// giới hạn kích thước, kiểm tra hình dạng, bỏ bản ghi lạ, chỉ giữ link https.
+// Pulls REAL data for the M0 prototype (S-FEED-1, S-FEED-2, S-FEED-3). Run: `pnpm fixtures` (every Monday of the interview week).
+// Sources: CISA KEV (CC0), FIRST EPSS (credit the source), nuclei-templates cves.json (MIT). External data is untrusted (SYS-6):
+// limit the size, check the shape, drop unknown records, keep only https links.
 import { writeFileSync } from 'node:fs'
 
 const KEV_URL = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json'
@@ -9,7 +9,7 @@ const NUCLEI_URL = 'https://raw.githubusercontent.com/projectdiscovery/nuclei-te
 const OUT = new URL('../src/mocks/fixtures/kev.json', import.meta.url)
 const MAX_BYTES = 20 * 1024 * 1024
 const WINDOW_DAYS = 30
-// CVE của 3 phát hiện mẫu (src/mocks/fixtures/findings.ts) — luôn giữ dù cũ.
+// CVEs of the 3 sample findings (src/mocks/fixtures/findings.ts): always kept even when old.
 const PINNED = ['CVE-2022-27593', 'CVE-2026-119977', 'CVE-2026-96951']
 const CVE_RE = /^CVE-\d{4}-\d{4,}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -30,7 +30,7 @@ const day = (d) => d.toISOString().slice(0, 10)
 const since = day(new Date(now.getTime() - WINDOW_DAYS * 864e5))
 
 const kev = JSON.parse(await get(KEV_URL))
-if (!Array.isArray(kev?.vulnerabilities)) throw new Error('KEV: thiếu vulnerabilities[]')
+if (!Array.isArray(kev?.vulnerabilities)) throw new Error('KEV: vulnerabilities[] is missing')
 const picked = kev.vulnerabilities
   .filter((v) => CVE_RE.test(v?.cveID) && DATE_RE.test(v?.dateAdded))
   .filter((v) => v.dateAdded >= since || PINNED.includes(v.cveID))
@@ -76,8 +76,8 @@ const vulns = picked
   }))
   .sort((a, b) => b.date_added.localeCompare(a.date_added))
 
-// Danh mục sản phẩm cho "Khai thiết bị" (S-INV-2): MỌI cặp hãng/sản phẩm từng có trong KEV (toàn bộ lịch sử),
-// để khai tay khớp đúng khoá KEV. Module inventory ghép thêm sản phẩm phổ biến ở SMB và cho khai tự do.
+// Product catalogue for "Declare a device" (S-INV-2): EVERY vendor/product pair that ever appeared in KEV (the whole history),
+// so a hand declaration matches the KEV key exactly. The inventory module adds products common in SMBs and allows free-form entry.
 const products = new Map()
 for (const v of kev.vulnerabilities) {
   if (!CVE_RE.test(v?.cveID) || !DATE_RE.test(v?.dateAdded)) continue
@@ -101,7 +101,7 @@ writeFileSync(
       kev_catalog_version: str(kev.catalogVersion, 40),
       sources: [
         { name: 'CISA KEV', url: KEV_URL, license: 'CC0', fetched_at },
-        { name: 'FIRST EPSS', url: EPSS_URL, license: 'ghi nguồn: EPSS by FIRST', fetched_at },
+        { name: 'FIRST EPSS', url: EPSS_URL, license: 'credit the source: EPSS by FIRST', fetched_at },
         { name: 'nuclei-templates', url: NUCLEI_URL, license: 'MIT', fetched_at },
       ],
       vulns,
@@ -110,4 +110,4 @@ writeFileSync(
     1,
   ) + '\n',
 )
-console.log(`kev-products.json: ${products.size} sản phẩm. kev.json: ${vulns.length} CVE (từ ${since} + ${PINNED.length} CVE ghim), KEV ${kev.catalogVersion}, EPSS ${epssNow.size}, có template ${vulns.filter((v) => v.has_template).length}`)
+console.log(`kev-products.json: ${products.size} products. kev.json: ${vulns.length} CVE (since ${since} + ${PINNED.length} pinned CVEs), KEV ${kev.catalogVersion}, EPSS ${epssNow.size}, with template ${vulns.filter((v) => v.has_template).length}`)

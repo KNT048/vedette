@@ -1,13 +1,13 @@
-id: response           # trùng tên thư mục
-name: { vi: "Phản ứng", en: "Response" }
-summary: { vi: "Quy tắc KHI-NẾU-THÌ và đề xuất của AI dẫn tới hành động lên firewall/switch/DNS của khách, mặc định cần người duyệt; danh sách chặn để firewall tự kéo.", en: "WHEN-IF-THEN rules and AI proposals that lead to actions on the customer's firewall, switch or DNS; approval by default; a block list the firewall pulls." }
+id: response           # same as the folder name
+name: { en: "Response" }
+summary: { en: "WHEN-IF-THEN rules and AI proposals that lead to actions on the customer's firewall, switch or DNS; approval by default; a block list the firewall pulls." }
 tier: optional
-default: off           # công tắc thực thi lên thiết bị là công tắc riêng, cũng TẮT mặc định
-risk: high             # chức năng nguy hiểm, khách tự chịu trách nhiệm
-depends: [core, notify, inventory]   # notify: kênh duyệt và thông báo; inventory: thiết bị, ngữ cảnh. Kết nối tới thiết bị thuộc core (core/conn), nên hành động lên thiết bị chạy cả khi ai tắt; `ai` ở soft_depends từ WP-13a
-soft_depends: [ai, findings, honeypot, logs, exposure, scan, sensor-passive]   # ai: đề xuất (cổng Propose) + kế hoạch; còn lại là nguồn trigger; thiếu thì trigger tương ứng không có sự kiện
-permissions: ["outbound:lan"]          # SSH/HTTP API tới thiết bị trong scope khách khai (SYS-7); không root, không docker
-ports: []              # route công khai nằm trên cổng 8443 của core: /response/approve/{token}, /response/blocklist/{token}.txt
+default: off           # the switch that executes actions on devices is a separate switch, also OFF by default
+risk: high             # a dangerous function: the customer takes responsibility
+depends: [core, notify, inventory]   # notify: the approval and notification channel; inventory: devices, context. The connection to devices belongs to core (core/conn), so actions on devices run even when ai is off; `ai` is in soft_depends
+soft_depends: [ai, findings, honeypot, logs, exposure, scan, sensor-passive]   # ai: proposals (the Propose gate) + the plan; the rest are trigger sources; when one is missing its trigger has no events
+permissions: ["outbound:lan"]          # SSH/HTTP API to devices in the scope the customer declares (SYS-7); no root, no docker
+ports: []              # the public routes sit on core's port 8443: /response/approve/{token}, /response/blocklist/{token}.txt
 container: core
 tables_prefix: resp_
 tables: [resp_settings, resp_plans, resp_actions, resp_catalog, resp_rules, resp_allowlist, resp_blocklist, resp_tokens, resp_done, resp_ai_notes, resp_hints, resp_log]   # mock dùng response_* (+ resp_log)

@@ -22,6 +22,6 @@ export const feature: Feature = {
   ],
   nav: [{ to: '/response', label: 'response:nav.response', icon: Siren, module: 'response', group: 'detect', order: 30 }],
   settings: [{ id: 'response', label: 'response:settings.nav', module: 'response', minRole: 'admin', order: 45, element: <Suspense fallback={<Loading />}><ResponseSettings /></Suspense> }],
-  // modules.disable: what stays in force, in the Settings → Modules turn-off dialog (CONTRACT "Khi tắt module")
+  // modules.disable: what stays in force, in the Settings → Modules turn-off dialog (CONTRACT "when a module is turned off")
   slots: { 'finding.panels': wrap(FindingPanel), 'modules.disable': wrap(ModulesDisableNote) },
 }

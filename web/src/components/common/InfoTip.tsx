@@ -4,15 +4,15 @@ import { Info } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
-/** Hướng dẫn dài nằm sau biểu tượng ⓘ, chỉ hiện khi người dùng hỏi (#824, S-UI-1): mỗi phần chỉ để tiêu đề + tối đa một dòng ngắn.
- *  Bấm, Enter hoặc Space mở; Esc hoặc bấm ra ngoài đóng (Radix Popover). Trình đọc màn hình nhận nội dung là mô tả của nút (aria-describedby)
- *  nên không cần mở mới nghe được. `topic` là tên phần/ô được giải thích: nút đọc là "About <topic>".
- *  Cảnh báo tránh hại, lỗi và trạng thái không vào đây: chúng vẫn hiện, một dòng, chi tiết thì có thể đặt sau ⓘ. */
+/** Long guidance sits behind the ⓘ icon and shows only when the user asks (#824, S-UI-1): each part keeps only a heading + at most one short line.
+ *  Click, Enter or Space opens; Esc or a click outside closes (Radix Popover). A screen reader gets the content as the button's description (aria-describedby),
+ *  so it need not be opened to be heard. `topic` is the name of the part/field being explained: the button reads "About <topic>".
+ *  Warnings that prevent harm, errors and status do not go here: they still show, in one line, and the detail may sit behind the ⓘ. */
 export function InfoTip({ topic, children, className }: { topic?: string; children: ReactNode; className?: string }) {
   const { t } = useTranslation()
   const id = useId()
-  // L1: Section, Notice, EmptyState, DialogContent, Field, Band và PageHeader truyền tiêu đề làm `topic`. Chỉ tên ngắn (≤ 6 từ) vào tên nút;
-  // tiêu đề là cả một câu thì nút đọc "More about this", để trình đọc màn hình không đọc câu đó hai lần.
+  // Section, Notice, EmptyState, DialogContent, Field, Band and PageHeader pass their heading as `topic`. Only a short name (<= 6 words) goes into the button name;
+  // when the heading is a whole sentence the button reads "More about this", so a screen reader does not read that sentence twice.
   const name = topic && topic.trim().split(/\s+/).length <= 6 ? topic : undefined
   const label = name ? t('infoAbout', { topic: name }) : t('infoAboutThis')
   return (
@@ -21,18 +21,18 @@ export function InfoTip({ topic, children, className }: { topic?: string; childr
         type="button"
         aria-label={label}
         aria-describedby={id}
-        // Một ⓘ trong hàng bảng bấm được (onRowClick) chỉ mở popover, không mở hàng.
+        // An ⓘ inside a clickable table row (onRowClick) only opens the popover, not the row.
         onClick={(e) => e.stopPropagation()}
-        // Vùng bấm 40 px trên điện thoại, 24 px trên màn lớn (WCAG 2.5.8); -my giữ chiều cao dòng tiêu đề.
+        // A 40 px hit area on a phone, 24 px on a large screen (WCAG 2.5.8); -my keeps the height of the heading line.
         className={cn('-my-2 inline-grid size-10 shrink-0 place-items-center rounded-full align-middle text-muted hover:text-ink data-[state=open]:text-accent sm:-my-1 sm:size-6', className)}
       >
         <Info className="size-4" aria-hidden />
       </Popover.Trigger>
-      {/* Bản ẩn chỉ để làm mô tả của nút; `hidden` vẫn được tính vào accessible description. <span> (L2): hợp lệ cả trong <legend>/<span>;
-          <p>/<ol> bên trong một <span> không làm React cảnh báo lồng thẻ. Đặt InfoTip cạnh tiêu đề/nhãn, không trong <p> hay <label>. */}
+      {/* The hidden copy exists only as the button's description; `hidden` still counts toward the accessible description. <span>: valid inside <legend>/<span> too;
+          <p>/<ol> inside a <span> does not make React warn about nesting. Put the InfoTip next to a heading/label, not inside a <p> or <label>. */}
       <span id={id} hidden>{children}</span>
-      {/* Portal ra <body> cả khi ở trong hộp thoại: RemoveScroll của Radix Dialog theo cây React nên popover vẫn cuộn bằng chuột và cảm ứng
-          (đo trên điện thoại 390 px, ⓘ nhà cung cấp email, #824 M3). Bấm/chạm trong popover không lan tới hàng bảng phía sau. */}
+      {/* Portal to <body> even inside a dialog: the Radix Dialog RemoveScroll follows the React tree, so the popover still scrolls with mouse and touch
+          (measured on a 390 px phone, the email provider ⓘ, #824). A click/tap inside the popover does not reach the table row behind it. */}
       <Popover.Portal>
         {/* Radix gives the popover role="dialog": it needs a name (axe aria-dialog-name), the same one as its button. */}
         <Popover.Content
@@ -42,8 +42,8 @@ export function InfoTip({ topic, children, className }: { topic?: string; childr
           align="start"
           sideOffset={6}
           collisionPadding={16}
-          // z-[60]: nằm trên hộp thoại (z-50) khi ⓘ ở trong một hộp thoại. Nội dung dài (luồng dữ liệu Privacy) cuộn trong popover, không tràn màn hình.
-          // Nền tối (L7): popover cùng màu nền với hộp thoại bên dưới, nên viền sáng hơn và bóng đậm hơn để thấy rõ mép.
+          // z-[60]: above the dialog (z-50) when the ⓘ sits in a dialog. Long content (the Privacy data flow) scrolls inside the popover instead of overflowing the screen.
+          // Dark background: the popover has the same background as the dialog below it, so it gets a lighter border and a heavier shadow to show its edge.
           className="z-[60] grid max-h-[min(28rem,var(--radix-popover-content-available-height))] max-w-[min(22rem,calc(100vw-32px))] gap-2 overflow-y-auto overscroll-contain rounded-lg border border-rule bg-surface px-3 py-2.5 text-meta leading-relaxed text-ink shadow-md [overflow-wrap:anywhere] dark:border-ink/30 dark:shadow-lg dark:shadow-sunken [&_a]:underline"
         >
           {children}

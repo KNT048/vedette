@@ -1,15 +1,15 @@
-id: host               # trùng tên thư mục; tên tiến trình: vedette-host
-kind: component        # KHÔNG phải module bật/tắt trong Cài đặt: là tiến trình systemd của hộp appliance. Có hợp đồng như module.
-name: { vi: "Trình quản lý máy chủ (vedette-host)", en: "Box host helper (vedette-host)" }
-summary: { vi: "Tiến trình root rất nhỏ, chỉ chạy một danh sách lệnh cố định: cập nhật OS, cấu hình mạng/SPAN/IP phụ, kéo và hoàn tác image đã ký, sao lưu.", en: "A very small root process that runs only a fixed command list: OS updates, network/SPAN/secondary-IP setup, signed image pull and rollback, backup." }
-tier: core             # luôn có ở kiểu cài Appliance; KHÔNG có ở kiểu "Chỉ container"
-default: on            # kiểu Appliance
-install_types: [appliance]   # "Chỉ container": không có host; tính năng quản lý OS/mạng báo "không hỗ trợ"
-depends: []            # là phần của appliance, độc lập với module Go
-permissions: [root, "systemd", "apt", "podman", "netlink"]   # chỉ trong tiến trình này; mọi thứ khác chạy không root (agent-safety, SYS-1)
-ports: []              # không cổng mạng: nghe socket Unix nội bộ
-socket: /run/vedette/host.sock   # mặc định; installer ghi đường dẫn thật vào /etc/vedette/host.conf (docs/specs/host-api.md §15)
-container: none        # chạy trên OS (systemd, root), KHÔNG trong container
-tables_prefix: null    # không sở hữu bảng; lịch sử chạy lưu ở core (core_os_run, core_audit)
-stories: [S-CORE-7, S-INV-5]   # + cấu hình mạng/SPAN (chưa có story ID, xem câu hỏi mở 1)
+id: host               # same as the folder name; process name: vedette-host
+kind: component        # NOT a module that is switched on/off in Settings: it is the systemd process of the appliance box. It has a contract like a module.
+name: { en: "Box host helper (vedette-host)" }
+summary: { en: "A very small root process that runs only a fixed command list: OS updates, network/SPAN/secondary-IP setup, signed image pull and rollback, backup." }
+tier: core             # always present on the Appliance install type; NOT present on the "Container only" type
+default: on            # Appliance type
+install_types: [appliance]   # "Container only": there is no host; the OS/network management features say "not supported"
+depends: []            # part of the appliance, independent of the Go modules
+permissions: [root, "systemd", "apt", "podman", "netlink"]   # only in this process; everything else runs without root (SYS-1)
+ports: []              # no network port: listens on an internal Unix socket
+socket: /run/vedette/host.sock   # default; the installer writes the real path into /etc/vedette/host.conf (docs/specs/host-api.md §15)
+container: none        # runs on the OS (systemd, root), NOT in a container
+tables_prefix: null    # owns no tables; the run history is kept in core (core_os_run, core_audit)
+stories: [S-CORE-7, S-INV-5]   # + network/SPAN configuration (no story ID yet, see open question 1)
 milestone: M2

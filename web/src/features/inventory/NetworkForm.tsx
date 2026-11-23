@@ -84,8 +84,8 @@ function ListEditor({ id, label, listLabel, hint, info, items, onChange, validat
 }
 
 /**
- * Dải mạng quét: gõ "192.168.18.0" thì tự thành 192.168.18.0/24 và nói rõ đã đổi; mỗi dải đã lưu đều sửa/xoá được;
- * dải lưu sai (từ phiên bản cũ hoặc nhập tay) hiện lỗi ngay trên dòng của nó, không chặn thêm/sửa/xoá dải khác.
+ * Scan network ranges: typing "192.168.18.0" becomes 192.168.18.0/24 by itself and says plainly that it was changed; every saved range can be edited/deleted;
+ * a wrongly saved range (from an older version or typed by hand) shows an error right on its row, without blocking adding/editing/deleting other ranges.
  * Add and edit open in a dialog over the list.
  */
 function RangeEditor({ items, onChange }: { items: string[]; onChange: (v: string[]) => void }) {
@@ -145,7 +145,7 @@ function RangeEditor({ items, onChange }: { items: string[]; onChange: (v: strin
   )
 }
 
-/** Dải mạng LAN, cửa sổ quét chủ động, loại trừ, thiết bị mỏng manh chỉ thụ động (S-INV-1). Xác nhận phạm vi trước khi quét (LEGAL §3). */
+/** LAN network ranges, the active scan window, exclusions, fragile devices passive only (S-INV-1). Confirm the scope before scanning (LEGAL §3). */
 export function NetworkForm({ settings }: { settings: InventorySettings }) {
   const { t } = useTranslation('inventory')
   const save = useSaveSettings()
@@ -234,7 +234,7 @@ export function NetworkForm({ settings }: { settings: InventorySettings }) {
       </Section>
 
       {error ? <Notice tone="danger" role="alert" className="mb-4 max-w-2xl" title={error} /> : null}
-      {/* Cam kết nằm ngay trên nút Lưu: chỉ phải tick lại khi tập dải mạng đổi; đổi cài đặt khác thì giữ xác nhận cũ. */}
+      {/* The commitment sits right above the Save button: it must be ticked again only when the set of ranges changes; changing other settings keeps the old confirmation. */}
       <div id="scope" className="mb-10 grid max-w-3xl gap-3 rounded-md border border-rule bg-surface p-4">
         <div className="flex items-start gap-2">
           <Checkbox id="scope-confirm" className="mt-0.5" checked={confirmed} aria-describedby="scope-status" onCheckedChange={(v) => setConfirmed(v === true)} />

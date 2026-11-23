@@ -1,4 +1,4 @@
-// Hợp đồng API module logs (S-LOG-1..4). Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// API contract of the logs module (S-LOG-1..4). UI types are derived from the schema here (types.ts), so UI ↔ mock ↔ OpenAPI do not drift apart.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { KIND_IDS } from './kinds'

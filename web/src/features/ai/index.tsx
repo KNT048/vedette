@@ -3,7 +3,7 @@ import { Bot } from 'lucide-react'
 import type { Feature } from '@/app/feature'
 import { Loading } from '@/components/common/States'
 
-// Module ai (S-AI-1, S-AI-3..6). Cài đặt, khung CVE và khung log tải lười để không kéo code AI vào trang chủ.
+// The ai module (S-AI-1, S-AI-3..6). Settings, the CVE panel and the log panel are lazy loaded so AI code is not pulled into the home page.
 const AiSettings = lazy(() => import('./AiSettings'))
 const CvePanels = lazy(() => import('./CvePanels'))
 const LogsPanel = lazy(() => import('./LogsPanel'))

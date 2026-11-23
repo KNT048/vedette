@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 
-// Story ID hiện khi URL có ?story=1 (ghi nhớ trong phiên); ?story=0 để tắt. Ẩn mặc định khi phỏng vấn.
+// The story ID shows when the URL has ?story=1 (remembered for the session); ?story=0 turns it off. Hidden by default during interviews.
 const KEY = 'vedette-story'
 function read() {
   if (typeof window === 'undefined') return false

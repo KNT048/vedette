@@ -28,7 +28,7 @@ import (
 // writes the journal (staged, attempt 0) and returns server.Parked: park first, dispatch after. The settle
 // goroutine (its first round starts the applier with systemd-run) and the applier come with slice 2b.
 
-// Time limits (spec 6.14 "Thời hạn"; TestTimeLimitsAreConsistent checks they agree).
+// Time limits (spec 6.14 time limits; TestTimeLimitsAreConsistent checks they agree).
 const (
 	// suPreParkTimeout is Spec.Timeout: Check, the copy of up to 256 MiB, apt-get update (suAptUpdateLimit),
 	// the simulation and dpkg-deb. It no longer applies once the run is parked.

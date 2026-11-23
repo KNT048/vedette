@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// The host's side of host.self_update after the park (spec 6.14 "Goroutine kết thúc").
+// The host's side of host.self_update after the park (spec 6.14 finishing goroutine).
 // One settle goroutine follows the journal: its first round, in the host that parked the run, starts the
 // applier (park first, dispatch after); every round reads the journal and asks whether the transient unit
 // still runs; it starts a dead applier once more when that second run can end by the deadline; and it ends

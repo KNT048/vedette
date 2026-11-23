@@ -3,7 +3,7 @@ import { api } from '@/lib/api'
 import type { BuiltinHook, CustomHook, HookInput, HookTestInput, HookTestResult, HooksView, KnowledgeDoc, KnowledgeInput, KnowledgeView, MemoryEntry, MemoryInput, MemoryPatch, MemoryView, Rule, RuleInput, RulesView, Skill } from './types'
 
 const enc = encodeURIComponent
-/** Mọi thao tác harness làm tươi cả nhóm ['ai', 'harness']; hỏi dữ liệu cũng làm tươi vì hook/memory đổi theo. */
+/** Every harness action refreshes the ['ai', 'harness'] group; asking the data refreshes too, because hooks/memory change with it. */
 function useDone() {
   const qc = useQueryClient()
   return () => { void qc.invalidateQueries({ queryKey: ['ai'] }) }
@@ -24,7 +24,7 @@ export const useAnswerSuggestion = () => useWrite(({ id, accept }: { id: string;
 export const useSkills = () => useQuery({ queryKey: ['ai', 'harness', 'skills'], queryFn: () => api.get<{ items: Skill[] }>('/ai/skills') })
 export const useToggleSkill = () => useWrite(({ id, enabled }: { id: string; enabled: boolean }) => api.put<Skill>(`/ai/skills/${enc(id)}`, { enabled }))
 
-/** Tài liệu đang tải/lập chỉ mục: hỏi lại mỗi giây cho tới khi xong. */
+/** A document being uploaded/indexed: poll every second until done. */
 export const useKnowledge = () => useQuery({
   queryKey: ['ai', 'harness', 'knowledge'], queryFn: () => api.get<KnowledgeView>('/ai/knowledge'),
   refetchInterval: (q) => (q.state.data?.items.some((d) => d.status !== 'ready') ? 1000 : false),

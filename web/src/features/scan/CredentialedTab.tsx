@@ -21,7 +21,7 @@ import type { CredTarget, ScanTarget } from './types'
 import { actsAs } from '@/lib/deviceTypes'
 
 const MAX_KEY = 16 * 1024
-/** Quét có tài khoản qua SSH chỉ hợp với máy chủ: không liệt kê camera, máy in, switch, máy trạm. */
+/** A credentialed scan over SSH only suits servers: no cameras, printers, switches, workstations. */
 /** Devices an SSH login can check: types acting as server, NAS or web (a virtual machine or a hypervisor acts as server). */
 const SSH_KINDS = ['server', 'nas', 'web']
 
@@ -134,7 +134,7 @@ function List({ items }: { items: CredTarget[] }) {
   const lastRm = useRef<CredTarget | null>(null)
   if (rm) lastRm.current = rm
   const shownRm = rm ?? lastRm.current
-  // Cột ổn định để nút không bị gắn lại (mất focus) mỗi lần render.
+  // Stable columns so the buttons are not remounted (losing focus) on every render.
   const askRemove = useCallback((e: React.MouseEvent<HTMLElement>, r: CredTarget) => { opener.current = e.currentTarget; setRm(r) }, [])
   const columns = useMemo<ColumnDef<CredTarget>[]>(() => [
     { id: 'host', header: t('cred.col.host'), accessorFn: (r) => r.label, cell: ({ row: { original: r } }) => <div className="grid"><span className="font-medium">{r.label}</span><span className="text-caption text-muted">{r.username}@{r.host}:{r.port}</span></div> },

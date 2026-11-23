@@ -469,7 +469,7 @@ func TestRecordAddedPackages(t *testing.T) {
 	}
 }
 
-// checkSelfUpdateLimits is the host.self_update part of TestTimeLimitsAreConsistent (spec 6.14 "Thời hạn").
+// checkSelfUpdateLimits is the host.self_update part of TestTimeLimitsAreConsistent (spec 6.14 time limits).
 func checkSelfUpdateLimits(t *testing.T) {
 	t.Helper()
 	unit, err := os.ReadFile(filepath.Join("..", "..", "deploy", "systemd", "vedette-host.service"))

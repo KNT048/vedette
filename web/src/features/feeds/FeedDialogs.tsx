@@ -73,7 +73,7 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
               {last4 && !confirmRemove ? <Button type="button" size="sm" onClick={() => setConfirmRemove(true)}>{t('dialog.vulncheckKeyRemove')}</Button> : null}
               {last4 && confirmRemove ? (
                 <div role="alert" className="grid gap-2 rounded-md border border-warn/50 bg-warn-soft p-3 text-sm">
-                  <div className="flex items-center gap-1"><p>{t('dialog.vulncheckRemoveBody')}</p><InfoTip topic={t('dialog.vulncheckKeyRemove')}>{t('dialog.vulncheckRemoveInfo')}</InfoTip></div>
+                  <div className="flex items-center gap-1"><p>{t('dialog.vulncheckRemoveBody')}</p><InfoTip>{t('dialog.vulncheckRemoveInfo')}</InfoTip></div>
                   <span className="flex gap-2">
                     <Button type="button" size="sm" variant="primary" busy={patch.isPending && patch.variables?.api_key === ''} busyLabel={t('common:busy.removing')} disabled={patch.isPending} onClick={() => patch.mutate({ id: feed.id, api_key: '' }, { onSuccess: () => { toast.success(t('dialog.vulncheckKeyRemoved', { name: feed.name })); onClose() } })}>{t('dialog.vulncheckRemoveConfirm')}</Button>
                     <Button type="button" size="sm" onClick={() => setConfirmRemove(false)}>{t('common:cancel')}</Button>

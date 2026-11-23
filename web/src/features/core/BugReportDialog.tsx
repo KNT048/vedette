@@ -37,7 +37,7 @@ export function BugReportDialog({ open, onOpenChange }: { open: boolean; onOpenC
           </div>
           <div className="flex items-center gap-1">
             <p className="text-meta text-muted">{t('bug.attach')}</p>
-            <InfoTip topic={t('bug.open')}>{t('bug.attachInfo')}</InfoTip>
+            <InfoTip>{t('bug.attachInfo')}</InfoTip>
           </div>
         </div>
         <DialogFooter>

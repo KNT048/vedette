@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // The vulnerability catalogue: one row per CVE (feeds_cve) with its scores (feeds_cve_metric) and affected versions
@@ -477,22 +479,67 @@ func (s *Store) RangesOf(ctx context.Context, cves []string) ([]Range, error) {
 // read per release train, never by the generic comparison). Sorted by CVE, then as stored.
 func (s *Store) SchemeRangesOf(ctx context.Context, cves []string) ([]Range, error) {
 	var out []Range
+	nvdNamed, err := json.Marshal(nvdNotationCPEs())
+	if err != nil {
+		return nil, fmt.Errorf("feeds: vendor ranges: %w", err)
+	}
 	for chunk := range slices.Chunk(cves, 400) {
 		part, err := json.Marshal(chunk)
 		if err != nil {
 			return nil, fmt.Errorf("feeds: vendor ranges: %w", err)
 		}
-		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?)) AND (NOT (`+genericRowSQL+`) OR r.origin <> 'nvd')`, string(part))
+		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?)) AND (NOT (`+genericRowSQL+`) OR r.origin <> 'nvd'
+OR r.part || ':' || r.vendor || ':' || r.product IN (SELECT value FROM json_each(?)))`, string(part), string(nvdNamed))
 		if err != nil {
 			return nil, err
 		}
+		var silent []Range // record rows of a scheme product that state no version: the record's description may
 		for _, r := range rows {
 			if !r.Generic() || SchemeProduct(r) {
 				out = append(out, r)
 			}
+			if r.Origin != OriginNVD && !recordBounded(r) && SchemeProduct(r) {
+				silent = append(silent, r)
+			}
+		}
+		if len(silent) == 0 {
+			continue
+		}
+		desc, err := s.descriptionsOf(ctx, silent)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range silent {
+			out = append(out, describedRows(r, desc[r.CVE])...)
 		}
 	}
 	return out, nil
+}
+
+// descriptionsOf is the description of each CVE of rows.
+func (s *Store) descriptionsOf(ctx context.Context, rows []Range) (map[string]string, error) {
+	cves := make([]string, 0, len(rows))
+	for _, r := range rows {
+		cves = append(cves, r.CVE)
+	}
+	part, err := json.Marshal(slices.Compact(slices.Sorted(slices.Values(cves))))
+	if err != nil {
+		return nil, fmt.Errorf("feeds: descriptions: %w", err)
+	}
+	q, err := s.db.Reader().QueryContext(ctx, `SELECT cve, description FROM feeds_cve WHERE cve IN (SELECT value FROM json_each(?))`, string(part))
+	if err != nil {
+		return nil, fmt.Errorf("feeds: descriptions: %w", err)
+	}
+	defer func() { _ = q.Close() }()
+	out := map[string]string{}
+	for q.Next() {
+		var c, d string
+		if err := q.Scan(&c, &d); err != nil {
+			return nil, fmt.Errorf("feeds: descriptions: %w", err)
+		}
+		out[c] = d
+	}
+	return out, q.Err()
 }
 
 // SchemeCVEs returns the CVEs whose CVE record rows (origin cna or adp) name one of these products: a CVE a vendor states in its own
@@ -527,10 +574,36 @@ func SchemeProduct(r Range) bool {
 	return ok && p.Scheme != ""
 }
 
+// nvdNotationCPEs is "part:vendor:product" of every NVD name of a product whose scheme NVD writes in the vendor's notation
+// (versionscheme NVDNotation: DSM's "7.2.1-69057-6"): NVD's rows of these products are read in the scheme too (SchemeRangesOf), beside
+// the generic comparison.
+var nvdNotationCPEs = sync.OnceValue(func() []string {
+	out := []string{}
+	for _, p := range productid.Products() {
+		if s, ok := versionscheme.Lookup(p.Scheme); !ok || !s.NVDNotation {
+			continue
+		}
+		for _, c := range p.CPEs {
+			if !c.Prefix {
+				out = append(out, c.Base())
+			}
+		}
+	}
+	return out
+})
+
 // recordSkipped says a CVE record row is left out of the generic comparison's views (MatchRow, KEVRecordRows): its product has a
-// version scheme (the scheme reads it), or its vendor is one whose versions findings compares with rules of its own (recordSkipVendors).
+// version scheme that reads it (a row with a bound: one without says no version a scheme could place, recordBounded), or its vendor is
+// one whose versions findings compares with rules of its own (recordSkipVendors).
 func recordSkipped(r Range) bool {
-	return r.Origin != OriginNVD && (recordSkipVendors[r.Vendor] || SchemeProduct(r))
+	return r.Origin != OriginNVD && (recordSkipVendors[r.Vendor] || SchemeProduct(r) && recordBounded(r))
+}
+
+// recordBounded says a CVE record row states a version: a bound or a fixed release. A row of a product with no version at all (Synology's
+// records name "DiskStation Manager (DSM)" with only "affected") is no range a scheme can read: the generic comparison keeps it, and it
+// asks for the version as before.
+func recordBounded(r Range) bool {
+	return r.StartIncl != "" || r.StartExcl != "" || r.EndIncl != "" || r.EndExcl != "" || r.Fixed != ""
 }
 
 // MatchRow is the range as the matcher's CPE entry: NVD's and a record's CPE as stated, a record's product without a CPE as

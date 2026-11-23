@@ -3,7 +3,7 @@
  "products": [
   {"id": "openssh", "display": "OpenSSH", "vendor": "OpenBSD", "product": "OpenSSH", "cpe": ["a:openbsd:openssh"], "linux": ["openssh-server", "openssh-client", "openssh-sftp-server", "openssh", "openssh-clients"]},
   {"id": "apache-http-server", "display": "Apache HTTP Server", "vendor": "Apache", "product": "HTTP Server", "cpe": ["a:apache:http_server"], "linux": ["apache2", "apache2-bin", "httpd"]},
-  {"id": "nginx", "display": "nginx", "vendor": "F5", "product": "nginx", "cpe": ["a:f5:nginx", "a:nginx:nginx"], "linux": ["nginx", "nginx-core", "nginx-common", "nginx-full", "nginx-light"], "nmap": ["a:igor_sysoev:nginx"]},
+  {"id": "nginx", "display": "nginx", "vendor": "F5", "product": "nginx", "also": ["F5|NGINX Open Source", "nginx|nginx"], "cpe": ["a:f5:nginx", "a:nginx:nginx", "a:f5:nginx_open_source"], "record": ["F5|NGINX Open Source"], "linux": ["nginx", "nginx-core", "nginx-common", "nginx-full", "nginx-light"], "nmap": ["a:igor_sysoev:nginx"]},
   {"id": "exim", "display": "Exim", "vendor": "Exim", "product": "Exim", "cpe": ["a:exim:exim"], "class": "mail", "linux": ["exim4", "exim4-base", "exim4-daemon-light", "exim4-daemon-heavy", "exim"]},
   {"id": "samba", "display": "Samba", "vendor": "Samba", "product": "Samba", "cpe": ["a:samba:samba"], "linux": ["samba", "samba-common", "samba-common-bin"]},
   {"id": "sudo", "display": "sudo", "vendor": "Sudo", "product": "Sudo", "cpe": ["a:sudo_project:sudo"], "linux": ["sudo"]},

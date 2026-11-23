@@ -138,7 +138,7 @@ func TestResolveCPE(t *testing.T) {
 	if _, ok := Resolve(CPE, "", "", "cpe:/x:bad"); ok {
 		t.Error("a malformed CPE resolved")
 	}
-	if got := NmapAliases("a:igor_sysoev:nginx"); !slices.Equal(got, []string{"a:f5:nginx", "a:nginx:nginx"}) {
+	if got := NmapAliases("a:igor_sysoev:nginx"); !slices.Equal(got, []string{"a:f5:nginx", "a:nginx:nginx", "a:f5:nginx_open_source"}) {
 		t.Errorf("NmapAliases = %v", got)
 	}
 }
@@ -152,6 +152,19 @@ func TestResolveStored(t *testing.T) {
 		{"Node.js Foundation", "Node.js", "Node.js", "", "nodejs"},
 		{"Eclipse Adoptium", "Eclipse Temurin JDK with Hotspot 21.0.7+6 (x64)", "Eclipse Temurin JDK with Hotspot 21.0.7+6 (x64)", "", "openjdk"},
 		{"juniper", "junos", "", "cpe:/o:juniper:junos", "juniper-junos-os"},
+		// a product a person declares by the name its maker or the exploited list gives it, not the catalogue's own
+		{"Synology", "DiskStation Manager (DSM)", "Synology DiskStation Manager (DSM)", "", "synology-dsm"},
+		{"Synology", "DiskStation Manager", "Synology NAS (DSM)", "", "synology-dsm"},
+		{"F5", "NGINX Open Source", "F5 NGINX Open Source", "", "nginx"},
+		{"", "", "", "cpe:2.3:a:f5:nginx_open_source:1.30.5:*:*:*:*:*:*:*", "nginx"},
+		// every OpenJDK build is the one Java product, with its distribution
+		{"Eclipse Adoptium", "Temurin", "Eclipse Adoptium Temurin", "", "openjdk"},
+		{"Red Hat", "OpenJDK", "Red Hat OpenJDK", "", "openjdk"},
+		{"Red Hat", "build of OpenJDK", "Red Hat build of OpenJDK", "", "openjdk"},
+		{"Amazon", "Corretto", "Amazon Corretto", "", "openjdk"},
+		{"Azul", "Zulu", "Azul Zulu", "", "openjdk"},
+		{"Microsoft", "Build of OpenJDK", "Microsoft Build of OpenJDK", "", "openjdk"},
+		{"OpenJDK", "OpenJDK", "OpenJDK", "", "openjdk"},
 	} {
 		p, ok := ResolveStored(c[0], c[1], c[2], c[3])
 		if !ok || p.ID != c[4] {

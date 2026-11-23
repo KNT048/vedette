@@ -84,7 +84,7 @@ func TestContract_INV12_CatalogShape(t *testing.T) {
 	t.Parallel()
 	c := embeddedCatalog(t)
 	r := c.Search("")
-	if len(r.Items) != MaxCatalogHits || r.Total != len(c.entries) || r.Total < 800 {
+	if len(r.Items) != MaxCatalogHits || r.Total != len(c.entries) || r.Total < 600 { // a KEV pair a curated product covers is that product's entry
 		t.Fatalf("empty query: %d items of %d", len(r.Items), r.Total)
 	}
 	if got := c.Search("forti"); len(got.Items) > MaxCatalogHits || got.Total < len(got.Items) || got.Items[0].ID != "fortigate" {
@@ -107,12 +107,19 @@ func TestContract_INV12_CatalogShape(t *testing.T) {
 	if got := c.Search("Tường lửa"); len(got.Items) == 0 {
 		t.Fatal("no hit for a Vietnamese query")
 	}
-	// a typed vendor+product matches the exact KEV pair, else every product of the vendor, else a plain key
+	// a typed vendor+product matches the exact KEV pair, else the curated or catalogue product of that name, else a plain key; never
+	// every product of the vendor (a product nobody listed is not "exploited", and its line keeps its own name)
 	if e := c.custom("fortinet", "FortiOS"); !slices.Equal(e.kev, []string{"fortinet|fortios"}) {
 		t.Fatalf("exact pair: %v", e.kev)
 	}
-	if e := c.custom("Fortinet", "Brand New"); len(e.kev) < 5 {
-		t.Fatalf("by vendor: %v", e.kev)
+	if e := c.custom("Fortinet", "FortiGate"); !slices.Contains(e.kev, "fortinet|fortios") {
+		t.Fatalf("the curated product of that name: %v", e.kev)
+	}
+	if e := c.custom("Red Hat", "OpenJDK"); !slices.Contains(e.kev, "oracle|java se") || slices.ContainsFunc(e.kev, func(k string) bool { return strings.HasPrefix(k, "red hat|") }) {
+		t.Fatalf("the catalogue product of that name (Java), not the vendor's other products: %v", e.kev)
+	}
+	if e := c.custom("Fortinet", "Brand New"); !slices.Equal(e.kev, []string{"fortinet|brand new"}) || e.kevCount != 0 {
+		t.Fatalf("not every product of the vendor: %v %d", e.kev, e.kevCount)
 	}
 	if e := c.custom("Contoso", "Gizmo"); !slices.Equal(e.kev, []string{"contoso|gizmo"}) {
 		t.Fatalf("plain key: %v", e.kev)

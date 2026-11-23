@@ -264,6 +264,7 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 	if next.PkgVersion == "" && !next.Packaged {
 		next.PkgSource = ""
 	}
+	next.Version, next.Display = statedRelease(target.productKey, next.Version, next.Display)
 	if other {
 		target.line = trainOf(target.productKey, next.Version)
 	} else if t := trainOf(l.productKey, next.Version); t != l.line && next.Version != "" {
@@ -347,6 +348,7 @@ func (s *Service) editEntryTx(ctx context.Context, tx *sql.Tx, o *outbox, actor 
 // already has the software from a source or a person (a guess is no duplicate: adding the product is how a person confirms it).
 func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID string, it SoftwareItem) (dup, moved bool, err error) {
 	id, version := s.ident(it, sourceManual)
+	version, display := statedRelease(id.productKey, version, it.Display)
 	var lineID, state string
 	var guess bool
 	err = tx.QueryRowContext(ctx, `SELECT s.id, s.state, `+guessLine+` FROM inv_software s WHERE s.asset_id = ? AND s.product_key = ? AND s.line = ?`, assetID, id.productKey, id.line).
@@ -358,7 +360,7 @@ func (s *Service) addEntryTx(ctx context.Context, tx *sql.Tx, actor, assetID str
 		return false, false, fmt.Errorf("inventory: check software: %w", err)
 	}
 	now := s.now()
-	r := Reading{Source: sourceManual, Display: it.Display, Version: version, Confidence: 1, SetBy: actor, FirstSeen: now, SeenAt: now}
+	r := Reading{Source: sourceManual, Display: display, Version: version, Confidence: 1, SetBy: actor, FirstSeen: now, SeenAt: now}
 	lineID, err = s.lineOf(ctx, tx, assetID, id, r)
 	if err != nil {
 		return false, false, err

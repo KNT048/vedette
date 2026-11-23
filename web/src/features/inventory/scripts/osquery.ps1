@@ -32,11 +32,11 @@ if ($Uninstall) {
   return
 }
 
-if (-not $Token) { throw 'Missing -Token. Copy the install command from Vedette, Devices, Scope and sensors.' }
+if (-not $Token) { throw 'Missing -Token. Copy the install command from Vedette, Devices › Setup › Agents.' }
 # The certificate check below is C# code (Add-Type). A WDAC or AppLocker policy that puts PowerShell in Constrained Language Mode blocks it;
 # say so plainly instead of PowerShell's language-mode error (#798 review minor 3).
 if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
-  throw "PowerShell runs in $($ExecutionContext.SessionState.LanguageMode) mode on this machine (a WDAC or AppLocker policy), which blocks the check of the box's certificate this script needs. Nothing was installed. Use 'Advanced: manual setup' in Vedette (Devices, Scope and sensors, Agents) instead."
+  throw "PowerShell runs in $($ExecutionContext.SessionState.LanguageMode) mode on this machine (a WDAC or AppLocker policy), which blocks the check of the box's certificate this script needs. Nothing was installed. Use 'Advanced: manual setup' in Vedette (Settings › Scanning › Safety, Agents) instead."
 }
 
 # HTTPS to the box with .NET, not curl.exe: curl.exe's Schannel asks for the revocation status of the box CA, which has none, and

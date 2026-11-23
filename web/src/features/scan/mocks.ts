@@ -32,7 +32,7 @@ const row = (t: ScanTarget, template: string | null, result: RunResultRow['resul
 interface ExternalTarget { id: string; value: string; ip: string; verified: boolean; expired: boolean }
 const VERIFY_DAYS = 30
 
-// Inside scope = the LAN ranges in Devices → Scope and sensors (inventory) + the commitment box ticked there (scope_confirmed_at). There is no consent text any more.
+// Inside scope = the LAN ranges in Settings › Scanning › Safety (inventory) + the commitment box ticked there (scope_confirmed_at). There is no consent text any more.
 // External targets (exposure): only the IPs the box itself reaches the Internet with and the box has seen again in the last 30 days (the box probes and renews by itself; expired = not scanned); a domain is verified by a DNS TXT that does not expire. LEGAL §3.
 const scope = {
   get(): ScanScope {
@@ -200,10 +200,10 @@ const IDENT_NOTE: Record<IdentReason | 'identified', string> = {
   busy: 'Another network scan was running at that moment (device discovery, or a scan of your public IP under Exposure; a deep one takes up to an hour), so this device was not identified in this scan. Scan it again once it has finished.',
   unavailable: "The network scanner (nmap in the scan container, Active discovery) is not available, so this device was not identified. Check the box's services and that Active discovery is on, then scan again.",
   declared_by_hand: 'Added manually: Vedette does not port-scan it. The software you entered is what was checked.',
-  scanning_off: 'Active scanning is off under Devices, Scope and sensors, so this device was not identified. Only what was already known was checked.',
+  scanning_off: 'Active scanning is off under Settings › Scanning › Engines, so this device was not identified. Only what was already known was checked.',
   not_approved: 'Not approved in the inventory: not scanned, so not identified.',
   out_of_scope: 'Outside the confirmed scope now: not scanned, so not identified.',
-  scope_not_confirmed: 'The scan scope commitment is not ticked under Devices, Scope and sensors: not scanned, so not identified.',
+  scope_not_confirmed: 'The scan scope commitment is not ticked under Settings › Scanning › Safety: not scanned, so not identified.',
   box: 'This address is the Vedette box itself or one of its decoys: it is never scanned.',
   regular_scan_never: 'Set to never be scanned on its device page: not identified. Change that setting to identify it.',
   no_ip: 'No IP address is known for this device, so it could not be scanned or identified.',
@@ -348,7 +348,7 @@ function configResponse(): ScanConfigResponse {
   const sc = scope.get()
   const c = config.get()
   const up = scannerStore.get().available
-  const block = !sc.commitment ? 'The scan scope commitment is not ticked yet. Do it under Devices, Scope and sensors.' : !up ? SCANNER_DOWN : null
+  const block = !sc.commitment ? 'The scan scope commitment is not ticked yet. Do it under Settings › Scanning › Safety.' : !up ? SCANNER_DOWN : null
   return { config: c, scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, version: safetyVersion() }
 }
 
@@ -401,7 +401,7 @@ export const handlers = [
   http.post(`${API}/scans/runs`, async ({ request }) => {
     const d = guard('operator'); if (d) return d
     const sc = scope.get()
-    if (!sc.commitment) return fail(400, 'commitment_required', 'Vedette does not scan until the scope commitment is ticked. Do it under Devices, Scope and sensors.')
+    if (!sc.commitment) return fail(400, 'commitment_required', 'Vedette does not scan until the scope commitment is ticked. Do it under Settings › Scanning › Safety.')
     const b = await body<{ targets: string[] }>(request)
     if (!Array.isArray(b.targets) || !b.targets.length) return fail(400, 'no_targets', 'Choose at least one device to scan.')
     if (b.targets.length > 200) return fail(400, 'too_many', 'A scan can include at most 200 devices.')

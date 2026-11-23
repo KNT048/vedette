@@ -651,7 +651,7 @@ func (e *env) setupScope(ranges []string, confirmed, fail bool) error {
 	return err
 }
 
-// #350: the ranges and the commitment of the setup wizard are the scope of Devices -> Scope and sensors, in the caller's commit; the
+// #350: the ranges and the commitment of the setup wizard are the scope of Settings › Scanning › Safety, in the caller's commit; the
 // other settings keep their defaults, no audit row of its own, and inventory.settings.changed goes out only after the commit.
 func TestSetupScopeBecomesTheScanScope(t *testing.T) {
 	e := newEnv(t)

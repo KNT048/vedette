@@ -106,7 +106,7 @@ func TestContract_INV11_INV2_ScopeAndCommitmentFromInventory(t *testing.T) {
 
 	e.inv.set(Scope{Networks: []string{"10.20.0.0/24"}})
 	v, _ = e.svc.Config(e.ctx())
-	if v.CanScan || v.Scope.Commitment != nil || v.BlockReason == nil || *v.BlockReason != "The scan scope commitment is not ticked yet. Do it under Devices, Scope and sensors." {
+	if v.CanScan || v.Scope.Commitment != nil || v.BlockReason == nil || *v.BlockReason != "The scan scope commitment is not ticked yet. Do it under Settings › Scanning › Safety." {
 		t.Fatalf("no commitment: %+v", v)
 	}
 

@@ -120,7 +120,7 @@ type live struct {
 }
 
 var (
-	errCommitment = apiErr(400, "commitment_required", "Vedette does not scan until the scope commitment is ticked. Do it under Devices, Scope and sensors.")
+	errCommitment = apiErr(400, "commitment_required", "Vedette does not scan until the scope commitment is ticked. Do it under Settings › Scanning › Safety.")
 	errNoTargets  = apiErr(400, "no_targets", "Choose at least one device to scan.")
 	errTooMany    = apiErr(400, "too_many", "A scan can include at most 200 devices.")
 	errRunning    = apiErr(409, "already_running", "A scan is already running. Wait for it to finish or press Stop now.")

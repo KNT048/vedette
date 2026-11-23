@@ -1837,15 +1837,15 @@ func snmpMessage(reason, name string, ip netip.Addr, r snmpRow, extra string) st
 		}
 		return fmt.Sprintf("%s is outside the LAN ranges: turn SNMP on for this device on its page (Sources), or save its SNMP settings again, to read it there. The LAN ranges are not widened for it.", ip)
 	case reasonScanningOff:
-		return "Active scanning is off under Scope and sensors, so nothing is sent."
+		return "Active scanning is off under Settings › Scanning › Engines, so nothing is sent."
 	case reasonScopeNotConfirmed:
-		return "The scan scope commitment is not ticked under Scope and sensors, so nothing is sent."
+		return "The scan scope commitment is not ticked under Settings › Scanning › Safety, so nothing is sent."
 	case "declared_by_hand":
 		return "This device was added by hand and its SNMP is not turned on (Sources): save its SNMP settings, or turn SNMP on, to read it."
 	case reasonSNMPOff:
 		return "SNMP is turned off for this device on its page (Sources), so nothing is sent."
 	case reasonExcluded:
-		return fmt.Sprintf("%s is on the exclusion list under Scope and sensors: Vedette never touches it, not even with SNMP.", at)
+		return fmt.Sprintf("%s is on the exclusion list under Settings › Scanning › Safety: Vedette never touches it, not even with SNMP.", at)
 	case reasonBox:
 		return "This is the Vedette box itself (or one of its trap addresses): it is never probed."
 	case reasonNever:

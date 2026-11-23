@@ -5,7 +5,7 @@ import { Loading } from '@/components/common/States'
 
 const DeclaredSoftware = lazy(() => import('./DeclaredSoftwareSection'))
 
-// The inventory module (S-INV-1..4): the device list (Devices, To review), detail, Add a device, scope and sensors, agents;
+// The inventory module (S-INV-1..4): the device list (Devices, To review), detail, Add a device, sensors, agents;
 // Settings › Declared software (#849): products declared without a device.
 export const feature: Feature = {
   id: 'inventory',

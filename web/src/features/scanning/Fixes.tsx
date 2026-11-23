@@ -26,7 +26,7 @@ const shownOf = (s: Safety): Shown => ({ ranges: s.scope.lan_ranges, at: s.scope
  * them (an engine that needs setup, a switch refused for its scope, Scan now). It adds one range, or confirms the ranges shown,
  * through POST /scanning/safety/ranges (#860): one transaction on the box, so it never overwrites another edit. The tick confirms
  * exactly the ranges listed in the dialog; if an admin changed them since it opened, nothing is stored, the dialog shows the
- * current list and asks again. The ranges stay editable under Settings › Scanning › Safety and Devices › Scope and sensors.
+ * current list and asks again. The ranges stay editable under Settings › Scanning › Safety.
  */
 export function ScopeDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpenChange: (v: boolean) => void; /** Runs after the save, e.g. to retry the switch that needed it (review r2 N1). */ onSaved?: () => void }) {
   const { t } = useTranslation(['scanning', 'inventory'])

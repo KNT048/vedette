@@ -150,7 +150,7 @@ export const aiAvailable = (job?: AiJob) => {
 /**
  * The Vedette box's own network (the mock stands in for real network card information).
  * Sample data: 192.168.10.250 in 192.168.10.0/24. A clean install: derived from the first LAN range the user declares
- * (Devices → Scope), taking the .250 address of a /24 (or the address near the end of a smaller range); null when none is declared yet.
+ * (Settings › Scanning › Safety), taking the .250 address of a /24 (or the address near the end of a smaller range); null when none is declared yet.
  */
 export interface BoxInfo { hostname: string; ip: string | null; lan: string | null; iface: string }
 export function boxInfo(): BoxInfo {

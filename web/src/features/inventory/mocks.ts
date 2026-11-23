@@ -57,7 +57,7 @@ const settingsStore = collection<StoredSettings>('inv_settings', () => ({
   fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
   scope_confirmed_at: daysAgo(36), scope_confirmed_by: 'admin@acme.example',
 }), () => ({
-  // Fresh install: no network range yet, the scope is not confirmed so there is no active scan. The administrator declares it on the Scan scope page.
+  // Fresh install: no network range yet, the scope is not confirmed so there is no active scan. The administrator declares it under Settings › Scanning › Safety.
   lan_ranges: [],
   active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00', rate: 50, exclusions: [] },
   fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
@@ -745,11 +745,11 @@ const SNMP_MSG: Partial<Record<SnmpReason, (s: StoredSnmp, a: Asset) => string>>
   error: () => 'The device answered with an error, or with a message Vedette could not read.',
   not_approved: (_s, a) => `${deviceName(a) || 'This device'} is not approved yet. SNMP secrets are sent only to devices a person approved: approve it under Devices, To review, then check again.`,
   out_of_scope: (_s, a) => `${a.ip} is outside the LAN ranges: turn SNMP on for this device on its page (Sources), or save its SNMP settings again, to read it there. The LAN ranges are not widened for it.`,
-  scanning_off: () => 'Active scanning is off under Scope and sensors, so nothing is sent.',
-  scope_not_confirmed: () => 'The scan scope commitment is not ticked under Scope and sensors, so nothing is sent.',
+  scanning_off: () => 'Active scanning is off under Settings › Scanning › Engines, so nothing is sent.',
+  scope_not_confirmed: () => 'The scan scope commitment is not ticked under Settings › Scanning › Safety, so nothing is sent.',
   declared_by_hand: () => 'This device was added by hand and its SNMP is not turned on (Sources): save its SNMP settings, or turn SNMP on, to read it.',
   snmp_off: () => 'SNMP is turned off for this device on its page (Sources), so nothing is sent.',
-  excluded: (s) => `${s.read_from} is on the exclusion list under Scope and sensors: Vedette never touches it, not even with SNMP.`,
+  excluded: (s) => `${s.read_from} is on the exclusion list under Settings › Scanning › Safety: Vedette never touches it, not even with SNMP.`,
   box: () => 'This is the Vedette box itself (or one of its trap addresses): it is never probed.',
   regular_scan_never: () => 'This device is set to never be scanned.',
   moved: (s, a) => `${deviceName(a) || 'This device'} is now at ${a.ip}, but its SNMP reads go only to ${s.read_from}, the address it had when SNMP was set up. If it is still the same device, check on the device itself that ${a.ip} is its address now (a copied network card looks the same), then open Edit and set Read from to ${a.ip} (type the community or passwords again). Nothing is sent until then.`,

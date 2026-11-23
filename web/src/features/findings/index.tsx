@@ -12,8 +12,8 @@ export const feature: Feature = {
     { path: 'plan', lazy: () => import('./PlanPage').then((m) => ({ Component: m.default })) }, // S-TIER-1, S-TIER-2
   ],
   nav: [
-    { to: '/findings', label: 'findings:nav.findings', icon: ShieldAlert, module: 'findings', group: 'monitor', order: 20 },
-    { to: '/plan', label: 'findings:nav.plan', icon: ListChecks, module: 'findings', group: 'monitor', order: 25 },
+    { to: '/findings', label: 'common:shell.findings', icon: ShieldAlert, module: 'findings', group: 'monitor', order: 20 },
+    { to: '/plan', label: 'common:shell.plan', icon: ListChecks, module: 'findings', group: 'monitor', order: 25 },
   ],
   slots: { 'device.panels': DevicePanel },
 }

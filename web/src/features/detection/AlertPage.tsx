@@ -15,7 +15,7 @@ export default function AlertPage() {
   const { t } = useTranslation('detection')
   const { id = '' } = useParams()
   const alert = useAlert(id)
-  const crumbs = [{ label: t('nav'), to: '/detection' }]
+  const crumbs = [{ label: t('common:shell.detection'), to: '/detection' }]
   if (alert.error) return <><Breadcrumbs items={crumbs} /><ErrorState error={alert.error} onRetry={() => void alert.refetch()} /></>
   if (alert.isPending) return <><Breadcrumbs items={crumbs} /><Loading /></>
   return <Body a={alert.data} crumbs={crumbs} />

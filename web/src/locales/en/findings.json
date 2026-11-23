@@ -1,8 +1,4 @@
 {
-  "nav": {
-    "findings": "Findings",
-    "plan": "Recommended updates"
-  },
   "titleLoading": "Findings",
   "titleNone": "No unresolved findings",
   "title_one": "{{count}} unresolved finding, {{confirmed}} confirmed",

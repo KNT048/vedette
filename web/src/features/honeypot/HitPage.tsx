@@ -21,7 +21,7 @@ export default function HitPage() {
   const hit = useHit(id)
   const respond = !notOffered('response') // Respond starts a new action: none while this build does not offer the response module, even on a box that has it on
   // UI.md §3: the parent above the title, also while the hit loads or fails, so the way back is always there.
-  const crumbs = [{ label: t('nav'), to: '/honeypot' }]
+  const crumbs = [{ label: t('common:shell.honeypot'), to: '/honeypot' }]
   return (
     <RequireModule module="honeypot" page>
       {hit.error ? <><Breadcrumbs items={crumbs} /><ErrorState error={hit.error} onRetry={() => void hit.refetch()} /></>

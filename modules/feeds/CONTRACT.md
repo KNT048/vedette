@@ -70,9 +70,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   NVD's rows of a product NVD writes in the vendor's notation (DSM) are read in the scheme too (`SchemeRangesOf`).
 - **INV-28** A CVSS score is stored per assessor and version and chosen only by `PickCVSS`, banded only by `Severity`.
 - **BRIEF-1** `Store.Brief` is the one read model of a CVE (the CVE page, the finding page, the AI context, MCP). Its product name is
-  the exploited list's, else the catalogue product most of its counted rows and rows a product's version scheme reads name
-  (`catalogueProduct`), else the first range product. A workaround text that only says none exists ("None", "No workarounds
-  known.") is no workaround (`statedWorkaround`).
+  the exploited list's, else the catalogue product most of its counted rows and the rows a product's version scheme reads from the
+  same assessor name (`catalogueProduct`), else the first range product. A workaround text that only says none exists ("None", "No
+  workarounds known.") is no workaround (`statedWorkaround`).
 - **INV-36** An exploited-list entry is written with its `exploited` signal in the same transaction. The first pull of the CISA or
   VulnCheck list into an empty table emits one `feeds.sync.baseline`, not one `feeds.vuln.new_kev` per CVE. A custom feed emits no
   KEV events.

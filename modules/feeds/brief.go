@@ -409,12 +409,28 @@ func briefFixes(rows []BriefRange) []BriefFix {
 // the counted rows and the rows a product's version scheme reads (Train set: VMware's "ESX" rows in its own build notation), so the
 // product a device would be matched as ("nginx" for F5's nginx_open_source rows, "Java" for Oracle's jdk, jre and openjdk rows, "VMware
 // ESXi" for three ESX rows beside one Workstation row), never the first name in alphabetical order (F5's "dos" module of NGINX, Amazon's
-// Corretto build). "" when no such row names one.
+// Corretto build). A scheme row counts only when its assessor is the counted rows' (or, with none counted, the CNA when it gave any):
+// another assessor's rows (CISA's ADP rows of Oracle's Java on a WebKit flaw NVD lists for Apple's systems) never outvote the record's
+// own. "" when no such row names one.
 func catalogueProduct(rs []BriefRange) string {
+	from := ""
+	for _, r := range rs {
+		if r.Counts {
+			from = r.Origin
+			break
+		}
+	}
+	if from == "" {
+		for _, r := range rs {
+			if r.Train != "" && (from == "" || r.Origin == OriginCNA) {
+				from = r.Origin
+			}
+		}
+	}
 	count := map[string]int{}
 	var order []string
 	for _, r := range rs {
-		if !r.Counts && r.Train == "" {
+		if !r.Counts && (r.Train == "" || r.Origin != from) {
 			continue
 		}
 		p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)

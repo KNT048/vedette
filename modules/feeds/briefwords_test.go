@@ -39,3 +39,30 @@ func TestBrief_ProductOfTheSchemeRows(t *testing.T) {
 		t.Fatalf("product %q, want VMware ESXi", got)
 	}
 }
+
+// Another assessor's rows a product's scheme reads do not name the CVE: CISA's ADP rows of Oracle's Java and GraalVM on a WebKit flaw
+// NVD lists for Apple's systems leave the page naming Apple's product, as NVD's rows do.
+func TestBrief_ProductOfAnotherAssessorsRows(t *testing.T) {
+	t.Parallel()
+	const cve = "CVE-2023-41993"
+	nvd := func(part, vendor, product, end string) Range {
+		return Range{CVE: cve, Origin: OriginNVD, Part: part, Vendor: vendor, Product: product, CPE: "cpe:2.3:" + part + ":" + vendor + ":" + product + ":*:*:*:*:*:*:*:*", EndExcl: end}
+	}
+	adp := func(part, vendor, product, start, end, endIncl string) Range {
+		return Range{CVE: cve, Origin: OriginADP, Part: part, Vendor: vendor, Product: product, StartIncl: start, EndExcl: end, EndIncl: endIncl,
+			VersionType: "custom", DefaultStatus: DefaultUnknown}
+	}
+	rows := []Range{
+		{CVE: cve, Origin: OriginCNA, Vendor: "apple", Product: "macos", EndExcl: "14", VersionType: "custom", DefaultStatus: DefaultUnknown},
+		adp("o", "apple", "iphone_os", "", "17.0.1", ""), adp("o", "apple", "ipad_os", "", "17.0.1", ""), adp("o", "apple", "macos", "", "14.0", ""),
+		adp("a", "oracle", "graalvm", "20.3.13", "", "20.3.13"), adp("a", "oracle", "graalvm", "21.3.9", "", "21.3.9"),
+		adp("a", "oracle", "jdk", "1.8.0", "", "1.8.0"), adp("a", "oracle", "jre", "1.8.0", "", "1.8.0"),
+		nvd("o", "apple", "ipados", "17.0.1"), nvd("o", "apple", "iphone_os", "17.0.1"), nvd("o", "apple", "macos", "14.0"),
+		nvd("a", "oracle", "graalvm", ""), nvd("a", "oracle", "graalvm", ""), nvd("a", "oracle", "jdk", ""), nvd("a", "oracle", "jre", ""),
+		nvd("a", "webkitgtk", "webkitgtk\\+", "2.42.2"),
+	}
+	br, _, _ := briefRanges(rows)
+	if got := catalogueProduct(br); got != "Apple iOS" {
+		t.Fatalf("product %q, want Apple iOS", got)
+	}
+}

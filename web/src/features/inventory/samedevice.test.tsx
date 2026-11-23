@@ -8,7 +8,7 @@ import { server } from '@/test/server'
 import { assetsStore, sessionStore } from '@/mocks/stores'
 import type { Asset } from '@/lib/types'
 import { ensureBox } from './mocks'
-import { watchAfterMerge } from './SameDevice'
+import { watchAfterMerge } from './mergeLogic'
 
 // #829 gap 3: "Possibly the same device as X" with Merge / Keep separate on the device page, a hint in To review.
 vi.setConfig({ testTimeout: 30_000 })
@@ -49,32 +49,38 @@ describe('Device page: possibly the same device', () => {
     await expectNoA11yViolations(container)
 
     await user.click(within(box).getByRole('button', { name: 'Merge' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Merge iPhone into iPhone.lan?' }, T)
-    // #876: destructive, and the warning is in the visible description, not only behind the info tip
-    expect(dialog).toHaveTextContent('iPhone disappears; its addresses, software and findings move to iPhone.lan. This cannot be undone.')
-    expect(within(dialog).getByLabelText('Device to keep')).toHaveValue('a-ph1') // the approved one by default
-    const go = within(dialog).getByRole('button', { name: 'Merge into iPhone.lan' })
-    expect(go).toHaveClass('bg-danger')
+    const dialog = await screen.findByRole('dialog', { name: 'Merge 2 devices' }, T)
+    // the visible description says what happens and how to undo it (Split off), not only the info tip
+    expect(dialog).toHaveTextContent('One device stays; the others join it and leave the lists. Split an address off to undo.')
+    const keep = within(dialog).getByRole('radiogroup', { name: 'Device to keep' })
+    expect(await within(keep).findByRole('radio', { name: /^iPhone\.lan/, checked: true }, T)).toBeInTheDocument() // the approved one by default
+    expect(await within(dialog).findByText('What moves to iPhone.lan', undefined, T)).toBeInTheDocument()
+    const go = within(dialog).getByRole('button', { name: 'Merge 2 devices' })
+    expect(go).toHaveClass('bg-accent') // undone by Split off: a primary action, not a danger one
     await user.click(go)
 
-    expect(await screen.findByText('Merged into iPhone.lan.', undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText('Merged 2 devices into iPhone.lan.', undefined, T)).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 1, name: 'iPhone.lan' }, T)).toBeInTheDocument()
     expect(screen.queryByTestId('possible-same')).toBeNull()
     expect(assetsStore.get().some((a) => a.id === 'a-ph2')).toBe(false)
     expect(await pairs()).toHaveLength(0)
   })
 
-  it('the admin may keep the device of this page instead; twins with one name read "this" and "the other"', async () => {
+  it('the admin may keep the device of this page instead; twins with one name are told apart by their address', async () => {
     assetsStore.update((l) => l.map((a) => (a.id === 'a-ph1' ? { ...a, hostname: 'iPhone' } : a)))
     const user = userEvent.setup()
     renderApp('/devices/a-ph2', { role: 'admin' })
     await user.click(within(await notice()).getByRole('button', { name: 'Merge' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Merge this iPhone into the other iPhone?' }, T)
-    await user.selectOptions(within(dialog).getByLabelText('Device to keep'), 'This iPhone (waiting for review)')
-    expect(within(dialog).getByRole('heading', { name: 'Merge the other iPhone into this iPhone?' })).toBeInTheDocument()
-    expect(dialog).toHaveTextContent('The other iPhone disappears;')
-    await user.click(within(dialog).getByRole('button', { name: 'Merge into this iPhone' }))
-    expect(await screen.findByText('Merged into iPhone.', undefined, T)).toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: 'Merge 2 devices' }, T)
+    const keep = within(dialog).getByRole('radiogroup', { name: 'Device to keep' })
+    expect(await within(keep).findByRole('radio', { name: /192\.168\.10\.160/, checked: true }, T)).toBeInTheDocument()
+    await user.click(within(keep).getByRole('radio', { name: /192\.168\.10\.161/ }))
+    expect(within(keep).getByRole('radio', { name: /192\.168\.10\.161/ })).toBeChecked()
+    // the preview is read again for the device kept now, then Merge is offered again
+    const go = within(dialog).getByRole('button', { name: 'Merge 2 devices' })
+    await waitFor(() => expect(go).toBeEnabled(), T)
+    await user.click(go)
+    expect(await screen.findByText('Merged 2 devices into iPhone.', undefined, T)).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByTestId('possible-same')).toBeNull(), T)
     // the kept row took the approval of the one merged in
     expect(assetsStore.get().find((a) => a.id === 'a-ph2')?.approved).toBe(true)
@@ -108,7 +114,9 @@ describe('Device page: possibly the same device', () => {
     renderApp('/devices/a-ph2', { role: 'admin' })
     await user.click(within(await notice()).getByRole('button', { name: 'Merge' }))
     const dialog = await screen.findByRole('dialog', undefined, T)
-    await user.click(within(dialog).getByRole('button', { name: 'Merge into iPhone.lan' }))
+    const go = within(dialog).getByRole('button', { name: 'Merge 2 devices' })
+    await waitFor(() => expect(go).toBeEnabled(), T)
+    await user.click(go)
     expect(await within(dialog).findByRole('alert', undefined, T)).toHaveTextContent(words)
     // the page behind the modal dialog is hidden from the accessibility tree while it is open
     expect(screen.getByRole('heading', { level: 1, name: 'iPhone', hidden: true })).toBeInTheDocument()

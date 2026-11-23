@@ -1,30 +1,23 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Notice } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Field, Select } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useSameDevice } from './api'
 import { errMsg } from './kinds'
+import { MergeFlow } from './MergeDialog'
 import type { PossibleSame } from './types'
 
 /** The id the device page section has, so the To review hint and a link can open it (useDeepLinkTarget focuses it). */
 export const SAME_SECTION = 'possible-same'
 type Me = { id: string; name: string; approved: boolean; ignored?: boolean }
-
-/** What the kept device is after the merge, as the box decides it (inventory joinAs): it keeps its own
- *  state, except that an approved device a person watches is never hidden, so an ignored device merged with one is watched again.
- *  "" when both are watched or both ignored. */
-export function watchAfterMerge(kept: { ignored?: boolean }, gone: { ignored?: boolean; approved: boolean }): '' | 'staysIgnored' | 'staysWatched' | 'watchedAgain' {
-  if (!!kept.ignored === !!gone.ignored) return ''
-  if (!kept.ignored) return 'staysWatched'
-  return gone.approved ? 'watchedAgain' : 'staysIgnored'
-}
+/** After a merge from the notice: the device kept and the ones that went (the page moves to the kept one when it was not this one). */
+type OnMerged = (kept: string, gone: string[]) => void
 
 /** "Waiting for review, seen 2 days ago": what tells the two apart at a glance. */
 function StateLine({ approved, lastSeen }: { approved: boolean; lastSeen: string }) {
@@ -38,7 +31,7 @@ function StateLine({ approved, lastSeen }: { approved: boolean; lastSeen: string
  * twins to a delete or a support ticket; asking in place, with the reason, is the choice here. Shown above the approval notice: merging a
  * new row into the known device answers its approval too.
  */
-export function PossibleSameNotice({ me, list }: { me: Me; list: PossibleSame[] }) {
+export function PossibleSameNotice({ me, list, onMerged }: { me: Me; list: PossibleSame[]; onMerged?: OnMerged }) {
   const { t } = useTranslation('inventory')
   const admin = useCan('admin')
   const [asking, setAsking] = useState<{ what: 'merge' | 'keep'; other: PossibleSame } | null>(null)
@@ -81,7 +74,8 @@ export function PossibleSameNotice({ me, list }: { me: Me; list: PossibleSame[] 
           )}
         </Notice>
       ) : null}
-      {asking?.what === 'merge' ? <MergeDialog key={asking.other.id} me={me} other={asking.other} onClose={() => setAsking(null)} /> : null}
+      {/* the one merge dialog, prefilled with the pair; it keeps the approved one, the agent's or the named one unless the person picks */}
+      {asking?.what === 'merge' ? <MergeFlow key={asking.other.id} start={{ ids: [me.id, asking.other.id], keep: asking.other.approved && !me.approved ? asking.other.id : me.id }} onClose={() => setAsking(null)} onMerged={onMerged} /> : null}
       {asking?.what === 'keep' ? <KeepDialog key={asking.other.id} me={me} other={asking.other} onClose={() => setAsking(null)} /> : null}
     </>
   )
@@ -96,49 +90,6 @@ function useSaid(me: Me, other: PossibleSame) {
     const s = t(d.id === me.id ? 'same.thisOne' : 'same.otherOne', { name: d.name })
     return start ? s.charAt(0).toUpperCase() + s.slice(1) : s
   }
-}
-
-/** The confirm names both devices, which one stays (the approved one by default, else this one; the admin may pick the other), what
- *  moves and that the other disappears for good (danger, UI.md §8; the warning visible, §9). An answer the box refuses (two machines,
- *  a device gone) stays in the dialog, word for word. No closing while the merge runs, so a failure is never missed. */
-function MergeDialog({ me, other, onClose }: { me: Me; other: PossibleSame; onClose: () => void }) {
-  const { t } = useTranslation('inventory')
-  const navigate = useNavigate()
-  const { merge } = useSameDevice()
-  const said = useSaid(me, other)
-  const [keep, setKeep] = useState(other.approved && !me.approved ? other.id : me.id)
-  const [error, setError] = useState('')
-  const [kept, gone] = keep === me.id ? [me, other] : [other, me]
-  const watch = watchAfterMerge(kept, gone)
-  const option = (d: { id: string; name: string; approved: boolean }) => (
-    <option key={d.id} value={d.id}>{t(d.approved ? 'same.keepOptionApproved' : 'same.keepOptionPending', { name: said(d, true) })}</option>
-  )
-  const confirm = () => {
-    setError('')
-    // mutateAsync: once the lists are read again the notice is gone (the pair is), and a mutate() callback with it
-    void merge.mutateAsync({ into: kept.id, from: gone.id }).then((r) => {
-      toast.success(t('same.merged', { name: kept.name }))
-      onClose()
-      if (r.id !== me.id) void navigate(`/devices/${encodeURIComponent(r.id)}`)
-    }, (e: unknown) => setError(errMsg(e)))
-  }
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o && !merge.isPending) onClose() }}>
-      <DialogContent title={t('same.mergeTitle', { from: said(gone), into: said(kept) })} description={t('same.mergeBody', { from: said(gone, true), into: said(kept) })} info={t('same.mergeInfo')}>
-        <Field label={t('same.keepLabel')} htmlFor="same-keep" hint={t('same.keepHint')}>
-          <Select id="same-keep" value={keep} disabled={merge.isPending} onChange={(e) => { setKeep(e.target.value); setError('') }}>
-            {option(me)}{option(other)}
-          </Select>
-        </Field>
-        {watch ? <p className="text-sm">{t(`same.watch.${watch}`, { into: said(kept), from: said(gone) })}</p> : null}
-        {error ? <p role="alert" className="text-meta text-danger [overflow-wrap:anywhere]">{error}</p> : null}
-        <DialogFooter>
-          <DialogClose asChild><Button disabled={merge.isPending}>{t('common:cancel')}</Button></DialogClose>
-          <Button variant="danger" busy={merge.isPending} busyLabel={t('same.merging')} onClick={confirm}>{t('same.mergeConfirm', { into: said(kept) })}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 /** #876: Keep separate also stops the automatic joins for the pair and no screen undoes it, so it asks first, naming both devices. */

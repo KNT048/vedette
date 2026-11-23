@@ -515,8 +515,15 @@ const addrStore = collection<Record<string, DeviceAddress[]>>('inv_addresses', (
 /** Every address of a device as the box lists them: the main one first, then the others. */
 function addressesOf(a: Asset): DeviceAddress[] {
   const ip = a.ip && a.ip !== '—' ? a.ip : null
-  const main: DeviceAddress[] = ip || a.mac ? [{ ip, mac: a.mac ?? null, main: true, source: a.origin === 'manual' ? 'manual' : 'passive', first_seen: a.first_seen, last_seen: a.last_seen, agent: false }] : []
+  const main: DeviceAddress[] = ip || a.mac ? [{ ip, mac: a.mac ?? null, main: true, source: hasAgent(a) ? 'agent' : a.origin === 'manual' ? 'manual' : 'passive', first_seen: a.first_seen, last_seen: a.last_seen, agent: hasAgent(a) }] : []
   return [...main, ...(addrStore.get()[a.id] ?? [])]
+}
+/** An agent reports from the device (its software or observations came from one): in this preview it reports from the main address. */
+const hasAgent = (a: Asset) => a.id !== BOX_ID && (a.software.some((x) => x.source === 'agent') || obsOf(a).some((o) => o.source === 'agent'))
+/** Two agents say two machines (the box's 409 not_same_device). */
+function twoAgents(all: Asset[]) {
+  const agents = all.filter(hasAgent)
+  return agents.length > 1 ? `These are ${agents.length} machines: an agent reports from each of ${agents.map((a) => nameOf(a, a.kind)).join(' and ')}. Keep them separate; delete a device only when its machine is gone.` : ''
 }
 
 function possibleSameAs(id: string): PossibleSame[] {
@@ -1007,23 +1014,29 @@ export const handlers = [
   http.get(`${API}/inventory/devices/:id/merge-preview`, ({ params, request }) => {
     const denied = guard('admin'); if (denied) return denied
     const from = (new URL(request.url).searchParams.get('from') ?? '').split(',').map((x) => x.trim()).filter(Boolean)
-    const refused = mergeRefusal(String(params.id), from, request); if (refused) return refused
-    const ids = [String(params.id), ...from]; const all = ids.map((x) => find(x)!)
-    const side = (a: Asset): MergeSide => ({ id: a.id, name: nameOf(a, a.kind), approved: a.approved, ignored: !!metaStore.get()[a.id]?.ignored_at, agent: false,
+    const into0 = String(params.id)
+    if (!from.length || from.length > 8 || from.includes(into0) || new Set(from).size !== from.length) return fail(400, 'invalid', 'A device cannot be merged with itself. Pick the other device.')
+    const ids = [into0, ...from]; const all = ids.map((x) => find(x))
+    if (all.some((x) => !x)) return notFound(request)
+    // the box and two agents are not a 409 here: the preview says why the merge would be refused
+    const refusal = all.some((x) => x!.id === BOX_ID)
+      ? { code: 'box_device' as const, message: 'This is the Vedette box itself, so it cannot be merged with another device. It is always its own device.' }
+      : twoAgents(all as Asset[]) ? { code: 'not_same_device' as const, message: twoAgents(all as Asset[]) } : null
+    const side = (a: Asset): MergeSide => ({ id: a.id, name: nameOf(a, a.kind), approved: a.approved, ignored: !!metaStore.get()[a.id]?.ignored_at, agent: hasAgent(a),
       addresses: addressesOf(a), software: a.software.length, open_ports: a.services.length, findings: findingsOf(a.id), risk: deviceRisk(a.id), last_seen: a.last_seen })
-    const values = (f: MergeField['field']) => all.map((a) => ({ device: a.id,
+    const values = (f: MergeField['field']) => (all as Asset[]).map((a) => ({ device: a.id,
       value: f === 'name' ? nameOf(a, a.kind) : f === 'kind' ? (a.kind === 'unknown' ? '' : a.kind) : f === 'hostname' ? a.hostname ?? '' : a[f]?.value ?? '' })).filter((v) => v.value)
     const differs = (['name', 'kind', 'os', 'vendor', 'model', 'hostname'] as const).map((f) => ({ field: f, values: values(f), kept: values(f)[0]?.value ?? '', choosable: f === 'name' || f === 'kind' || f === 'os' }))
       .filter((d) => new Set(d.values.map((v) => v.value.toLowerCase())).size > 1)
-    const sides = all.slice(1).map(side)
+    const sides = (all as Asset[]).slice(1).map(side)
     const into = all[0]!
     return HttpResponse.json({
       into: side(into), from: sides, differs,
-      moves: { addresses: sides.reduce((n, x) => n + x.addresses.length, 0), software_new: all.slice(1).reduce((n, f) => n + f.software.filter((s) => !into.software.some((t) => t.product === s.product && t.vendor === s.vendor)).length, 0),
-        software_shared: all.slice(1).reduce((n, f) => n + f.software.filter((s) => into.software.some((t) => t.product === s.product && t.vendor === s.vendor)).length, 0),
+      moves: { addresses: sides.reduce((n, x) => n + x.addresses.length, 0), software_new: (all as Asset[]).slice(1).reduce((n, f) => n + f.software.filter((s) => !into.software.some((t) => t.product === s.product && t.vendor === s.vendor)).length, 0),
+        software_shared: (all as Asset[]).slice(1).reduce((n, f) => n + f.software.filter((s) => into.software.some((t) => t.product === s.product && t.vendor === s.vendor)).length, 0),
         readings: sides.reduce((n, x) => n + x.software, 0), open_ports: sides.reduce((n, x) => n + x.open_ports, 0), findings: sides.reduce((n, x) => n + x.findings, 0),
         exploited: sides.reduce((n, x) => n + (x.risk?.code === 'exploited' ? x.risk.count : 0), 0) },
-      refusal: null,
+      refusal,
     } satisfies MergePreview)
   }),
 
@@ -1031,6 +1044,8 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const b = await body<MergeInput>(request)
     const refused = mergeRefusal(String(params.id), b.from ?? [], request); if (refused) return refused
+    const agents = twoAgents([String(params.id), ...(b.from ?? [])].map((x) => find(x)!))
+    if (agents) return fail(409, 'not_same_device', agents)
     for (const fromId of b.from ?? []) {
       const a = find(String(params.id))!; const f = find(fromId)!
       const notes = [a.notes, f.notes].filter((n) => n?.trim()).filter((n, i, l) => l.indexOf(n) === i).join('\n\n').slice(0, 2000) || undefined
@@ -1044,7 +1059,14 @@ export const handlers = [
       separateStore.update((l) => l.filter((k) => !k.split('|').includes(f.id)))
       audit('inventory.merge', nameOf(a, a.kind), `${nameOf(f, f.kind)} is the same device: a person merged them`)
     }
-    if (b.fields?.name) assetsStore.update((l) => l.map((x) => (x.id === String(params.id) ? { ...x, name: b.fields!.name! } : x)))
+    const f = b.fields ?? {}
+    if (f.name || f.kind || f.os) {
+      assetsStore.update((l) => l.map((x) => (x.id !== String(params.id) ? x : {
+        ...x, ...(f.name ? { name: f.name } : {}), ...(f.kind ? { kind: f.kind, kind_source: 'manual' as const } : {}),
+        ...(f.os ? { os: { value: f.os, source: 'manual' as const, confidence: 1, seen_at: nowIso() } } : {}),
+      })))
+      if (f.os) addObs(find(String(params.id))!, 'os', f.os, 'manual', 1)
+    }
     return HttpResponse.json({ id: String(params.id) })
   }),
 
@@ -1056,14 +1078,24 @@ export const handlers = [
     const want = String(b.address ?? '').trim().toLowerCase()
     if (!/^(\d{1,3}\.){3}\d{1,3}$|^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/.test(want)) return fail(400, 'bad_address', 'Give one IPv4 address or MAC address of this device.')
     const others = addrStore.get()[a.id] ?? []
-    const i = others.findIndex((x) => x.ip === want || x.mac === want)
+    let i = others.findIndex((x) => x.ip === want || x.mac === want)
     if (i < 0 && a.ip !== want && a.mac !== want) return fail(404, 'address_not_found', "This address is not one of this device's addresses. Reload the device page.")
-    if (i < 0) return fail(409, 'only_address', "Split another address: in this preview the main address stays with the device.")
-    const moved = others[i]!
+    if (i < 0 && !others.length) return fail(409, 'only_address', 'This is the only address of the device: there is nothing to split it from.')
+    if (i < 0 && hasAgent(a)) return fail(409, 'agent_address', "The device's agent reports from this address, so it stays with the agent's machine. Split off the other addresses.")
+    if (i < 0) {
+      // the main address goes: the other address seen last becomes the main one
+      const next = [...others].sort((x, y) => y.last_seen.localeCompare(x.last_seen))[0]!
+      const old: DeviceAddress = { ip: a.ip !== '—' ? a.ip : null, mac: a.mac, main: false, source: 'passive', first_seen: a.first_seen, last_seen: a.last_seen, agent: false }
+      assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, ip: next.ip ?? '—', mac: next.mac } : x)))
+      addrStore.update((m) => ({ ...m, [a.id]: [old, ...others.filter((x) => x !== next)] }))
+      i = 0
+    }
+    const current = addrStore.get()[a.id] ?? []
+    const moved = current[i]!
     const now = nowIso()
     const n: Asset = { ...a, id: newId('a'), ip: moved.ip ?? '—', mac: moved.mac, hostname: null, name: null, kind: 'unknown', vendor: null, model: null, os: null, software: [], services: [], first_seen: moved.first_seen, last_seen: now, origin: 'discovered' }
     assetsStore.update((l) => [n, ...l])
-    addrStore.update((m) => ({ ...m, [a.id]: others.filter((_, j) => j !== i) }))
+    addrStore.update((m) => ({ ...m, [a.id]: current.filter((_, j) => j !== i) }))
     separateStore.update((l) => [...l, pairKey(a.id, n.id)])
     audit('inventory.split', nameOf(a, a.kind), `${want} split off as a device of its own: ${nameOf(n, n.kind)}`)
     return HttpResponse.json({ id: n.id })

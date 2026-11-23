@@ -2,7 +2,7 @@ import { memo, useRef, useState, type RefObject } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { EyeOff, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Undo2 } from 'lucide-react'
+import { EyeOff, GitMerge, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Undo2 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { Card } from '@/components/common/Card'
@@ -39,6 +39,8 @@ import { errMsg } from './kinds'
 import { badUserName, declaredSoftwareOnly, hasSourcesCard, nameOf, neverSeen } from './nameOf'
 import { DeviceSources } from './DeviceSources'
 import { PossibleSameNotice } from './SameDevice'
+import { AddressesSection } from './AddressesSection'
+import { MergeFlow } from './MergeDialog'
 import { BoxNotice } from './BoxNotice'
 import { IgnoreDialog, IgnoredNotice } from './IgnoreDevice'
 import type { AlsoSeen, DeviceDetail, Observation, RegularScan, SoftwareLine } from './types'
@@ -487,6 +489,8 @@ function Body() {
   const [del, setDel] = useState(false)
   const [ign, setIgn] = useState(false)
   const [renaming, setRenaming] = useState(false)
+  const [merging, setMerging] = useState(false)
+  const admin = useCan('admin')
   const renameButton = useRef<HTMLButtonElement>(null)
   const findingsOn = useModuleEnabled('findings') === true
   const summary = useDeviceFindingsSummary(id)
@@ -505,6 +509,8 @@ function Body() {
   const tabCount = (n: number, label: string) => ({ count: n, label, tone: 'off' as const })
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const badge = summary ? summary.badge : badgeOfRisk(d.risk)
+  // after a merge from this page: when another device was kept, this one is gone, so the page moves to the one kept
+  const onMerged = (kept: string) => { if (kept !== a.id) void navigate(`/devices/${encodeURIComponent(kept)}`, { replace: true }) }
   // The page: title with the device's badge → notices (the box, not added yet) → tabs at ?tab=. Overview opens with the findings
   // line; other modules' blocks plug into Overview (slot device.panels).
   return (
@@ -517,7 +523,7 @@ function Body() {
         editing={renaming ? <RenameDevice key="edit" d={d} editing setEditing={setRenaming} button={renameButton} /> : undefined} />
       {a.is_box ? <BoxNotice assetId={a.id} /> : null}
       {/* #829: before the approval, since merging a new row into the known device answers its approval too */}
-      <PossibleSameNotice me={{ id: a.id, name, approved: a.approved, ignored: a.ignored_at != null }} list={d.possible_same ?? []} />
+      <PossibleSameNotice me={{ id: a.id, name, approved: a.approved, ignored: a.ignored_at != null }} list={d.possible_same ?? []} onMerged={onMerged} />
       {a.ignored_at ? <IgnoredNotice d={d} /> : !a.approved ? <Approval d={d} /> : null}
       {a.private_mac ? <p className="text-meta text-muted" data-testid="private-mac-note">{t('privateMac.note')}</p> : null}
       {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}
@@ -526,6 +532,7 @@ function Body() {
           <>
             {summary ? <DeviceFindingsLine summary={summary} /> : null}
             <Section id="overview" title={t('detail.overview')}><Card><Overview d={d} /></Card></Section>
+            <AddressesSection deviceId={a.id} name={name} isBox={a.is_box} addresses={d.addresses ?? []} onMerge={() => setMerging(true)} />
             {hasSourcesCard(a) ? <DeviceSources d={d} /> : null}
             {/* "Last checks" (scanning) carries the check buttons; it reads the device from this page's own data */}
             <Slot name="device.panels" props={{ assetId: a.id, asset: a }} />
@@ -554,6 +561,7 @@ function Body() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button><MoreHorizontal />{t('detail.more')}</Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {a.is_box ? null : <DropdownMenuItem disabled={!admin} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} onSelect={() => setMerging(true)}><GitMerge />{t('merge.withMenu')}</DropdownMenuItem>}
               {a.approved && !a.ignored_at && !a.is_box ? <DropdownMenuItem disabled={!can} onSelect={() => setIgn(true)}><EyeOff />{t('pending.ignore')}</DropdownMenuItem> : null}
               <DropdownMenuItem disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : undefined} onSelect={() => setDel(true)}><Trash2 />{t('detail.delete')}</DropdownMenuItem>
             </DropdownMenuContent>
@@ -561,6 +569,10 @@ function Body() {
         </div>
       ) : null}
       <AddDeviceDialog open={adding} onOpenChange={setAdding} deviceId={a.id} />
+      {merging && admin && !a.is_box ? (
+        <MergeFlow start={{ pickFor: { id: a.id, label: name, name: a.name, hostname: a.hostname, vendor: a.vendor, model: a.model, ips: (d.addresses ?? []).map((x) => x.ip).filter((x): x is string => !!x) },
+          suggested: (d.possible_same ?? []).map((p) => ({ id: p.id, reason: p.reason, why: p.why })) }} onClose={() => setMerging(false)} onMerged={onMerged} />
+      ) : null}
       <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}
         onConfirm={() => act.remove.mutate(undefined, { onSuccess: () => { toast.success(t('delete.done', { name })); void navigate('/devices') }, onError: (e) => toast.error(errMsg(e)) })} />
       <IgnoreDialog open={ign} onOpenChange={setIgn} name={name} mac={a.mac} findings={d.findings_count} pending={act.ignore.isPending}

@@ -196,8 +196,6 @@ const (
 	FindingsPostFindingsIDStatusOperation                    OperationName = "FindingsPostFindingsIDStatus"
 	FindingsPostFindingsIDUnconfirmOperation                 OperationName = "FindingsPostFindingsIDUnconfirm"
 	FindingsPostFindingsIDVerifyOperation                    OperationName = "FindingsPostFindingsIDVerify"
-	FindingsPostFindingsPlanDoneOperation                    OperationName = "FindingsPostFindingsPlanDone"
-	FindingsPostFindingsPlanUndoneOperation                  OperationName = "FindingsPostFindingsPlanUndone"
 	FindingsPostFindingsQuestionsIDAnswerOperation           OperationName = "FindingsPostFindingsQuestionsIDAnswer"
 	HoneypotDeleteHoneypotTokensIDOperation                  OperationName = "HoneypotDeleteHoneypotTokensID"
 	HoneypotDeleteHoneypotTrapIpsIDOperation                 OperationName = "HoneypotDeleteHoneypotTrapIpsID"

@@ -650,8 +650,4 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/findings/plan', summary: 'Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 % or more) or published in the last 12 months, version-confirmed only; never findings, never alerts', stories: ['S-TIER-1', 'S-TIER-2'], role: 'viewer',
     query: z.object({ tier: PlanFilter.optional().describe('Default all'), asset: z.string().max(64).optional().describe('One device'),
       done: z.enum(['true', 'false']).optional().describe('true: only the items a person marked done (Done); default false: the items to plan, without them') }), response: Plan },
-  { method: 'post', path: '/findings/plan/done', summary: 'Mark a recommended update as done (operator, audited): it leaves the plan, the device\'s To fix card and its risk marker, and is listed under Done; it comes back by itself when the device reports another version of that software or a new CVE joins the item', stories: ['S-TIER-1'], role: 'operator',
-    body: z.object({ group: z.string().min(1).max(400).describe('PlanItem.group'), note: z.string().max(500).describe('Optional: why (already updated, fixed another way)') }), response: PlanDone },
-  { method: 'post', path: '/findings/plan/undone', summary: 'Put a recommended update a person marked done back on the plan (operator, audited)', stories: ['S-TIER-1'], role: 'operator',
-    body: z.object({ group: z.string().min(1).max(400).describe('PlanItem.group') }), response: z.object({ group: z.string() }) },
 ])

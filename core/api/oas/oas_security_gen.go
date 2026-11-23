@@ -212,8 +212,6 @@ var operationRolesSession = map[string][]string{
 	FindingsPostFindingsIDStatusOperation:                    []string{},
 	FindingsPostFindingsIDUnconfirmOperation:                 []string{},
 	FindingsPostFindingsIDVerifyOperation:                    []string{},
-	FindingsPostFindingsPlanDoneOperation:                    []string{},
-	FindingsPostFindingsPlanUndoneOperation:                  []string{},
 	FindingsPostFindingsQuestionsIDAnswerOperation:           []string{},
 	HoneypotDeleteHoneypotTokensIDOperation:                  []string{},
 	HoneypotDeleteHoneypotTrapIpsIDOperation:                 []string{},

@@ -15,7 +15,6 @@ import { useDevice, useDevices } from '@/features/inventory/api'
 import { deviceName } from './basis'
 import { kbNote, noCvesKey } from './fix'
 import type { ToFix, ToFixAction, ToFixDevice } from './types'
-import { MarkDoneButton } from './PlanDone'
 import type { SoftwareLine } from '@/features/inventory/types'
 import { isOsSoftware, IUpdated, TypedVersionDialog, type UpdatedSoftware } from './Updated'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
@@ -97,7 +96,6 @@ function Action({ a, planned, box, asset, typed }: { a: ToFixAction; planned: bo
           action={planned ? undefined : (c) => (c.id ? <RowActions f={{ id: c.id, cve: c.cve, asset }} /> : null)} />
       </details>
       <ActionButton a={a} box={box} />
-      {planned ? <MarkDoneButton group={a.group} action={a.action} software={a.software} /> : null}
       {/* The same "I updated it" as the finding page: a typed version once per software, under its last row (typedSoftware); an
           agent or a check reads the whole device (DeviceUpdated, once per device) */}
       {typed ? <TypedUpdated asset={asset} software={typed} /> : null}

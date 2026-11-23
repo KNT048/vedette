@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type {
-  ApplyItem, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, InputList, Overview, Plan, PlanDone, PlanFilter, Resolution, StatusAction, ToFix,
+  ApplyItem, DeviceCards, FindingDetail, FindingRow, FixCards, HandledList, InputList, Overview, Plan, PlanFilter, Resolution, StatusAction, ToFix,
   UncheckedItem, VersionNeeded, View,
 } from './types'
 
@@ -20,16 +20,6 @@ export const usePlan = (tier: PlanFilter = 'all', asset?: string, enabled = true
   if (done) q.set('done', 'true')
   const qs = q.toString()
   return useQuery({ queryKey: ['findings', 'plan', tier, asset ?? null, done], queryFn: () => api.get<Plan>(`/findings/plan${qs ? `?${qs}` : ''}`), enabled })
-}
-
-/** A person marks a recommended update done, or puts it back: the plan, To fix and the risk markers read again. */
-export function usePlanDone() {
-  const qc = useQueryClient()
-  const refresh = () => { void qc.invalidateQueries({ queryKey: ['findings'] }) }
-  return {
-    mark: useMutation({ mutationFn: (v: { group: string; note: string }) => api.post<PlanDone>('/findings/plan/done', v), onSuccess: refresh }),
-    undo: useMutation({ mutationFn: (group: string) => api.post<{ group: string }>('/findings/plan/undone', { group }), onSuccess: refresh }),
-  }
 }
 
 export const useFinding = (id: string) =>

@@ -10,7 +10,7 @@ import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
 import { mockHardening } from './hardeningMock'
-import type { AiAnswer, AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanDone, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
+import type { AiAnswer, AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction, ToFix, ToFixAction, ToFixDevice, UncheckedItem } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { metaStore } from '@/features/inventory/mocks'
@@ -71,26 +71,13 @@ export function deviceRisk(assetId: string): Risk | null {
   return deviceStatus(assetId)
 }
 
-/** The recommended updates a person marked done (POST /findings/plan/done), by item key, with the CVEs the item had then. */
-const planDone = new Map<string, PlanDone & { cves: string[] }>()
-/** As the box: a mark holds while the item has the same version and no CVE it did not have. */
-const doneOf = (i: PlanItem) => {
-  const m = planDone.get(i.group)
-  return m && m.version === i.version && i.cves.every((c) => m.cves.includes(c.cve)) ? m : null
-}
-
-/** GET /findings/plan: the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. Items marked
- *  done are listed only with done. */
+/** GET /findings/plan: the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. Nothing is
+ *  marked done: a recommended update a person installed is Patched on its findings. */
 function plan(tier: string, asset: string | null, done = false): Plan {
-  const shown = (t: string) => tierPlan(t, asset).items.filter((i) => !!doneOf(i) === done)
-  const n = (t: string) => shown(t).length // every tab's number in one answer, as the box gives it
+  const n = (t: string) => (done ? 0 : tierPlan(t, asset).items.length) // every tab's number in one answer, as the box gives it
   const base = tierPlan(tier, asset)
-  const doneN = tierPlan('all', asset).items.filter((i) => !!doneOf(i)).length
-  // Each item carries its device's risk marker, so the page needs no device list
-  return { ...base, items: base.items.filter((i) => !!doneOf(i) === done).map((i) => {
-    const m = doneOf(i)
-    return { ...i, risk: deviceRisk(i.asset.id), done: m ? { by: m.by, at: m.at, note: m.note, version: m.version } : null }
-  }), counts: { likely: n('likely'), recent: n('recent'), all: n('all'), done: doneN } }
+  // Each item carries its device's badge, so the page needs no device list
+  return { ...base, items: done ? [] : base.items.map((i) => ({ ...i, risk: deviceRisk(i.asset.id), done: null })), counts: { likely: n('likely'), recent: n('recent'), all: n('all'), done: 0 } }
 }
 
 function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
@@ -595,23 +582,6 @@ export const handlers = [
     const tier = q.get('tier') ?? 'all'
     if (!['likely', 'recent', 'all'].includes(tier)) return fail(400, 'invalid', 'tier must be likely, recent or all.')
     return HttpResponse.json(plan(tier, q.get('asset'), q.get('done') === 'true'))
-  }),
-  http.post(`${API}/findings/plan/done`, async ({ request }) => {
-    const denied = guard('operator'); if (denied) return denied
-    const b = (await request.json()) as { group?: string; note?: string }
-    const it = tierPlan('all', null).items.find((i) => i.group === b.group)
-    if (!it) return fail(404, 'not_found', 'No such recommended update: the plan may have changed. Reload the page.')
-    const note = (b.note ?? '').trim()
-    if (note.length > 500) return fail(400, 'note_too_long', 'The note can be at most 500 characters. Shorten it.')
-    const m = { by: currentUser()?.email ?? 'someone', at: nowIso(), note, version: it.version, cves: it.cves.map((c) => c.cve) }
-    planDone.set(it.group, m)
-    return HttpResponse.json({ by: m.by, at: m.at, note: m.note, version: m.version })
-  }),
-  http.post(`${API}/findings/plan/undone`, async ({ request }) => {
-    const denied = guard('operator'); if (denied) return denied
-    const b = (await request.json()) as { group?: string }
-    if (!b.group || !planDone.delete(b.group)) return fail(404, 'not_found', 'No such recommended update: the plan may have changed. Reload the page.')
-    return HttpResponse.json({ group: b.group })
   }),
 
   http.get(`${API}/findings/:id`, ({ params }) => {

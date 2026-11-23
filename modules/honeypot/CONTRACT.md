@@ -44,7 +44,7 @@
 - **PRE-2** `POST`/`PUT`/`PATCH`/`DELETE /honeypot/trap-ips*`: admin role; input goes through the schema before the service (SYS-2; an unknown vendor/preset is rejected by the schema as `invalid` before reaching `bad_vendor`/`bad_preset`).
 - **PRE-3** The `honeypot` module is on, and `inventory` is on.
 
-## Postconditions (sau khi xong)
+## Postconditions (after completion)
 - **POST-1** The first real connection from a source into a trap that is `listening` within a 10-minute window: produces exactly one `hp_hits` (kind=service), publishes `honeypot.hit.created`, and within ≤ 60 s `notify` has an alert with the source IP, the source device, and 1 hour of events around it (S-HP-1). Later connections from the same source/service/trap IP in that window go into the same hit (INV-17).
 - **POST-2** Touching a honey token / a scan across the Trap IPs (INV-24): produces a hit of kind=token / scan with a `label` that names what was touched (S-HP-2).
 - **POST-3** A real hit is the source of the `honeypot` trigger in `response`: fields `source_ip`, `source_device`, `decoy`, `kind`.

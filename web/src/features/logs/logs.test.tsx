@@ -491,13 +491,13 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
       sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '10.0.0.5', asset_id: null, asset_name: null, asset_via: null, asset_matches: [], proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
     })))
     renderApp('/logs?tab=sources')
-    expect(await screen.findByText(/add your LAN range first \(Devices, Scope and sensors\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/add your LAN range first \(Settings, Scanning, Safety\)/)).toBeInTheDocument()
     // docs/UI.md §0: the missing range is one link away, on its field
-    expect(screen.getByRole('link', { name: 'Add the LAN range in Devices, Scope and sensors' })).toHaveAttribute('href', '/devices/setup?tab=scope#range-input')
+    expect(screen.getByRole('link', { name: 'Add the LAN range in Settings, Scanning, Safety' })).toHaveAttribute('href', '/settings/scanning?tab=safety#range-input')
     await userEvent.click(await screen.findByRole('button', { name: 'Device setup for WEB-1' }))
     const dialog = await screen.findByRole('dialog', { name: /Set up WEB-1/ })
     expect(within(dialog).getByRole('alert')).toHaveTextContent('Add your LAN range first')
-    expect(within(dialog).getByRole('link', { name: 'Add the LAN range in Devices, Scope and sensors' })).toHaveAttribute('href', '/devices/setup?tab=scope#range-input')
+    expect(within(dialog).getByRole('link', { name: 'Add the LAN range in Settings, Scanning, Safety' })).toHaveAttribute('href', '/settings/scanning?tab=safety#range-input')
     expect(within(dialog).getByText(/access_log syslog:server=<VEDETTE_BOX_IP>:514/)).toBeInTheDocument()
     expect(dialog).not.toHaveTextContent('192.168.10.250')
   })
@@ -508,12 +508,12 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
       sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '10.0.0.5', asset_id: null, asset_name: null, asset_via: null, asset_matches: [], proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
     })))
     renderApp('/logs?tab=sources', { role: 'operator' })
-    expect(await screen.findByText(/Ask an administrator to add the LAN range in Devices, Scope and sensors\./)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Add the LAN range in Devices, Scope and sensors' })).toBeNull()
+    expect(await screen.findByText(/Ask an administrator to add the LAN range in Settings, Scanning, Safety\./)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Add the LAN range in Settings, Scanning, Safety' })).toBeNull()
     await userEvent.click(await screen.findByRole('button', { name: 'Device setup for WEB-1' }))
     const dialog = await screen.findByRole('dialog', { name: /Set up WEB-1/ })
-    expect(within(dialog).getByText('Ask an administrator to add the LAN range in Devices, Scope and sensors.')).toBeInTheDocument()
-    expect(within(dialog).queryByRole('link', { name: 'Add the LAN range in Devices, Scope and sensors' })).toBeNull()
+    expect(within(dialog).getByText('Ask an administrator to add the LAN range in Settings, Scanning, Safety.')).toBeInTheDocument()
+    expect(within(dialog).queryByRole('link', { name: 'Add the LAN range in Settings, Scanning, Safety' })).toBeNull()
   })
 
   it('a container that cannot see its own address in the declared LAN range says to use the address of the machine, not to add a range', async () => {

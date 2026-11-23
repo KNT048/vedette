@@ -16,6 +16,19 @@ const base = () => `${location.origin}/api/v1`
 const as = (userId: string) => sessionStore.set({ userId })
 const json = (method: string, b: unknown) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
 const card = (name: RegExp) => screen.findByRole('listitem', { name })
+/** Adds a range or an exclusion of the Safety tab through its dialog. */
+async function addRange(v: string) {
+  await userEvent.click(await screen.findByRole('button', { name: 'Add range' }, T))
+  const dlg = await screen.findByRole('dialog', { name: 'Add a network range' })
+  await userEvent.type(within(dlg).getByLabelText('Network range'), v)
+  await userEvent.click(within(dlg).getByRole('button', { name: 'Add range' }))
+}
+async function addExclusion(v: string) {
+  await userEvent.click(await screen.findByRole('button', { name: 'Add exclusion' }, T))
+  const dlg = await screen.findByRole('dialog', { name: 'Add an exclusion' })
+  await userEvent.type(within(dlg).getByLabelText('IP address or network'), v)
+  await userEvent.click(within(dlg).getByRole('button', { name: 'Add exclusion' }))
+}
 const unconfirm = () => inventorySettingsStore.update((s) => ({ ...s, scope_confirmed_at: null, scope_confirmed_by: null }))
 
 /** A component where another page places it (#850): the app's providers and a router, no page around it. */
@@ -92,13 +105,13 @@ describe('Settings › Scanning: every engine on one page', () => {
   })
 
   it('Safety: one block for the LAN engines through PUT /scanning/safety; it says what it covers and what not', async () => {
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, exclusions: [] } }))
     renderApp('/settings/scanning?tab=safety')
-    expect(await screen.findByText(/Scans of your public targets follow their own testing terms and are not covered here yet/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Network ranges, one per line')).toHaveValue('192.168.10.0/24\n192.168.20.0/24')
+    // what the block covers and what not is said behind the info icon of "Where the box may scan"
+    expect(await screen.findByRole('button', { name: /Where the box may scan/ }, T)).toBeInTheDocument()
+    expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('192.168.10.0/24'), expect.stringContaining('192.168.20.0/24')]))
     await userEvent.selectOptions(screen.getByLabelText('Discovery and SNMP'), '100')
-    const ex = screen.getByLabelText('One IP or network per line')
-    await userEvent.clear(ex)
-    await userEvent.type(ex, '192.168.10.250')
+    await addExclusion('192.168.10.250')
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     expect(await screen.findByText('Safety settings saved')).toBeInTheDocument()
     expect(inventorySettingsStore.get().active).toMatchObject({ rate: 100, exclusions: ['192.168.10.250'] })
@@ -107,19 +120,22 @@ describe('Settings › Scanning: every engine on one page', () => {
   it('Safety: the form shows what one pass of the scope as typed costs, and says before saving that a scope too large for a week is refused', async () => {
     renderApp('/settings/scanning?tab=safety')
     expect(await screen.findByText(/^One pass: [0-9,]+ addresses, at least/, {}, T)).toBeInTheDocument()
-    const r = screen.getByLabelText('Network ranges, one per line')
-    await userEvent.type(r, '{enter}10.0.0.0/8') // about 16.7 million addresses: weeks of windows at 10 packets/s
+    await addRange('10.0.0.0/8') // about 16.7 million addresses: weeks of windows at 10 packets/s
     await userEvent.selectOptions(screen.getByLabelText('Discovery and SNMP'), '10')
     expect(await screen.findByText(/Saving is refused: raise the scan rate/, {}, T)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
-    await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/never takes a scope it cannot sweep within a week/)
+    expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled() // said before, not refused after
+    // the box refuses it all the same
+    as('u-admin')
+    const cur = (await (await fetch(`${base()}/scanning`)).json()) as { safety: { scope: { lan_ranges: string[] }; window: object; speed: object; exclusions: string[]; fragile: { kinds: string[]; regular_scan_kinds: string[] }; version: string } }
+    const { safety: sf } = cur
+    const r = await fetch(`${base()}/scanning/safety`, json('PUT', { scope: { lan_ranges: [...sf.scope.lan_ranges, '10.0.0.0/8'], confirmed: true }, window: sf.window, speed: { ...sf.speed, packets_per_s: 10 }, exclusions: sf.exclusions, fragile: { kinds: sf.fragile.kinds, regular_scan_kinds: sf.fragile.regular_scan_kinds }, version: sf.version }))
+    expect(((await r.json()) as { error: { message: string } }).error.message).toMatch(/never takes a scope it cannot sweep within a week/)
   })
 
   it('Safety: changing the ranges asks for the commitment again; the server refuses a save without it while discovery is on', async () => {
     renderApp('/settings/scanning?tab=safety')
-    const r = await screen.findByLabelText('Network ranges, one per line')
-    await userEvent.type(r, '{enter}10.20.0.0/24')
+    await addRange('10.20.0.0/24')
     expect(screen.getByRole('checkbox', { name: /I confirm these network ranges/ })).not.toBeChecked()
     expect(screen.getByText('The ranges changed: tick the confirmation again to save.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
@@ -396,30 +412,17 @@ describe('#877', () => {
   })
 
   it('M4: a 409 keeps what was typed, takes the other admin\'s change, says what it was, and the second save stores both', async () => {
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, exclusions: [] } }))
     renderApp('/settings/scanning?tab=safety')
-    const ex = await screen.findByLabelText('One IP or network per line')
-    await userEvent.clear(ex)
-    await userEvent.type(ex, '192.168.10.250')
+    await addExclusion('192.168.10.250')
     inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, from: '21:00' } })) // another admin, meanwhile
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     const note = (await screen.findByText(/^Someone else saved these settings after you opened this page/)).closest('[role=alert]')!
     expect(note).toHaveTextContent(/Time window: changed by them, now .*21:00/)
-    expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.250')
+    expect(screen.getByRole('button', { name: 'Remove exclusion 192.168.10.250' })).toBeInTheDocument()
     expect(screen.getByLabelText('From')).toHaveValue('21:00')
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     await waitFor(() => expect(inventorySettingsStore.get().active).toMatchObject({ from: '21:00', exclusions: ['192.168.10.250'] }))
   })
 
-  it('M3: Devices › Scope and sensors sends the version it read, so a change made since is refused, never overwritten', async () => {
-    const cap = await capture((m, p) => m === 'PUT' && p.endsWith('/inventory/settings'))
-    renderApp('/devices/setup?tab=scope')
-    await userEvent.selectOptions(await screen.findByLabelText('Scan speed', {}, { timeout: 4000 }), '200')
-    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, exclusions: ['192.168.10.99'] } })) // an inline add, meanwhile
-    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }))
-    await waitFor(() => expect(cap.sent).toHaveLength(1))
-    cap.stop()
-    expect(typeof cap.sent[0]!.body.version).toBe('string')
-    expect(await screen.findByText(/since you opened this page, so nothing was saved/)).toBeInTheDocument()
-    expect(inventorySettingsStore.get().active).toMatchObject({ rate: 50, exclusions: ['192.168.10.99'] })
-  })
 })

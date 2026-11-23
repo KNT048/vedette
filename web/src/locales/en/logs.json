@@ -58,10 +58,10 @@
     "emptyTitle": "No log sources yet",
     "emptyBody": "Add the first device or program that sends logs.",
     "emptyBodyInfo": "Such as a firewall, NAS, Windows server or web server. Vedette then shows the exact settings to enter on it.",
-    "descriptionNoIp": "Box address unknown: add your LAN range first (Devices, Scope and sensors).",
+    "descriptionNoIp": "Box address unknown: add your LAN range first (Settings, Scanning, Safety).",
     "noIpReason": "The box takes its address from your LAN range.",
-    "noIpLink": "Add the LAN range in Devices, Scope and sensors",
-    "noIpAskAdmin": "Ask an administrator to add the LAN range in Devices, Scope and sensors.",
+    "noIpLink": "Add the LAN range in Settings, Scanning, Safety",
+    "noIpAskAdmin": "Ask an administrator to add the LAN range in Settings, Scanning, Safety.",
     "descriptionNoIpInfo": "Devices that send syslog to the box. The box only accepts logs from the IPs declared here.",
     "descriptionNoIpLan": "Point devices at the address of the machine that runs Vedette.",
     "descriptionNoIpLanInfo": "Devices that send syslog to the box. The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container: point devices at the address of the machine that runs Vedette, the one you open this page on. The box only accepts logs from the IPs declared here."
@@ -136,7 +136,7 @@
     "stored": "Stored only",
     "logins": "Stored, logins read",
     "noIp": "The box address is not known yet. Add your LAN range first.",
-    "noIpInfo": "Add it under Devices, Scope and sensors. Until then the settings below show {{placeholder}} where the box address goes.",
+    "noIpInfo": "Add it under Settings, Scanning, Safety. Until then the settings below show {{placeholder}} where the box address goes.",
     "noIpLan": "Use the address of the machine that runs Vedette.",
     "noIpLanInfo": "The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container. Use the address of the machine that runs Vedette, the one you open this page on: the settings below show {{placeholder}} where it goes.",
     "tlsTrust": "Over TLS the device must trust the box certificate.",
@@ -191,7 +191,7 @@
         "span_flow": "SPAN: network flow",
         "syslog": "Syslog from {{name}}"
       },
-      "note": "SPAN rows come from metadata only: the box keeps names, addresses and counts, never the content of traffic. Set up a mirror port in Settings → Box network (on a container-only install, under Sensors in Devices → Scope and sensors).",
+      "note": "SPAN rows come from metadata only: the box keeps names, addresses and counts, never the content of traffic. Set up a mirror port in Settings → Box network (on a container-only install, under Sensor in Devices → Sensor and agents).",
       "noteKept": "SPAN rows come from metadata only: the box keeps names, addresses and counts, never the content of traffic."
     },
     "new": {

@@ -200,7 +200,7 @@
     "saved": "Scan settings saved",
     "changedElsewhere": "Someone else changed these settings since you opened this page, so nothing was saved. The current values are shown again: check them and save.",
     "nextScannerDown": "The schedule is on, but nothing runs while the vulnerability scanner is not available. Check the box's services.",
-    "nextBlocked": "The schedule is on, but nothing runs until the scan scope commitment is ticked under Devices, Scope and sensors."
+    "nextBlocked": "The schedule is on, but nothing runs until the scan scope commitment is ticked under Settings, Scanning, Safety."
   },
   "auto": {
     "title": "Rescan when a new KEV appears",

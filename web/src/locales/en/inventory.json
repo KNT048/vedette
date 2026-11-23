@@ -415,7 +415,7 @@
     "version": "Version",
     "empty": "No open port seen yet",
     "emptyBody": "The active sensor has not scanned this device yet.",
-    "emptyBodyInfo": "Check the scan window in Scope and sensors, or press Check this device now under Last checks on the Overview tab to identify it at once.",
+    "emptyBodyInfo": "Check the scan window in Settings, Scanning, Safety, or press Check this device now under Last checks on the Overview tab to identify it at once.",
     "emptyFragile": "Fragile device: scanned gently once, then only listened to.",
     "emptyFragileInfo": "Set Regular scans on the Overview tab to allow them if you want it checked again.",
     "emptyBox": "The box lists the ports it listens on itself, every hour; none has come yet.",
@@ -492,18 +492,15 @@
   "setup": {
     "link": "Settings",
     "linkLabel": "Device discovery settings",
-    "titleLoading": "Scope, sensors and agents",
-    "meta": "Vedette only listens and lightly scans inside the scope you set here.",
+    "title": "Sensor and agents",
+    "meta": "How Vedette hears your network: its sensor, and the agents on your devices.",
     "metaInfo": "Vedette does not block traffic.",
-    "forbiddenTitle": "Scope, sensors and agents",
+    "scopeLink": "Scan scope",
+    "forbiddenTitle": "Sensor and agents",
     "forbidden": "You do not have access to this page",
-    "forbiddenBody": "The {{role}} role is needed to change scan scope, sensors and agent tokens. Ask an administrator for access or to do it for you.",
-    "title_one": "{{count}} network range to watch",
-    "title_other": "{{count}} network ranges to watch",
-    "titleNone": "No network ranges yet",
+    "forbiddenBody": "The {{role}} role is needed to change the sensor and agent tokens. Ask an administrator for access or to do it for you.",
     "tabs": {
       "label": "Parts of the setup",
-      "scope": "Scope",
       "sensor": "Sensor",
       "snmp": "SNMP",
       "agents": "Agents",
@@ -691,11 +688,11 @@
       "runningBody": "Then it cannot reach Vedette at {{box}}. Check that this machine can open that address, that no firewall or proxy blocks it, and that the box address has not changed.",
       "runningBodyNoBox": "Then it cannot reach Vedette. Check that this machine can open the box address, that no firewall or proxy blocks it, and that the box address has not changed.",
       "reach": "Test the connection to Vedette",
-      "repair": "If the box address changed or the agent keeps stopping, run the install command from Devices > Scope and sensors > Agents again: the current script points the agent at the box and makes the service restart itself after a failure."
+      "repair": "If the box address changed or the agent keeps stopping, run the install command from Devices > Sensor and agents > Agents again: the current script points the agent at the box and makes the service restart itself after a failure."
     },
     "neverReported": {
       "title": "Agent running, but it has not reported anything yet",
-      "body": "It calls Vedette, so the service is running, but it has delivered no results since it was installed. If it stays like this, run the install command again from Devices > Scope and sensors > Agents on that machine, or check that its address is one Vedette knows."
+      "body": "It calls Vedette, so the service is running, but it has delivered no results since it was installed. If it stays like this, run the install command again from Devices > Sensor and agents > Agents on that machine, or check that its address is one Vedette knows."
     },
     "state": {
       "reporting": "Reporting",

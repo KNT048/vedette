@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { FlaskConical, Plus, Trash2 } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Section } from '@/components/common/PageHeader'
-import { Card } from '@/components/common/Card'
+import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { CodeBlock } from '@/components/common/CodeBlock'
@@ -38,6 +38,8 @@ function Inner({ items }: { items: Token[] }) {
   const del = useDeleteToken()
   const test = useTestToken()
   const [adding, setAdding] = useState(false)
+  // what the list's search reads: the name, the type and where the token is planted
+  const searchCols: ColumnDef<Token>[] = [{ id: 'text', accessorFn: (k) => [k.name, t(`token.type.${k.type}`), k.plant_at].join(' ') }]
   return (
     <div className="grid gap-4">
       <div>
@@ -52,10 +54,9 @@ function Inner({ items }: { items: Token[] }) {
       </Dialog>
 
       {items.length === 0 ? <EmptyState title={t('token.emptyTitle')}>{t('token.emptyBody')}</EmptyState> : (
-        <Card flush>
-        <ul className="grid divide-y divide-rule" aria-label={t('token.listLabel')}>
-          {items.map((k) => (
-            <li key={k.id} className="p-4">
+        <DataTable urlKey="honey-tokens" caption={t('token.listLabel')} data={items} columns={searchCols} pageSize={25}
+          list={(k) => (
+            <div className="py-1">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="grid gap-1">
                   <p className="flex flex-wrap items-center gap-2 text-sm font-medium">{k.name} <Chip tone="accent">{t(`token.type.${k.type}`)}</Chip>{k.type === 'dns' ? <Chip tone="warn">{t('token.noAlert')}</Chip> : null}</p>
@@ -84,10 +85,8 @@ function Inner({ items }: { items: Token[] }) {
                   </div>
                 </div>
               </div>
-            </li>
-          ))}
-        </ul>
-        </Card>
+            </div>
+          )} />
       )}
     </div>
   )

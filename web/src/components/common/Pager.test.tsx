@@ -152,11 +152,21 @@ describe('DataTable: search and pages', () => {
     expect(screen.getByLabelText('Rows per page')).toHaveValue('100')
   })
 
-  it('a short list has neither search nor pager; a page with its own search turns the box off', () => {
-    inRouter('/list', <><DataTable caption="Few" data={rows.slice(0, 10)} columns={cols} /><DataTable caption="Packages" data={rows} columns={cols} search={false} /></>)
-    expect(screen.queryByRole('searchbox')).toBeNull()
+  it('a short list has the search but no pager, an empty one neither; a page with its own search turns the box off', () => {
+    inRouter('/list', <><DataTable caption="Few" data={rows.slice(0, 10)} columns={cols} /><DataTable caption="None" data={[]} columns={cols} /><DataTable caption="Packages" data={rows} columns={cols} search={false} /></>)
+    expect(screen.getAllByRole('searchbox').map((b) => b.getAttribute('aria-label'))).toEqual(['Search Few'])
     expect(screen.queryByRole('navigation', { name: /Few/ })).toBeNull()
     expect(screen.getByRole('navigation', { name: 'Pages of Packages, above the list' })).toBeInTheDocument()
+  })
+
+  it('a list of cards (list={…}) has the same search and pager as a table', async () => {
+    const user = userEvent.setup()
+    inRouter('/list', <DataTable caption="Cards" urlKey="cards" data={rows} columns={cols} pageSize={25} list={(r) => <article>{r.name}</article>} />)
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(within(screen.getByRole('list', { name: 'Cards' })).getAllByRole('article')).toHaveLength(25)
+    expect(screen.getByRole('navigation', { name: 'Pages of Cards, above the list' })).toBeInTheDocument()
+    await user.type(screen.getByRole('searchbox', { name: 'Search Cards' }), 'OpenSSH')
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Cards' })).getAllByRole('article').map((a) => a.textContent)).toEqual(['OpenSSH']))
   })
 
   it('a list the server pages shows the server\'s page and asks for another one', async () => {

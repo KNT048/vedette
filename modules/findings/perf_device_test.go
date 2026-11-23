@@ -11,7 +11,7 @@ import (
 )
 
 // TestPerfMatchPerDevice times the matcher alone (no database) per device of an inventory export (VEDETTE_PASS_TIME) against the
-// exploited-list goldens plus a synthetic catalogue, the way upsertSplit calls it (once for the questions, once for the write).
+// exploited-list goldens plus a synthetic catalogue, the way upsertSplit calls it (one devMatch, its whole match and its write).
 // Measurement only.
 func TestPerfMatchPerDevice(t *testing.T) {
 	path := os.Getenv("VEDETTE_PASS_TIME")
@@ -37,8 +37,9 @@ func TestPerfMatchPerDevice(t *testing.T) {
 		start := time.Now()
 		dev := set.forDevice(a)
 		a.winList = dev
-		_ = MatchAsset(a, dev, nil, now)
-		_ = MatchAsset(a, dev, nil, now)
+		dm := newDevMatch(a, dev, now) // as the pass reads it: the device once, its whole match and its write from the same readings
+		_ = dm.result(nil, nil)
+		_ = dm.result(nil, nil)
 		d := time.Since(start)
 		total += d
 		rows = append(rows, row{a.ID, len(a.Software), len(dev), d})

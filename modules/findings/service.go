@@ -78,6 +78,7 @@ type Service struct {
 	plan       planState       // "Updates to plan": in memory, see planpass.go
 	gen        atomic.Uint64   // counts committed writes: GET /findings/overview drops its kept answer when it moves (overview.go)
 	toFixCache classifiedCache // the classification of every device (To fix, RiskMap)
+	stamps     stamps          // each device's match stamp of its last full match (matchstamp.go)
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.
@@ -442,6 +443,10 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, judged map[
 type partMatch struct {
 	dm  *devMatch
 	idx []int
+	// Set by the write: wrote (it ran: the device was neither ignored nor gone), changed (the device read differently inside it, so
+	// its match was computed again for the newer reading) and rows (the device's findings and questions as the write left them).
+	wrote, changed bool
+	rows           deviceRows
 }
 
 // match is MatchAsset(a, vulns, have, now) for the part, from the readings already made (the part's vulns are dm's entries idx and
@@ -534,6 +539,11 @@ func (s *Service) upsertPart(ctx context.Context, a Asset, vulns []Vuln, judged 
 		}
 		r, err := s.applyMatch(ctx, tx, a, vulns, judged, m, qm, existing, now, emit)
 		res = r
+		if err != nil || pre == nil {
+			return err
+		}
+		rows, err := readDeviceRows(ctx, tx, a.ID)
+		pre.wrote, pre.changed, pre.rows = err == nil, changed, rows
 		return err
 	})
 	if err != nil {

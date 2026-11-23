@@ -44,11 +44,12 @@ func (g exposureGateway) Gateway(ctx context.Context) (exposure.GatewayDevice, e
 	if err != nil {
 		return out, err
 	}
+	ignored := false
 	for _, d := range devs {
 		if d.IsBox || d.IP != out.IP.String() {
 			continue
 		}
-		out.DeviceID = d.ID
+		out.DeviceID, ignored = d.ID, d.IgnoredAt != nil
 		break
 	}
 	if out.DeviceID == "" {
@@ -59,6 +60,9 @@ func (g exposureGateway) Gateway(ctx context.Context) (exposure.GatewayDevice, e
 		return out, err
 	}
 	out.Name = names[out.DeviceID]
+	if ignored { // still the gateway, but a person ignored it: its findings are left out, as on every findings list
+		return out, nil
+	}
 	recs, err := g.fnd.List(ctx, out.DeviceID)
 	if err != nil {
 		return out, err

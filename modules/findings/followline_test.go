@@ -84,3 +84,49 @@ func TestContract_FindingsFollowTheirLineToAnotherDevice(t *testing.T) {
 		})
 	}
 }
+
+// A line a person said is not installed is still the device's line: given to another device with its id, it takes its finding (closed
+// as not installed) with it, whichever device is matched first, and no row names a line of another device.
+func TestContract_FindingsFollowANotInstalledLine(t *testing.T) {
+	t.Parallel()
+	for name, order := range map[string][]string{
+		"the device that lost the line first": {"a-1", "a-2"},
+		"the device that has the line first":  {"a-2", "a-1"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t)
+			id := e.seed() // a-1, line s-1
+			line := nas("6.1.1").Software[0]
+			e.inv.mu.Lock()
+			e.inv.match["a-1"] = Asset{ID: "a-1", Name: "nas01", NotInstalled: []Software{line}}
+			e.inv.mu.Unlock()
+			if _, err := e.svc.OnMatchChanged(t.Context(), "a-1"); err != nil {
+				t.Fatal(err)
+			}
+			if f, err := e.svc.Finding(t.Context(), id); err != nil || f.State == StateOpen {
+				t.Fatalf("the test needs the finding closed as not installed: %+v %v", f, err)
+			}
+			e.inv.mu.Lock()
+			e.inv.match["a-1"] = Asset{ID: "a-1", Name: "nas01"} // the line is a-2's now, with its id, still not installed
+			e.inv.match["a-2"] = Asset{ID: "a-2", Name: "nas02", NotInstalled: []Software{line}}
+			e.inv.lines = map[string]Line{"s-1": {ID: "s-1", AssetID: "a-2", Display: line.Display}}
+			e.inv.mu.Unlock()
+			for _, dev := range order {
+				if _, err := e.svc.OnMatchChanged(t.Context(), dev); err != nil {
+					t.Fatal(err)
+				}
+			}
+			f, err := e.svc.Finding(t.Context(), id)
+			if err != nil {
+				t.Fatalf("the finding is gone: %v", err)
+			}
+			if f.AssetID != "a-2" || f.SoftwareID != "s-1" {
+				t.Errorf("the finding after the move: on %s line %s, want a-2 line s-1", f.AssetID, f.SoftwareID)
+			}
+			if n := e.count(`SELECT count(*) FROM fnd_finding`); n != 1 {
+				t.Errorf("%d findings, want the one that moved", n)
+			}
+		})
+	}
+}

@@ -182,10 +182,11 @@ func (s *Service) moveFinding(ctx context.Context, tx *sql.Tx, f Finding, to str
 	return nil
 }
 
-// lineSet is the ids of a's software lines (a network OS a device states without a line has none).
+// lineSet is the ids of a's software lines, the ones a person said are not installed included: those are still the device's lines (a
+// network OS a device states without a line has none).
 func lineSet(a Asset) map[string]bool {
 	out := map[string]bool{}
-	for _, sw := range a.Software {
+	for _, sw := range slices.Concat(a.Software, a.NotInstalled) {
 		if id := storedLine(sw.ID); id != "" {
 			out[id] = true
 		}

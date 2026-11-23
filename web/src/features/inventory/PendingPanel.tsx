@@ -47,7 +47,8 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
       </div>
       {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (the toast links the device). */}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="primary" disabled={!can || busy} busy={act.approve.isPending} busyLabel={t('inventory:pending.adding')} title={title} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
+        <Button size="sm" variant="primary" disabled={!can || busy} busy={act.approve.isPending} busyLabel={t('inventory:pending.adding')} title={title ?? t('pending.approveLabel', { name })}
+          aria-label={t('pending.approveLabel', { name })} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
         {/* Ignore replaces "Remove unknown mark" here; marking stays on the device page. */}
         <Button size="sm" disabled={!can || busy} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={title} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
         <Button size="sm" disabled={!can || busy} busy={act.remove.isPending} busyLabel={t('common:busy.deleting')} title={title} onClick={() => setDel(true)}>{t('pending.delete')}</Button>

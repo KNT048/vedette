@@ -245,7 +245,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.getAllByRole('button', { name: 'Add a device' })[0]).toBeDisabled()
     expect(screen.queryByRole('link', { name: 'Scope, sensors and agents' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: 'Add device' })[0]).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: /^Add .+ to your devices$/ })[0]).toBeDisabled()
     expect(screen.getByRole('switch', { name: 'Notify me about new devices' })).toBeDisabled()
   })
 
@@ -442,7 +442,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const tab = screen.getByRole('tab', { name: /To review 2 not added yet/ })
     expect(tab).toHaveAttribute('aria-selected', 'true')
     const pending = assetsStore.get().filter((a) => !a.approved).map((a) => a.id)
-    await user.click(screen.getAllByRole('button', { name: 'Add device' })[0]!)
+    await user.click(screen.getAllByRole('button', { name: /^Add .+ to your devices$/ })[0]!)
     // the toast's title (its description also says "Approved in the last 24 h"); other tests leave their toasts behind
     const toast = (await screen.findByText(/^Added .+ to your devices\.$/, undefined, T)).closest<HTMLElement>('[data-sonner-toast]')!
     expect(assetsStore.get().filter((a) => !a.approved)).toHaveLength(1)
@@ -466,6 +466,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const list = await screen.findByRole('list', { name: '2 new devices not added yet' }, T)
     const row = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('192.168.10.157'))!
     expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual(['Add device', 'Ignore', 'Remove'])
+    // its accessible name says which device it adds: never confused with the toolbar's "Add a device" (a device typed by hand)
+    expect(within(row).getByRole('button', { name: /^Add .+ to your devices$/ })).toHaveTextContent('Add device')
     expect(within(list).queryByRole('button', { name: /unknown/ })).toBeNull()
     cleanup()
     // the device page's notice has Add device, Ignore and Remove: no Mark unknown, and no second Remove from list beside it

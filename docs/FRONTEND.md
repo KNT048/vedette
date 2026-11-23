@@ -1,56 +1,51 @@
-# Frontend — thân thiện, không "mùi AI"
+# Frontend: friendly and plain
 
-GUI tốt trước; nghiên cứu skill/plugin FE để tránh bị gán mác AI quá đà; thân thiện người dùng.
+Good GUI first; friendly to the people who use it.
 
 ## 1. Stack
 
-React 19 + TypeScript (strict) + Vite + Tailwind v4 + shadcn/ui (Radix) + TanStack Query v5/Table v8 + React Router + react-i18next (chỉ tiếng Anh) + Zod (schema API) + MSW (mock API cho M0/M1) + vitest + Testing Library + Playwright (E2E) + axe-core (a11y trong test). pnpm. Không Next.js, không SSR: SPA nhúng vào binary Go.
+React 19 + TypeScript (strict) + Vite + Tailwind v4 + shadcn/ui (Radix) + TanStack Query v5/Table v8 + React Router + react-i18next (English only) + Zod (API schemas) + MSW (mock API for M0/M1) + vitest + Testing Library + Playwright (E2E) + axe-core (a11y in tests). pnpm. No Next.js, no SSR: a SPA embedded in the Go binary.
 
-## 2. Ai dùng, dùng khi nào
+## 2. Who uses it, and when
 
-P2 mở mỗi sáng 2 phút và khi có alert; P1 chỉ đọc Zalo và thỉnh thoảng mở báo cáo; P3 nhìn bảng tổng. Vậy: **thông tin đặc, bình tĩnh, tiếng Việt thường**, không "wow", không chat là trung tâm. AI xuất hiện **trong ngữ cảnh** (nút "Giải thích" trên một phát hiện), có nhãn nguồn và token, không có chatbox nổi.
+P2 opens it for 2 minutes every morning and when there is an alert; P1 only reads Zalo and occasionally opens a report; P3 looks at the overview table. So: **dense, calm information in plain language**, no "wow", and chat is not the centre. The AI appears **in context** (an "Explain" button on a finding), with a source label and tokens, with no floating chat box.
 
-## 3. Hướng thiết kế (quyết định, không phải gợi ý)
+## 3. Design direction (decisions, not suggestions)
 
-- **Chuẩn hình (màu, chữ, khoảng cách, bo góc, bóng, khung ứng dụng, menu, thành phần, chuyển động, độ tương phản)**: `docs/UI.md`, nơi duy nhất ghi các luật hình (#842). Khi tài liệu này và UI.md khác nhau, UI.md thắng. Giữ ở đây: bốn sắc trạng thái có nghĩa cố định và luôn kèm chữ, không gradient/glass/tím/sparkle, một màu nhấn xanh lục.
-- **Khung trang (S-UI-1; hình ở `docs/UI.md` §3–4)**: mọi trang trong menu chính theo một thứ tự: `PageHeader` (tiêu đề ~20 px và mô tả ngắn cùng một dòng) → `KpiStrip` tuỳ chọn (tối đa 4 ô: số, nhãn, liên kết; chỉ khi con số là câu trả lời) → `PageTabs` khi trang có hơn một phần (hàng tab ngang, tab đang mở ở `?tab=<id>`, đổi tab thay mục lịch sử, tab có việc chờ người dùng mang số đỏ kèm câu đọc cho trình đọc màn hình; điện thoại: hàng tab cuộn trong chính nó). Cả ba ở `web/src/components/common/{PageHeader,PageFrame}.tsx`; không tự dựng tab hay thẻ số riêng trong module, không lưu tab ở `#hash`. Trang dài nhiều mục độc lập (≥ 4) tách thành tab. Khi dùng `PageTabs`: tab mà vai trò không được xem thì **không đưa vào** `tabs` (không vẽ rồi ẩn); panel tải lười (`lazy`) thì mỗi panel một `Suspense` riêng; số đỏ chỉ cho việc cần người dùng ngay; tham số riêng của một tab (ví dụ `?run=` của Scans) **được giữ** khi đổi tab (`PageTabs` chỉ đặt `tab`), nên tab khác phải bỏ qua tham số không thuộc nó. Khi chuyển một trang cũ sang khung: liên kết cũ (`#hash`, đường dẫn cũ) phải chuyển hướng tới đúng `?tab=`, giữ tham số khác, và chỉ bắt đúng các tên cũ (hash khác như `#main` của liên kết "Skip to content" để nguyên). Cài đặt giữ menu dọc (nhiều form ngắn; như Grafana, GitLab admin); một mục Cài đặt hay trang quản trị có ≥ 4 vùng tự lưu riêng có hàng `PageTabs` bên trong (Box network, My account, `/devices/setup`), trang trả lời một câu hỏi giữ một trang (Updates); liên kết `#hash` cũ chuyển qua `OldHashToTab` (`PageFrame.tsx`). Dưới `lg` menu Cài đặt là một hàng ngang cùng kiểu hàng tab.
-- **Một kiểu cho cả ứng dụng**: khung báo trạng thái của trang là `Notice` (`PageHeader.tsx`, `tone` danger/warn/accent/off theo nghĩa màu ở trên), không tự vẽ `rounded-md border border-danger/40 …` trong module; hàng tab chỉ qua `PageTabs` (test trong `PageFrame.test.tsx` chặn import `components/ui/tabs` từ `features/`).
-- **Ngôn ngữ**: động từ rõ ("Gửi thử", "Áp dụng", "Đánh dấu đã xử lý"); lỗi nói cái gì sai và sửa thế nào; màn trống là hướng dẫn hành động ("Chưa có thiết bị. Bật kiểm kê thụ động hoặc khai tay."); không "Oops", không emoji trong UI, không chữ hoa toàn bộ cho nhãn, không eyebrow label, không "→" cuối nút.
-- **Thứ bậc thông tin**: mỗi trang trả lời một câu hỏi của persona ở dòng đầu ("Hôm nay: 2 phát hiện mới, 1 xác nhận"). Số to chỉ khi là câu trả lời, không phải trang trí.
-- **Độ tin cậy nhìn thấy**: mọi dữ liệu có "nguồn" và "cập nhật lúc"; "xác nhận" / "nghi" là hai chip khác hình (không chỉ khác màu); dữ liệu AI có viền chấm + nhãn "AI tạo".
+- **Visual standard (colour, type, spacing, corner radius, shadow, app frame, menu, components, motion, contrast)**: `docs/UI.md`, the only place that records the visual rules (#842). When this document and UI.md differ, UI.md wins. Kept here: four status colours with a fixed meaning that always come with text, no gradient/glass/purple/sparkle, one green accent colour.
+- **Page frame (S-UI-1; the shape is in `docs/UI.md` §3-4)**: every page in the main menu follows one order: `PageHeader` (a ~20 px heading and a short description on one line) → an optional `KpiStrip` (at most 4 cells: number, label, link; only when the number is the answer) → `PageTabs` when the page has more than one part (a horizontal tab row, the open tab in `?tab=<id>`, changing tab replaces the history entry, a tab with work waiting for the user carries a red number plus a phrase for screen readers; on a phone the tab row scrolls inside itself). All three are in `web/src/components/common/{PageHeader,PageFrame}.tsx`; a module does not build its own tabs or number cards, and does not store the tab in `#hash`. A long page with many independent sections (≥ 4) is split into tabs. When `PageTabs` is used: a tab that the role may not see is **left out** of `tabs` (not drawn and then hidden); a lazy panel (`lazy`) gets its own `Suspense` each; a red number only for work that needs the user at once; a parameter that belongs to one tab (for example `?run=` of Scans) **is kept** when the tab changes (`PageTabs` only sets `tab`), so other tabs must ignore a parameter that is not theirs. When moving an old page into the frame: old links (`#hash`, old paths) must redirect to the right `?tab=`, keep the other parameters, and catch only the old names (another hash such as `#main` of the "Skip to content" link is left alone). Settings keeps its vertical menu (many short forms; like Grafana, GitLab admin); a Settings section or admin page with ≥ 4 separately saved areas gets a `PageTabs` row inside it (Box network, My account, `/devices/setup`), and a page that answers one question stays one page (Updates); old `#hash` links go through `OldHashToTab` (`PageFrame.tsx`). Below `lg` the Settings menu is a horizontal row in the same style as the tab row.
+- **One style for the whole app**: a page's status frame is `Notice` (`PageHeader.tsx`, `tone` danger/warn/accent/off with the colour meanings above); do not draw `rounded-md border border-danger/40 …` in a module; the tab row goes only through `PageTabs` (a test in `PageFrame.test.tsx` blocks importing `components/ui/tabs` from `features/`).
+- **Language**: clear verbs ("Send test", "Apply", "Mark as handled"); an error says what is wrong and how to fix it; an empty screen is guidance for an action ("No devices yet. Turn on passive inventory or declare one by hand."); no "Oops", no emoji in the UI, no all-caps labels, no eyebrow labels, no "→" at the end of a button.
+- **Information hierarchy**: every page answers one persona question on its first line ("Today: 2 new findings, 1 confirmed"). A big number only when it is the answer, never decoration.
+- **Visible confidence**: all data has a "source" and an "updated at"; "confirmed" / "suspected" are two chips of different shape (not only different colour); AI data has a dotted border + the label "AI generated".
 
-## 4. Tránh "mùi AI" — checklist review (từ skill frontend-design + kinh nghiệm thực tế)
+## 4. Avoid a generic template look: review checklist
 
-Rớt nếu có: nền kem + serif + cam đất; đen + một màu neon; card giống hệt nhau xếp lưới với bóng xám; eyebrow ALL-CAPS trên mỗi tiêu đề; "A · B · C"; "WORD — fragment"; mono cho nhãn; "→" cuối link; hero với số to + gradient; fade-slide-up mọi section; emoji làm icon; chatbox AI nổi; từ "AI-powered"/"thông minh" trong copy. Mỗi PR FE có mục "Checklist mùi AI" trong mô tả.
+A screen fails review if it has: a cream background + serif + terracotta orange; black + one neon colour; identical cards in a grid with grey shadows; an ALL-CAPS eyebrow on every heading; "A · B · C" strings; "WORD — fragment" headings; mono type for labels; "→" at the end of a link; a hero with a big number + gradient; fade-slide-up on every section; emoji used as icons; a floating chat box; the words "AI-powered" or "smart" in copy. Every frontend PR lists the result of this checklist in its description.
 
-## 5. Skill / plugin FE (bật theo giai đoạn, tắt khi xong)
+## 5. Tooling
 
-| Dùng | Việc | Khi |
-|---|---|---|
-| `frontend-design` (Anthropic, claude-plugins-official) | hướng thiết kế, hai pass (plan → review → build), checklist mùi AI | M0 prototype, M1 |
-| `typesafe` (typesafe-ai) | TS strict, Zod schema API | M1+ |
-| Design (Anthropic knowledge-work): `design-critique`, `accessibility-review`, `ux-copy`, `user-research`, `research-synthesis` | critique mỗi màn hình; tổng hợp phỏng vấn M0; viết copy tiếng Việt | M0, M1 |
-| VectorLab UI/UX Skills: `anti-slop`, `empty-states`, `errors`, `forms`, `labels`, `loaders`, `reduced-motion`, `ux-audit` | review từng loại thành phần | M1 |
-| Axe Accessibility (Deque, MCP) hoặc A11y Enforcer | quét a11y trong vòng lặp | M1 |
-| Playwright MCP | E2E và chụp màn hình để tự critique | M1+ |
-| `dataviz` (built-in) | biểu đồ (ít; chỉ xu hướng 7 ngày) | M1 |
-| Pencil MCP (.pen) | mockup trước khi code | M0 nếu cần |
-| `context7` | API shadcn/TanStack/React 19 — không đoán | luôn |
+| Tool | Use |
+|---|---|
+| TypeScript strict + Zod | typed UI, API schemas shared between UI, mocks and OpenAPI |
+| vitest + Testing Library | component and behaviour tests |
+| axe-core (in vitest and Playwright) | accessibility checks, including colour contrast in the real browser |
+| Playwright | E2E on the real build, screenshots for visual review |
 
-Cách dùng: mỗi màn hình đi qua **plan (frontend-design) → build → critique (design-critique + anti-slop + accessibility-review, kèm screenshot) → sửa**.
+Each screen goes through: plan → build → critique (with a screenshot, against the checklist in §4 and the accessibility checks) → fix.
 
 ## 6. a11y, i18n, responsive
 
-- WCAG 2.2 AA: contrast ≥4.5:1, focus thấy được, điều hướng bàn phím toàn bộ, bảng có header, trạng thái có chữ. axe chạy trong vitest cho mọi page.
-- i18n: mọi chuỗi qua `t()`; chỉ tiếng Anh, giọng văn đơn giản, cụ thể, sentence case; số/ngày theo en-GB; không nối chuỗi.
-- Responsive: desktop là chính; tablet đọc được; mobile: trang chủ + phát hiện + cảnh báo đọc được, không bắt buộc thao tác.
+- WCAG 2.2 AA: contrast ≥4.5:1, visible focus, full keyboard navigation, tables with headers, status with text. axe runs in vitest for every page.
+- i18n: every string goes through `t()`; English only, simple, concrete wording, sentence case; numbers/dates in en-GB; no string concatenation.
+- Responsive: desktop is the main target; tablet is readable; mobile: the home page + findings + alerts are readable, with no required actions.
 
-## 7. Cấu trúc `web/`
+## 7. Structure of `web/`
 
 ```
 web/src/
   app/            router, layout, providers
-  features/<module>/   pages, components, hooks, api (1 thư mục mỗi module; tắt module = không mount route)
+  features/<module>/   pages, components, hooks, api (1 folder per module; module off = route not mounted)
   components/ui/  shadcn
   components/common/  StatusChip, SourceBadge, AiBadge, EmptyState, ErrorState, DataTable
   lib/            api client (OpenAPI → types), i18n, format
@@ -58,4 +53,4 @@ web/src/
   test/
 ```
 
-Mỗi `features/<module>` có `README.md` nêu story ID nó phục vụ.
+Each `features/<module>` has a `README.md` naming the story IDs it serves.

@@ -288,7 +288,7 @@ func (s *Service) endOSCorrection(ctx context.Context, tx *sql.Tx, assetID strin
 	if err != nil || !ok {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual'`, assetID); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM inv_observation WHERE asset_id = ? AND field = 'os' AND source = 'manual' AND NOT `+declaredObsSQL, assetID); err != nil {
 		return fmt.Errorf("inventory: lapse the corrected OS: %w", err)
 	}
 	if _, err := s.recomputeColumns(ctx, tx, assetID); err != nil {

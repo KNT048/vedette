@@ -49,6 +49,8 @@ func TestSoftwareLine_Fixture_SameVersionOnEverySurface(t *testing.T) {
 	for i, d := range f.Devices {
 		host[d.ID] = fmt.Sprintf("host-%02d", i+1)
 		s.exec(`INSERT INTO inv_asset (id, hostname, kind, origin, approved, first_seen, last_seen) VALUES (?, ?, 'unknown', 'discovered', 1, '2026-11-20T08:00:00.000Z', '2026-11-20T08:00:00.000Z')`, d.ID, host[d.ID])
+		// the host name column follows its observation, as every software write folds the device's columns again
+		s.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at, first_seen) VALUES (?, ?, 'hostname', ?, 'passive', 0.8, '2026-11-20T08:00:00.000Z', '2026-11-20T08:00:00.000Z')`, "o-"+d.ID, d.ID, host[d.ID])
 	}
 	agent := func(src string) bool { return src == "osquery" || src == "wazuh" || src == "box" }
 	lists := map[[2]string][]inventory.SoftwareItem{}

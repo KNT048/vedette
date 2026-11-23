@@ -168,7 +168,13 @@ type MatchDevice struct {
 // MatchInput returns the device with its software; ok is false when it does not exist or a person ignored it (an ignored
 // device is outside every vulnerability reader, so nothing new is matched for it).
 func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok bool, err error) {
-	q, loc := s.db.Reader(), orgtime.At(ctx, s.zone)
+	return s.matchInput(ctx, s.db.Reader(), id, nil)
+}
+
+// matchInput is MatchInput over q (a transaction sees what it wrote). detectedOS, when set, is the OS the sources read in place of the
+// stored one: the declared OS is decided from it, before it is stored.
+func (s *Service) matchInput(ctx context.Context, q querier, id string, detectedOS *string) (d MatchDevice, ok bool, err error) {
+	loc := orgtime.At(ctx, s.zone)
 	var ignored bool
 	if err := q.QueryRowContext(ctx, `SELECT ignored_at IS NOT NULL FROM inv_asset WHERE id = ?`, id).Scan(&ignored); errors.Is(err, sql.ErrNoRows) || ignored {
 		return MatchDevice{}, false, nil
@@ -181,6 +187,9 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 		return MatchDevice{}, false, fmt.Errorf("inventory: read device OS: %w", err)
 	}
 	d.OS, d.Model, d.MAC = osName.String, model.String, mac.String
+	if detectedOS != nil {
+		d.OS = *detectedOS
+	}
 	if d.StatedOS, d.StatedOSAt, err = statedOSAt(ctx, q, id); err != nil {
 		return MatchDevice{}, false, err
 	}

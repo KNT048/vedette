@@ -1123,7 +1123,10 @@ func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, o *outbox, id string,
 		return err
 	case ok && x.assetID == id && cur.Valid:
 		return touchExtra(ctx, tx, x.id, source, seenAt)
-	case ok && x.assetID == id: // a device with no main address takes this one as its main address
+	case ok && x.assetID == id: // a device with no main address takes this one as its main address, with what a scan read there
+		if err := s.unbindAddress(ctx, tx, id, x.id); err != nil {
+			return err
+		}
 		if err := s.releaseExtraIP(ctx, tx, nil, x); err != nil {
 			return err
 		}

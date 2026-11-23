@@ -270,3 +270,33 @@ func TestAddresses_MergeKeepsEachInterfaceWhole(t *testing.T) {
 		t.Errorf("%d addresses in two places", e.homeless())
 	}
 }
+
+// When a device's main card is seen at the address of one of its other rows (it lost its main address to another machine, DHCP gave
+// the card that address), the address becomes the main one and what a scan read there goes with it: the next scan of the address
+// replaces it, so no stale reading stays behind on a row that no longer has the address.
+func TestAddresses_ARowsAddressBecomesTheMainOne(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := twoCards(e)
+	e.tick(time.Minute)
+	e.record(dhcp(card9, "198.51.100.1", "")...) // another machine takes the main address
+	scan := func(version string) {
+		t.Helper()
+		e.tick(time.Minute)
+		sw := []observe.Software{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: version, Confidence: 0.8, Instance: "tcp/22"}}
+		if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.0.2.1")}, observe.Nmap, nil, sw); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scan("9.6")
+	e.tick(time.Minute)
+	e.record(dhcp(card2, "192.0.2.1", "")...)
+	if got := e.addresses(id); !slices.Equal(got, []string{"192.0.2.1 " + card2 + " main", "- " + card1}) {
+		t.Fatalf("after the main card was seen at the row's address: %v", got)
+	}
+	scan("9.8")
+	if n, old := e.count(`SELECT count(*) FROM inv_software_reading WHERE source = 'nmap'`),
+		e.count(`SELECT count(*) FROM inv_software_reading WHERE source = 'nmap' AND version = '9.6'`); n != 1 || old != 0 {
+		t.Errorf("%d scan readings, %d of them the old version; want the new reading only", n, old)
+	}
+}

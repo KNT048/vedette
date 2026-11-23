@@ -121,6 +121,16 @@ func TestBuildIndexAdvisories(t *testing.T) {
 	if _, err := BuildIndex(&x3, IndexParams{Now: t1, Rollout: -1, Advisories: many}); err == nil || !strings.Contains(err.Error(), "more than 256") {
 		t.Errorf("257 advisories: %v", err)
 	}
+	// within the count limit, but long advisories make an index larger than a box reads: every box would refuse it
+	long := make([]release.Advisory, 250)
+	for i := range long {
+		long[i] = freshInstall("0.1.2")[0]
+		long[i].ID = fmt.Sprintf("VED-2027-%03d", i)
+		long[i].URL = "https://example.com/" + strings.Repeat("a", 1000)
+	}
+	if _, err := BuildIndex(&x3, IndexParams{Now: t1, Rollout: -1, Advisories: long}); err == nil || !strings.Contains(err.Error(), "larger than") {
+		t.Errorf("an index above the size a box reads: %v", err)
+	}
 }
 
 // boxStatus is how the Updates page of a released box shows an advisory of a verified index: modules/core advisoriesOf, the same

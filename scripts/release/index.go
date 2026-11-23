@@ -174,6 +174,10 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A box refuses an index above this size (internal/release parseIndex), so every box would refuse this one.
+	if len(cur) > release.MaxDocBytes {
+		return nil, fmt.Errorf("the index would be %d bytes, larger than the %d bytes a box reads: shorten or drop advisories", len(cur), release.MaxDocBytes)
+	}
 	files := []IndexFile{{"index.json", cur}}
 	for s := 1; s < indexSchema; s++ {
 		w, ok := legacyWriters[s]

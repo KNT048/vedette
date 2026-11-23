@@ -15,22 +15,13 @@
 -- AUTOINCREMENT counter going on from the old one. sa_all_ports keeps, per device, the schedule of its weekly run: when it was last
 -- made or found the device not eligible (fragile, kind unknown, never, the box: looked at again a week later; NULL: never) or
 -- answering on every port. What the scans found is in the inventory (the weekly run and the normal scan each replace only the ports
--- they looked at), not here. Rows of devices the inventory no longer has are removed by the weekly round. Forward-only (DATA_MODEL 6, rule 1).
+-- they looked at; when each port was last read with -sV is inv_service.read_at), not here. Rows of devices the inventory no longer has are removed by the weekly round. Forward-only (DATA_MODEL 6, rule 1).
 CREATE TABLE sa_all_ports (
     asset_id     TEXT NOT NULL PRIMARY KEY CHECK (length(asset_id) BETWEEN 1 AND 96),
     last_at      TEXT CHECK (last_at IS NULL OR last_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     -- retry: one failure, tried again in the next window (still due); the others make the device due a week after last_at
     outcome      TEXT CHECK (outcome IS NULL OR outcome IN ('done', 'not_eligible', 'answers_everywhere', 'retry', 'failed'))
 );
-
--- When each open TCP port of a device was last read with -sV (by a normal scan, or by the follow-up of the weekly run): the follow-up
--- reads the ports never read first, then the ones read longest ago, and leaves alone a port read this week.
-CREATE TABLE sa_port_read (
-    asset_id TEXT    NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
-    port     INTEGER NOT NULL CHECK (port BETWEEN 1 AND 65535),
-    read_at  TEXT    NOT NULL CHECK (read_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    PRIMARY KEY (asset_id, port)
-) WITHOUT ROWID;
 
 -- One row per nmap or SNMP job sent (INV-9: no packet without a log line), kept ProbeRetention. run_id is the run it was sent for;
 -- NULL once that run is deleted (runs are kept longer than probes, so only by a purge).

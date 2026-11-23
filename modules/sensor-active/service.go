@@ -45,7 +45,7 @@ type Config struct {
 	Inventory Inventory
 	Observe   observe.Sink         // the inventory, through core/observe
 	Software  observe.SoftwareSink // the inventory, through core/observe
-	Services  observe.ServiceSink  // the inventory, through core/observe; nil: the open ports are not recorded
+	Services  Services             // the inventory's open ports; nil: the open ports are not recorded
 	Events    Publisher
 	NmapPath  string // absolute path of the OS package's nmap; Health reads it, and the local Prober runs it
 	// Prober runs the nmap command the module has already checked. Nil means the local one, core/exec around
@@ -91,7 +91,7 @@ type Service struct {
 	owedTried map[string]bool
 	obs       observe.Sink
 	sw        observe.SoftwareSink
-	svc       observe.ServiceSink // may be nil
+	svc       Services // may be nil
 	events    Publisher
 	path      string
 	prober    Prober
@@ -1057,8 +1057,8 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 // recordDevice stores what a service scan found about ip. A host that did not answer changes nothing. A host that hit the host
 // timeout keeps its software and services: nmap printed no port table for it, so an empty list would wrongly remove them. Only a
 // normal or versions scan (top 1000 ports and the extra ports, -sV) replaces the device's nmap services and software, only for the
-// ports it looked at; the weekly scan of every port replaces the services of every port (it read no versions) and the software
-// of the ports its -sV follow-up read; a gentle scan (top 100, no -sV) and an Extra run that alone saw the device only add ports,
+// ports it looked at; the weekly scan of every port replaces the services of every port (it read no versions), then the services
+// and the software of the ports its -sV follow-up read; a gentle scan (top 100, no -sV) and an Extra run that alone saw the device only add ports,
 // and never wipe what a normal scan found.
 func (s *Service) recordDevice(ctx context.Context, jobID, assetID string, ip netip.Addr, hosts []host, kind nmapargv.Kind, extraFailed bool) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
@@ -1070,7 +1070,7 @@ func (s *Service) recordDevice(ctx context.Context, jobID, assetID string, ip ne
 	h := hosts[i]
 	// what this check found, in words for History and the device page, compared with what was known before it records
 	prev := s.beforeRecord(ctx, assetID, jobID, ip)
-	if err := s.recordHost(ctx, assetID, ip, h, kind); err != nil {
+	if err := s.recordHost(ctx, ip, h, kind); err != nil {
 		return err
 	}
 	s.saveFound(ctx, assetID, ip, foundOf(h, kind, extraFailed, prev))
@@ -1081,7 +1081,7 @@ func (s *Service) recordDevice(ctx context.Context, jobID, assetID string, ip ne
 const statedInstance = "stated"
 
 // recordHost stores the result of h on the device (recordDevice).
-func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr, h host, kind nmapargv.Kind) error {
+func (s *Service) recordHost(ctx context.Context, ip netip.Addr, h host, kind nmapargv.Kind) error {
 	if obs := deviceObservations(h, kind); len(obs) > 0 {
 		if err := s.obs.Record(ctx, obs); err != nil {
 			return fmt.Errorf("sensoractive: recording observations: %w", err)
@@ -1098,7 +1098,6 @@ func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr,
 		if err := s.sw.ReplaceSoftware(ctx, hint, observe.Nmap, []string{"", statedInstance}, softwareOf(h)); err != nil {
 			return fmt.Errorf("sensoractive: recording software: %w", err)
 		}
-		s.noteRead(ctx, assetID, tcpPorts(h.ports), h.scanned, tcpPorts(h.ports))
 	case kind == nmapargv.GentleTitles:
 		// a gentle look with titles reads no product, but the scripts of nmapargv.TitleScripts may read what the device states about
 		// its firmware (INV-25): that is recorded, the one thing such a scan says about software
@@ -1118,7 +1117,6 @@ func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr,
 				return err
 			}
 		}
-		s.noteRead(ctx, assetID, h.read, h.scanned, tcpPorts(h.ports))
 	}
 	if s.svc != nil {
 		list := servicesOf(h)
@@ -1134,10 +1132,15 @@ func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr,
 			// until the next weekly scan, or 14 days after it at most
 			err = s.svc.ReplaceServices(ctx, hint, observe.Nmap, scopeOf(h, allPortsKeep, false), tcpIn(list, h))
 		case kind == nmapargv.AllPorts:
-			// every port was looked at, none was read: a port that closed goes, a port that names a product (the follow-up) is updated
+			// every port was looked at, none read with versions: a port that closed goes, the others keep what was read on them
 			err = s.svc.ReplaceServices(ctx, hint, observe.Nmap, scopeOf(h, 0, true), tcpIn(list, h))
+			if err == nil && len(h.read) > 0 {
+				// then the follow-up is a version read of its own ports: their name, product and version are what it read (none
+				// too) and their read time moves (inventory inv_service.read_at), so the next week's follow-up reads others first
+				err = s.svc.ReplaceServices(ctx, hint, observe.Nmap, readScope(h.read), readIn(list, h.read))
+			}
 		default:
-			err = s.svc.AddServices(ctx, hint, observe.Nmap, list) // a port the weekly follow-up read gets its product and version updated (inventory INV-23)
+			err = s.svc.AddServices(ctx, hint, observe.Nmap, list) // a gentle look, or an Extra run that alone saw the device
 		}
 		if err != nil {
 			return fmt.Errorf("sensoractive: recording services: %w", err)
@@ -1165,6 +1168,20 @@ func tcpIn(list []observe.Service, h host) []observe.Service {
 	return slices.DeleteFunc(slices.Clone(list), func(sv observe.Service) bool {
 		return sv.Proto != "tcp" || !slices.ContainsFunc(sc.Ports, func(r observe.PortRange) bool { return sv.Port >= r.From && sv.Port <= r.To })
 	})
+}
+
+// readScope is the scope of the weekly follow-up: the ports it read with -sV, each a range of its own.
+func readScope(read []int) observe.ServiceScope {
+	ports := make([]observe.PortRange, len(read))
+	for i, p := range read {
+		ports[i] = observe.PortRange{From: p, To: p}
+	}
+	return observe.ServiceScope{Ports: ports}
+}
+
+// readIn keeps the TCP services of a list on the ports the follow-up read.
+func readIn(list []observe.Service, read []int) []observe.Service {
+	return slices.DeleteFunc(slices.Clone(list), func(sv observe.Service) bool { return sv.Proto != "tcp" || !slices.Contains(read, sv.Port) })
 }
 
 // tcpPorts are the TCP port numbers of a list of open ports.

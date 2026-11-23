@@ -68,6 +68,13 @@ func allPortsEnv(t *testing.T, mut ...func(*env)) *env {
 	return e
 }
 
+// readAt is when the inventory fake says port of a-web (192.168.10.20) was last read with versions; zero: never.
+func (e *env) readAt(port int) time.Time {
+	e.sink.mu.Lock()
+	defer e.sink.mu.Unlock()
+	return e.sink.read["192.168.10.20"][port]
+}
+
 // webPorts are the ports the sink holds for a-web (192.168.10.20).
 func (e *env) webPorts() []int {
 	e.sink.mu.Lock()
@@ -602,7 +609,7 @@ func TestAllPortsStoppedDuringTheFollowUpRecordsNothing(t *testing.T) {
 	if err := <-tick; err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(e.webPorts(), 40000) || e.count(`SELECT count(*) FROM sa_all_ports WHERE asset_id = 'a-web' AND last_at IS NOT NULL`) != 0 || e.count(`SELECT count(*) FROM sa_port_read WHERE port = 40000`) != 0 {
+	if slices.Contains(e.webPorts(), 40000) || e.count(`SELECT count(*) FROM sa_all_ports WHERE asset_id = 'a-web' AND last_at IS NOT NULL`) != 0 || !e.readAt(40000).IsZero() {
 		t.Fatalf("the stopped weekly run was recorded: ports %v", e.webPorts())
 	}
 }
@@ -647,6 +654,59 @@ func TestAllPortsFollowUpRotates(t *testing.T) {
 	want := []string{ports(30001, 30020), ports(30001, 30015) + "," + ports(30021, 30025)}
 	if !slices.Equal(follow, want) {
 		t.Fatalf("follow-ups %q, want %q", follow, want)
+	}
+}
+
+// The follow-up picks its ports by when the inventory says each was last read with versions (inv_service.read_at): a port read in
+// the last 6 days is left alone, the ports never read go first, then the one read longest ago; every port it read gets its read
+// time moved, also one whose read named no product, so the next week's follow-up reads the others first.
+func TestAllPortsFollowUpPicksByTheInventoryReadTimes(t *testing.T) {
+	t.Parallel()
+	e := allPortsEnv(t)
+	xml := openPortsXML(22) // 30001..30022, no product on any
+	var follow []string
+	var mu sync.Mutex
+	e.withProber(probeFunc(func(_ context.Context, argv []string) (sa.Output, error) {
+		if i := slices.Index(argv, "-p"); i >= 0 {
+			mu.Lock()
+			follow = append(follow, argv[i+1])
+			mu.Unlock()
+		}
+		return sa.Output{XML: xml}, nil
+	}))
+	now := e.clock()
+	e.sink.mu.Lock()
+	e.sink.svc = map[string][]observe.Service{"192.168.10.20": {
+		{Port: 30001, Proto: "tcp", Name: "http"}, {Port: 30002, Proto: "tcp", Name: "http"}, {Port: 30003, Proto: "tcp", Name: "http"},
+	}}
+	e.sink.read = map[string]map[int]time.Time{"192.168.10.20": {
+		30001: now.Add(-2 * 24 * time.Hour),  // read this week: left alone
+		30002: now.Add(-20 * 24 * time.Hour), // read longest ago: after the ports never read
+		30003: now.Add(-10 * 24 * time.Hour), // read less long ago: no room left
+	}}
+	e.sink.mu.Unlock()
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	var want []string
+	for n := 30002; n <= 30022; n++ {
+		if n != 30003 {
+			want = append(want, strconv.Itoa(n))
+		}
+	}
+	if len(follow) != 1 || follow[0] != strings.Join(want, ",") {
+		t.Fatalf("follow-up -p %q, want %q", follow, strings.Join(want, ","))
+	}
+	if got := e.readAt(30001); !got.Equal(now.Add(-2 * 24 * time.Hour)) {
+		t.Errorf("port 30001 (not read) read at %v: a scan that read no versions moved it", got)
+	}
+	if got := e.readAt(30003); !got.Equal(now.Add(-10 * 24 * time.Hour)) {
+		t.Errorf("port 30003 (not read) read at %v", got)
+	}
+	for _, p := range []int{30002, 30004, 30022} {
+		if got := e.readAt(p); got.Before(now) {
+			t.Errorf("port %d was read but its read time is %v", p, got)
+		}
 	}
 }
 

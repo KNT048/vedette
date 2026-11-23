@@ -615,7 +615,10 @@ CREATE TABLE inv_service (
     source     TEXT    NOT NULL CHECK (source IN ('manual', 'agent', 'snmp', 'nmap', 'passive', 'scan')),
     confidence REAL    NOT NULL CHECK (confidence BETWEEN 0 AND 1),
     seen_at    TEXT    NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z')
-, detail TEXT CHECK (detail IS NULL OR length(detail) <= 200));
+, detail TEXT CHECK (detail IS NULL OR length(detail) <= 200),
+    -- when the source last read the port's name, product and version (a scan with version detection, an agent's report); NULL: only
+    -- found open. A scan that only finds open ports leaves it; the weekly version read picks the ports read longest ago by it.
+    read_at TEXT CHECK (read_at IS NULL OR read_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'));
 
 CREATE TABLE inv_software (
     id               TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 96),
@@ -883,13 +886,6 @@ CREATE TABLE sa_all_ports (
     -- retry: one failure, tried again in the next window (still due); the others make the device due a week after last_at
     outcome      TEXT CHECK (outcome IS NULL OR outcome IN ('done', 'not_eligible', 'answers_everywhere', 'retry', 'failed'))
 );
-
-CREATE TABLE sa_port_read (
-    asset_id TEXT    NOT NULL CHECK (length(asset_id) BETWEEN 1 AND 96),
-    port     INTEGER NOT NULL CHECK (port BETWEEN 1 AND 65535),
-    read_at  TEXT    NOT NULL CHECK (read_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    PRIMARY KEY (asset_id, port)
-) WITHOUT ROWID;
 
 CREATE TABLE "sa_probe" (
     id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

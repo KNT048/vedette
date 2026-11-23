@@ -216,10 +216,8 @@ func (s *Service) nextAllPorts(ctx context.Context, st Settings, start time.Time
 	if len(gone) > 0 {
 		if err := s.db.Write(ctx, func(tx *sql.Tx) error {
 			for _, id := range gone {
-				for _, q := range []string{`DELETE FROM sa_all_ports WHERE asset_id = ?`, `DELETE FROM sa_port_read WHERE asset_id = ?`} {
-					if _, err := tx.ExecContext(ctx, q, id); err != nil {
-						return err
-					}
+				if _, err := tx.ExecContext(ctx, `DELETE FROM sa_all_ports WHERE asset_id = ?`, id); err != nil {
+					return err
 				}
 			}
 			return nil
@@ -318,16 +316,16 @@ func (s *Service) probeAllPorts(ctx context.Context, jobID, assetID string, ip n
 		return nil, errAnswersEverywhere
 	}
 	read := s.readTimes(ctx, assetID)
-	recent := store.FormatTS(s.clock().Add(-readFresh))
+	recent := s.clock().Add(-readFresh)
 	var want []int
 	for _, p := range h.ports {
 		_, inExtra := slices.BinarySearch(nmapargv.ExtraPortNumbers, p.number)
-		if p.proto == "tcp" && !inExtra && read[p.number] <= recent { // a port read this week (by a normal scan too) is left alone
+		if p.proto == "tcp" && !inExtra && !read[p.number].After(recent) { // a port read this week (by a normal scan too) is left alone
 			want = append(want, p.number)
 		}
 	}
-	slices.SortFunc(want, func(a, b int) int { // never read first ("" sorts first), then read longest ago, then by port
-		if c := cmpStr(read[a], read[b]); c != 0 {
+	slices.SortFunc(want, func(a, b int) int { // never read first (the zero time sorts first), then read longest ago, then by port
+		if c := read[a].Compare(read[b]); c != 0 {
 			return c
 		}
 		return a - b
@@ -368,53 +366,19 @@ func (s *Service) probeAllPorts(ctx context.Context, jobID, assetID string, ip n
 // port it finds open, so the ports it found this week are not read again; a port the follow-up read last week is read again.
 const readFresh = allPortsEvery - 24*time.Hour
 
-// readTimes are the times each port of a device was last read with -sV (sa_port_read), by port.
-func (s *Service) readTimes(ctx context.Context, id string) map[int]string {
-	out := map[int]string{}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT port, read_at FROM sa_port_read WHERE asset_id = ?`, id)
+// readTimes are the times each open TCP port of a device was last read with -sV, by port (the inventory's inv_service.read_at of
+// the nmap rows; a port that closed went with its row). On a read error none: the follow-up then picks its ports as never read,
+// which costs a port read twice, never a missed one.
+func (s *Service) readTimes(ctx context.Context, id string) map[int]time.Time {
+	if s.svc == nil {
+		return nil
+	}
+	out, err := s.svc.PortReadTimes(ctx, id, observe.Nmap)
 	if err != nil {
 		s.log.WarnContext(ctx, "sensoractive: reading the ports read with versions failed", "asset", id, "error", err)
-		return out
-	}
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		var p int
-		var at string
-		if err := rows.Scan(&p, &at); err == nil {
-			out[p] = at
-		}
+		return nil
 	}
 	return out
-}
-
-// noteRead records that the read ports were read with -sV now, and forgets the ports inside what the scan looked at (scanned) that
-// are no longer open: a port that closes is read from scratch when it opens again. A failed write is logged only: the follow-up
-// then picks its ports without that record, which costs a read of a port twice, never a missed one.
-func (s *Service) noteRead(ctx context.Context, id string, read []int, scanned []observe.PortRange, open []int) {
-	now := s.now()
-	gone := []int{}
-	for p := range s.readTimes(ctx, id) {
-		if !slices.Contains(open, p) && slices.ContainsFunc(scanned, func(r observe.PortRange) bool { return p >= r.From && p <= r.To }) {
-			gone = append(gone, p)
-		}
-	}
-	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		for _, p := range read {
-			if _, err := tx.ExecContext(ctx, `INSERT INTO sa_port_read (asset_id, port, read_at) VALUES (?, ?, ?)
-ON CONFLICT (asset_id, port) DO UPDATE SET read_at = excluded.read_at`, id, p, now); err != nil {
-				return err
-			}
-		}
-		for _, p := range gone {
-			if _, err := tx.ExecContext(ctx, `DELETE FROM sa_port_read WHERE asset_id = ? AND port = ?`, id, p); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		s.log.WarnContext(ctx, "sensoractive: recording the ports read with versions failed", "asset", id, "error", err)
-	}
 }
 
 // recordFollowUp writes the software the weekly follow-up read: each read port's products replace what was read on that port

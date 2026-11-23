@@ -371,3 +371,49 @@ func snmpRunSummary(t *testing.T, w *snmpWorld) string {
 	}
 	return runs[0].Summary
 }
+
+// Two people asking at the same moment get one run: the same device asked by several at once is checked once, and "Scan the LAN
+// now" pressed by several at once queues one sweep (the others are told a sweep is going on).
+func TestQueueAsksAtTheSameMomentMakeOneRun(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, outsideWindow)
+	held := newHeld(1)
+	e.withProber(held)
+	if _, err := e.svc.StartManual(e.ctx(), "ann@example.com", []string{"a-printer"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	held.wait(t, 1) // the scanner is busy: every ask below is queued
+	const people = 8
+	ask := func(targets []string) []error {
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		errs := make([]error, people)
+		for i := range people {
+			wg.Go(func() {
+				<-start
+				_, errs[i] = e.svc.StartManual(e.ctx(), "bob@example.com", targets, nil)
+			})
+		}
+		close(start)
+		wg.Wait()
+		return errs
+	}
+	for _, err := range ask([]string{"a-web"}) {
+		if err != nil {
+			t.Fatalf("a check of a device asked by several at once: %v", err)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM core_run WHERE kind = 'device_check' AND subject_id = 'a-web'`); n != 1 {
+		t.Fatalf("%d checks of the same device asked at the same moment, want 1", n)
+	}
+	for _, err := range ask(nil) {
+		if err != nil && !errors.Is(err, sa.ErrSlotBusy) {
+			t.Fatalf("Scan the LAN now pressed by several at once: %v", err)
+		}
+	}
+	if n := e.count(`SELECT count(*) FROM core_run WHERE kind = 'lan_sweep'`); n != 1 {
+		t.Fatalf("%d LAN sweeps queued by people pressing at the same moment, want 1", n)
+	}
+	close(held.release)
+	waitManual(t, e)
+}

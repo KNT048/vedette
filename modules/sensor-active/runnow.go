@@ -252,6 +252,15 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 			return m, nil
 		}
 		id, err := s.newSweep(ctx, st, run.Spec{Trigger: run.Manual, RequestedBy: by}, func(tx *sql.Tx, id string) error {
+			// read again in the transaction that queues: of people pressing at the same moment, one sweep is queued
+			var other int
+			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM core_run WHERE module = ? AND kind = ? AND id <> ?
+				AND status IN ('queued', 'waiting', 'running', 'stopping')`, ModuleID, RunSweep, id).Scan(&other); err != nil {
+				return err
+			}
+			if other > 0 {
+				return ErrSlotBusy
+			}
 			m.ID, m.Runs = id, []string{id}
 			if record == nil {
 				return nil
@@ -267,17 +276,18 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 		return m, nil
 	}
 	m.Until = time.Time{}
-	// A device that already has a person's check queued or going keeps that one: asking again shows it, never a second check.
-	have, err := s.personChecks(ctx)
-	if err != nil {
-		return ManualRun{}, err
-	}
 	labels := make([]string, len(ids))
 	for i, id := range ids {
 		labels[i] = s.deviceLabel(ctx, id)
 	}
 	var created []string
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
+		// A device that already has a person's check queued or going keeps that one: asking again shows it, never a second check.
+		// Read in the transaction that queues: two people asking at the same moment get one check.
+		have, err := s.personChecks(ctx, tx)
+		if err != nil {
+			return err
+		}
 		m.Runs, created = m.Runs[:0], created[:0]
 		for i, id := range ids {
 			if rid := have[id]; rid != "" {
@@ -312,8 +322,8 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 }
 
 // personChecks is, by device, the person's check of it that is queued or going now.
-func (s *Service) personChecks(ctx context.Context) (map[string]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT subject_id, id FROM core_run WHERE module = ? AND kind = ? AND trigger = 'manual'
+func (s *Service) personChecks(ctx context.Context, tx *sql.Tx) (map[string]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT subject_id, id FROM core_run WHERE module = ? AND kind = ? AND trigger = 'manual'
 		AND parent_id IS NULL AND subject_kind = 'device' AND status IN ('queued', 'running', 'stopping')`, ModuleID, RunCheck)
 	if err != nil {
 		return nil, fmt.Errorf("sensoractive: read the runs: %w", err)

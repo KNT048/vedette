@@ -863,3 +863,38 @@ func (s *Service) DeviceStatuses(ctx context.Context) (map[string]DeviceStatus, 
 	}
 	return out, nil
 }
+
+// ListedFix is the fix an open finding is listed under in By device and By fix: its block's combined release (the newest release of
+// its product on its line), which can be newer than the finding's own stored fix ("Update to 9.0.2.0200: fixes 3 CVEs", not 9.0.2.0100
+// for one of them). A reader that lists fixes (the report's "Do these first" and "Still open") uses it, so it names the fix the
+// Findings lists name.
+type ListedFix struct {
+	Key string // the block key, By fix's group
+	Fix Fix
+}
+
+// ListedFixes are the listed fixes of every open finding by its id (ignored devices left out, as in the lists).
+func (s *Service) ListedFixes(ctx context.Context) (map[string]ListedFix, error) {
+	out := map[string]ListedFix{}
+	err := s.readTx(ctx, func(ctx context.Context) error {
+		gs, err := s.lineGroups(ctx, ListFilter{})
+		if err != nil {
+			return err
+		}
+		rows, args, _, _, err := s.where(ctx, StateOpen, ListFilter{})
+		if err != nil {
+			return err
+		}
+		fs, err := selectFindings(ctx, s.rd(ctx), rows+` ORDER BY id`, args...)
+		if err != nil {
+			return err
+		}
+		blocks := blocksOf(gs)
+		for _, f := range fs {
+			key, fx := blocks.of(f)
+			out[f.ID] = ListedFix{Key: clipBytes(key, 400), Fix: fx}
+		}
+		return nil
+	})
+	return out, err
+}

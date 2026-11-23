@@ -144,7 +144,9 @@ export function buildDocument(def: ReportDefinition, at = Date.now()): ReportDoc
     }
     const days = handled.filter((r) => r.handled.resolution === 'patched' || r.handled.resolution === 'mitigated').map((r) => r.took).sort((a, b) => a - b)
     const median = days.length ? (days.length % 2 ? days[(days.length - 1) / 2]! : (days[days.length / 2 - 1]! + days[days.length / 2]!) / 2) : null
-    doc.handled = { totals: [...totals.values()], devices: [...devices.values()], more: Math.max(0, handled.length - groupLimit), median_days: median }
+    const leftOut = clean || o.include_not_relevant ? 0 : HANDLED.filter((r) => keep(r.device) && r.handled.resolution === 'not_relevant').length
+    doc.handled = { totals: [...totals.values()], devices: [...devices.values()], more: Math.max(0, handled.length - groupLimit), median_days: median,
+      ...(leftOut ? { not_relevant_left_out: leftOut } : {}) }
   }
   if (s.open) {
     const groups = new Map<string, { key: string; label: string; status: OpenStatus; items: ReportFinding[] }>()

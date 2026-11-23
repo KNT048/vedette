@@ -64,6 +64,12 @@ describe('reports: the security report (S-REP-1)', () => {
     expect(within(exp).getByText('ZAP')).toBeInTheDocument()
   })
 
+  it('Handled says how many not-relevant closures it leaves out, so its count is not read as a smaller Findings › Handled', async () => {
+    renderApp('/reports')
+    const doc = await report()
+    expect(within(doc).getByTestId('not-relevant-left-out')).toHaveTextContent(/^1 finding closed as not relevant in this period is left out \(Settings: Include not relevant\)\.$/)
+  })
+
   it('the figures add up: open at the start + new - handled = open now, and new counts the New section, with or without not relevant', async () => {
     for (const nr of [false, true]) {
       await define((d) => ({ ...d, options: { ...d.options, include_not_relevant: nr } }))
@@ -190,7 +196,10 @@ describe('reports: the security report (S-REP-1)', () => {
     await userEvent.click(within(table).getAllByRole('link', { name: /^Open the report sent / })[0]!)
     const doc = await report()
     expect(within(doc).getByText(/^Last 7 days · /)).toBeInTheDocument() // as sent, not today's 30 days
-    expect(screen.getByText(/^Exactly as it was sent to director@acme\.example, it@acme\.example\.$/)).toBeInTheDocument()
+    // the page says what the e-mail carried (its summary and this link), not "exactly as it was sent"
+    expect(screen.getByText(/^The report as it stood when it was sent to director@acme\.example, it@acme\.example\. The e-mail carried its summary and a link to this page\.$/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/reports')
+    expect(screen.queryByText('nav.reports')).toBeNull()
     expect(doc.closest('.print-report')).not.toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Print / Save PDF' }))
     expect(print).toHaveBeenCalledTimes(1)

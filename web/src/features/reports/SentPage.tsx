@@ -19,7 +19,7 @@ export default function SentPage() {
       {(r) => (
         <>
           <div className="no-print">
-            <PageHeader breadcrumbs={[{ label: t('nav.reports'), to: '/reports' }, { label: t('page.history'), to: '/reports?tab=history' }]}
+            <PageHeader breadcrumbs={[{ label: t('common:shell.reports'), to: '/reports' }, { label: t('page.history'), to: '/reports?tab=history' }]}
               title={t('history.page.title', { title: r.title, time: fmtDateTime(r.sent_at) })}
               meta={t('history.page.meta', { to: r.recipients.join(', ') })}
               actions={<Button variant="primary" onClick={() => window.print()}><Printer aria-hidden />{t('print.button')}</Button>} />

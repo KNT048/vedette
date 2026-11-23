@@ -203305,6 +203305,10 @@ type ReportsGetReportsDocumentOKHandled struct {
 	MedianDays NilFloat64 `json:"median_days"`
 	// Handled findings not listed (a report lists 100 at most).
 	More int `json:"more"`
+	// Findings closed as not relevant in the period that this report leaves out ("Include not relevant"
+	// off): why its count is lower than Findings › Handled. Absent when none, and in documents sent
+	// before it existed.
+	NotRelevantLeftOut OptInt `json:"not_relevant_left_out"`
 	// Handled in the period by resolution.
 	Totals []ReportsGetReportsDocumentOKHandledTotalsItem `json:"totals"`
 }
@@ -203322,6 +203326,11 @@ func (s *ReportsGetReportsDocumentOKHandled) GetMedianDays() NilFloat64 {
 // GetMore returns the value of More.
 func (s *ReportsGetReportsDocumentOKHandled) GetMore() int {
 	return s.More
+}
+
+// GetNotRelevantLeftOut returns the value of NotRelevantLeftOut.
+func (s *ReportsGetReportsDocumentOKHandled) GetNotRelevantLeftOut() OptInt {
+	return s.NotRelevantLeftOut
 }
 
 // GetTotals returns the value of Totals.
@@ -203342,6 +203351,11 @@ func (s *ReportsGetReportsDocumentOKHandled) SetMedianDays(val NilFloat64) {
 // SetMore sets the value of More.
 func (s *ReportsGetReportsDocumentOKHandled) SetMore(val int) {
 	s.More = val
+}
+
+// SetNotRelevantLeftOut sets the value of NotRelevantLeftOut.
+func (s *ReportsGetReportsDocumentOKHandled) SetNotRelevantLeftOut(val OptInt) {
+	s.NotRelevantLeftOut = val
 }
 
 // SetTotals sets the value of Totals.
@@ -208439,6 +208453,10 @@ type ReportsGetReportsHistoryIDOKDocumentHandled struct {
 	MedianDays NilFloat64 `json:"median_days"`
 	// Handled findings not listed (a report lists 100 at most).
 	More int `json:"more"`
+	// Findings closed as not relevant in the period that this report leaves out ("Include not relevant"
+	// off): why its count is lower than Findings › Handled. Absent when none, and in documents sent
+	// before it existed.
+	NotRelevantLeftOut OptInt `json:"not_relevant_left_out"`
 	// Handled in the period by resolution.
 	Totals []ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem `json:"totals"`
 }
@@ -208456,6 +208474,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetMedianDays() NilFloat64
 // GetMore returns the value of More.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetMore() int {
 	return s.More
+}
+
+// GetNotRelevantLeftOut returns the value of NotRelevantLeftOut.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) GetNotRelevantLeftOut() OptInt {
+	return s.NotRelevantLeftOut
 }
 
 // GetTotals returns the value of Totals.
@@ -208476,6 +208499,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetMedianDays(val NilFloat
 // SetMore sets the value of More.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetMore(val int) {
 	s.More = val
+}
+
+// SetNotRelevantLeftOut sets the value of NotRelevantLeftOut.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandled) SetNotRelevantLeftOut(val OptInt) {
+	s.NotRelevantLeftOut = val
 }
 
 // SetTotals sets the value of Totals.

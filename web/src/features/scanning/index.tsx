@@ -26,5 +26,5 @@ export const feature: Feature = {
     // The last device check, vulnerability check and SNMP read of the device, on its Overview tab
     'device.panels': LastChecks as ComponentType<Record<string, unknown>>,
   },
-  settings: [{ id: 'scanning', label: 'scanning:nav', module: 'core', minRole: 'viewer', order: 22, element: <Suspense fallback={<Loading />}><ScanningPage /></Suspense> }],
+  settings: [{ id: 'scanning', label: 'common:shell.scanning', module: 'core', minRole: 'viewer', order: 22, element: <Suspense fallback={<Loading />}><ScanningPage /></Suspense> }],
 }

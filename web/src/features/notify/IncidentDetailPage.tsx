@@ -66,7 +66,7 @@ function Content() {
   const newChannel = useNewChannel()
   const respond = !notOffered('response') // Respond starts a new action: none while this build does not offer the response module, even on a box that has it on
   // docs/UI.md §3: the parent above the title, also while the incident loads or is missing, so the way back is always there.
-  const crumbs = [{ label: t('nav.incidents'), to: '/incidents' }]
+  const crumbs = [{ label: t('common:shell.incidents'), to: '/incidents' }]
   return (
     <>
     {q.data ? null : <Breadcrumbs items={crumbs} />}

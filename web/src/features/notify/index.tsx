@@ -19,7 +19,7 @@ export const feature: Feature = {
     { path: 'alerts', lazy: () => import('./LegacyIndexRedirect').then((m) => ({ Component: m.default })) },
     { path: 'alerts/:id', lazy: legacy },
   ],
-  nav: [{ to: '/incidents', label: 'notify:nav.incidents', icon: Bell, module: 'notify', group: 'monitor', order: 30 }],
-  settings: [{ id: 'channels', label: 'notify:channels.nav', module: 'notify', minRole: 'admin', order: 30, element: <ChannelsSettings /> }],
+  nav: [{ to: '/incidents', label: 'common:shell.incidents', icon: Bell, module: 'notify', group: 'monitor', order: 30 }],
+  settings: [{ id: 'channels', label: 'common:shell.channels', module: 'notify', minRole: 'admin', order: 30, element: <ChannelsSettings /> }],
   slots: { 'finding.panels': wrap(FindingNotices) },
 }

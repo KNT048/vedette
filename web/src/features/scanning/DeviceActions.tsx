@@ -13,7 +13,7 @@ import { useScanning } from './api'
 import { useDeviceCards } from '@/features/findings/api'
 import { ScanNowButton } from './ScanNow'
 
-// The rule moved to canScan.ts, shared with the finding page, To fix and the device page's fragile line
+// The rule moved to canScan.ts, shared with the finding page and the device page's fragile line
 type Facts = ScanFacts
 const nmapRefusal = deviceRefusal
 

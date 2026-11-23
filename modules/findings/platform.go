@@ -373,7 +373,7 @@ const (
 // release proves fixed only against a fix of the SAME upstream version (review r2 H-1 of #961). The device's branch when its fix has
 // the release's upstream; else the branch whose fix has it (a package from another branch's repository: 3.23's 10.2_p1-r0 on a 3.20 box;
 // of two, the later fix); else, an upstream older than the device's branch's fix is below that fix (3.21's 9.9_p1-r5 against
-// 9.9_p2-r1: affected, never fixed); else none. The exploited path (platformCheck) and the plan (alpineData.choose) use it.
+// 9.9_p2-r1: affected, never fixed); else none. The exploited path (platformCheck) and the distribution's word (alpineData.choose) use it.
 func alpineFixBranch(releases map[string]string, osBranch string, rel apkVer, relText string) (string, int) {
 	up := apkUpstream(relText)
 	fx, osFix := parseAPK(releases[osBranch])

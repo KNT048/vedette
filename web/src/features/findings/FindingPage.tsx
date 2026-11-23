@@ -165,7 +165,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
   const opener = useRef<HTMLButtonElement>(null)
   const confirmOpener = useRef<HTMLButtonElement>(null)
   const name = deviceName(f.asset, t('removedDevice'))
-  // the agent's build is a detection; once no agent reports the device it is the last list one sent (as Updates to plan says it)
+  // the agent's build is a detection; once no agent reports the device it is the last list one sent
   const agentHeadline = (f.status === 'suspected' || f.status === 'confirmed') && f.basis === 'version' && !!f.evidence?.agent
   const agentGone = useFindingAgentGone(f)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })

@@ -307,7 +307,7 @@ const SoftwareList = memo(function SoftwareList({ d }: { d: DeviceDetail }) {
   const canAsk = r?.agent === 'osquery' && !r.asked_at && !(r.ask_again_at && Date.parse(r.ask_again_at) > Date.now())
   // One row per software line, as the server built it: its value, the other readings under it, a person's entry or "not installed".
   const list = d.asset.software
-  // What each software line needs, from the same answer as Findings › To fix, by the line's id (a reading names its line).
+  // What each software line needs, from the device's By device card and Needs your input, by the line's id (a reading names its line).
   const lineIdOf = new Map(list.flatMap((l) => [[l.id, l.id] as const, ...l.also_seen.map((o) => [o.id, l.id] as const)]))
   const needs = needsByLine(useSoftwareNeeds(d.asset.id), lineIdOf)
   // The OS the device uses has a line of its own when no row shows it (an OS from the agent, SNMP or the device's LLDP statement);

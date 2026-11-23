@@ -169,9 +169,6 @@ func newEnv(t *testing.T) *env {
 	}
 	e.sched = sched
 	e.useService(Config{DB: db, Audit: audit.New(e.clock.Now), Resolver: e.dns, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Location: time.UTC, Schedules: sched})
-	if err := sched.Register(e.svc.PublicIPScheduleOwner()); err != nil {
-		t.Fatal(err)
-	}
 	// The ticker is never started here: tests move the clock and let the schedule come due with runJob. Start only saves the defaults.
 	if err := sched.Start(t.Context()); err != nil {
 		t.Fatal(err)

@@ -35,6 +35,8 @@ type releaseServer struct {
 	files map[string][]byte
 	hits  map[string]int
 	down  bool // every request answers 503
+	// onGet, when set, runs for each request before it is answered (outside mu): a test acts in the middle of a check.
+	onGet func(path string)
 }
 
 func newReleaseServer(t *testing.T) *releaseServer {
@@ -44,8 +46,11 @@ func newReleaseServer(t *testing.T) *releaseServer {
 		s.mu.Lock()
 		s.hits[r.URL.Path]++
 		b, ok := s.files[r.URL.Path]
-		down := s.down
+		down, onGet := s.down, s.onGet
 		s.mu.Unlock()
+		if onGet != nil {
+			onGet(r.URL.Path)
+		}
 		if down {
 			http.Error(w, "unavailable", http.StatusServiceUnavailable)
 			return
@@ -484,6 +489,126 @@ func TestUpdateSettingsPatch(t *testing.T) {
 	}
 	if acts := e.actions(); !slices.Contains(acts, "update.settings") {
 		t.Errorf("audit = %v", acts)
+	}
+}
+
+// betaRelease publishes the running release and 1.4.0 on the beta channel only, as a box installed from a beta
+// release finds them: the index has no stable channel.
+func (s *releaseServer) betaRelease(t *testing.T, seq uint64) {
+	t.Helper()
+	beta := func(d opstest.Doc) { d["channel"] = "beta" }
+	s.manifest(t, runningVersion, beta)
+	m := s.manifest(t, "1.4.0", beta)
+	s.index(t, seq, m, 100, func(d opstest.Doc) {
+		chs := d["channels"].(opstest.Doc)
+		d["channels"] = opstest.Doc{"beta": chs["stable"]}
+	})
+}
+
+// A box installed from a beta release is on beta from its first check: the channel comes from the signed manifest
+// of the running release (no row yet = the channel is not settled). A first check that fails, or a change of the mode
+// alone, does not settle it; the person can still choose another channel afterwards, and that choice stays.
+func TestUpdateCheckFreshBoxTakesTheChannelOfItsRelease(t *testing.T) {
+	t.Parallel()
+	e := newUpdEnv(t, osOpts{noHost: true})
+	e.srv.betaRelease(t, 5)
+
+	wantOK(t, e.admin.patch("/core/updates", map[string]any{"mode": "auto"}), 200)
+	e.srv.mu.Lock()
+	e.srv.down = true
+	e.srv.mu.Unlock()
+	if r := e.oper.post("/core/updates/check", nil); r.Code == 200 {
+		t.Fatalf("a check against a source that is down = %s", r.Raw)
+	}
+	e.srv.mu.Lock()
+	e.srv.down = false
+	e.srv.mu.Unlock()
+
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	if r.str("channel") != "beta" || r.str("mode") != "auto" {
+		t.Fatalf("after the first good check: channel %q mode %q, want beta auto (%s)", r.str("channel"), r.str("mode"), r.Raw)
+	}
+	a := getArr(r, "available")
+	if len(a) != 1 || a[0].(map[string]any)["version"] != "1.4.0" || a[0].(map[string]any)["channel"] != "beta" {
+		t.Fatalf("available = %v, want 1.4.0 on beta", a)
+	}
+	if g := e.viewer.get("/core/updates"); g.str("channel") != "beta" {
+		t.Fatalf("GET channel = %q after the check, want beta", g.str("channel"))
+	}
+	if n := e.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'update.check' AND detail LIKE '%channel beta (the channel release 1.3.0 was published on)%'"); n != 1 {
+		t.Errorf("update.check rows naming the channel taken from the release = %d, want 1", n)
+	}
+
+	// The person moves the box to stable: no later check puts it back on beta.
+	wantOK(t, e.admin.patch("/core/updates", map[string]any{"channel": "stable"}), 200)
+	r = e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	if r.str("channel") != "stable" {
+		t.Fatalf("channel = %q after the person chose stable, want stable", r.str("channel"))
+	}
+	e.wantNothingOffered(t, r)
+}
+
+// A channel already on the box is kept: one a person chose before the first check, and one stored by an earlier
+// release (a row without follow_release, as every box that checked before has).
+func TestUpdateCheckKeepsTheChannelABoxHas(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		setup func(e *updEnv)
+	}{
+		{"chosen before the first check", func(e *updEnv) {
+			wantOK(t, e.admin.patch("/core/updates", map[string]any{"channel": "stable"}), 200)
+		}},
+		{"stored by an earlier release", func(e *updEnv) {
+			e.exec(`INSERT INTO core_setting (key, value, updated_at, updated_by) VALUES ('core_updates', '{"channel":"stable","mode":"manual","last_check":"2026-11-20T08:00:00Z"}', '2026-11-20T08:00:00.000Z', 'system')`)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newUpdEnv(t, osOpts{noHost: true})
+			e.srv.betaRelease(t, 5)
+			tc.setup(e)
+			r := e.oper.post("/core/updates/check", nil)
+			wantOK(t, r, 200)
+			if r.str("channel") != "stable" {
+				t.Fatalf("channel = %q, want the stable the box had", r.str("channel"))
+			}
+			e.wantNothingOffered(t, r)
+			if n := e.env.Count(t, "SELECT count(*) FROM core_setting WHERE key = 'core_updates' AND value LIKE '%follow_release%'"); n != 0 {
+				t.Errorf("a settled channel is stored as following the release")
+			}
+		})
+	}
+}
+
+// A person who chooses a channel while the first check is still downloading wins over the channel of the release, and
+// the check's audit row and log do not claim that the channel came from the release.
+func TestUpdateCheckChannelChosenDuringTheCheckWins(t *testing.T) {
+	t.Parallel()
+	e := newUpdEnv(t, osOpts{noHost: true})
+	e.srv.betaRelease(t, 5)
+	var once sync.Once
+	patched := 0
+	e.srv.mu.Lock()
+	e.srv.onGet = func(path string) {
+		if path == "/v"+runningVersion+"/release-manifest.json" {
+			once.Do(func() { patched = e.admin.patch("/core/updates", map[string]any{"channel": "stable"}).Code })
+		}
+	}
+	e.srv.mu.Unlock()
+
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	if patched != 200 {
+		t.Fatalf("the PATCH during the check = %d, want 200", patched)
+	}
+	if g := e.viewer.get("/core/updates"); g.str("channel") != "stable" {
+		t.Fatalf("channel = %q, want the stable the person chose during the check", g.str("channel"))
+	}
+	if n := e.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'update.check' AND detail LIKE '%was published on%'"); n != 0 {
+		t.Errorf("update.check rows saying the channel came from the release = %d, want 0 (the person's choice stands)", n)
 	}
 }
 

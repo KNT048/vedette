@@ -59,6 +59,12 @@ detail is in its doc comment.
   a reading first seen after it reads a newer release; otherwise the strongest source, newest release among equals. The selfcheck
   `inventory.line_value_is_the_resolvers` recomputes `Resolve` on every line, and `inventory.line_is_the_train_of_its_readings` checks
   that every reading's release is of its line's train (`selfcheck.go`).
+- **INV-58** A line's product and train are what the product catalogue of the running build says of what its sources sent. Each
+  reading keeps the item its source sent (`inv_software_reading.item_*`); when a start finds another catalogue revision than the
+  one the lines were identified under (`inv_catalogue_pass`), the job `catalogue-reidentify` identifies every reading again in the
+  background and moves it through the write path (`reidentify.go`): a line whose readings all moved is renamed in place (its id
+  stays), every touched line is settled, and each changed device gets `inventory.software.changed` and the match events of a
+  source's read. A reading that keeps no item follows its line. The pass is resumable and changes nothing when nothing moved.
 - **INV-50** `SoftwareLine` is the one read model of a device's software: the device page reads it, and other modules get it
   through `cmd/vedette/wiring.go`, never from the readings.
 - **INV-24** Agent readings (osquery, Wazuh) not reported again for 30 days are deleted (the job counts only while inventory and

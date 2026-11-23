@@ -117,6 +117,10 @@ type Service struct {
 	clock       func() time.Time
 	log         *slog.Logger
 	cat         catalogCache
+	// ident is the line of an item a source sends (identify), and catRev the revision of the product catalogue it identifies with
+	// (catalogueRevision): a test stands in an older catalogue's identification and revision (reidentify.go).
+	ident  identifier
+	catRev string
 
 	pendMu  sync.Mutex
 	pending map[*sql.Tx]*outbox // events of AddManualDevice calls whose caller transaction is still open
@@ -137,6 +141,7 @@ func New(cfg Config) (*Service, error) {
 	if s.clock == nil {
 		s.clock = time.Now
 	}
+	s.ident, s.catRev = identify, catalogueRevision()
 	if s.log == nil {
 		s.log = slog.New(slog.DiscardHandler)
 	}

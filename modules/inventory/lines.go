@@ -149,18 +149,78 @@ func (s *Service) lineOf(ctx context.Context, tx *sql.Tx, assetID string, id lin
 	return lineID, nil
 }
 
+// itemEvidence is what a source sent of a reading as identify read it (inv_software_reading.item_*): its vendor and product names,
+// its version before the catalogue read a release from its name, its first exploited-list key, and its instance before two installs
+// of one train were told apart (readingsOfList). The reading keeps its name and CPE itself. It is kept so that an update of the
+// product catalogue identifies the reading again without the source reading the device again (reidentify.go). ok is false when it
+// is not kept: a reading written by an earlier build, a person's edit of a line, a stated OS; such a reading follows its line.
+type itemEvidence struct {
+	vendor, product, version, kev, instance string
+	ok                                      bool
+}
+
+// Bounds of the kept item: identify reads no longer name (productid), and checkItem refuses longer values.
+const (
+	maxEvidenceVersion = 400
+	maxEvidenceKey     = 400
+	maxInstance        = 120
+)
+
+// evidenceOf is the evidence of an item a source sent, with the instance the reading takes before two installs are told apart.
+func evidenceOf(it SoftwareItem, instance string) itemEvidence {
+	kev := ""
+	if len(it.KevKeys) > 0 {
+		kev = it.KevKeys[0]
+	}
+	return itemEvidence{vendor: clip(it.Vendor, maxSwField), product: clip(it.Product, maxSwField), version: clip(it.Version, maxEvidenceVersion),
+		kev: clip(kev, maxEvidenceKey), instance: clip(instance, maxInstance), ok: true}
+}
+
+// item is the item identify reads again for reading r.
+func (e itemEvidence) item(r Reading) SoftwareItem {
+	it := SoftwareItem{Display: r.Display, Vendor: e.vendor, Product: e.product, Version: e.version, CPE: r.CPE}
+	if e.kev != "" {
+		it.KevKeys = []string{e.kev}
+	}
+	return it
+}
+
+// evidenceCols are the kept item of a reading r, as scanEvidence reads them.
+const evidenceCols = `r.item_vendor, r.item_product, ifnull(r.item_version, ''), ifnull(r.item_kev, ''), ifnull(r.item_instance, '')`
+
+// evidenceDest are the scan destinations of evidenceCols; done turns what they read into the evidence.
+func evidenceDest() (dst []any, done func() itemEvidence) {
+	var vendor, product sql.NullString
+	var e itemEvidence
+	return []any{&vendor, &product, &e.version, &e.kev, &e.instance}, func() itemEvidence {
+		e.vendor, e.product, e.ok = vendor.String, product.String, vendor.Valid && product.Valid
+		if !e.ok {
+			return itemEvidence{}
+		}
+		return e
+	}
+}
+
 // putReading writes one reading of a line: a new one, or the same source and instance read again. first_seen stays while the
-// release stays (version and package release); a new release is a new reading (the lapse and "not installed" rules read it).
-func putReading(ctx context.Context, tx *sql.Tx, lineID string, r Reading) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO inv_software_reading (software_id, source, instance, display, version, pkg_version, pkg_source, packaged, cpe, confidence, set_by, first_seen, seen_at, addr_id)
-		VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+// release stays (version and package release); a new release is a new reading (the lapse and "not installed" rules read it). ev is
+// what the source sent (itemEvidence); without it the reading keeps none.
+func putReading(ctx context.Context, tx *sql.Tx, lineID string, r Reading, ev itemEvidence) error {
+	var vendor, product, version, kev, inst any // NULL: not kept
+	if ev.ok {
+		vendor, product, version, kev, inst = ev.vendor, ev.product, ev.version, ev.kev, ev.instance
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO inv_software_reading (software_id, source, instance, display, version, pkg_version, pkg_source, packaged, cpe, confidence, set_by, first_seen, seen_at, addr_id,
+			item_vendor, item_product, item_version, item_kev, item_instance)
+		VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
 		ON CONFLICT (software_id, source, instance, addr_id) DO UPDATE SET
 			first_seen = CASE WHEN ifnull(inv_software_reading.version, '') = ifnull(excluded.version, '') AND ifnull(inv_software_reading.pkg_version, '') = ifnull(excluded.pkg_version, '')
 				AND excluded.source <> 'manual' THEN inv_software_reading.first_seen ELSE excluded.first_seen END,
 			display = excluded.display, version = excluded.version, pkg_version = excluded.pkg_version, pkg_source = excluded.pkg_source, packaged = excluded.packaged,
-			cpe = excluded.cpe, confidence = excluded.confidence, set_by = excluded.set_by, seen_at = excluded.seen_at`,
+			cpe = excluded.cpe, confidence = excluded.confidence, set_by = excluded.set_by, seen_at = excluded.seen_at,
+			item_vendor = excluded.item_vendor, item_product = excluded.item_product, item_version = excluded.item_version, item_kev = excluded.item_kev,
+			item_instance = excluded.item_instance`,
 		lineID, r.Source, r.Instance, clip(r.Display, maxSwField), nullStr(r.Version), nullStr(r.PkgVersion), nullStr(r.PkgSource), r.Packaged, nullStr(r.CPE), r.Confidence,
-		nullStr(r.SetBy), r.FirstSeen, r.SeenAt, r.Addr)
+		nullStr(r.SetBy), r.FirstSeen, r.SeenAt, r.Addr, vendor, product, version, kev, inst)
 	if err != nil {
 		return fmt.Errorf("inventory: store software reading: %w", err)
 	}

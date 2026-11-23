@@ -41,23 +41,23 @@ func TestWiringFindingsOfADeviceNotAddedYet(t *testing.T) {
 		t.Fatalf("an ignored device's findings are not marked: %d %v", c, at(b, "items", 0, "asset"))
 	}
 	open := func() int {
-		return s.count(`SELECT count(*) FROM fnd_finding WHERE status IN ('suspected', 'confirmed')`)
+		return s.count(`SELECT count(*) FROM fnd_finding WHERE state = 'open'`)
 	}
-	if open() != 0 {
-		t.Fatalf("%d findings open on an ignored device", open())
+	if open() != len(cves) { // ignoring is an attribute of the device: its findings stay as they are, every list leaves them out
+		t.Fatalf("%d findings open on the ignored device, want them kept: %d", open(), len(cves))
 	}
 	lldp() // seen again: the same device, still ignored, nothing new
 	if err := findingsJobs(*s.d)[0].Run(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if open() != 0 || s.nf("", "") != len(cves) {
+	if open() != len(cves) || s.nf("", "") != len(cves) {
 		t.Fatalf("after the sighting: %d open, %d findings", open(), s.nf("", ""))
 	}
 	if err := s.d.Inventory.SetIgnored(ctx, "it@acme.example", id, false); err != nil {
 		t.Fatal(err)
 	}
 	if open() != len(cves) {
-		t.Fatalf("Restore opened %d findings, want %d", open(), len(cves))
+		t.Fatalf("Restore left %d findings open, want %d", open(), len(cves))
 	}
 	recs, _ := s.d.Findings.List(ctx, id)
 	if len(recs) == 0 || recs[0].Status == findings.StatusNotRelevant {

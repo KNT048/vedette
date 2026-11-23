@@ -18,8 +18,6 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/modules/feeds"
-	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
@@ -510,57 +508,52 @@ func TestDeliveryCriticalFirstAndBoundedPerRun(t *testing.T) {
 
 // ---- events and the suppressed count ----
 
-func TestSuppressedCountFollowsKEVAndFindingEvents(t *testing.T) {
-	e := newEnv(t, func(c *notify.Config) {
-		c.Findings = fakeFindings{map[string]notify.FindingInfo{
-			"f-1": {CVE: "CVE-2026-100", Product: "QNAP Photo Station", Severity: notify.High, Title: "QNAP is being exploited", What: "w", Action: "a", Devices: []string{"NAS-01"}},
-		}}
-		c.Devices = fakeDevices{"a-new": "192.168.10.157"}
-	})
+// fakeSignals answers the History page's count of exploited CVEs that matched no device.
+type fakeSignals struct {
+	n     int
+	since *time.Time
+}
+
+func (f *fakeSignals) UnmatchedExploited(_ context.Context, since time.Time) (int, error) {
+	*f.since = since
+	return f.n, nil
+}
+
+// The History page's count of new exploited vulnerabilities that matched no device is read from the exploitation signals, over the
+// last historyDays days; notify keeps no table of its own for it.
+func TestHistorySuppressedCountIsReadFromTheSignals(t *testing.T) {
+	var since time.Time
+	sig := &fakeSignals{n: 3, since: &since}
+	e := newEnv(t, func(c *notify.Config) { c.Signals = sig })
+	h, err := e.svc.History(e.ctx())
+	if err != nil || h.Suppressed.Count != 3 || h.Suppressed.Days != 7 {
+		t.Fatalf("history = %+v, %v", h, err)
+	}
+	if want := e.clock.Now().AddDate(0, 0, -7); !since.Equal(want) {
+		t.Fatalf("read since %v, want %v", since, want)
+	}
+	sig.n = 0
+	if h, _ := e.svc.History(e.ctx()); h.Suppressed.Count != 0 {
+		t.Fatalf("a matched CVE stayed in the count: %d", h.Suppressed.Count)
+	}
+	e = newEnv(t) // no signals wired
+	if h, err := e.svc.History(e.ctx()); err != nil || h.Suppressed.Count != 0 {
+		t.Fatalf("history without signals = %+v, %v", h, err)
+	}
+}
+
+// A device that is discovered is an incident of its own; an event about a finding that matched no device sends nothing.
+func TestAssetDiscoveredOpensTheNewDeviceIncident(t *testing.T) {
+	e := newEnv(t, func(c *notify.Config) { c.Devices = fakeDevices{"a-new": "192.168.10.157"} })
 	e.telegram(notify.Low)
 	e.plain()
 	e.svc.Subscribe(e.bus)
-	pub := func(name string, data any) {
-		t.Helper()
-		if err := e.bus.Publish(e.ctx(), events.Event{Name: name, Data: data}); err != nil {
-			t.Fatal(err)
-		}
+	if err := e.bus.Publish(e.ctx(), events.Event{Name: inventory.EventAssetDiscovered, Data: inventory.AssetEvent{AssetID: "a-new", Notify: true}}); err != nil {
+		t.Fatal(err)
 	}
-	suppressed := func() int {
-		h, err := e.svc.History(e.ctx())
-		if err != nil {
-			t.Fatal(err)
-		}
-		return h.Suppressed.Count
-	}
-	for _, cve := range []string{"CVE-2026-100", "CVE-2026-101", "CVE-2026-777", "CVE-2026-777"} {
-		pub(feeds.EventNewKEV, feeds.NewKEVEvent{CVE: cve, Vendor: "QNAP", Product: "Photo Station"})
-	}
-	if n := suppressed(); n != 3 {
-		t.Fatalf("after 3 new KEV CVEs (one twice) suppressed = %d, want 3", n)
-	}
-	pub(findings.EventCreated, findings.CreatedEvent{FindingID: "f-1", AssetID: "a-1", CVE: "CVE-2026-100", Severity: findings.SeverityHigh, Basis: findings.BasisProduct})
-	if n := suppressed(); n != 2 {
-		t.Fatalf("a finding for CVE-2026-100 must take it out of the count: %d", n)
-	}
-	pub(findings.EventCreated, findings.CreatedEvent{FindingID: "f-2", AssetID: "a-2", CVE: "cve-2026-101", Severity: findings.SeverityHigh, Basis: findings.BasisVersion})
-	if n := suppressed(); n != 1 {
-		t.Fatalf("suppressed = %d, want only CVE-2026-777", n)
-	}
-	pub(feeds.EventNewKEV, feeds.NewKEVEvent{CVE: "CVE-2026-100"}) // a repeat of a matched CVE does not bring it back
-	if n := suppressed(); n != 1 {
-		t.Fatalf("a matched CVE came back: %d", n)
-	}
-	pub(findings.EventStatusChanged, findings.StatusChangedEvent{FindingID: "f-1", From: findings.StatusSuspected, To: findings.StatusConfirmed})
-	pub(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "a-new", Notify: true})
 	l, _ := e.svc.Incidents(e.ctx())
 	if len(l) != 1 || l[0].Kind != notify.IncidentUnknownDevice || l[0].Devices[0].Name != "192.168.10.157" {
 		t.Fatalf("incidents = %+v", l)
-	}
-	e.clock.Add(4 * time.Minute)
-	e.flush()
-	if n := e.count(`SELECT COUNT(*) FROM notify_send WHERE kind = 'vuln'`); n != 1 {
-		t.Fatalf("vuln messages = %d (the finding and its confirmation, due in the same run: one message)", n)
 	}
 }
 

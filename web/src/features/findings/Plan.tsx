@@ -7,6 +7,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { Card } from '@/components/common/Card'
 import { Notice } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
+import { SeverityBadge } from '@/components/common/status'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -17,15 +18,12 @@ import { useModules } from '@/lib/modules'
 import { useToggleModule } from '@/features/core/api'
 import { usePatchFeed } from '@/features/feeds/api'
 import { noCvesKey, planCountKey, usePlanAction } from './fix'
-import { DoneLine, MarkDoneButton } from './PlanDone'
 import type { Plan, PlanCve, PlanItem } from './types'
 import { InfoTip } from '@/components/common/InfoTip'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
 
 function Severity({ c }: { c: PlanCve }) {
-  const { t } = useTranslation('findings')
-  if (!c.severity) return <span className="text-meta text-muted">{t('plan.cve.notScored')}</span>
-  return <span className="whitespace-nowrap text-meta">{t(`plan.sev.${c.severity}`)}{c.score !== null ? ` ${c.score.toFixed(1)}` : ''}</span>
+  return <SeverityBadge compact severity={c.severity ? { band: c.severity, score: c.score } : null} />
 }
 
 /** The evidence key of a CVE: an agent's row reads "Last reported by an agent" once no agent reports the device (`gone`). */
@@ -140,7 +138,6 @@ function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: s
         {gone ? <span className="block text-meta text-muted">{i.agent_reported ? t('plan.lastReported', { date: fmtDate(i.agent_reported) }) : t('plan.lastReportedNoDate')}</span> : null}
         {i.kind === 'distro' && i.distro_data === 'none' ? <span className="block text-meta text-muted">{t('plan.noDataNote')}</span> : null}
       </p>
-      {i.done ? <DoneLine group={i.group} action={action} done={i.done} /> : <MarkDoneButton group={i.group} action={action} software={i.software} />}
       {i.cves.length > 0 ? (
         <details className="min-w-0">
           <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>

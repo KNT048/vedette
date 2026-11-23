@@ -1,264 +1,264 @@
-# Kiến trúc kỹ thuật
+# Technical architecture
 
-Trạng thái: **viết lại 2026-11-09** theo các quyết định thiết kế (giai đoạn M2-0, docs-first); giao thức sensor, container `sensor`/`scan` cập nhật 2026-11-10. Chưa có mã backend; GUI chạy trên mock. Khi mâu thuẫn, quyết định sau thắng quyết định trước.
+Status: **rewritten 2026-11-09** following the design decisions (phase M2-0, docs-first); sensor protocol and `sensor`/`scan` containers updated 2026-11-10. There is no backend code yet; the GUI runs on a mock. When two statements conflict, the later decision wins.
 
-Bản cũ (2026-11-06) mô tả builder trung tâm, module fleet, giao diện vi/en, Zeek/Suricata, A/B slot cho binary: tất cả đã bị thay.
+The old version (2026-11-06) described a central builder, a fleet module, vi/en UI, Zeek/Suricata and A/B binary slots: all of these have been replaced.
 
-Tài liệu liên quan: [`DEPLOYMENT.md`](DEPLOYMENT.md) (container, cài đặt, nâng cấp) · [`DATA_MODEL.md`](DATA_MODEL.md) (bảng, quan hệ) · [`API_CONVENTIONS.md`](API_CONVENTIONS.md) (REST, lỗi, phân trang, SSE) · [`specs/`](specs/) (`specs/*.md`, gồm [`specs/host-api.md`](specs/host-api.md)) · `modules/<id>/CONTRACT.md` (hợp đồng từng module, `MODULE_CONTRACTS.md`) · `UPDATES.md` · `DATA_PIPELINE.md` · `AI_ASSISTANT.md` · `../PRIVACY.md` · `../SECURITY.md`.
+Related documents: [`DEPLOYMENT.md`](DEPLOYMENT.md) (containers, installation, upgrades) · [`DATA_MODEL.md`](DATA_MODEL.md) (tables, relations) · [`API_CONVENTIONS.md`](API_CONVENTIONS.md) (REST, errors, pagination, SSE) · [`specs/`](specs/) (`specs/*.md`, including [`specs/host-api.md`](specs/host-api.md)) · `modules/<id>/CONTRACT.md` (per-module contracts, `MODULE_CONTRACTS.md`) · `UPDATES.md` · `DATA_PIPELINE.md` · `AI_ASSISTANT.md` · `../PRIVACY.md` · `../SECURITY.md`.
 
-## 1. Tổng quan
+## 1. Overview
 
-Vedette là một **appliance** đặt trong LAN của doanh nghiệp (một site): kéo feed lỗ hổng đang bị khai thác, khớp với kho thiết bị, quét xác nhận, bẫy, log, phản ứng có duyệt, trợ lý AI BYOK. **Không inline, không chặn traffic**. Mọi kết nối ra Internet do hộp chủ động mở; không cần cổng vào từ Internet.
+Vedette is an **appliance** placed in a business's LAN (one site): it pulls exploited-vulnerability feeds, matches them against the device inventory, runs confirming scans, honeypots, logs, approved responses and a BYOK AI assistant. It is **not inline and does not block traffic**. Every connection to the Internet is opened by the box itself; no inbound port from the Internet is needed.
 
 ```
-                         Internet (chỉ kết nối RA, HTTPS 443)
+                         Internet (outbound connections only, HTTPS 443)
    ┌─────────────────────────────────────────────────────────────────────────────┐
-   │ nguồn feed (CISA, FIRST, NVD, abuse.ch…)          GitHub Releases + registry │
-   │ provider AI của khách (BYOK)                      (chỉ bản phần mềm ký)│
-   │ kênh: Slack/Telegram/Zalo/SMTP của khách          tín hiệu ẩn danh    │
+   │ feed sources (CISA, FIRST, NVD, abuse.ch…)        GitHub Releases + registry │
+   │ the customer's AI provider (BYOK)                 (signed software only)     │
+   │ channels: the customer's Slack/Telegram/Zalo/SMTP                            │
    └──────────────────────────────▲──────────────────────────────────────────────┘
-                                  │ chỉ hộp chủ động mở kết nối
-┌─────────────────────────────────┴────────────────── LAN khách ──────────────────┐
-│  HỘP VEDETTE (Debian/Ubuntu + vedette-host + Podman)                             │
+                                  │ only the box opens connections
+┌─────────────────────────────────┴────────────────── customer LAN ───────────────┐
+│  VEDETTE BOX (Debian/Ubuntu + vedette-host + Podman)                             │
 │                                                                                  │
-│   vedette-host (systemd, root, rất nhỏ)   ◄── socket nội bộ, lệnh cố định        │
-│     OS update · netplan · kéo image + cosign · start/rollback container · backup │
-│        │ quản lý                                                                 │
+│   vedette-host (systemd, root, very small)   ◄── internal socket, fixed commands │
+│     OS update · netplan · image pull + cosign · start/rollback container · backup│
+│        │ manages                                                                 │
 │   ┌────▼─────────────────────────────────────────────────────────────────────┐  │
-│   │ core   (Go + SPA nhúng + SQLite)   ◄── mTLS poll ── sensor  (host net)   │  │
+│   │ core   (Go + embedded SPA + SQLite)   ◄── mTLS poll ── sensor  (host net)│  │
 │   │  module registry, feeds, inventory,           ◄───── honeypot (macvlan)  │  │
 │   │  mitigation, notify, ai, response,            ◄─ mTLS ── scan (host net) │  │
-│   │  reports, logs-analysis, mcp-server           ◄───── greenbone (tuỳ chọn)│  │
+│   │  reports, logs-analysis, mcp-server           ◄───── greenbone (optional)│  │
 │   └──────────────────────────────────────────────────────────────────────────┘  │
-│        ▲ HTTPS 8443        ▲ syslog 514      ▲ SPAN/TAP        ▲ bẫy (IP phụ)    │
+│        ▲ HTTPS 8443        ▲ syslog 514      ▲ SPAN/TAP        ▲ trap (2nd IP)   │
 └────────┼───────────────────┼─────────────────┼─────────────────┼─────────────────┘
-   trình duyệt (3 vai)   firewall/switch/server  cổng mirror      máy trong LAN chạm bẫy
-                         (nguồn syslog, osquery, Wazuh API, API thiết bị)
+   browser (3 roles)    firewall/switch/server   mirror port       LAN machine touching a trap
+                         (syslog source, osquery, Wazuh API, device API)
 ```
 
-Hộp **không** nằm trên đường mạng: nó là một host trong LAN, tuỳ chọn nhận SPAN/TAP (chỉ đọc metadata) và syslog. Kết nối ghi duy nhất tới thiết bị khách là module `response`, tắt mặc định, từng hành động có người duyệt.
+The box is **not** on the network path: it is a host in the LAN that optionally receives SPAN/TAP (read-only metadata) and syslog. The only write connection to customer devices is the `response` module, off by default, with every action approved by a person.
 
-**Hai kiểu cài**: *Appliance* (đủ tính năng, `vedette-host` quản lý OS) và *Chỉ container* (Docker/Podman sẵn có của khách, không quản lý OS). Khác biệt: `DEPLOYMENT.md` §5.
+**Two install kinds**: *Appliance* (full features, `vedette-host` manages the OS) and *Container-only* (the customer's existing Docker/Podman, no OS management). The differences are in `DEPLOYMENT.md` §5.
 
-## 2. Thành phần
+## 2. Components
 
-| Thành phần | Vai trò | Chạy ở đâu | Đặc quyền | Căn cứ |
+| Component | Role | Runs where | Privileges | Basis |
 |---|---|---|---|---|
-| `vedette-host` | OS update, cấu hình mạng (card quản trị, SPAN, IP phụ), kéo + xác minh image, start/stop/rollback container, sao lưu, đọc dpkg cho "This box" | Tiến trình systemd trên host | root, bề mặt rất nhỏ (lệnh cố định, SYS-1) | — |
-| `core` | Go + SPA nhúng + SQLite: auth, module registry, job, audit, secrets, feeds, inventory, matching, mitigation, notify, ai, response, reports, mcp-server | Container, mạng bridge nội bộ, publish 8443 | không root, cap_drop ALL, rootfs chỉ đọc | — |
-| `sensor` | bắt gói thụ động: nửa `capture` của `sensor-passive` (DHCP/ARP/mDNS/SSDP/LLDP, bộ phân tích SPAN metadata viết bằng Go), `vedette-sensor passive`, gửi quan sát và heartbeat cho `core` qua giao thức sensor; nhận syslog (`logs`) **để sau**, chưa xây | Container, **mạng host** | `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, chỉ `CAP_NET_RAW` (ambient; không `NET_BIND_SERVICE` tới khi có syslog, không `NET_ADMIN`) | — |
-| `honeypot` | Một tiến trình OpenCanary + honey token; cấu hình đọc từ tệp `core` ghi, hit ghi ra tệp `core` đọc | Container trong namespace `vedette-hp` do host giữ: mỗi IP phụ/decoy một link **macvlan** và MAC riêng, nft chặn kết nối mới đi ra | không capability (`ip_unprivileged_port_start=0` trong namespace) | — |
-| `scan` | worker nmap của `sensor-active` (`vedette-sensor active`): nhận job nmap bằng long-poll, trả XML; chính sách và sự đồng ý ở `core`. Sau: job nuclei của `scan` trên cùng kênh (máy quét bề mặt ngoài của `exposure` chạy trong `core`) | Container, mạng host; image **dựng trên hộp** từ image nền đã ký + nmap từ kho gói OS | như `sensor`: `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, chỉ `CAP_NET_RAW` | — |
-| `greenbone` | Greenbone CE, quét có đăng nhập (S-SCAN-5) | Nhóm container upstream, tuỳ chọn, mạng nội bộ | GPL/AGPL, không sửa | S-SCAN-5 |
-| SPA (`web/`) | React, một locale `en` qua i18next | Nhúng trong `core` | — | — |
+| `vedette-host` | OS update, network configuration (management NIC, SPAN, secondary IPs), pull + verify images, start/stop/rollback containers, backup, read dpkg for "This box" | systemd process on the host | root, very small surface (fixed commands, SYS-1) | — |
+| `core` | Go + embedded SPA + SQLite: auth, module registry, jobs, audit, secrets, feeds, inventory, matching, mitigation, notify, ai, response, reports, mcp-server | Container, internal bridge network, publishes 8443 | non-root, cap_drop ALL, read-only rootfs | — |
+| `sensor` | passive packet capture: the `capture` half of `sensor-passive` (DHCP/ARP/mDNS/SSDP/LLDP, a SPAN metadata analyzer written in Go), `vedette-sensor passive`, sends observations and heartbeats to `core` over the sensor protocol; syslog reception (`logs`) is **later**, not built yet | Container, **host network** | `User=<sensor_uid>:<sensor_gid>`, no `UserNS`, only `CAP_NET_RAW` (ambient; no `NET_BIND_SERVICE` until syslog exists, no `NET_ADMIN`) | — |
+| `honeypot` | One OpenCanary process + honey tokens; configuration read from a file `core` writes, hits written to a file `core` reads | Container in the `vedette-hp` namespace held by the host: each secondary IP/decoy gets its own **macvlan** link and MAC, nft blocks new outbound connections | no capabilities (`ip_unprivileged_port_start=0` in the namespace) | — |
+| `scan` | the nmap worker of `sensor-active` (`vedette-sensor active`): receives nmap jobs by long-poll, returns XML; policy and consent live in `core`. Later: the `scan` module's nuclei jobs on the same channel (the `exposure` external-surface scanner runs inside `core`) | Container, host network; image **built on the box** from the signed base image + nmap from the OS package repository | like `sensor`: `User=<sensor_uid>:<sensor_gid>`, no `UserNS`, only `CAP_NET_RAW` | — |
+| `greenbone` | Greenbone CE, authenticated scanning (S-SCAN-5) | Upstream container group, optional, internal network | GPL/AGPL, unmodified | S-SCAN-5 |
+| SPA (`web/`) | React, a single `en` locale via i18next | Embedded in `core` | — | — |
 
-Một codebase Go, đóng gói thành nhiều image: `core` (`cmd/vedette`) và `sensor`/`scan` (`cmd/vedette-sensor`, lệnh con `passive`/`active`/`healthcheck`) là cùng module Go với entrypoint khác nhau; binary sensor không liên kết `database/sql`/SQLite.
+One Go codebase, packaged as several images: `core` (`cmd/vedette`) and `sensor`/`scan` (`cmd/vedette-sensor`, subcommands `passive`/`active`/`healthcheck`) are the same Go module with different entrypoints; the sensor binary does not link `database/sql`/SQLite.
 
-## 3. Stack và lý do
+## 3. Stack and rationale
 
-| Lớp | Chọn | Lý do |
+| Layer | Choice | Rationale |
 |---|---|---|
-| Backend | Go (ghim trong `go.mod`), `net/http` + router nhẹ, `embed` SPA, cross-compile amd64/arm64 | Máy quét bề mặt ngoài viết bằng thư viện chuẩn Go, không dùng httpx/naabu/subfinder (nuclei: binary trong container `scan`); sensor I/O nhẹ; một codebase |
-| DB | SQLite (`modernc.org/sqlite`, không cgo, WAL) mặc định; PostgreSQL tuỳ chọn qua cùng lớp `store` (sqlc); FTS5 cho RAG | Backup = chép file; Postgres để sau (M7, ngoài danh sách container) |
-| Frontend | React + TypeScript + Vite + Tailwind + Radix + TanStack Query/Table + React Router; chỉ tiếng Anh | Chi tiết `FRONTEND.md` |
-| Job | Trong process (`core/jobs`), có khoá + lịch sử, không message queue. `ponytail: 1 process; nâng cấp: queue trên Postgres nếu cần` | Đủ cho ≤1.000 thiết bị một site |
-| Giao tiếp sensor ↔ core | HTTPS JSON trên `net/http`/`crypto/tls` của thư viện chuẩn, mTLS bằng CA sensor riêng của `core`, quyền theo vai, **sensor long-poll core** (core không gọi vào sensor) | Không mở cổng vào trên sensor; §6, `specs/sensor-protocol.md` |
-| Runtime container | **Podman + systemd Quadlet** trên appliance; Docker Compose cho dev/CI; cùng image OCI | Không daemon root; không tự mở cổng vượt tường lửa như Docker |
-| Chuỗi cung ứng | Image ký **cosign**, SBOM CycloneDX, phát hành theo lô, rollback bằng tag cũ | `UPDATES.md` |
-| Discovery/Scan | nmap (tiến trình riêng, NPSL), Recog, gosnmp, nuclei (binary ghim trong image `vedette-scan`, gói mẫu an toàn `kev,vkev` ký kèm image) | — |
-| Honeypot | OpenCanary (BSD-3) tiến trình riêng, cấu hình sinh từ DB | Không viết lại honeypot |
-| AI | Adapter Anthropic / OpenAI-compatible / Gemini / tuỳ chỉnh; harness | BYOK: khách tự chọn nhà cung cấp |
+| Backend | Go (pinned in `go.mod`), `net/http` + a light router, embedded SPA via `embed`, cross-compiled for amd64/arm64 | The external-surface scanner is written with the Go standard library, without httpx/naabu/subfinder (nuclei: a binary in the `scan` container); the sensor I/O is light; one codebase |
+| DB | SQLite (`modernc.org/sqlite`, no cgo, WAL) by default; PostgreSQL optional through the same `store` layer (sqlc); FTS5 for RAG | Backup = copy a file; Postgres comes later (M7, outside the container list) |
+| Frontend | React + TypeScript + Vite + Tailwind + Radix + TanStack Query/Table + React Router; English only | Details in `FRONTEND.md` |
+| Jobs | In-process (`core/jobs`), with locks + history, no message queue. `ponytail: 1 process; upgrade: queue on Postgres if needed` | Enough for ≤1,000 devices per site |
+| Sensor ↔ core communication | HTTPS JSON on the standard library's `net/http`/`crypto/tls`, mTLS with `core`'s own sensor CA, permissions per role, **sensors long-poll core** (core never calls into a sensor) | No inbound port on the sensor; §6, `specs/sensor-protocol.md` |
+| Container runtime | **Podman + systemd Quadlet** on the appliance; Docker Compose for dev/CI; the same OCI images | No root daemon; does not open ports through the firewall on its own the way Docker does |
+| Supply chain | **cosign**-signed images, CycloneDX SBOM, staged rollout, rollback by the old tag | `UPDATES.md` |
+| Discovery/Scan | nmap (separate process, NPSL), Recog, gosnmp, nuclei (binary pinned in the `vedette-scan` image, safe template pack `kev,vkev` signed with the image) | — |
+| Honeypot | OpenCanary (BSD-3) as a separate process, configuration generated from the DB | The honeypot is not rewritten |
+| AI | Anthropic / OpenAI-compatible / Gemini / custom adapters; harness | BYOK: the customer chooses the provider |
 
-Không dùng: Zeek, Suricata, builder trung tâm/Cloudflare/CDN, A/B slot cho binary, cơ chế fleet/tenant.
+Not used: Zeek, Suricata, a central builder/Cloudflare/CDN, A/B binary slots, fleet/tenant mechanisms.
 
-## 4. Bản đồ module
+## 4. Module map
 
-Module bật/tắt riêng (`MODULES.md`): tắt = không route, không job, không cổng, dữ liệu giữ (SYS-5; trừ job xoá theo thời hạn lưu hoặc trần lưu trữ). Cột "Container" cho biết tiến trình thực chạy.
+Modules are switched on and off individually (`MODULES.md`): off = no routes, no jobs, no ports, data kept (SYS-5; except jobs that delete by retention period or storage cap). The "Container" column shows which process actually runs.
 
-| Module | Tier | Container | Phụ thuộc | Cổng/quyền | Story |
+| Module | Tier | Container | Depends on | Ports/permissions | Story |
 |---|---|---|---|---|---|
-| `core` | lõi | core | — | 8443 | S-CORE-1…7 |
-| `feeds` | chuẩn | core | core | ra HTTPS | S-FEED-1…5 |
-| `inventory` | chuẩn | core | core, feeds | — | S-INV-1…5 |
-| `notify` | chuẩn | core | core | ra HTTPS/SMTP | S-NOT-1, S-NOT-2, S-ALERT-1, S-ALERT-3 |
-| `sensor-passive` | chuẩn | sensor (bắt gói) + core (`sp_*`) | inventory | raw socket; SPAN | S-INV-1, S-INV-3, S-LOG-4 |
-| `sensor-active` | chuẩn | core (chính sách) + scan (nmap) | inventory | raw socket; nmap | S-INV-1, S-SCAN-4 |
-| `mitigation` | chuẩn | core | feeds, inventory | — | S-MIT-1, S-MIT-3, S-MIT-4 (S-MIT-2 rớt) |
-| `exposure` | tuỳ chọn | scan | inventory | ra Internet | S-EXP-1 |
-| `scan` | tuỳ chọn | scan | inventory, feeds | LAN/Internet trong phạm vi | S-SCAN-1…4 |
-| `scan-credentialed` | tuỳ chọn | greenbone | scan | container riêng | S-SCAN-5 |
-| `honeypot` | tuỳ chọn | honeypot | inventory | cổng của dịch vụ từng Trap IP (INV-2: 18 dịch vụ TCP/UDP) | S-HP-1, S-HP-2 |
-| `logs` | tuỳ chọn | sensor (nhận) + core (gộp, baseline, IOC) | feeds, inventory | UDP/TCP/TLS 514 | S-LOG-1…4 |
-| `response` | tuỳ chọn | core | ai, notify, inventory | ghi qua kết nối đã duyệt | S-RESP-1…4 |
-| `agent-intake` | tuỳ chọn | core | inventory | HTTPS (osquery TLS) | S-INV-4 |
-| `ai` | tuỳ chọn | core | core | ra provider | S-AI-1…8 |
-| `reports` | tuỳ chọn | core | inventory, feeds | — | S-REP-1, S-REP-2 |
-| `mcp-server` | tuỳ chọn | core | core | localhost | S-MCP-1 |
-| `auth-oidc` | tuỳ chọn | core | core | ra IdP | S-CORE-3 |
-| `fleet` | — | — | — | — | S-FLEET-1 rớt |
+| `core` | core | core | — | 8443 | S-CORE-1…7 |
+| `feeds` | standard | core | core | outbound HTTPS | S-FEED-1…5 |
+| `inventory` | standard | core | core, feeds | — | S-INV-1…5 |
+| `notify` | standard | core | core | outbound HTTPS/SMTP | S-NOT-1, S-NOT-2, S-ALERT-1, S-ALERT-3 |
+| `sensor-passive` | standard | sensor (capture) + core (`sp_*`) | inventory | raw socket; SPAN | S-INV-1, S-INV-3, S-LOG-4 |
+| `sensor-active` | standard | core (policy) + scan (nmap) | inventory | raw socket; nmap | S-INV-1, S-SCAN-4 |
+| `mitigation` | standard | core | feeds, inventory | — | S-MIT-1, S-MIT-3, S-MIT-4 (S-MIT-2 dropped) |
+| `exposure` | optional | scan | inventory | outbound to the Internet | S-EXP-1 |
+| `scan` | optional | scan | inventory, feeds | LAN/Internet within scope | S-SCAN-1…4 |
+| `scan-credentialed` | optional | greenbone | scan | separate container | S-SCAN-5 |
+| `honeypot` | optional | honeypot | inventory | the service ports of each Trap IP (INV-2: 18 TCP/UDP services) | S-HP-1, S-HP-2 |
+| `logs` | optional | sensor (receive) + core (aggregate, baseline, IOC) | feeds, inventory | UDP/TCP/TLS 514 | S-LOG-1…4 |
+| `response` | optional | core | ai, notify, inventory | writes through approved connections | S-RESP-1…4 |
+| `agent-intake` | optional | core | inventory | HTTPS (osquery TLS) | S-INV-4 |
+| `ai` | optional | core | core | outbound to the provider | S-AI-1…8 |
+| `reports` | optional | core | inventory, feeds | — | S-REP-1, S-REP-2 |
+| `mcp-server` | optional | core | core | localhost | S-MCP-1 |
+| `auth-oidc` | optional | core | core | outbound to the IdP | S-CORE-3 |
+| `fleet` | — | — | — | — | S-FLEET-1 dropped |
 
-Quy ước còn hiệu lực: bảng DB có tiền tố module, không module nào đọc bảng module khác trực tiếp mà qua interface trong `core/`. Chi tiết bảng: `DATA_MODEL.md`.
+Conventions still in force: DB tables carry a module prefix, and no module reads another module's tables directly, only through an interface in `core/`. Table details: `DATA_MODEL.md`.
 
-## 5. Luồng dữ liệu chính
+## 5. Main data flows
 
-**5.1 Feed → phát hiện → incident (S-FEED-1, S-ALERT-1)**
+**5.1 Feed → detection → incident (S-FEED-1, S-ALERT-1)**
 
 ```
-nguồn feed ─HTTPS(ETag, giới hạn size/time)─► feeds (parser fail-closed)
-   ─► chuẩn hoá ─► lọc trùng ─► chấm điểm ─► feeds_* ─► matching ─► inv_finding
-   ─► notify (lịch im lặng, gộp theo sản phẩm; Critical gửi ngay)
+feed source ─HTTPS(ETag, size/time limits)─► feeds (fail-closed parser)
+   ─► normalise ─► deduplicate ─► score ─► feeds_* ─► matching ─► inv_finding
+   ─► notify (quiet hours, grouped by product; Critical is sent immediately)
 ```
-Thiết bị mới (khai tay, CSV, osquery, quét) được đối chiếu ngay với toàn bộ feed đang có. "Đã xác nhận" chỉ khi có bằng chứng quét an toàn (S-SCAN-3); còn lại là "nghi" (theo phiên bản) hoặc "chỉ khớp sản phẩm". Feed độc hại (IOC "chặn Google") bị bài kiểm tra an toàn trên hộp chặn trước khi dùng (`UPDATES.md` §5).
+A new device (manual entry, CSV, osquery, scan) is matched at once against the entire feed already held. "Confirmed" only when there is safe-scan evidence (S-SCAN-3); everything else is "suspected" (by version) or "product match only". A malicious feed (an IOC that "blocks Google") is stopped by the on-box safety test before use (`UPDATES.md` §5).
 
-**5.2 Kho thiết bị (S-INV-1…5)**: nguồn quan sát (manual > agent > snmp > nmap > passive) ghi vào `inv_observation` (chỉ thêm), thiết bị là view hợp nhất. Thụ động: DHCP/ARP/mDNS/SSDP/LLDP + SPAN metadata (DNS query, TLS SNI, HTTP Host, luồng IP; **không lưu payload**). Chủ động: nmap chỉ trong `inv_scope` đã xác nhận (CIDR bắt buộc có tiền tố), thiết bị mong manh quét nhẹ một lần rồi chỉ nghe. Agent: osquery (hộp là máy chủ TLS) hoặc Wazuh API chỉ đọc. **"This box"** là thiết bị đầu tiên, danh sách gói từ dpkg qua `vedette-host` (S-INV-5).
+**5.2 Device inventory (S-INV-1…5)**: observation sources (manual > agent > snmp > nmap > passive) write to `inv_observation` (append-only), and a device is the merged view. Passive: DHCP/ARP/mDNS/SSDP/LLDP + SPAN metadata (DNS queries, TLS SNI, HTTP Host, IP flows; **payloads are not stored**). Active: nmap only inside a confirmed `inv_scope` (a CIDR must carry its prefix), fragile devices get one light scan and are then only listened to. Agents: osquery (the box is the TLS server) or the read-only Wazuh API. **"This box"** is the first device, with its package list read from dpkg through `vedette-host` (S-INV-5).
 
-**5.3 Quét xác nhận (S-SCAN-1…4)**: `core` đặt việc → `scan` poll nhận → nuclei (tag an toàn) / nmap → bằng chứng rút gọn → `core`. Mục tiêu ngoài chỉ khi đã xác thực: domain bằng DNS TXT kiểm lại ngay trước mỗi lần quét; IP chỉ là IP mà chính hộp dùng ra Internet, hộp tự dò mỗi 60 phút và tự gia hạn, hiệu lực 30 ngày kể từ lần thấy cuối. Mỗi probe ghi log (SYS-7).
+**5.3 Confirming scans (S-SCAN-1…4)**: `core` queues the work → `scan` polls and receives it → nuclei (safe tags) / nmap → condensed evidence → `core`. External targets only once verified: a domain by DNS TXT, re-checked right before each scan; an IP only if it is the IP the box itself uses to reach the Internet, which the box probes every 60 minutes and renews on its own, valid for 30 days from the last sighting. Every probe is logged (SYS-7).
 
-**5.4 Log / SPAN → IOC → incident (S-LOG-1…4)**: (khi `logs` được xây; chưa có trên dây) `sensor` nhận syslog (hoặc đọc SPAN) → gửi lô log / metadata → `core` gộp theo cửa sổ, baseline 7 ngày, khớp IOC → incident. Không lưu log thô dài hạn.
+**5.4 Log / SPAN → IOC → incident (S-LOG-1…4)**: (once `logs` is built; not on the wire yet) `sensor` receives syslog (or reads SPAN) → sends log batches / metadata → `core` aggregates by window, 7-day baseline, matches IOCs → incident. Raw logs are not kept long term.
 
-**5.5 Bẫy (S-HP-1, S-HP-2)**: `honeypot` ghi JSON hit ra tệp, `core` đọc (không qua giao thức sensor) → incident + (nếu có) quy tắc phản ứng.
+**5.5 Traps (S-HP-1, S-HP-2)**: `honeypot` writes JSON hits to a file and `core` reads it (not through the sensor protocol) → incident + (if any) response rule.
 
-**5.6 Một lần gọi AI**: việc → hook trước (chặn dữ liệu cá nhân, ngoài phạm vi bảo mật) → chọn hồ sơ (chính → dự phòng, log/thiết bị chỉ tới hồ sơ nội bộ nếu bật) → RAG (BM25) + memory + rules → provider → công cụ **chỉ đọc** → hook sau + kiểm schema + nhãn "AI-generated" → `ai_run` hash-chain.
+**5.6 One AI call**: task → pre-hook (blocks personal data, out-of-scope security topics) → choose a profile (primary → fallback; logs/devices go only to an internal profile if enabled) → RAG (BM25) + memory + rules → provider → **read-only** tools → post-hook + schema check + "AI-generated" label → `ai_run` hash chain.
 
-**5.7 Cập nhật**: `core` hỏi `vedette-host` qua socket → host kéo manifest ký → xác minh cosign → backup DB → thay image theo digest → health check → lỗi thì quay về tag cũ. Chi tiết `DEPLOYMENT.md` §9 và `UPDATES.md`.
+**5.7 Update**: `core` asks `vedette-host` over the socket → the host pulls the signed manifest → verifies cosign → backs up the DB → swaps images by digest → health check → on failure, goes back to the old tag. Details in `DEPLOYMENT.md` §9 and `UPDATES.md`.
 
-## 6. Sensor / server tách được
+## 6. Separable sensor / server
 
-- Cùng codebase Go; trên appliance có hai container sensor cạnh `core`: `sensor` (vai `passive`: bắt gói thụ động) và `scan` (vai `active`: worker nmap). Cả hai nói cùng một giao thức (`specs/sensor-protocol.md`). Tách sensor ra máy khác trong LAN **để sau**: không lộ ra GUI, không có enroll, listener LAN hay hàng đợi đĩa.
-- Sensor **chỉ gọi ra** `core` bằng mTLS; `core` không bao giờ gọi vào sensor; lệnh (cấu hình bắt gói, job nmap, huỷ) tới bằng long-poll. Không có cổng vào trên `sensor`/`scan`. Honeypot không dùng giao thức này: hit đi qua tệp.
-- PKI: `core` là CA nội bộ riêng cho sensor (khoá qua `core/secrets`); lá 7 ngày, URI SAN `vedette:sensor:passive|active`, EKU tách máy chủ/khách, serial kiểm mỗi request. `core` giao khoá bằng tệp trong volume theo vai; host không thấy khoá.
-- Quyền theo vai: `passive` chỉ `config`/`observations`/`heartbeat`, `active` chỉ `jobs`/`result`/`heartbeat`; chính sách, phạm vi và sự đồng ý quét chỉ ở `core`; hạn mức chống ngập áp lại ở `core`.
-- Quan sát theo ngữ nghĩa OTLP: lô idempotent theo `(epoch, seq)`, thành công một phần không thử lại, 429/503 có `Retry-After`; không WAL (ponytail: quan sát tự lặp lại). Heartbeat 30 s nuôi trạng thái sensor và SPAN.
-- Trên appliance cổng `8444` chỉ publish `127.0.0.1:8444`, không mở ra LAN (`DEPLOYMENT.md` §7).
+- Same Go codebase; on the appliance, two sensor containers sit beside `core`: `sensor` (role `passive`: passive packet capture) and `scan` (role `active`: the nmap worker). Both speak the same protocol (`specs/sensor-protocol.md`). Moving a sensor to another machine in the LAN is **later**: it is not exposed in the GUI, and there is no enrolment, LAN listener or disk queue.
+- A sensor **only calls out** to `core` over mTLS; `core` never calls into a sensor; commands (capture configuration, nmap jobs, cancel) arrive by long-poll. There is no inbound port on `sensor`/`scan`. The honeypot does not use this protocol: hits travel through a file.
+- PKI: `core` is a private internal CA for sensors (key held through `core/secrets`); 7-day leaf certificates, URI SAN `vedette:sensor:passive|active`, separate server/client EKUs, serial checked on every request. `core` hands out keys as files in a per-role volume; the host never sees the keys.
+- Permissions by role: `passive` only `config`/`observations`/`heartbeat`, `active` only `jobs`/`result`/`heartbeat`; scan policy, scope and consent live only in `core`; flood-protection limits are applied again in `core`.
+- Observations follow OTLP semantics: batches are idempotent by `(epoch, seq)`, partial success is not retried, 429/503 carry `Retry-After`; no WAL (ponytail: observations repeat themselves). A 30 s heartbeat feeds the sensor and SPAN state.
+- On the appliance, port `8444` is published only as `127.0.0.1:8444` and is not opened to the LAN (`DEPLOYMENT.md` §7).
 
-## 7. Kiến trúc bảo mật
+## 7. Security architecture
 
-### 7.1 Bất biến hệ thống (`MODULE_CONTRACTS.md`)
+### 7.1 System invariants (`MODULE_CONTRACTS.md`)
 
-| ID | Bất biến | Thực thi trong kiến trúc container |
+| ID | Invariant | Enforcement in the container architecture |
 |---|---|---|
-| SYS-1 | Tiến trình ngoài chỉ qua `core/exec`, allowlist binary + argv, không shell | Cũng áp cho `vedette-host`: danh sách lệnh cố định, tham số kiểm kiểu; lint cấm `os/exec` ngoài `core/exec` |
-| SYS-2 | Input ở biên validate theo schema | Handler sinh từ OpenAPI; `vedette-host` validate lại tham số từ socket |
-| SYS-3 | Mọi mutation ghi `core_audit` | Gồm lệnh `core` gửi `vedette-host` (ai, lệnh, tham số, kết quả) |
-| SYS-4 | Secret chỉ qua `core/secrets` (AES-256-GCM), không log/xuất | Khoá file 0600 ngoài DB, mount chỉ đọc vào `core`; không vào sao lưu mặc định |
-| SYS-5 | Module tắt: không route/job/cổng, dữ liệu giữ | Module tắt hết dùng container thì container không khởi động (honeypot, scan, greenbone) |
-| SYS-6 | Feed/log/web/agent không tin cậy | Parser fail-closed, giới hạn size/time, fuzz |
-| SYS-7 | Hành động mạng ngoài LAN chỉ trong scope xác thực hoặc nguồn feed khai báo | Egress của `scan` kiểm theo bảng phạm vi; test egress |
-| SYS-8 | AI không có công cụ ghi | Ngoại lệ duy nhất: `response` (§7.2) |
+| SYS-1 | External processes only through `core/exec`, binary + argv allowlist, no shell | Also applies to `vedette-host`: a fixed command list, type-checked parameters; lint forbids `os/exec` outside `core/exec` |
+| SYS-2 | Input at the boundary is validated against a schema | Handlers are generated from OpenAPI; `vedette-host` re-validates parameters from the socket |
+| SYS-3 | Every mutation is written to `core_audit` | Includes commands `core` sends to `vedette-host` (who, command, parameters, result) |
+| SYS-4 | Secrets only through `core/secrets` (AES-256-GCM), never logged or exported | Key file 0600 outside the DB, mounted read-only into `core`; not part of the default backup |
+| SYS-5 | A disabled module has no routes/jobs/ports, data kept | When every module using a container is off, the container does not start (honeypot, scan, greenbone) |
+| SYS-6 | Feeds/logs/web/agents are untrusted | Fail-closed parsers, size/time limits, fuzzing |
+| SYS-7 | Network actions outside the LAN only within a verified scope or a declared feed source | `scan` egress is checked against the scope table; egress tests |
+| SYS-8 | AI has no write tools | The only exception: `response` (§7.2) |
 
-### 7.2 Ngoại lệ: thực thi hành động đã duyệt
+### 7.2 Exception: executing approved actions
 
-`response` tắt mặc định; bật cần quản trị viên + 2FA + gõ câu chấp nhận rủi ro (ghi kiểm toán). Mỗi hành động qua các cổng, kiểm **ở máy chủ**:
+`response` is off by default; turning it on needs an administrator + 2FA + typing a risk-acceptance sentence (audited). Every action passes through the gates, checked **on the server**:
 
-| Cổng | Quy tắc |
+| Gate | Rule |
 |---|---|
-| G-1 | Thực thi đang bật, dừng khẩn cấp chưa kích hoạt |
-| G-2 | Loại hành động nằm trong danh sách cho phép, công cụ ghi bật trên kết nối bật |
-| G-3 | Yêu cầu hiện chính xác thay đổi trước/sau + bước hoàn tác |
-| G-4 | Người duyệt là người dùng Vedette vai ≥ vận hành, danh tính kênh đã liên kết; rủi ro cao cần 2 người |
-| G-5 | Chưa hết hạn (15–30 phút), một lần duyệt cho đúng một hành động |
-| G-6 | Chưa vượt hạn mức theo giờ/quy tắc; cầu dao chung |
-| G-7 | Mọi bước ghi kiểm toán hash-chain |
-| G-8 | Dừng khẩn cấp tắt thực thi và huỷ yêu cầu đang chờ |
+| G-1 | Execution is on and the emergency stop is not triggered |
+| G-2 | The action type is in the allowed list, and the write tool is enabled on an enabled connection |
+| G-3 | The request shows the exact before/after change + the undo step |
+| G-4 | The approver is a Vedette user with role ≥ operator and a linked channel identity; high risk needs 2 people |
+| G-5 | Not expired (15–30 minutes), one approval for exactly one action |
+| G-6 | Not over the hourly/per-rule limit; a shared circuit breaker |
+| G-7 | Every step is written to the hash-chained audit |
+| G-8 | The emergency stop turns execution off and cancels pending requests |
 
-Ngoại lệ không mở rộng sang `vedette-host`: AI không bao giờ gọi `vedette-host`; chỉ mã của `core` (đường cập nhật, mạng, sao lưu do admin bấm) gọi, qua danh sách lệnh cố định.
+The exception does not extend to `vedette-host`: AI never calls `vedette-host`; only `core` code (the update path, network, backup that an admin clicks) calls it, through the fixed command list.
 
-### 7.3 Ranh giới tin cậy
+### 7.3 Trust boundaries
 
-| Ranh giới | Bên kia | Kiểm soát chính |
+| Boundary | Other side | Main controls |
 |---|---|---|
-| TB-1 trình duyệt ↔ core | người dùng trong LAN | TLS (chứng chỉ riêng hoặc tự ký lúc khởi động đầu, `-tls-cert`/`-tls-key`; HTTP thuần chỉ trên loopback), danh sách Host cho phép (421, `-hosts`), cookie `__Host-vedette_session` (Secure/HttpOnly/SameSite=Strict) + CSRF + cookie thiết bị `__Secure-vedette_device`, 2FA, RBAC, CSP không inline, rate limit |
-| TB-2 core ↔ nguồn feed | dữ liệu Internet | HTTPS, giới hạn size/time, parser fail-closed, kiểm tra an toàn |
-| TB-3 hộp ↔ thiết bị LAN | thiết bị có thể bị chiếm | banner/syslog/agent không tin cậy; quét chỉ đọc trong phạm vi |
-| TB-4 harness ↔ provider AI | dịch vụ ngoài | chỉ khi cấu hình; che PII; hồ sơ nội bộ; output theo schema |
-| TB-5 AI ↔ công cụ | mô hình có thể bị prompt injection | khối dữ liệu có nhãn; công cụ đọc theo allowlist; ghi chỉ qua §7.2 |
-| TB-6 kênh chat/email ↔ core | lời duyệt từ ngoài | danh tính đã liên kết, token ký dùng một lần, POST xác nhận |
-| TB-7 hộp ↔ registry/GitHub | chuỗi cung ứng | minisign cho index/manifest và cosign cho image, **kiểm trong mã của `vedette-host`** trước khi kéo (khoá nhúng, ngoại tuyến); tham chiếu kéo dựng từ hằng + digest; thu hồi, chống hạ bản; theo lô |
-| TB-8 core ↔ `vedette-host` | tiến trình root | socket nội bộ quyền chặt, lệnh cố định, tham số kiểm kiểu, một việc tại một thời điểm, audit; xem `specs/host-api.md` |
-| TB-9 sensor/honeypot/scan ↔ core | container có bề mặt tấn công từ LAN (gói, phản hồi quét, bẫy) | `sensor`/`scan`: mTLS bằng CA sensor riêng của `core`, lá 7 ngày theo vai, serial kiểm mỗi request, route theo vai, giải mã chặt có trần, hạn mức và kẹp độ tin cậy ở `core`, XML nmap phân tích ở `core`; không root, không `UserNS`, chỉ `NET_RAW`, không DB; honeypot không có cổng mạng nào tới `core`, chỉ tệp một chiều, và không mở được kết nối mới ra ngoài namespace của nó; honeypot bị chiếm không có đường tới DB |
+| TB-1 browser ↔ core | LAN users | TLS (own certificate or one self-signed at first start, `-tls-cert`/`-tls-key`; plain HTTP only on loopback), allowed Host list (421, `-hosts`), `__Host-vedette_session` cookie (Secure/HttpOnly/SameSite=Strict) + CSRF + `__Secure-vedette_device` device cookie, 2FA, RBAC, CSP without inline, rate limit |
+| TB-2 core ↔ feed sources | Internet data | HTTPS, size/time limits, fail-closed parser, safety test |
+| TB-3 box ↔ LAN devices | devices that may be compromised | banners/syslog/agents are untrusted; read-only scans within scope |
+| TB-4 harness ↔ AI provider | external service | only when configured; PII masking; internal profile; output by schema |
+| TB-5 AI ↔ tools | a model that can be prompt-injected | labelled data blocks; read tools by allowlist; writes only through §7.2 |
+| TB-6 chat/email channel ↔ core | approvals from outside | linked identity, signed one-time token, POST to confirm |
+| TB-7 box ↔ registry/GitHub | supply chain | minisign for the index/manifest and cosign for images, **verified in `vedette-host` code** before pulling (embedded key, offline); pull references built from constants + digest; revocation, anti-downgrade; staged rollout |
+| TB-8 core ↔ `vedette-host` | root process | tightly permissioned internal socket, fixed commands, type-checked parameters, one job at a time, audit; see `specs/host-api.md` |
+| TB-9 sensor/honeypot/scan ↔ core | containers with an attack surface from the LAN (packets, scan responses, traps) | `sensor`/`scan`: mTLS with `core`'s own sensor CA, 7-day per-role leaf, serial checked on every request, per-role routes, strict decoding with caps, limits and confidence clamping in `core`, nmap XML parsed in `core`; non-root, no `UserNS`, only `NET_RAW`, no DB; the honeypot has no network port to `core`, only a one-way file, and cannot open a new connection out of its namespace; a compromised honeypot has no path to the DB |
 
-### 7.4 Lớp cô lập container
+### 7.4 Container isolation layer
 
-| Lớp | Áp dụng |
+| Layer | Applied |
 |---|---|
-| Quyền | Không `--privileged`; `cap_drop ALL` + đúng capability cần (bảng `DEPLOYMENT.md` §2); `no-new-privileges`; rootfs chỉ đọc + tmpfs |
-| Người dùng | Không root trong container. `core` và `sensor`/`scan` chạy uid cố định từ `host.conf` (`core_uid`, `sensor_uid`), không `UserNS=auto` (capability của user namespace con không phủ namespace mạng của host); `sensor`/`scan` nhận `NET_RAW` qua tập ambient (kiểm ở lab, đường lùi UID 0 + `NET_RAW`); service khác `UserNS=auto` |
-| Mạng | Mặc định bridge nội bộ; host/macvlan chỉ `sensor`, `scan`, `honeypot` vì cần |
-| Image | Ghim digest; cosign bắt buộc; chỉ chứa runtime tối thiểu; SBOM mỗi bản phát hành; `govulncheck`, `trivy` trong CI |
-| Host | `vedette-host` hardening systemd; không SSH vào container |
+| Privileges | No `--privileged`; `cap_drop ALL` + exactly the capabilities needed (table in `DEPLOYMENT.md` §2); `no-new-privileges`; read-only rootfs + tmpfs |
+| User | No root in the container. `core` and `sensor`/`scan` run fixed uids from `host.conf` (`core_uid`, `sensor_uid`), not `UserNS=auto` (a child user namespace's capabilities do not cover the host's network namespace); `sensor`/`scan` receive `NET_RAW` through the ambient set (checked in the lab, fallback UID 0 + `NET_RAW`); other services use `UserNS=auto` |
+| Network | Internal bridge by default; host/macvlan only for `sensor`, `scan`, `honeypot` where needed |
+| Image | Pinned digest; cosign mandatory; only the minimal runtime; SBOM for every release; `govulncheck`, `trivy` in CI |
+| Host | `vedette-host` is systemd-hardened; no SSH into containers |
 
-### 7.5 Xác thực, phân quyền, API
+### 7.5 Authentication, authorisation, API
 
-- REST JSON `/api/v1`, OpenAPI 3.1 **spec-first**: hợp đồng sinh từ schema Zod của mock, hiện là `api/openapi.json` (tên file chốt trong `API_CONVENTIONS.md`). Go sinh type/handler; CI so khớp. SSE `/api/v1/events`. Lỗi chuẩn `{"error": {"code","message"}}`.
-- 3 vai: viewer / operator / admin; quyền thật luôn kiểm ở máy chủ (GUI chỉ ẩn nút). Bật thực thi phản ứng: chỉ admin + 2FA.
-- Mật khẩu argon2id (tối thiểu 12 ký tự); 2FA TOTP hoặc mã email; OIDC tuỳ chọn (`auth-oidc`); token API chỉ đọc, scoped; MCP chỉ đọc, mặc định localhost.
-- Secret: `core/secrets` AES-256-GCM, UI chỉ hiện 4 ký tự cuối. Header: CSP nghiêm, không tài nguyên CDN ngoài, chỉ ba cookie đăng nhập (phiên, CSRF, thiết bị), không analytics.
+- REST JSON `/api/v1`, OpenAPI 3.1 **spec-first**: the contract is generated from the mock's Zod schemas, currently `api/openapi.json` (the file name is fixed in `API_CONVENTIONS.md`). Go generates types/handlers; CI checks they match. SSE `/api/v1/events`. Standard error `{"error": {"code","message"}}`.
+- 3 roles: viewer / operator / admin; real permissions are always checked on the server (the GUI only hides buttons). Enabling response execution: admin + 2FA only.
+- Passwords argon2id (minimum 12 characters); 2FA TOTP or email code; OIDC optional (`auth-oidc`); API tokens read-only, scoped; MCP read-only, localhost by default.
+- Secrets: `core/secrets` AES-256-GCM, the UI shows only the last 4 characters. Headers: strict CSP, no external CDN resources, only three login cookies (session, CSRF, device), no analytics.
 
-## 8. Harness AI
+## 8. AI harness
 
-Hộp **không** nhúng agent ngoài; harness của Vedette bọc mọi lần gọi (`AI_ASSISTANT.md`):
+The box does **not** embed an external agent; Vedette's own harness wraps every call (`AI_ASSISTANT.md`):
 
-| Thành phần | Vai trò |
+| Component | Role |
 |---|---|
-| Hồ sơ + phân việc | Nhiều nhà cung cấp, mỗi việc một hồ sơ chính + dự phòng, quy tắc "log/thiết bị chỉ tới hồ sơ nội bộ" |
-| Rules / Memory / Skills / RAG | Quy tắc đưa vào mọi lần gọi; memory xem/sửa/xoá/tắt; skill sản phẩm (`skills/`, ship cùng bản phát hành ký); kho tri thức FTS5 (+ vector tuỳ chọn) |
-| Kết nối (MCP/SSH/HTTP) | Allowlist host/lệnh theo kết nối; mỗi công cụ đọc hoặc ghi; ghi chỉ qua §7.2 |
-| Hook | Chặn PII, chặn việc ngoài bảo mật, công cụ ghi phải duyệt (khoá luôn bật); hook khách tự thêm |
-| Nhật ký | `ai_run` + hành động, hash-chain, giữ 1 năm (chỉnh được), tải về được (S-AI-8, S-CORE-6) |
-| Nhãn | Mọi output "AI-generated, needs human review", không gỡ được |
+| Profiles + task assignment | Several providers, one primary + one fallback profile per task, the rule "logs/devices go only to an internal profile" |
+| Rules / Memory / Skills / RAG | Rules injected into every call; memory can be viewed/edited/deleted/disabled; product skills (`skills/`, shipped with the signed release); FTS5 knowledge base (+ optional vectors) |
+| Connections (MCP/SSH/HTTP) | Host/command allowlist per connection; each tool is read or write; writes only through §7.2 |
+| Hooks | Block PII, block out-of-scope-for-security work, write tools need approval (lock always on); hooks the customer adds |
+| Log | `ai_run` + actions, hash chain, kept 1 year (adjustable), downloadable (S-AI-8, S-CORE-6) |
+| Label | Every output is marked "AI-generated, needs human review", cannot be removed |
 
-Khuyến nghị giảm thiểu có hai nguồn không trộn: gói người duy trì xác nhận (ship cùng bản phát hành) và trả lời AI của khách khi chưa có gói.
+Mitigation recommendations have two sources that are not mixed: the pack the maintainers confirm (shipped with the release) and the customer's own AI answer when there is no pack.
 
-## 9. Phản ứng
+## 9. Response
 
 ```
-tác nhân (chạm bẫy, kết nối độc hại, phát hiện mới, thiết bị lạ, log vượt ngưỡng,
-          cổng mới trên IP public, lịch, chạy tay)
-   ─► KHI/NẾU/THÌ (quy tắc người dùng) hoặc đề xuất AI (có chốt chặn)
-   ─► vỏ an toàn: danh sách không bao giờ đụng, gộp trùng, giới hạn, cầu dao, cửa sổ bảo trì
-   ─► yêu cầu duyệt gộp (kênh: Slack, Telegram, email/Zalo qua liên kết, trong app)
-   ─► thực thi qua kết nối (pull ưu tiên: danh sách chặn URL nội bộ có token; push: API/SSH theo mẫu)
-   ─► kiểm lại sau chạy · hoàn tác + TTL · audit hash-chain
+trigger (trap touched, malicious connection, new finding, unknown device, log over threshold,
+         new port on a public IP, schedule, manual run)
+   ─► WHEN/IF/THEN (user rule) or an AI proposal (with guard rails)
+   ─► safety envelope: never-touch list, deduplication, limits, circuit breaker, maintenance window
+   ─► grouped approval request (channels: Slack, Telegram, email/Zalo via link, in-app)
+   ─► execute through a connection (pull preferred: an internal URL blocklist with a token; push: API/SSH from a template)
+   ─► re-check after the run · undo + TTL · hash-chained audit
 ```
 
-Tham số do kẻ tấn công kiểm soát (IP, domain trong log) được kiểm kiểu và escape theo đường truyền (SYS-1). Mọi hành động cần duyệt; "duyệt sẵn" theo quy tắc là tuỳ chọn TẮT mặc định. Quy tắc mới chạy khô trước. Thiết bị không có API/SSH: chỉ cảnh báo.
+Parameters controlled by an attacker (IPs, domains in logs) are type-checked and escaped for the transport (SYS-1). Every action needs approval; rule-based "pre-approved" is an option that is OFF by default. A new rule runs as a dry run first. Devices with no API/SSH: alert only.
 
-## 10. Giấy phép thành phần
+## 10. Component licences
 
-| Thành phần | Giấy phép | Cách dùng trong kiến trúc container |
+| Component | Licence | How it is used in the container architecture |
 |---|---|---|
-| Mã Vedette | Apache-2.0 | |
-| nuclei, nuclei-templates | MIT | tiến trình riêng trong container `scan` (binary ghim + gói mẫu ký kèm image) |
-| httpx, naabu, subfinder, dnsx | MIT | không dùng: máy quét bề mặt ngoài (`modules/scan/surface`) là thư viện chuẩn Go |
-| recog / recog-go | BSD-2 | nhúng |
-| nmap | NPSL 0.95 | **tiến trình riêng** trong `scan`; cài từ kho gói OS vào image `scan` do `vedette-host` dựng trên hộp, dự án không phân phối |
-| OpenCanary | BSD-3 | tiến trình riêng trong image `honeypot` |
-| Greenbone CE | GPL-2/AGPL-3 | nhóm container upstream riêng, không sửa, không nhúng |
-| Podman, Quadlet, cosign, netavark | Apache-2.0 | công cụ của host, không phân phối lại trong image |
-| Zeek, Suricata | — | **không cài**; log Suricata của khách vẫn vào qua syslog như mọi nguồn, và sự kiện IPS trong đó thành cảnh báo của module `ids` |
-| Wazuh, osquery | GPL-2 / Apache-2.0+GPL-2 | không ship; osquery gửi về hộp, Wazuh đọc qua API |
-| Dữ liệu feed | theo nguồn | hộp tự kéo trực tiếp; IOC giấy phép hạn chế vẫn do hộp kéo |
-| OpenCVE | BSL 1.1 | không dùng trong lõi |
+| Vedette code | Apache-2.0 | |
+| nuclei, nuclei-templates | MIT | separate process in the `scan` container (pinned binary + template pack signed with the image) |
+| httpx, naabu, subfinder, dnsx | MIT | not used: the external-surface scanner (`modules/scan/surface`) is the Go standard library |
+| recog / recog-go | BSD-2 | embedded |
+| nmap | NPSL 0.95 | **separate process** in `scan`; installed from the OS package repository into the `scan` image that `vedette-host` builds on the box; the project does not distribute it |
+| OpenCanary | BSD-3 | separate process in the `honeypot` image |
+| Greenbone CE | GPL-2/AGPL-3 | its own upstream container group, unmodified, not embedded |
+| Podman, Quadlet, cosign, netavark | Apache-2.0 | host tools, not redistributed in images |
+| Zeek, Suricata | — | **not installed**; a customer's Suricata logs still arrive through syslog like any source, and IPS events in them become alerts of the `ids` module |
+| Wazuh, osquery | GPL-2 / Apache-2.0+GPL-2 | not shipped; osquery reports to the box, Wazuh is read through its API |
+| Feed data | per source | the box pulls directly; IOCs with restrictive licences are still pulled by the box |
+| OpenCVE | BSL 1.1 | not used in the core |
 
-Dependency/feed mới → cập nhật `../THIRD_PARTY_NOTICES.md` cùng commit.
+A new dependency/feed → update `../THIRD_PARTY_NOTICES.md` in the same commit.
 
-## 11. Hiệu năng mục tiêu (đo lại khi có mã)
+## 11. Target performance (re-measure once code exists)
 
-- Hộp 4 nhân/8 GB: 1.000 thiết bị, 50k IOC, 7 ngày log gộp ≤ 2 GB SQLite; UI < 300 ms p95 cho trang chính.
-- Sensor thụ động ≤ 5% một nhân ở 100 Mbps SPAN.
-- Kéo feed ≤ 5 MB/giờ nhờ ETag/If-Modified-Since.
-- Hạn mức tài nguyên từng container và phương pháp đo: `DEPLOYMENT.md` §2.6 (đề xuất, chốt sau khi đo ở M2).
-- Nâng cấp: quay về bản trước ≤ 5 phút (đề xuất đo bằng test hiệu ứng).
+- A 4-core/8 GB box: 1,000 devices, 50k IOCs, 7 days of aggregated logs ≤ 2 GB of SQLite; UI < 300 ms p95 for the main pages.
+- Passive sensor ≤ 5% of one core at 100 Mbps SPAN.
+- Feed pulls ≤ 5 MB/hour thanks to ETag/If-Modified-Since.
+- Per-container resource limits and the measurement method: `DEPLOYMENT.md` §2.6 (a proposal, fixed after measuring at M2).
+- Upgrade: roll back to the previous version in ≤ 5 minutes (proposal: measured by an effect test).
 
-## 12. Câu hỏi mở
+## 12. Open questions
 
-| # | Câu hỏi | Ảnh hưởng |
+| # | Question | Affects |
 |---|---|---|
-| A1 | ~~Debian 12 đi kèm Podman 4.3 (không có Quadlet). Chọn bản OS nào?~~ **Đã chốt:** appliance chạy Ubuntu 24.04, Ubuntu 26.04, Debian 13, cả ba dùng netplan với renderer `networkd` và chrony; Debian 12 chỉ cho kiểu Chỉ container. Phiên bản gói thật kiểm ở lab | `DEPLOYMENT.md` §4 |
-| A2 | ~~Image `scan` chứa nmap là phân phối lại nmap (NPSL 0.95), khác cách dùng nmap đã chọn. Giữ image dựng sẵn hay build image tại máy khách?~~ **Đã chốt:** dựng trên hộp; `vedette-host` dựng `scan` từ Containerfile hằng trên image nền đã ký, nmap từ kho gói OS (lát SP-6) | Giấy phép, `THIRD_PARTY_NOTICES.md` |
-| A3 | ~~Registry chứa image và cosign key-based hay keyless~~ **Đã chốt:** `ghcr.io/knt048/vedette-<service>`, cosign bằng khoá, kiểm ngoại tuyến, chữ ký đi trong manifest và được kiểm trong mã của host. `PRIVACY.md` luồng 6 + Settings → Privacy thêm `ghcr.io` cùng PR với mã kéo image (lát 3-7) | |
-| A4 | ~~Capability cho non-root trong container (sensor/scan)~~ **Đã chốt:** `User=<sensor_uid>:<sensor_gid>`, không `UserNS`, `DropCapability=ALL` + `AddCapability=NET_RAW` (ambient); kiểm bằng hiệu ứng ở lab, không được thì UID 0 + `NET_RAW` | §7.4 |
-| A5 | ~~Một container honeypot cho mỗi IP/vai giả hay nhiều IP trong một container?~~ **Đã chốt:** một container, một tiến trình OpenCanary trong namespace `vedette-hp` với mọi decoy; chặn egress của bẫy (câu hỏi B5 của `DEPLOYMENT.md`) bằng nft trong namespace đó | `DEPLOYMENT.md` §2.3 |
-| A6 | Sao lưu có kèm khoá bí mật không (mã hoá bằng passphrase?) | `DEPLOYMENT.md` §10 |
-| A7 | ~~Chế độ Chỉ container: "This box" (S-INV-5) lấy gói từ đâu khi không có dpkg của host? Cập nhật image do ai bấm?~~ **Đã chốt:** "This box" có thiết bị nhưng không có danh sách gói (giao diện nói vì sao); khách tự chạy cập nhật image (giao diện hiện lệnh `pull`/`up` và `cosign verify`, sau khi có phần kiểm bản mới của core và WP-08k) | `DEPLOYMENT.md` §5 |
-| A8 | `docs/MODULES.md`, `docs/DATA_PIPELINE.md` (mục cũ) vẫn nhắc fleet, vi/en, Zeek/Suricata, builder; cần dọn để khỏi mâu thuẫn tài liệu này | nhất quán tài liệu |
+| A1 | ~~Debian 12 ships Podman 4.3 (no Quadlet). Which OS versions to choose?~~ **Settled:** the appliance runs Ubuntu 24.04, Ubuntu 26.04, Debian 13, all three using netplan with the `networkd` renderer and chrony; Debian 12 only for the Container-only kind. Real package versions are checked in the lab | `DEPLOYMENT.md` §4 |
+| A2 | ~~A `scan` image containing nmap is a redistribution of nmap (NPSL 0.95), unlike the chosen way of using nmap. Keep a prebuilt image or build the image on the customer's machine?~~ **Settled:** built on the box; `vedette-host` builds `scan` from a constant Containerfile on the signed base image, with nmap from the OS package repository | Licensing, `THIRD_PARTY_NOTICES.md` |
+| A3 | ~~Registry holding the images, and cosign key-based or keyless~~ **Settled:** `ghcr.io/knt048/vedette-<service>`, key-based cosign, verified offline, the signature travels in the manifest and is verified in the host's code. `PRIVACY.md` flow 6 + Settings → Privacy add `ghcr.io` in the same PR as the image-pull code | |
+| A4 | ~~Capabilities for non-root in the container (sensor/scan)~~ **Settled:** `User=<sensor_uid>:<sensor_gid>`, no `UserNS`, `DropCapability=ALL` + `AddCapability=NET_RAW` (ambient); verified by effect in the lab, and if that fails then UID 0 + `NET_RAW` | §7.4 |
+| A5 | ~~One honeypot container per fake IP/role, or several IPs in one container?~~ **Settled:** one container, one OpenCanary process in the `vedette-hp` namespace with every decoy; blocking trap egress (question B5 of `DEPLOYMENT.md`) with nft in that namespace | `DEPLOYMENT.md` §2.3 |
+| A6 | Should the backup include the secret key (encrypted with a passphrase?) | `DEPLOYMENT.md` §10 |
+| A7 | ~~Container-only mode: where does "This box" (S-INV-5) get packages when there is no host dpkg? Who clicks the image update?~~ **Settled:** "This box" has a device but no package list (the UI says why); the customer runs the image update themselves (the UI shows the `pull`/`up` commands and `cosign verify`, once the core's new-version check exists) | `DEPLOYMENT.md` §5 |
+| A8 | `docs/MODULES.md`, `docs/DATA_PIPELINE.md` (old sections) still mention fleet, vi/en, Zeek/Suricata, builder; they need cleaning so they do not contradict this document | document consistency |

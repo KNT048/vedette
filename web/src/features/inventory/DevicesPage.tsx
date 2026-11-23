@@ -181,7 +181,7 @@ function DeviceSearch({ rows, now, query, same, bar, shown }: { rows: DeviceRow[
   const chips: TokenChip[] = [
     // The devices that carry risk first, as Defender's exposure filter does
     { token: 'risk:exploited', label: t('search.chip.exploited'), count: count('risk', 'exploited') },
-    { token: 'risk:update', label: t('search.chip.update'), count: count('risk', 'update') },
+    { token: 'risk:update_recommended', label: t('search.chip.update'), count: count('risk', 'update_recommended') },
     { token: 'fragile', label: t('search.chip.fragile'), count: rows.filter((d) => d.fragile).length },
     { token: 'source:snmp', label: t('search.chip.snmp'), count: count('source', 'snmp') },
     { token: 'source:osquery', label: t('search.chip.osquery'), count: count('source', 'osquery') },
@@ -385,7 +385,7 @@ function Body() {
   return (
     <>
       <PageHeader title={title} stories={['S-INV-1', 'S-INV-2', 'S-INV-3', 'S-INV-4']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('list.meta')}</span>} info={t('list.metaInfo')}
+        meta={<SampleDataNote />} info={<><p>{t('list.meta')}</p><p>{t('list.metaInfo')}</p></>}
         actions={all === 0 ? buttons(false) : undefined} />
       {/* what the box changed by itself in SNMP settings, for an admin, until dismissed */}
       <SnmpNotices />

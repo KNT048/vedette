@@ -7,7 +7,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -31,7 +33,7 @@ func (in IncidentInput) validate() error {
 	bad := func(why string) error { return fmt.Errorf("%w: %s", ErrInvalidNotice, why) }
 	switch {
 	case !in.Kind.Valid():
-		return bad("kind must be trap, bad_address, log_anomaly, unknown_device or intrusion")
+		return bad("kind must be lower case words, digits and underscores, at most 40 characters")
 	case !in.Severity.Valid():
 		return bad("unknown severity")
 	case strings.TrimSpace(in.Title) == "" || utf8.RuneCountInString(in.Title) > 200:
@@ -535,9 +537,12 @@ func (s *Service) History(ctx context.Context) (HistoryView, error) {
 	if err := rows.Err(); err != nil {
 		return v, fmt.Errorf("notify: read history: %w", err)
 	}
-	from := store.FormatTS(s.now().AddDate(0, 0, -historyDays))
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM notify_kev WHERE matched = 0 AND seen_at >= ?`, from).Scan(&v.Suppressed.Count); err != nil {
-		return v, fmt.Errorf("notify: read suppressed count: %w", err)
+	if s.cfg.Signals != nil {
+		n, err := s.cfg.Signals.UnmatchedExploited(ctx, s.now().AddDate(0, 0, -historyDays))
+		if err != nil {
+			return v, fmt.Errorf("notify: read suppressed count: %w", err)
+		}
+		v.Suppressed.Count = n
 	}
 	v.Suppressed.Days = historyDays
 	return v, nil
@@ -739,7 +744,8 @@ type KindCount struct {
 	LastSeenAt time.Time // the newest activity of the kind in the window; zero when none
 }
 
-// KindCounts counts the incidents of every kind with activity (last_seen) at or after since, in the order of IncidentKinds.
+// KindCounts counts the incidents of every kind with activity (last_seen) at or after since: the kinds of IncidentKinds in their order,
+// then any other kind that has incidents. The kind is an open vocabulary.
 func (s *Service) KindCounts(ctx context.Context, since time.Time) ([]KindCount, error) {
 	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT kind, count(*), sum(status = 'new'), max(last_seen) FROM notify_incident WHERE last_seen >= ? GROUP BY kind`, store.FormatTS(since))
 	if err != nil {
@@ -760,8 +766,14 @@ func (s *Service) KindCounts(ctx context.Context, since time.Time) ([]KindCount,
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("notify: count incidents by kind: %w", err)
 	}
-	out := make([]KindCount, 0, len(IncidentKinds))
+	out := make([]KindCount, 0, len(IncidentKinds)+len(got))
 	for _, k := range IncidentKinds {
+		c := got[k]
+		c.Kind = k
+		out = append(out, c)
+		delete(got, k)
+	}
+	for _, k := range slices.Sorted(maps.Keys(got)) { // a kind a producer added: after the documented ones
 		c := got[k]
 		c.Kind = k
 		out = append(out, c)

@@ -19,46 +19,46 @@
 - **SPA**: Settings › Scanning and `VulnChecksButton.tsx` show it (contract `web/src/lib/progress.ts` `JobProgress`, shared with exposure). **sensor-active**: its `Dispatcher` reports into the Sink of the context the run probes with; a wrapper of that context in `cmd/vedette` must keep its values (`context.WithoutCancel`, never `context.Background()`).
 - `nucleiout.TimeoutTarget` (one line of the error log; `ParseHostErrors` is built on it) is read by the scan worker while nuclei runs, to drop the checks of a target nuclei gave up from the progress total. Changing what counts as a timeout changes both.
 
-## Modifying: `scan.Service.StartRun(ctx, targets, trigger)` và bộ chọn `Targets()`
-- **SPA** (`web/src/features/scan/VulnChecksButton.tsx`, `web/src/features/scanning` `DeviceActions.tsx`/`canScan.ts`/`ScanNow.tsx`; `/scans` chỉ còn chuyển tiếp, `ScansMoved.tsx`), **core/schedule** (lịch `scan.vuln`), `OnNewKEV`. Đổi điều kiện chọn mục tiêu đổi số gói/request rời hộp: sửa CONTRACT + test INV-1…3.
-- `scan.Inventory.VulnScanPolicies` là `inventory.VulnScanPolicies` qua adapter `cmd/vedette` (chia lô `inventory.MaxPolicyBatch`); đổi luật ở `inventory.decideVuln` thì cả hai đường (một thiết bị và theo lô) đổi cùng nhau. Thêm/bớt trường của `ScanTarget` ⇒ `contract.ts` + `api/openapi.json` + ogen.
-- `ScanTarget.box`: `scan.Device.Box` từ `is_box` của inventory (`cmd/vedette/scan.go`); `DeviceActions.tsx` và `VulnChecksButton.tsx` đọc nó (và `pick_only`) để không tick sẵn; đổi nó phải sửa `contract.ts` + `api/openapi.json` + ogen cùng lúc.
+## Modifying: `scan.Service.StartRun(ctx, targets, trigger)` and the `Targets()` selector
+- **SPA** (`web/src/features/scan/VulnChecksButton.tsx`, `web/src/features/scanning` `DeviceActions.tsx`/`canScan.ts`/`ScanNow.tsx`; `/scans` now only redirects, `ScansMoved.tsx`), **core/schedule** (the `scan.vuln` schedule), `OnNewKEV`. Changing the target selection conditions changes the number of packets/requests leaving the box: update the CONTRACT + tests INV-1…3.
+- `scan.Inventory.VulnScanPolicies` is `inventory.VulnScanPolicies` through the `cmd/vedette` adapter (batched by `inventory.MaxPolicyBatch`); changing the rule in `inventory.decideVuln` changes both paths (single device and batch) together. Adding/removing a `ScanTarget` field → `contract.ts` + `api/openapi.json` + ogen.
+- `ScanTarget.box`: `scan.Device.Box` from inventory's `is_box` (`cmd/vedette/scan.go`); `DeviceActions.tsx` and `VulnChecksButton.tsx` read it (and `pick_only`) so it is not pre-ticked; changing it means updating `contract.ts` + `api/openapi.json` + ogen at the same time.
 
 ## Modifying: `scan.Identifier`, `IdentRow`, `ScanRun.identification` (INV-13)
-- **sensor-active** (`IdentifyDevice`, mã `Why`), adapter `scanIdentify` ở `cmd/vedette/scan.go`; **SPA** (`LastChecks.tsx`, `DeviceActions.tsx`, `shared.tsx`), `contract.ts` `IdentReason`/`RunIdentRow`, mock `IDENT_NOTE`/`identOne` (cùng câu với `identNote`), `api/openapi.json` + ogen. Đổi một lý do hay câu: sửa cả bốn chỗ cùng commit.
+- **sensor-active** (`IdentifyDevice`, the `Why` codes), the `scanIdentify` adapter in `cmd/vedette/scan.go`; **SPA** (`LastChecks.tsx`, `DeviceActions.tsx`, `shared.tsx`), `contract.ts` `IdentReason`/`RunIdentRow`, the mock's `IDENT_NOTE`/`identOne` (the same text as `identNote`), `api/openapi.json` + ogen. Changing a reason or text: update all four places in the same commit.
 
 ## Modifying: `startScheduled`, `windowEnd`, `ScheduleOwner` (the schedule `scan.vuln`)
 - Starting a run inside the schedule's transaction is `startTx` (run.go), shared with `start`; the run begins after the commit, so `scan.run.started` is published when the run's work begins, not when it is queued. When a check is due, held (`schedule.Hold`: scope not confirmed, a check running, scanner not ready, window closed, zone unreadable) or skipped (`schedule.Skip`: nothing to check) is core/schedule's rule (`Next`, late-start and window rules); this module only answers Start.
 - **core/schedule** (`ScheduleOwner`: `Default` weekly Sunday 23:00 inside the scan window, `DefaultOn`, `FirstInWindow`, `Limits` = the scan window only): the schedule editor, `cmd/vedette/wiring.go`/`scan.go` (registration) and `cmd/vedette/scanning.go` (`nextStart(…, scan.ScheduleKey)`, the nuclei card's next start) read the key `scan.vuln`; renaming it loses the saved schedule.
 
-## Modifying: `identNote` (thêm `os_no_patch_level`)
-- Mã lý do do sensor-active trả (`WhyOSNoPatch`); thêm/đổi mã thì đổi `IdentReason` của `contract.ts`, OpenAPI và `core/api/oas` (sinh), ghi chú của mock và nhãn `scan.ident.*`.
+## Modifying: `identNote` (adding `os_no_patch_level`)
+- Reason codes returned by sensor-active (`WhyOSNoPatch`); adding/changing a code means changing the `IdentReason` of `contract.ts`, OpenAPI and `core/api/oas` (generated), the mock's note and the `scan.ident.*` labels.
 
-## Modifying: gọi `inventory.InScope/ScanPolicy` và `exposure.CheckScannable`
-- **inventory**, **exposure**: đây là hai rào SYS-7. Nới ở một phía mà không sửa phía kia ⇒ lỗ hổng phạm vi.
+## Modifying: calls to `inventory.InScope/ScanPolicy` and `exposure.CheckScannable`
+- **inventory**, **exposure**: these are the two SYS-7 fences. Loosening one side without updating the other → a scope hole.
 
-## Modifying: `findings.ConfirmFromScan(…)` và sự kiện `scan.finding.confirmed`
-- **findings** (tạo/xác nhận finding), **notify** (qua finding). Đổi `Evidence` làm hỏng bằng chứng hiển thị (S-SCAN-3).
+## Modifying: `findings.ConfirmFromScan(…)` and the `scan.finding.confirmed` event
+- **findings** (creating/confirming findings), **notify** (through findings). Changing `Evidence` breaks the displayed evidence (S-SCAN-3).
 
-## Modifying: `feeds.vuln.new_kev` (trường `has_template`)
-- Nguồn kích hoạt quét lại. Đổi tên/trường ⇒ mất S-SCAN-2 mà không có lỗi.
+## Modifying: `feeds.vuln.new_kev` (the `has_template` field)
+- The trigger for rescans. Renaming it or a field → S-SCAN-2 is lost without any error.
 
-## Modifying: nhật ký `scan_probe` / danh mục `scan_probes`
-- **core** (`/core/logs/export`), **SPA** Probes. Giảm thời gian giữ dưới 90 ngày phá S-SCAN-4.
-- Kết quả mới (như `not_run`, `refused`) là thay đổi hợp đồng: CHECK của bảng, `ExternalProbe.Result` (`ProbeNotRun`, `ProbeRefused`), `contract.ts` `ProbeEntry.result`, `api/openapi.json` + ogen, tông và nhãn `probes.result.*` của `ProbesTab`; người ghi là `cmd/vedette` `exposureTemplateScan.send`.
+## Modifying: the `scan_probe` log / the `scan_probes` category
+- **core** (`/core/logs/export`), **SPA** Probes. Cutting retention below 90 days breaks S-SCAN-4.
+- A new result (such as `not_run`, `refused`) is a contract change: the table's CHECK, `ExternalProbe.Result` (`ProbeNotRun`, `ProbeRefused`), `contract.ts` `ProbeEntry.result`, `api/openapi.json` + ogen, the tone and `probes.result.*` labels of `ProbesTab`; the writer is `cmd/vedette` `exposureTemplateScan.send`.
 
-## Modifying: máy quét bề mặt ngoài (`modules/scan/surface`, `cmd/vedette` `scanRunner`; INV-12)
-- **exposure** (`POST …/scan`, ảnh chụp, `Content`, `ScannableIP` quyết địa chỉ nào được quét cổng), **response** (trigger `new_port` nghe `exposure.snapshot.created`), **reports**. Đổi danh sách cổng, dấu hiệu trang quản trị hay luật chọn tên làm đổi ảnh chụp và so sánh ngày (cổng/trang "mới" hay "mất" giả). Đổi nơi gửi (CT, proxy, User-Agent) là đổi luồng dữ liệu ra: PRIVACY luồng 9 + Settings → Privacy cùng commit. Nới luật địa chỉ (`exposure.IsPublicIPv4`) hay quét cổng một địa chỉ mà `ScannableIP` không cho là phá SYS-7 và LEGAL §3. `RecordExternalProbes` ghi vào `scan_probe` (INV-7): đổi bảng hay thời hạn giữ phải giữ các dòng `run_id` NULL của nó.
-- (exposure INV-27) `Resolver` có thêm `LookupCNAME`, `LookupMX`, `LookupNS` (`*net.Resolver` thoả): resolver giả trong test (`surface_test.go`, `dns_test.go`, `cmd/vedette` `resolverFunc`) phải có đủ. `Host` có `Source`, `CNAME`, `Addrs` và `IP` có thể rỗng: adapter `contentOf` chép sang `exposure.HostRow`. Danh sách `content/wordlist/labels.txt` (≤ 150) đổi số truy vấn DNS của luồng 9 (PRIVACY). Nhịp 20 lần tra một giây dùng `time.Ticker`: test gọi `Domain` phải chạy trong `synctest`. `dnsBudget` (60 s) là một phần của trần 5 phút (`scanTimeout`): tăng nó, `ctTimeout`, `pageTimeout` hay số tên phải tính lại tổng ở chú thích của các hằng. Nhãn của dòng probe `dns` là domain và cũng là cột `ip` (CHECK 1–253 ký tự của `scan_probe`): đổi `scanProbeLog` phải giữ nó không rỗng (`TestExposureDNSProbeRowFitsTheProbeLog`).
+## Modifying: the external surface scanner (`modules/scan/surface`, `cmd/vedette` `scanRunner`; INV-12)
+- **exposure** (`POST …/scan`, snapshots, `Content`, `ScannableIP` decides which addresses may be port scanned), **response** (the `new_port` trigger listens to `exposure.snapshot.created`), **reports**. Changing the port list, the admin page markers or the name selection rule changes snapshots and day comparisons (false "new" or "gone" ports/pages). Changing where requests go (CT, proxy, User-Agent) changes an outgoing data flow: PRIVACY flow 9 + Settings → Privacy in the same commit. Loosening the address rule (`exposure.IsPublicIPv4`) or port scanning an address `ScannableIP` does not allow breaks SYS-7 and LEGAL §3. `RecordExternalProbes` writes into `scan_probe` (INV-7): changing the table or the retention must keep its rows with a NULL `run_id`.
+- (exposure INV-27) `Resolver` gains `LookupCNAME`, `LookupMX`, `LookupNS` (satisfied by `*net.Resolver`): fake resolvers in tests (`surface_test.go`, `dns_test.go`, `cmd/vedette` `resolverFunc`) must have all of them. `Host` has `Source`, `CNAME`, `Addrs`, and `IP` may be empty: the `contentOf` adapter copies them into `exposure.HostRow`. The `content/wordlist/labels.txt` list (≤ 150) changes the number of DNS queries of flow 9 (PRIVACY). The rate of 20 lookups per second uses `time.Ticker`: tests that call `Domain` must run inside `synctest`. `dnsBudget` (60 s) is part of the 5-minute cap (`scanTimeout`): raising it, `ctTimeout`, `pageTimeout` or the number of names requires recomputing the total in the constants' comments. The label of the `dns` probe row is the domain and also the `ip` column (the 1–253 character CHECK of `scan_probe`): changing `scanProbeLog` must keep it non-empty (`TestExposureDNSProbeRowFitsTheProbeLog`).
 - **sensor-active**: the 99-port list lives in the leaf package `modules/scan/commonports` (it imports nothing; the sensor binary links it through `nmapargv`) and is the first -sV batches of the nmap `external` shape (after the discovery of nmap's own `--top-ports 1000`; the default scan of the box's public IP probes about 1,070 ports). Adding or removing a port changes those batches: `nmapargv` `TestExternalBatches`. The Go surface scan still connects only to this list (page titles, certificates); a port nmap finds open outside it becomes an exposure `PortRow` through the service step (`addServicePorts`). `commonports.Numbers()` stays the fixed list; the ports a run really probed are `sensoractive.External.Probed` → `exposure.ServiceScan.Probed`.
 - `commonports.MaxBelievableOpen` (40, a count of open ports, not a share of the probed ones): above it the default scan still runs -sV over the fixed list and keeps only the ports with a real service (`AnswersEverywhere`, exposure adds `notAnswersEverywhereKept`); exposure does not send the deep scan, and the deep shapes discard their rows (`ErrAnswersEverywhere`). Changing the number changes all three, and `nmapargv.ExternalBatches`.
-- (INV-14) `endpoints()` đọc tiền tố `ssl/` mà sensor-active ghi cho `tunnel="ssl"`: đổi cách đặt tên ở parser (sensor-active INV-18) phải sửa cả đây.
+- (INV-14) `endpoints()` reads the `ssl/` prefix sensor-active writes for `tunnel="ssl"`: changing how the parser names services (sensor-active INV-18) means updating this too.
 
 ## Disabling this module
-- "Scan now" của External exposure vẫn chạy: runner theo công tắc của `exposure` (INV-12); probe của nó vẫn vào `scan_probe`, chỉ trang Scans (`/scans/probes`) không xem được tới khi bật lại.
-- Mất trang Scans và nút quét; không xác nhận mới; không tự quét lại sau KEV mới.
-- `scan-credentialed` không chạy được (phụ thuộc); `findings` chỉ còn `suspected`; `reports` bỏ mục quét.
-- Cấu hình, lịch sử, probe log, sự kiện quét lại giữ.
+- External exposure's "Scan now" still runs: the runner follows `exposure`'s switch (INV-12); its probes still go into `scan_probe`, only the Scans page (`/scans/probes`) cannot show them until the module is turned back on.
+- The Scans page and the scan button are gone; no new confirmations; no automatic rescan after a new KEV.
+- `scan-credentialed` cannot run (dependency); `findings` only has `suspected`; `reports` drops the scan section.
+- Configuration, history, the probe log and rescan events are kept.
 
 ## Modifying: `scan.Engine`
 - Seam of the scanner: the worker of the `scan` container over the sensor protocol, a fake in tests. `Ready` decides `can_scan` and the 503 `scanner_unavailable` (INV-2). `cmd/vedette/scan.go` `scanEngine` wires the Dispatcher of **sensor-active** (`sensoractive.Scanner{Ready, RunNuclei}`) when `d.SensorDispatcher` exists, with `scan.Config.Pack` = the committed index of **content/nucleipack** (the same pack as the `scan-base` image). `Run` takes a `scan.Job` (argv job with paths, the same templates by id, the pack version and sha256) and returns a `nucleiout.Outcome` (`Results` already parsed fail closed by the Dispatcher, and `HostErrors`: timeouts per target counted by the worker from nuclei's error log, which is how INV-6 sees a device that answered some templates and then went quiet; `nucleiargv.fixedFlags` carries `-elog /dev/stderr` for it, and the sensor protocol is at proto 3); an error wrapping `scan.ErrEngineDown` (the worker gone or not ready, another pack, a pack that failed its integrity check) stops the run with that message. A change to the seam is a change on both sides of the sensor protocol: check `modules/sensor-active` `NucleiRequest`.

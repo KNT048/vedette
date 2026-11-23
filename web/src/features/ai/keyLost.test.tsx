@@ -91,12 +91,12 @@ describe('AI panels after a restore without the decryption key', () => {
     expect(screen.queryByText('No AI profile yet')).toBeNull()
   })
 
-  it('the CVE panels say the same; an operator is told to ask an administrator', async () => {
+  it('the CVE panel says the same; an operator is told to ask an administrator', async () => {
     lostProfiles()
     renderApp('/cve/CVE-2022-27593', { role: 'operator' })
-    expect((await screen.findAllByText('The AI key was not restored', undefined, T)).length).toBe(2)
-    expect(screen.getAllByText('Ask an administrator to enter the AI key again.')).toHaveLength(2)
+    expect((await screen.findAllByText('The AI key was not restored', undefined, T)).length).toBe(1)
+    expect(screen.getAllByText('Ask an administrator to enter the AI key again.')).toHaveLength(1)
     expect(screen.queryByRole('button', { name: 'Add AI profile' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Explain' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Ask my AI' })).toBeDisabled()
   })
 })

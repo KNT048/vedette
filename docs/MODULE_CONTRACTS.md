@@ -4,7 +4,7 @@ A contract puts **testable statements** at the boundary of each module so that a
 
 ## Location
 ```
-modules/<tên>/CONTRACT.md     INV-* / PRE-* / POST-* / FORBID-* + DEPENDS ON / DEPENDED ON BY
+modules/<name>/CONTRACT.md     INV-* / PRE-* / POST-* / FORBID-* + DEPENDS ON / DEPENDED ON BY
 modules/<name>/IMPACT.md       every public function: who calls it (file:line), the consequence of changing it; who is affected when this module is switched off
 modules/<name>/*_contract_test.go   one test per INV/POST
 ```
@@ -23,6 +23,6 @@ modules/<name>/*_contract_test.go   one test per INV/POST
 - SYS-5: A module that is off: no route, no job, no port; the data is kept, except deletion of data past a retention period the customer has set or the product has published (CONTRACT and GUI), or past a storage cap recorded in the documentation, with an audit line for that deletion (the `Housekeeping` job of `core/jobs`).
 - SYS-6: Data from feeds/logs/web/agents is untrusted: parsers fail closed, with size limits.
 - SYS-7: Every network action outside the LAN (scan, fetch) must stay inside a scope whose ownership is verified or a declared feed source.
-- SYS-8: AI không có tool ghi.
+- SYS-8: AI has no write tools.
 
 Template: `modules/_template/`.

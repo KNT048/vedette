@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/productid"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -60,6 +61,7 @@ func (r retention) keeps(rec NVDRecord) bool {
 type nvdWrite struct {
 	Stored     int      // records written
 	KEVChanged []string // CVEs of the exploited lists whose NVD ranges changed (findings matches them again)
+	Catalogue  bool     // the NVD ranges of a CVE on no exploited list changed: findings' match pass reads them again
 }
 
 // writeNVDRecords writes the NVD records the retention rule keeps into the catalogue, each record whole: its row (dates, NVD's status,
@@ -147,6 +149,13 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 			if t, perr := parseTS(mod); err == nil && perr == nil && r.LastModified.Before(t) {
 				continue // the catalogue holds a newer record of this CVE
 			}
+		}
+		if !kev[r.CVE] && !out.Catalogue { // a catalogue CVE's ranges: one change is enough to say so
+			same, err := sameNVDRanges(ctx, tx, r)
+			if err != nil {
+				return out, err
+			}
+			out.Catalogue = !same
 		}
 		if kev[r.CVE] {
 			same, err := sameNVDRanges(ctx, tx, r)
@@ -396,6 +405,150 @@ JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product
 		}
 	}
 	return out, nil
+}
+
+// RangeProduct is a product a catalogue range names: a CPE's vendor and product, or, Record set, a CVE record's product key (no CPE).
+type RangeProduct struct {
+	Vendor, Product string
+	Record          bool
+}
+
+// RangeProducts is every product a catalogue range names, each once: the match pass keeps those its devices run and reads only their
+// ranges (Ranges). One walk of the (vendor, product, cpe) index.
+func (s *Store) RangeProducts(ctx context.Context) ([]RangeProduct, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT DISTINCT vendor, product, cpe = '' FROM feeds_cve_range`)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: range products: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []RangeProduct
+	for rows.Next() {
+		var k RangeProduct
+		if err := rows.Scan(&k.Vendor, &k.Product, &k.Record); err != nil {
+			return nil, fmt.Errorf("feeds: range products: %w", err)
+		}
+		out = append(out, k)
+	}
+	return out, rows.Err()
+}
+
+// MatchName is the vendor and product a range names, as the matcher compares them with a device's software: a CPE's own names; for a
+// CVE record's product key (record), the product the catalogue knows by that name (core/productid ByRangeName), by its NVD name
+// when it has one, else by its own normalised name; a record key the catalogue does not know stays as it is. So a record that names
+// "Palo Alto Networks" "PAN-OS" reaches the device NVD's paloaltonetworks:pan-os names.
+func MatchName(vendor, product string, record bool) (string, string) {
+	if !record {
+		return vendor, product
+	}
+	p, ok := productid.ByRangeName("", vendor, product)
+	if !ok {
+		return vendor, product
+	}
+	for _, c := range p.CPEs {
+		if !c.Prefix && c.Vendor != "" && c.Product != "" {
+			return c.Vendor, c.Product
+		}
+	}
+	return productid.Norm(p.Vendor), productid.Norm(p.Product)
+}
+
+// RangesOf returns the ranges of these CVEs with the precedence of rangeOrigin applied per CVE, sorted by CVE, then as stored. A CVE
+// the catalogue does not hold, or holds without ranges, is absent.
+func (s *Store) RangesOf(ctx context.Context, cves []string) ([]Range, error) {
+	var out []Range
+	for chunk := range slices.Chunk(cves, 400) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: ranges: %w", err)
+		}
+		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?))`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for _, per := range groupByCVE(rows) {
+			out = append(out, rangeOrigin(per)...)
+		}
+	}
+	return out, nil
+}
+
+// SchemeRangesOf returns the ranges of these CVEs a product's version scheme reads (RangeScheme): the rows kept in their vendor's
+// notation (Range.Generic false), and the CVE records' rows of a product that has a scheme (SchemeProduct: the vendor's own word,
+// read per release train, never by the generic comparison). Sorted by CVE, then as stored.
+func (s *Store) SchemeRangesOf(ctx context.Context, cves []string) ([]Range, error) {
+	var out []Range
+	for chunk := range slices.Chunk(cves, 400) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: vendor ranges: %w", err)
+		}
+		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?)) AND (NOT (`+genericRowSQL+`) OR r.origin <> 'nvd')`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			if !r.Generic() || SchemeProduct(r) {
+				out = append(out, r)
+			}
+		}
+	}
+	return out, nil
+}
+
+// SchemeCVEs returns the CVEs whose CVE record rows (origin cna or adp) name one of these products: a CVE a vendor states in its own
+// notation reaches the match pass before NVD analyses it (Ranges returns only the rows the generic comparison reads). Sorted.
+func (s *Store) SchemeCVEs(ctx context.Context, keys []ProductKey) ([]string, error) {
+	cves := map[string]bool{}
+	for chunk := range slices.Chunk(keys, 400) {
+		pairs := make([][2]string, len(chunk))
+		for i, k := range chunk {
+			pairs[i] = [2]string{strings.ToLower(k.Vendor), strings.ToLower(k.Product)}
+		}
+		part, err := json.Marshal(pairs)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: scheme CVEs: %w", err)
+		}
+		got, err := stringSet(ctx, s.db.Reader(), `SELECT DISTINCT r.cve FROM json_each(?) j
+JOIN feeds_cve_range r ON r.vendor = json_extract(j.value, '$[0]') AND r.product = json_extract(j.value, '$[1]') WHERE r.origin <> 'nvd'`, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for c := range got {
+			cves[c] = true
+		}
+	}
+	return slices.Sorted(mapsKeys(cves)), nil
+}
+
+// SchemeProduct says the range names a product whose versions the product catalogue declares a version scheme for (core/productid
+// ByRangeName, field "scheme"): its CVE record rows are read through that scheme only (RangeScheme).
+func SchemeProduct(r Range) bool {
+	p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
+	return ok && p.Scheme != ""
+}
+
+// recordSkipped says a CVE record row is left out of the generic comparison's views (MatchRow, KEVRecordRows): its product has a
+// version scheme (the scheme reads it), or its vendor is one whose versions findings compares with rules of its own (recordSkipVendors).
+func recordSkipped(r Range) bool {
+	return r.Origin != OriginNVD && (recordSkipVendors[r.Vendor] || SchemeProduct(r))
+}
+
+// MatchRow is the range as the matcher's CPE entry: NVD's and a record's CPE as stated, a record's product without a CPE as
+// "cpe:2.3:*:<vendor>:<product>:…" of the name the catalogue knows it by (MatchName, kevRecordRow). ok is false for a record row the
+// generic comparison does not read (recordSkipped: a product with a version scheme, a vendor whose versions findings compares with
+// rules of its own).
+func (r Range) MatchRow() (AffectedRow, bool) {
+	if recordSkipped(r) {
+		return AffectedRow{}, false
+	}
+	if r.CPE == "" {
+		if r.Vendor == "" || r.Product == "" {
+			return AffectedRow{}, false
+		}
+		v, p := MatchName(r.Vendor, r.Product, true)
+		return kevRecordRow(r, cpeEscape(v), cpeEscape(p)), true
+	}
+	return r.AffectedRow(), true
 }
 
 // groupByCVE splits rows sorted by CVE into one slice per CVE.
@@ -656,16 +809,20 @@ func (s *Store) RangesFromCVEOrg(ctx context.Context) (map[string]string, error)
 	return src, err
 }
 
+// matchStampFeeds are the feeds whose pulls may change what the match pass reads: the exploited lists, the catalogue's records, the
+// distributions' data, EPSS, the scan templates, the public-exploit indexes and the vendors' exploitation claims (their signals
+// change no match yet, but the urgency read of the findings keys on the same stamp).
+const matchStampFeeds = `'alpine-osv', 'cisa-kev', 'cisco-psirt', 'cve-org', 'debian-tracker', 'epss-all', 'exploit-db', 'fortinet-psirt', 'metasploit',
+'msrc', 'nuclei-templates', 'nvd-kev', 'nvd-recent', 'poc-in-github', 'ubuntu-osv', 'ubuntu-vex', 'vulncheck-kev'`
+
 // MatchStamp changes whenever what KevVulns, KevAffected, DistroFixes and TierRecords return may have changed: the last pull time and
 // rev (turned on or off) of the feeds that write them (each written in the pull's own transaction), and the count and newest change
 // of the exploited-list entries and of their catalogue rows. findings (through cmd/vedette) keeps one read of the list per stamp,
 // instead of reading the ranges once per device.
-// The public-exploit feeds (metasploit, exploit-db, poc-in-github) are not in it yet: nothing it keys reads their signals. The
-// urgency read of the findings (Signals) must add them, as nuclei-templates is.
 func (s *Store) MatchStamp(ctx context.Context) (string, error) {
 	var stamp sql.NullString
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT (SELECT group_concat(id || '=' || COALESCE(last_fetch, '') || '/' || rev, ',') FROM
-(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN ('alpine-osv', 'cisa-kev', 'cve-org', 'debian-tracker', 'epss-all', 'nuclei-templates', 'nvd-kev', 'nvd-recent', 'ubuntu-osv', 'ubuntu-vex', 'vulncheck-kev') ORDER BY id))
+(SELECT id, last_fetch, rev FROM feeds_source WHERE id IN (`+matchStampFeeds+`) ORDER BY id))
 || ';' || (SELECT count(*) || '/' || COALESCE(max(updated_at), '') FROM feeds_kev WHERE source_id IN ('cisa-kev', 'vulncheck-kev'))
 || ';' || (SELECT count(*) || '/' || COALESCE(max(c.updated_at), '') FROM feeds_cve c WHERE c.cve IN (SELECT cve FROM feeds_kev))`).Scan(&stamp)
 	if err != nil {

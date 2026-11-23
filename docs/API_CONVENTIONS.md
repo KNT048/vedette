@@ -90,7 +90,7 @@ Trích **tĩnh** từ mọi lời gọi `fail(`/`refuse(`/hàm `bad(`/`{status, 
 
 Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) đã được thêm tay.
 
-#### HTTP 400 (257 mã)
+#### HTTP 400 (259 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -120,7 +120,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_flag` | 400 | suspicious must be true or false. | `POST /inventory/devices/{id}/suspicious`; `PUT /inventory/notify-new` |
 | `bad_format` | 400 | Choose a format: syslog, CEF or JSON webhook. | module logs (validator dùng chung) |
 | `bad_fragile` | 400 | fragile must be true or false. | `PATCH /inventory/devices/{id}` |
-| `bad_from` | 400 | The sender email is not valid, for example alerts@company.com. | module notify (validator dùng chung) |
+| `bad_from` | 400 | The sender email is not valid, for example alerts@company.com. | module notify (validator dùng chung); `GET /findings/handled` (`from` not a UTC time) |
 | `bad_header` | 400 | The first row must be column headers with at least a name or product column. Download the template to see the format. | `POST /inventory/import` |
 | `bad_host` | 400 | The SIEM server must be an IP address or a domain name, for example 192.168.10.50 or siem.company.com. | module logs, notify (validator dùng chung) |
 | `bad_interface` | 400 | Network interface must be one of: ${s.interfaces.join(', ')}. Backend [ĐX]: cũng host `iface_unknown`. | `PATCH /inventory/sensors/{id}`; `PUT /core/network/span` |
@@ -160,10 +160,12 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `bad_status` | 400 | Status must be new, acknowledged or resolved. | `PATCH /notify/incidents/{id}` |
 | `bad_tenant_id` | 400 | The tenant ID is the Directory (tenant) ID of the app registration, for example 72f988bf-86f1-41af-91ab-2d7cd011db47, or your domain such as company.onmicrosoft.com. | `PUT /notify/channels/email` (Microsoft 365) |
 | `bad_time` | 400 | Time must look like 23:00. | `PUT /inventory/settings`; `PUT /notify/rules` |
-| `bad_to` | 400 | not-an-email is not a valid email address. Separate several recipients with commas. | module notify (validator dùng chung) |
+| `bad_to` | 400 | not-an-email is not a valid email address. Separate several recipients with commas. | module notify (validator dùng chung); `GET /findings/handled` (`to` not a UTC time) |
 | `bad_token` | 400 | A bot token looks like 123456789:AAH… and comes from @BotFather. Copy it again without extra spaces. | module notify (validator dùng chung) |
 | `bad_type` | 400 | Choose a token type: decoy file, fake credentials or URL. | `POST /honeypot/tokens` |
-| `bad_until` | 400 | Accept the risk until a date from tomorrow up to one year from today. | `POST /findings/{id}/status`; `POST /findings/status` |
+| `bad_until` | 400 | Accept the risk until a date from tomorrow up to one year from today. | `POST /findings/{id}/status`; `POST /findings/status`; `POST /findings/handle` |
+| `bad_target` | 400 | Choose the findings: up to 500 ids, or a device and one of its fixes. | `POST /findings/handle` |
+| `many_devices` | 400 | Mark findings of one device at a time. | `POST /findings/handle` |
 | `bad_url` | 400 | Enter the Wazuh server API address starting with https://, for example https://wazuh-manager:55000. Do not put the user  Also: the address pasted after a Google sign-in is not this sign-in's loopback address, or has no code (`POST /notify/email-signin/{id}`). | module inventory, logs, notify (validator dùng chung) |
 | `bad_user_id` | 400 | The Zalo recipient ID (user_id) is the number of a person who followed or messaged the OA. | module notify (validator dùng chung) |
 | `bad_username` | 400 | Enter the read-only API user name (letters, digits, dot, dash, underscore; up to 64 characters). | `POST /scans/credentialed` |
@@ -289,8 +291,8 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `not_manual` | 400/409 | Only manually declared software can be removed. Software seen by a sensor or agent updates on the next scan. | `DELETE /inventory/devices/{id}/software/{sid}`; `POST /response/rules/{id}/manual` |
 | `not_public` | 400 | The box reaches the Internet via ${ip}, which is a private, reserved or shared carrier (CGNAT) address. Scanning it coul | `POST /exposure/box-ip/verify` |
 | `not_server` | 400 | The target is not a server (credentialed scan is for servers only). | `POST /scans/credentialed` |
-| `note_required` | 400 | Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands. | `POST /findings/{id}/status` |
-| `confirm_note_required` | 400 | Write what makes you sure (at least 3 characters) so the next person understands. | `POST /findings/{id}/confirm` |
+| `note_required` | 400 | Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands. | `POST /findings/{id}/status`; `POST /findings/handle`; `POST /findings/questions/{id}/answer` (not affected) |
+| `confirm_note_required` | 400 | Write what makes you sure (at least 3 characters) so the next person understands. | `POST /findings/{id}/confirm`; `POST /findings/{id}/verify` |
 | `note_too_long` | 400 | The note can be at most 500 characters. Shorten it. | `PATCH /notify/incidents/{id}`; `POST /findings/{id}/status` |
 | `oidc_off` | 400 | SSO sign-in is not set up. Sign in with your email and password, or ask an administrator. | `POST /auth/oidc/start`; `POST /auth/oidc/callback` |
 | `out_of_scope` | 400 | The target is outside the approved scope. | `POST /scans/credentialed`; `POST /scans/runs`; `POST /scanning/engines/nmap-discovery/run` (#850); `POST /exposure/targets/{id}/scan` (on the exclusion list of the shared safety block, exposure INV-31) |
@@ -344,7 +346,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `invalid_span` | 400 | The SPAN settings are incomplete. (backend: giản đồ OpenAPI từ chối trước, mã chung `invalid`) | `PUT /core/network/span` |
 | `no_interface` | 400 | Choose the port that receives the mirrored traffic before turning SPAN on. | `PUT /core/network/span` |
 | `nothing_selected` | 400 | Choose at least one thing to read from the mirrored traffic, or turn SPAN off. | `PUT /core/network/span` |
-| `bad_filter` | 400 | "${v}" is not a network range. Write it like 10.0.5.0/24, with the prefix length. (cùng nhóm: loại lọc, giá trị rỗng, dải lớn hơn /8, máy, cổng, trùng, quá 50) | `PUT /core/network/span` |
+| `bad_filter` | 400 | "${v}" is not a network range. Write it like 10.0.5.0/24, with the prefix length. (cùng nhóm: loại lọc, giá trị rỗng, dải lớn hơn /8, máy, cổng, trùng, quá 50) | `PUT /core/network/span`; `GET /findings/devices`, `GET /findings/fixes` (`status`), `GET /findings/handled` (`resolution`) |
 | `bad_limit` | 400 | The CPU cap must be a whole number from 5 to 50 percent. (backend: giản đồ OpenAPI từ chối trước, mã chung `invalid`) | `PUT /core/network/span` |
 | `default_no_servers` | 400 | The default pool takes no server list. Choose "your own servers" to enter some. | `PUT /core/network/ntp` |
 | `bad_ntp` | 400 | Give 1 to 4 NTP servers. (cùng nhóm: tên hoặc IPv4 sai, trùng; backend: tên chỉ gồm số như `1.2.3` bị từ chối, host cũng từ chối) | `PUT /core/network/ntp` |
@@ -392,7 +394,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (112 mã)
+#### HTTP 409 (114 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -400,7 +402,9 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `ai_unavailable` | 409 | The AI assistant module is off. Turn it on in Settings, Modules. | `POST /findings/{id}/ai`; `POST /ai/cve/{id}/explain` và mọi lời gọi việc AI: chỉ khi AI **chưa dùng được** (module tắt, chưa hồ sơ, chưa gán, luật riêng tư, skill tắt, hồ sơ không nhận công cụ). Hook chặn, câu trả lời bị cắt, sai định dạng, lỗi nhà cung cấp có mã riêng |
 | `blocked_by_hook` | 409 | The AI was not asked: a hook stopped the question. The text contains an ID number. It was not sent to the AI. Remove the number and ask again. Rephrase and try again; an administrator can adjust the hooks in Settings, AI assistant, Hooks. | `POST /findings/{id}/ai`, `POST /ai/cve/{id}/explain`, `POST /ai/cve/{id}/news`, `POST /ai/ask`, `POST /ai/logs/digest`, `POST /reports/weekly/ai-summary`, `POST /reports/pdpl/ai-summary`: hook `before_ai` chặn câu hỏi hay dữ liệu đi kèm (thông điệp nêu phần nào) hoặc hook `after_ai` chặn câu trả lời; `POST /ai/ask` trả 200 với hook trong `hooks[].step` thay vì mã này |
 | `already_on` | 409 | Two-step sign-in is already on. Turn it off first to set up the other method. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start`; `POST /core/account/2fa/start` |
-| `already_open` | 409 | This finding is already open. | `POST /findings/{id}/status` |
+| `already_open` | 409 | This finding is already open. | `POST /findings/{id}/status`; `POST /findings/{id}/reopen` |
+| `already_verified` | 409 | This finding is already confirmed. | `POST /findings/{id}/verify` |
+| `not_one_cve` | 409 | This question decides several CVEs: correct the software on the device (its version) instead. | `POST /findings/questions/{id}/answer` |
 | `not_suspected` | 409 | Only a suspected finding can be confirmed. | `POST /findings/{id}/confirm` |
 | `not_confirmed_by_person` | 409 | Only a finding a person confirmed can be returned to suspected; a scan confirmed this one. | `POST /findings/{id}/unconfirm` |
 | `already_requested` | 409 | This action already has an open request or has already been carried out. | `POST /response/proposals/{id}/request`; `POST /response/incidents/{id}/request` |

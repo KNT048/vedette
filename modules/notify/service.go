@@ -37,6 +37,7 @@ type Config struct {
 	Modules  ModuleGate       // nil = notify counts as on (tests); main passes modreg.Registry
 	Bus      Bus              // nil = events are dropped
 	Findings FindingDirectory // nil = finding events are logged and skipped
+	Signals  SignalDirectory  // nil = the History page counts no exploited vulnerability that matched nothing
 	Devices  DeviceDirectory  // nil = device events show the asset id
 	Tokens   TokenRecorder    // nil = email approvers get a message that says to open Vedette instead of a link
 	// ApproverLinks, when set, makes an approver whose address the user has not linked in My account a skipped approver;

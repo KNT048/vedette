@@ -269,7 +269,7 @@ describe('every entry point is gone, and old links land on a plain page', () => 
     expect(await screen.findByText(NOT_AVAILABLE)).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Open module settings' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Confirm ownership' })).toBeNull()
     expect(screen.queryByRole('region', { name: 'Respond to this incident' })).toBeNull()
   })
 

@@ -142,3 +142,61 @@ var Java = register(&Scheme{
 		return Version{}, false
 	},
 })
+
+// Junos OS. A release is "<line>R<n>" with an optional service release "-S<m>" and respin ".<k>" ("21.4R3-S5.4", "15.1R7.9"), or a
+// special release of a line "<line>X<n>-D<m>" ("15.1X49-D200"); Junos OS Evolved writes "-EVO" after it. Juniper's advisories and CVE
+// records state the fixed release of each line ("21.4 lessThan 21.4R3-S7", "0 lessThan 21.2R3-S8"): a line (21.4) is a train, its
+// releases the places inside it (R1 < R1-S1 < R2 < R3 < R3-S7, a respin after its release); the X releases of a line and Junos OS
+// Evolved (and the F releases of 15.1) are lines of their own. A range's lower bound "21.4" is the start of that line.
+var (
+	junosRelease = regexp.MustCompile(`^([0-9]{1,2})\.([0-9]{1,2})(?:([RrFf])([0-9]{1,3})(?:\.([0-9]{1,3}))?(?:-[Ss]([0-9]{1,3})(?:\.([0-9]{1,3}))?)?|[Xx]([0-9]{1,3})-[Dd]([0-9]{1,4})(?:\.([0-9]{1,3}))?)(-(?i:evo))?$`)
+	junosLine    = regexp.MustCompile(`^([0-9]{1,2})\.([0-9]{1,2})(?:[Xx]([0-9]{1,3}))?(-(?i:evo))?$`)
+)
+
+// Junos is the Junos OS scheme.
+var Junos = register(&Scheme{
+	Name:  "juniper-junos",
+	About: "Juniper Junos OS: train = the release line (21.4; its X releases and Junos OS Evolved apart), place = R3-S5.4",
+	parse: func(s string) (Version, bool) {
+		if m := junosLine.FindStringSubmatch(s); m != nil {
+			x := ""
+			if m[3] != "" {
+				x = "X" + m[3]
+			}
+			line, variant := []int{atoi(m[1]), atoi(m[2])}, junosVariant(x, m[4])
+			return Version{Line: line, Variant: variant, LineStart: true, Train: trainOf(line, variant), Label: s, Display: s}, true
+		}
+		m := junosRelease.FindStringSubmatch(s)
+		if m == nil {
+			return Version{}, false
+		}
+		line := []int{atoi(m[1]), atoi(m[2])}
+		var build []int
+		variant := junosVariant("", m[11])
+		if m[8] != "" { // X<n>-D<m>.<k>
+			variant = junosVariant("X"+m[8], m[11])
+			build = []int{atoi(m[9]), atoi(m[10])}
+		} else { // R<n>[.<k>][-S<m>[.<k>]]: the respin of the release or of its service release; F releases are a line of their own
+			if strings.EqualFold(m[3], "F") {
+				variant = junosVariant("F", m[11])
+			}
+			respin := atoi(m[5])
+			if m[6] != "" {
+				respin = atoi(m[7])
+			}
+			build = []int{atoi(m[4]), atoi(m[6]), respin}
+		}
+		return Version{Line: line, Variant: variant, Build: build, Train: trainOf(line, variant), Label: s, Display: s}, true
+	},
+})
+
+// junosVariant names a Junos line apart from the plain one: an X release line ("X49"), Junos OS Evolved ("EVO"), or both.
+func junosVariant(x, evo string) string {
+	switch {
+	case x != "" && evo != "":
+		return x + " EVO"
+	case evo != "":
+		return "EVO"
+	}
+	return x
+}

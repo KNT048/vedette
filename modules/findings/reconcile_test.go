@@ -51,7 +51,7 @@ func TestContract_INV9_ReconcileRemovesTheFindingsOfADeviceWhoseDeleteEventWasLo
 	if res.Orphans != 1 || res.Devices != 0 {
 		t.Fatalf("result = %+v", res)
 	}
-	if e.count(`SELECT count(*) FROM fnd_finding`) != 0 || e.count(`SELECT count(*) FROM fnd_finding_history`) != 0 {
+	if e.count(`SELECT count(*) FROM fnd_finding`) != 0 || e.count(`SELECT count(*) FROM fnd_finding_event`) != 0 {
 		t.Fatal("the findings of the deleted device are still there")
 	}
 	if got := e.auditActions(); got[len(got)-1] != "findings.deleted_with_asset" {
@@ -70,7 +70,7 @@ func TestContract_INV9_ReconcileTwiceChangesNothing(t *testing.T) {
 	}
 	e.pub.take()
 	counts := func() [4]int {
-		return [4]int{e.count(`SELECT count(*) FROM fnd_finding`), e.count(`SELECT count(*) FROM fnd_finding_history`), e.count(`SELECT count(*) FROM core_audit`), len(e.pub.take())}
+		return [4]int{e.count(`SELECT count(*) FROM fnd_finding`), e.count(`SELECT count(*) FROM fnd_finding_event`), e.count(`SELECT count(*) FROM core_audit`), len(e.pub.take())}
 	}
 	before := counts()
 	res, err := e.svc.Reconcile(t.Context())
@@ -162,7 +162,8 @@ func (g *testGate) set(v bool)          { g.mu.Lock(); g.on = v; g.mu.Unlock() }
 
 func TestContract_INV9_ReconcileJobRunsOnlyWhileFindingsIsOn(t *testing.T) {
 	jb := Jobs(nil)
-	if len(jb) != 2 || jb[0].Module != "findings" || jb[0].Name != "reconcile" || jb[0].Every != time.Hour || jb[1].Name != "plan" || jb[1].Every != PlanEvery {
+	if len(jb) != 3 || jb[0].Module != "findings" || jb[0].Name != "reconcile" || jb[0].Every != time.Hour || jb[1].Name != "plan" || jb[1].Every != PlanEvery ||
+		jb[2].Module != "findings" || jb[2].Name != UrgencyJob || jb[2].Every != UrgencyEvery {
 		t.Fatalf("jobs = %+v", jb)
 	}
 	synctest.Test(t, func(t *testing.T) {

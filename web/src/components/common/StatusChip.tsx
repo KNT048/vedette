@@ -1,13 +1,8 @@
-import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import type { FindingStatus, Severity } from '@/lib/types'
-
-export type { FindingStatus, Severity }
 
 /**
- * Bốn màu trạng thái có nghĩa cố định, luôn kèm chữ (FRONTEND §3), and a shape with one meaning each (docs/UI.md §7):
- * `soft` (the default for every tone), `solid` only for Confirmed and counters, `dashed` only for Suspected; severities carry a
- * level meter (SeverityMeter). "Xác nhận" và "nghi" khác HÌNH, không chỉ khác màu.
+ * The generic chip: four tones with a fixed meaning, always with words (docs/UI.md §7). A status, a severity, how a match is
+ * verified and how a finding was handled are not chips of their own: they come from components/common/status.
  */
 export type Tone = 'danger' | 'warn' | 'ok' | 'off' | 'accent'
 
@@ -18,7 +13,7 @@ const soft: Record<Tone, string> = {
   off: 'border border-rule bg-off-soft text-off',
   accent: 'border border-accent/40 bg-accent-soft text-accent',
 }
-// docs/UI.md §7: solid only for danger (Confirmed), dashed only for warn (Suspected); the types allow nothing else.
+// docs/UI.md §7: the shapes the types allow; the status badges draw their own.
 const SOLID_DANGER = 'border border-danger bg-danger text-paper'
 const DASHED_WARN = 'border border-dashed border-warn bg-warn-soft/60 text-warn'
 
@@ -33,33 +28,4 @@ export function Chip({ tone, shape = 'soft', children, className, title }: ChipP
       {children}
     </span>
   )
-}
-
-const findingTone: Record<FindingStatus, Tone> = { confirmed: 'danger', suspected: 'warn', mitigated: 'ok', patched: 'ok', false_positive: 'off', not_relevant: 'off' }
-
-export function StatusChip({ status }: { status: FindingStatus }) {
-  const { t } = useTranslation()
-  const text = t(`status.${status}`)
-  if (status === 'confirmed') return <Chip tone="danger" shape="solid">{text}</Chip>
-  if (status === 'suspected') return <Chip tone="warn" shape="dashed">{text}</Chip>
-  return <Chip tone={findingTone[status]}>{text}</Chip>
-}
-
-const sevTone: Record<Severity, Tone> = { critical: 'danger', high: 'danger', medium: 'warn', low: 'off', info: 'off' }
-const sevLevel: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1, info: 0 }
-
-/** The level as a small meter of four bars (docs/UI.md §7, decision (c), as Tenable gives each severity its own icon): filled bars
- *  in the chip's colour, the rest faint. Critical and High share a colour but not a meter; solid stays for "Confirmed" only.
- *  Decorative: the word carries the meaning. */
-export function SeverityMeter({ level, className }: { level: number; className?: string }) {
-  return (
-    <svg aria-hidden viewBox="0 0 14 10" className={cn('h-2.5 w-3.5 shrink-0', className)} data-level={level}>
-      {[0, 1, 2, 3].map((i) => <rect key={i} x={i * 3.5} y={7 - i * 2} width="2.5" height={3 + i * 2} rx="0.5" fill="currentColor" opacity={i < level ? 1 : 0.25} />)}
-    </svg>
-  )
-}
-
-export function SeverityChip({ severity }: { severity: Severity }) {
-  const { t } = useTranslation()
-  return <Chip tone={sevTone[severity]}><SeverityMeter level={sevLevel[severity]} />{t(`severity.${severity}`)}</Chip>
 }

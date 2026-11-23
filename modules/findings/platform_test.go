@@ -1,12 +1,10 @@
 package findings
 
 import (
-	"database/sql"
 	"maps"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestPlatformLimits_DataIsValid(t *testing.T) {
@@ -390,120 +388,5 @@ func TestPlatform_DistributionWordBeatsTheHandList(t *testing.T) {
 	res := MatchAsset(Asset{ID: "a", Name: "boxanna", OS: "Ubuntu 24.04.3 LTS", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{sw}}, []Vuln{v}, nil, t0)
 	if len(res.New) != 1 || len(res.OtherPlatform) != 0 {
 		t.Fatalf("new %+v, other %+v; want the distribution's version finding", res.New, res.OtherPlatform)
-	}
-}
-
-// Through the service: a platform proof closes the open finding (the audit names the platform rule, no version compared)
-// and a later match on a platform it affects, below the fix, reopens it.
-func TestContract_PlatformClosesAndReopens(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	run := func(os, ver string) {
-		t.Helper()
-		e.advance(time.Minute)
-		a := Asset{ID: "a-1", Name: "fw1", OS: os, AgentOS: os, Software: []Software{sshRow(ver, "", "agent")}}
-		if _, err := e.svc.UpsertFromMatch(t.Context(), a, []Vuln{sshhole()}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	load := func() Record {
-		t.Helper()
-		r, err := loadByPair(t.Context(), e.db.Reader(), "a-1", "CVE-2026-123158")
-		if err != nil {
-			t.Fatal(err)
-		}
-		return r
-	}
-	run("Alpine Linux v3.23", "10.2_p1-r0") // the agent's apk release, below Alpine 3.23's fix
-	// the device's own agent states the release below the fix: confirmed by the version the device reports
-	if r := load(); r.Status != StatusConfirmed || r.Basis != BasisVersion || !r.Evidence.Agent || r.Evidence.Source != SourceAgent || !strings.Contains(r.Evidence.Summary, "Update openssh-server to 10.2_p1-r1") {
-		t.Fatalf("created = %+v %+v", r.Finding, r.Evidence)
-	}
-	run("Ubuntu 24.04.3 LTS", "9.6p1")
-	if r := load(); r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || !strings.HasPrefix(r.ResolutionNote, "Not affected: CVE-2026-123158 affects only") {
-		t.Fatalf("not closed by the platform: %+v", r.Finding)
-	}
-	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.auto_resolved' AND detail LIKE '%D-547%no version was compared%'`); n != 1 {
-		t.Fatalf("audit rows naming the platform proof: %d", n)
-	}
-	run("Alpine Linux v3.23", "10.2_p1-r0")
-	if r := load(); r.Status != StatusConfirmed || r.ResolutionReason != "" { // reopened, and the agent's release confirms it again
-		t.Fatalf("not reopened: %+v", r.Finding)
-	}
-}
-
-// The gw-alpine check: the open finding nmap's "OpenSSH 10.2" made before (basis version) closes into "Could not be checked"
-// with the package question (SNMP says Alpine Linux); the person's correction of the row's package release (10.2_p1-r1) proves it
-// against Alpine's fixed list: the finding keeps not_relevant with that reason and a history line, the question goes, and the next
-// scan changes nothing.
-func TestContract_AlpinePackageReleaseCloses(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	scanned := sshRow("10.2", "protocol 2.0", "nmap")
-	bn340 := Asset{ID: "a-gw-alpine", Name: "gw-alpine", OS: "Alpine Linux", SNMPOS: "Alpine Linux", Software: []Software{scanned}}
-	old := Match{CVE: "CVE-2026-123158", SoftwareID: scanned.ID, SoftwareDisplay: "OpenSSH", Basis: BasisVersion, Confidence: ConfVersion, Severity: SeverityHigh,
-		Evidence: Evidence{Summary: "gw-alpine runs OpenSSH 10.2. Its version is inside the range affected by CVE-2026-123158 (< 10.6); no scan has confirmed it yet, so this is only suspected. It affects only …", CheckedAt: *e.clock}}
-	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		f, h := NewFinding(old, *e.clock)
-		r := Record{ID: "f-bn340", AssetID: bn340.ID, CVE: old.CVE, Finding: f, FirstSeen: *e.clock, LastSeen: *e.clock}
-		if err := insertRecord(t.Context(), tx, r); err != nil {
-			return err
-		}
-		return insertHistory(t.Context(), tx, r.ID, h)
-	}); err != nil {
-		t.Fatal(err)
-	}
-	upsert := func(a Asset) Record {
-		t.Helper()
-		e.advance(time.Minute)
-		if _, err := e.svc.UpsertFromMatch(t.Context(), a, []Vuln{sshhole()}); err != nil {
-			t.Fatal(err)
-		}
-		r, err := loadByPair(t.Context(), e.db.Reader(), bn340.ID, "CVE-2026-123158")
-		if err != nil {
-			t.Fatal(err)
-		}
-		return r
-	}
-	unchecked := func() []UncheckedRow {
-		t.Helper()
-		rows, err := e.svc.ListUnchecked(t.Context(), bn340.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return rows
-	}
-
-	r := upsert(bn340)
-	if r.Status != StatusNotRelevant || r.ResolutionReason != ReasonNotAffectedVersion || !strings.HasPrefix(r.ResolutionNote, AskedNote) {
-		t.Fatalf("not closed into the question: %+v", r.Finding)
-	}
-	if u := unchecked(); len(u) != 1 || u[0].Reason != UncheckedPackageUnknown || u[0].SoftwareID != scanned.ID {
-		t.Fatalf("could not be checked = %+v", u)
-	}
-
-	fixedRow := sshRow("10.2", "", "manual") // inventory's correction (INV-41) replaces the scanned row for matching
-	fixedRow.ID, fixedRow.PkgVersion, fixedRow.ReportedSource = "s-mine", "10.2_p1-r1", "nmap"
-	fixedRow.Correction = "op@example.com corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2 (package 10.2_p1-r1) on 17 Nov 2026"
-	bn340.Software = []Software{fixedRow}
-	r = upsert(bn340)
-	if r.Status != StatusNotRelevant || !strings.HasPrefix(r.ResolutionNote, "Not affected: CVE-2026-123158 affects only") ||
-		!strings.Contains(r.ResolutionNote, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1") {
-		t.Fatalf("not settled by the release: %+v", r.Finding)
-	}
-	if h := r.History[len(r.History)-1]; h.User != SystemUser || h.Action != string(StatusNotRelevant) || h.Note != r.ResolutionNote {
-		t.Fatalf("history %+v", r.History)
-	}
-	if u := unchecked(); len(u) != 0 {
-		t.Fatalf("still asked: %+v", u)
-	}
-	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.auto_resolved' AND detail LIKE '%D-604: the package release%'`); n != 1 {
-		t.Fatalf("audit rows of the release proof: %d", n)
-	}
-
-	hist := len(r.History)
-	r = upsert(bn340) // the next scan: the correction stands, the scanned row stays replaced
-	if r.Status != StatusNotRelevant || len(r.History) != hist {
-		t.Fatalf("the next scan changed it: %+v, %d history rows (was %d)", r.Finding, len(r.History), hist)
 	}
 }

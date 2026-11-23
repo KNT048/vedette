@@ -93,18 +93,8 @@ func TestContract_INV2_NoUnmatchedCVE(t *testing.T) {
 	if e.net.total() != 0 || e.count(`SELECT COUNT(*) FROM notify_pending`) != 0 || e.count(`SELECT COUNT(*) FROM notify_send`) != 0 || e.count(`SELECT COUNT(*) FROM notify_notice`) != 0 {
 		t.Fatalf("an unmatched notice left a trace: %d calls", e.net.total())
 	}
-	h, err := e.svc.History(e.ctx())
-	if err != nil || h.Suppressed.Count != 3 || h.Suppressed.Days != 7 || len(h.Items) != 0 {
+	if h, err := e.svc.History(e.ctx()); err != nil || len(h.Items) != 0 {
 		t.Fatalf("history = %+v, %v", h, err)
-	}
-	// The same CVE again (another notice, an event delivered twice) is still one: the count is of CVEs, not of events.
-	for _, id := range []string{"again-1", "again-2"} {
-		if err := e.svc.Publish(e.ctx(), e.vulnNotice(id, "QNAP", "cve-2026-10", notify.Critical)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if h, _ := e.svc.History(e.ctx()); h.Suppressed.Count != 3 {
-		t.Fatalf("the same unmatched CVE was counted twice: %d", h.Suppressed.Count)
 	}
 	// A matched one is sent.
 	if err := e.svc.Publish(e.ctx(), e.vulnNotice("n-ok", "QNAP", "CVE-2026-2", notify.Critical, "NAS-01")); err != nil {

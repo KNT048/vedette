@@ -38,6 +38,9 @@ const (
 // PlanTarget is an open critical finding and the device it is on: what the AI is asked about.
 type PlanTarget struct {
 	FindingID, CVE, AssetID, AssetName, AssetIP, AssetKind string
+	// Urgency is the status code of the finding's urgency layer (under_attack, exploited, public_exploit, critical_edge,
+	// update_recommended); "" when not known.
+	Urgency string
 }
 
 // DraftParam is one value the AI chose for a parameter of an action.

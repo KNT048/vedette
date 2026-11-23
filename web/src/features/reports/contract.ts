@@ -210,8 +210,10 @@ export const ReportDefinitionInput = ReportDefinition.pick({ name: true, options
 
 export const ReportSummary = z.object({
   open_by_status: z.array(z.object({ status: OpenStatus, n: z.number().int() })).describe('Open findings now, one row per status that has any'),
-  open_now: z.number().int(), open_before: z.number().int().describe('Open at the start of the period'),
-  new: z.number().int(), handled: z.number().int(),
+  open_now: z.number().int().describe('Open at the end of the period'),
+  open_before: z.number().int().describe('Open at the start of the period'),
+  new: z.number().int().describe('Findings first seen in the period, whether still open or handled since (the New section counts the same)'),
+  handled: z.number().int().describe('Findings handled in the period (the Handled section counts the same). open_before + new - handled differs from open_now only by other changes: a device removed, a finding reopened'),
   first: z.array(z.object({
     status: OpenStatus, cve: z.string(), finding_id: z.string().describe('Its most urgent finding'), product: z.string().max(200),
     severity: CveSeverity.nullable(), fix: Fix, devices: z.array(DeviceRef).max(3), device_count: z.number().int(), finding_count: z.number().int(),
@@ -221,6 +223,7 @@ export const ReportHandled = z.object({
   totals: z.array(z.object({ resolution: HandledStatus, via: Via, n: z.number().int() })).describe('Handled in the period by resolution'),
   devices: z.array(z.object({ device: DeviceRef, items: z.array(HandledItem) })),
   more: z.number().int().describe('Handled findings not listed (a report lists 100 at most)'),
+  median_days: z.number().min(0).nullable().describe('Median days from first seen to handled, of the findings patched or mitigated in the period; null when none'),
 })
 export const ReportOpen = z.object({
   grouping: z.enum(['device', 'cve']), total: z.number().int(),
@@ -230,7 +233,7 @@ export const ReportOpen = z.object({
   })).describe('Most urgent first'),
   more: z.number().int().describe('Open findings not listed (a report lists 100 at most)'),
 })
-export const ReportNew = z.object({ total: z.number().int(), items: z.array(ReportFinding).describe('Found in the period, with their status now'), more: z.number().int() })
+export const ReportNew = z.object({ total: z.number().int().describe('Findings first seen in the period, open or handled since; equals summary.new'), items: z.array(ReportFinding).describe('Found in the period, with their status now (open or how it was handled)'), more: z.number().int() })
 export const ExposureService = z.object({
   ip: z.string(), port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']),
   name: z.string().max(80).nullable(), product: z.string().max(200).nullable(), version: z.string().max(80).nullable(),
@@ -261,6 +264,7 @@ export const ReportCoverage = z.object({
 })
 export const ReportDocument = z.object({
   definition_id: z.string(), title: z.string().max(120), generated_at: iso,
+  org: z.string().max(120).describe('The organisation name when the report was made, so a sent report keeps it'),
   period: z.object({ kind: PeriodKind, from: iso, to: iso, tz: z.string().max(64) }),
   options: ReportOptions.describe('The options the document was made with'),
   summary: ReportSummary.optional(), handled: ReportHandled.optional(), open: ReportOpen.optional(), new: ReportNew.optional(),
@@ -271,6 +275,7 @@ export const SentReportItem = z.object({
   id: z.string(), definition_id: z.string(), title: z.string().max(120), sent_at: iso,
   period: z.object({ from: iso, to: iso }),
   trigger: z.enum(['manual', 'schedule']), recipients: z.array(email), status: z.enum(['sent', 'failed']), error: z.string().nullable(),
+  sent_by: z.string().nullable().describe('Who pressed Send now; null for a scheduled send'),
 })
 export const SentReport = SentReportItem.extend({ document: ReportDocument.describe('Exactly what was sent') })
 

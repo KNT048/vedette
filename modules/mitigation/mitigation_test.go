@@ -25,6 +25,8 @@ import (
 	"github.com/knt048/vedette/core/store/storetest"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/findings"
+	"github.com/knt048/vedette/modules/findings/findingstest"
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 var t0 = time.Date(2026, 11, 9, 10, 0, 0, 0, time.UTC)
@@ -57,8 +59,11 @@ func (f *fakeInv) MatchInput(context.Context, string) (findings.Asset, bool, err
 	return findings.Asset{}, false, nil
 }
 
-func (f *fakeInv) AssetIDs(context.Context) ([]string, error)      { return nil, nil }
-func (f *fakeInv) IgnoredIDs(context.Context) ([]string, error)    { return nil, nil }
+func (f *fakeInv) AssetIDs(context.Context) ([]string, error)   { return nil, nil }
+func (f *fakeInv) IgnoredIDs(context.Context) ([]string, error) { return nil, nil }
+func (f *fakeInv) Lines(context.Context, []string) (map[string]findings.Line, error) {
+	return nil, nil
+}
 func (f *fakeInv) IsIgnored(context.Context, string) (bool, error) { return false, nil }
 func (f *fakeInv) EffectiveSoftware(context.Context, string) ([]findings.EffectiveSoftware, error) {
 	return nil, nil
@@ -77,6 +82,9 @@ func (fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]findings.
 func (fakeFeeds) CVSS(context.Context, []string) (map[string]findings.CVSS, error) { return nil, nil }
 
 func (fakeFeeds) Vulns(context.Context) ([]findings.Vuln, error) { return nil, nil }
+func (fakeFeeds) MatchSet(context.Context, findings.MatchScope) ([]findings.Vuln, error) {
+	return nil, nil
+}
 
 func (fakeFeeds) TierStatus(context.Context) (findings.TierStatus, error) {
 	return findings.TierStatus{}, nil
@@ -149,11 +157,12 @@ type composite struct {
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	db := storetest.New(t)
-	for _, m := range []storetest.Migration{{Module: "core", FS: core.Migrations}, {Module: "findings", FS: findings.Migrations}, {Module: "mitigation", FS: Migrations}} {
+	for _, m := range []storetest.Migration{{Module: "core", FS: core.Migrations}, {Module: "inventory", FS: inventory.Migrations}, {Module: "findings", FS: findings.Migrations}, {Module: "mitigation", FS: Migrations}} {
 		if err := store.Migrate(t.Context(), db, m.Module, m.FS); err != nil {
 			t.Fatal(err)
 		}
 	}
+	findingstest.ParentRows(t, db)
 	log := slog.New(slog.DiscardHandler)
 	clock := func() time.Time { return t0 }
 	a := audit.New(clock)
@@ -512,7 +521,7 @@ func TestContract_INV3_AIResultIsLabelledStoredAndGated(t *testing.T) {
 	if b["pack"] != nil || b["ai"].(map[string]any)["config"] != nil {
 		t.Fatalf("an AI result leaked into the pack or the other skill: %v", b)
 	}
-	if call := r.ai.calls[0]; call.Skill != SkillExplain || call.HasPack || call.User != "it@acme.example" || call.Finding.ID != id {
+	if call := r.ai.calls[0]; call.Skill != SkillExplain || call.HasPack || call.User != "it@acme.example" || call.FindingID != id {
 		t.Fatalf("call = %+v", call)
 	}
 	// it survives a reload of the page, and the audit row names no content
@@ -570,10 +579,24 @@ func TestContract_INV3_M2_2_ConfigAnswerKeepsItsConfigBlocks(t *testing.T) {
 	if got := b["ai"].(map[string]any)["config"].(map[string]any)["configs"].([]any); len(got) != 1 {
 		t.Fatalf("config blocks lost on reload: %v", got)
 	}
-	want, _ := json.Marshal(b["fixed_in"])
-	got, _ := json.Marshal(r.ai.calls[0].FixedIn)
-	if string(got) != string(want) {
-		t.Fatalf("the AI got fixed_in %s, the page shows %s", got, want)
+	if call := r.ai.calls[0]; call.Skill != SkillConfig || call.FindingID != id {
+		t.Fatalf("the AI was asked %+v: it reads the finding itself, by its id", call)
+	}
+}
+
+// The four answers are stored with the result and come back on the page; a link that is not http(s) never reaches it, a fifth answer and
+// the links beyond eight are dropped.
+func TestAIAnswersAreStoredAndLimited(t *testing.T) {
+	t.Parallel()
+	o := AIOutput{Model: "m", Answers: []findings.AIAnswer{
+		{Key: "affected", Text: "Yes: confirmed by a person.", Links: []findings.AILink{{Title: "Advisory", URL: "https://example.com/a"}, {Title: "Bad", URL: "javascript:alert(1)"}}},
+		{Key: "fix", Text: strings.Repeat("é", maxAIAnswer+10)}, {Key: "workaround", Text: "None."}, {Key: "urgency", Text: "High."}, {Key: "extra", Text: "x"}}}
+	res := sanitizeAI(SkillExplain, t0, o)
+	if len(res.Answers) != maxAIAnswers || res.Answers[0].Key != "affected" || len(res.Answers[0].Links) != 1 || res.Answers[0].Links[0].URL != "https://example.com/a" || len([]rune(res.Answers[1].Text)) != maxAIAnswer {
+		t.Fatalf("answers = %+v", res.Answers)
+	}
+	if res.Answers[1].Links == nil {
+		t.Fatal("an answer without links must carry an empty list, not null")
 	}
 }
 
@@ -636,7 +659,7 @@ func TestDeletingTheDeviceTakesAppliedAndAIWithIt(t *testing.T) {
 func TestMigrationsUsePrefix(t *testing.T) {
 	t.Parallel()
 	storetest.AssertMigrationsUsePrefix(t, "mitigation", Migrations, "mit_",
-		storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "findings", FS: findings.Migrations})
+		storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "inventory", FS: inventory.Migrations}, storetest.Migration{Module: "findings", FS: findings.Migrations})
 }
 
 func FuzzParsePack(f *testing.F) {

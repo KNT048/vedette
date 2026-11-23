@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# #825: what Home costs on a real box (a test box). Measures, on the box's own API:
-#   - GET /findings/summary (the one read of the new Home): N calls, p50 / p95 / max ms and bytes; the first call of the run is shown
+# What Home costs on a real box (a test box). Measures, on the box's own API:
+#   - GET /findings/overview (the one read of Home and the nav badges): N calls, p50 / p95 / max ms and bytes; the first call of the run is shown
 #     apart (cold when nothing read it in the last 60 s); COLD=k adds k calls 61 s apart (past the cache TTL: one computation each);
-#   - the three lists the old Home fetched to count (GET /findings, /inventory/devices, /notify/incidents), same N, for the before/after;
+#   - the three lists Home would otherwise fetch to count (GET /findings, /inventory/devices, /notify/incidents), same N, for comparison;
 #   - the RSS of the core process before and after the calls (only when run on the box itself: CORE_PID, else `pgrep -xo vedette`).
 # Page load: web/e2e/qa/home-load.mjs (Playwright, from any machine that reaches the box).
 #
@@ -55,14 +55,14 @@ measure() {
 }
 
 rss_before=$(rss)
-first=$(get /findings/summary)
-echo "Home summary, first call of this run: $(echo "$first" | awk '{printf "%s ms, %s bytes, HTTP %s", $1, $2, $3}')"
+first=$(get /findings/overview)
+echo "Home overview, first call of this run: $(echo "$first" | awk '{printf "%s ms, %s bytes, HTTP %s", $1, $2, $3}')"
 echo
 echo "N=$N calls each, $BASE"
 echo
 echo "| GET                    | p50 ms  | p95 ms  | max ms  | bytes    | non-200 |"
 echo "|------------------------|---------|---------|---------|----------|---------|"
-measure /findings/summary
+measure /findings/overview
 measure /findings
 measure /inventory/devices
 measure /notify/incidents
@@ -72,7 +72,7 @@ if [ "$COLD" -gt 0 ]; then
 	echo "Cold (past the 60 s cache, one computation each):"
 	for i in $(seq 1 "$COLD"); do
 		sleep 61
-		echo "  $i: $(get /findings/summary | awk '{printf "%s ms, %s bytes", $1, $2}')"
+		echo "  $i: $(get /findings/overview | awk '{printf "%s ms, %s bytes", $1, $2}')"
 	done
 fi
 echo

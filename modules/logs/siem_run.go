@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strconv"
 	"sync"
@@ -18,7 +19,9 @@ import (
 const (
 	siemEventFindingCreated = "findings.finding.created"
 	siemEventFindingStatus  = "findings.finding.status_changed"
-	siemEventFindingRaised  = "findings.finding.severity_raised"
+	// siemEventFindingUrgency: an open finding rose into a more urgent layer; a rise to exploited (2) or under attack here (1) is
+	// forwarded as finding.urgency_raised (its CVE joined an exploited list, or an attack here named it).
+	siemEventFindingUrgency = "findings.finding.urgency_raised"
 	siemEventIncident       = "notify.incident.created"
 	siemEventHoneypot       = "honeypot.hit.created"
 	siemEventBadAddress     = "logs.bad_address.detected"
@@ -164,6 +167,11 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 			if name == siemEventIncident && str(m, "kind") == "bad_address" && slices.Contains(cfg.Events, "bad_conn") {
 				return nil
 			}
+			if name == siemEventFindingUrgency {
+				if to, ok := m["to"].(float64); !ok || to < 1 || to > 2 {
+					return nil
+				}
+			}
 			s.siemQ.push(build(m), gen)
 			return nil
 		}))
@@ -179,11 +187,15 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 			siemField{Key: "id", CEF: "externalId", Val: str(m, "finding_id")}, siemField{Key: "from", Val: str(m, "from")}, siemField{Key: "to", Val: str(m, "to")},
 			siemField{Key: "reason", Val: str(m, "reason")}) // "matches_again", "not_affected_version", "fixed_by_update" or "acceptance_expired" when Vedette changed it itself, else ""
 	})
-	on(siemEventFindingRaised, "findings", func(m map[string]any) siemRecord { // The event severity is the new one, so a SIEM rule on severity sees it
-		return newSiemRecord("finding.severity_raised", sevOr(str(m, "to_severity"), "medium"), now(),
+	on(siemEventFindingUrgency, "findings", func(m map[string]any) siemRecord {
+		sev := "high"
+		if fmt.Sprint(m["to"]) == "1" {
+			sev = "critical"
+		}
+		return newSiemRecord("finding.urgency_raised", sev, now(),
 			siemField{Key: "id", CEF: "externalId", Val: str(m, "finding_id")}, siemField{Key: "asset_id", Val: str(m, "asset_id")},
 			siemField{Key: "cve", Val: str(m, "cve")}, siemField{Key: "basis", Val: str(m, "basis")},
-			siemField{Key: "from_severity", Val: str(m, "from_severity")}, siemField{Key: "to_severity", Val: str(m, "to_severity")})
+			siemField{Key: "from", Val: fmt.Sprint(m["from"])}, siemField{Key: "to", Val: fmt.Sprint(m["to"])})
 	})
 	on(siemEventIncident, "alerts", func(m map[string]any) siemRecord {
 		return newSiemRecord("incident.created", sevOr(str(m, "severity"), "medium"), now(),

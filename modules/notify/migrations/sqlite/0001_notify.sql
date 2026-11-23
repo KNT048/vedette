@@ -60,9 +60,11 @@ CREATE TABLE notify_incident_device (
     PRIMARY KEY (incident_id, asset_id)
 );
 
--- A vulnerability notice: created when it is sendable; the finding ids it covers are in notify_notice_finding.
+-- A vulnerability notice: created when it is sendable; the finding ids it covers are in notify_notice_finding. event is the finding event
+-- it tells (created, urgency_changed, reopened, acceptance_expired, first_run: an open vocabulary); '' for a notice that tells none.
 CREATE TABLE notify_notice (
     id         TEXT NOT NULL PRIMARY KEY CHECK (length(id) BETWEEN 1 AND 128),
+    event      TEXT NOT NULL DEFAULT '' CHECK (length(event) <= 40 AND event NOT GLOB '*[^a-z0-9_]*'),
     created_at TEXT NOT NULL CHECK (created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     product    TEXT NOT NULL CHECK (length(product) <= 300),
     cves       TEXT NOT NULL CHECK (json_valid(cves))
@@ -71,6 +73,9 @@ CREATE TABLE notify_notice (
 CREATE TABLE notify_notice_finding (
     notice_id  TEXT NOT NULL REFERENCES notify_notice (id) ON DELETE CASCADE,
     finding_id TEXT NOT NULL CHECK (length(finding_id) BETWEEN 1 AND 96),
+    -- the urgency layer the finding was told at (1 most urgent .. 4); 0 when the notice did not tell an urgency. A finding is told again
+    -- only at a more urgent layer than every one it was told at.
+    layer      INTEGER NOT NULL DEFAULT 0 CHECK (layer BETWEEN 0 AND 5),
     PRIMARY KEY (notice_id, finding_id)
 );
 
@@ -95,15 +100,6 @@ CREATE TABLE notify_send_notice (
     send_id   TEXT NOT NULL REFERENCES notify_send (id) ON DELETE CASCADE,
     notice_id TEXT NOT NULL REFERENCES notify_notice (id) ON DELETE CASCADE,
     PRIMARY KEY (send_id, notice_id)
-);
-
--- Exploited vulnerabilities (CISA KEV) the box has heard of, and whether a finding matched a device of the
--- customer: the ones with matched = 0 are what HistoryView.suppressed counts (INV-2). One row per CVE, so the
--- same CVE reported twice is one. Filled from feeds.vuln.new_kev and from notices; notify reads no other module's tables.
-CREATE TABLE notify_kev (
-    cve     TEXT    NOT NULL PRIMARY KEY CHECK (length(cve) BETWEEN 1 AND 128),
-    seen_at TEXT    NOT NULL CHECK (seen_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    matched INTEGER NOT NULL DEFAULT 0 CHECK (matched IN (0, 1))
 );
 
 CREATE TABLE notify_pending (
@@ -173,8 +169,6 @@ CREATE INDEX notify_send_at_ix ON notify_send (at DESC);
 CREATE INDEX notify_send_ref_ix ON notify_send (kind, ref_id);
 
 CREATE INDEX notify_send_notice_ix ON notify_send_notice (notice_id);
-
-CREATE INDEX notify_kev_seen_ix ON notify_kev (seen_at);
 
 CREATE UNIQUE INDEX notify_pending_uq ON notify_pending (channel, notice_id);
 

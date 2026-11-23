@@ -87,7 +87,7 @@ func TestContract_POST3_GetFindingWithoutMitigation(t *testing.T) {
 	if code != 200 {
 		t.Fatalf("status %d: %v", code, b)
 	}
-	if b["id"] != id || b["cve"] != "CVE-2022-27593" || b["status"] != "suspected" || b["basis"] != "product" {
+	if b["id"] != id || b["cve"] != "CVE-2022-27593" || b["status"] != "suspected" || b["basis"] != "version" {
 		t.Fatalf("body = %v", b)
 	}
 	// What to do: empty, not missing
@@ -241,39 +241,6 @@ func TestContract_POST4_StatusEndpoint(t *testing.T) {
 	}
 }
 
-// INV-10: the bulk route is the operator's, refuses what the one-finding route refuses, and says what it skipped.
-func TestBulkStatusEndpoint(t *testing.T) {
-	t.Parallel()
-	e := newHTTPEnv(t)
-	id := e.seed()
-	for _, c := range []struct {
-		name, user, body string
-		status           int
-		code             string
-	}{
-		{"viewer refused", "viewer", `{"ids":["` + id + `"],"action":"patched","note":""}`, 403, "forbidden"},
-		{"no session", "", `{"ids":["` + id + `"],"action":"patched","note":""}`, 401, ""},
-		{"nul in note", "operator", `{"ids":["` + id + `"],"action":"patched","note":"a\u0000b"}`, 400, "invalid"},
-		{"reopen is not bulk", "operator", `{"ids":["` + id + `"],"action":"reopen","note":""}`, 400, ""},
-		{"none", "operator", `{"ids":[],"action":"patched","note":""}`, 400, ""},
-		{"unknown id", "operator", `{"ids":["` + id + `","f-nope"],"action":"patched","note":""}`, 404, "not_found"},
-	} {
-		code, b := e.call("POST", "/findings/status", c.user, c.body)
-		if code != c.status || (c.code != "" && errCode(b) != c.code) {
-			t.Errorf("%s: %d %v", c.name, code, b)
-		}
-	}
-	if r, _ := e.svc.Get(t.Context(), id); r.Status != StatusSuspected {
-		t.Fatalf("a refused request changed the finding: %+v", r)
-	}
-	if code, b := e.call("POST", "/findings/status", "operator", `{"ids":["`+id+`"],"action":"mitigated","note":"proxy"}`); code != 200 || b["updated"] != 1.0 || b["skipped"] != 0.0 {
-		t.Fatalf("%d %v", code, b)
-	}
-	if code, b := e.call("POST", "/findings/status", "operator", `{"ids":["`+id+`"],"action":"patched","note":""}`); code != 200 || b["updated"] != 0.0 || b["skipped"] != 1.0 {
-		t.Fatalf("closed finding: %d %v", code, b)
-	}
-}
-
 func TestModuleOffMeansNoRoutes(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
@@ -315,8 +282,8 @@ func TestAcceptRiskEndpoint(t *testing.T) {
 	if code, b := e.call("POST", "/findings/"+id+"/status", "operator", `{"action":"accept_risk","note":"March window","until":"`+day(-1)+`"}`); code != 400 || errCode(b) != "bad_until" {
 		t.Fatalf("yesterday: %d %v", code, b)
 	}
-	if code, b := e.call("POST", "/findings/status", "operator", `{"ids":["`+id+`"],"action":"accept_risk","note":"March window"}`); code != 400 || errCode(b) != "bad_until" {
-		t.Fatalf("bulk without a day: %d %v", code, b)
+	if code, b := e.call("POST", "/findings/handle", "operator", `{"ids":["`+id+`"],"resolution":"accepted","note":"March window"}`); code != 400 || errCode(b) != "bad_until" {
+		t.Fatalf("handle without a day: %d %v", code, b)
 	}
 	code, b := e.call("POST", "/findings/"+id+"/status", "operator", `{"action":"accept_risk","note":"March window","until":"`+day(90)+`"}`)
 	if code != 200 || b["status"] != "risk_accepted" || b["accepted_until"] != day(90) || b["resolution_note"] != "March window" {
@@ -350,15 +317,15 @@ func TestContract_ListNamesStoredSoftwareRowAndProof(t *testing.T) {
 	if r := row("/findings?asset=a-1"); r["software_id"] != "s-1" || r["resolution_reason"] != nil || r["proved_version"] != nil {
 		t.Fatalf("open finding = %v", r)
 	}
-	run("6.2.0") // proved outside the range: closed on that version
-	if r := row("/findings?asset=a-1"); r["software_id"] != "s-1" || r["resolution_reason"] != ReasonNotAffectedVersion || r["proved_version"] != "6.2.0" || r["status"] != "not_relevant" {
+	run("6.2.0") // the device moved past the range: patched by Vedette, with the version it moved to
+	if r := row("/findings?asset=a-1"); r["software_id"] != "s-1" || r["resolution_reason"] != ReasonFixedByUpdate || r["proved_version"] != "6.2.0" || r["status"] != "patched" {
 		t.Fatalf("closed by proof = %v", r)
 	}
-	run("6.3.0") // a later release also proved: the version that proves it follows the entry, with no new history
-	if r := row("/findings?asset=a-1"); r["proved_version"] != "6.3.0" {
+	run("6.3.0") // a later release changes nothing: the credit names the move that fixed it, with no new history
+	if r := row("/findings?asset=a-1"); r["proved_version"] != "6.2.0" {
 		t.Fatalf("proved on = %v", r)
 	}
-	if n := e.count(`SELECT count(*) FROM fnd_finding_history WHERE action = 'not_relevant'`); n != 1 {
+	if n := e.count(`SELECT count(*) FROM fnd_finding_event WHERE kind = 'handled'`); n != 1 {
 		t.Fatalf("history rows %d", n)
 	}
 	// the same row on the all-devices list and on the single finding: one stored column, one answer
@@ -366,7 +333,7 @@ func TestContract_ListNamesStoredSoftwareRowAndProof(t *testing.T) {
 		t.Fatalf("all-devices row = %v", r)
 	}
 	id := row("/findings")["id"].(string)
-	if _, b := e.call("GET", "/findings/"+id, "viewer", ""); b["software_id"] != "s-1" || b["proved_version"] != "6.3.0" {
+	if _, b := e.call("GET", "/findings/"+id, "viewer", ""); b["software_id"] != "s-1" || b["proved_version"] != "6.2.0" {
 		t.Fatalf("detail = %v", b)
 	}
 }
@@ -378,8 +345,8 @@ func TestContract_ListDoesNotGuessSoftwareOrProof(t *testing.T) {
 	e := newHTTPEnv(t)
 	id := e.seed()
 	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET status = 'not_relevant', resolved_by = ?, resolved_at = last_seen,
-			resolution_note = 'Closed: product name only.', resolution_reason = ?, software_id = NULL, proved_version = NULL WHERE id = ?`, SystemUser, ReasonNotAffectedVersion, id)
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET state = 'handled', resolution = 'not_relevant', via = 'data_corrected', resolved_by = ?,
+			resolved_at = last_seen, software_id = NULL WHERE id = ?`, SystemUser, id)
 		return err
 	}); err != nil {
 		t.Fatal(err)

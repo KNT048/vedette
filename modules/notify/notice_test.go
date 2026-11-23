@@ -465,3 +465,29 @@ func TestLastFour(t *testing.T) {
 		}
 	}
 }
+
+// A digest says "exploited" only when every vulnerability in it is one attackers use; a public exploit or a flaw nobody exploits yet is
+// worded for what it is, and the count of exploited vulnerabilities that matched nothing never takes such a notice.
+func TestDigestWordingFollowsTheUrgencyLayer(t *testing.T) {
+	t.Parallel()
+	layered := func(id, product, cve string, layer int) Notice {
+		n := vuln(id, product, cve, []string{"NAS-01"}, High, at(9, 0))
+		n.Layer = layer
+		return n
+	}
+	same := msgOf(t, oneBatch(t, layered("a", "WordPress", "CVE-1", 3), layered("b", "WordPress", "CVE-2", 5)))
+	if same.Title != "WordPress: 2 vulnerabilities need patching" || strings.Contains(same.What, "exploited") {
+		t.Errorf("one product: %+v", same)
+	}
+	mixed, err := Batch{Notices: []Notice{layered("a", "WordPress", "CVE-1", 2), layered("b", "Joomla", "CVE-2", 4)}, min: Low}.Message() // a burst across products
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mixed.Title != "2 vulnerabilities need patching on your devices" || strings.Contains(mixed.What, "exploited") {
+		t.Errorf("two products: %+v", mixed)
+	}
+	exploited := msgOf(t, oneBatch(t, layered("a", "WordPress", "CVE-1", 1), layered("b", "WordPress", "CVE-2", 2)))
+	if exploited.Title != "WordPress: 2 vulnerabilities are being exploited" {
+		t.Errorf("exploited ones: %+v", exploited)
+	}
+}

@@ -36,7 +36,7 @@ function answer(f: FakeAI, req: Req): { content: string | null; tool?: string; f
   const schema = req.response_format?.json_schema
   switch (schema?.name) {
     case 'explain_cve':
-      return { content: JSON.stringify({ why: SAY.why, patch_steps: ['Update to the fixed version the vendor names.'], temp_mitigations: ['Keep the device off the Internet until it is patched.'], detection_hints: ['Look for sign-ins nobody expected.'] }), finish: 'stop' }
+      return { content: JSON.stringify({ answers: [{ key: 'affected', text: SAY.why, refs: [] }, { key: 'fix', text: 'Update to the fixed version the vendor names.', refs: [] }, { key: 'workaround', text: 'Keep the device off the Internet until it is patched.', refs: [] }, { key: 'urgency', text: 'Look for sign-ins nobody expected.', refs: [] }] }), finish: 'stop' }
     case 'log_digest': {
       const d: Record<string, unknown> = { summary: SAY.digest, items: [{ severity: 'info', title: 'One source sends logs', evidence: ['A few lines arrived from the test source.'], recommendation: 'Nothing to do now.' }] }
       if (schema.schema?.properties && 'remember' in schema.schema.properties) d.remember = f.remember ? [f.remember] : []

@@ -2,7 +2,6 @@ package findings
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -60,72 +59,6 @@ func TestHaveScope_OnlyTheDeclaredDeviceIsScoped(t *testing.T) {
 	}
 }
 
-// One action and one note for the open findings among many; each gets its own history, audit row and event; a
-// closed one is skipped with its reason kept; all or nothing.
-func TestSetStatusMany_OneRowEachAllOrNothing(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true})
-	res, err := e.svc.OnMatchChanged(t.Context(), "a-1")
-	if err != nil || len(res.Created) != 2 {
-		t.Fatalf("seed: %+v %v", res, err)
-	}
-	e.pub.take()
-	before := e.count(`SELECT count(*) FROM core_audit`)
-	for _, c := range []struct {
-		name   string
-		ids    []string
-		action Action
-		note   string
-		want   error
-	}{
-		{"unknown id", []string{res.Created[0], "f-nope"}, ActionFalsePositive, "lab", ErrNotFound},
-		{"note required", res.Created, ActionFalsePositive, "", ErrNoteRequired},
-		{"reopen", res.Created, ActionReopen, "", ErrBadAction},
-		{"none", nil, ActionPatched, "", ErrTooMany},
-		{"too many", make([]string, MaxBulk+1), ActionPatched, "", ErrTooMany},
-	} {
-		if c.name == "too many" {
-			for i := range c.ids {
-				c.ids[i] = fmt.Sprintf("f-%d", i)
-			}
-		}
-		if _, _, err := e.svc.SetStatusMany(t.Context(), c.ids, c.action, c.note, "it@acme.example"); !errors.Is(err, c.want) {
-			t.Errorf("%s: err = %v, want %v", c.name, err, c.want)
-		}
-	}
-	if e.count(`SELECT count(*) FROM core_audit`) != before || e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'suspected'`) != 2 || len(e.pub.take()) != 0 {
-		t.Fatal("a refused bulk change wrote something")
-	}
-	if _, err := e.svc.SetStatus(t.Context(), res.Created[1], ActionPatched, "updated to 6.1.2", "it@acme.example"); err != nil {
-		t.Fatal(err)
-	}
-	e.pub.take()
-	n, skipped, err := e.svc.SetStatusMany(t.Context(), append(res.Created, res.Created[0]), ActionFalsePositive, "iPhone on guest Wi-Fi", "it@acme.example")
-	if err != nil || n != 1 || skipped != 1 {
-		t.Fatalf("bulk = %d changed, %d skipped, %v", n, skipped, err)
-	}
-	if e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'false_positive' AND resolution_note = 'iPhone on guest Wi-Fi'`) != 1 ||
-		e.count(`SELECT count(*) FROM fnd_finding WHERE status = 'patched' AND resolution_note = 'updated to 6.1.2'`) != 1 ||
-		e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.status'`) != 2 || len(e.pub.take()) != 1 {
-		t.Fatal("an open finding gets its own status, audit row and event; a closed one keeps its reason")
-	}
-}
-
-// A device with no hostname and no IP is named, never shown by its internal id, even in old evidence.
-func TestRow_DeviceWithoutIPIsNamedNotByItsID(t *testing.T) {
-	t.Parallel()
-	r := Record{ID: "f-1", AssetID: "a-vft3", CVE: "CVE-2023-36845", Finding: Finding{Evidence: &Evidence{Summary: "a-vft3 runs Juniper Junos 15.1R7.9."}}}
-	row := newRow(r, &AssetView{ID: "a-vft3", Name: "a-vft3", IP: NoIP, Kind: "switch", Display: "Juniper Junos"}, nil, nil)
-	if row.Asset.Name != "Juniper Junos" || row.Evidence.Summary != "Juniper Junos runs Juniper Junos 15.1R7.9." || row.Asset.HasIP() {
-		t.Fatalf("asset = %+v, evidence = %q", row.Asset, row.Evidence.Summary)
-	}
-	row = newRow(r, &AssetView{ID: "a-vft3", Name: "Juniper Networks EX4200-48T", IP: NoIP, Kind: "switch"}, nil, nil)
-	if row.Asset.Name != "Juniper Networks EX4200-48T" || row.Evidence.Summary != "Juniper Networks EX4200-48T runs Juniper Junos 15.1R7.9." {
-		t.Fatalf("asset = %+v, evidence = %q", row.Asset, row.Evidence.Summary)
-	}
-}
-
 // Review LOW of #663: the "I have this" scope keeps the matcher's proofs: a second row of the declared
 // device with a readable version outside the range still closes its finding.
 func TestHaveScope_KeepsNotAffected(t *testing.T) {
@@ -133,7 +66,7 @@ func TestHaveScope_KeepsNotAffected(t *testing.T) {
 	a := Asset{ID: "a-declared", Name: "QNAP", Software: nas("").Software}
 	proof := Match{CVE: "CVE-2022-27593", SoftwareID: "s-2"}
 	got := haveScope(a, nil, MatchResult{NotAffected: []Match{proof}}, map[string]Have{a.ID: {Key: "qnap|photo station", Since: t0}}, nil, t0)
-	if len(got.NotAffected) != 1 || got.NotAffected[0] != proof {
+	if len(got.NotAffected) != 1 || got.NotAffected[0].CVE != proof.CVE || got.NotAffected[0].SoftwareID != proof.SoftwareID {
 		t.Fatalf("NotAffected = %+v", got.NotAffected)
 	}
 }

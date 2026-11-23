@@ -21,7 +21,7 @@ import (
 // anything. What it names is checked by response (savePlan) before anything is stored; this adapter only moves text.
 type responsePlanner struct {
 	svc   *ai.Service
-	facts ai.Facts     // the exploited-list entry of the CVE; nil = the CVE id only
+	cases caseSource   // the brief of the CVE; a zero source = the CVE id only
 	log   *slog.Logger // nil = a failed activity row is not logged (tests)
 }
 
@@ -33,7 +33,7 @@ const planSchema = `{"type":"object","properties":{"steps":{"type":"array","item
 	`"confidence":{"type":"number","minimum":0,"maximum":1},"evidence":{"type":"array","items":{"type":"string"},"maxItems":3}},` +
 	`"required":["kind","title","detail","action_id","params","confidence","evidence"],"additionalProperties":false}}},"required":["steps"],"additionalProperties":false}`
 
-const planTask = `Write a short response plan for one finding: a device that the box matched to an exploited vulnerability. Use only the facts in the data blocks. ` +
+const planTask = `Write a short response plan for one finding: a device that the box matched to a known vulnerability; the finding line of the device block says why it matters now (call it exploited only when it says attackers use it). Use only the facts in the data blocks. ` +
 	`Give 2 to 5 steps, each with a kind: "contain" (limit exposure now), "check" (look for signs of compromise) or "patch" (fix it). ` +
 	`A "contain" step may propose ONE action from the list of actions below: put its id in "action_id" and the values of its parameters in "params" as name and value pairs, using only the parameter names listed for it. ` +
 	`Propose an action only when it clearly fits this device. For every other step set "action_id" to an empty string and "params" to an empty list. ` +
@@ -100,6 +100,9 @@ func (p responsePlanner) Plan(ctx context.Context, a response.PlanAsk) (response
 		cat.WriteString("(none: propose no action)\n")
 	}
 	dev := fmt.Sprintf("Device: %s, IP %s, kind %s\nFinding: %s\n", t.AssetName, t.AssetIP, t.AssetKind, t.CVE)
+	if t.Urgency != "" {
+		dev += "Urgency: " + aiUrgencyText(t.Urgency) + "\n"
+	}
 	reads := p.readsOf(ctx, conns)
 	var d response.PlanDraft
 	ready := p.svc.Ready(ai.JobResponsePlan)
@@ -107,7 +110,7 @@ func (p responsePlanner) Plan(ctx context.Context, a response.PlanAsk) (response
 		Job: ai.JobResponsePlan, Actor: "system", Task: planTask,
 		Question: "Write the response plan for this finding.",
 		// The catalog is data, not Task: the before-AI hooks look at every data block, and they do not look at Task.
-		Data: []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry " + t.CVE, Text: p.factsOf(ctx, t.CVE)}, {Kind: "inventory", Source: "the device of the finding", Text: dev},
+		Data: []ai.DataBlock{{Kind: ai.DataFeed, Source: "CVE brief " + t.CVE, Text: p.factsOf(ctx, t.CVE)}, {Kind: "inventory", Source: "the device of the finding", Text: dev},
 			{Kind: ai.DataDocument, Source: "actions you may propose", Text: cat.String()}, {Kind: ai.DataDocument, Source: "reads the box made in the last 24 hours", Text: reads}},
 		// a plan with its steps and actions is about 1,500 tokens; the rest is room for what the model thinks first
 		Schema: &provider.Schema{Name: "response_plan", JSON: json.RawMessage(planSchema)}, MaxTokens: 6000,
@@ -181,33 +184,37 @@ func planError(err, ready error) error {
 	return err
 }
 
-// factsOf is the exploited-list entry of a CVE as text; a lookup that fails or finds nothing gives the id alone (the plan is then thinner, not refused).
+// factsOf is the brief of a CVE as text, the one the finding's page and the assistant read; a lookup that fails or finds nothing gives the
+// id alone (the plan is then thinner, not refused).
 func (p responsePlanner) factsOf(ctx context.Context, cve string) string {
-	if p.facts != nil {
-		if c, ok, err := p.facts.CVE(ctx, cve); err == nil && ok {
-			return fmt.Sprintf("CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nDescription: %s\nExploited-list source: %s\nRequired action (from that source): %s\nUsed in ransomware campaigns: %t\n", c.CVE, c.Vendor, c.Product, c.Name, c.Description, ai.ListLabel(c.Source), c.RequiredAction, c.Ransomware)
+	if p.cases.feeds != nil {
+		if b, ok, err := p.cases.feeds.Brief(ctx, cve); err == nil && ok {
+			c := findingCase{Brief: b, Known: true}
+			return c.briefFeedText(c.Links())
 		}
 	}
 	return "CVE: " + cve + "\n"
 }
 
-// responseCritical lists the open critical findings with their device and the exploited-list facts, for the plan job.
+// responseCritical lists the open critical findings that call for action now (urgency under attack to critical on an edge device:
+// findings.Announced) with their device and the CVE's facts, for the plan job. A critical finding with no sign of exploitation is an
+// update to plan, not a response. A device a person ignored gets no plan (Views leaves its findings out; the device read checks again).
 type responseCritical struct {
 	fnd *findings.Service
 	inv findings.Inventory
 }
 
 func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, error) {
-	recs, err := r.fnd.List(ctx, "")
+	all, err := r.fnd.Views(ctx, findings.ViewFilter{OpenOnly: true})
 	if err != nil {
 		return nil, err
 	}
-	var open []findings.Record
+	var open []findings.View
 	var ids []string
-	for _, f := range recs {
-		if f.Severity == findings.SeverityCritical && f.Status.Open() {
-			open = append(open, f)
-			ids = append(ids, f.AssetID)
+	for _, v := range all {
+		if v.Severity != nil && findings.SeverityBand(*v.Severity) == "critical" && findings.Announced(v.Finding) {
+			open = append(open, v)
+			ids = append(ids, v.Finding.AssetID)
 		}
 	}
 	if len(open) == 0 {
@@ -218,16 +225,17 @@ func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, erro
 		return nil, err
 	}
 	var out []response.PlanTarget
-	for _, f := range open {
+	for _, v := range open {
+		f := v.Finding
 		a, ok := assets[f.AssetID]
-		if !ok {
+		if !ok || a.Ignored {
 			continue
 		}
 		name := a.IP
 		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first), as the AI gets text
 			name = n
 		}
-		t := response.PlanTarget{FindingID: f.ID, CVE: f.CVE, AssetID: f.AssetID, AssetName: name, AssetIP: a.IP, AssetKind: a.Kind}
+		t := response.PlanTarget{FindingID: f.ID, CVE: f.CVE, AssetID: f.AssetID, AssetName: name, AssetIP: a.IP, AssetKind: a.Kind, Urgency: findings.LayerCode(f.Urgency)}
 		if a.IP == "—" { // unknown address
 			t.AssetIP = ""
 		}

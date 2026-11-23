@@ -16,6 +16,7 @@ type deviceRisk struct {
 	noDevice              bool           // a product added by hand with no device: the step does not name it twice
 	names                 map[string]int // findings by the CISA product name they carry; the label is the biggest
 	open, confirmed       int
+	exploited             int // of the open findings, those of a CVE attackers use (the others are urgent for another reason)
 	severity              string
 	first, firstConfirmed int // index in the ordered list of open findings
 	fix                   Fix // the release for the device and product; Kind "" = none known
@@ -29,6 +30,7 @@ type line struct {
 	class           string // what makes two device risks one line
 	devs            []*deviceRisk
 	open, confirmed int
+	exploited       int
 }
 
 // product is every open finding of one product, over all devices: what the top three are ranked by.
@@ -61,6 +63,9 @@ func topRisks(open []FindingRow, fixes map[string]Fix) (out []TopRisk, kinds []s
 		}
 		g.names[f.Product]++
 		g.open++
+		if !f.notExploited {
+			g.exploited++
+		}
 		if f.Status == "confirmed" {
 			if g.confirmed == 0 {
 				g.firstConfirmed = i
@@ -209,6 +214,7 @@ func (p *product) lines() []*line {
 		l.devs = append(l.devs, g)
 		l.open += g.open
 		l.confirmed += g.confirmed
+		l.exploited += g.exploited
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i], out[j]
@@ -276,12 +282,18 @@ func (l *line) sentence(product string) string {
 	}
 	names := distinctDevices(l.devs)
 	product, on := where(product, l.devs)
+	// "exploited" only while every finding of the line is of a CVE attackers use; a public exploit or a critical flaw on an edge
+	// device is a vulnerability to patch, not one "being exploited"
+	vuln, vulns := "vulnerability", "vulnerabilities"
+	if l.exploited == l.open {
+		vuln, vulns = "exploited vulnerability", "exploited vulnerabilities"
+	}
 	fx := first.fix
 	switch fx.Kind {
 	case "fixed":
-		what := plural(closed, "exploited vulnerability", "exploited vulnerabilities")
+		what := plural(closed, vuln, vulns)
 		if closed < l.open {
-			what = fmt.Sprintf("%d of %d exploited vulnerabilities", closed, l.open)
+			what = fmt.Sprintf("%d of %d %s", closed, l.open, vulns)
 		}
 		var s string
 		if len(names) == 1 {
@@ -299,21 +311,21 @@ func (l *line) sentence(product string) string {
 		return s
 	case "feature_update": // A Windows release Microsoft no longer updates; only a later release has the fix
 		return fmt.Sprintf("Move %s%s to a Windows release Microsoft still services (a feature update): it gets no more monthly updates, and NVD names the fix only for %s — fixes %s",
-			product, on, clip(fx.Fixed, 40), plural(closed, "exploited vulnerability", "exploited vulnerabilities"))
+			product, on, clip(fx.Fixed, 40), plural(closed, vuln, vulns))
 	case "esu": // The fixing build comes only with Extended Security Updates
 		return fmt.Sprintf("Install the Extended Security Update %s or later on %s%s, or move it to a Windows release Microsoft still services — fixes %s",
-			clip(fx.Fixed, 40), product, on, plural(closed, "exploited vulnerability", "exploited vulnerabilities"))
+			clip(fx.Fixed, 40), product, on, plural(closed, vuln, vulns))
 	case "none":
 		if l.open == 1 { // Never "fixes all 1 exploited vulnerability"
-			return fmt.Sprintf("NVD names no release that fixes the exploited vulnerability of %s%s: check the vendor advisory", product, on)
+			return fmt.Sprintf("NVD names no release that fixes the %s of %s%s: check the vendor advisory", vuln, product, on)
 		}
-		return fmt.Sprintf("NVD names no single release that fixes all %s of %s%s: check the vendor advisory", plural(l.open, "exploited vulnerability", "exploited vulnerabilities"), product, on)
+		return fmt.Sprintf("NVD names no single release that fixes all %s of %s%s: check the vendor advisory", plural(l.open, vuln, vulns), product, on)
 	case "distro":
 		who := "your distribution's"
 		if d := clip(fx.Distro, 40); d != "" {
 			who = d
 		}
-		return fmt.Sprintf("Install the latest %s security updates for %s%s — %s", who, product, on, plural(l.open, "exploited vulnerability is open", "exploited vulnerabilities are open"))
+		return fmt.Sprintf("Install the latest %s security updates for %s%s — %s", who, product, on, plural(l.open, vuln+" is open", vulns+" are open"))
 	case "up_to":
 		return fmt.Sprintf("Check the vendor advisory for %s%s: NVD names no fixed release, so use the vendor's temporary fix (%s)", product, on, plural(l.open, "open finding", "open findings"))
 	}

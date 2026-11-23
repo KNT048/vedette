@@ -6,6 +6,7 @@ import { KeyValue, PageHeader, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { SeverityBadge, StatusBadge } from '@/components/common/status'
 import { fmtDate, fmtPercent } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { usePlan } from '@/features/findings/api'
@@ -21,7 +22,7 @@ export function TierCvePage({ v }: { v: TierCve }) {
       <PageHeader title={v.cve} stories={['S-TIER-1']} info={t(v.tier ? 'tierCve.intro' : 'tierCve.introOld')}
         meta={<span className="flex flex-wrap items-center gap-2">
           {v.tier ? <Chip tone={v.tier === 'likely' ? 'warn' : 'off'}>{t(`tierCve.tier.${v.tier}`)}</Chip> : <Chip tone="off">{t('tierCve.tier.old')}</Chip>}
-          <Chip tone="off">{t('tierCve.notExploited')}</Chip>
+          <StatusBadge code="update_recommended" />
         </span>} />
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div>
@@ -30,7 +31,7 @@ export function TierCvePage({ v }: { v: TierCve }) {
               <KeyValue items={[
                 { label: t('tierCve.products'), value: v.products.length ? v.products.join(', ') : <span className="text-muted">{t('tierCve.productsNone')}</span> },
                 { label: t('cve.published'), value: v.published ? fmtDate(v.published) : <span className="text-muted">{t('tierCve.publishedNone')}</span> },
-                { label: t('tierCve.severity'), value: v.severity ? `${t(`tierCve.sev.${v.severity}`)}${v.score !== null ? ` ${v.score.toFixed(1)}` : ''}` : <span className="text-muted">{t('tierCve.notScored')}</span> },
+                { label: t('tierCve.severity'), value: <SeverityBadge severity={v.severity ? { band: v.severity, score: v.score } : null} /> },
                 { label: t('cve.epss'), value: v.epss === null ? <span className="text-muted">{t('tierCve.epssNone')}</span> : <>{fmtPercent(v.epss)} <span className="text-caption text-muted">{t('tierCve.epssHint', { date: fmtDate(v.epss_date) })}</span></> },
                 { label: t('tierCve.status'), value: v.nvd_status ? <>{v.nvd_status}{v.last_modified ? <span className="text-caption text-muted"> {t('tierCve.changed', { date: fmtDate(v.last_modified) })}</span> : null}</> : '–' },
                 { label: t('tierCve.ranges'), value: v.published ? t(v.ranges ? 'tierCve.rangesYes' : 'tierCve.rangesNo') : '–' },
@@ -54,7 +55,7 @@ export function TierCvePage({ v }: { v: TierCve }) {
 }
 
 /** The devices whose updates to plan fix this CVE, with the update and the evidence. */
-function TierDevices({ cve }: { cve: string }) {
+export function TierDevices({ cve }: { cve: string }) {
   const { t } = useTranslation('feeds')
   const on = useModuleEnabled('findings')
   const q = usePlan()

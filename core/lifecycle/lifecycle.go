@@ -48,10 +48,16 @@ type Delete struct {
 	Actor  string // "" for the system
 }
 
-// FindingFold is a finding folded into another one of the same device and CVE during a merge: From is deleted after the
-// participants ran, Into stays. Modules that keep rows by finding id move them to Into here.
+// FindingFold is a finding folded into another one of the same device and CVE (a merge, or software lines that go): From is deleted
+// after the participants ran, Into stays. Modules that keep rows by finding id move them to Into here.
 type FindingFold struct {
 	From, Into string
+}
+
+// LinesDelete is software lines the inventory deletes for good (removed lines past their retention): Lines are their ids, deleted
+// after the participants ran. A module that points at a line with a foreign key settles its rows on them here.
+type LinesDelete struct {
+	Lines []string
 }
 
 // Participant is one module's part. Every function may be nil.
@@ -60,6 +66,7 @@ type Participant struct {
 	DeviceMerged  func(ctx context.Context, tx *sql.Tx, m Merge) error
 	DeviceDeleted func(ctx context.Context, tx *sql.Tx, d Delete) error
 	FindingFolded func(ctx context.Context, tx *sql.Tx, f FindingFold) error
+	LinesDeleted  func(ctx context.Context, tx *sql.Tx, l LinesDelete) error
 	// MergeCommitted and DeleteCommitted run after the write committed (in-memory state only; they cannot fail it).
 	MergeCommitted  func(ctx context.Context, m Merge)
 	DeleteCommitted func(ctx context.Context, d Delete)
@@ -126,6 +133,22 @@ func (h *Hooks) DeviceDeleted(ctx context.Context, tx *sql.Tx, d Delete) error {
 		}
 		if err := p.DeviceDeleted(ctx, tx, d); err != nil {
 			return fmt.Errorf("lifecycle: %s: delete of a device: %w", p.Name, err)
+		}
+	}
+	return nil
+}
+
+// LinesDeleted calls every participant's LinesDeleted in tx; the first error stops and is returned (the caller rolls back).
+func (h *Hooks) LinesDeleted(ctx context.Context, tx *sql.Tx, l LinesDelete) error {
+	if len(l.Lines) == 0 {
+		return nil
+	}
+	for _, p := range h.list() {
+		if p.LinesDeleted == nil {
+			continue
+		}
+		if err := p.LinesDeleted(ctx, tx, l); err != nil {
+			return fmt.Errorf("lifecycle: %s: delete of software lines: %w", p.Name, err)
 		}
 	}
 	return nil

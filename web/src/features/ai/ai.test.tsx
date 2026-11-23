@@ -780,10 +780,11 @@ describe('ai: settings, token level and global cap (S-AI-4)', () => {
 })
 
 describe('ai: panels on the CVE page (S-AI-3)', () => {
-  it('Explain: labelled block with model and profile, sources; asking again uses the saved copy and costs no tokens', async () => {
+  it('Ask my AI: four answers, labelled block with model and profile, sources; asking again uses the saved copy and costs no tokens', async () => {
     renderApp('/cve/CVE-2022-27593')
-    await userEvent.click(await screen.findByRole('button', { name: 'Explain' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Ask my AI' }))
     expect(await screen.findByText('You are affected')).toBeInTheDocument()
+    for (const h of ['Am I affected?', 'How do I fix it?', 'What if I cannot patch yet?', 'How urgent?']) expect(screen.getByText(h)).toBeInTheDocument()
     expect(screen.getByText(/You have QNAP Photo Station on NAS-PHOTOS/)).toBeInTheDocument()
     expect(screen.getAllByText('AI-generated, needs human review').length).toBeGreaterThan(0)
     expect(screen.getByText(/Model claude-sonnet-5-5 \(Claude Sonnet\)/)).toBeInTheDocument()
@@ -793,34 +794,34 @@ describe('ai: panels on the CVE page (S-AI-3)', () => {
     expect(aiRunsStore.get().filter((r) => r.skill === 'explain-finding')).toHaveLength(1)
   })
 
-  it('News: shows the sources the box fetched (including a failed one), then the summary with the profile that wrote it', async () => {
+  it('Include latest news: shows the sources the box fetched (including a failed one), then the summary with the profile that wrote it', async () => {
     renderApp('/cve/CVE-2022-27593')
-    await userEvent.click(await screen.findByRole('button', { name: 'Fetch and summarise news' }))
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Include latest news' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Ask my AI' }))
     expect(await screen.findByText('Sources the box fetched')).toBeInTheDocument()
     expect(screen.getByText('Could not fetch')).toBeInTheDocument()
     expect(screen.getByText(/Exploited: yes/)).toBeInTheDocument()
     expect(screen.getByText(/Model claude-haiku-5-5 \(Claude Haiku\)/)).toBeInTheDocument()
-    expect(screen.getByText(/stripped of control characters and checked by your hooks/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
   it('a viewer cannot click; with no profile the panel guides to add one; with the task unassigned it says so', async () => {
     renderApp('/cve/CVE-2022-27593', { role: 'viewer' })
-    expect(await screen.findByRole('button', { name: 'Explain' })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: 'Ask my AI' })).toBeDisabled()
   })
 
-  it('no profile at all: both panels guide instead of leaving a dead button', async () => {
+  it('no profile at all: the panel guides instead of leaving a dead button', async () => {
     clearProfiles()
     renderApp('/cve/CVE-2022-27593')
-    expect((await screen.findAllByText('No AI profile yet')).length).toBe(2)
-    expect(screen.getByRole('button', { name: 'Explain' })).toBeDisabled()
+    expect((await screen.findAllByText('No AI profile yet')).length).toBe(1)
+    expect(screen.getByRole('button', { name: 'Ask my AI' })).toBeDisabled()
   })
 
   it('an unknown CVE or a malformed id gives an exact error (API)', async () => {
     sessionStore.set({ userId: 'u-admin' })
     const res = await api('/ai/cve/CVE-2020-0001/explain', { method: 'POST' })
     expect(res.status).toBe(404)
-    expect(((await res.json()) as { error: { message: string } }).error.message).toMatch(/not on the exploited list/)
+    expect(((await res.json()) as { error: { message: string } }).error.message).toMatch(/has no record of this CVE/)
     expect((await api('/ai/cve/abc/news', { method: 'POST' })).status).toBe(400)
   })
 })

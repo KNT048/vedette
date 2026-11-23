@@ -2,7 +2,6 @@ package findings
 
 import (
 	"cmp"
-	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -65,6 +64,9 @@ type UpdateAction struct {
 	// CVEs are the CVEs the update clears, worst first; FindingIDs the open findings of them in the same order (exploited only).
 	CVEs       []string
 	FindingIDs []string
+	// Layers are the urgency layers of CVEs, in the same order. The CVEs of layer 1 and 2 are the ones attackers use; the others are
+	// urgent for another reason (a public exploit, a critical flaw on an edge device).
+	Layers []int
 	// Worst is the highest severity among them: the finding's (critical, high, medium, low) for exploited ones, NVD's CVSS
 	// severity in lower case for planned ones ("" when NVD scored none).
 	Worst string
@@ -86,7 +88,7 @@ type UpdateAction struct {
 // DeviceUpdates is the answer for one device.
 type DeviceUpdates struct {
 	AssetID string
-	Open    int // open (confirmed or suspected) findings of the device
+	Open    int // open (confirmed or suspected) findings of the device that are urgent (urgency 1 to 4: Exploited and NoUpdate hold them)
 	// Exploited: open findings one named update fixes, one action per update, worst first.
 	Exploited []UpdateAction
 	// NoUpdate: open findings no update is named for (a product-only match, NVD names no release that clears them, the CVE left
@@ -100,44 +102,6 @@ type DeviceUpdates struct {
 	PlanCompared bool
 	// PlanOff: the feeds module is off, so, as on GET /findings/plan, no recommended update is listed.
 	PlanOff bool
-}
-
-// DeviceUpdates returns what to install on one device to clear its CVEs. ok is false when the device does not exist. feedsOn says the
-// feeds module is on: while it is off the recommended updates are not listed, as GET /findings/plan lists none.
-func (s *Service) DeviceUpdates(ctx context.Context, assetID string, feedsOn bool) (DeviceUpdates, bool, error) {
-	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
-	if err != nil {
-		return DeviceUpdates{}, false, fmt.Errorf("findings: device updates: reading the device: %w", err)
-	}
-	if !ok {
-		return DeviceUpdates{}, false, nil
-	}
-	recs, err := s.List(ctx, assetID)
-	if err != nil {
-		return DeviceUpdates{}, false, err
-	}
-	out := DeviceUpdates{AssetID: assetID}
-	var open []Record
-	for _, r := range recs {
-		if r.Status.Open() {
-			open = append(open, r)
-		}
-	}
-	out.Open = len(open)
-	if len(open) > 0 {
-		vulns, err := s.cfg.Feeds.Vulns(ctx)
-		if err != nil {
-			return DeviceUpdates{}, false, fmt.Errorf("findings: device updates: reading the exploited list: %w", err)
-		}
-		out.Exploited, out.NoUpdate = exploitedUpdates(a, open, vulns, s.now(), s.safeCheck)
-	}
-	if feedsOn {
-		out.Planned, out.PlanRan, out.PlanCompared = s.plannedUpdates(assetID)
-		withRows(a, out.Planned)
-	} else {
-		out.PlanOff = true
-	}
-	return out, true, nil
 }
 
 // exploitedUpdates groups the open findings of a device by the update that fixes them, as GET /findings does (addFixes: RowFixes on
@@ -242,6 +206,7 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time, check
 			if m.ran {
 				g.Ransomware++
 			}
+			g.Layers = append(g.Layers, m.r.Row.Urgency)
 		}
 		g.Worst = string(ms[0].r.Severity)
 		g.Action = updateSentence(*g)
@@ -304,7 +269,7 @@ func (s *Service) plannedUpdates(assetID string) (out []UpdateAction, ran, compa
 	ran, compared = s.plan.ran, d.compared
 	items := slices.Clone(d.items)
 	s.plan.mu.RUnlock()
-	kept := s.notDone(listedPlanItems(items, s.now())) // an item a person marked done leaves To fix and the risk marker
+	kept := listedPlanItems(items, s.now())
 	sortPlanItems(kept)
 	for _, it := range kept {
 		u := planAction(it)

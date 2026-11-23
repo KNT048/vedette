@@ -1,4 +1,4 @@
-# Khoá ký phát hành
+# Release signing keys
 
 Three keys sign everything a Vedette box trusts when it updates. The public half is embedded in the binary (`internal/release/keys.go`); the private half lives only where the maintainer keeps it, never in the repository, on a box, in a log or in a PR.
 

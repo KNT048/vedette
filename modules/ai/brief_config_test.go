@@ -11,6 +11,15 @@ import (
 	"github.com/knt048/vedette/modules/ai"
 )
 
+// answersJSON is an answer of the brief with the four answers, in a shuffled order, and the other fields of the job after them.
+func answersJSON(rest string) string {
+	if rest != "" {
+		rest = "," + rest
+	}
+	return `{"answers":[{"key":"urgency","text":"Exploited in the wild.","refs":[]},{"key":"affected","text":"Yes: the device runs the product.","refs":[]},` +
+		`{"key":"fix","text":"Update to 21.2R3-S7.","refs":[]},{"key":"workaround","text":"No workaround is published: install the fix.","refs":[]}]` + rest + `}`
+}
+
 // Regression: "Ask my AI" for a Juniper finding gave prose and steps but no config, and a paragraph stopped at 500 characters
 // in the middle of a sentence ("No confirmed recommendation exists yet, and a"). The mitigation-config brief now asks for config blocks
 // (one line per string) and keeps every text whole up to a sentence end.
@@ -19,7 +28,12 @@ func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {
 	a.withProfile()
 	long := strings.Repeat("Restricting J-Web can stop browser management of the switch. ", 40) // about 2,400 characters
 	answer, _ := json.Marshal(map[string]any{
-		"paragraphs":       []string{"Junos OS 15.1R7.9 is inside the affected range (before 20.4).", long},
+		"answers": []map[string]any{
+			{"key": "affected", "text": "Junos OS 15.1R7.9 is inside the affected range (before 20.4).", "refs": []int{1, 2, 9}},
+			{"key": "fix", "text": long, "refs": []int{}},
+			{"key": "workaround", "text": "No workaround is published: install the fix.", "refs": []int{}},
+			{"key": "urgency", "text": "Exploited in the wild.", "refs": []int{2, 2}},
+		},
 		"steps":            []string{"Back up the configuration.", "Apply the blocks below.", "Check that J-Web no longer answers."},
 		"no_config_reason": "",
 		"configs": []map[string]any{
@@ -38,12 +52,24 @@ func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {
 	})
 	a.fake.setAnswer(string(answer))
 	trusted := []netip.Addr{netip.MustParseAddr("192.168.18.47")}
-	out, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Target: "CVE-2023-36845", Question: "Write the config.", Trusted: trusted})
+	refs := []ai.BriefRef{{Title: "Vendor advisory", URL: "https://supportportal.juniper.net/JSA72300"}, {Title: "NVD", URL: "https://nvd.nist.gov/vuln/detail/CVE-2023-36845"}}
+	out, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Target: "CVE-2023-36845", Question: "Write the config.", Refs: refs, Trusted: trusted})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(out.Paragraphs) != 2 || !strings.HasSuffix(out.Paragraphs[1], "switch.") || len([]rune(out.Paragraphs[1])) > 1500 {
-		t.Fatalf("paragraph 2 = %q: cut mid-sentence or over the limit", out.Paragraphs[1])
+	if len(out.Answers) != 4 || !strings.HasSuffix(out.Answers[1].Text, "switch.") || len([]rune(out.Answers[1].Text)) > 1200 {
+		t.Fatalf("answer 2 = %+v: cut mid-sentence or over the limit", out.Answers)
+	}
+	// the links of an answer are the references the box offered, by the numbers the model named; a number it was not offered (9) and a
+	// repeated one are dropped
+	if got := out.Answers[0].Links; len(got) != 2 || got[0] != refs[0] || got[1] != refs[1] {
+		t.Fatalf("links of the first answer = %+v", got)
+	}
+	if got := out.Answers[3].Links; len(got) != 1 || got[0] != refs[1] {
+		t.Fatalf("links of the last answer = %+v", got)
+	}
+	if len(out.Paragraphs) != 0 {
+		t.Fatalf("paragraphs = %v: the answers replace them", out.Paragraphs)
 	}
 	if !out.Shortened {
 		t.Fatal("a cut paragraph and a left-out config block must set Shortened")
@@ -72,18 +98,18 @@ func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {
 	}
 
 	// r1 H1: an honest answer with no config and the reason is kept (a local flaw has no firewall rule)
-	a.fake.setAnswer(`{"paragraphs":["A local flaw."],"steps":["Install the update."],"configs":[],"no_config_reason":"The attack is local (AV:L): no firewall rule helps."}`)
+	a.fake.setAnswer(answersJSON(`"steps":["Install the update."],"configs":[],"no_config_reason":"The attack is local (AV:L): no firewall rule helps."`))
 	out, err = a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Question: "Write the config."})
 	if err != nil || len(out.Configs) != 0 || out.NoConfigReason != "The attack is local (AV:L): no firewall rule helps." || out.Shortened {
 		t.Fatalf("honest no-config answer = %+v, %v", out, err)
 	}
 	// r2 M1: checked as kept: an answer whose only block is left out (two commands in one line) and that gives no reason is a format error
-	a.fake.setAnswer(`{"paragraphs":["Restrict J-Web."],"steps":["Do it."],"configs":[{"title":"x","lines":["a\nb"],"side_effect":"","based_on":""}],"no_config_reason":""}`)
+	a.fake.setAnswer(answersJSON(`"steps":["Do it."],"configs":[{"title":"x","lines":["a\nb"],"side_effect":"","based_on":""}],"no_config_reason":""`))
 	if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Question: "Write the config."}); err == nil {
 		t.Fatal("an answer with nothing kept and no reason was accepted")
 	}
 	// an answer without a single config line and without a reason is not what the job asked for
-	a.fake.setAnswer(`{"paragraphs":["Restrict J-Web."],"steps":["Do it."],"configs":[],"no_config_reason":" "}`)
+	a.fake.setAnswer(answersJSON(`"steps":["Do it."],"configs":[],"no_config_reason":" "`))
 	_, err = a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Question: "Write the config."})
 	var ae *apierr.Error
 	if !asAPI(err, &ae) || ae.Code != "ai_bad_format" {
@@ -91,9 +117,9 @@ func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {
 	}
 
 	// a short answer is kept as it is and is not marked shortened; explain-finding has no config blocks
-	a.fake.setAnswer(`{"paragraphs":["The device runs the product."],"steps":["Update it."]}`)
+	a.fake.setAnswer(answersJSON(""))
 	out, err = a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobExplainFinding, Actor: "it@acme.example", Question: "Explain."})
-	if err != nil || out.Shortened || len(out.Configs) != 0 || out.Paragraphs[0] != "The device runs the product." {
+	if err != nil || out.Shortened || len(out.Configs) != 0 || len(out.Steps) != 0 || out.Answers[0].Text != "Yes: the device runs the product." {
 		t.Fatalf("explain = %+v, %v", out, err)
 	}
 }
@@ -105,8 +131,8 @@ func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {
 func TestBrief_FixFollowsThePageAndRulesFollowThePath(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
-	fix := []string{`The "Fixed version" line of the device block is what the finding page tells the person about the fix`,
-		`never call that release (or "that release or later") the fix`, "Never work out a fixed release from an affected range"}
+	fix := []string{`The "Fix for this device" line is the fix`, "never name a release of another release train",
+		`never call the "before" end of an affected range a fix`, "never work out a fixed release from an affected version"}
 	path := []string{"never for one it says is not on the path to this device", `put "(assumed)" in the block's "title"`,
 		`in "no_config_reason" name each firewall you assumed is in front of the device`, "write no firewall block and no Linux gateway example"}
 	for _, c := range []struct {
@@ -114,8 +140,8 @@ func TestBrief_FixFollowsThePageAndRulesFollowThePath(t *testing.T) {
 		answer string
 		want   []string
 	}{
-		{ai.JobExplainFinding, `{"paragraphs":["The device runs an affected release."],"steps":["Read the vendor advisory."]}`, fix},
-		{ai.JobMitigationConfig, `{"paragraphs":["The device runs an affected release."],"steps":["Patch."],"configs":[],"no_config_reason":"No open port serves the vulnerable part."}`, append(slices.Clone(fix), path...)},
+		{ai.JobExplainFinding, answersJSON(""), fix},
+		{ai.JobMitigationConfig, answersJSON(`"steps":["Patch."],"configs":[],"no_config_reason":"No open port serves the vulnerable part."`), append(slices.Clone(fix), path...)},
 	} {
 		a.fake.setAnswer(c.answer)
 		if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: c.job, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Explain this finding."}); err != nil {
@@ -140,7 +166,7 @@ func TestBrief_FixFollowsThePageAndRulesFollowThePath(t *testing.T) {
 func TestBriefConfig_EveryPortOfTheServiceAndSafeApply(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
-	a.fake.setAnswer(`{"paragraphs":["The device runs an affected release."],"steps":["Patch."],"configs":[],"no_config_reason":"No open port serves the vulnerable part."}`)
+	a.fake.setAnswer(answersJSON(`"steps":["Patch."],"configs":[],"no_config_reason":"No open port serves the vulnerable part."`))
 	if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Write the config."}); err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +196,7 @@ func TestBriefConfig_EveryPortOfTheServiceAndSafeApply(t *testing.T) {
 func TestBriefConfig_VerifyMatchesTheRuleActionAndWhereTrafficPasses(t *testing.T) {
 	a := newAPI(t)
 	a.withProfile()
-	a.fake.setAnswer(`{"paragraphs":["The device runs an affected release."],"steps":["Patch."],"configs":[],"no_config_reason":"No open port serves the vulnerable part."}`)
+	a.fake.setAnswer(answersJSON(`"steps":["Patch."],"configs":[],"no_config_reason":"No open port serves the vulnerable part."`))
 	if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Write the config."}); err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +204,7 @@ func TestBriefConfig_VerifyMatchesTheRuleActionAndWhereTrafficPasses(t *testing.
 	all := req.System + req.Messages[0].Text
 	for _, w := range []string{
 		// what a gateway rule protects from
-		"When you write a firewall or router rule, say which traffic it stops, as the network block gives it",
+		`A firewall or router rule's "side_effect" also says which traffic it stops, as the network block gives it`,
 		"it protects the device only from other networks, hosts on the device's own network still reach the device directly",
 		"only the change on the device itself protects it from them",
 		// the rule's action, per protocol and per source: a TCP reset only on TCP ports, internal traffic refused, Internet traffic dropped
@@ -207,11 +233,87 @@ func TestBriefConfig_VerifyMatchesTheRuleActionAndWhereTrafficPasses(t *testing.
 		}
 	}
 	// explain-finding writes no rule and gets none of this
-	a.fake.setAnswer(`{"paragraphs":["The device runs an affected release."],"steps":["Read the vendor advisory."]}`)
+	a.fake.setAnswer(answersJSON(""))
 	if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobExplainFinding, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Explain."}); err != nil {
 		t.Fatal(err)
 	}
 	if req := a.fake.lastRequest(t); strings.Contains(req.System+req.Messages[0].Text, "Every verify step") {
 		t.Error("explain-finding carries the config job's verify rule")
+	}
+}
+
+// The four answers are the whole of the explanation: the answer of an older shape (paragraphs and steps), a missing, repeated or unknown
+// answer and an empty one are format errors the box asks again about, never a page with an empty section.
+func TestBrief_TheFourAnswersAreRequired(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	one := func(key string) string { return `{"key":"` + key + `","text":"Text.","refs":[]}` }
+	for name, answer := range map[string]string{
+		"the older shape":    `{"paragraphs":["The device runs the product."],"steps":["Update it."]}`,
+		"three answers":      `{"answers":[` + one("affected") + `,` + one("fix") + `,` + one("urgency") + `]}`,
+		"a repeated answer":  `{"answers":[` + one("affected") + `,` + one("affected") + `,` + one("fix") + `,` + one("urgency") + `]}`,
+		"an unknown answer":  `{"answers":[` + one("affected") + `,` + one("fix") + `,` + one("urgency") + `,` + one("why_not") + `]}`,
+		"an empty answer":    `{"answers":[` + one("affected") + `,` + one("fix") + `,` + one("urgency") + `,{"key":"workaround","text":"  ","refs":[]}]}`,
+		"answers not a list": `{"answers":"yes"}`,
+	} {
+		a.fake.setAnswer(answer)
+		_, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobExplainFinding, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Explain."})
+		var ae *apierr.Error
+		if !asAPI(err, &ae) || ae.Code != "ai_bad_format" {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+// The instructions of both finding jobs ask for the four questions, in order, and never for a paragraph about what is absent.
+func TestBrief_InstructionsAskTheFourQuestionsAndNoWhyThereIsNo(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	for _, c := range []struct {
+		job    ai.Job
+		answer string
+	}{{ai.JobExplainFinding, answersJSON("")}, {ai.JobMitigationConfig, answersJSON(`"steps":["Patch."],"configs":[],"no_config_reason":"The attack is local."`)}} {
+		a.fake.setAnswer(c.answer)
+		if _, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: c.job, Actor: "it@acme.example", Target: "CVE-2023-0001", Question: "Explain."}); err != nil {
+			t.Fatal(err)
+		}
+		req := a.fake.lastRequest(t)
+		all := req.System + req.Messages[0].Text
+		for _, w := range []string{`"affected" (Am I affected?`, `"fix" (How do I fix it?`, `"workaround" (What if I cannot patch yet?`, `"urgency" (How urgent?`,
+			"never write a paragraph that explains why something is absent", "every claim a reference supports carries its number",
+			"Give firewall or gateway rules, and back-up and roll-back steps, only when the attack is over the network"} {
+			if !strings.Contains(all, w) {
+				t.Errorf("%s: the instructions lack %q", c.job.Name(), w)
+			}
+		}
+		for _, bad := range []string{"why there is no", "Why there is no", "explains why no", `"paragraphs"`} {
+			if strings.Contains(all, bad) {
+				t.Errorf("%s: the instructions contain %q", c.job.Name(), bad)
+			}
+		}
+	}
+}
+
+// A web address the model writes in an answer is removed: the links of an answer are the references the box offered, written by the box.
+func TestBrief_AddressesInAnswerTextAreRemoved(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"answers":[{"key":"affected","text":"Yes, see https://evil.example/patch now or www.evil.example for details.","refs":[]},` +
+		`{"key":"fix","text":"Update.","refs":[]},{"key":"workaround","text":"None.","refs":[]},{"key":"urgency","text":"High.","refs":[]}]}`)
+	out, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobExplainFinding, Actor: "it@acme.example", Question: "Explain."})
+	if err != nil || strings.Contains(out.Answers[0].Text, "evil") || out.Answers[0].Text != "Yes, see now or for details." {
+		t.Fatalf("answer = %q, %v", out.Answers[0].Text, err)
+	}
+}
+
+// An answer that is only a web address is empty once the address is removed: a format error, not an empty section.
+func TestBrief_AnAnswerThatIsOnlyAnAddressIsEmpty(t *testing.T) {
+	a := newAPI(t)
+	a.withProfile()
+	a.fake.setAnswer(`{"answers":[{"key":"affected","text":"https://evil.example/x","refs":[]},{"key":"fix","text":"Update.","refs":[]},{"key":"workaround","text":"None.","refs":[]},{"key":"urgency","text":"High.","refs":[]}]}`)
+	_, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobExplainFinding, Actor: "it@acme.example", Question: "Explain."})
+	var ae *apierr.Error
+	if !asAPI(err, &ae) || ae.Code != "ai_bad_format" {
+		t.Fatalf("err = %v", err)
 	}
 }

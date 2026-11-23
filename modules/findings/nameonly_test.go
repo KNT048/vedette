@@ -1,41 +1,12 @@
 package findings
 
 import (
-	"database/sql"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/knt048/vedette/core/productid"
-	"github.com/knt048/vedette/core/store"
 )
-
-// seedNameOnly gives the device the open product findings the matcher made before the name-only rule for the matches it now drops (NameOnly):
-// suspected, basis product, with the sentence they had. It returns their CVEs.
-func seedNameOnly(t testing.TB, e *env, a Asset, vulns []Vuln) []string {
-	t.Helper()
-	res := MatchAsset(a, vulns, nil, *e.clock)
-	var cves []string
-	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		for _, m := range slices.Concat(res.NameOnly, res.Aged) {
-			m.Evidence.Summary = m.said
-			f, h := NewFinding(m, *e.clock)
-			r := Record{ID: store.NewID("f"), AssetID: a.ID, CVE: m.CVE, Finding: f, FirstSeen: *e.clock, LastSeen: *e.clock}
-			if err := insertRecord(t.Context(), tx, r); err != nil {
-				return err
-			}
-			if err := insertHistory(t.Context(), tx, r.ID, h); err != nil {
-				return err
-			}
-			cves = append(cves, m.CVE)
-		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-	return cves
-}
 
 // desktop55 is a test box's DESKTOP-55UKKFV (2026-11-17): Windows 11 Pro 26H2 (build 26300, out 2026-09-29) on a box that has not
 // learned it from Microsoft's list (core/winrel's table alone does not list it), as agent-intake's windowsRow writes it (no release CPE, the product names the build), with a Photo Station row whose version compares.
@@ -137,109 +108,6 @@ func TestMatchAsset_CISAKeyUnknownIsUnchecked(t *testing.T) {
 	}
 }
 
-// The name-only rule reaching findings made before it: on the next reconcile an open product finding without version evidence
-// closes (not_relevant by the system, the reason in its note and history), with no notice (only a status_changed event notify does
-// not send on) and its CVE then under "Could not be checked". A risk acceptance, a person's reopen and a version finding are never
-// touched. A second pass changes nothing; a later match that compares a version reopens it.
-func TestContract_ReconcileClosesNameOnlyFindings(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	dev := desktop55()
-	inRange := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
-	accepted, reopened := cve62215, cve0210
-	e.feeds.vulns = []Vuln{cve0367, cve0210, cve62215, inRange}
-	e.inv.match = map[string]Asset{dev.ID: dev}
-	e.inv.assets = map[string]AssetView{dev.ID: {ID: dev.ID, IP: "192.168.18.60", Kind: "computer", Display: "Windows 11 Pro"}}
-	seeded := seedNameOnly(t, e, dev, e.feeds.vulns)
-	if len(seeded) != 3 {
-		t.Fatalf("seeded %v", seeded)
-	}
-	if _, err := e.svc.UpsertFromMatch(t.Context(), Asset{ID: dev.ID, Name: dev.Name, Software: dev.Software[1:]}, []Vuln{inRange}); err != nil {
-		t.Fatal(err)
-	}
-	load := func(cve string) Record {
-		t.Helper()
-		r, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, cve)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return r
-	}
-	if _, err := e.svc.setStatus(t.Context(), load(accepted.CVE).ID, ActionAcceptRisk, "until the next build", "anna@example.test", dayOf(*e.clock).AddDate(0, 0, 30)); err != nil {
-		t.Fatal(err)
-	}
-	for _, a := range []Action{ActionNotRelevant, ActionReopen} {
-		if _, err := e.svc.SetStatus(t.Context(), load(reopened.CVE).ID, a, "checked by hand", "anna@example.test"); err != nil {
-			t.Fatal(err)
-		}
-	}
-	e.pub.take()
-	e.advance(time.Hour)
-	res, err := e.svc.Reconcile(t.Context())
-	if err != nil || res.NameOnly != 1 || res.Created != 0 || res.Aged+res.Closed+res.Retired != 0 {
-		t.Fatalf("reconcile %+v %v", res, err)
-	}
-	r := load(cve0367.CVE)
-	if r.ProvedVersion != "" || r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonNotAffectedVersion ||
-		!strings.HasPrefix(r.ResolutionNote, NameOnlyNote+": Windows build 26300 is newer than every Windows release Vedette knows") {
-		t.Fatalf("not closed: %+v", r.Finding)
-	}
-	if last := r.History[len(r.History)-1]; last.User != SystemUser || last.Action != string(StatusNotRelevant) || last.Note != r.ResolutionNote {
-		t.Fatalf("history %+v", last)
-	}
-	ev := e.pub.take()
-	if len(ev) != 1 || ev[0].Name != EventStatusChanged || ev[0].Payload != (StatusChangedEvent{FindingID: r.ID, From: StatusSuspected, To: StatusNotRelevant, Reason: ReasonNotAffectedVersion}) {
-		t.Fatalf("events %+v", ev)
-	}
-	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.auto_resolved' AND detail LIKE '%D-602%'`); n != 1 {
-		t.Fatalf("audit rows %d", n)
-	}
-	if a := load(accepted.CVE); a.Status != StatusRiskAccepted {
-		t.Errorf("risk acceptance touched: %+v", a.Finding)
-	}
-	p := load(reopened.CVE)
-	if p.Status != StatusSuspected || !strings.Contains(p.History[len(p.History)-1].Note, "Vedette now matches CVE-2004-0210 by the product name only (Windows build 26300 is newer") {
-		t.Errorf("person's reopen: %+v %+v", p.Finding, p.History[len(p.History)-1])
-	}
-	if v := load(inRange.CVE); v.Status != StatusConfirmed || v.Basis != BasisVersion || !v.ByDevice() { // the agent's build is inside the range
-		t.Errorf("version finding: %+v", v.Finding)
-	}
-	rows, err := e.svc.ListUnchecked(t.Context(), dev.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var listed []string
-	for _, u := range rows {
-		listed = append(listed, u.CVE)
-	}
-	if !slices.Equal(listed, []string{cve0367.CVE}) { // the closed one; the accepted and the reopened ones are a person's
-		t.Fatalf("unchecked %v", listed)
-	}
-	// a second pass changes nothing
-	e.advance(time.Hour)
-	if res, err := e.svc.Reconcile(t.Context()); err != nil || res.NameOnly != 0 {
-		t.Fatalf("second pass %+v %v", res, err)
-	}
-	if ev := e.pub.take(); len(ev) != 0 || len(load(cve0367.CVE).History) != len(r.History) {
-		t.Fatalf("second pass wrote: %+v", ev)
-	}
-	// the build becomes one the table knows and NVD's rows compare: the closed finding reopens on that evidence
-	dev.Software[0].Product, dev.Software[0].Version = "Windows 11 24H2", "10.0.26100.1742"
-	dev.Software[0].CPE = "cpe:2.3:o:microsoft:windows_11_24h2:10.0.26100.1742:*:*:*:*:*:x64:*"
-	v := cve62215
-	v.CVE = cve0367.CVE
-	e.feeds.vulns = []Vuln{v}
-	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, e.feeds.vulns); err != nil {
-		t.Fatal(err)
-	}
-	// reopened, and confirmed at once: the device's agent states a build inside the range (two rows: the reopen, then why confirmed)
-	if r := load(cve0367.CVE); r.Status != StatusConfirmed || r.Basis != BasisVersion || len(r.History) < 2 ||
-		!strings.Contains(r.History[len(r.History)-2].Note, "it had closed it because only the product name matched") ||
-		r.History[len(r.History)-1].Note != DeviceConfirmedNote {
-		t.Fatalf("not reopened: %+v %+v", r.Finding, r.History)
-	}
-}
-
 // Review r1 of #939, M1 and M2: NVD's "every version" is version evidence for a row whose version Vedette cannot read too, and which
 // row wins never decides whether the CVE is a finding (both orders).
 func TestMatchAsset_EveryVersionAndRowOrder(t *testing.T) {
@@ -283,54 +151,6 @@ func TestMatchAsset_AddTheVersionOnlyWhereItDecides(t *testing.T) {
 		if ver == "" && (len(r.NeedVersion) != 1 || !slices.Equal(r.NeedVersion[0].CVEs, []string{ranged.CVE})) {
 			t.Errorf("no version: need %+v", r.NeedVersion)
 		}
-	}
-}
-
-// Review r1 of #939, H2 (b): a device × exploited CVE that enters "could not be checked" for the first time is announced once, in one
-// findings.unchecked.added event per device and write listing the CVEs; never again for that pair, and never for a CVE the device has
-// a finding for (the old product findings closing into the list at the upgrade stay silent).
-func TestContract_NewUncheckedIsAnnouncedOnce(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	dev := desktop55()
-	e.inv.match = map[string]Asset{dev.ID: dev}
-	old := []Vuln{cve0367}
-	seedNameOnly(t, e, dev, old) // the upgrade: a product finding an earlier rule made
-	e.pub.take()
-	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, old); err != nil {
-		t.Fatal(err)
-	}
-	for _, ev := range e.pub.take() {
-		if ev.Name == EventUncheckedAdded {
-			t.Fatalf("the upgrade announced %+v", ev)
-		}
-	}
-	added := []Vuln{cve0367, cve0210, cve4250}
-	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, added); err != nil {
-		t.Fatal(err)
-	}
-	var got []UncheckedAddedEvent
-	for _, ev := range e.pub.take() {
-		if ev.Name == EventUncheckedAdded {
-			got = append(got, ev.Payload.(UncheckedAddedEvent))
-		}
-	}
-	if len(got) != 1 || got[0].AssetID != dev.ID || got[0].AssetName != dev.Name || len(got[0].CVEs) != 2 ||
-		got[0].CVEs[0].CVE != cve0210.CVE || got[0].CVEs[1].CVE != cve4250.CVE || got[0].CVEs[0].Reason != UncheckedNotComparable || got[0].CVEs[0].Software != "Windows 11 Pro" {
-		t.Fatalf("events %+v", got)
-	}
-	e.advance(time.Hour)
-	if _, err := e.svc.Reconcile(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-	for _, ev := range e.pub.take() {
-		if ev.Name == EventUncheckedAdded {
-			t.Fatalf("announced twice: %+v", ev)
-		}
-	}
-	e.deleteDevice(t, dev.ID)
-	if n := e.count(`SELECT count(*) FROM fnd_unchecked_seen`); n != 0 {
-		t.Fatalf("seen rows left after the delete: %d", n)
 	}
 }
 

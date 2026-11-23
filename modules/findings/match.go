@@ -10,6 +10,7 @@ import (
 
 	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // Basis says how a finding was established.
@@ -76,9 +77,13 @@ type Software struct {
 	// mark is that very row (INV-6c). MarkedAt is, on a row of Asset.NotInstalled, when the person said it is not installed.
 	Key      string
 	MarkedAt time.Time
+	MarkedBy string // on a row of Asset.NotInstalled: who said it is not installed ("" when unknown)
 	// SeenAt is when the row's source last reported it (zero when unknown): for an agent's row, the day of the list its version
 	// comes from, which the plan names once no agent reports the device (PlanItem.Reported).
 	SeenAt time.Time
+	// Guess: a sensor only guessed the row (inventory's os_guess reading: an OS fingerprint, an ESXi build the build table does not
+	// list); it is never matched until a person gives the software with its version.
+	Guess bool
 }
 
 // builtBy is the source whose build rules the row follows: the reported row's for a person's correction of it, else its own.
@@ -163,6 +168,13 @@ type Vuln struct {
 	Affected    []Affected
 	Source      string // "" or "cisa-kev": the CISA list; "vulncheck-kev": VulnCheck KEV; names the list in evidence texts
 	RangesFrom  string // where Affected comes from: "" NVD, RangesCVEOrg or RangesCVEOrgPartial the CNA's CVE.org record
+	// Schemed are the ranges a vendor states in its own notation (an ESXi build per release train), read in the version scheme of
+	// the product they name: the matcher decides a line by them before the generic comparison when they reach its release line
+	// (schemeJudge), and FixOf names the vendor's fixed release of the device's train from them.
+	Schemed []SchemedRange
+	// Origin is who stated Affected: RangeNVD, RangeCNA or RangeADP ("" reads RangesFrom). NVD's rows win over the CVE record's when
+	// NVD has any (the catalogue's precedence, applied when the ranges are read); the finding stores it (range_origin).
+	Origin string
 	// NVDAnswered: the feeds module recorded an answer for the CVE's affected configurations (feeds_affected_cve: NVD's, or the
 	// CVE.org record's), even an empty one. False before the NVD pull, with it off or failing: an empty Affected then says nothing
 	// about NVD, so the "could not be checked" list does not claim "no NVD data" (#910, #920).
@@ -183,6 +195,25 @@ const (
 	RangesCVEOrg        = "cve.org"
 	RangesCVEOrgPartial = "cve.org-partial"
 )
+
+// SchemedRange is one range a vendor states in its notation, read in its product's version scheme.
+type SchemedRange struct {
+	Product string                // the core/productid key of the product it names
+	Scheme  *versionscheme.Scheme // the product's version scheme
+	Span    versionscheme.Span
+	Origin  string // RangeNVD, RangeCNA, RangeADP
+}
+
+// rangeOrigin is the origin of the ranges the matcher compares for v (fnd_finding.range_origin).
+func (v Vuln) rangeOrigin() string {
+	switch {
+	case v.Origin != "":
+		return v.Origin
+	case v.fromCVEOrg():
+		return RangeCNA
+	}
+	return RangeNVD
+}
 
 // listName is how texts name the list the entry is on: VulnCheck's entries are never called CISA's.
 func (v Vuln) listName() string {
@@ -304,12 +335,37 @@ type Match struct {
 	// provedOn: for a proof from a version, the version or package release the matcher compared ("" when none: another platform, a
 	// distribution's blanket word); stored on the finding it closes (Finding.ProvedVersion).
 	provedOn string
-	// corrected: the proof follows a person's correction of the row or of the device's OS (correctionWhy): never an update.
-	corrected bool
 	// bounded: a version match inside a range with an end (a fix to install) or below the distribution's fixed package; not an
 	// exact version NVD lists, a range with only a start, or every version (#910: the only match a row NVD alone ties to the entry
 	// may give, viaNVD; #913).
 	bounded bool
+	// Lines are the matches of the same entry on the device's other software lines (another ID than SoftwareID) that stand on their
+	// own (version evidence, or a CVE a safe check reads), the best match of each line: a CVE on Java 8 and Java 21 is two findings.
+	Lines []Match
+}
+
+// otherLines is Match.Lines of best: of the other matches of the entry, the best one of each other software line that would stand
+// as a finding by itself (the age and name-only rules of best applied to it).
+func otherLines(best Match, matched []Match, v Vuln, now time.Time) []Match {
+	var out []Match
+	at := map[string]int{}
+	for _, m := range matched {
+		if m.SoftwareID == "" || m.SoftwareID == best.SoftwareID {
+			continue
+		}
+		if aged(v, now) && !confirmedMatch(m) && !v.HasTemplate || !versionBacked(m) && !v.HasTemplate {
+			continue
+		}
+		if i, ok := at[m.SoftwareID]; ok {
+			if betterMatch(m, out[i]) {
+				out[i] = m
+			}
+			continue
+		}
+		at[m.SoftwareID] = len(out)
+		out = append(out, m)
+	}
+	return out
 }
 
 // MatchResult separates what is new from what the asset already has, so the
@@ -553,6 +609,18 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		infos[i].edgeHost = host
 	}
 	named := nvdCandidates(sws, vulns) // #910: per row, the entries whose NVD list may name it
+	distroCandidates(infos, vulns, named)
+	allRows := make([]int, len(sws))
+	namedRows := map[int][]int{} // entry -> the rows its NVD list may name, in row order
+	for i := range sws {
+		allRows[i] = i
+		for vi := range named[i] {
+			namedRows[vi] = append(namedRows[vi], i)
+		}
+	}
+	for vi := range namedRows {
+		slices.Sort(namedRows[vi])
+	}
 	for vi, v := range vulns {
 		if !ValidCVE(v.CVE) || seen[v.CVE] {
 			continue
@@ -565,7 +633,13 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		var unnamed []string      // their names, for the retired-entry sentence
 		var unchecked []Unchecked // #910: rows of the product that could not be checked
 		needs, bestRow := false, -1
-		for i, s := range sws {
+		var matched []Match // every row the entry matches: each software line is its own finding (Match.Lines)
+		rows := allRows
+		if v.Vendor == "" && v.Product == "" { // a catalogue CVE on no list: only a row its NVD list may name can be reached
+			rows = namedRows[vi]
+		}
+		for _, i := range rows {
+			s := sws[i]
 			m, out := matchOne(a, s, infos[i], v, named[i][vi], now)
 			if out == outMatch && m.Basis == BasisProduct && m.others != "" && s.ID == osSoftwareID(a.ID) {
 				// #919: the device's own OS, with a version its scheme orders, that CISA's key names but NVD's list does
@@ -604,6 +678,7 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 					}
 				}
 			case outMatch:
+				matched = append(matched, m)
 				// on a tie, a match with version evidence wins (versionBacked): whether the CVE is a
 				// finding never depends on the order of the rows; between two without it, the agent's row wins, so its note and
 				// agent_row do not depend on the order either (#909)
@@ -705,10 +780,12 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			continue
 		}
 		decided[v.CVE] = true
+		b := *best
+		b.Lines = otherLines(b, matched, v, now)
 		if have[v.CVE] {
-			res.Existing = append(res.Existing, *best)
+			res.Existing = append(res.Existing, b)
 		} else {
-			res.New = append(res.New, *best)
+			res.New = append(res.New, b)
 		}
 	}
 	if os, orderable, ok := deviceOS(a); ok && !orderable {
@@ -808,6 +885,9 @@ func betterMatch(m, best Match) bool {
 
 // keyedTo reports whether the software's KEV keys match the entry: its key, or for "Multiple Products" its vendor.
 func keyedTo(s Software, v Vuln) bool {
+	if v.Vendor == "" && v.Product == "" || len(s.KevKeys) == 0 {
+		return false // a catalogue CVE on no exploited list has no key
+	}
 	if strings.Contains(v.Vendor, "|") || strings.Contains(v.Product, "|") {
 		return false // the key separator cannot be part of a KEV vendor or product
 	}
@@ -823,15 +903,44 @@ func keyedTo(s Software, v Vuln) bool {
 	return false
 }
 
+// trustedReading says whether a row's version may make a finding of a CVE on no exploited list: the device's agent, a person, the
+// device's own SNMP answer, the network OS the device states (deviceSoftware's OS row), or the firmware a device states through its
+// management interface with its build (selfStated: an ESXi host's API). Never a version read from a banner (nmap,
+// a scan, the passive sensor) or a row of unknown origin: for CVEs nobody is known to exploit, a guess is noise (a distribution's
+// backported package answers with the upstream version in its banner).
+func trustedReading(s Software) bool {
+	switch s.Source {
+	case "agent", "manual", "snmp":
+		return true
+	}
+	return strings.HasPrefix(s.ID, "os:") || selfStated(s)
+}
+
+// offListReading says whether a row may be compared with a CVE on no exploited list: a trusted reading (never a version guessed
+// from the network), and for a distribution's package (an agent's package row, a package release a person gave) only through the
+// distribution's own word on it: an upstream range does not see the fixes a distribution backports.
+func offListReading(s Software, in swInfo, v Vuln) bool {
+	if !trustedReading(s) {
+		return false
+	}
+	if in.pkgBuilt() {
+		_, ok := distroVerdict(in, v)
+		return ok
+	}
+	return true
+}
+
 // matchOne reads entry v for one software row: through CISA's key (keyedTo), else through NVD's CPE list when named says it may
 // name the row (viaNVD, #910).
 func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time) (Match, outcome) {
 	var m Match
 	var out outcome
 	switch {
+	case s.Guess: // a sensor's guess is never matched (observe.Software.Guess)
+		return Match{}, outNone
 	case keyedTo(s, v):
 		m, out = judge(a, s, in, v, keyIDs(v), now)
-	case named:
+	case named && (v.listed() || offListReading(s, in, v)):
 		m, out = viaNVD(a, s, in, v, now)
 	default:
 		return Match{}, outNone
@@ -851,7 +960,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, named bool, now time.Time)
 // distribution's own word: NVD's upstream ranges do not see the fixes it backports (an Android entry that also lists
 // linux_kernel on Ubuntu's kernel). An Edge Legacy row is never reached: NVD writes Chromium Edge's ranges under microsoft:edge too.
 func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outcome) {
-	if !nvdReaches(s, in, v) {
+	if !nvdReaches(a, s, in, v) {
 		return Match{}, outNone
 	}
 	m, out := judge(a, s, in, v, nil, now)
@@ -861,9 +970,16 @@ func viaNVD(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, outco
 	return Match{}, outNone
 }
 
-// nvdReaches says whether viaNVD reads v for the row: NVD's list names it (nvdNames), it is not an Edge Legacy row, and a row its
-// distribution may have built has the distribution's word. Reachability reads the same.
-func nvdReaches(s Software, in swInfo, v Vuln) bool {
+// nvdReaches says whether viaNVD reads v for the row: the vendor's own rows name its product and may decide it (schemeNames), or
+// NVD's list names it (nvdNames), it is not an Edge Legacy row, and a row its distribution may have built has the distribution's
+// word. Reachability reads the same.
+func nvdReaches(a Asset, s Software, in swInfo, v Vuln) bool {
+	if schemeNames(a, s, in, v) {
+		return true
+	}
+	if _, ok := distroVerdict(in, v); ok { // the distribution's word on its own package, before or without NVD naming the product
+		return true
+	}
 	if !nvdNames(in, v) || edgeLegacyRow(s, in) {
 		return false
 	}
@@ -927,13 +1043,14 @@ func distroBuilt(in swInfo) bool {
 // ones viaNVD can read for it. One pass over the list, so the matcher does not read every entry for every row.
 func nvdCandidates(sws []Software, vulns []Vuln) []map[int]bool {
 	byVendor := map[string][]int{}
+	add := func(vn string, i int) {
+		if l := byVendor[vn]; vn != "" && (len(l) == 0 || l[len(l)-1] != i) {
+			byVendor[vn] = append(l, i)
+		}
+	}
 	for i, v := range vulns {
-		for _, af := range v.Affected {
-			if vn := cpeVendor(af); vn != "" {
-				if l := byVendor[vn]; len(l) == 0 || l[len(l)-1] != i {
-					byVendor[vn] = append(l, i)
-				}
-			}
+		for _, vn := range entryVendors(v) {
+			add(vn, i)
 		}
 	}
 	out := make([]map[int]bool, len(sws))
@@ -950,11 +1067,63 @@ func nvdCandidates(sws []Software, vulns []Vuln) []map[int]bool {
 	return out
 }
 
+// distroCandidates adds to named, per row, the entries whose distribution data names the row's source package for the device's
+// release (distroVerdict can read them): a CVE a distribution fixed in a package is compared with the package even when NVD has not
+// named the upstream product yet.
+func distroCandidates(infos []swInfo, vulns []Vuln, named []map[int]bool) {
+	byPkg := map[string][]int{} // distribution|release|package -> rows
+	for i, in := range infos {
+		if in.pkgVer == "" || in.pkgSrc == "" {
+			continue
+		}
+		d, rel := distroOf(in)
+		if d == "" || rel == "" {
+			continue
+		}
+		k := d + "|" + rel + "|" + securitySource(d, in.pkgSrc)
+		byPkg[k] = append(byPkg[k], i)
+	}
+	if len(byPkg) == 0 {
+		return
+	}
+	for vi, v := range vulns {
+		for _, f := range v.Distro {
+			for _, i := range byPkg[f.Distro+"|"+f.Release+"|"+f.Package] {
+				if named[i] == nil {
+					named[i] = map[int]bool{}
+				}
+				named[i][vi] = true
+			}
+		}
+	}
+}
+
+// entryVendors are the normalised vendors an entry's data names: its NVD or CVE record rows' CPE vendors, and the vendors of the
+// products its vendor rows name (Vuln.Schemed: they reach the rows of their product, schemeNames). In data order, with repeats.
+func entryVendors(v Vuln) []string {
+	var out []string
+	for _, af := range v.Affected {
+		if vn := cpeVendor(af); vn != "" {
+			out = append(out, vn)
+		}
+	}
+	for _, r := range v.Schemed {
+		vn, _, _ := strings.Cut(r.Product, "|")
+		if vn = productid.Norm(vn); vn != "" {
+			out = append(out, vn)
+		}
+	}
+	return out
+}
+
 // rowVendors are the normalised vendors of the names newSWInfo gives the row: its own, its aliases' (content/catalog/products) and its CPE's
 // (Microsoft for a Windows release row; edgeIDs keeps Microsoft).
 func rowVendors(s Software) []string {
 	n := identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}
 	out := []string{n.vendor}
+	if r := productid.NormVendor(s.Vendor); r != n.vendor { // a CVE record's range of a product the catalogue does not list
+		out = append(out, r)
+	}
 	for _, a := range cpeAliases[n] {
 		out = append(out, a.vendor)
 	}
@@ -1022,19 +1191,29 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 	multi := isMultiProduct(v.Product)
 	w, isWin := windowsDecide(in, v, in.winNamed, now) // A Windows release row by its monthly update
 	tri, within, every, proof := w.t, w.within, false, w.proof
-	pinned := "" // #939: the version is inside whatever the edition or target the row does not state
+	pinned := ""     // #939: the version is inside whatever the edition or target the row does not state
+	vendorNote := "" // the proof note of the vendor's rows (schemeJudge)
+	schemed := false
 	if !isWin {
-		tri, within, every, proof = decide(in, v, key)
-		if tri == Unknown && in.given && v.RangesFrom == "" {
-			if r, attrs, ok, _ := pinnedInside(in, v, key); ok {
-				tri, within, pinned = Yes, r, attrs
+		if r, ok := schemeJudge(a, s, in, v); ok { // the vendor's own rows, read in the product's version scheme, decide first
+			tri, within, vendorNote = schemeDecision(a, v, r)
+			proof, schemed = proofRange, true
+		} else {
+			tri, within, every, proof = decide(in, v, key)
+			if tri == Unknown && in.given && v.RangesFrom == "" {
+				if r, attrs, ok, _ := pinnedInside(in, v, key); ok {
+					tri, within, pinned = Yes, r, attrs
+				}
 			}
 		}
 	}
-	if tri == No && v.RangesFrom == RangesCVEOrgPartial { // the CNA's list may skip branches: outside it proves nothing
+	if tri == No && v.RangesFrom == RangesCVEOrgPartial && !schemed { // the CNA's list may skip branches: outside it proves nothing
 		tri, proof = Unknown, proofNone
 	}
 	switch {
+	case tri == No && schemed:
+		return Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: vendorNote, CheckedAt: now},
+			provedOn: strings.TrimSpace(in.ver)}, outNotAffected
 	case tri == No && proof == proofNone:
 		if multi && listsOthersOnly(in, v) { // No proof (NVD's list can lag the advisory); the person reads why
 			note := fmt.Sprintf("NVD lists %s for %s, not %s; check the vendor advisory and close it if it does not apply.", nvdProducts(v.Vendor, v.Affected), v.CVE, clean(s.Display))
@@ -1084,6 +1263,9 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 			m.Severity = SeverityCritical
 		}
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()))
+		if schemed {
+			m.Evidence.Summary = schemeAffectedNote(a, s, in, v, within)
+		}
 		if pinned != "" {
 			m.Evidence.Summary = fmt.Sprintf("%s runs %s. NVD lists %s for %s only; Vedette cannot tell which one this is, but the version is inside the affected range of each (%s); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, pinned, clean(within.String()))
 		}
@@ -1095,6 +1277,9 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		if s.Source == "agent" && pinned == "" && (within.EndExcl != "" || within.EndIncl != "") {
 			m.Evidence.Agent = true
 			m.Evidence.Summary = agentSummary(name, s, in, v, within, w, isWin)
+			if schemed {
+				m.Evidence.Summary = schemeAffectedNote(a, s, in, v, within)
+			}
 		}
 		if s.Source == SourceSNMP && pinned == "" && w.via == "" && endBound(within) {
 			snmpStated = true
@@ -1294,6 +1479,9 @@ func newSWInfo(s Software, osName string) swInfo {
 	}
 	if n := (identity{vendor: productid.Norm(s.Vendor), product: productid.Norm(s.Product)}); n.ok() {
 		in.ids = append(append(append(in.ids, n), cpeAliases[n]...), edgeIDs(s.Vendor, s.Product, in.ver)...)
+		if r := recordIdentity(s.Vendor, s.Product); r.ok() {
+			in.ids = append(in.ids, r)
+		}
 	}
 	return in
 }
@@ -1652,6 +1840,15 @@ func everyVersion(c CPE) bool {
 type identity struct {
 	vendor, product string
 	prefix          bool
+	// record: the name a CVE record writes for a product without a CPE (company words and the vendor's name in front dropped,
+	// recordIdentity); it names only a record's range (part ANY), never an NVD CPE.
+	record bool
+}
+
+// recordIdentity is a software's own names as a CVE record's product key is written (feeds' RecordProductKey: "Palo Alto Networks",
+// "PAN-OS" is paloalto|panos), so a record range of a product the catalogue does not list still reaches it.
+func recordIdentity(vendor, product string) identity {
+	return identity{vendor: productid.NormVendor(vendor), product: productid.NormProduct(product, vendor), record: true}
 }
 
 func (i identity) ok() bool { return i.vendor != "" && i.product != "" }
@@ -1680,6 +1877,9 @@ func appliesTo(c, sw CPE, hasSW bool, ids []identity) (match, known bool) {
 	}
 	cv, cp = productid.Norm(cv), productid.Norm(cp)
 	for _, i := range ids {
+		if i.record && c.Part.Kind != Any {
+			continue
+		}
 		if i.matches(cv, cp) {
 			return true, true
 		}

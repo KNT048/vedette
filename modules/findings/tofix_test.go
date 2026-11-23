@@ -1,7 +1,6 @@
 package findings
 
 import (
-	"database/sql"
 	"slices"
 	"testing"
 )
@@ -63,7 +62,7 @@ func TestToFix_MostUrgentDeviceFirst(t *testing.T) {
 	if p := tf.Devices[1].Planned[0].Product; p != "f5|nginx" {
 		t.Errorf("planned product %q", p)
 	}
-	if u, _, _ := e.svc.DeviceUpdates(t.Context(), "a-3", true); len(u.Planned) != 1 || u.Planned[0].Product != "f5|nginx" {
+	if u, _, _ := deviceUpdates(t, e, "a-3", true); len(u.Planned) != 1 || u.Planned[0].Product != "f5|nginx" {
 		t.Errorf("DeviceUpdates planned product: %+v", u.Planned)
 	}
 	// one device only (its Software tab)
@@ -127,53 +126,5 @@ func TestToFix_UrgencyFieldByField(t *testing.T) {
 	want := []string{"a-critical", "a-ransom-high", "a-proved", "a-more-cves", "a-a-tie", "a-z-tie", "a-plan", "a-unproved"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("order\n got %v\nwant %v", got, want)
-	}
-}
-
-// Review r2 of #943: the cap keeps the devices To fix lists. Versionless product-only guesses (Critical, ransomware) on many devices
-// never push out a PC with a proved exploited CVE and a named update.
-func TestToFix_CapKeepsTheProvedDevice(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	// two ransomware product-only guesses on Surveillance Station (no range) on four devices; the PC has one ranged CVE, no ransomware
-	guess := func(cve string) Vuln {
-		return Vuln{CVE: cve, Vendor: "QNAP", Product: "Surveillance Station", Ransomware: true, HasTemplate: true} // a scan checks it: a product finding stays
-	}
-	ranged := Vuln{CVE: "CVE-2099-0001", Vendor: "QNAP", Product: "Photo Station",
-		Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "6.1.2"}}}}
-	e.feeds.vulns = []Vuln{guess("CVE-2098-0001"), guess("CVE-2098-0002"), ranged}
-	ids := []string{"a-g1", "a-g2", "a-g3", "a-g4", "a-pc"}
-	e.inv.mu.Lock()
-	for _, id := range ids {
-		a := Asset{ID: id, Name: id, Software: []Software{{ID: "s-ss", Display: "Surveillance Station", Vendor: "QNAP", Product: "Surveillance Station", Version: "5.0", KevKeys: []string{"qnap|surveillance station"}}}}
-		if id == "a-pc" {
-			a = nas("6.1.1") // inside the range: a version finding the agent reports, with a named update
-			a.ID = id
-			a.Software[0].Source = "agent"
-		}
-		e.inv.match[id] = a
-	}
-	e.inv.mu.Unlock()
-	for _, id := range ids {
-		if _, err := e.svc.OnMatchChanged(t.Context(), id); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// the guesses as the reviewer's case has them: Critical (a row stored before the product regrade, or a distro's Critical)
-	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET severity = 'critical' WHERE basis = 'product'`)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE basis = 'product' AND severity = 'critical'`); n != 8 {
-		t.Fatalf("guesses: %d", n)
-	}
-	tf, err := e.svc.toFix(t.Context(), true, "", 2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !tf.Truncated || len(tf.Devices) == 0 || tf.Devices[0].AssetID != "a-pc" || len(tf.Devices[0].Exploited) != 1 {
-		t.Fatalf("the proved PC is kept and first under a cap of 2: %+v", tf)
 	}
 }

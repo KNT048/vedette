@@ -365,7 +365,6 @@
   },
   "lastChecks": {
     "title": "Last checks",
-    "description": "When Vedette last checked this device and what it found.",
     "when": "{{time}} ({{ago}})",
     "see": "Open the run",
     "never": "Never",
@@ -388,7 +387,6 @@
     },
     "vulnOff": "The vulnerability checks (Preview) are off, so none runs.",
     "vulnOffLink": "Turn them on: Settings, Scanning, Engines",
-    "notRun": "Not run yet.",
     "neverSnmp": "An SNMP read runs in the scan window once SNMP is set up on this device.",
     "neverSnmpLink": "Set it up in Sources",
     "allRuns": "All runs of this device"

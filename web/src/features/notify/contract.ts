@@ -59,7 +59,7 @@ export const Grouping = z.object({ enabled: z.boolean(), window_min: z.union([z.
 export const Rules = z.object({ quiet: Quiet, grouping: Grouping })
 export const ChannelsResponse = z.object({ channels: z.array(Channel), quiet: Quiet, grouping: Grouping, email_code_users: z.number().int().describe('Users who sign in with two-step email codes: they cannot sign in while the email channel is off or removed') })
 
-export const IncidentKind = z.enum(['trap', 'bad_address', 'log_anomaly', 'unknown_device', 'intrusion'])
+export const IncidentKind = z.string().regex(/^[a-z0-9_]{1,40}$/).describe('What the incident is about: an open vocabulary (trap, bad_address, log_anomaly, unknown_device, intrusion are the ones with their own labels); a kind the app does not know is shown with a generic label')
 export const IncidentStatus = z.enum(['new', 'acknowledged', 'resolved'])
 export const SendRecord = z.object({ id: z.string(), channel: ChannelType, to: z.string(), at: iso, ok: z.boolean(), error: z.string().optional(),
   delayed: z.boolean().describe('The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend') })

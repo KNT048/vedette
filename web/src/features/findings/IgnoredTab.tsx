@@ -1,62 +1,61 @@
-import { Link } from 'react-router'
+// Ignored devices: the open findings left out of every other list and count because a person ignored their device, one card per
+// device with Restore (stop ignoring: the device goes back to To review and its findings to the lists).
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import type { UseQueryResult } from '@tanstack/react-query'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/common/Card'
+import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
+import { CveList } from '@/components/common/status'
+import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { useDeviceAction } from '@/features/inventory/api'
+import { useDeviceCards } from './api'
+import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { errMsg } from './errors'
-import { deviceName } from './basis'
-import { FindingStatusChip } from './AcceptRisk'
-import type { FindingRow } from './types'
+import { DeviceLine } from './parts'
+import type { DeviceCard } from './types'
 
-function IgnoredDevice({ id, name, rows }: { id: string; name: string; rows: FindingRow[] }) {
+function IgnoredDevice({ card }: { card: DeviceCard }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
-  const act = useDeviceAction(id)
+  const act = useDeviceAction(card.device.id)
+  const name = card.device.name
+  const findings = card.blocks.flatMap((b) => b.findings)
   return (
-    <li className="grid gap-2 px-4 py-3">
+    <article aria-label={name} className="grid gap-2 py-1">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex flex-wrap items-baseline gap-x-2">
-          <Link to={`/devices/${id}`} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name}</Link>
-          <span className="text-meta text-muted">{t('ignoredTab.count', { count: rows.length })}</span>
+        <span className="grid gap-0.5">
+          <DeviceLine device={card.device} badge={false} />
+          <span className="text-meta text-muted">{t('byDevice.counts', { count: card.findings, cves: card.cves })}</span>
         </span>
-        <Button size="sm" disabled={!can} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')}
+        <Button size="sm" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')}
+          aria-label={t('ignoredTab.restoreOf', { name })}
           onClick={() => act.ignore.mutate(false, { onSuccess: () => toast.success(t('ignoredTab.restored', { name })), onError: (e) => toast.error(errMsg(e)) })}>{t('ignoredTab.restore')}</Button>
       </div>
-      <ul className="grid gap-1 text-sm">
-        {rows.map((f) => (
-          <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <Link to={`/findings/${f.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{f.cve}</Link>
-            <span className="text-muted">{f.kev?.display ?? ''}</span>
-            <FindingStatusChip f={f} />
-          </li>
-        ))}
-      </ul>
-    </li>
+      <CveList label={t('ignoredTab.cvesOf', { name })} items={findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, status: f.status, to: `/findings/${encodeURIComponent(f.id)}` }))} />
+    </article>
   )
 }
 
-/** The findings hidden because their device is ignored, one block per device, with Restore (stop ignoring: the device goes back to To review). */
-export function IgnoredTab({ q }: { q: UseQueryResult<{ items: FindingRow[] }> }) {
+export function IgnoredTab() {
   const { t } = useTranslation('findings')
+  const raw = useListParams('ignored')
+  const list = useMemo(() => ({ ...raw, size: raw.size === undefined ? undefined : Math.min(raw.size, PAGE_MAX) }), [raw])
+  const size = list.size ?? PAGE_DEFAULT
+  const q = useDeviceCards({ ignored: true }, { offset: list.page * size, limit: size })
+  const columns: ColumnDef<DeviceCard>[] = [
+    { id: 'device', header: t('byDevice.col'), cell: ({ row: { original: c } }) => <IgnoredDevice card={c} /> },
+  ]
   return (
-    <QueryState query={q}>
-      {(d) => {
-        const by = new Map<string, FindingRow[]>()
-        for (const f of d.items) if (f.asset?.ignored) by.set(f.asset_id, [...(by.get(f.asset_id) ?? []), f])
-        const groups = [...by.entries()].map(([id, rows]) => ({ id, rows, name: deviceName(rows[0]!.asset, t('removedDevice')) })).sort((a, b) => a.name.localeCompare(b.name))
-        return (
-          <div className="grid gap-3">
-            <p className="max-w-3xl text-meta text-muted">{t('ignoredTab.intro')}</p>
-            {groups.length === 0 ? <EmptyState title={t('ignoredTab.none')} /> : (
-              <Card flush><ul className="divide-y divide-rule">{groups.map((g) => <IgnoredDevice key={g.id} {...g} />)}</ul></Card>
-            )}
-          </div>
-        )
-      }}
-    </QueryState>
+    <div className="grid gap-3">
+      <p className="max-w-3xl text-meta text-muted">{t('ignoredTab.intro')}</p>
+      <QueryState query={q}>
+        {(d) => d.total === 0 ? <EmptyState title={t('ignoredTab.none')} /> : (
+          <DataTable urlKey="ignored" caption={t('ignoredTab.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
+            server={{ total: d.total, list }} mobileRow={(c) => <IgnoredDevice card={c} />} />
+        )}
+      </QueryState>
+    </div>
   )
 }

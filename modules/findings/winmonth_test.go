@@ -204,39 +204,6 @@ func TestMatchAsset_PartOfTheListNeverMovesTheMonth(t *testing.T) {
 	}
 }
 
-// Reconcile's two writes (backlog, this week's entries) read the build's month from the whole list: a September 2024 entry fixed only by
-// a later build (26100.2100, above the device's 26100.2000) stops the walk at August, so an October 2024 entry stays open on the recent
-// write too, where that September entry is not.
-func TestReconcile_BuildMonthFromTheWholeList(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	*e.clock = time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC)
-	week := "2026-11-12"
-	e.feeds.vulns = []Vuln{
-		dated("CVE-2024-90020", "2024-08-13", "2024-08-13", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.1457"}),
-		dated("CVE-2024-90021", "2024-09-10", "2024-09-10", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.2100"}), // fixed by a later build
-		dated("CVE-2024-90022", "2024-11-12", week, nvdRow{"windows_server_2025", "*", "*", "10.0.26100.2314"}),
-		dated("CVE-2024-90023", "2024-10-08", week, nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.1900"}),
-	}
-	dev := winPC(26100, true, "2000", "x64")
-	e.inv.match = map[string]Asset{dev.ID: dev}
-	e.inv.assets = map[string]AssetView{dev.ID: {ID: dev.ID, IP: "—", Kind: "server", Display: dev.Name}}
-	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, e.feeds.vulns); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.reconciler(&markPub{}, e.inv).Reconcile(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-	// Not proved either way, so no finding and no close: the entry is under "Could not be checked"
-	if r, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, "CVE-2024-90023"); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("October 2024 entry on a build from August: %+v %v", r.Finding, err)
-	}
-	rows, err := e.svc.ListUnchecked(t.Context(), dev.ID)
-	if err != nil || !slices.ContainsFunc(rows, func(u UncheckedRow) bool { return u.CVE == "CVE-2024-90023" }) {
-		t.Fatalf("October 2024 entry not under could not be checked: %+v %v", rows, err)
-	}
-}
-
 // Review r1 #2 and #3 of #806: each margin of the month rule holds a case of its own.
 func TestMatchAsset_Margins(t *testing.T) {
 	vulns := loadGolden(t, "testdata/kev-nvd-winlab01-n55.json")
@@ -314,4 +281,37 @@ func TestMatchAsset_OwnRowsWithoutAFixBuild(t *testing.T) {
 	v.Affected[0] = Affected{CPE: "cpe:2.3:o:microsoft:windows_server_2019:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.0.17763.9999"}}
 	w, m = oneMatch(t, srv, v, true, vulns...)
 	wantMatch(t, "own row above the build", w, m, "existing", BasisVersion, SeverityHigh)
+}
+
+// Reconcile's two writes (backlog, this week's entries) read the build's month from the whole list: a September 2024 entry fixed only by
+// a later build (26100.2100, above the device's 26100.2000) stops the walk at August, so an October 2024 entry stays open on the recent
+// write too, where that September entry is not.
+func TestReconcile_BuildMonthFromTheWholeList(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	*e.clock = time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC)
+	week := "2026-11-12"
+	e.feeds.vulns = []Vuln{
+		dated("CVE-2024-90020", "2024-08-13", "2024-08-13", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.1457"}),
+		dated("CVE-2024-90021", "2024-09-10", "2024-09-10", nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.2100"}), // fixed by a later build
+		dated("CVE-2024-90022", "2024-11-12", week, nvdRow{"windows_server_2025", "*", "*", "10.0.26100.2314"}),
+		dated("CVE-2024-90023", "2024-10-08", week, nvdRow{"windows_11_24h2", "*", "*", "10.0.26100.1900"}),
+	}
+	dev := winPC(26100, true, "2000", "x64")
+	e.inv.match = map[string]Asset{dev.ID: dev}
+	e.inv.assets = map[string]AssetView{dev.ID: {ID: dev.ID, IP: "—", Kind: "server", Display: dev.Name}}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), dev, e.feeds.vulns); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.reconciler(&markPub{}, e.inv).Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	// Not proved either way, so no finding and no close: the entry is under "Could not be checked"
+	if r, err := loadByPair(t.Context(), e.db.Reader(), dev.ID, "CVE-2024-90023"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("October 2024 entry on a build from August: %+v %v", r.Row, err)
+	}
+	rows, err := e.svc.ListUnchecked(t.Context(), dev.ID)
+	if err != nil || !slices.ContainsFunc(rows, func(u UncheckedRow) bool { return u.CVE == "CVE-2024-90023" }) {
+		t.Fatalf("October 2024 entry not under could not be checked: %+v %v", rows, err)
+	}
 }

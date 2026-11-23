@@ -7,7 +7,8 @@ import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
 import { api } from '@/lib/api'
 import { briefOfVuln } from './briefSamples'
-import { assetsStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { records as modelRecords } from '@/features/findings/modelMocks'
 
 describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
   // The first-run card remembers per user in this browser (#825): each test starts as a new visitor.
@@ -22,7 +23,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     await expectNoA11yViolations()
   })
 
-  it('Home at a glance comes from one read: tiles link to the lists they count, Fix first shows CVSS next to the exploited list (#825)', async () => {
+  it('Home at a glance comes from one read: tiles link to the lists they count, Fix first lists the most urgent fixes with their CVEs', async () => {
     const seen: string[] = []
     server.events.on('request:start', ({ request }) => { seen.push(new URL(request.url).pathname) })
     renderApp('/')
@@ -30,23 +31,25 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     const strip = await screen.findByRole('list', { name: 'Today at a glance' })
     const tiles = within(strip).getAllByRole('listitem')
     expect(tiles).toHaveLength(4)
-    expect(within(tiles[0]!).getByRole('link', { name: /^\d+ open exploited findings? on \d+ devices?$/ })).toHaveAttribute('href', '/findings?tab=open')
-    expect(within(tiles[0]!).getByRole('link', { name: /confirmed$/ })).toHaveAttribute('href', '/findings?tab=open&status=confirmed')
-    expect(within(tiles[0]!).getByRole('img', { name: /^Open exploited findings over 30 days: \d+ then, \d+ now$/ })).toBeInTheDocument()
+    expect(within(tiles[0]!).getByRole('link', { name: /^\d+ open findings? on \d+ devices?$/ })).toHaveAttribute('href', '/findings?tab=device')
+    // the status split is the Findings screen's: each status badge opens that list
+    expect(within(tiles[0]!).getAllByRole('link').some((l) => l.getAttribute('href') === '/findings?tab=device&status=exploited')).toBe(true)
+    expect(within(tiles[0]!).getByRole('img', { name: /^Open findings over 30 days: \d+ then, \d+ now$/ })).toBeInTheDocument()
     expect(within(tiles[1]!).getByRole('link', { name: /devices? watched$/ })).toHaveAttribute('href', '/devices')
     expect(within(tiles[2]!).getByRole('link', { name: /alerts? sent, last 7 days$/ })).toHaveAttribute('href', '/settings/channels#history')
     expect(within(tiles[3]!).getByRole('link', { name: /open incidents?$/ })).toHaveAttribute('href', '/incidents?tab=open')
     const fix = await screen.findByRole('region', { name: 'Fix first' })
-    const rows = within(fix).getAllByRole('listitem')
+    const rows = within(fix).getAllByRole('listitem').filter((li) => li.parentElement?.getAttribute('aria-label') === 'Fix first')
     expect(rows.length).toBeGreaterThan(0)
     expect(rows.length).toBeLessThanOrEqual(5)
-    expect(within(rows[0]!).getAllByRole('link')[0]).toHaveAttribute('href', expect.stringMatching(/^\/findings\//))
-    expect(within(rows[0]!).getAllByText(/^In (CISA|VulnCheck) KEV$/).length).toBe(1)
-    // Every row has its CVSS line: a score with its band, or "No CVSS score", never 0.
-    for (const r of rows) expect(within(r).getByText(/^(CVSS|No CVSS score)$/)).toBeInTheDocument()
+    expect(within(rows[0]!).getAllByRole('link')[0]).toHaveAttribute('href', expect.stringMatching(/^\/findings\?tab=device&device=/))
+    // the one status badge, and the CVEs through the shared list, each with its severity band
+    expect(rows[0]!.querySelector('[data-status]')).not.toBeNull()
+    expect(rows[0]!.querySelector('[data-band]')).not.toBeNull()
     expect(within(fix).queryByText(/^0\.0$/)).toBeNull()
-    // Home no longer lists every finding, device and incident just to count them; the shell's badges share the same read.
-    expect(seen.filter((p) => p === '/api/v1/findings/summary')).toHaveLength(1)
+    // Home reads the overview once; the shell's badges share the same read, and nothing lists every finding just to count them.
+    expect(seen.filter((p) => p === '/api/v1/findings/overview')).toHaveLength(1)
+    expect(seen).not.toContain('/api/v1/findings/summary')
     expect(seen).not.toContain('/api/v1/findings')
     expect(seen).not.toContain('/api/v1/inventory/devices')
     expect(seen).not.toContain('/api/v1/notify/incidents')
@@ -55,26 +58,20 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     await expectNoA11yViolations()
   })
 
-  it('Fix first leads with the software the device runs, the list\'s group after it; the trend line says the change since the first day', async () => {
-    const { summary } = await import('@/features/findings/mocks')
-    server.use(http.get('*/api/v1/findings/summary', () => {
-      const v = summary()
-      const trend = v.trend.map((_, i) => (i === v.trend.length - 1 ? 49 : 0))
-      return HttpResponse.json({ ...v, open: { ...v.open, total: 49 }, trend,
-        top: v.top.slice(0, 1).map((f) => ({ ...f, software: 'Windows Server 2025', product: 'Windows PCs and servers' })) })
+  it('the trend line says the change since the first day', async () => {
+    const { overview } = await import('@/features/findings/modelMocks')
+    server.use(http.get('*/api/v1/findings/overview', () => {
+      const v = overview()
+      return HttpResponse.json({ ...v, trend: v.trend.map((_, i) => (i === v.trend.length - 1 ? 49 : 0)) })
     }))
     renderApp('/')
-    const fix = await screen.findByRole('region', { name: 'Fix first' })
-    const row = within(fix).getAllByRole('listitem')[0]!
-    expect(within(row).getAllByRole('link')[0]).toHaveTextContent('Windows Server 2025')
-    expect(within(row).getByText('Windows PCs and servers')).toBeInTheDocument()
     expect(await screen.findByText(/^Up 49 since \d{1,2} [A-Z][a-z]{2} \(was 0\)$/)).toBeInTheDocument()
     expect(screen.queryByText(/more than 30 days ago/)).toBeNull()
   })
 
   it('the trend reads day by day from the keyboard (#825)', async () => {
     renderApp('/')
-    const chart = await screen.findByRole('img', { name: /^Open exploited findings over 30 days/ })
+    const chart = await screen.findByRole('img', { name: /^Open findings over 30 days/ })
     chart.focus()
     expect(await screen.findByText(/^Now: \d+ open$/)).toBeInTheDocument()
     await userEvent.keyboard('{Home}')
@@ -91,15 +88,15 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
   })
 
   it('nothing open: the good-news state, no Fix first list (#825)', async () => {
-    findingsStore.set([])
+    modelRecords.set([])
     renderApp('/')
     expect(await screen.findByRole('heading', { level: 1, name: 'Today: nothing you run is being exploited' })).toBeInTheDocument()
-    expect(await screen.findByText('Nothing you run is being exploited')).toBeInTheDocument()
+    expect(await screen.findByText('No open findings')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Fix first' })).toBeNull()
   })
 
   it('first run: the steps instead of tiles of zeros; a device is added right on Home; done steps say so (#825, docs/UI.md §0)', async () => {
-    findingsStore.set([])
+    modelRecords.set([])
     assetsStore.set([])
     renderApp('/')
     expect(await screen.findByRole('heading', { level: 1, name: 'Today: add your devices so Vedette can check them' })).toBeInTheDocument()
@@ -123,7 +120,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
   })
 
   it('first run: the network range is added right on Home with the scope commitment, then scanned now in place (#825, #860, docs/UI.md §0.1)', async () => {
-    findingsStore.set([])
+    modelRecords.set([])
     assetsStore.set([])
     const sent: unknown[] = []
     const runs: string[] = []
@@ -162,7 +159,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
   })
 
   it('first run: a public range is refused at the field, nothing added (#825, #860)', async () => {
-    findingsStore.set([])
+    modelRecords.set([])
     assetsStore.set([])
     renderApp('/')
     const card = await screen.findByRole('region', { name: 'Get started' })
@@ -176,7 +173,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
   })
 
   it('first run: a viewer sees the steps but cannot add a device (#825)', async () => {
-    findingsStore.set([])
+    modelRecords.set([])
     assetsStore.set([])
     renderApp('/', { role: 'viewer' })
     const card = await screen.findByRole('region', { name: 'Get started' })
@@ -188,7 +185,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
   })
 
   it('first run: a box with no range keeps "Set the network range" (#825)', async () => {
-    findingsStore.set([])
+    modelRecords.set([])
     assetsStore.set([])
     server.use(http.get('*/api/v1/scanning', () => HttpResponse.json({ error: { code: 'x', message: 'Not available.' } }, { status: 503 })))
     renderApp('/')
@@ -198,7 +195,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
   })
 
   it('first run on a phone: "In your network?" says "No devices yet", never a guessed No (#825)', async () => {
-    findingsStore.set([])
+    modelRecords.set([])
     assetsStore.set([])
     vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('max-width'), media: q, addEventListener: () => {}, removeEventListener: () => {} }))
     try {
@@ -213,18 +210,18 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
   })
 
   it('on a box that never fetched a feed, Home at a glance claims nothing: no green 0, no "nothing exploited" (#825)', async () => {
-    findingsStore.set([])
+    modelRecords.set([])
     server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '1970-01-01T00:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true })))
     renderApp('/')
     expect(await screen.findByRole('heading', { level: 1, name: 'Today: no data yet' })).toBeInTheDocument()
     const glance = await screen.findByRole('list', { name: 'Today at a glance' })
     expect(await screen.findByText(/No exploited list has been fetched yet, so Vedette cannot say whether anything you run is exploited\./)).toBeInTheDocument()
-    expect(screen.queryByText('Nothing you run is being exploited')).toBeNull()
+    expect(screen.queryByText('No open findings')).toBeNull()
     expect(glance.querySelector('.text-ok, .bg-ok')).toBeNull()
   })
 
   it('first run has no Hide (the card is the only way forward); after it, Hide keeps the card away (#825, docs/UI.md §0)', async () => {
-    findingsStore.set([])
+    modelRecords.set([])
     const devices = assetsStore.get()
     assetsStore.set([])
     renderApp('/')
@@ -244,10 +241,10 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     expect(screen.queryByRole('region', { name: 'Get started' })).toBeNull()
   })
 
-  it('the summary failing shows its error, the rest of Home still works (#825)', async () => {
-    server.use(http.get('*/api/v1/findings/summary', () => HttpResponse.json({ error: { code: 'x', message: 'The summary is not available.' } }, { status: 503 })))
+  it('the overview failing shows its error, the rest of Home still works', async () => {
+    server.use(http.get('*/api/v1/findings/overview', () => HttpResponse.json({ error: { code: 'x', message: 'The overview is not available.' } }, { status: 503 })))
     renderApp('/')
-    expect(await screen.findByText('The summary is not available.')).toBeInTheDocument()
+    expect(await screen.findByText('The overview is not available.')).toBeInTheDocument()
     expect(await screen.findByRole('table', { name: 'Newly exploited' })).toBeInTheDocument()
   })
 
@@ -437,7 +434,7 @@ describe('feeds: what the real backend needs from the GUI (mock → real)', () =
     first.unmount()
     server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev: { state: 'loaded', error: null } })))
     renderApp('/')
-    // Loaded: the headline is the answer from the findings summary (#825), not the CISA notice.
+    // Loaded: the headline is the answer from the findings overview, not the CISA notice.
     expect(await screen.findByRole('heading', { level: 1, name: /^Today: \d+ of your devices runs? software being exploited$/ })).toBeInTheDocument()
   })
 

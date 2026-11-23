@@ -297,18 +297,23 @@ func deviceInfo(d inventory.Device) response.DeviceInfo {
 	return out
 }
 
-// Finding answers the fields a trigger needs. Every finding the box holds comes from the exploited-vulnerability list
-// (findings matches the CISA KEV list only), so kev is true; the firewall virtual IP of the trigger is not known without a
-// firewall read (part 13b) and stays empty.
+// Finding answers the fields a trigger needs, from the view of the finding (the one source every place reads). kev is the trigger's
+// "exploited in the wild" flag: true when attackers use the flaw (under attack here, or exploited in the wild), false for a finding at a
+// lower urgency layer; the firewall virtual IP of the trigger is not known without a firewall read (part 13b) and stays empty. A finding
+// of a device a person ignored is not found: no rule fires on it, no plan is listed or approved for it, it is no evidence.
 func (r responseDirectory) Finding(ctx context.Context, id string) (response.FindingInfo, bool, error) {
-	rec, err := r.fnd.Get(ctx, id)
+	v, err := r.fnd.View(ctx, id)
 	if errors.Is(err, findings.ErrNotFound) {
 		return response.FindingInfo{}, false, nil
 	}
 	if err != nil {
 		return response.FindingInfo{}, false, err
 	}
-	return response.FindingInfo{ID: rec.ID, AssetID: rec.AssetID, CVE: rec.CVE, Severity: string(rec.Severity), Status: string(rec.Status), KEV: true}, true, nil
+	if v.Device.Ignored {
+		return response.FindingInfo{}, false, nil
+	}
+	f := v.Finding
+	return response.FindingInfo{ID: f.ID, AssetID: f.AssetID, CVE: f.CVE, Severity: aiSeverityWord(v.Severity), Status: aiStatusWord(f), KEV: f.Exploited()}, true, nil
 }
 
 // ---- core/conn/write -> response.Executor ----
@@ -506,7 +511,7 @@ func responseConfig(d *deps) (response.Config, error) {
 		cfg.Executor = responseExecutor{w}
 	}
 	if d.AI != nil && d.Findings != nil && d.Inventory != nil { // plans for open critical findings (13b-11): the AI has no tool, response checks every proposal
-		cfg.Planner = responsePlanner{svc: d.AI, facts: d.AIFacts, log: d.Log}
+		cfg.Planner = responsePlanner{svc: d.AI, cases: caseSource{findings: d.Findings, feeds: feedsStore(*d)}, log: d.Log}
 		cfg.Critical = responseCritical{fnd: d.Findings, inv: findingsInventory{d.Inventory}}.list
 	}
 	if d.AI != nil { // config_read evidence: a read the box itself recorded, at most 24 hours old, through the connection it names

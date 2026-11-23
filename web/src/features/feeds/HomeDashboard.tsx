@@ -12,52 +12,52 @@ import { Sparkline } from '@/components/common/Sparkline'
 import { Illustration } from '@/components/common/Illustration'
 import { EmptyState, ErrorState } from '@/components/common/States'
 import { DependencyLink } from '@/components/common/DependencyLink'
-import { Chip, StatusChip } from '@/components/common/StatusChip'
+import { CveList, StatusBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
-import { dayOf as orgDay, fmtDateTime, fmtDayMonth, fmtRelative } from '@/lib/format'
+import { dayOf as orgDay, fmtDateTime, fmtDayMonth } from '@/lib/format'
 import { api, ApiError } from '@/lib/api'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
-import { CvssScore } from '@/features/findings/Cvss'
-import type { HomeSummary, SummaryItem } from '@/features/findings/types'
+import { useFixTitle } from '@/features/findings/parts'
+import type { FirstItem, Overview } from '@/features/findings/types'
+import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
 import { useChannels } from '@/features/notify/api'
 import { useAccount } from '@/features/core/api'
 import type { RunningJob } from '@/features/scanning/contract'
-import { KEY, SCANNING_KEY, isFirstRun, useHome, useScanning } from './homeSummary'
+import { KEY, SCANNING_KEY, affectedDevices, isFirstRun, useHome, useScanning } from './homeSummary'
 
 // The add-device dialog is inventory's; Home loads it only when the button is pressed, so the Home chunk does not carry it.
 const AddDialog = lazy(() => import('@/features/inventory/AddDialog').then((m) => ({ default: m.AddDialog })))
 const AddRangeDialog = lazy(() => import('./AddRangeDialog').then((m) => ({ default: m.AddRangeDialog })))
 
 
-/** The tiles: what needs action now (with its 30-day trend), devices, and, while Notifications is on, alerts and incidents.
+/** The tiles: what is open now (with its 30-day trend), devices, and, while Notifications is on, alerts and incidents. Every
+ *  count is the Findings screen's: the open findings, split by status; devices by their most urgent finding.
  *  `noClaim`: the exploited list is off or was never fetched, so a 0 open is not good news and is not shown green. */
-function Tiles({ s, noClaim }: { s: HomeSummary; noClaim: boolean }) {
+function Tiles({ o, noClaim }: { o: Overview; noClaim: boolean }) {
   const { t } = useTranslation('feeds')
   const admin = useCan('admin') // the history of sent messages is on an administrator's page
-  const { open, trend } = s
+  const { open, trend } = o
   const first = trend[0]!, last = trend[trend.length - 1]!
   const delta = last - first
   const days = trend.length
   // The server counts the organization's days: step calendar days back from its day of generated_at (24 h steps miss a day at a
   // daylight-saving change).
-  const [y, m, d] = orgDay(s.generated_at).split('-').map(Number) as [number, number, number]
+  const [y, m, d] = orgDay(o.generated_at).split('-').map(Number) as [number, number, number]
   const dayOf = (i: number) => (i === days - 1 ? t('dash.now') : fmtDayMonth(new Date(Date.UTC(y, m - 1, d - (days - 1 - i))).toISOString().slice(0, 10)))
-  const suspected = open.total - open.confirmed
-  const notify = !!s.alerts && !!s.incidents
+  const affected = affectedDevices(o)
+  const notify = !!o.alerts && !!o.incidents
   const link = 'text-accent underline-offset-4 hover:underline'
   return (
     <KpiGrid label={t('dash.label')} className={notify ? 'lg:grid-cols-5' : 'lg:grid-cols-3'}>
-      <KpiTile className="col-span-2" to="/findings?tab=open" value={open.total} tone={open.total ? 'danger' : noClaim ? undefined : 'ok'}
-        label={open.total ? t('dash.open', { count: open.total, devices: open.devices }) : t('dash.openNone')}
-        sub={open.total ? (
-          <>
-            {open.confirmed ? <Link to="/findings?tab=open&status=confirmed" className={cn(link, 'font-medium')}>{t('dash.confirmed', { count: open.confirmed })}</Link> : null}
-            {suspected ? <span>{t('dash.suspected', { count: suspected })}</span> : null}
-            {open.ransomware ? <span className="font-medium text-danger">{t('dash.ransomware', { count: open.ransomware })}</span> : null}
-          </>
-        ) : null}
+      <KpiTile className="col-span-2" to="/findings?tab=device" value={open.findings} tone={open.findings ? 'danger' : noClaim ? undefined : 'ok'}
+        label={open.findings ? t('dash.open', { count: open.findings, devices: affected }) : t('dash.openNone')}
+        sub={open.findings ? OPEN_FINDING_STATUSES.filter((s) => open.by_status[s] > 0).map((s) => (
+          <span key={s} className="inline-flex items-center gap-1.5 tabular-nums">
+            <StatusBadge code={s} to={`/findings?tab=device&status=${s}`} />{open.by_status[s]}
+          </span>
+        )) : null}
         chart={(
           <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-4">
             <Sparkline values={trend} tone={last ? 'danger' : noClaim ? 'accent' : 'ok'} label={t('dash.trendLabel', { days, first, last })}
@@ -68,89 +68,77 @@ function Tiles({ s, noClaim }: { s: HomeSummary; noClaim: boolean }) {
             </p>
           </div>
         )} />
-      <KpiTile className={notify ? undefined : 'col-span-2 lg:col-span-1'} to="/devices" value={s.devices.total} label={t('dash.devices', { count: s.devices.total })}
+      <KpiTile className={notify ? undefined : 'col-span-2 lg:col-span-1'} to="/devices" value={o.devices.total} label={t('dash.devices', { count: o.devices.total })}
         sub={(
           <>
-            {open.devices ? <span>{t('dash.affected', { count: open.devices })}</span> : null}
-            {s.devices.pending ? <Link to="/devices?tab=review" className={cn(link, 'font-medium')}>{t('dash.pending', { count: s.devices.pending })}</Link> : null}
+            {affected ? <span>{t('dash.affected', { count: affected })}</span> : null}
+            {o.devices.not_added ? <Link to="/devices?tab=review" className={cn(link, 'font-medium')}>{t('dash.notAdded', { count: o.devices.not_added })}</Link> : null}
           </>
         )} />
-      {s.alerts ? (
-        <KpiTile to={admin ? '/settings/channels#history' : undefined} value={s.alerts.sent} label={t('dash.alerts', { count: s.alerts.sent, days: s.alerts.days })}
-          sub={s.alerts.failed ? <span className="font-medium text-danger">{t('dash.alertsFailed', { count: s.alerts.failed })}</span> : <span>{t('dash.alertsNoneFailed')}</span>} />
+      {o.alerts ? (
+        <KpiTile to={admin ? '/settings/channels#history' : undefined} value={o.alerts.sent} label={t('dash.alerts', { count: o.alerts.sent, days: o.alerts.days })}
+          sub={o.alerts.failed ? <span className="font-medium text-danger">{t('dash.alertsFailed', { count: o.alerts.failed })}</span> : <span>{t('dash.alertsNoneFailed')}</span>} />
       ) : null}
-      {s.incidents ? (
-        <KpiTile className="col-span-2 lg:col-span-1" to="/incidents?tab=open" value={s.incidents.open} tone={s.incidents.urgent ? 'danger' : undefined}
-          label={t('dash.incidents', { count: s.incidents.open })}
-          sub={s.incidents.urgent
-            ? <Link to="/incidents?tab=open&severity=urgent" className="font-medium text-danger underline-offset-4 hover:underline">{t('dash.urgent', { count: s.incidents.urgent })}</Link>
+      {o.incidents ? (
+        <KpiTile className="col-span-2 lg:col-span-1" to="/incidents?tab=open" value={o.incidents.open} tone={o.incidents.urgent ? 'danger' : undefined}
+          label={t('dash.incidents', { count: o.incidents.open })}
+          sub={o.incidents.urgent
+            ? <Link to="/incidents?tab=open&severity=urgent" className="font-medium text-danger underline-offset-4 hover:underline">{t('dash.urgent', { count: o.incidents.urgent })}</Link>
             : <span>{t('dash.urgentNone')}</span>} />
       ) : null}
     </KpiGrid>
   )
 }
 
-/** #910 phase 1: "You have" exploited CVEs Vedette could not check, shown instead of silent; links to the Findings block. Hidden at 0. */
-function UncheckedLine({ s }: { s: HomeSummary }) {
+/** What waits for a person: the Needs your input queue of the Findings screen (devices not added yet, urgent findings not confirmed
+ *  yet, questions). One link, hidden at 0. */
+function InputLine({ o }: { o: Overview }) {
   const { t } = useTranslation('feeds')
-  if (!s.unchecked?.cves) return null
+  if (!o.input) return null
   return (
     <p className="-mt-4 mb-6 text-sm">
-      <Link to="/findings?tab=input#unchecked" className="font-medium text-accent underline-offset-4 hover:underline">
-        {t('dash.unchecked', { count: s.unchecked.cves, devices: s.unchecked.devices })}
-      </Link>
+      <Link to="/findings?tab=input" className="font-medium text-accent underline-offset-4 hover:underline">{t('dash.input', { count: o.input })}</Link>
     </p>
   )
 }
 
-/** One "Fix first" row: product (link to the finding), CVE, device, age; certainty, the exploited list, ransomware; CVSS under them. */
-function FixRow({ f, rank }: { f: SummaryItem; rank: number }) {
+/** One "Fix first" row: the fix (a link to the device's findings), the device, the status of the block and its CVEs. */
+function FixRow({ item, rank }: { item: FirstItem; rank: number }) {
   const { t } = useTranslation('feeds')
-  // lead with the software the device runs ("Windows Server 2025"); the exploited list's product group is context after it
-  const name = f.software || f.product || f.cve
-  const group = f.software && f.product && f.product !== f.software ? f.product : ''
+  const title = useFixTitle()
+  const { device, block } = item
+  const what = title(block.fix, block.software)
   return (
     <RankedRow rank={rank}
-      title={<Link to={`/findings/${encodeURIComponent(f.id)}`} className="underline-offset-4 hover:underline">{name}</Link>}
+      title={<Link to={`/findings?tab=device&device=${encodeURIComponent(device.id)}`} className="underline-offset-4 hover:underline">{what}</Link>}
       meta={(
         <>
-          {group ? <span>{group}</span> : null}
-          {name !== f.cve ? <span className="whitespace-nowrap">{f.cve}</span> : null}
-          {f.asset
-            ? <Link to={`/devices/${encodeURIComponent(f.asset.id)}`} className="text-ink underline-offset-4 hover:underline [overflow-wrap:anywhere]">{f.asset.name}</Link>
-            : <span>{t('dash.removedDevice')}</span>}
-          <span className="whitespace-nowrap">{t('dash.since', { when: fmtRelative(f.first_seen) })}</span>
+          <Link to={`/devices/${encodeURIComponent(device.id)}`} className="text-ink underline-offset-4 hover:underline [overflow-wrap:anywhere]">{device.name}</Link>
+          {block.findings.length > 1 ? <span>{t('dash.cause', { cve: block.cause })}</span> : null}
+          <CveList className="basis-full" label={t('dash.cvesOf', { fix: what })}
+            items={block.findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, to: `/findings/${encodeURIComponent(f.id)}` }))} />
         </>
       )}
-      aside={(
-        <>
-          <div className="flex flex-wrap gap-1.5 md:justify-end">
-            <StatusChip status={f.status} />
-            <Chip tone="danger">{f.source === 'vulncheck-kev' ? t('dash.inVulncheck') : f.source ? t('dash.inKev') : t('dash.exploited')}</Chip>
-            {f.ransomware ? <Chip tone="danger">{t('dash.ransomwareChip')}</Chip> : null}
-          </div>
-          <CvssScore cvss={f.cvss} prefix />
-        </>
-      )} />
+      aside={<StatusBadge code={block.status} />} />
   )
 }
 
-function FixFirst({ s, kevNotice }: { s: HomeSummary; kevNotice: ReactNode }) {
+function FixFirst({ o, kevNotice }: { o: Overview; kevNotice: ReactNode }) {
   const { t } = useTranslation('feeds')
-  if (!s.top.length) {
+  if (!o.first.length) {
     // While the CISA list is off, never loaded or never fetched, "nothing exploited" would be a claim Vedette cannot make.
     if (kevNotice) return <div className="mb-8"><EmptyState title={t('dash.fixFirst')}>{kevNotice}</EmptyState></div>
     return (
       <div className="mb-8">
-        <EmptyState art="no-findings" title={t('dash.emptyTitle')} info={t('dash.emptyInfo')}>{t('dash.emptyBody', { count: s.devices.total })}</EmptyState>
+        <EmptyState art="no-findings" title={t('dash.emptyTitle')} info={t('dash.emptyInfo')}>{t('dash.emptyBody', { count: o.devices.total })}</EmptyState>
       </div>
     )
   }
   return (
     <Card id="fix-first" flush className="mb-8" title={t('dash.fixFirst')} info={t('dash.fixFirstInfo')}
-      actions={/* empty-guard: the Fix first card is drawn only when it lists open findings (an empty one returns earlier) */ <Link to="/findings?tab=open" className="text-meta text-accent underline-offset-4 hover:underline">{t('dash.allFindings', { count: s.open.total })}</Link>}>
+      actions={/* empty-guard: the Fix first card is drawn only when it lists open findings (an empty one returns earlier) */ <Link to="/findings?tab=device" className="text-meta text-accent underline-offset-4 hover:underline">{t('dash.allFindings', { count: o.open.findings })}</Link>}>
       <RankedList label={t('dash.fixFirst')}>
-        {s.top.map((f, i) => <FixRow key={f.id} f={f} rank={i + 1} />)}
+        {o.first.map((f, i) => <FixRow key={`${f.device.id}/${f.block.fix.key}`} item={f} rank={i + 1} />)}
       </RankedList>
     </Card>
   )
@@ -169,7 +157,7 @@ function writeSetup(user: string, v: 'seen' | 'hidden') {
 type Step = { id: string; done: boolean; title: string; line: string; note?: string; action?: ReactNode }
 
 /** The first-run steps: what Home needs before it can say anything (devices), then what makes the alert arrive, then the sign-in. */
-function useSteps(s: HomeSummary, onAdd: () => void, onRange: () => void): Step[] | null {
+function useSteps(s: Overview, onAdd: () => void, onRange: () => void): Step[] | null {
   const { t } = useTranslation('feeds')
   const qc = useQueryClient()
   const { data: me } = useMe()
@@ -232,7 +220,7 @@ function useSteps(s: HomeSummary, onAdd: () => void, onRange: () => void): Step[
 }
 
 /** The first-run path (docs/UI.md §0): each step done in place (add a device) or linked to the exact page and field; done steps say so. */
-function GetStarted({ s, steps, onHide }: { s: HomeSummary; steps: Step[]; onHide?: () => void }) {
+function GetStarted({ s, steps, onHide }: { s: Overview; steps: Step[]; onHide?: () => void }) {
   const { t } = useTranslation('feeds')
   const done = steps.every((x) => x.done)
   const todo = steps.filter((x) => !x.done).length
@@ -267,7 +255,7 @@ function GetStarted({ s, steps, onHide }: { s: HomeSummary; steps: Step[]; onHid
 /** First run: the card with its steps, without Hide (on a box with no device the card is Home's only way forward, docs/UI.md §0);
  *  afterwards, for the person who saw it with a step to do, until Hide (once all is done it says "You're set up"). `prompts` (the
  *  alert and two-step notices) are shown only when the card is not: the card has those steps. */
-function Onboarding({ s, firstRun, prompts }: { s: HomeSummary; firstRun: boolean; prompts: ReactNode }) {
+function Onboarding({ s, firstRun, prompts }: { s: Overview; firstRun: boolean; prompts: ReactNode }) {
   const { data: me } = useMe()
   const qc = useQueryClient()
   const [adding, setAdding] = useState<'device' | 'range' | null>(null)
@@ -284,7 +272,7 @@ function Onboarding({ s, firstRun, prompts }: { s: HomeSummary; firstRun: boolea
       <GetStarted s={s} steps={steps} onHide={firstRun ? undefined : hide} />
       {adding ? (
         <Suspense fallback={null}>
-          {/* A device added here changes the counts: ask the summary again (the box drops its cache on the device's findings). */}
+          {/* A device added here changes the counts: ask the overview again. */}
           {adding === 'device'
             ? <AddDialog open onOpenChange={(o) => { if (!o) { setAdding(null); void qc.invalidateQueries({ queryKey: KEY }) } }} />
             : <AddRangeDialog open onOpenChange={(o) => { if (!o) setAdding(null) }} />}
@@ -295,7 +283,7 @@ function Onboarding({ s, firstRun, prompts }: { s: HomeSummary; firstRun: boolea
 }
 
 /**
- * Home at a glance (#825, S-UI-1): the first-run path, or the tiles and "Fix first", all from one read. Without the findings module, or
+ * Home at a glance (S-UI-1): the first-run path, or the tiles and "Fix first", all from the findings overview. Without the findings module, or
  * when the read fails, only `prompts`; a placeholder of the same height while the module list or the read is on its way (never a 0 that
  * is really "unknown"). `prompts` mount once the card's place is known, so a notice never shows, goes and comes back. `kevNotice`: why
  * Vedette cannot say "nothing exploited" (the CISA list off, never loaded or never fetched); null when it can.
@@ -314,9 +302,9 @@ export function HomeDashboard({ kevNotice, prompts }: { kevNotice: ReactNode; pr
       <Onboarding s={s} firstRun={firstRun} prompts={prompts} />
       {firstRun ? null : (
         <>
-          <Tiles s={s} noClaim={!!kevNotice} />
-          <UncheckedLine s={s} />
-          <FixFirst s={s} kevNotice={kevNotice} />
+          <Tiles o={s} noClaim={!!kevNotice} />
+          <InputLine o={s} />
+          <FixFirst o={s} kevNotice={kevNotice} />
         </>
       )}
     </>

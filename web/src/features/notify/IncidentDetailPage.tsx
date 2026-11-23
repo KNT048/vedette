@@ -8,7 +8,8 @@ import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { Card } from '@/components/common/Card'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
-import { Chip, SeverityChip } from '@/components/common/StatusChip'
+import { Chip } from '@/components/common/StatusChip'
+import { SeverityBadge } from '@/components/common/status'
 import { Button } from '@/components/ui/button'
 import { Field, Textarea } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -18,6 +19,7 @@ import { useCan } from '@/lib/session'
 import { notOffered } from '@/lib/v1'
 import { useIncident, useSetStatus } from './api'
 import { IncidentStatusChip, MessagePreview, NotSentFix, kindKey } from './shared'
+import { knownKind } from './types'
 import { useNewChannel } from './NewChannel'
 import type { IncidentDetail, IncidentStatus, SendRecord } from './types'
 
@@ -88,13 +90,13 @@ function Content() {
               <Card>
               <KeyValue items={[
                 { label: t('detail.kind'), value: t(kindKey(a)) },
-                { label: t('detail.severity'), value: <SeverityChip severity={a.severity} /> },
+                { label: t('detail.severity'), value: <SeverityBadge severity={a.severity} /> },
                 { label: t('detail.status'), value: <IncidentStatusChip status={a.status} /> },
                 { label: t('detail.devices'), value: <span className="flex flex-wrap gap-x-3">{a.devices.map((x) => <Link key={x.id} to={`/devices/${x.id}`} className={link}>{x.name}</Link>)}</span> },
                 { label: t('detail.firstSeen'), value: fmtDateTime(a.first_seen) },
                 { label: t('detail.lastSeen'), value: fmtDateTime(a.last_seen) },
                 { label: t('detail.count'), value: t('incidents.times', { count: a.count }) },
-                { label: t('detail.origin'), value: <Link to={a.link} className={link}>{t(`detail.open.${a.kind}`)}</Link> },
+                { label: t('detail.origin'), value: <Link to={a.link} className={link}>{t(`detail.open.${knownKind(a.kind)}`)}</Link> },
                 { label: t('detail.what'), value: a.what },
                 { label: t('detail.action'), value: a.action },
               ]} />

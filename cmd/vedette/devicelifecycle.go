@@ -19,7 +19,7 @@ func registerLifecycle(d *deps, notifySvc *notify.Service, fs *feeds.Service) {
 	}
 	if d.Findings != nil {
 		h.Register(lifecycle.Participant{Name: "findings", DeviceMerged: d.Findings.DeviceMerged, DeviceDeleted: d.Findings.DeviceDeleted,
-			MergeCommitted: d.Findings.MergeCommitted, DeleteCommitted: d.Findings.DeleteCommitted})
+			LinesDeleted: d.Findings.LinesDeleted, MergeCommitted: d.Findings.MergeCommitted, DeleteCommitted: d.Findings.DeleteCommitted})
 	}
 	h.Register(lifecycle.Participant{Name: "mitigation", FindingFolded: mitigation.FindingFolded})
 	if notifySvc != nil {

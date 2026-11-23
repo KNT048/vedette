@@ -67,5 +67,5 @@ export type SnmpDeviceRow = z.infer<typeof C.SnmpDeviceRow>
 export type SnmpNotice = z.infer<typeof C.SnmpNotice>
 export type DeviceSource = z.infer<typeof C.DeviceSource>
 export type DevicesQuery = z.infer<typeof C.DevicesQuery>
-/** A device's risk marker (exploited findings, or a recommended update); null when clean. */
+/** A device's badge (findings' device status); null when it has none. */
 export type DeviceRisk = z.infer<typeof C.DeviceRisk>

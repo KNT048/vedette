@@ -185,11 +185,14 @@ func ptr[T any](v T) *T { return &v }
 
 // seedsInvRows are the tests outside the module that seed and read inv_* rows on purpose: the device merge tests load a fixture
 // device onto two rows and count what a merge loses, below the inventory's API; the software-line fixture test stores the fixture's
-// devices by their ids and finds the line a person corrected. Product code is never listed.
+// devices by their ids and finds the line a person corrected; findings' test support creates the rows its foreign keys need. Product
+// code is never listed.
 var seedsInvRows = map[string]bool{
-	"../../cmd/vedette/merge_count_test.go":          true,
-	"../../cmd/vedette/devicelifecycle_test.go":      true,
-	"../../cmd/vedette/softwareline_fixture_test.go": true,
+	"../../cmd/vedette/merge_count_test.go":               true,
+	"../../cmd/vedette/devicelifecycle_test.go":           true,
+	"../../cmd/vedette/softwareline_fixture_test.go":      true,
+	"../../modules/findings/findingstest/findingstest.go": true, // creates the device and line rows findings' tests point at (foreign keys)
+	"../../modules/findings/prune_test.go":                true, // deletes lines as the retention does, to see what the foreign key leaves
 	// the intrusion alerts reference devices by a foreign key: the tests seed devices with fixed ids and delete one to see its
 	// alerts stay
 	"../../modules/ids/service_test.go": true,

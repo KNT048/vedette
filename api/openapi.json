@@ -59510,7 +59510,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "true: findings_count > 0",
+              "description": "true: the device has open findings (a status of one of the five layers; needs_input alone is none). findings_count counts every state and is not used. The Vedette box is never marked, so never under true. Statuses unreadable: 503 risk_unavailable",
               "type": "string",
               "enum": [
                 "true",
@@ -63743,7 +63743,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "description": "true: findings_count > 0",
+              "description": "true: the device has open findings (a status of one of the five layers; needs_input alone is none). findings_count counts every state and is not used. The Vedette box is never marked, so never under true. Statuses unreadable: 503 risk_unavailable",
               "type": "string",
               "enum": [
                 "true",

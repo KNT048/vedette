@@ -47270,8 +47270,6 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposureDeleteExposureTargetsIDTermsOKScanState `json:"scan_state"`
 	Scannable bool                                            `json:"scannable"`
-	// How often the box scans the target by itself, when next, and why not.
-	Schedule ExposureDeleteExposureTargetsIDTermsOKSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureDeleteExposureTargetsIDTermsOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -47397,11 +47395,6 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) GetScanState() ExposureDeleteEx
 // GetScannable returns the value of Scannable.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) GetScannable() bool {
 	return s.Scannable
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ExposureDeleteExposureTargetsIDTermsOK) GetSchedule() ExposureDeleteExposureTargetsIDTermsOKSchedule {
-	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -47547,11 +47540,6 @@ func (s *ExposureDeleteExposureTargetsIDTermsOK) SetScanState(val ExposureDelete
 // SetScannable sets the value of Scannable.
 func (s *ExposureDeleteExposureTargetsIDTermsOK) SetScannable(val bool) {
 	s.Scannable = val
-}
-
-// SetSchedule sets the value of Schedule.
-func (s *ExposureDeleteExposureTargetsIDTermsOK) SetSchedule(val ExposureDeleteExposureTargetsIDTermsOKSchedule) {
-	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -48478,7 +48466,7 @@ type ExposureDeleteExposureTargetsIDTermsOKProof struct {
 	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
 	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
-	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	// The registered domain: the DNS zone the record is added in ("example.com").
 	Zone string `json:"zone"`
 }
 
@@ -48596,107 +48584,6 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKScanState) UnmarshalText(data []b
 		return nil
 	case ExposureDeleteExposureTargetsIDTermsOKScanStateScanning:
 		*s = ExposureDeleteExposureTargetsIDTermsOKScanStateScanning
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// How often the box scans the target by itself, when next, and why not.
-type ExposureDeleteExposureTargetsIDTermsOKSchedule struct {
-	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-	// itself, counted from the start of its newest scan.
-	Every ExposureDeleteExposureTargetsIDTermsOKScheduleEvery `json:"every"`
-	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
-	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
-	// says why).
-	NextAt NilDateTime `json:"next_at"`
-	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
-	// again"; null otherwise.
-	Note NilString `json:"note"`
-}
-
-// GetEvery returns the value of Every.
-func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) GetEvery() ExposureDeleteExposureTargetsIDTermsOKScheduleEvery {
-	return s.Every
-}
-
-// GetNextAt returns the value of NextAt.
-func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) GetNextAt() NilDateTime {
-	return s.NextAt
-}
-
-// GetNote returns the value of Note.
-func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) GetNote() NilString {
-	return s.Note
-}
-
-// SetEvery sets the value of Every.
-func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) SetEvery(val ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) {
-	s.Every = val
-}
-
-// SetNextAt sets the value of NextAt.
-func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) SetNextAt(val NilDateTime) {
-	s.NextAt = val
-}
-
-// SetNote sets the value of Note.
-func (s *ExposureDeleteExposureTargetsIDTermsOKSchedule) SetNote(val NilString) {
-	s.Note = val
-}
-
-// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-// itself, counted from the start of its newest scan.
-type ExposureDeleteExposureTargetsIDTermsOKScheduleEvery string
-
-const (
-	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff     ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "off"
-	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily   ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "daily"
-	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly  ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "weekly"
-	ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly ExposureDeleteExposureTargetsIDTermsOKScheduleEvery = "monthly"
-)
-
-// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKScheduleEvery values.
-func (ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) AllValues() []ExposureDeleteExposureTargetsIDTermsOKScheduleEvery {
-	return []ExposureDeleteExposureTargetsIDTermsOKScheduleEvery{
-		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff,
-		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily,
-		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly,
-		ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff:
-		return []byte(s), nil
-	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily:
-		return []byte(s), nil
-	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly:
-		return []byte(s), nil
-	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposureDeleteExposureTargetsIDTermsOKScheduleEvery) UnmarshalText(data []byte) error {
-	switch ExposureDeleteExposureTargetsIDTermsOKScheduleEvery(data) {
-	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff:
-		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryOff
-		return nil
-	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily:
-		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryDaily
-		return nil
-	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly:
-		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryWeekly
-		return nil
-	case ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly:
-		*s = ExposureDeleteExposureTargetsIDTermsOKScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -48898,6 +48785,1552 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKValidity) UnmarshalText(data []by
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureDeleteExposureTreeIDIgnore string
+
+const (
+	ExposureDeleteExposureTreeIDIgnoreTrue  ExposureDeleteExposureTreeIDIgnore = "true"
+	ExposureDeleteExposureTreeIDIgnoreFalse ExposureDeleteExposureTreeIDIgnore = "false"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDIgnore values.
+func (ExposureDeleteExposureTreeIDIgnore) AllValues() []ExposureDeleteExposureTreeIDIgnore {
+	return []ExposureDeleteExposureTreeIDIgnore{
+		ExposureDeleteExposureTreeIDIgnoreTrue,
+		ExposureDeleteExposureTreeIDIgnoreFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDIgnore) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDIgnoreTrue:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDIgnoreFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDIgnore) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDIgnore(data) {
+	case ExposureDeleteExposureTreeIDIgnoreTrue:
+		*s = ExposureDeleteExposureTreeIDIgnoreTrue
+		return nil
+	case ExposureDeleteExposureTreeIDIgnoreFalse:
+		*s = ExposureDeleteExposureTreeIDIgnoreFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// ExposureDeleteExposureTreeIDNoContent is response for ExposureDeleteExposureTreeID operation.
+type ExposureDeleteExposureTreeIDNoContent struct{}
+
+type ExposureDeleteExposureTreeIDTermsOK struct {
+	// Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor
+	// covered), no_commitment (no scan confirmation of the current sentence: an administrator's Scan now
+	// records it, an operator's is refused); null when it can be scanned.
+	Blocked NilExposureDeleteExposureTreeIDTermsOKBlocked `json:"blocked"`
+	// The scan confirmation recorded by the first Scan now of an administrator; null when none.
+	Commitment NilExposureDeleteExposureTreeIDTermsOKCommitment `json:"commitment"`
+	// The sentence the next Scan now of an administrator confirms; null once the node has a commitment of
+	// the current sentence.
+	CommitmentNotice NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice `json:"commitment_notice"`
+	Counts           ExposureDeleteExposureTreeIDTermsOKCounts              `json:"counts"`
+	CreatedAt        time.Time                                              `json:"created_at"`
+	// Scans of this node are deep scans: the current testing terms are accepted.
+	Deep bool `json:"deep"`
+	// The node is scanned, by Scan now and by its schedule.
+	Enabled bool                                    `json:"enabled"`
+	ID      string                                  `json:"id"`
+	Kind    ExposureDeleteExposureTreeIDTermsOKKind `json:"kind"`
+	// The newest run of this node, live or ended; null when never scanned.
+	LastScan NilExposureDeleteExposureTreeIDTermsOKLastScan `json:"last_scan"`
+	Origin   ExposureDeleteExposureTreeIDTermsOKOrigin      `json:"origin"`
+	// The domain target this node sits under; null at the top of the tree.
+	ParentID NilString                                `json:"parent_id"`
+	Proof    ExposureDeleteExposureTreeIDTermsOKProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
+	// Domains: self scans only this name; all this name and every name found under it; selected this name
+	// and the names chosen (Host.selected). null for an IP.
+	ScopeMode NilExposureDeleteExposureTreeIDTermsOKScopeMode `json:"scope_mode"`
+	// The accepted testing terms; null when none.
+	Terms NilExposureDeleteExposureTreeIDTermsOKTerms `json:"terms"`
+	// The current testing terms for this node, to accept or read again.
+	TermsNotice ExposureDeleteExposureTreeIDTermsOKTermsNotice `json:"terms_notice"`
+	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	TermsWarning NilString `json:"terms_warning"`
+	Value        string    `json:"value"`
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetBlocked() NilExposureDeleteExposureTreeIDTermsOKBlocked {
+	return s.Blocked
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetCommitment() NilExposureDeleteExposureTreeIDTermsOKCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetCommitmentNotice() NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetCounts() ExposureDeleteExposureTreeIDTermsOKCounts {
+	return s.Counts
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDeep returns the value of Deep.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetDeep() bool {
+	return s.Deep
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetKind() ExposureDeleteExposureTreeIDTermsOKKind {
+	return s.Kind
+}
+
+// GetLastScan returns the value of LastScan.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetLastScan() NilExposureDeleteExposureTreeIDTermsOKLastScan {
+	return s.LastScan
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetOrigin() ExposureDeleteExposureTreeIDTermsOKOrigin {
+	return s.Origin
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetProof() ExposureDeleteExposureTreeIDTermsOKProof {
+	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetScheduleKey() string {
+	return s.ScheduleKey
+}
+
+// GetScopeMode returns the value of ScopeMode.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetScopeMode() NilExposureDeleteExposureTreeIDTermsOKScopeMode {
+	return s.ScopeMode
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetTerms() NilExposureDeleteExposureTreeIDTermsOKTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetTermsNotice() ExposureDeleteExposureTreeIDTermsOKTermsNotice {
+	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetTermsWarning() NilString {
+	return s.TermsWarning
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureDeleteExposureTreeIDTermsOK) GetValue() string {
+	return s.Value
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetBlocked(val NilExposureDeleteExposureTreeIDTermsOKBlocked) {
+	s.Blocked = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetCommitment(val NilExposureDeleteExposureTreeIDTermsOKCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetCommitmentNotice(val NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetCounts(val ExposureDeleteExposureTreeIDTermsOKCounts) {
+	s.Counts = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDeep sets the value of Deep.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetDeep(val bool) {
+	s.Deep = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetKind(val ExposureDeleteExposureTreeIDTermsOKKind) {
+	s.Kind = val
+}
+
+// SetLastScan sets the value of LastScan.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetLastScan(val NilExposureDeleteExposureTreeIDTermsOKLastScan) {
+	s.LastScan = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetOrigin(val ExposureDeleteExposureTreeIDTermsOKOrigin) {
+	s.Origin = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetProof(val ExposureDeleteExposureTreeIDTermsOKProof) {
+	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
+}
+
+// SetScopeMode sets the value of ScopeMode.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetScopeMode(val NilExposureDeleteExposureTreeIDTermsOKScopeMode) {
+	s.ScopeMode = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetTerms(val NilExposureDeleteExposureTreeIDTermsOKTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetTermsNotice(val ExposureDeleteExposureTreeIDTermsOKTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetTermsWarning(val NilString) {
+	s.TermsWarning = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureDeleteExposureTreeIDTermsOK) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposureDeleteExposureTreeIDTermsOKBlocked string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKBlockedDisabled     ExposureDeleteExposureTreeIDTermsOKBlocked = "disabled"
+	ExposureDeleteExposureTreeIDTermsOKBlockedProof        ExposureDeleteExposureTreeIDTermsOKBlocked = "proof"
+	ExposureDeleteExposureTreeIDTermsOKBlockedNoCommitment ExposureDeleteExposureTreeIDTermsOKBlocked = "no_commitment"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKBlocked values.
+func (ExposureDeleteExposureTreeIDTermsOKBlocked) AllValues() []ExposureDeleteExposureTreeIDTermsOKBlocked {
+	return []ExposureDeleteExposureTreeIDTermsOKBlocked{
+		ExposureDeleteExposureTreeIDTermsOKBlockedDisabled,
+		ExposureDeleteExposureTreeIDTermsOKBlockedProof,
+		ExposureDeleteExposureTreeIDTermsOKBlockedNoCommitment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKBlocked) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKBlockedDisabled:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKBlockedProof:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKBlockedNoCommitment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKBlocked) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKBlocked(data) {
+	case ExposureDeleteExposureTreeIDTermsOKBlockedDisabled:
+		*s = ExposureDeleteExposureTreeIDTermsOKBlockedDisabled
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKBlockedProof:
+		*s = ExposureDeleteExposureTreeIDTermsOKBlockedProof
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKBlockedNoCommitment:
+		*s = ExposureDeleteExposureTreeIDTermsOKBlockedNoCommitment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitment) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitment) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitment) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitment) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitment) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitment) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitment) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureDeleteExposureTreeIDTermsOKCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureDeleteExposureTreeIDTermsOKCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureDeleteExposureTreeIDTermsOKCounts struct {
+	// Names found under the node.
+	Hosts int `json:"hosts"`
+	// Open issues.
+	Issues int `json:"issues"`
+	// Open services.
+	Services int `json:"services"`
+	// Open services that answered HTTP.
+	Web int `json:"web"`
+	// The highest severity among open issues; null when none.
+	Worst NilExposureDeleteExposureTreeIDTermsOKCountsWorst `json:"worst"`
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposureDeleteExposureTreeIDTermsOKCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposureDeleteExposureTreeIDTermsOKCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetServices returns the value of Services.
+func (s *ExposureDeleteExposureTreeIDTermsOKCounts) GetServices() int {
+	return s.Services
+}
+
+// GetWeb returns the value of Web.
+func (s *ExposureDeleteExposureTreeIDTermsOKCounts) GetWeb() int {
+	return s.Web
+}
+
+// GetWorst returns the value of Worst.
+func (s *ExposureDeleteExposureTreeIDTermsOKCounts) GetWorst() NilExposureDeleteExposureTreeIDTermsOKCountsWorst {
+	return s.Worst
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposureDeleteExposureTreeIDTermsOKCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposureDeleteExposureTreeIDTermsOKCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposureDeleteExposureTreeIDTermsOKCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// SetWeb sets the value of Web.
+func (s *ExposureDeleteExposureTreeIDTermsOKCounts) SetWeb(val int) {
+	s.Web = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *ExposureDeleteExposureTreeIDTermsOKCounts) SetWorst(val NilExposureDeleteExposureTreeIDTermsOKCountsWorst) {
+	s.Worst = val
+}
+
+type ExposureDeleteExposureTreeIDTermsOKCountsWorst string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKCountsWorstCritical ExposureDeleteExposureTreeIDTermsOKCountsWorst = "critical"
+	ExposureDeleteExposureTreeIDTermsOKCountsWorstHigh     ExposureDeleteExposureTreeIDTermsOKCountsWorst = "high"
+	ExposureDeleteExposureTreeIDTermsOKCountsWorstMedium   ExposureDeleteExposureTreeIDTermsOKCountsWorst = "medium"
+	ExposureDeleteExposureTreeIDTermsOKCountsWorstLow      ExposureDeleteExposureTreeIDTermsOKCountsWorst = "low"
+	ExposureDeleteExposureTreeIDTermsOKCountsWorstInfo     ExposureDeleteExposureTreeIDTermsOKCountsWorst = "info"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKCountsWorst values.
+func (ExposureDeleteExposureTreeIDTermsOKCountsWorst) AllValues() []ExposureDeleteExposureTreeIDTermsOKCountsWorst {
+	return []ExposureDeleteExposureTreeIDTermsOKCountsWorst{
+		ExposureDeleteExposureTreeIDTermsOKCountsWorstCritical,
+		ExposureDeleteExposureTreeIDTermsOKCountsWorstHigh,
+		ExposureDeleteExposureTreeIDTermsOKCountsWorstMedium,
+		ExposureDeleteExposureTreeIDTermsOKCountsWorstLow,
+		ExposureDeleteExposureTreeIDTermsOKCountsWorstInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKCountsWorst) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKCountsWorstCritical:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKCountsWorstHigh:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKCountsWorstMedium:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKCountsWorstLow:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKCountsWorstInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKCountsWorst) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKCountsWorst(data) {
+	case ExposureDeleteExposureTreeIDTermsOKCountsWorstCritical:
+		*s = ExposureDeleteExposureTreeIDTermsOKCountsWorstCritical
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKCountsWorstHigh:
+		*s = ExposureDeleteExposureTreeIDTermsOKCountsWorstHigh
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKCountsWorstMedium:
+		*s = ExposureDeleteExposureTreeIDTermsOKCountsWorstMedium
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKCountsWorstLow:
+		*s = ExposureDeleteExposureTreeIDTermsOKCountsWorstLow
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKCountsWorstInfo:
+		*s = ExposureDeleteExposureTreeIDTermsOKCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKKind string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKKindDomain ExposureDeleteExposureTreeIDTermsOKKind = "domain"
+	ExposureDeleteExposureTreeIDTermsOKKindIP     ExposureDeleteExposureTreeIDTermsOKKind = "ip"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKKind values.
+func (ExposureDeleteExposureTreeIDTermsOKKind) AllValues() []ExposureDeleteExposureTreeIDTermsOKKind {
+	return []ExposureDeleteExposureTreeIDTermsOKKind{
+		ExposureDeleteExposureTreeIDTermsOKKindDomain,
+		ExposureDeleteExposureTreeIDTermsOKKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKKindDomain:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKKind) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKKind(data) {
+	case ExposureDeleteExposureTreeIDTermsOKKindDomain:
+		*s = ExposureDeleteExposureTreeIDTermsOKKindDomain
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKKindIP:
+		*s = ExposureDeleteExposureTreeIDTermsOKKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKLastScan struct {
+	// What the scan left; null until it ends done or partial.
+	Counts  NilExposureDeleteExposureTreeIDTermsOKLastScanCounts `json:"counts"`
+	EndedAt NilDateTime                                          `json:"ended_at"`
+	Error   NilString                                            `json:"error"`
+	// Deep when the current testing terms of the target are accepted; surface otherwise.
+	Mode     ExposureDeleteExposureTreeIDTermsOKLastScanMode `json:"mode"`
+	QueuedAt time.Time                                       `json:"queued_at"`
+	// Who asked (an e-mail), or system for a scheduled scan.
+	RequestedBy string `json:"requested_by"`
+	// The shared run: its steps, items and log are read there, and it is stopped there.
+	RunID      string                                             `json:"run_id"`
+	StartedAt  NilDateTime                                        `json:"started_at"`
+	Status     ExposureDeleteExposureTreeIDTermsOKLastScanStatus  `json:"status"`
+	StopReason NilString                                          `json:"stop_reason"`
+	TargetID   string                                             `json:"target_id"`
+	Trigger    ExposureDeleteExposureTreeIDTermsOKLastScanTrigger `json:"trigger"`
+	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetCounts() NilExposureDeleteExposureTreeIDTermsOKLastScanCounts {
+	return s.Counts
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetError() NilString {
+	return s.Error
+}
+
+// GetMode returns the value of Mode.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetMode() ExposureDeleteExposureTreeIDTermsOKLastScanMode {
+	return s.Mode
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetRunID returns the value of RunID.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetRunID() string {
+	return s.RunID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetStatus() ExposureDeleteExposureTreeIDTermsOKLastScanStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetTrigger() ExposureDeleteExposureTreeIDTermsOKLastScanTrigger {
+	return s.Trigger
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetCounts(val NilExposureDeleteExposureTreeIDTermsOKLastScanCounts) {
+	s.Counts = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetMode(val ExposureDeleteExposureTreeIDTermsOKLastScanMode) {
+	s.Mode = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetStatus(val ExposureDeleteExposureTreeIDTermsOKLastScanStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetTrigger(val ExposureDeleteExposureTreeIDTermsOKLastScanTrigger) {
+	s.Trigger = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScan) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ExposureDeleteExposureTreeIDTermsOKLastScanCounts struct {
+	ClosedServices int `json:"closed_services"`
+	Hosts          int `json:"hosts"`
+	// Open issues after the scan.
+	Issues      int `json:"issues"`
+	NewIssues   int `json:"new_issues"`
+	NewServices int `json:"new_services"`
+	// Open services after the scan.
+	Services int `json:"services"`
+}
+
+// GetClosedServices returns the value of ClosedServices.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) GetClosedServices() int {
+	return s.ClosedServices
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetNewIssues returns the value of NewIssues.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) GetNewIssues() int {
+	return s.NewIssues
+}
+
+// GetNewServices returns the value of NewServices.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) GetNewServices() int {
+	return s.NewServices
+}
+
+// GetServices returns the value of Services.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) GetServices() int {
+	return s.Services
+}
+
+// SetClosedServices sets the value of ClosedServices.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) SetClosedServices(val int) {
+	s.ClosedServices = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetNewIssues sets the value of NewIssues.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) SetNewIssues(val int) {
+	s.NewIssues = val
+}
+
+// SetNewServices sets the value of NewServices.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) SetNewServices(val int) {
+	s.NewServices = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// Deep when the current testing terms of the target are accepted; surface otherwise.
+type ExposureDeleteExposureTreeIDTermsOKLastScanMode string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKLastScanModeSurface ExposureDeleteExposureTreeIDTermsOKLastScanMode = "surface"
+	ExposureDeleteExposureTreeIDTermsOKLastScanModeDeep    ExposureDeleteExposureTreeIDTermsOKLastScanMode = "deep"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKLastScanMode values.
+func (ExposureDeleteExposureTreeIDTermsOKLastScanMode) AllValues() []ExposureDeleteExposureTreeIDTermsOKLastScanMode {
+	return []ExposureDeleteExposureTreeIDTermsOKLastScanMode{
+		ExposureDeleteExposureTreeIDTermsOKLastScanModeSurface,
+		ExposureDeleteExposureTreeIDTermsOKLastScanModeDeep,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKLastScanMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanModeSurface:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanModeDeep:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanMode) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKLastScanMode(data) {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanModeSurface:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanModeSurface
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanModeDeep:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanModeDeep
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKLastScanStatus string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKLastScanStatusQueued   ExposureDeleteExposureTreeIDTermsOKLastScanStatus = "queued"
+	ExposureDeleteExposureTreeIDTermsOKLastScanStatusWaiting  ExposureDeleteExposureTreeIDTermsOKLastScanStatus = "waiting"
+	ExposureDeleteExposureTreeIDTermsOKLastScanStatusRunning  ExposureDeleteExposureTreeIDTermsOKLastScanStatus = "running"
+	ExposureDeleteExposureTreeIDTermsOKLastScanStatusStopping ExposureDeleteExposureTreeIDTermsOKLastScanStatus = "stopping"
+	ExposureDeleteExposureTreeIDTermsOKLastScanStatusDone     ExposureDeleteExposureTreeIDTermsOKLastScanStatus = "done"
+	ExposureDeleteExposureTreeIDTermsOKLastScanStatusPartial  ExposureDeleteExposureTreeIDTermsOKLastScanStatus = "partial"
+	ExposureDeleteExposureTreeIDTermsOKLastScanStatusFailed   ExposureDeleteExposureTreeIDTermsOKLastScanStatus = "failed"
+	ExposureDeleteExposureTreeIDTermsOKLastScanStatusStopped  ExposureDeleteExposureTreeIDTermsOKLastScanStatus = "stopped"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKLastScanStatus values.
+func (ExposureDeleteExposureTreeIDTermsOKLastScanStatus) AllValues() []ExposureDeleteExposureTreeIDTermsOKLastScanStatus {
+	return []ExposureDeleteExposureTreeIDTermsOKLastScanStatus{
+		ExposureDeleteExposureTreeIDTermsOKLastScanStatusQueued,
+		ExposureDeleteExposureTreeIDTermsOKLastScanStatusWaiting,
+		ExposureDeleteExposureTreeIDTermsOKLastScanStatusRunning,
+		ExposureDeleteExposureTreeIDTermsOKLastScanStatusStopping,
+		ExposureDeleteExposureTreeIDTermsOKLastScanStatusDone,
+		ExposureDeleteExposureTreeIDTermsOKLastScanStatusPartial,
+		ExposureDeleteExposureTreeIDTermsOKLastScanStatusFailed,
+		ExposureDeleteExposureTreeIDTermsOKLastScanStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKLastScanStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusQueued:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusWaiting:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusRunning:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusStopping:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusDone:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusPartial:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusFailed:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanStatus) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKLastScanStatus(data) {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusQueued:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanStatusQueued
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusWaiting:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanStatusWaiting
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusRunning:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanStatusRunning
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusStopping:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanStatusStopping
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusDone:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanStatusDone
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusPartial:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanStatusPartial
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusFailed:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanStatusFailed
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanStatusStopped:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKLastScanTrigger string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKLastScanTriggerManual   ExposureDeleteExposureTreeIDTermsOKLastScanTrigger = "manual"
+	ExposureDeleteExposureTreeIDTermsOKLastScanTriggerSchedule ExposureDeleteExposureTreeIDTermsOKLastScanTrigger = "schedule"
+	ExposureDeleteExposureTreeIDTermsOKLastScanTriggerEvent    ExposureDeleteExposureTreeIDTermsOKLastScanTrigger = "event"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKLastScanTrigger values.
+func (ExposureDeleteExposureTreeIDTermsOKLastScanTrigger) AllValues() []ExposureDeleteExposureTreeIDTermsOKLastScanTrigger {
+	return []ExposureDeleteExposureTreeIDTermsOKLastScanTrigger{
+		ExposureDeleteExposureTreeIDTermsOKLastScanTriggerManual,
+		ExposureDeleteExposureTreeIDTermsOKLastScanTriggerSchedule,
+		ExposureDeleteExposureTreeIDTermsOKLastScanTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKLastScanTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanTriggerManual:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanTriggerSchedule:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKLastScanTrigger) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKLastScanTrigger(data) {
+	case ExposureDeleteExposureTreeIDTermsOKLastScanTriggerManual:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanTriggerManual
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanTriggerSchedule:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanTriggerSchedule
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKLastScanTriggerEvent:
+		*s = ExposureDeleteExposureTreeIDTermsOKLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKOrigin string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKOriginPerson     ExposureDeleteExposureTreeIDTermsOKOrigin = "person"
+	ExposureDeleteExposureTreeIDTermsOKOriginBox        ExposureDeleteExposureTreeIDTermsOKOrigin = "box"
+	ExposureDeleteExposureTreeIDTermsOKOriginDiscovered ExposureDeleteExposureTreeIDTermsOKOrigin = "discovered"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKOrigin values.
+func (ExposureDeleteExposureTreeIDTermsOKOrigin) AllValues() []ExposureDeleteExposureTreeIDTermsOKOrigin {
+	return []ExposureDeleteExposureTreeIDTermsOKOrigin{
+		ExposureDeleteExposureTreeIDTermsOKOriginPerson,
+		ExposureDeleteExposureTreeIDTermsOKOriginBox,
+		ExposureDeleteExposureTreeIDTermsOKOriginDiscovered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKOriginPerson:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKOriginBox:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKOriginDiscovered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKOrigin) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKOrigin(data) {
+	case ExposureDeleteExposureTreeIDTermsOKOriginPerson:
+		*s = ExposureDeleteExposureTreeIDTermsOKOriginPerson
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKOriginBox:
+		*s = ExposureDeleteExposureTreeIDTermsOKOriginBox
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKOriginDiscovered:
+		*s = ExposureDeleteExposureTreeIDTermsOKOriginDiscovered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKProof struct {
+	// The ancestor whose proof covers this node; null unless state is covered.
+	CoveredBy NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy `json:"covered_by"`
+	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
+	DNS NilExposureDeleteExposureTreeIDTermsOKProofDNS `json:"dns"`
+	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// IP typed in by a person: where its proof file goes; null otherwise.
+	File      NilExposureDeleteExposureTreeIDTermsOKProofFile      `json:"file"`
+	LastCheck NilExposureDeleteExposureTreeIDTermsOKProofLastCheck `json:"last_check"`
+	// How this node proves itself; null when covered by an ancestor or not proven yet.
+	Method NilExposureDeleteExposureTreeIDTermsOKProofMethod `json:"method"`
+	// When the box checks the proof again by itself; null when it does not.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	State ExposureDeleteExposureTreeIDTermsOKProofState `json:"state"`
+	// When this node's own proof was last found.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetCoveredBy() NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy {
+	return s.CoveredBy
+}
+
+// GetDNS returns the value of DNS.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetDNS() NilExposureDeleteExposureTreeIDTermsOKProofDNS {
+	return s.DNS
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFile returns the value of File.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetFile() NilExposureDeleteExposureTreeIDTermsOKProofFile {
+	return s.File
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetLastCheck() NilExposureDeleteExposureTreeIDTermsOKProofLastCheck {
+	return s.LastCheck
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetMethod() NilExposureDeleteExposureTreeIDTermsOKProofMethod {
+	return s.Method
+}
+
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetState returns the value of State.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetState() ExposureDeleteExposureTreeIDTermsOKProofState {
+	return s.State
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetCoveredBy(val NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy) {
+	s.CoveredBy = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetDNS(val NilExposureDeleteExposureTreeIDTermsOKProofDNS) {
+	s.DNS = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFile sets the value of File.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetFile(val NilExposureDeleteExposureTreeIDTermsOKProofFile) {
+	s.File = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetLastCheck(val NilExposureDeleteExposureTreeIDTermsOKProofLastCheck) {
+	s.LastCheck = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetMethod(val NilExposureDeleteExposureTreeIDTermsOKProofMethod) {
+	s.Method = val
+}
+
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetState(val ExposureDeleteExposureTreeIDTermsOKProofState) {
+	s.State = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposureDeleteExposureTreeIDTermsOKProofCoveredBy struct {
+	ID    string `json:"id"`
+	Value string `json:"value"`
+}
+
+// GetID returns the value of ID.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofCoveredBy) GetID() string {
+	return s.ID
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofCoveredBy) GetValue() string {
+	return s.Value
+}
+
+// SetID sets the value of ID.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofCoveredBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofCoveredBy) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposureDeleteExposureTreeIDTermsOKProofDNS struct {
+	// The alternative name that proves this target only, "_vedette-verify" or "_vedette-verify."; null
+	// when it would pass 253 characters.
+	AltHost NilString `json:"alt_host"`
+	// The name to type in that zone: "@" for the zone apex.
+	Host string `json:"host"`
+	// The whole TXT value: vedette-verify=.
+	Value string `json:"value"`
+	// The registered domain: the DNS zone the record is added in.
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofDNS) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetHost returns the value of Host.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofDNS) GetHost() string {
+	return s.Host
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofDNS) GetValue() string {
+	return s.Value
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofDNS) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofDNS) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofDNS) SetHost(val string) {
+	s.Host = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofDNS) SetValue(val string) {
+	s.Value = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofDNS) SetZone(val string) {
+	s.Zone = val
+}
+
+type ExposureDeleteExposureTreeIDTermsOKProofFile struct {
+	// The token: the whole content of /.well-known/vedette-verify.txt.
+	Content string `json:"content"`
+	// Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the
+	// IP, proves it too.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofFile) GetContent() string {
+	return s.Content
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofFile) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofFile) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofFile) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofFile) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofFile) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposureDeleteExposureTreeIDTermsOKProofLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposureDeleteExposureTreeIDTermsOKProofMethod string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKProofMethodDNSTxt    ExposureDeleteExposureTreeIDTermsOKProofMethod = "dns_txt"
+	ExposureDeleteExposureTreeIDTermsOKProofMethodBoxEgress ExposureDeleteExposureTreeIDTermsOKProofMethod = "box_egress"
+	ExposureDeleteExposureTreeIDTermsOKProofMethodIPFile    ExposureDeleteExposureTreeIDTermsOKProofMethod = "ip_file"
+	ExposureDeleteExposureTreeIDTermsOKProofMethodIPPtr     ExposureDeleteExposureTreeIDTermsOKProofMethod = "ip_ptr"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKProofMethod values.
+func (ExposureDeleteExposureTreeIDTermsOKProofMethod) AllValues() []ExposureDeleteExposureTreeIDTermsOKProofMethod {
+	return []ExposureDeleteExposureTreeIDTermsOKProofMethod{
+		ExposureDeleteExposureTreeIDTermsOKProofMethodDNSTxt,
+		ExposureDeleteExposureTreeIDTermsOKProofMethodBoxEgress,
+		ExposureDeleteExposureTreeIDTermsOKProofMethodIPFile,
+		ExposureDeleteExposureTreeIDTermsOKProofMethodIPPtr,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKProofMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKProofMethodDNSTxt:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKProofMethodBoxEgress:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKProofMethodIPFile:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKProofMethodIPPtr:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofMethod) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKProofMethod(data) {
+	case ExposureDeleteExposureTreeIDTermsOKProofMethodDNSTxt:
+		*s = ExposureDeleteExposureTreeIDTermsOKProofMethodDNSTxt
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKProofMethodBoxEgress:
+		*s = ExposureDeleteExposureTreeIDTermsOKProofMethodBoxEgress
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKProofMethodIPFile:
+		*s = ExposureDeleteExposureTreeIDTermsOKProofMethodIPFile
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKProofMethodIPPtr:
+		*s = ExposureDeleteExposureTreeIDTermsOKProofMethodIPPtr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+type ExposureDeleteExposureTreeIDTermsOKProofState string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKProofStateProven     ExposureDeleteExposureTreeIDTermsOKProofState = "proven"
+	ExposureDeleteExposureTreeIDTermsOKProofStateCovered    ExposureDeleteExposureTreeIDTermsOKProofState = "covered"
+	ExposureDeleteExposureTreeIDTermsOKProofStateMissing    ExposureDeleteExposureTreeIDTermsOKProofState = "missing"
+	ExposureDeleteExposureTreeIDTermsOKProofStateExpired    ExposureDeleteExposureTreeIDTermsOKProofState = "expired"
+	ExposureDeleteExposureTreeIDTermsOKProofStateNotCurrent ExposureDeleteExposureTreeIDTermsOKProofState = "not_current"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKProofState values.
+func (ExposureDeleteExposureTreeIDTermsOKProofState) AllValues() []ExposureDeleteExposureTreeIDTermsOKProofState {
+	return []ExposureDeleteExposureTreeIDTermsOKProofState{
+		ExposureDeleteExposureTreeIDTermsOKProofStateProven,
+		ExposureDeleteExposureTreeIDTermsOKProofStateCovered,
+		ExposureDeleteExposureTreeIDTermsOKProofStateMissing,
+		ExposureDeleteExposureTreeIDTermsOKProofStateExpired,
+		ExposureDeleteExposureTreeIDTermsOKProofStateNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKProofState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKProofStateProven:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKProofStateCovered:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKProofStateMissing:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKProofStateExpired:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKProofStateNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofState) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKProofState(data) {
+	case ExposureDeleteExposureTreeIDTermsOKProofStateProven:
+		*s = ExposureDeleteExposureTreeIDTermsOKProofStateProven
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKProofStateCovered:
+		*s = ExposureDeleteExposureTreeIDTermsOKProofStateCovered
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKProofStateMissing:
+		*s = ExposureDeleteExposureTreeIDTermsOKProofStateMissing
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKProofStateExpired:
+		*s = ExposureDeleteExposureTreeIDTermsOKProofStateExpired
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKProofStateNotCurrent:
+		*s = ExposureDeleteExposureTreeIDTermsOKProofStateNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKScopeMode string
+
+const (
+	ExposureDeleteExposureTreeIDTermsOKScopeModeSelf     ExposureDeleteExposureTreeIDTermsOKScopeMode = "self"
+	ExposureDeleteExposureTreeIDTermsOKScopeModeAll      ExposureDeleteExposureTreeIDTermsOKScopeMode = "all"
+	ExposureDeleteExposureTreeIDTermsOKScopeModeSelected ExposureDeleteExposureTreeIDTermsOKScopeMode = "selected"
+)
+
+// AllValues returns all ExposureDeleteExposureTreeIDTermsOKScopeMode values.
+func (ExposureDeleteExposureTreeIDTermsOKScopeMode) AllValues() []ExposureDeleteExposureTreeIDTermsOKScopeMode {
+	return []ExposureDeleteExposureTreeIDTermsOKScopeMode{
+		ExposureDeleteExposureTreeIDTermsOKScopeModeSelf,
+		ExposureDeleteExposureTreeIDTermsOKScopeModeAll,
+		ExposureDeleteExposureTreeIDTermsOKScopeModeSelected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTreeIDTermsOKScopeMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTreeIDTermsOKScopeModeSelf:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKScopeModeAll:
+		return []byte(s), nil
+	case ExposureDeleteExposureTreeIDTermsOKScopeModeSelected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTreeIDTermsOKScopeMode) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTreeIDTermsOKScopeMode(data) {
+	case ExposureDeleteExposureTreeIDTermsOKScopeModeSelf:
+		*s = ExposureDeleteExposureTreeIDTermsOKScopeModeSelf
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKScopeModeAll:
+		*s = ExposureDeleteExposureTreeIDTermsOKScopeModeAll
+		return nil
+	case ExposureDeleteExposureTreeIDTermsOKScopeModeSelected:
+		*s = ExposureDeleteExposureTreeIDTermsOKScopeModeSelected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureDeleteExposureTreeIDTermsOKTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureDeleteExposureTreeIDTermsOKTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureDeleteExposureTreeIDTermsOKTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureDeleteExposureTreeIDTermsOKTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureDeleteExposureTreeIDTermsOKTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposureDeleteExposureTreeIDTermsOKTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureDeleteExposureTreeIDTermsOKTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureDeleteExposureTreeIDTermsOKTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureDeleteExposureTreeIDTermsOKTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureDeleteExposureTreeIDTermsOKTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this node, to accept or read again.
+type ExposureDeleteExposureTreeIDTermsOKTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) SetVersion(val string) {
+	s.Version = val
 }
 
 type ExposureGetExposureGreenboneOK struct {
@@ -50386,8 +51819,6 @@ type ExposureGetExposureTargetsIDOK struct {
 	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposureGetExposureTargetsIDOKScanState `json:"scan_state"`
 	Scannable bool                                    `json:"scannable"`
-	// How often the box scans the target by itself, when next, and why not.
-	Schedule ExposureGetExposureTargetsIDOKSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -50513,11 +51944,6 @@ func (s *ExposureGetExposureTargetsIDOK) GetScanState() ExposureGetExposureTarge
 // GetScannable returns the value of Scannable.
 func (s *ExposureGetExposureTargetsIDOK) GetScannable() bool {
 	return s.Scannable
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ExposureGetExposureTargetsIDOK) GetSchedule() ExposureGetExposureTargetsIDOKSchedule {
-	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -50663,11 +52089,6 @@ func (s *ExposureGetExposureTargetsIDOK) SetScanState(val ExposureGetExposureTar
 // SetScannable sets the value of Scannable.
 func (s *ExposureGetExposureTargetsIDOK) SetScannable(val bool) {
 	s.Scannable = val
-}
-
-// SetSchedule sets the value of Schedule.
-func (s *ExposureGetExposureTargetsIDOK) SetSchedule(val ExposureGetExposureTargetsIDOKSchedule) {
-	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -51594,7 +53015,7 @@ type ExposureGetExposureTargetsIDOKProof struct {
 	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
 	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
-	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	// The registered domain: the DNS zone the record is added in ("example.com").
 	Zone string `json:"zone"`
 }
 
@@ -51712,107 +53133,6 @@ func (s *ExposureGetExposureTargetsIDOKScanState) UnmarshalText(data []byte) err
 		return nil
 	case ExposureGetExposureTargetsIDOKScanStateScanning:
 		*s = ExposureGetExposureTargetsIDOKScanStateScanning
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// How often the box scans the target by itself, when next, and why not.
-type ExposureGetExposureTargetsIDOKSchedule struct {
-	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-	// itself, counted from the start of its newest scan.
-	Every ExposureGetExposureTargetsIDOKScheduleEvery `json:"every"`
-	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
-	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
-	// says why).
-	NextAt NilDateTime `json:"next_at"`
-	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
-	// again"; null otherwise.
-	Note NilString `json:"note"`
-}
-
-// GetEvery returns the value of Every.
-func (s *ExposureGetExposureTargetsIDOKSchedule) GetEvery() ExposureGetExposureTargetsIDOKScheduleEvery {
-	return s.Every
-}
-
-// GetNextAt returns the value of NextAt.
-func (s *ExposureGetExposureTargetsIDOKSchedule) GetNextAt() NilDateTime {
-	return s.NextAt
-}
-
-// GetNote returns the value of Note.
-func (s *ExposureGetExposureTargetsIDOKSchedule) GetNote() NilString {
-	return s.Note
-}
-
-// SetEvery sets the value of Every.
-func (s *ExposureGetExposureTargetsIDOKSchedule) SetEvery(val ExposureGetExposureTargetsIDOKScheduleEvery) {
-	s.Every = val
-}
-
-// SetNextAt sets the value of NextAt.
-func (s *ExposureGetExposureTargetsIDOKSchedule) SetNextAt(val NilDateTime) {
-	s.NextAt = val
-}
-
-// SetNote sets the value of Note.
-func (s *ExposureGetExposureTargetsIDOKSchedule) SetNote(val NilString) {
-	s.Note = val
-}
-
-// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-// itself, counted from the start of its newest scan.
-type ExposureGetExposureTargetsIDOKScheduleEvery string
-
-const (
-	ExposureGetExposureTargetsIDOKScheduleEveryOff     ExposureGetExposureTargetsIDOKScheduleEvery = "off"
-	ExposureGetExposureTargetsIDOKScheduleEveryDaily   ExposureGetExposureTargetsIDOKScheduleEvery = "daily"
-	ExposureGetExposureTargetsIDOKScheduleEveryWeekly  ExposureGetExposureTargetsIDOKScheduleEvery = "weekly"
-	ExposureGetExposureTargetsIDOKScheduleEveryMonthly ExposureGetExposureTargetsIDOKScheduleEvery = "monthly"
-)
-
-// AllValues returns all ExposureGetExposureTargetsIDOKScheduleEvery values.
-func (ExposureGetExposureTargetsIDOKScheduleEvery) AllValues() []ExposureGetExposureTargetsIDOKScheduleEvery {
-	return []ExposureGetExposureTargetsIDOKScheduleEvery{
-		ExposureGetExposureTargetsIDOKScheduleEveryOff,
-		ExposureGetExposureTargetsIDOKScheduleEveryDaily,
-		ExposureGetExposureTargetsIDOKScheduleEveryWeekly,
-		ExposureGetExposureTargetsIDOKScheduleEveryMonthly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposureGetExposureTargetsIDOKScheduleEvery) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposureGetExposureTargetsIDOKScheduleEveryOff:
-		return []byte(s), nil
-	case ExposureGetExposureTargetsIDOKScheduleEveryDaily:
-		return []byte(s), nil
-	case ExposureGetExposureTargetsIDOKScheduleEveryWeekly:
-		return []byte(s), nil
-	case ExposureGetExposureTargetsIDOKScheduleEveryMonthly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposureGetExposureTargetsIDOKScheduleEvery) UnmarshalText(data []byte) error {
-	switch ExposureGetExposureTargetsIDOKScheduleEvery(data) {
-	case ExposureGetExposureTargetsIDOKScheduleEveryOff:
-		*s = ExposureGetExposureTargetsIDOKScheduleEveryOff
-		return nil
-	case ExposureGetExposureTargetsIDOKScheduleEveryDaily:
-		*s = ExposureGetExposureTargetsIDOKScheduleEveryDaily
-		return nil
-	case ExposureGetExposureTargetsIDOKScheduleEveryWeekly:
-		*s = ExposureGetExposureTargetsIDOKScheduleEveryWeekly
-		return nil
-	case ExposureGetExposureTargetsIDOKScheduleEveryMonthly:
-		*s = ExposureGetExposureTargetsIDOKScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -55630,8 +56950,6 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposureGetExposureTargetsOKItemsItemScanState `json:"scan_state"`
 	Scannable bool                                           `json:"scannable"`
-	// How often the box scans the target by itself, when next, and why not.
-	Schedule ExposureGetExposureTargetsOKItemsItemSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -55757,11 +57075,6 @@ func (s *ExposureGetExposureTargetsOKItemsItem) GetScanState() ExposureGetExposu
 // GetScannable returns the value of Scannable.
 func (s *ExposureGetExposureTargetsOKItemsItem) GetScannable() bool {
 	return s.Scannable
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ExposureGetExposureTargetsOKItemsItem) GetSchedule() ExposureGetExposureTargetsOKItemsItemSchedule {
-	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -55907,11 +57220,6 @@ func (s *ExposureGetExposureTargetsOKItemsItem) SetScanState(val ExposureGetExpo
 // SetScannable sets the value of Scannable.
 func (s *ExposureGetExposureTargetsOKItemsItem) SetScannable(val bool) {
 	s.Scannable = val
-}
-
-// SetSchedule sets the value of Schedule.
-func (s *ExposureGetExposureTargetsOKItemsItem) SetSchedule(val ExposureGetExposureTargetsOKItemsItemSchedule) {
-	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -56838,7 +58146,7 @@ type ExposureGetExposureTargetsOKItemsItemProof struct {
 	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
 	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
-	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	// The registered domain: the DNS zone the record is added in ("example.com").
 	Zone string `json:"zone"`
 }
 
@@ -56956,107 +58264,6 @@ func (s *ExposureGetExposureTargetsOKItemsItemScanState) UnmarshalText(data []by
 		return nil
 	case ExposureGetExposureTargetsOKItemsItemScanStateScanning:
 		*s = ExposureGetExposureTargetsOKItemsItemScanStateScanning
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// How often the box scans the target by itself, when next, and why not.
-type ExposureGetExposureTargetsOKItemsItemSchedule struct {
-	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-	// itself, counted from the start of its newest scan.
-	Every ExposureGetExposureTargetsOKItemsItemScheduleEvery `json:"every"`
-	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
-	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
-	// says why).
-	NextAt NilDateTime `json:"next_at"`
-	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
-	// again"; null otherwise.
-	Note NilString `json:"note"`
-}
-
-// GetEvery returns the value of Every.
-func (s *ExposureGetExposureTargetsOKItemsItemSchedule) GetEvery() ExposureGetExposureTargetsOKItemsItemScheduleEvery {
-	return s.Every
-}
-
-// GetNextAt returns the value of NextAt.
-func (s *ExposureGetExposureTargetsOKItemsItemSchedule) GetNextAt() NilDateTime {
-	return s.NextAt
-}
-
-// GetNote returns the value of Note.
-func (s *ExposureGetExposureTargetsOKItemsItemSchedule) GetNote() NilString {
-	return s.Note
-}
-
-// SetEvery sets the value of Every.
-func (s *ExposureGetExposureTargetsOKItemsItemSchedule) SetEvery(val ExposureGetExposureTargetsOKItemsItemScheduleEvery) {
-	s.Every = val
-}
-
-// SetNextAt sets the value of NextAt.
-func (s *ExposureGetExposureTargetsOKItemsItemSchedule) SetNextAt(val NilDateTime) {
-	s.NextAt = val
-}
-
-// SetNote sets the value of Note.
-func (s *ExposureGetExposureTargetsOKItemsItemSchedule) SetNote(val NilString) {
-	s.Note = val
-}
-
-// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-// itself, counted from the start of its newest scan.
-type ExposureGetExposureTargetsOKItemsItemScheduleEvery string
-
-const (
-	ExposureGetExposureTargetsOKItemsItemScheduleEveryOff     ExposureGetExposureTargetsOKItemsItemScheduleEvery = "off"
-	ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily   ExposureGetExposureTargetsOKItemsItemScheduleEvery = "daily"
-	ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly  ExposureGetExposureTargetsOKItemsItemScheduleEvery = "weekly"
-	ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly ExposureGetExposureTargetsOKItemsItemScheduleEvery = "monthly"
-)
-
-// AllValues returns all ExposureGetExposureTargetsOKItemsItemScheduleEvery values.
-func (ExposureGetExposureTargetsOKItemsItemScheduleEvery) AllValues() []ExposureGetExposureTargetsOKItemsItemScheduleEvery {
-	return []ExposureGetExposureTargetsOKItemsItemScheduleEvery{
-		ExposureGetExposureTargetsOKItemsItemScheduleEveryOff,
-		ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily,
-		ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly,
-		ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposureGetExposureTargetsOKItemsItemScheduleEvery) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposureGetExposureTargetsOKItemsItemScheduleEveryOff:
-		return []byte(s), nil
-	case ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily:
-		return []byte(s), nil
-	case ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly:
-		return []byte(s), nil
-	case ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposureGetExposureTargetsOKItemsItemScheduleEvery) UnmarshalText(data []byte) error {
-	switch ExposureGetExposureTargetsOKItemsItemScheduleEvery(data) {
-	case ExposureGetExposureTargetsOKItemsItemScheduleEveryOff:
-		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryOff
-		return nil
-	case ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily:
-		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryDaily
-		return nil
-	case ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly:
-		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryWeekly
-		return nil
-	case ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly:
-		*s = ExposureGetExposureTargetsOKItemsItemScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -57260,6 +58467,6649 @@ func (s *ExposureGetExposureTargetsOKItemsItemValidity) UnmarshalText(data []byt
 	}
 }
 
+type ExposureGetExposureTreeIDAddressesOK struct {
+	Items []ExposureGetExposureTreeIDAddressesOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ExposureGetExposureTreeIDAddressesOK) GetItems() []ExposureGetExposureTreeIDAddressesOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ExposureGetExposureTreeIDAddressesOK) SetItems(val []ExposureGetExposureTreeIDAddressesOKItemsItem) {
+	s.Items = val
+}
+
+type ExposureGetExposureTreeIDAddressesOKItemsItem struct {
+	// Box: this box's own current IP; public: any other public address; private: never dialed.
+	Class     ExposureGetExposureTreeIDAddressesOKItemsItemClass  `json:"class"`
+	Family    ExposureGetExposureTreeIDAddressesOKItemsItemFamily `json:"family"`
+	FirstSeen time.Time                                           `json:"first_seen"`
+	// The name it belongs to; null for the address of an IP target.
+	HostID   NilString `json:"host_id"`
+	IP       string    `json:"ip"`
+	LastSeen time.Time `json:"last_seen"`
+}
+
+// GetClass returns the value of Class.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) GetClass() ExposureGetExposureTreeIDAddressesOKItemsItemClass {
+	return s.Class
+}
+
+// GetFamily returns the value of Family.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) GetFamily() ExposureGetExposureTreeIDAddressesOKItemsItemFamily {
+	return s.Family
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetHostID returns the value of HostID.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) GetHostID() NilString {
+	return s.HostID
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) GetIP() string {
+	return s.IP
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// SetClass sets the value of Class.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) SetClass(val ExposureGetExposureTreeIDAddressesOKItemsItemClass) {
+	s.Class = val
+}
+
+// SetFamily sets the value of Family.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) SetFamily(val ExposureGetExposureTreeIDAddressesOKItemsItemFamily) {
+	s.Family = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetHostID sets the value of HostID.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) SetHostID(val NilString) {
+	s.HostID = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// Box: this box's own current IP; public: any other public address; private: never dialed.
+type ExposureGetExposureTreeIDAddressesOKItemsItemClass string
+
+const (
+	ExposureGetExposureTreeIDAddressesOKItemsItemClassBox     ExposureGetExposureTreeIDAddressesOKItemsItemClass = "box"
+	ExposureGetExposureTreeIDAddressesOKItemsItemClassPublic  ExposureGetExposureTreeIDAddressesOKItemsItemClass = "public"
+	ExposureGetExposureTreeIDAddressesOKItemsItemClassPrivate ExposureGetExposureTreeIDAddressesOKItemsItemClass = "private"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDAddressesOKItemsItemClass values.
+func (ExposureGetExposureTreeIDAddressesOKItemsItemClass) AllValues() []ExposureGetExposureTreeIDAddressesOKItemsItemClass {
+	return []ExposureGetExposureTreeIDAddressesOKItemsItemClass{
+		ExposureGetExposureTreeIDAddressesOKItemsItemClassBox,
+		ExposureGetExposureTreeIDAddressesOKItemsItemClassPublic,
+		ExposureGetExposureTreeIDAddressesOKItemsItemClassPrivate,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDAddressesOKItemsItemClass) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDAddressesOKItemsItemClassBox:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDAddressesOKItemsItemClassPublic:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDAddressesOKItemsItemClassPrivate:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItemClass) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDAddressesOKItemsItemClass(data) {
+	case ExposureGetExposureTreeIDAddressesOKItemsItemClassBox:
+		*s = ExposureGetExposureTreeIDAddressesOKItemsItemClassBox
+		return nil
+	case ExposureGetExposureTreeIDAddressesOKItemsItemClassPublic:
+		*s = ExposureGetExposureTreeIDAddressesOKItemsItemClassPublic
+		return nil
+	case ExposureGetExposureTreeIDAddressesOKItemsItemClassPrivate:
+		*s = ExposureGetExposureTreeIDAddressesOKItemsItemClassPrivate
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDAddressesOKItemsItemFamily string
+
+const (
+	ExposureGetExposureTreeIDAddressesOKItemsItemFamilyIpv4 ExposureGetExposureTreeIDAddressesOKItemsItemFamily = "ipv4"
+	ExposureGetExposureTreeIDAddressesOKItemsItemFamilyIpv6 ExposureGetExposureTreeIDAddressesOKItemsItemFamily = "ipv6"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDAddressesOKItemsItemFamily values.
+func (ExposureGetExposureTreeIDAddressesOKItemsItemFamily) AllValues() []ExposureGetExposureTreeIDAddressesOKItemsItemFamily {
+	return []ExposureGetExposureTreeIDAddressesOKItemsItemFamily{
+		ExposureGetExposureTreeIDAddressesOKItemsItemFamilyIpv4,
+		ExposureGetExposureTreeIDAddressesOKItemsItemFamilyIpv6,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDAddressesOKItemsItemFamily) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDAddressesOKItemsItemFamilyIpv4:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDAddressesOKItemsItemFamilyIpv6:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDAddressesOKItemsItemFamily) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDAddressesOKItemsItemFamily(data) {
+	case ExposureGetExposureTreeIDAddressesOKItemsItemFamilyIpv4:
+		*s = ExposureGetExposureTreeIDAddressesOKItemsItemFamilyIpv4
+		return nil
+	case ExposureGetExposureTreeIDAddressesOKItemsItemFamilyIpv6:
+		*s = ExposureGetExposureTreeIDAddressesOKItemsItemFamilyIpv6
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDHostsOK struct {
+	Items []ExposureGetExposureTreeIDHostsOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ExposureGetExposureTreeIDHostsOK) GetItems() []ExposureGetExposureTreeIDHostsOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ExposureGetExposureTreeIDHostsOK) SetItems(val []ExposureGetExposureTreeIDHostsOKItemsItem) {
+	s.Items = val
+}
+
+type ExposureGetExposureTreeIDHostsOKItemsItem struct {
+	// The name is its own target: that target scans it and this node skips it.
+	Child NilExposureGetExposureTreeIDHostsOKItemsItemChild `json:"child"`
+	// The final CNAME target; null when none.
+	Cname     NilString `json:"cname"`
+	FirstSeen time.Time `json:"first_seen"`
+	ID        string    `json:"id"`
+	LastSeen  time.Time `json:"last_seen"`
+	Name      string    `json:"name"`
+	// Chosen for scanning; read only when the node's scope_mode is selected.
+	Selected bool `json:"selected"`
+	// Where the name was found: a certificate-transparency log, the domain's own records, its MX or NS
+	// records, the list of common names, or typed by a person.
+	Source ExposureGetExposureTreeIDHostsOKItemsItemSource `json:"source"`
+}
+
+// GetChild returns the value of Child.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) GetChild() NilExposureGetExposureTreeIDHostsOKItemsItemChild {
+	return s.Child
+}
+
+// GetCname returns the value of Cname.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) GetCname() NilString {
+	return s.Cname
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetID returns the value of ID.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// GetSelected returns the value of Selected.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) GetSelected() bool {
+	return s.Selected
+}
+
+// GetSource returns the value of Source.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) GetSource() ExposureGetExposureTreeIDHostsOKItemsItemSource {
+	return s.Source
+}
+
+// SetChild sets the value of Child.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) SetChild(val NilExposureGetExposureTreeIDHostsOKItemsItemChild) {
+	s.Child = val
+}
+
+// SetCname sets the value of Cname.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) SetCname(val NilString) {
+	s.Cname = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetSelected sets the value of Selected.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) SetSelected(val bool) {
+	s.Selected = val
+}
+
+// SetSource sets the value of Source.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItem) SetSource(val ExposureGetExposureTreeIDHostsOKItemsItemSource) {
+	s.Source = val
+}
+
+type ExposureGetExposureTreeIDHostsOKItemsItemChild struct {
+	ID    string `json:"id"`
+	Value string `json:"value"`
+}
+
+// GetID returns the value of ID.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItemChild) GetID() string {
+	return s.ID
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItemChild) GetValue() string {
+	return s.Value
+}
+
+// SetID sets the value of ID.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItemChild) SetID(val string) {
+	s.ID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItemChild) SetValue(val string) {
+	s.Value = val
+}
+
+// Where the name was found: a certificate-transparency log, the domain's own records, its MX or NS
+// records, the list of common names, or typed by a person.
+type ExposureGetExposureTreeIDHostsOKItemsItemSource string
+
+const (
+	ExposureGetExposureTreeIDHostsOKItemsItemSourceCt       ExposureGetExposureTreeIDHostsOKItemsItemSource = "ct"
+	ExposureGetExposureTreeIDHostsOKItemsItemSourceDNS      ExposureGetExposureTreeIDHostsOKItemsItemSource = "dns"
+	ExposureGetExposureTreeIDHostsOKItemsItemSourceMx       ExposureGetExposureTreeIDHostsOKItemsItemSource = "mx"
+	ExposureGetExposureTreeIDHostsOKItemsItemSourceNs       ExposureGetExposureTreeIDHostsOKItemsItemSource = "ns"
+	ExposureGetExposureTreeIDHostsOKItemsItemSourceWordlist ExposureGetExposureTreeIDHostsOKItemsItemSource = "wordlist"
+	ExposureGetExposureTreeIDHostsOKItemsItemSourcePerson   ExposureGetExposureTreeIDHostsOKItemsItemSource = "person"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDHostsOKItemsItemSource values.
+func (ExposureGetExposureTreeIDHostsOKItemsItemSource) AllValues() []ExposureGetExposureTreeIDHostsOKItemsItemSource {
+	return []ExposureGetExposureTreeIDHostsOKItemsItemSource{
+		ExposureGetExposureTreeIDHostsOKItemsItemSourceCt,
+		ExposureGetExposureTreeIDHostsOKItemsItemSourceDNS,
+		ExposureGetExposureTreeIDHostsOKItemsItemSourceMx,
+		ExposureGetExposureTreeIDHostsOKItemsItemSourceNs,
+		ExposureGetExposureTreeIDHostsOKItemsItemSourceWordlist,
+		ExposureGetExposureTreeIDHostsOKItemsItemSourcePerson,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDHostsOKItemsItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourceCt:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourceDNS:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourceMx:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourceNs:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourceWordlist:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourcePerson:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDHostsOKItemsItemSource) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDHostsOKItemsItemSource(data) {
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourceCt:
+		*s = ExposureGetExposureTreeIDHostsOKItemsItemSourceCt
+		return nil
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourceDNS:
+		*s = ExposureGetExposureTreeIDHostsOKItemsItemSourceDNS
+		return nil
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourceMx:
+		*s = ExposureGetExposureTreeIDHostsOKItemsItemSourceMx
+		return nil
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourceNs:
+		*s = ExposureGetExposureTreeIDHostsOKItemsItemSourceNs
+		return nil
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourceWordlist:
+		*s = ExposureGetExposureTreeIDHostsOKItemsItemSourceWordlist
+		return nil
+	case ExposureGetExposureTreeIDHostsOKItemsItemSourcePerson:
+		*s = ExposureGetExposureTreeIDHostsOKItemsItemSourcePerson
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDIssuesOK struct {
+	Items []ExposureGetExposureTreeIDIssuesOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ExposureGetExposureTreeIDIssuesOK) GetItems() []ExposureGetExposureTreeIDIssuesOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ExposureGetExposureTreeIDIssuesOK) SetItems(val []ExposureGetExposureTreeIDIssuesOKItemsItem) {
+	s.Items = val
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItem struct {
+	// Resolution accepted only: the last day; the issue reopens after it.
+	AcceptedUntil NilDate `json:"accepted_until"`
+	// The CVEs the engine names, the most severe first.
+	Cves      []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem `json:"cves"`
+	Detail    ExposureGetExposureTreeIDIssuesOKItemsItemDetail     `json:"detail"`
+	Engine    ExposureGetExposureTreeIDIssuesOKItemsItemEngine     `json:"engine"`
+	FirstSeen time.Time                                            `json:"first_seen"`
+	ID        string                                               `json:"id"`
+	// The engine's own id: plugin, template, rule or CVE.
+	Key      string    `json:"key"`
+	LastSeen time.Time `json:"last_seen"`
+	Note     NilString `json:"note"`
+	// Set only when state is handled.
+	Resolution NilExposureGetExposureTreeIDIssuesOKItemsItemResolution `json:"resolution"`
+	ResolvedAt NilDateTime                                             `json:"resolved_at"`
+	ResolvedBy NilString                                               `json:"resolved_by"`
+	// The service it was found on; null when it is about the target as a whole.
+	ServiceID NilString                                          `json:"service_id"`
+	Severity  ExposureGetExposureTreeIDIssuesOKItemsItemSeverity `json:"severity"`
+	// Open; gone: the last scan no longer reported it; handled: a person decided (resolution).
+	State    ExposureGetExposureTreeIDIssuesOKItemsItemState `json:"state"`
+	TargetID string                                          `json:"target_id"`
+	Title    string                                          `json:"title"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetAcceptedUntil() NilDate {
+	return s.AcceptedUntil
+}
+
+// GetCves returns the value of Cves.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetCves() []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem {
+	return s.Cves
+}
+
+// GetDetail returns the value of Detail.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetDetail() ExposureGetExposureTreeIDIssuesOKItemsItemDetail {
+	return s.Detail
+}
+
+// GetEngine returns the value of Engine.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetEngine() ExposureGetExposureTreeIDIssuesOKItemsItemEngine {
+	return s.Engine
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetID returns the value of ID.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetKey returns the value of Key.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetKey() string {
+	return s.Key
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetNote returns the value of Note.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetNote() NilString {
+	return s.Note
+}
+
+// GetResolution returns the value of Resolution.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetResolution() NilExposureGetExposureTreeIDIssuesOKItemsItemResolution {
+	return s.Resolution
+}
+
+// GetResolvedAt returns the value of ResolvedAt.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetResolvedAt() NilDateTime {
+	return s.ResolvedAt
+}
+
+// GetResolvedBy returns the value of ResolvedBy.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetResolvedBy() NilString {
+	return s.ResolvedBy
+}
+
+// GetServiceID returns the value of ServiceID.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetServiceID() NilString {
+	return s.ServiceID
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetSeverity() ExposureGetExposureTreeIDIssuesOKItemsItemSeverity {
+	return s.Severity
+}
+
+// GetState returns the value of State.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetState() ExposureGetExposureTreeIDIssuesOKItemsItemState {
+	return s.State
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTitle returns the value of Title.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetAcceptedUntil(val NilDate) {
+	s.AcceptedUntil = val
+}
+
+// SetCves sets the value of Cves.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetCves(val []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem) {
+	s.Cves = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetDetail(val ExposureGetExposureTreeIDIssuesOKItemsItemDetail) {
+	s.Detail = val
+}
+
+// SetEngine sets the value of Engine.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetEngine(val ExposureGetExposureTreeIDIssuesOKItemsItemEngine) {
+	s.Engine = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKey sets the value of Key.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetKey(val string) {
+	s.Key = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetNote(val NilString) {
+	s.Note = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetResolution(val NilExposureGetExposureTreeIDIssuesOKItemsItemResolution) {
+	s.Resolution = val
+}
+
+// SetResolvedAt sets the value of ResolvedAt.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetResolvedAt(val NilDateTime) {
+	s.ResolvedAt = val
+}
+
+// SetResolvedBy sets the value of ResolvedBy.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetResolvedBy(val NilString) {
+	s.ResolvedBy = val
+}
+
+// SetServiceID sets the value of ServiceID.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetServiceID(val NilString) {
+	s.ServiceID = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetSeverity(val ExposureGetExposureTreeIDIssuesOKItemsItemSeverity) {
+	s.Severity = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetState(val ExposureGetExposureTreeIDIssuesOKItemsItemState) {
+	s.State = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem struct {
+	Cve      string                                                        `json:"cve"`
+	Severity NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity `json:"severity"`
+}
+
+// GetCve returns the value of Cve.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem) GetCve() string {
+	return s.Cve
+}
+
+// GetSeverity returns the value of Severity.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem) GetSeverity() NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity {
+	return s.Severity
+}
+
+// SetCve sets the value of Cve.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItem) SetSeverity(val NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) {
+	s.Severity = val
+}
+
+// The CVSS base score the catalogue picks for the CVE and its band; null = "Not scored yet", never 0.
+type ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity struct {
+	Band    ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand    `json:"band"`
+	Score   float64                                                           `json:"score"`
+	Vector  string                                                            `json:"vector"`
+	Version ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion `json:"version"`
+}
+
+// GetBand returns the value of Band.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) GetBand() ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand {
+	return s.Band
+}
+
+// GetScore returns the value of Score.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) GetScore() float64 {
+	return s.Score
+}
+
+// GetVector returns the value of Vector.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) GetVersion() ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion {
+	return s.Version
+}
+
+// SetBand sets the value of Band.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetBand(val ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand) {
+	s.Band = val
+}
+
+// SetScore sets the value of Score.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetVector sets the value of Vector.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetVersion(val ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion) {
+	s.Version = val
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandCritical ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand = "critical"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandHigh     ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand = "high"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandMedium   ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand = "medium"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandLow      ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand = "low"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandNone     ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand = "none"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand{
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandCritical,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandHigh,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandMedium,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandLow,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandCritical:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandLow:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBand(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandCritical:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandCritical
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandHigh:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandHigh
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandMedium:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandMedium
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandLow:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandLow
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandNone:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityBandNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion40 ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion = "4.0"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion31 ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion = "3.1"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion30 ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion = "3.0"
+	ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion20 ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion = "2.0"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion{
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion40,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion31,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion30,
+		ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion40:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion31:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion30:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion40:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion40
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion31:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion31
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion30:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion30
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion20:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverityVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItemDetail struct {
+	Description string `json:"description"`
+	// Where it was seen: URLs or lines of the engine's output.
+	Evidence []string `json:"evidence"`
+	Solution string   `json:"solution"`
+}
+
+// GetDescription returns the value of Description.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) GetDescription() string {
+	return s.Description
+}
+
+// GetEvidence returns the value of Evidence.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) GetEvidence() []string {
+	return s.Evidence
+}
+
+// GetSolution returns the value of Solution.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) GetSolution() string {
+	return s.Solution
+}
+
+// SetDescription sets the value of Description.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetDescription(val string) {
+	s.Description = val
+}
+
+// SetEvidence sets the value of Evidence.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetEvidence(val []string) {
+	s.Evidence = val
+}
+
+// SetSolution sets the value of Solution.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetSolution(val string) {
+	s.Solution = val
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItemEngine string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemEngineSurface ExposureGetExposureTreeIDIssuesOKItemsItemEngine = "surface"
+	ExposureGetExposureTreeIDIssuesOKItemsItemEngineNuclei  ExposureGetExposureTreeIDIssuesOKItemsItemEngine = "nuclei"
+	ExposureGetExposureTreeIDIssuesOKItemsItemEngineZap     ExposureGetExposureTreeIDIssuesOKItemsItemEngine = "zap"
+	ExposureGetExposureTreeIDIssuesOKItemsItemEngineOpenvas ExposureGetExposureTreeIDIssuesOKItemsItemEngine = "openvas"
+	ExposureGetExposureTreeIDIssuesOKItemsItemEngineMatch   ExposureGetExposureTreeIDIssuesOKItemsItemEngine = "match"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemEngine values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemEngine) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemEngine {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemEngine{
+		ExposureGetExposureTreeIDIssuesOKItemsItemEngineSurface,
+		ExposureGetExposureTreeIDIssuesOKItemsItemEngineNuclei,
+		ExposureGetExposureTreeIDIssuesOKItemsItemEngineZap,
+		ExposureGetExposureTreeIDIssuesOKItemsItemEngineOpenvas,
+		ExposureGetExposureTreeIDIssuesOKItemsItemEngineMatch,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemEngine) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemEngineSurface:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemEngineNuclei:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemEngineZap:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemEngineOpenvas:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemEngineMatch:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemEngine) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemEngine(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemEngineSurface:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemEngineSurface
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemEngineNuclei:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemEngineNuclei
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemEngineZap:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemEngineZap
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemEngineOpenvas:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemEngineOpenvas
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemEngineMatch:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemEngineMatch
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItemResolution string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemResolutionPatched       ExposureGetExposureTreeIDIssuesOKItemsItemResolution = "patched"
+	ExposureGetExposureTreeIDIssuesOKItemsItemResolutionMitigated     ExposureGetExposureTreeIDIssuesOKItemsItemResolution = "mitigated"
+	ExposureGetExposureTreeIDIssuesOKItemsItemResolutionAccepted      ExposureGetExposureTreeIDIssuesOKItemsItemResolution = "accepted"
+	ExposureGetExposureTreeIDIssuesOKItemsItemResolutionNotRelevant   ExposureGetExposureTreeIDIssuesOKItemsItemResolution = "not_relevant"
+	ExposureGetExposureTreeIDIssuesOKItemsItemResolutionFalsePositive ExposureGetExposureTreeIDIssuesOKItemsItemResolution = "false_positive"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemResolution values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemResolution) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemResolution {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemResolution{
+		ExposureGetExposureTreeIDIssuesOKItemsItemResolutionPatched,
+		ExposureGetExposureTreeIDIssuesOKItemsItemResolutionMitigated,
+		ExposureGetExposureTreeIDIssuesOKItemsItemResolutionAccepted,
+		ExposureGetExposureTreeIDIssuesOKItemsItemResolutionNotRelevant,
+		ExposureGetExposureTreeIDIssuesOKItemsItemResolutionFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemResolution) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemResolutionPatched:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemResolutionMitigated:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemResolutionAccepted:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemResolutionNotRelevant:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemResolutionFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemResolution) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemResolution(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemResolutionPatched:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemResolutionPatched
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemResolutionMitigated:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemResolutionMitigated
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemResolutionAccepted:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemResolutionAccepted
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemResolutionNotRelevant:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemResolutionNotRelevant
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemResolutionFalsePositive:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemResolutionFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDIssuesOKItemsItemSeverity string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemSeverityCritical ExposureGetExposureTreeIDIssuesOKItemsItemSeverity = "critical"
+	ExposureGetExposureTreeIDIssuesOKItemsItemSeverityHigh     ExposureGetExposureTreeIDIssuesOKItemsItemSeverity = "high"
+	ExposureGetExposureTreeIDIssuesOKItemsItemSeverityMedium   ExposureGetExposureTreeIDIssuesOKItemsItemSeverity = "medium"
+	ExposureGetExposureTreeIDIssuesOKItemsItemSeverityLow      ExposureGetExposureTreeIDIssuesOKItemsItemSeverity = "low"
+	ExposureGetExposureTreeIDIssuesOKItemsItemSeverityInfo     ExposureGetExposureTreeIDIssuesOKItemsItemSeverity = "info"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemSeverity values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemSeverity) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemSeverity {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemSeverity{
+		ExposureGetExposureTreeIDIssuesOKItemsItemSeverityCritical,
+		ExposureGetExposureTreeIDIssuesOKItemsItemSeverityHigh,
+		ExposureGetExposureTreeIDIssuesOKItemsItemSeverityMedium,
+		ExposureGetExposureTreeIDIssuesOKItemsItemSeverityLow,
+		ExposureGetExposureTreeIDIssuesOKItemsItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemSeverityCritical:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemSeverityHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemSeverityMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemSeverityLow:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemSeverity) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemSeverity(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemSeverityCritical:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemSeverityCritical
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemSeverityHigh:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemSeverityHigh
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemSeverityMedium:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemSeverityMedium
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemSeverityLow:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemSeverityLow
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemSeverityInfo:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Open; gone: the last scan no longer reported it; handled: a person decided (resolution).
+type ExposureGetExposureTreeIDIssuesOKItemsItemState string
+
+const (
+	ExposureGetExposureTreeIDIssuesOKItemsItemStateOpen    ExposureGetExposureTreeIDIssuesOKItemsItemState = "open"
+	ExposureGetExposureTreeIDIssuesOKItemsItemStateGone    ExposureGetExposureTreeIDIssuesOKItemsItemState = "gone"
+	ExposureGetExposureTreeIDIssuesOKItemsItemStateHandled ExposureGetExposureTreeIDIssuesOKItemsItemState = "handled"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDIssuesOKItemsItemState values.
+func (ExposureGetExposureTreeIDIssuesOKItemsItemState) AllValues() []ExposureGetExposureTreeIDIssuesOKItemsItemState {
+	return []ExposureGetExposureTreeIDIssuesOKItemsItemState{
+		ExposureGetExposureTreeIDIssuesOKItemsItemStateOpen,
+		ExposureGetExposureTreeIDIssuesOKItemsItemStateGone,
+		ExposureGetExposureTreeIDIssuesOKItemsItemStateHandled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDIssuesOKItemsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemStateOpen:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemStateGone:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemStateHandled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDIssuesOKItemsItemState(data) {
+	case ExposureGetExposureTreeIDIssuesOKItemsItemStateOpen:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemStateOpen
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemStateGone:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemStateGone
+		return nil
+	case ExposureGetExposureTreeIDIssuesOKItemsItemStateHandled:
+		*s = ExposureGetExposureTreeIDIssuesOKItemsItemStateHandled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOK struct {
+	// Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor
+	// covered), no_commitment (no scan confirmation of the current sentence: an administrator's Scan now
+	// records it, an operator's is refused); null when it can be scanned.
+	Blocked NilExposureGetExposureTreeIDOKBlocked `json:"blocked"`
+	// The scan confirmation recorded by the first Scan now of an administrator; null when none.
+	Commitment NilExposureGetExposureTreeIDOKCommitment `json:"commitment"`
+	// The sentence the next Scan now of an administrator confirms; null once the node has a commitment of
+	// the current sentence.
+	CommitmentNotice NilExposureGetExposureTreeIDOKCommitmentNotice `json:"commitment_notice"`
+	Counts           ExposureGetExposureTreeIDOKCounts              `json:"counts"`
+	CreatedAt        time.Time                                      `json:"created_at"`
+	// Scans of this node are deep scans: the current testing terms are accepted.
+	Deep bool `json:"deep"`
+	// The node is scanned, by Scan now and by its schedule.
+	Enabled bool                            `json:"enabled"`
+	ID      string                          `json:"id"`
+	Kind    ExposureGetExposureTreeIDOKKind `json:"kind"`
+	// The newest run of this node, live or ended; null when never scanned.
+	LastScan NilExposureGetExposureTreeIDOKLastScan `json:"last_scan"`
+	Origin   ExposureGetExposureTreeIDOKOrigin      `json:"origin"`
+	// The domain target this node sits under; null at the top of the tree.
+	ParentID NilString                        `json:"parent_id"`
+	Proof    ExposureGetExposureTreeIDOKProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
+	// Domains: self scans only this name; all this name and every name found under it; selected this name
+	// and the names chosen (Host.selected). null for an IP.
+	ScopeMode NilExposureGetExposureTreeIDOKScopeMode `json:"scope_mode"`
+	// The accepted testing terms; null when none.
+	Terms NilExposureGetExposureTreeIDOKTerms `json:"terms"`
+	// The current testing terms for this node, to accept or read again.
+	TermsNotice ExposureGetExposureTreeIDOKTermsNotice `json:"terms_notice"`
+	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	TermsWarning NilString `json:"terms_warning"`
+	Value        string    `json:"value"`
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *ExposureGetExposureTreeIDOK) GetBlocked() NilExposureGetExposureTreeIDOKBlocked {
+	return s.Blocked
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposureGetExposureTreeIDOK) GetCommitment() NilExposureGetExposureTreeIDOKCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposureGetExposureTreeIDOK) GetCommitmentNotice() NilExposureGetExposureTreeIDOKCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposureGetExposureTreeIDOK) GetCounts() ExposureGetExposureTreeIDOKCounts {
+	return s.Counts
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposureGetExposureTreeIDOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDeep returns the value of Deep.
+func (s *ExposureGetExposureTreeIDOK) GetDeep() bool {
+	return s.Deep
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposureGetExposureTreeIDOK) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *ExposureGetExposureTreeIDOK) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureGetExposureTreeIDOK) GetKind() ExposureGetExposureTreeIDOKKind {
+	return s.Kind
+}
+
+// GetLastScan returns the value of LastScan.
+func (s *ExposureGetExposureTreeIDOK) GetLastScan() NilExposureGetExposureTreeIDOKLastScan {
+	return s.LastScan
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ExposureGetExposureTreeIDOK) GetOrigin() ExposureGetExposureTreeIDOKOrigin {
+	return s.Origin
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ExposureGetExposureTreeIDOK) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposureGetExposureTreeIDOK) GetProof() ExposureGetExposureTreeIDOKProof {
+	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposureGetExposureTreeIDOK) GetScheduleKey() string {
+	return s.ScheduleKey
+}
+
+// GetScopeMode returns the value of ScopeMode.
+func (s *ExposureGetExposureTreeIDOK) GetScopeMode() NilExposureGetExposureTreeIDOKScopeMode {
+	return s.ScopeMode
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposureGetExposureTreeIDOK) GetTerms() NilExposureGetExposureTreeIDOKTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposureGetExposureTreeIDOK) GetTermsNotice() ExposureGetExposureTreeIDOKTermsNotice {
+	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposureGetExposureTreeIDOK) GetTermsWarning() NilString {
+	return s.TermsWarning
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureGetExposureTreeIDOK) GetValue() string {
+	return s.Value
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *ExposureGetExposureTreeIDOK) SetBlocked(val NilExposureGetExposureTreeIDOKBlocked) {
+	s.Blocked = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposureGetExposureTreeIDOK) SetCommitment(val NilExposureGetExposureTreeIDOKCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposureGetExposureTreeIDOK) SetCommitmentNotice(val NilExposureGetExposureTreeIDOKCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposureGetExposureTreeIDOK) SetCounts(val ExposureGetExposureTreeIDOKCounts) {
+	s.Counts = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposureGetExposureTreeIDOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDeep sets the value of Deep.
+func (s *ExposureGetExposureTreeIDOK) SetDeep(val bool) {
+	s.Deep = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposureGetExposureTreeIDOK) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposureGetExposureTreeIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureGetExposureTreeIDOK) SetKind(val ExposureGetExposureTreeIDOKKind) {
+	s.Kind = val
+}
+
+// SetLastScan sets the value of LastScan.
+func (s *ExposureGetExposureTreeIDOK) SetLastScan(val NilExposureGetExposureTreeIDOKLastScan) {
+	s.LastScan = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ExposureGetExposureTreeIDOK) SetOrigin(val ExposureGetExposureTreeIDOKOrigin) {
+	s.Origin = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ExposureGetExposureTreeIDOK) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposureGetExposureTreeIDOK) SetProof(val ExposureGetExposureTreeIDOKProof) {
+	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposureGetExposureTreeIDOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
+}
+
+// SetScopeMode sets the value of ScopeMode.
+func (s *ExposureGetExposureTreeIDOK) SetScopeMode(val NilExposureGetExposureTreeIDOKScopeMode) {
+	s.ScopeMode = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposureGetExposureTreeIDOK) SetTerms(val NilExposureGetExposureTreeIDOKTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposureGetExposureTreeIDOK) SetTermsNotice(val ExposureGetExposureTreeIDOKTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposureGetExposureTreeIDOK) SetTermsWarning(val NilString) {
+	s.TermsWarning = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureGetExposureTreeIDOK) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposureGetExposureTreeIDOKBlocked string
+
+const (
+	ExposureGetExposureTreeIDOKBlockedDisabled     ExposureGetExposureTreeIDOKBlocked = "disabled"
+	ExposureGetExposureTreeIDOKBlockedProof        ExposureGetExposureTreeIDOKBlocked = "proof"
+	ExposureGetExposureTreeIDOKBlockedNoCommitment ExposureGetExposureTreeIDOKBlocked = "no_commitment"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKBlocked values.
+func (ExposureGetExposureTreeIDOKBlocked) AllValues() []ExposureGetExposureTreeIDOKBlocked {
+	return []ExposureGetExposureTreeIDOKBlocked{
+		ExposureGetExposureTreeIDOKBlockedDisabled,
+		ExposureGetExposureTreeIDOKBlockedProof,
+		ExposureGetExposureTreeIDOKBlockedNoCommitment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKBlocked) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKBlockedDisabled:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKBlockedProof:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKBlockedNoCommitment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKBlocked) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKBlocked(data) {
+	case ExposureGetExposureTreeIDOKBlockedDisabled:
+		*s = ExposureGetExposureTreeIDOKBlockedDisabled
+		return nil
+	case ExposureGetExposureTreeIDOKBlockedProof:
+		*s = ExposureGetExposureTreeIDOKBlockedProof
+		return nil
+	case ExposureGetExposureTreeIDOKBlockedNoCommitment:
+		*s = ExposureGetExposureTreeIDOKBlockedNoCommitment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTreeIDOKCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureTreeIDOKCommitment) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeIDOKCommitment) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTreeIDOKCommitment) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeIDOKCommitment) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTreeIDOKCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureTreeIDOKCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeIDOKCommitment) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTreeIDOKCommitment) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeIDOKCommitment) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureGetExposureTreeIDOKCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTreeIDOKCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeIDOKCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTreeIDOKCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeIDOKCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureGetExposureTreeIDOKCounts struct {
+	// Names found under the node.
+	Hosts int `json:"hosts"`
+	// Open issues.
+	Issues int `json:"issues"`
+	// Open services.
+	Services int `json:"services"`
+	// Open services that answered HTTP.
+	Web int `json:"web"`
+	// The highest severity among open issues; null when none.
+	Worst NilExposureGetExposureTreeIDOKCountsWorst `json:"worst"`
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposureGetExposureTreeIDOKCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposureGetExposureTreeIDOKCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetServices returns the value of Services.
+func (s *ExposureGetExposureTreeIDOKCounts) GetServices() int {
+	return s.Services
+}
+
+// GetWeb returns the value of Web.
+func (s *ExposureGetExposureTreeIDOKCounts) GetWeb() int {
+	return s.Web
+}
+
+// GetWorst returns the value of Worst.
+func (s *ExposureGetExposureTreeIDOKCounts) GetWorst() NilExposureGetExposureTreeIDOKCountsWorst {
+	return s.Worst
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposureGetExposureTreeIDOKCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposureGetExposureTreeIDOKCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposureGetExposureTreeIDOKCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// SetWeb sets the value of Web.
+func (s *ExposureGetExposureTreeIDOKCounts) SetWeb(val int) {
+	s.Web = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *ExposureGetExposureTreeIDOKCounts) SetWorst(val NilExposureGetExposureTreeIDOKCountsWorst) {
+	s.Worst = val
+}
+
+type ExposureGetExposureTreeIDOKCountsWorst string
+
+const (
+	ExposureGetExposureTreeIDOKCountsWorstCritical ExposureGetExposureTreeIDOKCountsWorst = "critical"
+	ExposureGetExposureTreeIDOKCountsWorstHigh     ExposureGetExposureTreeIDOKCountsWorst = "high"
+	ExposureGetExposureTreeIDOKCountsWorstMedium   ExposureGetExposureTreeIDOKCountsWorst = "medium"
+	ExposureGetExposureTreeIDOKCountsWorstLow      ExposureGetExposureTreeIDOKCountsWorst = "low"
+	ExposureGetExposureTreeIDOKCountsWorstInfo     ExposureGetExposureTreeIDOKCountsWorst = "info"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKCountsWorst values.
+func (ExposureGetExposureTreeIDOKCountsWorst) AllValues() []ExposureGetExposureTreeIDOKCountsWorst {
+	return []ExposureGetExposureTreeIDOKCountsWorst{
+		ExposureGetExposureTreeIDOKCountsWorstCritical,
+		ExposureGetExposureTreeIDOKCountsWorstHigh,
+		ExposureGetExposureTreeIDOKCountsWorstMedium,
+		ExposureGetExposureTreeIDOKCountsWorstLow,
+		ExposureGetExposureTreeIDOKCountsWorstInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKCountsWorst) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKCountsWorstCritical:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKCountsWorstHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKCountsWorstMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKCountsWorstLow:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKCountsWorstInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKCountsWorst) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKCountsWorst(data) {
+	case ExposureGetExposureTreeIDOKCountsWorstCritical:
+		*s = ExposureGetExposureTreeIDOKCountsWorstCritical
+		return nil
+	case ExposureGetExposureTreeIDOKCountsWorstHigh:
+		*s = ExposureGetExposureTreeIDOKCountsWorstHigh
+		return nil
+	case ExposureGetExposureTreeIDOKCountsWorstMedium:
+		*s = ExposureGetExposureTreeIDOKCountsWorstMedium
+		return nil
+	case ExposureGetExposureTreeIDOKCountsWorstLow:
+		*s = ExposureGetExposureTreeIDOKCountsWorstLow
+		return nil
+	case ExposureGetExposureTreeIDOKCountsWorstInfo:
+		*s = ExposureGetExposureTreeIDOKCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKKind string
+
+const (
+	ExposureGetExposureTreeIDOKKindDomain ExposureGetExposureTreeIDOKKind = "domain"
+	ExposureGetExposureTreeIDOKKindIP     ExposureGetExposureTreeIDOKKind = "ip"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKKind values.
+func (ExposureGetExposureTreeIDOKKind) AllValues() []ExposureGetExposureTreeIDOKKind {
+	return []ExposureGetExposureTreeIDOKKind{
+		ExposureGetExposureTreeIDOKKindDomain,
+		ExposureGetExposureTreeIDOKKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKKindDomain:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKKind) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKKind(data) {
+	case ExposureGetExposureTreeIDOKKindDomain:
+		*s = ExposureGetExposureTreeIDOKKindDomain
+		return nil
+	case ExposureGetExposureTreeIDOKKindIP:
+		*s = ExposureGetExposureTreeIDOKKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKLastScan struct {
+	// What the scan left; null until it ends done or partial.
+	Counts  NilExposureGetExposureTreeIDOKLastScanCounts `json:"counts"`
+	EndedAt NilDateTime                                  `json:"ended_at"`
+	Error   NilString                                    `json:"error"`
+	// Deep when the current testing terms of the target are accepted; surface otherwise.
+	Mode     ExposureGetExposureTreeIDOKLastScanMode `json:"mode"`
+	QueuedAt time.Time                               `json:"queued_at"`
+	// Who asked (an e-mail), or system for a scheduled scan.
+	RequestedBy string `json:"requested_by"`
+	// The shared run: its steps, items and log are read there, and it is stopped there.
+	RunID      string                                     `json:"run_id"`
+	StartedAt  NilDateTime                                `json:"started_at"`
+	Status     ExposureGetExposureTreeIDOKLastScanStatus  `json:"status"`
+	StopReason NilString                                  `json:"stop_reason"`
+	TargetID   string                                     `json:"target_id"`
+	Trigger    ExposureGetExposureTreeIDOKLastScanTrigger `json:"trigger"`
+	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetCounts() NilExposureGetExposureTreeIDOKLastScanCounts {
+	return s.Counts
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetError() NilString {
+	return s.Error
+}
+
+// GetMode returns the value of Mode.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetMode() ExposureGetExposureTreeIDOKLastScanMode {
+	return s.Mode
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetRunID returns the value of RunID.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetRunID() string {
+	return s.RunID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetStatus() ExposureGetExposureTreeIDOKLastScanStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetTrigger() ExposureGetExposureTreeIDOKLastScanTrigger {
+	return s.Trigger
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ExposureGetExposureTreeIDOKLastScan) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetCounts(val NilExposureGetExposureTreeIDOKLastScanCounts) {
+	s.Counts = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetMode(val ExposureGetExposureTreeIDOKLastScanMode) {
+	s.Mode = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetStatus(val ExposureGetExposureTreeIDOKLastScanStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetTrigger(val ExposureGetExposureTreeIDOKLastScanTrigger) {
+	s.Trigger = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ExposureGetExposureTreeIDOKLastScan) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ExposureGetExposureTreeIDOKLastScanCounts struct {
+	ClosedServices int `json:"closed_services"`
+	Hosts          int `json:"hosts"`
+	// Open issues after the scan.
+	Issues      int `json:"issues"`
+	NewIssues   int `json:"new_issues"`
+	NewServices int `json:"new_services"`
+	// Open services after the scan.
+	Services int `json:"services"`
+}
+
+// GetClosedServices returns the value of ClosedServices.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) GetClosedServices() int {
+	return s.ClosedServices
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetNewIssues returns the value of NewIssues.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) GetNewIssues() int {
+	return s.NewIssues
+}
+
+// GetNewServices returns the value of NewServices.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) GetNewServices() int {
+	return s.NewServices
+}
+
+// GetServices returns the value of Services.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) GetServices() int {
+	return s.Services
+}
+
+// SetClosedServices sets the value of ClosedServices.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) SetClosedServices(val int) {
+	s.ClosedServices = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetNewIssues sets the value of NewIssues.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) SetNewIssues(val int) {
+	s.NewIssues = val
+}
+
+// SetNewServices sets the value of NewServices.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) SetNewServices(val int) {
+	s.NewServices = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposureGetExposureTreeIDOKLastScanCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// Deep when the current testing terms of the target are accepted; surface otherwise.
+type ExposureGetExposureTreeIDOKLastScanMode string
+
+const (
+	ExposureGetExposureTreeIDOKLastScanModeSurface ExposureGetExposureTreeIDOKLastScanMode = "surface"
+	ExposureGetExposureTreeIDOKLastScanModeDeep    ExposureGetExposureTreeIDOKLastScanMode = "deep"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKLastScanMode values.
+func (ExposureGetExposureTreeIDOKLastScanMode) AllValues() []ExposureGetExposureTreeIDOKLastScanMode {
+	return []ExposureGetExposureTreeIDOKLastScanMode{
+		ExposureGetExposureTreeIDOKLastScanModeSurface,
+		ExposureGetExposureTreeIDOKLastScanModeDeep,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKLastScanMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKLastScanModeSurface:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanModeDeep:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKLastScanMode) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKLastScanMode(data) {
+	case ExposureGetExposureTreeIDOKLastScanModeSurface:
+		*s = ExposureGetExposureTreeIDOKLastScanModeSurface
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanModeDeep:
+		*s = ExposureGetExposureTreeIDOKLastScanModeDeep
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKLastScanStatus string
+
+const (
+	ExposureGetExposureTreeIDOKLastScanStatusQueued   ExposureGetExposureTreeIDOKLastScanStatus = "queued"
+	ExposureGetExposureTreeIDOKLastScanStatusWaiting  ExposureGetExposureTreeIDOKLastScanStatus = "waiting"
+	ExposureGetExposureTreeIDOKLastScanStatusRunning  ExposureGetExposureTreeIDOKLastScanStatus = "running"
+	ExposureGetExposureTreeIDOKLastScanStatusStopping ExposureGetExposureTreeIDOKLastScanStatus = "stopping"
+	ExposureGetExposureTreeIDOKLastScanStatusDone     ExposureGetExposureTreeIDOKLastScanStatus = "done"
+	ExposureGetExposureTreeIDOKLastScanStatusPartial  ExposureGetExposureTreeIDOKLastScanStatus = "partial"
+	ExposureGetExposureTreeIDOKLastScanStatusFailed   ExposureGetExposureTreeIDOKLastScanStatus = "failed"
+	ExposureGetExposureTreeIDOKLastScanStatusStopped  ExposureGetExposureTreeIDOKLastScanStatus = "stopped"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKLastScanStatus values.
+func (ExposureGetExposureTreeIDOKLastScanStatus) AllValues() []ExposureGetExposureTreeIDOKLastScanStatus {
+	return []ExposureGetExposureTreeIDOKLastScanStatus{
+		ExposureGetExposureTreeIDOKLastScanStatusQueued,
+		ExposureGetExposureTreeIDOKLastScanStatusWaiting,
+		ExposureGetExposureTreeIDOKLastScanStatusRunning,
+		ExposureGetExposureTreeIDOKLastScanStatusStopping,
+		ExposureGetExposureTreeIDOKLastScanStatusDone,
+		ExposureGetExposureTreeIDOKLastScanStatusPartial,
+		ExposureGetExposureTreeIDOKLastScanStatusFailed,
+		ExposureGetExposureTreeIDOKLastScanStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKLastScanStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKLastScanStatusQueued:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanStatusWaiting:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanStatusRunning:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanStatusStopping:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanStatusDone:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanStatusPartial:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanStatusFailed:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKLastScanStatus) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKLastScanStatus(data) {
+	case ExposureGetExposureTreeIDOKLastScanStatusQueued:
+		*s = ExposureGetExposureTreeIDOKLastScanStatusQueued
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanStatusWaiting:
+		*s = ExposureGetExposureTreeIDOKLastScanStatusWaiting
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanStatusRunning:
+		*s = ExposureGetExposureTreeIDOKLastScanStatusRunning
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanStatusStopping:
+		*s = ExposureGetExposureTreeIDOKLastScanStatusStopping
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanStatusDone:
+		*s = ExposureGetExposureTreeIDOKLastScanStatusDone
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanStatusPartial:
+		*s = ExposureGetExposureTreeIDOKLastScanStatusPartial
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanStatusFailed:
+		*s = ExposureGetExposureTreeIDOKLastScanStatusFailed
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanStatusStopped:
+		*s = ExposureGetExposureTreeIDOKLastScanStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKLastScanTrigger string
+
+const (
+	ExposureGetExposureTreeIDOKLastScanTriggerManual   ExposureGetExposureTreeIDOKLastScanTrigger = "manual"
+	ExposureGetExposureTreeIDOKLastScanTriggerSchedule ExposureGetExposureTreeIDOKLastScanTrigger = "schedule"
+	ExposureGetExposureTreeIDOKLastScanTriggerEvent    ExposureGetExposureTreeIDOKLastScanTrigger = "event"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKLastScanTrigger values.
+func (ExposureGetExposureTreeIDOKLastScanTrigger) AllValues() []ExposureGetExposureTreeIDOKLastScanTrigger {
+	return []ExposureGetExposureTreeIDOKLastScanTrigger{
+		ExposureGetExposureTreeIDOKLastScanTriggerManual,
+		ExposureGetExposureTreeIDOKLastScanTriggerSchedule,
+		ExposureGetExposureTreeIDOKLastScanTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKLastScanTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKLastScanTriggerManual:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanTriggerSchedule:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKLastScanTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKLastScanTrigger) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKLastScanTrigger(data) {
+	case ExposureGetExposureTreeIDOKLastScanTriggerManual:
+		*s = ExposureGetExposureTreeIDOKLastScanTriggerManual
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanTriggerSchedule:
+		*s = ExposureGetExposureTreeIDOKLastScanTriggerSchedule
+		return nil
+	case ExposureGetExposureTreeIDOKLastScanTriggerEvent:
+		*s = ExposureGetExposureTreeIDOKLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKOrigin string
+
+const (
+	ExposureGetExposureTreeIDOKOriginPerson     ExposureGetExposureTreeIDOKOrigin = "person"
+	ExposureGetExposureTreeIDOKOriginBox        ExposureGetExposureTreeIDOKOrigin = "box"
+	ExposureGetExposureTreeIDOKOriginDiscovered ExposureGetExposureTreeIDOKOrigin = "discovered"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKOrigin values.
+func (ExposureGetExposureTreeIDOKOrigin) AllValues() []ExposureGetExposureTreeIDOKOrigin {
+	return []ExposureGetExposureTreeIDOKOrigin{
+		ExposureGetExposureTreeIDOKOriginPerson,
+		ExposureGetExposureTreeIDOKOriginBox,
+		ExposureGetExposureTreeIDOKOriginDiscovered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKOriginPerson:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKOriginBox:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKOriginDiscovered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKOrigin) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKOrigin(data) {
+	case ExposureGetExposureTreeIDOKOriginPerson:
+		*s = ExposureGetExposureTreeIDOKOriginPerson
+		return nil
+	case ExposureGetExposureTreeIDOKOriginBox:
+		*s = ExposureGetExposureTreeIDOKOriginBox
+		return nil
+	case ExposureGetExposureTreeIDOKOriginDiscovered:
+		*s = ExposureGetExposureTreeIDOKOriginDiscovered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKProof struct {
+	// The ancestor whose proof covers this node; null unless state is covered.
+	CoveredBy NilExposureGetExposureTreeIDOKProofCoveredBy `json:"covered_by"`
+	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
+	DNS NilExposureGetExposureTreeIDOKProofDNS `json:"dns"`
+	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// IP typed in by a person: where its proof file goes; null otherwise.
+	File      NilExposureGetExposureTreeIDOKProofFile      `json:"file"`
+	LastCheck NilExposureGetExposureTreeIDOKProofLastCheck `json:"last_check"`
+	// How this node proves itself; null when covered by an ancestor or not proven yet.
+	Method NilExposureGetExposureTreeIDOKProofMethod `json:"method"`
+	// When the box checks the proof again by itself; null when it does not.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	State ExposureGetExposureTreeIDOKProofState `json:"state"`
+	// When this node's own proof was last found.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposureGetExposureTreeIDOKProof) GetCoveredBy() NilExposureGetExposureTreeIDOKProofCoveredBy {
+	return s.CoveredBy
+}
+
+// GetDNS returns the value of DNS.
+func (s *ExposureGetExposureTreeIDOKProof) GetDNS() NilExposureGetExposureTreeIDOKProofDNS {
+	return s.DNS
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposureGetExposureTreeIDOKProof) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFile returns the value of File.
+func (s *ExposureGetExposureTreeIDOKProof) GetFile() NilExposureGetExposureTreeIDOKProofFile {
+	return s.File
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposureGetExposureTreeIDOKProof) GetLastCheck() NilExposureGetExposureTreeIDOKProofLastCheck {
+	return s.LastCheck
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposureGetExposureTreeIDOKProof) GetMethod() NilExposureGetExposureTreeIDOKProofMethod {
+	return s.Method
+}
+
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposureGetExposureTreeIDOKProof) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetState returns the value of State.
+func (s *ExposureGetExposureTreeIDOKProof) GetState() ExposureGetExposureTreeIDOKProofState {
+	return s.State
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposureGetExposureTreeIDOKProof) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposureGetExposureTreeIDOKProof) SetCoveredBy(val NilExposureGetExposureTreeIDOKProofCoveredBy) {
+	s.CoveredBy = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *ExposureGetExposureTreeIDOKProof) SetDNS(val NilExposureGetExposureTreeIDOKProofDNS) {
+	s.DNS = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposureGetExposureTreeIDOKProof) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFile sets the value of File.
+func (s *ExposureGetExposureTreeIDOKProof) SetFile(val NilExposureGetExposureTreeIDOKProofFile) {
+	s.File = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposureGetExposureTreeIDOKProof) SetLastCheck(val NilExposureGetExposureTreeIDOKProofLastCheck) {
+	s.LastCheck = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposureGetExposureTreeIDOKProof) SetMethod(val NilExposureGetExposureTreeIDOKProofMethod) {
+	s.Method = val
+}
+
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposureGetExposureTreeIDOKProof) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureGetExposureTreeIDOKProof) SetState(val ExposureGetExposureTreeIDOKProofState) {
+	s.State = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposureGetExposureTreeIDOKProof) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposureGetExposureTreeIDOKProofCoveredBy struct {
+	ID    string `json:"id"`
+	Value string `json:"value"`
+}
+
+// GetID returns the value of ID.
+func (s *ExposureGetExposureTreeIDOKProofCoveredBy) GetID() string {
+	return s.ID
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureGetExposureTreeIDOKProofCoveredBy) GetValue() string {
+	return s.Value
+}
+
+// SetID sets the value of ID.
+func (s *ExposureGetExposureTreeIDOKProofCoveredBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureGetExposureTreeIDOKProofCoveredBy) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposureGetExposureTreeIDOKProofDNS struct {
+	// The alternative name that proves this target only, "_vedette-verify" or "_vedette-verify."; null
+	// when it would pass 253 characters.
+	AltHost NilString `json:"alt_host"`
+	// The name to type in that zone: "@" for the zone apex.
+	Host string `json:"host"`
+	// The whole TXT value: vedette-verify=.
+	Value string `json:"value"`
+	// The registered domain: the DNS zone the record is added in.
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposureGetExposureTreeIDOKProofDNS) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetHost returns the value of Host.
+func (s *ExposureGetExposureTreeIDOKProofDNS) GetHost() string {
+	return s.Host
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureGetExposureTreeIDOKProofDNS) GetValue() string {
+	return s.Value
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposureGetExposureTreeIDOKProofDNS) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposureGetExposureTreeIDOKProofDNS) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposureGetExposureTreeIDOKProofDNS) SetHost(val string) {
+	s.Host = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureGetExposureTreeIDOKProofDNS) SetValue(val string) {
+	s.Value = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposureGetExposureTreeIDOKProofDNS) SetZone(val string) {
+	s.Zone = val
+}
+
+type ExposureGetExposureTreeIDOKProofFile struct {
+	// The token: the whole content of /.well-known/vedette-verify.txt.
+	Content string `json:"content"`
+	// Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the
+	// IP, proves it too.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposureGetExposureTreeIDOKProofFile) GetContent() string {
+	return s.Content
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposureGetExposureTreeIDOKProofFile) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposureGetExposureTreeIDOKProofFile) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposureGetExposureTreeIDOKProofFile) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposureGetExposureTreeIDOKProofFile) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposureGetExposureTreeIDOKProofFile) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposureGetExposureTreeIDOKProofLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTreeIDOKProofLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposureGetExposureTreeIDOKProofLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposureGetExposureTreeIDOKProofLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTreeIDOKProofLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposureGetExposureTreeIDOKProofLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposureGetExposureTreeIDOKProofLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposureGetExposureTreeIDOKProofMethod string
+
+const (
+	ExposureGetExposureTreeIDOKProofMethodDNSTxt    ExposureGetExposureTreeIDOKProofMethod = "dns_txt"
+	ExposureGetExposureTreeIDOKProofMethodBoxEgress ExposureGetExposureTreeIDOKProofMethod = "box_egress"
+	ExposureGetExposureTreeIDOKProofMethodIPFile    ExposureGetExposureTreeIDOKProofMethod = "ip_file"
+	ExposureGetExposureTreeIDOKProofMethodIPPtr     ExposureGetExposureTreeIDOKProofMethod = "ip_ptr"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKProofMethod values.
+func (ExposureGetExposureTreeIDOKProofMethod) AllValues() []ExposureGetExposureTreeIDOKProofMethod {
+	return []ExposureGetExposureTreeIDOKProofMethod{
+		ExposureGetExposureTreeIDOKProofMethodDNSTxt,
+		ExposureGetExposureTreeIDOKProofMethodBoxEgress,
+		ExposureGetExposureTreeIDOKProofMethodIPFile,
+		ExposureGetExposureTreeIDOKProofMethodIPPtr,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKProofMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKProofMethodDNSTxt:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKProofMethodBoxEgress:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKProofMethodIPFile:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKProofMethodIPPtr:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKProofMethod) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKProofMethod(data) {
+	case ExposureGetExposureTreeIDOKProofMethodDNSTxt:
+		*s = ExposureGetExposureTreeIDOKProofMethodDNSTxt
+		return nil
+	case ExposureGetExposureTreeIDOKProofMethodBoxEgress:
+		*s = ExposureGetExposureTreeIDOKProofMethodBoxEgress
+		return nil
+	case ExposureGetExposureTreeIDOKProofMethodIPFile:
+		*s = ExposureGetExposureTreeIDOKProofMethodIPFile
+		return nil
+	case ExposureGetExposureTreeIDOKProofMethodIPPtr:
+		*s = ExposureGetExposureTreeIDOKProofMethodIPPtr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+type ExposureGetExposureTreeIDOKProofState string
+
+const (
+	ExposureGetExposureTreeIDOKProofStateProven     ExposureGetExposureTreeIDOKProofState = "proven"
+	ExposureGetExposureTreeIDOKProofStateCovered    ExposureGetExposureTreeIDOKProofState = "covered"
+	ExposureGetExposureTreeIDOKProofStateMissing    ExposureGetExposureTreeIDOKProofState = "missing"
+	ExposureGetExposureTreeIDOKProofStateExpired    ExposureGetExposureTreeIDOKProofState = "expired"
+	ExposureGetExposureTreeIDOKProofStateNotCurrent ExposureGetExposureTreeIDOKProofState = "not_current"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKProofState values.
+func (ExposureGetExposureTreeIDOKProofState) AllValues() []ExposureGetExposureTreeIDOKProofState {
+	return []ExposureGetExposureTreeIDOKProofState{
+		ExposureGetExposureTreeIDOKProofStateProven,
+		ExposureGetExposureTreeIDOKProofStateCovered,
+		ExposureGetExposureTreeIDOKProofStateMissing,
+		ExposureGetExposureTreeIDOKProofStateExpired,
+		ExposureGetExposureTreeIDOKProofStateNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKProofState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKProofStateProven:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKProofStateCovered:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKProofStateMissing:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKProofStateExpired:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKProofStateNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKProofState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKProofState(data) {
+	case ExposureGetExposureTreeIDOKProofStateProven:
+		*s = ExposureGetExposureTreeIDOKProofStateProven
+		return nil
+	case ExposureGetExposureTreeIDOKProofStateCovered:
+		*s = ExposureGetExposureTreeIDOKProofStateCovered
+		return nil
+	case ExposureGetExposureTreeIDOKProofStateMissing:
+		*s = ExposureGetExposureTreeIDOKProofStateMissing
+		return nil
+	case ExposureGetExposureTreeIDOKProofStateExpired:
+		*s = ExposureGetExposureTreeIDOKProofStateExpired
+		return nil
+	case ExposureGetExposureTreeIDOKProofStateNotCurrent:
+		*s = ExposureGetExposureTreeIDOKProofStateNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKScopeMode string
+
+const (
+	ExposureGetExposureTreeIDOKScopeModeSelf     ExposureGetExposureTreeIDOKScopeMode = "self"
+	ExposureGetExposureTreeIDOKScopeModeAll      ExposureGetExposureTreeIDOKScopeMode = "all"
+	ExposureGetExposureTreeIDOKScopeModeSelected ExposureGetExposureTreeIDOKScopeMode = "selected"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDOKScopeMode values.
+func (ExposureGetExposureTreeIDOKScopeMode) AllValues() []ExposureGetExposureTreeIDOKScopeMode {
+	return []ExposureGetExposureTreeIDOKScopeMode{
+		ExposureGetExposureTreeIDOKScopeModeSelf,
+		ExposureGetExposureTreeIDOKScopeModeAll,
+		ExposureGetExposureTreeIDOKScopeModeSelected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDOKScopeMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDOKScopeModeSelf:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKScopeModeAll:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDOKScopeModeSelected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDOKScopeMode) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDOKScopeMode(data) {
+	case ExposureGetExposureTreeIDOKScopeModeSelf:
+		*s = ExposureGetExposureTreeIDOKScopeModeSelf
+		return nil
+	case ExposureGetExposureTreeIDOKScopeModeAll:
+		*s = ExposureGetExposureTreeIDOKScopeModeAll
+		return nil
+	case ExposureGetExposureTreeIDOKScopeModeSelected:
+		*s = ExposureGetExposureTreeIDOKScopeModeSelected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDOKTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTreeIDOKTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureTreeIDOKTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeIDOKTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTreeIDOKTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeIDOKTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTreeIDOKTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureTreeIDOKTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeIDOKTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTreeIDOKTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeIDOKTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this node, to accept or read again.
+type ExposureGetExposureTreeIDOKTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeIDOKTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTreeIDOKTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeIDOKTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeIDOKTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTreeIDOKTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeIDOKTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureGetExposureTreeIDScansOK struct {
+	Items []ExposureGetExposureTreeIDScansOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ExposureGetExposureTreeIDScansOK) GetItems() []ExposureGetExposureTreeIDScansOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ExposureGetExposureTreeIDScansOK) SetItems(val []ExposureGetExposureTreeIDScansOKItemsItem) {
+	s.Items = val
+}
+
+type ExposureGetExposureTreeIDScansOKItemsItem struct {
+	// What the scan left; null until it ends done or partial.
+	Counts  NilExposureGetExposureTreeIDScansOKItemsItemCounts `json:"counts"`
+	EndedAt NilDateTime                                        `json:"ended_at"`
+	Error   NilString                                          `json:"error"`
+	// Deep when the current testing terms of the target are accepted; surface otherwise.
+	Mode     ExposureGetExposureTreeIDScansOKItemsItemMode `json:"mode"`
+	QueuedAt time.Time                                     `json:"queued_at"`
+	// Who asked (an e-mail), or system for a scheduled scan.
+	RequestedBy string `json:"requested_by"`
+	// The shared run: its steps, items and log are read there, and it is stopped there.
+	RunID      string                                           `json:"run_id"`
+	StartedAt  NilDateTime                                      `json:"started_at"`
+	Status     ExposureGetExposureTreeIDScansOKItemsItemStatus  `json:"status"`
+	StopReason NilString                                        `json:"stop_reason"`
+	TargetID   string                                           `json:"target_id"`
+	Trigger    ExposureGetExposureTreeIDScansOKItemsItemTrigger `json:"trigger"`
+	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetCounts() NilExposureGetExposureTreeIDScansOKItemsItemCounts {
+	return s.Counts
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetError() NilString {
+	return s.Error
+}
+
+// GetMode returns the value of Mode.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetMode() ExposureGetExposureTreeIDScansOKItemsItemMode {
+	return s.Mode
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetRunID returns the value of RunID.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetRunID() string {
+	return s.RunID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetStatus() ExposureGetExposureTreeIDScansOKItemsItemStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetTrigger() ExposureGetExposureTreeIDScansOKItemsItemTrigger {
+	return s.Trigger
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetCounts(val NilExposureGetExposureTreeIDScansOKItemsItemCounts) {
+	s.Counts = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetMode(val ExposureGetExposureTreeIDScansOKItemsItemMode) {
+	s.Mode = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetStatus(val ExposureGetExposureTreeIDScansOKItemsItemStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetTrigger(val ExposureGetExposureTreeIDScansOKItemsItemTrigger) {
+	s.Trigger = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ExposureGetExposureTreeIDScansOKItemsItem) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ExposureGetExposureTreeIDScansOKItemsItemCounts struct {
+	ClosedServices int `json:"closed_services"`
+	Hosts          int `json:"hosts"`
+	// Open issues after the scan.
+	Issues      int `json:"issues"`
+	NewIssues   int `json:"new_issues"`
+	NewServices int `json:"new_services"`
+	// Open services after the scan.
+	Services int `json:"services"`
+}
+
+// GetClosedServices returns the value of ClosedServices.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) GetClosedServices() int {
+	return s.ClosedServices
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetNewIssues returns the value of NewIssues.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) GetNewIssues() int {
+	return s.NewIssues
+}
+
+// GetNewServices returns the value of NewServices.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) GetNewServices() int {
+	return s.NewServices
+}
+
+// GetServices returns the value of Services.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) GetServices() int {
+	return s.Services
+}
+
+// SetClosedServices sets the value of ClosedServices.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) SetClosedServices(val int) {
+	s.ClosedServices = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetNewIssues sets the value of NewIssues.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) SetNewIssues(val int) {
+	s.NewIssues = val
+}
+
+// SetNewServices sets the value of NewServices.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) SetNewServices(val int) {
+	s.NewServices = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// Deep when the current testing terms of the target are accepted; surface otherwise.
+type ExposureGetExposureTreeIDScansOKItemsItemMode string
+
+const (
+	ExposureGetExposureTreeIDScansOKItemsItemModeSurface ExposureGetExposureTreeIDScansOKItemsItemMode = "surface"
+	ExposureGetExposureTreeIDScansOKItemsItemModeDeep    ExposureGetExposureTreeIDScansOKItemsItemMode = "deep"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDScansOKItemsItemMode values.
+func (ExposureGetExposureTreeIDScansOKItemsItemMode) AllValues() []ExposureGetExposureTreeIDScansOKItemsItemMode {
+	return []ExposureGetExposureTreeIDScansOKItemsItemMode{
+		ExposureGetExposureTreeIDScansOKItemsItemModeSurface,
+		ExposureGetExposureTreeIDScansOKItemsItemModeDeep,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDScansOKItemsItemMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDScansOKItemsItemModeSurface:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemModeDeep:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemMode) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDScansOKItemsItemMode(data) {
+	case ExposureGetExposureTreeIDScansOKItemsItemModeSurface:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemModeSurface
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemModeDeep:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemModeDeep
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDScansOKItemsItemStatus string
+
+const (
+	ExposureGetExposureTreeIDScansOKItemsItemStatusQueued   ExposureGetExposureTreeIDScansOKItemsItemStatus = "queued"
+	ExposureGetExposureTreeIDScansOKItemsItemStatusWaiting  ExposureGetExposureTreeIDScansOKItemsItemStatus = "waiting"
+	ExposureGetExposureTreeIDScansOKItemsItemStatusRunning  ExposureGetExposureTreeIDScansOKItemsItemStatus = "running"
+	ExposureGetExposureTreeIDScansOKItemsItemStatusStopping ExposureGetExposureTreeIDScansOKItemsItemStatus = "stopping"
+	ExposureGetExposureTreeIDScansOKItemsItemStatusDone     ExposureGetExposureTreeIDScansOKItemsItemStatus = "done"
+	ExposureGetExposureTreeIDScansOKItemsItemStatusPartial  ExposureGetExposureTreeIDScansOKItemsItemStatus = "partial"
+	ExposureGetExposureTreeIDScansOKItemsItemStatusFailed   ExposureGetExposureTreeIDScansOKItemsItemStatus = "failed"
+	ExposureGetExposureTreeIDScansOKItemsItemStatusStopped  ExposureGetExposureTreeIDScansOKItemsItemStatus = "stopped"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDScansOKItemsItemStatus values.
+func (ExposureGetExposureTreeIDScansOKItemsItemStatus) AllValues() []ExposureGetExposureTreeIDScansOKItemsItemStatus {
+	return []ExposureGetExposureTreeIDScansOKItemsItemStatus{
+		ExposureGetExposureTreeIDScansOKItemsItemStatusQueued,
+		ExposureGetExposureTreeIDScansOKItemsItemStatusWaiting,
+		ExposureGetExposureTreeIDScansOKItemsItemStatusRunning,
+		ExposureGetExposureTreeIDScansOKItemsItemStatusStopping,
+		ExposureGetExposureTreeIDScansOKItemsItemStatusDone,
+		ExposureGetExposureTreeIDScansOKItemsItemStatusPartial,
+		ExposureGetExposureTreeIDScansOKItemsItemStatusFailed,
+		ExposureGetExposureTreeIDScansOKItemsItemStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDScansOKItemsItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusQueued:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusWaiting:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusRunning:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusStopping:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusDone:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusPartial:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusFailed:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemStatus) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDScansOKItemsItemStatus(data) {
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusQueued:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemStatusQueued
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusWaiting:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemStatusWaiting
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusRunning:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemStatusRunning
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusStopping:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemStatusStopping
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusDone:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemStatusDone
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusPartial:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemStatusPartial
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusFailed:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemStatusFailed
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemStatusStopped:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDScansOKItemsItemTrigger string
+
+const (
+	ExposureGetExposureTreeIDScansOKItemsItemTriggerManual   ExposureGetExposureTreeIDScansOKItemsItemTrigger = "manual"
+	ExposureGetExposureTreeIDScansOKItemsItemTriggerSchedule ExposureGetExposureTreeIDScansOKItemsItemTrigger = "schedule"
+	ExposureGetExposureTreeIDScansOKItemsItemTriggerEvent    ExposureGetExposureTreeIDScansOKItemsItemTrigger = "event"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDScansOKItemsItemTrigger values.
+func (ExposureGetExposureTreeIDScansOKItemsItemTrigger) AllValues() []ExposureGetExposureTreeIDScansOKItemsItemTrigger {
+	return []ExposureGetExposureTreeIDScansOKItemsItemTrigger{
+		ExposureGetExposureTreeIDScansOKItemsItemTriggerManual,
+		ExposureGetExposureTreeIDScansOKItemsItemTriggerSchedule,
+		ExposureGetExposureTreeIDScansOKItemsItemTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDScansOKItemsItemTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDScansOKItemsItemTriggerManual:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemTriggerSchedule:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDScansOKItemsItemTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDScansOKItemsItemTrigger) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDScansOKItemsItemTrigger(data) {
+	case ExposureGetExposureTreeIDScansOKItemsItemTriggerManual:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemTriggerManual
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemTriggerSchedule:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemTriggerSchedule
+		return nil
+	case ExposureGetExposureTreeIDScansOKItemsItemTriggerEvent:
+		*s = ExposureGetExposureTreeIDScansOKItemsItemTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDServicesOK struct {
+	Items []ExposureGetExposureTreeIDServicesOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ExposureGetExposureTreeIDServicesOK) GetItems() []ExposureGetExposureTreeIDServicesOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ExposureGetExposureTreeIDServicesOK) SetItems(val []ExposureGetExposureTreeIDServicesOKItemsItem) {
+	s.Items = val
+}
+
+type ExposureGetExposureTreeIDServicesOKItemsItem struct {
+	// The TLS certificate the service showed; null when none.
+	Cert NilExposureGetExposureTreeIDServicesOKItemsItemCert `json:"cert"`
+	// "" when none.
+	Cpe       string    `json:"cpe"`
+	FirstSeen time.Time `json:"first_seen"`
+	ID        string    `json:"id"`
+	// Probed: a probe's answer named it; table: only the usual service of the port number; none: not
+	// identified.
+	Ident ExposureGetExposureTreeIDServicesOKItemsItemIdent `json:"ident"`
+	IP    string                                            `json:"ip"`
+	// The service answered HTTP (directly or inside TLS), on any port.
+	IsWeb    bool      `json:"is_web"`
+	LastSeen time.Time `json:"last_seen"`
+	// The service name: http, ssh, sip; "" when not identified.
+	Name    string                                            `json:"name"`
+	Port    int                                               `json:"port"`
+	Product string                                            `json:"product"`
+	Proto   ExposureGetExposureTreeIDServicesOKItemsItemProto `json:"proto"`
+	// Closed: a later scan of the address no longer found it open.
+	State ExposureGetExposureTreeIDServicesOKItemsItemState `json:"state"`
+	// The page title of a web service; "" when none.
+	Title   string `json:"title"`
+	Version string `json:"version"`
+}
+
+// GetCert returns the value of Cert.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetCert() NilExposureGetExposureTreeIDServicesOKItemsItemCert {
+	return s.Cert
+}
+
+// GetCpe returns the value of Cpe.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetCpe() string {
+	return s.Cpe
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetID returns the value of ID.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetIdent() ExposureGetExposureTreeIDServicesOKItemsItemIdent {
+	return s.Ident
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetIP() string {
+	return s.IP
+}
+
+// GetIsWeb returns the value of IsWeb.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetIsWeb() bool {
+	return s.IsWeb
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetName() string {
+	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetPort() int {
+	return s.Port
+}
+
+// GetProduct returns the value of Product.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetProduct() string {
+	return s.Product
+}
+
+// GetProto returns the value of Proto.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetProto() ExposureGetExposureTreeIDServicesOKItemsItemProto {
+	return s.Proto
+}
+
+// GetState returns the value of State.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetState() ExposureGetExposureTreeIDServicesOKItemsItemState {
+	return s.State
+}
+
+// GetTitle returns the value of Title.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetTitle() string {
+	return s.Title
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetVersion() string {
+	return s.Version
+}
+
+// SetCert sets the value of Cert.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetCert(val NilExposureGetExposureTreeIDServicesOKItemsItemCert) {
+	s.Cert = val
+}
+
+// SetCpe sets the value of Cpe.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetCpe(val string) {
+	s.Cpe = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetIdent(val ExposureGetExposureTreeIDServicesOKItemsItemIdent) {
+	s.Ident = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetIsWeb sets the value of IsWeb.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetIsWeb(val bool) {
+	s.IsWeb = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetPort(val int) {
+	s.Port = val
+}
+
+// SetProduct sets the value of Product.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetProto sets the value of Proto.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetProto(val ExposureGetExposureTreeIDServicesOKItemsItemProto) {
+	s.Proto = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetState(val ExposureGetExposureTreeIDServicesOKItemsItemState) {
+	s.State = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureGetExposureTreeIDServicesOKItemsItemCert struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	Issuer    string    `json:"issuer"`
+	Names     []string  `json:"names"`
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItemCert) GetExpiresAt() time.Time {
+	return s.ExpiresAt
+}
+
+// GetIssuer returns the value of Issuer.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItemCert) GetIssuer() string {
+	return s.Issuer
+}
+
+// GetNames returns the value of Names.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItemCert) GetNames() []string {
+	return s.Names
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItemCert) SetExpiresAt(val time.Time) {
+	s.ExpiresAt = val
+}
+
+// SetIssuer sets the value of Issuer.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItemCert) SetIssuer(val string) {
+	s.Issuer = val
+}
+
+// SetNames sets the value of Names.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItemCert) SetNames(val []string) {
+	s.Names = val
+}
+
+// Probed: a probe's answer named it; table: only the usual service of the port number; none: not
+// identified.
+type ExposureGetExposureTreeIDServicesOKItemsItemIdent string
+
+const (
+	ExposureGetExposureTreeIDServicesOKItemsItemIdentProbed ExposureGetExposureTreeIDServicesOKItemsItemIdent = "probed"
+	ExposureGetExposureTreeIDServicesOKItemsItemIdentTable  ExposureGetExposureTreeIDServicesOKItemsItemIdent = "table"
+	ExposureGetExposureTreeIDServicesOKItemsItemIdentNone   ExposureGetExposureTreeIDServicesOKItemsItemIdent = "none"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDServicesOKItemsItemIdent values.
+func (ExposureGetExposureTreeIDServicesOKItemsItemIdent) AllValues() []ExposureGetExposureTreeIDServicesOKItemsItemIdent {
+	return []ExposureGetExposureTreeIDServicesOKItemsItemIdent{
+		ExposureGetExposureTreeIDServicesOKItemsItemIdentProbed,
+		ExposureGetExposureTreeIDServicesOKItemsItemIdentTable,
+		ExposureGetExposureTreeIDServicesOKItemsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDServicesOKItemsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDServicesOKItemsItemIdentProbed:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDServicesOKItemsItemIdentTable:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDServicesOKItemsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDServicesOKItemsItemIdent(data) {
+	case ExposureGetExposureTreeIDServicesOKItemsItemIdentProbed:
+		*s = ExposureGetExposureTreeIDServicesOKItemsItemIdentProbed
+		return nil
+	case ExposureGetExposureTreeIDServicesOKItemsItemIdentTable:
+		*s = ExposureGetExposureTreeIDServicesOKItemsItemIdentTable
+		return nil
+	case ExposureGetExposureTreeIDServicesOKItemsItemIdentNone:
+		*s = ExposureGetExposureTreeIDServicesOKItemsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeIDServicesOKItemsItemProto string
+
+const (
+	ExposureGetExposureTreeIDServicesOKItemsItemProtoTCP ExposureGetExposureTreeIDServicesOKItemsItemProto = "tcp"
+	ExposureGetExposureTreeIDServicesOKItemsItemProtoUDP ExposureGetExposureTreeIDServicesOKItemsItemProto = "udp"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDServicesOKItemsItemProto values.
+func (ExposureGetExposureTreeIDServicesOKItemsItemProto) AllValues() []ExposureGetExposureTreeIDServicesOKItemsItemProto {
+	return []ExposureGetExposureTreeIDServicesOKItemsItemProto{
+		ExposureGetExposureTreeIDServicesOKItemsItemProtoTCP,
+		ExposureGetExposureTreeIDServicesOKItemsItemProtoUDP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDServicesOKItemsItemProto) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDServicesOKItemsItemProtoTCP:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDServicesOKItemsItemProtoUDP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItemProto) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDServicesOKItemsItemProto(data) {
+	case ExposureGetExposureTreeIDServicesOKItemsItemProtoTCP:
+		*s = ExposureGetExposureTreeIDServicesOKItemsItemProtoTCP
+		return nil
+	case ExposureGetExposureTreeIDServicesOKItemsItemProtoUDP:
+		*s = ExposureGetExposureTreeIDServicesOKItemsItemProtoUDP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Closed: a later scan of the address no longer found it open.
+type ExposureGetExposureTreeIDServicesOKItemsItemState string
+
+const (
+	ExposureGetExposureTreeIDServicesOKItemsItemStateOpen   ExposureGetExposureTreeIDServicesOKItemsItemState = "open"
+	ExposureGetExposureTreeIDServicesOKItemsItemStateClosed ExposureGetExposureTreeIDServicesOKItemsItemState = "closed"
+)
+
+// AllValues returns all ExposureGetExposureTreeIDServicesOKItemsItemState values.
+func (ExposureGetExposureTreeIDServicesOKItemsItemState) AllValues() []ExposureGetExposureTreeIDServicesOKItemsItemState {
+	return []ExposureGetExposureTreeIDServicesOKItemsItemState{
+		ExposureGetExposureTreeIDServicesOKItemsItemStateOpen,
+		ExposureGetExposureTreeIDServicesOKItemsItemStateClosed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeIDServicesOKItemsItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeIDServicesOKItemsItemStateOpen:
+		return []byte(s), nil
+	case ExposureGetExposureTreeIDServicesOKItemsItemStateClosed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItemState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeIDServicesOKItemsItemState(data) {
+	case ExposureGetExposureTreeIDServicesOKItemsItemStateOpen:
+		*s = ExposureGetExposureTreeIDServicesOKItemsItemStateOpen
+		return nil
+	case ExposureGetExposureTreeIDServicesOKItemsItemStateClosed:
+		*s = ExposureGetExposureTreeIDServicesOKItemsItemStateClosed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOK struct {
+	BoxIP ExposureGetExposureTreeOKBoxIP `json:"box_ip"`
+	// Null unless one of the box's own IPs has an open service; then who probably answers it.
+	Gateway NilExposureGetExposureTreeOKGateway `json:"gateway"`
+	// The Ignored list, newest first.
+	Ignored []ExposureGetExposureTreeOKIgnoredItem `json:"ignored"`
+	// Every target in tree order: each node right after its parent, siblings by value.
+	Items []ExposureGetExposureTreeOKItemsItem `json:"items"`
+}
+
+// GetBoxIP returns the value of BoxIP.
+func (s *ExposureGetExposureTreeOK) GetBoxIP() ExposureGetExposureTreeOKBoxIP {
+	return s.BoxIP
+}
+
+// GetGateway returns the value of Gateway.
+func (s *ExposureGetExposureTreeOK) GetGateway() NilExposureGetExposureTreeOKGateway {
+	return s.Gateway
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *ExposureGetExposureTreeOK) GetIgnored() []ExposureGetExposureTreeOKIgnoredItem {
+	return s.Ignored
+}
+
+// GetItems returns the value of Items.
+func (s *ExposureGetExposureTreeOK) GetItems() []ExposureGetExposureTreeOKItemsItem {
+	return s.Items
+}
+
+// SetBoxIP sets the value of BoxIP.
+func (s *ExposureGetExposureTreeOK) SetBoxIP(val ExposureGetExposureTreeOKBoxIP) {
+	s.BoxIP = val
+}
+
+// SetGateway sets the value of Gateway.
+func (s *ExposureGetExposureTreeOK) SetGateway(val NilExposureGetExposureTreeOKGateway) {
+	s.Gateway = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *ExposureGetExposureTreeOK) SetIgnored(val []ExposureGetExposureTreeOKIgnoredItem) {
+	s.Ignored = val
+}
+
+// SetItems sets the value of Items.
+func (s *ExposureGetExposureTreeOK) SetItems(val []ExposureGetExposureTreeOKItemsItem) {
+	s.Items = val
+}
+
+type ExposureGetExposureTreeOKBoxIP struct {
+	// On: the box detects its public IPs at first start and then every interval_min minutes. Off: only
+	// "Detect now". Default on.
+	Auto bool `json:"auto"`
+	// Minutes between automatic checks, 5 to 1440. Default 60.
+	IntervalMin int `json:"interval_min"`
+	// The last automatic or manual detection; null before the first one.
+	LastRun NilExposureGetExposureTreeOKBoxIPLastRun `json:"last_run"`
+	// Null while attempts are left. When the 10 attempts an hour (shared by Detect now and the Verify
+	// again of an IP; the DNS Check of a domain has its own limit of one per 30 seconds per target) are
+	// used up: minutes until the next one is possible, 1 or more.
+	RetryInMin NilInt `json:"retry_in_min"`
+}
+
+// GetAuto returns the value of Auto.
+func (s *ExposureGetExposureTreeOKBoxIP) GetAuto() bool {
+	return s.Auto
+}
+
+// GetIntervalMin returns the value of IntervalMin.
+func (s *ExposureGetExposureTreeOKBoxIP) GetIntervalMin() int {
+	return s.IntervalMin
+}
+
+// GetLastRun returns the value of LastRun.
+func (s *ExposureGetExposureTreeOKBoxIP) GetLastRun() NilExposureGetExposureTreeOKBoxIPLastRun {
+	return s.LastRun
+}
+
+// GetRetryInMin returns the value of RetryInMin.
+func (s *ExposureGetExposureTreeOKBoxIP) GetRetryInMin() NilInt {
+	return s.RetryInMin
+}
+
+// SetAuto sets the value of Auto.
+func (s *ExposureGetExposureTreeOKBoxIP) SetAuto(val bool) {
+	s.Auto = val
+}
+
+// SetIntervalMin sets the value of IntervalMin.
+func (s *ExposureGetExposureTreeOKBoxIP) SetIntervalMin(val int) {
+	s.IntervalMin = val
+}
+
+// SetLastRun sets the value of LastRun.
+func (s *ExposureGetExposureTreeOKBoxIP) SetLastRun(val NilExposureGetExposureTreeOKBoxIPLastRun) {
+	s.LastRun = val
+}
+
+// SetRetryInMin sets the value of RetryInMin.
+func (s *ExposureGetExposureTreeOKBoxIP) SetRetryInMin(val NilInt) {
+	s.RetryInMin = val
+}
+
+type ExposureGetExposureTreeOKBoxIPLastRun struct {
+	At time.Time `json:"at"`
+	// What the last check saw, or why it failed.
+	Message string `json:"message"`
+	Ok      bool   `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTreeOKBoxIPLastRun) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposureGetExposureTreeOKBoxIPLastRun) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposureGetExposureTreeOKBoxIPLastRun) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTreeOKBoxIPLastRun) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposureGetExposureTreeOKBoxIPLastRun) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposureGetExposureTreeOKBoxIPLastRun) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposureGetExposureTreeOKGateway struct {
+	// The inventory device with that IP; null when the gateway is not in the device list.
+	DeviceID NilString `json:"device_id"`
+	// The LAN default gateway the host reports; null when the box cannot tell.
+	IP NilString `json:"ip"`
+	// That device's name as the Devices page shows it (untrusted label, at most 80 characters).
+	Name NilString `json:"name"`
+	// Open findings (exploited vulnerabilities, confirmed or suspected) of that device; 0 when device_id
+	// is null.
+	OpenExploited int `json:"open_exploited"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *ExposureGetExposureTreeOKGateway) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetIP returns the value of IP.
+func (s *ExposureGetExposureTreeOKGateway) GetIP() NilString {
+	return s.IP
+}
+
+// GetName returns the value of Name.
+func (s *ExposureGetExposureTreeOKGateway) GetName() NilString {
+	return s.Name
+}
+
+// GetOpenExploited returns the value of OpenExploited.
+func (s *ExposureGetExposureTreeOKGateway) GetOpenExploited() int {
+	return s.OpenExploited
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *ExposureGetExposureTreeOKGateway) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetIP sets the value of IP.
+func (s *ExposureGetExposureTreeOKGateway) SetIP(val NilString) {
+	s.IP = val
+}
+
+// SetName sets the value of Name.
+func (s *ExposureGetExposureTreeOKGateway) SetName(val NilString) {
+	s.Name = val
+}
+
+// SetOpenExploited sets the value of OpenExploited.
+func (s *ExposureGetExposureTreeOKGateway) SetOpenExploited(val int) {
+	s.OpenExploited = val
+}
+
+type ExposureGetExposureTreeOKIgnoredItem struct {
+	IgnoredAt time.Time `json:"ignored_at"`
+	IgnoredBy string    `json:"ignored_by"`
+	// A public IPv4 address.
+	Value string `json:"value"`
+}
+
+// GetIgnoredAt returns the value of IgnoredAt.
+func (s *ExposureGetExposureTreeOKIgnoredItem) GetIgnoredAt() time.Time {
+	return s.IgnoredAt
+}
+
+// GetIgnoredBy returns the value of IgnoredBy.
+func (s *ExposureGetExposureTreeOKIgnoredItem) GetIgnoredBy() string {
+	return s.IgnoredBy
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureGetExposureTreeOKIgnoredItem) GetValue() string {
+	return s.Value
+}
+
+// SetIgnoredAt sets the value of IgnoredAt.
+func (s *ExposureGetExposureTreeOKIgnoredItem) SetIgnoredAt(val time.Time) {
+	s.IgnoredAt = val
+}
+
+// SetIgnoredBy sets the value of IgnoredBy.
+func (s *ExposureGetExposureTreeOKIgnoredItem) SetIgnoredBy(val string) {
+	s.IgnoredBy = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureGetExposureTreeOKIgnoredItem) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposureGetExposureTreeOKItemsItem struct {
+	// Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor
+	// covered), no_commitment (no scan confirmation of the current sentence: an administrator's Scan now
+	// records it, an operator's is refused); null when it can be scanned.
+	Blocked NilExposureGetExposureTreeOKItemsItemBlocked `json:"blocked"`
+	// The scan confirmation recorded by the first Scan now of an administrator; null when none.
+	Commitment NilExposureGetExposureTreeOKItemsItemCommitment `json:"commitment"`
+	// The sentence the next Scan now of an administrator confirms; null once the node has a commitment of
+	// the current sentence.
+	CommitmentNotice NilExposureGetExposureTreeOKItemsItemCommitmentNotice `json:"commitment_notice"`
+	Counts           ExposureGetExposureTreeOKItemsItemCounts              `json:"counts"`
+	CreatedAt        time.Time                                             `json:"created_at"`
+	// Scans of this node are deep scans: the current testing terms are accepted.
+	Deep bool `json:"deep"`
+	// The node is scanned, by Scan now and by its schedule.
+	Enabled bool                                   `json:"enabled"`
+	ID      string                                 `json:"id"`
+	Kind    ExposureGetExposureTreeOKItemsItemKind `json:"kind"`
+	// The newest run of this node, live or ended; null when never scanned.
+	LastScan NilExposureGetExposureTreeOKItemsItemLastScan `json:"last_scan"`
+	Origin   ExposureGetExposureTreeOKItemsItemOrigin      `json:"origin"`
+	// The domain target this node sits under; null at the top of the tree.
+	ParentID NilString                               `json:"parent_id"`
+	Proof    ExposureGetExposureTreeOKItemsItemProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
+	// Domains: self scans only this name; all this name and every name found under it; selected this name
+	// and the names chosen (Host.selected). null for an IP.
+	ScopeMode NilExposureGetExposureTreeOKItemsItemScopeMode `json:"scope_mode"`
+	// The accepted testing terms; null when none.
+	Terms NilExposureGetExposureTreeOKItemsItemTerms `json:"terms"`
+	// The current testing terms for this node, to accept or read again.
+	TermsNotice ExposureGetExposureTreeOKItemsItemTermsNotice `json:"terms_notice"`
+	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	TermsWarning NilString `json:"terms_warning"`
+	Value        string    `json:"value"`
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *ExposureGetExposureTreeOKItemsItem) GetBlocked() NilExposureGetExposureTreeOKItemsItemBlocked {
+	return s.Blocked
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposureGetExposureTreeOKItemsItem) GetCommitment() NilExposureGetExposureTreeOKItemsItemCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposureGetExposureTreeOKItemsItem) GetCommitmentNotice() NilExposureGetExposureTreeOKItemsItemCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposureGetExposureTreeOKItemsItem) GetCounts() ExposureGetExposureTreeOKItemsItemCounts {
+	return s.Counts
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposureGetExposureTreeOKItemsItem) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDeep returns the value of Deep.
+func (s *ExposureGetExposureTreeOKItemsItem) GetDeep() bool {
+	return s.Deep
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposureGetExposureTreeOKItemsItem) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *ExposureGetExposureTreeOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposureGetExposureTreeOKItemsItem) GetKind() ExposureGetExposureTreeOKItemsItemKind {
+	return s.Kind
+}
+
+// GetLastScan returns the value of LastScan.
+func (s *ExposureGetExposureTreeOKItemsItem) GetLastScan() NilExposureGetExposureTreeOKItemsItemLastScan {
+	return s.LastScan
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ExposureGetExposureTreeOKItemsItem) GetOrigin() ExposureGetExposureTreeOKItemsItemOrigin {
+	return s.Origin
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ExposureGetExposureTreeOKItemsItem) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposureGetExposureTreeOKItemsItem) GetProof() ExposureGetExposureTreeOKItemsItemProof {
+	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposureGetExposureTreeOKItemsItem) GetScheduleKey() string {
+	return s.ScheduleKey
+}
+
+// GetScopeMode returns the value of ScopeMode.
+func (s *ExposureGetExposureTreeOKItemsItem) GetScopeMode() NilExposureGetExposureTreeOKItemsItemScopeMode {
+	return s.ScopeMode
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposureGetExposureTreeOKItemsItem) GetTerms() NilExposureGetExposureTreeOKItemsItemTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposureGetExposureTreeOKItemsItem) GetTermsNotice() ExposureGetExposureTreeOKItemsItemTermsNotice {
+	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposureGetExposureTreeOKItemsItem) GetTermsWarning() NilString {
+	return s.TermsWarning
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureGetExposureTreeOKItemsItem) GetValue() string {
+	return s.Value
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *ExposureGetExposureTreeOKItemsItem) SetBlocked(val NilExposureGetExposureTreeOKItemsItemBlocked) {
+	s.Blocked = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposureGetExposureTreeOKItemsItem) SetCommitment(val NilExposureGetExposureTreeOKItemsItemCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposureGetExposureTreeOKItemsItem) SetCommitmentNotice(val NilExposureGetExposureTreeOKItemsItemCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposureGetExposureTreeOKItemsItem) SetCounts(val ExposureGetExposureTreeOKItemsItemCounts) {
+	s.Counts = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposureGetExposureTreeOKItemsItem) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDeep sets the value of Deep.
+func (s *ExposureGetExposureTreeOKItemsItem) SetDeep(val bool) {
+	s.Deep = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposureGetExposureTreeOKItemsItem) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposureGetExposureTreeOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposureGetExposureTreeOKItemsItem) SetKind(val ExposureGetExposureTreeOKItemsItemKind) {
+	s.Kind = val
+}
+
+// SetLastScan sets the value of LastScan.
+func (s *ExposureGetExposureTreeOKItemsItem) SetLastScan(val NilExposureGetExposureTreeOKItemsItemLastScan) {
+	s.LastScan = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ExposureGetExposureTreeOKItemsItem) SetOrigin(val ExposureGetExposureTreeOKItemsItemOrigin) {
+	s.Origin = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ExposureGetExposureTreeOKItemsItem) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposureGetExposureTreeOKItemsItem) SetProof(val ExposureGetExposureTreeOKItemsItemProof) {
+	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposureGetExposureTreeOKItemsItem) SetScheduleKey(val string) {
+	s.ScheduleKey = val
+}
+
+// SetScopeMode sets the value of ScopeMode.
+func (s *ExposureGetExposureTreeOKItemsItem) SetScopeMode(val NilExposureGetExposureTreeOKItemsItemScopeMode) {
+	s.ScopeMode = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposureGetExposureTreeOKItemsItem) SetTerms(val NilExposureGetExposureTreeOKItemsItemTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposureGetExposureTreeOKItemsItem) SetTermsNotice(val ExposureGetExposureTreeOKItemsItemTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposureGetExposureTreeOKItemsItem) SetTermsWarning(val NilString) {
+	s.TermsWarning = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureGetExposureTreeOKItemsItem) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposureGetExposureTreeOKItemsItemBlocked string
+
+const (
+	ExposureGetExposureTreeOKItemsItemBlockedDisabled     ExposureGetExposureTreeOKItemsItemBlocked = "disabled"
+	ExposureGetExposureTreeOKItemsItemBlockedProof        ExposureGetExposureTreeOKItemsItemBlocked = "proof"
+	ExposureGetExposureTreeOKItemsItemBlockedNoCommitment ExposureGetExposureTreeOKItemsItemBlocked = "no_commitment"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemBlocked values.
+func (ExposureGetExposureTreeOKItemsItemBlocked) AllValues() []ExposureGetExposureTreeOKItemsItemBlocked {
+	return []ExposureGetExposureTreeOKItemsItemBlocked{
+		ExposureGetExposureTreeOKItemsItemBlockedDisabled,
+		ExposureGetExposureTreeOKItemsItemBlockedProof,
+		ExposureGetExposureTreeOKItemsItemBlockedNoCommitment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemBlocked) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemBlockedDisabled:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemBlockedProof:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemBlockedNoCommitment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemBlocked) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemBlocked(data) {
+	case ExposureGetExposureTreeOKItemsItemBlockedDisabled:
+		*s = ExposureGetExposureTreeOKItemsItemBlockedDisabled
+		return nil
+	case ExposureGetExposureTreeOKItemsItemBlockedProof:
+		*s = ExposureGetExposureTreeOKItemsItemBlockedProof
+		return nil
+	case ExposureGetExposureTreeOKItemsItemBlockedNoCommitment:
+		*s = ExposureGetExposureTreeOKItemsItemBlockedNoCommitment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTreeOKItemsItemCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureTreeOKItemsItemCommitment) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeOKItemsItemCommitment) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTreeOKItemsItemCommitment) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeOKItemsItemCommitment) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTreeOKItemsItemCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureTreeOKItemsItemCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeOKItemsItemCommitment) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTreeOKItemsItemCommitment) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeOKItemsItemCommitment) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureGetExposureTreeOKItemsItemCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTreeOKItemsItemCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeOKItemsItemCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTreeOKItemsItemCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeOKItemsItemCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposureGetExposureTreeOKItemsItemCounts struct {
+	// Names found under the node.
+	Hosts int `json:"hosts"`
+	// Open issues.
+	Issues int `json:"issues"`
+	// Open services.
+	Services int `json:"services"`
+	// Open services that answered HTTP.
+	Web int `json:"web"`
+	// The highest severity among open issues; null when none.
+	Worst NilExposureGetExposureTreeOKItemsItemCountsWorst `json:"worst"`
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposureGetExposureTreeOKItemsItemCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposureGetExposureTreeOKItemsItemCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetServices returns the value of Services.
+func (s *ExposureGetExposureTreeOKItemsItemCounts) GetServices() int {
+	return s.Services
+}
+
+// GetWeb returns the value of Web.
+func (s *ExposureGetExposureTreeOKItemsItemCounts) GetWeb() int {
+	return s.Web
+}
+
+// GetWorst returns the value of Worst.
+func (s *ExposureGetExposureTreeOKItemsItemCounts) GetWorst() NilExposureGetExposureTreeOKItemsItemCountsWorst {
+	return s.Worst
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposureGetExposureTreeOKItemsItemCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposureGetExposureTreeOKItemsItemCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposureGetExposureTreeOKItemsItemCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// SetWeb sets the value of Web.
+func (s *ExposureGetExposureTreeOKItemsItemCounts) SetWeb(val int) {
+	s.Web = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *ExposureGetExposureTreeOKItemsItemCounts) SetWorst(val NilExposureGetExposureTreeOKItemsItemCountsWorst) {
+	s.Worst = val
+}
+
+type ExposureGetExposureTreeOKItemsItemCountsWorst string
+
+const (
+	ExposureGetExposureTreeOKItemsItemCountsWorstCritical ExposureGetExposureTreeOKItemsItemCountsWorst = "critical"
+	ExposureGetExposureTreeOKItemsItemCountsWorstHigh     ExposureGetExposureTreeOKItemsItemCountsWorst = "high"
+	ExposureGetExposureTreeOKItemsItemCountsWorstMedium   ExposureGetExposureTreeOKItemsItemCountsWorst = "medium"
+	ExposureGetExposureTreeOKItemsItemCountsWorstLow      ExposureGetExposureTreeOKItemsItemCountsWorst = "low"
+	ExposureGetExposureTreeOKItemsItemCountsWorstInfo     ExposureGetExposureTreeOKItemsItemCountsWorst = "info"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemCountsWorst values.
+func (ExposureGetExposureTreeOKItemsItemCountsWorst) AllValues() []ExposureGetExposureTreeOKItemsItemCountsWorst {
+	return []ExposureGetExposureTreeOKItemsItemCountsWorst{
+		ExposureGetExposureTreeOKItemsItemCountsWorstCritical,
+		ExposureGetExposureTreeOKItemsItemCountsWorstHigh,
+		ExposureGetExposureTreeOKItemsItemCountsWorstMedium,
+		ExposureGetExposureTreeOKItemsItemCountsWorstLow,
+		ExposureGetExposureTreeOKItemsItemCountsWorstInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemCountsWorst) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemCountsWorstCritical:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemCountsWorstHigh:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemCountsWorstMedium:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemCountsWorstLow:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemCountsWorstInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemCountsWorst) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemCountsWorst(data) {
+	case ExposureGetExposureTreeOKItemsItemCountsWorstCritical:
+		*s = ExposureGetExposureTreeOKItemsItemCountsWorstCritical
+		return nil
+	case ExposureGetExposureTreeOKItemsItemCountsWorstHigh:
+		*s = ExposureGetExposureTreeOKItemsItemCountsWorstHigh
+		return nil
+	case ExposureGetExposureTreeOKItemsItemCountsWorstMedium:
+		*s = ExposureGetExposureTreeOKItemsItemCountsWorstMedium
+		return nil
+	case ExposureGetExposureTreeOKItemsItemCountsWorstLow:
+		*s = ExposureGetExposureTreeOKItemsItemCountsWorstLow
+		return nil
+	case ExposureGetExposureTreeOKItemsItemCountsWorstInfo:
+		*s = ExposureGetExposureTreeOKItemsItemCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemKind string
+
+const (
+	ExposureGetExposureTreeOKItemsItemKindDomain ExposureGetExposureTreeOKItemsItemKind = "domain"
+	ExposureGetExposureTreeOKItemsItemKindIP     ExposureGetExposureTreeOKItemsItemKind = "ip"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemKind values.
+func (ExposureGetExposureTreeOKItemsItemKind) AllValues() []ExposureGetExposureTreeOKItemsItemKind {
+	return []ExposureGetExposureTreeOKItemsItemKind{
+		ExposureGetExposureTreeOKItemsItemKindDomain,
+		ExposureGetExposureTreeOKItemsItemKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemKindDomain:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemKind) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemKind(data) {
+	case ExposureGetExposureTreeOKItemsItemKindDomain:
+		*s = ExposureGetExposureTreeOKItemsItemKindDomain
+		return nil
+	case ExposureGetExposureTreeOKItemsItemKindIP:
+		*s = ExposureGetExposureTreeOKItemsItemKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemLastScan struct {
+	// What the scan left; null until it ends done or partial.
+	Counts  NilExposureGetExposureTreeOKItemsItemLastScanCounts `json:"counts"`
+	EndedAt NilDateTime                                         `json:"ended_at"`
+	Error   NilString                                           `json:"error"`
+	// Deep when the current testing terms of the target are accepted; surface otherwise.
+	Mode     ExposureGetExposureTreeOKItemsItemLastScanMode `json:"mode"`
+	QueuedAt time.Time                                      `json:"queued_at"`
+	// Who asked (an e-mail), or system for a scheduled scan.
+	RequestedBy string `json:"requested_by"`
+	// The shared run: its steps, items and log are read there, and it is stopped there.
+	RunID      string                                            `json:"run_id"`
+	StartedAt  NilDateTime                                       `json:"started_at"`
+	Status     ExposureGetExposureTreeOKItemsItemLastScanStatus  `json:"status"`
+	StopReason NilString                                         `json:"stop_reason"`
+	TargetID   string                                            `json:"target_id"`
+	Trigger    ExposureGetExposureTreeOKItemsItemLastScanTrigger `json:"trigger"`
+	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetCounts() NilExposureGetExposureTreeOKItemsItemLastScanCounts {
+	return s.Counts
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetError() NilString {
+	return s.Error
+}
+
+// GetMode returns the value of Mode.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetMode() ExposureGetExposureTreeOKItemsItemLastScanMode {
+	return s.Mode
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetRunID returns the value of RunID.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetRunID() string {
+	return s.RunID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetStatus() ExposureGetExposureTreeOKItemsItemLastScanStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetTrigger() ExposureGetExposureTreeOKItemsItemLastScanTrigger {
+	return s.Trigger
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetCounts(val NilExposureGetExposureTreeOKItemsItemLastScanCounts) {
+	s.Counts = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetMode(val ExposureGetExposureTreeOKItemsItemLastScanMode) {
+	s.Mode = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetStatus(val ExposureGetExposureTreeOKItemsItemLastScanStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetTrigger(val ExposureGetExposureTreeOKItemsItemLastScanTrigger) {
+	s.Trigger = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ExposureGetExposureTreeOKItemsItemLastScan) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ExposureGetExposureTreeOKItemsItemLastScanCounts struct {
+	ClosedServices int `json:"closed_services"`
+	Hosts          int `json:"hosts"`
+	// Open issues after the scan.
+	Issues      int `json:"issues"`
+	NewIssues   int `json:"new_issues"`
+	NewServices int `json:"new_services"`
+	// Open services after the scan.
+	Services int `json:"services"`
+}
+
+// GetClosedServices returns the value of ClosedServices.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) GetClosedServices() int {
+	return s.ClosedServices
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetNewIssues returns the value of NewIssues.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) GetNewIssues() int {
+	return s.NewIssues
+}
+
+// GetNewServices returns the value of NewServices.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) GetNewServices() int {
+	return s.NewServices
+}
+
+// GetServices returns the value of Services.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) GetServices() int {
+	return s.Services
+}
+
+// SetClosedServices sets the value of ClosedServices.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) SetClosedServices(val int) {
+	s.ClosedServices = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetNewIssues sets the value of NewIssues.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) SetNewIssues(val int) {
+	s.NewIssues = val
+}
+
+// SetNewServices sets the value of NewServices.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) SetNewServices(val int) {
+	s.NewServices = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// Deep when the current testing terms of the target are accepted; surface otherwise.
+type ExposureGetExposureTreeOKItemsItemLastScanMode string
+
+const (
+	ExposureGetExposureTreeOKItemsItemLastScanModeSurface ExposureGetExposureTreeOKItemsItemLastScanMode = "surface"
+	ExposureGetExposureTreeOKItemsItemLastScanModeDeep    ExposureGetExposureTreeOKItemsItemLastScanMode = "deep"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemLastScanMode values.
+func (ExposureGetExposureTreeOKItemsItemLastScanMode) AllValues() []ExposureGetExposureTreeOKItemsItemLastScanMode {
+	return []ExposureGetExposureTreeOKItemsItemLastScanMode{
+		ExposureGetExposureTreeOKItemsItemLastScanModeSurface,
+		ExposureGetExposureTreeOKItemsItemLastScanModeDeep,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemLastScanMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemLastScanModeSurface:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanModeDeep:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanMode) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemLastScanMode(data) {
+	case ExposureGetExposureTreeOKItemsItemLastScanModeSurface:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanModeSurface
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanModeDeep:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanModeDeep
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemLastScanStatus string
+
+const (
+	ExposureGetExposureTreeOKItemsItemLastScanStatusQueued   ExposureGetExposureTreeOKItemsItemLastScanStatus = "queued"
+	ExposureGetExposureTreeOKItemsItemLastScanStatusWaiting  ExposureGetExposureTreeOKItemsItemLastScanStatus = "waiting"
+	ExposureGetExposureTreeOKItemsItemLastScanStatusRunning  ExposureGetExposureTreeOKItemsItemLastScanStatus = "running"
+	ExposureGetExposureTreeOKItemsItemLastScanStatusStopping ExposureGetExposureTreeOKItemsItemLastScanStatus = "stopping"
+	ExposureGetExposureTreeOKItemsItemLastScanStatusDone     ExposureGetExposureTreeOKItemsItemLastScanStatus = "done"
+	ExposureGetExposureTreeOKItemsItemLastScanStatusPartial  ExposureGetExposureTreeOKItemsItemLastScanStatus = "partial"
+	ExposureGetExposureTreeOKItemsItemLastScanStatusFailed   ExposureGetExposureTreeOKItemsItemLastScanStatus = "failed"
+	ExposureGetExposureTreeOKItemsItemLastScanStatusStopped  ExposureGetExposureTreeOKItemsItemLastScanStatus = "stopped"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemLastScanStatus values.
+func (ExposureGetExposureTreeOKItemsItemLastScanStatus) AllValues() []ExposureGetExposureTreeOKItemsItemLastScanStatus {
+	return []ExposureGetExposureTreeOKItemsItemLastScanStatus{
+		ExposureGetExposureTreeOKItemsItemLastScanStatusQueued,
+		ExposureGetExposureTreeOKItemsItemLastScanStatusWaiting,
+		ExposureGetExposureTreeOKItemsItemLastScanStatusRunning,
+		ExposureGetExposureTreeOKItemsItemLastScanStatusStopping,
+		ExposureGetExposureTreeOKItemsItemLastScanStatusDone,
+		ExposureGetExposureTreeOKItemsItemLastScanStatusPartial,
+		ExposureGetExposureTreeOKItemsItemLastScanStatusFailed,
+		ExposureGetExposureTreeOKItemsItemLastScanStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemLastScanStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusQueued:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusWaiting:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusRunning:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusStopping:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusDone:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusPartial:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusFailed:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanStatus) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemLastScanStatus(data) {
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusQueued:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanStatusQueued
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusWaiting:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanStatusWaiting
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusRunning:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanStatusRunning
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusStopping:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanStatusStopping
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusDone:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanStatusDone
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusPartial:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanStatusPartial
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusFailed:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanStatusFailed
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanStatusStopped:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemLastScanTrigger string
+
+const (
+	ExposureGetExposureTreeOKItemsItemLastScanTriggerManual   ExposureGetExposureTreeOKItemsItemLastScanTrigger = "manual"
+	ExposureGetExposureTreeOKItemsItemLastScanTriggerSchedule ExposureGetExposureTreeOKItemsItemLastScanTrigger = "schedule"
+	ExposureGetExposureTreeOKItemsItemLastScanTriggerEvent    ExposureGetExposureTreeOKItemsItemLastScanTrigger = "event"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemLastScanTrigger values.
+func (ExposureGetExposureTreeOKItemsItemLastScanTrigger) AllValues() []ExposureGetExposureTreeOKItemsItemLastScanTrigger {
+	return []ExposureGetExposureTreeOKItemsItemLastScanTrigger{
+		ExposureGetExposureTreeOKItemsItemLastScanTriggerManual,
+		ExposureGetExposureTreeOKItemsItemLastScanTriggerSchedule,
+		ExposureGetExposureTreeOKItemsItemLastScanTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemLastScanTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemLastScanTriggerManual:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanTriggerSchedule:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemLastScanTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemLastScanTrigger) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemLastScanTrigger(data) {
+	case ExposureGetExposureTreeOKItemsItemLastScanTriggerManual:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanTriggerManual
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanTriggerSchedule:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanTriggerSchedule
+		return nil
+	case ExposureGetExposureTreeOKItemsItemLastScanTriggerEvent:
+		*s = ExposureGetExposureTreeOKItemsItemLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemOrigin string
+
+const (
+	ExposureGetExposureTreeOKItemsItemOriginPerson     ExposureGetExposureTreeOKItemsItemOrigin = "person"
+	ExposureGetExposureTreeOKItemsItemOriginBox        ExposureGetExposureTreeOKItemsItemOrigin = "box"
+	ExposureGetExposureTreeOKItemsItemOriginDiscovered ExposureGetExposureTreeOKItemsItemOrigin = "discovered"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemOrigin values.
+func (ExposureGetExposureTreeOKItemsItemOrigin) AllValues() []ExposureGetExposureTreeOKItemsItemOrigin {
+	return []ExposureGetExposureTreeOKItemsItemOrigin{
+		ExposureGetExposureTreeOKItemsItemOriginPerson,
+		ExposureGetExposureTreeOKItemsItemOriginBox,
+		ExposureGetExposureTreeOKItemsItemOriginDiscovered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemOriginPerson:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemOriginBox:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemOriginDiscovered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemOrigin) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemOrigin(data) {
+	case ExposureGetExposureTreeOKItemsItemOriginPerson:
+		*s = ExposureGetExposureTreeOKItemsItemOriginPerson
+		return nil
+	case ExposureGetExposureTreeOKItemsItemOriginBox:
+		*s = ExposureGetExposureTreeOKItemsItemOriginBox
+		return nil
+	case ExposureGetExposureTreeOKItemsItemOriginDiscovered:
+		*s = ExposureGetExposureTreeOKItemsItemOriginDiscovered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemProof struct {
+	// The ancestor whose proof covers this node; null unless state is covered.
+	CoveredBy NilExposureGetExposureTreeOKItemsItemProofCoveredBy `json:"covered_by"`
+	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
+	DNS NilExposureGetExposureTreeOKItemsItemProofDNS `json:"dns"`
+	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// IP typed in by a person: where its proof file goes; null otherwise.
+	File      NilExposureGetExposureTreeOKItemsItemProofFile      `json:"file"`
+	LastCheck NilExposureGetExposureTreeOKItemsItemProofLastCheck `json:"last_check"`
+	// How this node proves itself; null when covered by an ancestor or not proven yet.
+	Method NilExposureGetExposureTreeOKItemsItemProofMethod `json:"method"`
+	// When the box checks the proof again by itself; null when it does not.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	State ExposureGetExposureTreeOKItemsItemProofState `json:"state"`
+	// When this node's own proof was last found.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposureGetExposureTreeOKItemsItemProof) GetCoveredBy() NilExposureGetExposureTreeOKItemsItemProofCoveredBy {
+	return s.CoveredBy
+}
+
+// GetDNS returns the value of DNS.
+func (s *ExposureGetExposureTreeOKItemsItemProof) GetDNS() NilExposureGetExposureTreeOKItemsItemProofDNS {
+	return s.DNS
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposureGetExposureTreeOKItemsItemProof) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFile returns the value of File.
+func (s *ExposureGetExposureTreeOKItemsItemProof) GetFile() NilExposureGetExposureTreeOKItemsItemProofFile {
+	return s.File
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposureGetExposureTreeOKItemsItemProof) GetLastCheck() NilExposureGetExposureTreeOKItemsItemProofLastCheck {
+	return s.LastCheck
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposureGetExposureTreeOKItemsItemProof) GetMethod() NilExposureGetExposureTreeOKItemsItemProofMethod {
+	return s.Method
+}
+
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposureGetExposureTreeOKItemsItemProof) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetState returns the value of State.
+func (s *ExposureGetExposureTreeOKItemsItemProof) GetState() ExposureGetExposureTreeOKItemsItemProofState {
+	return s.State
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposureGetExposureTreeOKItemsItemProof) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposureGetExposureTreeOKItemsItemProof) SetCoveredBy(val NilExposureGetExposureTreeOKItemsItemProofCoveredBy) {
+	s.CoveredBy = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *ExposureGetExposureTreeOKItemsItemProof) SetDNS(val NilExposureGetExposureTreeOKItemsItemProofDNS) {
+	s.DNS = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposureGetExposureTreeOKItemsItemProof) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFile sets the value of File.
+func (s *ExposureGetExposureTreeOKItemsItemProof) SetFile(val NilExposureGetExposureTreeOKItemsItemProofFile) {
+	s.File = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposureGetExposureTreeOKItemsItemProof) SetLastCheck(val NilExposureGetExposureTreeOKItemsItemProofLastCheck) {
+	s.LastCheck = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposureGetExposureTreeOKItemsItemProof) SetMethod(val NilExposureGetExposureTreeOKItemsItemProofMethod) {
+	s.Method = val
+}
+
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposureGetExposureTreeOKItemsItemProof) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetState sets the value of State.
+func (s *ExposureGetExposureTreeOKItemsItemProof) SetState(val ExposureGetExposureTreeOKItemsItemProofState) {
+	s.State = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposureGetExposureTreeOKItemsItemProof) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposureGetExposureTreeOKItemsItemProofCoveredBy struct {
+	ID    string `json:"id"`
+	Value string `json:"value"`
+}
+
+// GetID returns the value of ID.
+func (s *ExposureGetExposureTreeOKItemsItemProofCoveredBy) GetID() string {
+	return s.ID
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureGetExposureTreeOKItemsItemProofCoveredBy) GetValue() string {
+	return s.Value
+}
+
+// SetID sets the value of ID.
+func (s *ExposureGetExposureTreeOKItemsItemProofCoveredBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureGetExposureTreeOKItemsItemProofCoveredBy) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposureGetExposureTreeOKItemsItemProofDNS struct {
+	// The alternative name that proves this target only, "_vedette-verify" or "_vedette-verify."; null
+	// when it would pass 253 characters.
+	AltHost NilString `json:"alt_host"`
+	// The name to type in that zone: "@" for the zone apex.
+	Host string `json:"host"`
+	// The whole TXT value: vedette-verify=.
+	Value string `json:"value"`
+	// The registered domain: the DNS zone the record is added in.
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposureGetExposureTreeOKItemsItemProofDNS) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetHost returns the value of Host.
+func (s *ExposureGetExposureTreeOKItemsItemProofDNS) GetHost() string {
+	return s.Host
+}
+
+// GetValue returns the value of Value.
+func (s *ExposureGetExposureTreeOKItemsItemProofDNS) GetValue() string {
+	return s.Value
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposureGetExposureTreeOKItemsItemProofDNS) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposureGetExposureTreeOKItemsItemProofDNS) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposureGetExposureTreeOKItemsItemProofDNS) SetHost(val string) {
+	s.Host = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposureGetExposureTreeOKItemsItemProofDNS) SetValue(val string) {
+	s.Value = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposureGetExposureTreeOKItemsItemProofDNS) SetZone(val string) {
+	s.Zone = val
+}
+
+type ExposureGetExposureTreeOKItemsItemProofFile struct {
+	// The token: the whole content of /.well-known/vedette-verify.txt.
+	Content string `json:"content"`
+	// Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the
+	// IP, proves it too.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposureGetExposureTreeOKItemsItemProofFile) GetContent() string {
+	return s.Content
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposureGetExposureTreeOKItemsItemProofFile) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposureGetExposureTreeOKItemsItemProofFile) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposureGetExposureTreeOKItemsItemProofFile) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposureGetExposureTreeOKItemsItemProofFile) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposureGetExposureTreeOKItemsItemProofFile) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposureGetExposureTreeOKItemsItemProofLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTreeOKItemsItemProofLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposureGetExposureTreeOKItemsItemProofLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposureGetExposureTreeOKItemsItemProofLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTreeOKItemsItemProofLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposureGetExposureTreeOKItemsItemProofLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposureGetExposureTreeOKItemsItemProofLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposureGetExposureTreeOKItemsItemProofMethod string
+
+const (
+	ExposureGetExposureTreeOKItemsItemProofMethodDNSTxt    ExposureGetExposureTreeOKItemsItemProofMethod = "dns_txt"
+	ExposureGetExposureTreeOKItemsItemProofMethodBoxEgress ExposureGetExposureTreeOKItemsItemProofMethod = "box_egress"
+	ExposureGetExposureTreeOKItemsItemProofMethodIPFile    ExposureGetExposureTreeOKItemsItemProofMethod = "ip_file"
+	ExposureGetExposureTreeOKItemsItemProofMethodIPPtr     ExposureGetExposureTreeOKItemsItemProofMethod = "ip_ptr"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemProofMethod values.
+func (ExposureGetExposureTreeOKItemsItemProofMethod) AllValues() []ExposureGetExposureTreeOKItemsItemProofMethod {
+	return []ExposureGetExposureTreeOKItemsItemProofMethod{
+		ExposureGetExposureTreeOKItemsItemProofMethodDNSTxt,
+		ExposureGetExposureTreeOKItemsItemProofMethodBoxEgress,
+		ExposureGetExposureTreeOKItemsItemProofMethodIPFile,
+		ExposureGetExposureTreeOKItemsItemProofMethodIPPtr,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemProofMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemProofMethodDNSTxt:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemProofMethodBoxEgress:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemProofMethodIPFile:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemProofMethodIPPtr:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemProofMethod) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemProofMethod(data) {
+	case ExposureGetExposureTreeOKItemsItemProofMethodDNSTxt:
+		*s = ExposureGetExposureTreeOKItemsItemProofMethodDNSTxt
+		return nil
+	case ExposureGetExposureTreeOKItemsItemProofMethodBoxEgress:
+		*s = ExposureGetExposureTreeOKItemsItemProofMethodBoxEgress
+		return nil
+	case ExposureGetExposureTreeOKItemsItemProofMethodIPFile:
+		*s = ExposureGetExposureTreeOKItemsItemProofMethodIPFile
+		return nil
+	case ExposureGetExposureTreeOKItemsItemProofMethodIPPtr:
+		*s = ExposureGetExposureTreeOKItemsItemProofMethodIPPtr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+type ExposureGetExposureTreeOKItemsItemProofState string
+
+const (
+	ExposureGetExposureTreeOKItemsItemProofStateProven     ExposureGetExposureTreeOKItemsItemProofState = "proven"
+	ExposureGetExposureTreeOKItemsItemProofStateCovered    ExposureGetExposureTreeOKItemsItemProofState = "covered"
+	ExposureGetExposureTreeOKItemsItemProofStateMissing    ExposureGetExposureTreeOKItemsItemProofState = "missing"
+	ExposureGetExposureTreeOKItemsItemProofStateExpired    ExposureGetExposureTreeOKItemsItemProofState = "expired"
+	ExposureGetExposureTreeOKItemsItemProofStateNotCurrent ExposureGetExposureTreeOKItemsItemProofState = "not_current"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemProofState values.
+func (ExposureGetExposureTreeOKItemsItemProofState) AllValues() []ExposureGetExposureTreeOKItemsItemProofState {
+	return []ExposureGetExposureTreeOKItemsItemProofState{
+		ExposureGetExposureTreeOKItemsItemProofStateProven,
+		ExposureGetExposureTreeOKItemsItemProofStateCovered,
+		ExposureGetExposureTreeOKItemsItemProofStateMissing,
+		ExposureGetExposureTreeOKItemsItemProofStateExpired,
+		ExposureGetExposureTreeOKItemsItemProofStateNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemProofState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemProofStateProven:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemProofStateCovered:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemProofStateMissing:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemProofStateExpired:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemProofStateNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemProofState) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemProofState(data) {
+	case ExposureGetExposureTreeOKItemsItemProofStateProven:
+		*s = ExposureGetExposureTreeOKItemsItemProofStateProven
+		return nil
+	case ExposureGetExposureTreeOKItemsItemProofStateCovered:
+		*s = ExposureGetExposureTreeOKItemsItemProofStateCovered
+		return nil
+	case ExposureGetExposureTreeOKItemsItemProofStateMissing:
+		*s = ExposureGetExposureTreeOKItemsItemProofStateMissing
+		return nil
+	case ExposureGetExposureTreeOKItemsItemProofStateExpired:
+		*s = ExposureGetExposureTreeOKItemsItemProofStateExpired
+		return nil
+	case ExposureGetExposureTreeOKItemsItemProofStateNotCurrent:
+		*s = ExposureGetExposureTreeOKItemsItemProofStateNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemScopeMode string
+
+const (
+	ExposureGetExposureTreeOKItemsItemScopeModeSelf     ExposureGetExposureTreeOKItemsItemScopeMode = "self"
+	ExposureGetExposureTreeOKItemsItemScopeModeAll      ExposureGetExposureTreeOKItemsItemScopeMode = "all"
+	ExposureGetExposureTreeOKItemsItemScopeModeSelected ExposureGetExposureTreeOKItemsItemScopeMode = "selected"
+)
+
+// AllValues returns all ExposureGetExposureTreeOKItemsItemScopeMode values.
+func (ExposureGetExposureTreeOKItemsItemScopeMode) AllValues() []ExposureGetExposureTreeOKItemsItemScopeMode {
+	return []ExposureGetExposureTreeOKItemsItemScopeMode{
+		ExposureGetExposureTreeOKItemsItemScopeModeSelf,
+		ExposureGetExposureTreeOKItemsItemScopeModeAll,
+		ExposureGetExposureTreeOKItemsItemScopeModeSelected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTreeOKItemsItemScopeMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTreeOKItemsItemScopeModeSelf:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemScopeModeAll:
+		return []byte(s), nil
+	case ExposureGetExposureTreeOKItemsItemScopeModeSelected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTreeOKItemsItemScopeMode) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTreeOKItemsItemScopeMode(data) {
+	case ExposureGetExposureTreeOKItemsItemScopeModeSelf:
+		*s = ExposureGetExposureTreeOKItemsItemScopeModeSelf
+		return nil
+	case ExposureGetExposureTreeOKItemsItemScopeModeAll:
+		*s = ExposureGetExposureTreeOKItemsItemScopeModeAll
+		return nil
+	case ExposureGetExposureTreeOKItemsItemScopeModeSelected:
+		*s = ExposureGetExposureTreeOKItemsItemScopeModeSelected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureTreeOKItemsItemTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTreeOKItemsItemTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureTreeOKItemsItemTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeOKItemsItemTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTreeOKItemsItemTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeOKItemsItemTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTreeOKItemsItemTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureTreeOKItemsItemTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeOKItemsItemTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTreeOKItemsItemTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeOKItemsItemTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this node, to accept or read again.
+type ExposureGetExposureTreeOKItemsItemTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePatchExposureTreeIDOK struct {
+	// Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor
+	// covered), no_commitment (no scan confirmation of the current sentence: an administrator's Scan now
+	// records it, an operator's is refused); null when it can be scanned.
+	Blocked NilExposurePatchExposureTreeIDOKBlocked `json:"blocked"`
+	// The scan confirmation recorded by the first Scan now of an administrator; null when none.
+	Commitment NilExposurePatchExposureTreeIDOKCommitment `json:"commitment"`
+	// The sentence the next Scan now of an administrator confirms; null once the node has a commitment of
+	// the current sentence.
+	CommitmentNotice NilExposurePatchExposureTreeIDOKCommitmentNotice `json:"commitment_notice"`
+	Counts           ExposurePatchExposureTreeIDOKCounts              `json:"counts"`
+	CreatedAt        time.Time                                        `json:"created_at"`
+	// Scans of this node are deep scans: the current testing terms are accepted.
+	Deep bool `json:"deep"`
+	// The node is scanned, by Scan now and by its schedule.
+	Enabled bool                              `json:"enabled"`
+	ID      string                            `json:"id"`
+	Kind    ExposurePatchExposureTreeIDOKKind `json:"kind"`
+	// The newest run of this node, live or ended; null when never scanned.
+	LastScan NilExposurePatchExposureTreeIDOKLastScan `json:"last_scan"`
+	Origin   ExposurePatchExposureTreeIDOKOrigin      `json:"origin"`
+	// The domain target this node sits under; null at the top of the tree.
+	ParentID NilString                          `json:"parent_id"`
+	Proof    ExposurePatchExposureTreeIDOKProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
+	// Domains: self scans only this name; all this name and every name found under it; selected this name
+	// and the names chosen (Host.selected). null for an IP.
+	ScopeMode NilExposurePatchExposureTreeIDOKScopeMode `json:"scope_mode"`
+	// The accepted testing terms; null when none.
+	Terms NilExposurePatchExposureTreeIDOKTerms `json:"terms"`
+	// The current testing terms for this node, to accept or read again.
+	TermsNotice ExposurePatchExposureTreeIDOKTermsNotice `json:"terms_notice"`
+	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	TermsWarning NilString `json:"terms_warning"`
+	Value        string    `json:"value"`
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *ExposurePatchExposureTreeIDOK) GetBlocked() NilExposurePatchExposureTreeIDOKBlocked {
+	return s.Blocked
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposurePatchExposureTreeIDOK) GetCommitment() NilExposurePatchExposureTreeIDOKCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposurePatchExposureTreeIDOK) GetCommitmentNotice() NilExposurePatchExposureTreeIDOKCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePatchExposureTreeIDOK) GetCounts() ExposurePatchExposureTreeIDOKCounts {
+	return s.Counts
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposurePatchExposureTreeIDOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDeep returns the value of Deep.
+func (s *ExposurePatchExposureTreeIDOK) GetDeep() bool {
+	return s.Deep
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposurePatchExposureTreeIDOK) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePatchExposureTreeIDOK) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePatchExposureTreeIDOK) GetKind() ExposurePatchExposureTreeIDOKKind {
+	return s.Kind
+}
+
+// GetLastScan returns the value of LastScan.
+func (s *ExposurePatchExposureTreeIDOK) GetLastScan() NilExposurePatchExposureTreeIDOKLastScan {
+	return s.LastScan
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ExposurePatchExposureTreeIDOK) GetOrigin() ExposurePatchExposureTreeIDOKOrigin {
+	return s.Origin
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ExposurePatchExposureTreeIDOK) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePatchExposureTreeIDOK) GetProof() ExposurePatchExposureTreeIDOKProof {
+	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposurePatchExposureTreeIDOK) GetScheduleKey() string {
+	return s.ScheduleKey
+}
+
+// GetScopeMode returns the value of ScopeMode.
+func (s *ExposurePatchExposureTreeIDOK) GetScopeMode() NilExposurePatchExposureTreeIDOKScopeMode {
+	return s.ScopeMode
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposurePatchExposureTreeIDOK) GetTerms() NilExposurePatchExposureTreeIDOKTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePatchExposureTreeIDOK) GetTermsNotice() ExposurePatchExposureTreeIDOKTermsNotice {
+	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePatchExposureTreeIDOK) GetTermsWarning() NilString {
+	return s.TermsWarning
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePatchExposureTreeIDOK) GetValue() string {
+	return s.Value
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *ExposurePatchExposureTreeIDOK) SetBlocked(val NilExposurePatchExposureTreeIDOKBlocked) {
+	s.Blocked = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposurePatchExposureTreeIDOK) SetCommitment(val NilExposurePatchExposureTreeIDOKCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposurePatchExposureTreeIDOK) SetCommitmentNotice(val NilExposurePatchExposureTreeIDOKCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePatchExposureTreeIDOK) SetCounts(val ExposurePatchExposureTreeIDOKCounts) {
+	s.Counts = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposurePatchExposureTreeIDOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDeep sets the value of Deep.
+func (s *ExposurePatchExposureTreeIDOK) SetDeep(val bool) {
+	s.Deep = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposurePatchExposureTreeIDOK) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePatchExposureTreeIDOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePatchExposureTreeIDOK) SetKind(val ExposurePatchExposureTreeIDOKKind) {
+	s.Kind = val
+}
+
+// SetLastScan sets the value of LastScan.
+func (s *ExposurePatchExposureTreeIDOK) SetLastScan(val NilExposurePatchExposureTreeIDOKLastScan) {
+	s.LastScan = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ExposurePatchExposureTreeIDOK) SetOrigin(val ExposurePatchExposureTreeIDOKOrigin) {
+	s.Origin = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ExposurePatchExposureTreeIDOK) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePatchExposureTreeIDOK) SetProof(val ExposurePatchExposureTreeIDOKProof) {
+	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposurePatchExposureTreeIDOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
+}
+
+// SetScopeMode sets the value of ScopeMode.
+func (s *ExposurePatchExposureTreeIDOK) SetScopeMode(val NilExposurePatchExposureTreeIDOKScopeMode) {
+	s.ScopeMode = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePatchExposureTreeIDOK) SetTerms(val NilExposurePatchExposureTreeIDOKTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePatchExposureTreeIDOK) SetTermsNotice(val ExposurePatchExposureTreeIDOKTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePatchExposureTreeIDOK) SetTermsWarning(val NilString) {
+	s.TermsWarning = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePatchExposureTreeIDOK) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePatchExposureTreeIDOKBlocked string
+
+const (
+	ExposurePatchExposureTreeIDOKBlockedDisabled     ExposurePatchExposureTreeIDOKBlocked = "disabled"
+	ExposurePatchExposureTreeIDOKBlockedProof        ExposurePatchExposureTreeIDOKBlocked = "proof"
+	ExposurePatchExposureTreeIDOKBlockedNoCommitment ExposurePatchExposureTreeIDOKBlocked = "no_commitment"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKBlocked values.
+func (ExposurePatchExposureTreeIDOKBlocked) AllValues() []ExposurePatchExposureTreeIDOKBlocked {
+	return []ExposurePatchExposureTreeIDOKBlocked{
+		ExposurePatchExposureTreeIDOKBlockedDisabled,
+		ExposurePatchExposureTreeIDOKBlockedProof,
+		ExposurePatchExposureTreeIDOKBlockedNoCommitment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKBlocked) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKBlockedDisabled:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKBlockedProof:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKBlockedNoCommitment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKBlocked) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKBlocked(data) {
+	case ExposurePatchExposureTreeIDOKBlockedDisabled:
+		*s = ExposurePatchExposureTreeIDOKBlockedDisabled
+		return nil
+	case ExposurePatchExposureTreeIDOKBlockedProof:
+		*s = ExposurePatchExposureTreeIDOKBlockedProof
+		return nil
+	case ExposurePatchExposureTreeIDOKBlockedNoCommitment:
+		*s = ExposurePatchExposureTreeIDOKBlockedNoCommitment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePatchExposureTreeIDOKCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePatchExposureTreeIDOKCommitment) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePatchExposureTreeIDOKCommitment) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePatchExposureTreeIDOKCommitment) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePatchExposureTreeIDOKCommitment) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePatchExposureTreeIDOKCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePatchExposureTreeIDOKCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePatchExposureTreeIDOKCommitment) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePatchExposureTreeIDOKCommitment) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePatchExposureTreeIDOKCommitment) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePatchExposureTreeIDOKCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePatchExposureTreeIDOKCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePatchExposureTreeIDOKCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePatchExposureTreeIDOKCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePatchExposureTreeIDOKCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePatchExposureTreeIDOKCounts struct {
+	// Names found under the node.
+	Hosts int `json:"hosts"`
+	// Open issues.
+	Issues int `json:"issues"`
+	// Open services.
+	Services int `json:"services"`
+	// Open services that answered HTTP.
+	Web int `json:"web"`
+	// The highest severity among open issues; null when none.
+	Worst NilExposurePatchExposureTreeIDOKCountsWorst `json:"worst"`
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePatchExposureTreeIDOKCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePatchExposureTreeIDOKCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePatchExposureTreeIDOKCounts) GetServices() int {
+	return s.Services
+}
+
+// GetWeb returns the value of Web.
+func (s *ExposurePatchExposureTreeIDOKCounts) GetWeb() int {
+	return s.Web
+}
+
+// GetWorst returns the value of Worst.
+func (s *ExposurePatchExposureTreeIDOKCounts) GetWorst() NilExposurePatchExposureTreeIDOKCountsWorst {
+	return s.Worst
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePatchExposureTreeIDOKCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePatchExposureTreeIDOKCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePatchExposureTreeIDOKCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// SetWeb sets the value of Web.
+func (s *ExposurePatchExposureTreeIDOKCounts) SetWeb(val int) {
+	s.Web = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *ExposurePatchExposureTreeIDOKCounts) SetWorst(val NilExposurePatchExposureTreeIDOKCountsWorst) {
+	s.Worst = val
+}
+
+type ExposurePatchExposureTreeIDOKCountsWorst string
+
+const (
+	ExposurePatchExposureTreeIDOKCountsWorstCritical ExposurePatchExposureTreeIDOKCountsWorst = "critical"
+	ExposurePatchExposureTreeIDOKCountsWorstHigh     ExposurePatchExposureTreeIDOKCountsWorst = "high"
+	ExposurePatchExposureTreeIDOKCountsWorstMedium   ExposurePatchExposureTreeIDOKCountsWorst = "medium"
+	ExposurePatchExposureTreeIDOKCountsWorstLow      ExposurePatchExposureTreeIDOKCountsWorst = "low"
+	ExposurePatchExposureTreeIDOKCountsWorstInfo     ExposurePatchExposureTreeIDOKCountsWorst = "info"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKCountsWorst values.
+func (ExposurePatchExposureTreeIDOKCountsWorst) AllValues() []ExposurePatchExposureTreeIDOKCountsWorst {
+	return []ExposurePatchExposureTreeIDOKCountsWorst{
+		ExposurePatchExposureTreeIDOKCountsWorstCritical,
+		ExposurePatchExposureTreeIDOKCountsWorstHigh,
+		ExposurePatchExposureTreeIDOKCountsWorstMedium,
+		ExposurePatchExposureTreeIDOKCountsWorstLow,
+		ExposurePatchExposureTreeIDOKCountsWorstInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKCountsWorst) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKCountsWorstCritical:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKCountsWorstHigh:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKCountsWorstMedium:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKCountsWorstLow:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKCountsWorstInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKCountsWorst) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKCountsWorst(data) {
+	case ExposurePatchExposureTreeIDOKCountsWorstCritical:
+		*s = ExposurePatchExposureTreeIDOKCountsWorstCritical
+		return nil
+	case ExposurePatchExposureTreeIDOKCountsWorstHigh:
+		*s = ExposurePatchExposureTreeIDOKCountsWorstHigh
+		return nil
+	case ExposurePatchExposureTreeIDOKCountsWorstMedium:
+		*s = ExposurePatchExposureTreeIDOKCountsWorstMedium
+		return nil
+	case ExposurePatchExposureTreeIDOKCountsWorstLow:
+		*s = ExposurePatchExposureTreeIDOKCountsWorstLow
+		return nil
+	case ExposurePatchExposureTreeIDOKCountsWorstInfo:
+		*s = ExposurePatchExposureTreeIDOKCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKKind string
+
+const (
+	ExposurePatchExposureTreeIDOKKindDomain ExposurePatchExposureTreeIDOKKind = "domain"
+	ExposurePatchExposureTreeIDOKKindIP     ExposurePatchExposureTreeIDOKKind = "ip"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKKind values.
+func (ExposurePatchExposureTreeIDOKKind) AllValues() []ExposurePatchExposureTreeIDOKKind {
+	return []ExposurePatchExposureTreeIDOKKind{
+		ExposurePatchExposureTreeIDOKKindDomain,
+		ExposurePatchExposureTreeIDOKKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKKindDomain:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKKind) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKKind(data) {
+	case ExposurePatchExposureTreeIDOKKindDomain:
+		*s = ExposurePatchExposureTreeIDOKKindDomain
+		return nil
+	case ExposurePatchExposureTreeIDOKKindIP:
+		*s = ExposurePatchExposureTreeIDOKKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKLastScan struct {
+	// What the scan left; null until it ends done or partial.
+	Counts  NilExposurePatchExposureTreeIDOKLastScanCounts `json:"counts"`
+	EndedAt NilDateTime                                    `json:"ended_at"`
+	Error   NilString                                      `json:"error"`
+	// Deep when the current testing terms of the target are accepted; surface otherwise.
+	Mode     ExposurePatchExposureTreeIDOKLastScanMode `json:"mode"`
+	QueuedAt time.Time                                 `json:"queued_at"`
+	// Who asked (an e-mail), or system for a scheduled scan.
+	RequestedBy string `json:"requested_by"`
+	// The shared run: its steps, items and log are read there, and it is stopped there.
+	RunID      string                                       `json:"run_id"`
+	StartedAt  NilDateTime                                  `json:"started_at"`
+	Status     ExposurePatchExposureTreeIDOKLastScanStatus  `json:"status"`
+	StopReason NilString                                    `json:"stop_reason"`
+	TargetID   string                                       `json:"target_id"`
+	Trigger    ExposurePatchExposureTreeIDOKLastScanTrigger `json:"trigger"`
+	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetCounts() NilExposurePatchExposureTreeIDOKLastScanCounts {
+	return s.Counts
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetError() NilString {
+	return s.Error
+}
+
+// GetMode returns the value of Mode.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetMode() ExposurePatchExposureTreeIDOKLastScanMode {
+	return s.Mode
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetRunID returns the value of RunID.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetRunID() string {
+	return s.RunID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetStatus() ExposurePatchExposureTreeIDOKLastScanStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetTrigger() ExposurePatchExposureTreeIDOKLastScanTrigger {
+	return s.Trigger
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ExposurePatchExposureTreeIDOKLastScan) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetCounts(val NilExposurePatchExposureTreeIDOKLastScanCounts) {
+	s.Counts = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetMode(val ExposurePatchExposureTreeIDOKLastScanMode) {
+	s.Mode = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetStatus(val ExposurePatchExposureTreeIDOKLastScanStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetTrigger(val ExposurePatchExposureTreeIDOKLastScanTrigger) {
+	s.Trigger = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ExposurePatchExposureTreeIDOKLastScan) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ExposurePatchExposureTreeIDOKLastScanCounts struct {
+	ClosedServices int `json:"closed_services"`
+	Hosts          int `json:"hosts"`
+	// Open issues after the scan.
+	Issues      int `json:"issues"`
+	NewIssues   int `json:"new_issues"`
+	NewServices int `json:"new_services"`
+	// Open services after the scan.
+	Services int `json:"services"`
+}
+
+// GetClosedServices returns the value of ClosedServices.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) GetClosedServices() int {
+	return s.ClosedServices
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetNewIssues returns the value of NewIssues.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) GetNewIssues() int {
+	return s.NewIssues
+}
+
+// GetNewServices returns the value of NewServices.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) GetNewServices() int {
+	return s.NewServices
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) GetServices() int {
+	return s.Services
+}
+
+// SetClosedServices sets the value of ClosedServices.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) SetClosedServices(val int) {
+	s.ClosedServices = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetNewIssues sets the value of NewIssues.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) SetNewIssues(val int) {
+	s.NewIssues = val
+}
+
+// SetNewServices sets the value of NewServices.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) SetNewServices(val int) {
+	s.NewServices = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePatchExposureTreeIDOKLastScanCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// Deep when the current testing terms of the target are accepted; surface otherwise.
+type ExposurePatchExposureTreeIDOKLastScanMode string
+
+const (
+	ExposurePatchExposureTreeIDOKLastScanModeSurface ExposurePatchExposureTreeIDOKLastScanMode = "surface"
+	ExposurePatchExposureTreeIDOKLastScanModeDeep    ExposurePatchExposureTreeIDOKLastScanMode = "deep"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKLastScanMode values.
+func (ExposurePatchExposureTreeIDOKLastScanMode) AllValues() []ExposurePatchExposureTreeIDOKLastScanMode {
+	return []ExposurePatchExposureTreeIDOKLastScanMode{
+		ExposurePatchExposureTreeIDOKLastScanModeSurface,
+		ExposurePatchExposureTreeIDOKLastScanModeDeep,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKLastScanMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKLastScanModeSurface:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanModeDeep:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKLastScanMode) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKLastScanMode(data) {
+	case ExposurePatchExposureTreeIDOKLastScanModeSurface:
+		*s = ExposurePatchExposureTreeIDOKLastScanModeSurface
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanModeDeep:
+		*s = ExposurePatchExposureTreeIDOKLastScanModeDeep
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKLastScanStatus string
+
+const (
+	ExposurePatchExposureTreeIDOKLastScanStatusQueued   ExposurePatchExposureTreeIDOKLastScanStatus = "queued"
+	ExposurePatchExposureTreeIDOKLastScanStatusWaiting  ExposurePatchExposureTreeIDOKLastScanStatus = "waiting"
+	ExposurePatchExposureTreeIDOKLastScanStatusRunning  ExposurePatchExposureTreeIDOKLastScanStatus = "running"
+	ExposurePatchExposureTreeIDOKLastScanStatusStopping ExposurePatchExposureTreeIDOKLastScanStatus = "stopping"
+	ExposurePatchExposureTreeIDOKLastScanStatusDone     ExposurePatchExposureTreeIDOKLastScanStatus = "done"
+	ExposurePatchExposureTreeIDOKLastScanStatusPartial  ExposurePatchExposureTreeIDOKLastScanStatus = "partial"
+	ExposurePatchExposureTreeIDOKLastScanStatusFailed   ExposurePatchExposureTreeIDOKLastScanStatus = "failed"
+	ExposurePatchExposureTreeIDOKLastScanStatusStopped  ExposurePatchExposureTreeIDOKLastScanStatus = "stopped"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKLastScanStatus values.
+func (ExposurePatchExposureTreeIDOKLastScanStatus) AllValues() []ExposurePatchExposureTreeIDOKLastScanStatus {
+	return []ExposurePatchExposureTreeIDOKLastScanStatus{
+		ExposurePatchExposureTreeIDOKLastScanStatusQueued,
+		ExposurePatchExposureTreeIDOKLastScanStatusWaiting,
+		ExposurePatchExposureTreeIDOKLastScanStatusRunning,
+		ExposurePatchExposureTreeIDOKLastScanStatusStopping,
+		ExposurePatchExposureTreeIDOKLastScanStatusDone,
+		ExposurePatchExposureTreeIDOKLastScanStatusPartial,
+		ExposurePatchExposureTreeIDOKLastScanStatusFailed,
+		ExposurePatchExposureTreeIDOKLastScanStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKLastScanStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKLastScanStatusQueued:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusWaiting:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusRunning:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusStopping:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusDone:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusPartial:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusFailed:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKLastScanStatus) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKLastScanStatus(data) {
+	case ExposurePatchExposureTreeIDOKLastScanStatusQueued:
+		*s = ExposurePatchExposureTreeIDOKLastScanStatusQueued
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusWaiting:
+		*s = ExposurePatchExposureTreeIDOKLastScanStatusWaiting
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusRunning:
+		*s = ExposurePatchExposureTreeIDOKLastScanStatusRunning
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusStopping:
+		*s = ExposurePatchExposureTreeIDOKLastScanStatusStopping
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusDone:
+		*s = ExposurePatchExposureTreeIDOKLastScanStatusDone
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusPartial:
+		*s = ExposurePatchExposureTreeIDOKLastScanStatusPartial
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusFailed:
+		*s = ExposurePatchExposureTreeIDOKLastScanStatusFailed
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanStatusStopped:
+		*s = ExposurePatchExposureTreeIDOKLastScanStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKLastScanTrigger string
+
+const (
+	ExposurePatchExposureTreeIDOKLastScanTriggerManual   ExposurePatchExposureTreeIDOKLastScanTrigger = "manual"
+	ExposurePatchExposureTreeIDOKLastScanTriggerSchedule ExposurePatchExposureTreeIDOKLastScanTrigger = "schedule"
+	ExposurePatchExposureTreeIDOKLastScanTriggerEvent    ExposurePatchExposureTreeIDOKLastScanTrigger = "event"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKLastScanTrigger values.
+func (ExposurePatchExposureTreeIDOKLastScanTrigger) AllValues() []ExposurePatchExposureTreeIDOKLastScanTrigger {
+	return []ExposurePatchExposureTreeIDOKLastScanTrigger{
+		ExposurePatchExposureTreeIDOKLastScanTriggerManual,
+		ExposurePatchExposureTreeIDOKLastScanTriggerSchedule,
+		ExposurePatchExposureTreeIDOKLastScanTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKLastScanTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKLastScanTriggerManual:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanTriggerSchedule:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKLastScanTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKLastScanTrigger) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKLastScanTrigger(data) {
+	case ExposurePatchExposureTreeIDOKLastScanTriggerManual:
+		*s = ExposurePatchExposureTreeIDOKLastScanTriggerManual
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanTriggerSchedule:
+		*s = ExposurePatchExposureTreeIDOKLastScanTriggerSchedule
+		return nil
+	case ExposurePatchExposureTreeIDOKLastScanTriggerEvent:
+		*s = ExposurePatchExposureTreeIDOKLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKOrigin string
+
+const (
+	ExposurePatchExposureTreeIDOKOriginPerson     ExposurePatchExposureTreeIDOKOrigin = "person"
+	ExposurePatchExposureTreeIDOKOriginBox        ExposurePatchExposureTreeIDOKOrigin = "box"
+	ExposurePatchExposureTreeIDOKOriginDiscovered ExposurePatchExposureTreeIDOKOrigin = "discovered"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKOrigin values.
+func (ExposurePatchExposureTreeIDOKOrigin) AllValues() []ExposurePatchExposureTreeIDOKOrigin {
+	return []ExposurePatchExposureTreeIDOKOrigin{
+		ExposurePatchExposureTreeIDOKOriginPerson,
+		ExposurePatchExposureTreeIDOKOriginBox,
+		ExposurePatchExposureTreeIDOKOriginDiscovered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKOriginPerson:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKOriginBox:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKOriginDiscovered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKOrigin(data) {
+	case ExposurePatchExposureTreeIDOKOriginPerson:
+		*s = ExposurePatchExposureTreeIDOKOriginPerson
+		return nil
+	case ExposurePatchExposureTreeIDOKOriginBox:
+		*s = ExposurePatchExposureTreeIDOKOriginBox
+		return nil
+	case ExposurePatchExposureTreeIDOKOriginDiscovered:
+		*s = ExposurePatchExposureTreeIDOKOriginDiscovered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKProof struct {
+	// The ancestor whose proof covers this node; null unless state is covered.
+	CoveredBy NilExposurePatchExposureTreeIDOKProofCoveredBy `json:"covered_by"`
+	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
+	DNS NilExposurePatchExposureTreeIDOKProofDNS `json:"dns"`
+	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// IP typed in by a person: where its proof file goes; null otherwise.
+	File      NilExposurePatchExposureTreeIDOKProofFile      `json:"file"`
+	LastCheck NilExposurePatchExposureTreeIDOKProofLastCheck `json:"last_check"`
+	// How this node proves itself; null when covered by an ancestor or not proven yet.
+	Method NilExposurePatchExposureTreeIDOKProofMethod `json:"method"`
+	// When the box checks the proof again by itself; null when it does not.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	State ExposurePatchExposureTreeIDOKProofState `json:"state"`
+	// When this node's own proof was last found.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePatchExposureTreeIDOKProof) GetCoveredBy() NilExposurePatchExposureTreeIDOKProofCoveredBy {
+	return s.CoveredBy
+}
+
+// GetDNS returns the value of DNS.
+func (s *ExposurePatchExposureTreeIDOKProof) GetDNS() NilExposurePatchExposureTreeIDOKProofDNS {
+	return s.DNS
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposurePatchExposureTreeIDOKProof) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFile returns the value of File.
+func (s *ExposurePatchExposureTreeIDOKProof) GetFile() NilExposurePatchExposureTreeIDOKProofFile {
+	return s.File
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposurePatchExposureTreeIDOKProof) GetLastCheck() NilExposurePatchExposureTreeIDOKProofLastCheck {
+	return s.LastCheck
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposurePatchExposureTreeIDOKProof) GetMethod() NilExposurePatchExposureTreeIDOKProofMethod {
+	return s.Method
+}
+
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePatchExposureTreeIDOKProof) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetState returns the value of State.
+func (s *ExposurePatchExposureTreeIDOKProof) GetState() ExposurePatchExposureTreeIDOKProofState {
+	return s.State
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposurePatchExposureTreeIDOKProof) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePatchExposureTreeIDOKProof) SetCoveredBy(val NilExposurePatchExposureTreeIDOKProofCoveredBy) {
+	s.CoveredBy = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *ExposurePatchExposureTreeIDOKProof) SetDNS(val NilExposurePatchExposureTreeIDOKProofDNS) {
+	s.DNS = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposurePatchExposureTreeIDOKProof) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFile sets the value of File.
+func (s *ExposurePatchExposureTreeIDOKProof) SetFile(val NilExposurePatchExposureTreeIDOKProofFile) {
+	s.File = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposurePatchExposureTreeIDOKProof) SetLastCheck(val NilExposurePatchExposureTreeIDOKProofLastCheck) {
+	s.LastCheck = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposurePatchExposureTreeIDOKProof) SetMethod(val NilExposurePatchExposureTreeIDOKProofMethod) {
+	s.Method = val
+}
+
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePatchExposureTreeIDOKProof) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePatchExposureTreeIDOKProof) SetState(val ExposurePatchExposureTreeIDOKProofState) {
+	s.State = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposurePatchExposureTreeIDOKProof) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposurePatchExposureTreeIDOKProofCoveredBy struct {
+	ID    string `json:"id"`
+	Value string `json:"value"`
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePatchExposureTreeIDOKProofCoveredBy) GetID() string {
+	return s.ID
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePatchExposureTreeIDOKProofCoveredBy) GetValue() string {
+	return s.Value
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePatchExposureTreeIDOKProofCoveredBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePatchExposureTreeIDOKProofCoveredBy) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePatchExposureTreeIDOKProofDNS struct {
+	// The alternative name that proves this target only, "_vedette-verify" or "_vedette-verify."; null
+	// when it would pass 253 characters.
+	AltHost NilString `json:"alt_host"`
+	// The name to type in that zone: "@" for the zone apex.
+	Host string `json:"host"`
+	// The whole TXT value: vedette-verify=.
+	Value string `json:"value"`
+	// The registered domain: the DNS zone the record is added in.
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePatchExposureTreeIDOKProofDNS) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePatchExposureTreeIDOKProofDNS) GetHost() string {
+	return s.Host
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePatchExposureTreeIDOKProofDNS) GetValue() string {
+	return s.Value
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePatchExposureTreeIDOKProofDNS) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePatchExposureTreeIDOKProofDNS) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePatchExposureTreeIDOKProofDNS) SetHost(val string) {
+	s.Host = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePatchExposureTreeIDOKProofDNS) SetValue(val string) {
+	s.Value = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePatchExposureTreeIDOKProofDNS) SetZone(val string) {
+	s.Zone = val
+}
+
+type ExposurePatchExposureTreeIDOKProofFile struct {
+	// The token: the whole content of /.well-known/vedette-verify.txt.
+	Content string `json:"content"`
+	// Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the
+	// IP, proves it too.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePatchExposureTreeIDOKProofFile) GetContent() string {
+	return s.Content
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePatchExposureTreeIDOKProofFile) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePatchExposureTreeIDOKProofFile) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePatchExposureTreeIDOKProofFile) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePatchExposureTreeIDOKProofFile) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePatchExposureTreeIDOKProofFile) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposurePatchExposureTreeIDOKProofLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePatchExposureTreeIDOKProofLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePatchExposureTreeIDOKProofLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePatchExposureTreeIDOKProofLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePatchExposureTreeIDOKProofLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePatchExposureTreeIDOKProofLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePatchExposureTreeIDOKProofLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposurePatchExposureTreeIDOKProofMethod string
+
+const (
+	ExposurePatchExposureTreeIDOKProofMethodDNSTxt    ExposurePatchExposureTreeIDOKProofMethod = "dns_txt"
+	ExposurePatchExposureTreeIDOKProofMethodBoxEgress ExposurePatchExposureTreeIDOKProofMethod = "box_egress"
+	ExposurePatchExposureTreeIDOKProofMethodIPFile    ExposurePatchExposureTreeIDOKProofMethod = "ip_file"
+	ExposurePatchExposureTreeIDOKProofMethodIPPtr     ExposurePatchExposureTreeIDOKProofMethod = "ip_ptr"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKProofMethod values.
+func (ExposurePatchExposureTreeIDOKProofMethod) AllValues() []ExposurePatchExposureTreeIDOKProofMethod {
+	return []ExposurePatchExposureTreeIDOKProofMethod{
+		ExposurePatchExposureTreeIDOKProofMethodDNSTxt,
+		ExposurePatchExposureTreeIDOKProofMethodBoxEgress,
+		ExposurePatchExposureTreeIDOKProofMethodIPFile,
+		ExposurePatchExposureTreeIDOKProofMethodIPPtr,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKProofMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKProofMethodDNSTxt:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKProofMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKProofMethodIPFile:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKProofMethodIPPtr:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKProofMethod) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKProofMethod(data) {
+	case ExposurePatchExposureTreeIDOKProofMethodDNSTxt:
+		*s = ExposurePatchExposureTreeIDOKProofMethodDNSTxt
+		return nil
+	case ExposurePatchExposureTreeIDOKProofMethodBoxEgress:
+		*s = ExposurePatchExposureTreeIDOKProofMethodBoxEgress
+		return nil
+	case ExposurePatchExposureTreeIDOKProofMethodIPFile:
+		*s = ExposurePatchExposureTreeIDOKProofMethodIPFile
+		return nil
+	case ExposurePatchExposureTreeIDOKProofMethodIPPtr:
+		*s = ExposurePatchExposureTreeIDOKProofMethodIPPtr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+type ExposurePatchExposureTreeIDOKProofState string
+
+const (
+	ExposurePatchExposureTreeIDOKProofStateProven     ExposurePatchExposureTreeIDOKProofState = "proven"
+	ExposurePatchExposureTreeIDOKProofStateCovered    ExposurePatchExposureTreeIDOKProofState = "covered"
+	ExposurePatchExposureTreeIDOKProofStateMissing    ExposurePatchExposureTreeIDOKProofState = "missing"
+	ExposurePatchExposureTreeIDOKProofStateExpired    ExposurePatchExposureTreeIDOKProofState = "expired"
+	ExposurePatchExposureTreeIDOKProofStateNotCurrent ExposurePatchExposureTreeIDOKProofState = "not_current"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKProofState values.
+func (ExposurePatchExposureTreeIDOKProofState) AllValues() []ExposurePatchExposureTreeIDOKProofState {
+	return []ExposurePatchExposureTreeIDOKProofState{
+		ExposurePatchExposureTreeIDOKProofStateProven,
+		ExposurePatchExposureTreeIDOKProofStateCovered,
+		ExposurePatchExposureTreeIDOKProofStateMissing,
+		ExposurePatchExposureTreeIDOKProofStateExpired,
+		ExposurePatchExposureTreeIDOKProofStateNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKProofState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKProofStateProven:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKProofStateCovered:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKProofStateMissing:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKProofStateExpired:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKProofStateNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKProofState) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKProofState(data) {
+	case ExposurePatchExposureTreeIDOKProofStateProven:
+		*s = ExposurePatchExposureTreeIDOKProofStateProven
+		return nil
+	case ExposurePatchExposureTreeIDOKProofStateCovered:
+		*s = ExposurePatchExposureTreeIDOKProofStateCovered
+		return nil
+	case ExposurePatchExposureTreeIDOKProofStateMissing:
+		*s = ExposurePatchExposureTreeIDOKProofStateMissing
+		return nil
+	case ExposurePatchExposureTreeIDOKProofStateExpired:
+		*s = ExposurePatchExposureTreeIDOKProofStateExpired
+		return nil
+	case ExposurePatchExposureTreeIDOKProofStateNotCurrent:
+		*s = ExposurePatchExposureTreeIDOKProofStateNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKScopeMode string
+
+const (
+	ExposurePatchExposureTreeIDOKScopeModeSelf     ExposurePatchExposureTreeIDOKScopeMode = "self"
+	ExposurePatchExposureTreeIDOKScopeModeAll      ExposurePatchExposureTreeIDOKScopeMode = "all"
+	ExposurePatchExposureTreeIDOKScopeModeSelected ExposurePatchExposureTreeIDOKScopeMode = "selected"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDOKScopeMode values.
+func (ExposurePatchExposureTreeIDOKScopeMode) AllValues() []ExposurePatchExposureTreeIDOKScopeMode {
+	return []ExposurePatchExposureTreeIDOKScopeMode{
+		ExposurePatchExposureTreeIDOKScopeModeSelf,
+		ExposurePatchExposureTreeIDOKScopeModeAll,
+		ExposurePatchExposureTreeIDOKScopeModeSelected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDOKScopeMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDOKScopeModeSelf:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKScopeModeAll:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDOKScopeModeSelected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDOKScopeMode) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDOKScopeMode(data) {
+	case ExposurePatchExposureTreeIDOKScopeModeSelf:
+		*s = ExposurePatchExposureTreeIDOKScopeModeSelf
+		return nil
+	case ExposurePatchExposureTreeIDOKScopeModeAll:
+		*s = ExposurePatchExposureTreeIDOKScopeModeAll
+		return nil
+	case ExposurePatchExposureTreeIDOKScopeModeSelected:
+		*s = ExposurePatchExposureTreeIDOKScopeModeSelected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePatchExposureTreeIDOKTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePatchExposureTreeIDOKTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePatchExposureTreeIDOKTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePatchExposureTreeIDOKTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePatchExposureTreeIDOKTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePatchExposureTreeIDOKTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePatchExposureTreeIDOKTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePatchExposureTreeIDOKTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePatchExposureTreeIDOKTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePatchExposureTreeIDOKTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePatchExposureTreeIDOKTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this node, to accept or read again.
+type ExposurePatchExposureTreeIDOKTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePatchExposureTreeIDOKTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePatchExposureTreeIDOKTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePatchExposureTreeIDOKTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePatchExposureTreeIDOKTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePatchExposureTreeIDOKTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePatchExposureTreeIDOKTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePatchExposureTreeIDReq struct {
+	Enabled   OptBool                                    `json:"enabled"`
+	ScopeMode OptExposurePatchExposureTreeIDReqScopeMode `json:"scope_mode"`
+	// The ids of the names to scan, at most 299: Choose at most 299 names: one scan reads at most 300
+	// names, this one included. For more, add a subdomain as its own target.
+	Selected []string `json:"selected"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposurePatchExposureTreeIDReq) GetEnabled() OptBool {
+	return s.Enabled
+}
+
+// GetScopeMode returns the value of ScopeMode.
+func (s *ExposurePatchExposureTreeIDReq) GetScopeMode() OptExposurePatchExposureTreeIDReqScopeMode {
+	return s.ScopeMode
+}
+
+// GetSelected returns the value of Selected.
+func (s *ExposurePatchExposureTreeIDReq) GetSelected() []string {
+	return s.Selected
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposurePatchExposureTreeIDReq) SetEnabled(val OptBool) {
+	s.Enabled = val
+}
+
+// SetScopeMode sets the value of ScopeMode.
+func (s *ExposurePatchExposureTreeIDReq) SetScopeMode(val OptExposurePatchExposureTreeIDReqScopeMode) {
+	s.ScopeMode = val
+}
+
+// SetSelected sets the value of Selected.
+func (s *ExposurePatchExposureTreeIDReq) SetSelected(val []string) {
+	s.Selected = val
+}
+
+type ExposurePatchExposureTreeIDReqScopeMode string
+
+const (
+	ExposurePatchExposureTreeIDReqScopeModeSelf     ExposurePatchExposureTreeIDReqScopeMode = "self"
+	ExposurePatchExposureTreeIDReqScopeModeAll      ExposurePatchExposureTreeIDReqScopeMode = "all"
+	ExposurePatchExposureTreeIDReqScopeModeSelected ExposurePatchExposureTreeIDReqScopeMode = "selected"
+)
+
+// AllValues returns all ExposurePatchExposureTreeIDReqScopeMode values.
+func (ExposurePatchExposureTreeIDReqScopeMode) AllValues() []ExposurePatchExposureTreeIDReqScopeMode {
+	return []ExposurePatchExposureTreeIDReqScopeMode{
+		ExposurePatchExposureTreeIDReqScopeModeSelf,
+		ExposurePatchExposureTreeIDReqScopeModeAll,
+		ExposurePatchExposureTreeIDReqScopeModeSelected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePatchExposureTreeIDReqScopeMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePatchExposureTreeIDReqScopeModeSelf:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDReqScopeModeAll:
+		return []byte(s), nil
+	case ExposurePatchExposureTreeIDReqScopeModeSelected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePatchExposureTreeIDReqScopeMode) UnmarshalText(data []byte) error {
+	switch ExposurePatchExposureTreeIDReqScopeMode(data) {
+	case ExposurePatchExposureTreeIDReqScopeModeSelf:
+		*s = ExposurePatchExposureTreeIDReqScopeModeSelf
+		return nil
+	case ExposurePatchExposureTreeIDReqScopeModeAll:
+		*s = ExposurePatchExposureTreeIDReqScopeModeAll
+		return nil
+	case ExposurePatchExposureTreeIDReqScopeModeSelected:
+		*s = ExposurePatchExposureTreeIDReqScopeModeSelected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposurePostExposureBoxIPVerifyOK struct {
 	// The public IPs the box saw this time, each added or renewed.
 	Items   []ExposurePostExposureBoxIPVerifyOKItemsItem `json:"items"`
@@ -57337,8 +65187,6 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePostExposureBoxIPVerifyOKItemsItemScanState `json:"scan_state"`
 	Scannable bool                                                `json:"scannable"`
-	// How often the box scans the target by itself, when next, and why not.
-	Schedule ExposurePostExposureBoxIPVerifyOKItemsItemSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -57464,11 +65312,6 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetScanState() ExposurePost
 // GetScannable returns the value of Scannable.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetScannable() bool {
 	return s.Scannable
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) GetSchedule() ExposurePostExposureBoxIPVerifyOKItemsItemSchedule {
-	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -57614,11 +65457,6 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetScanState(val ExposurePo
 // SetScannable sets the value of Scannable.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetScannable(val bool) {
 	s.Scannable = val
-}
-
-// SetSchedule sets the value of Schedule.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItem) SetSchedule(val ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) {
-	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -58545,7 +66383,7 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemProof struct {
 	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
 	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
-	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	// The registered domain: the DNS zone the record is added in ("example.com").
 	Zone string `json:"zone"`
 }
 
@@ -58663,107 +66501,6 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemScanState) UnmarshalText(data
 		return nil
 	case ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning:
 		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScanStateScanning
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// How often the box scans the target by itself, when next, and why not.
-type ExposurePostExposureBoxIPVerifyOKItemsItemSchedule struct {
-	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-	// itself, counted from the start of its newest scan.
-	Every ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery `json:"every"`
-	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
-	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
-	// says why).
-	NextAt NilDateTime `json:"next_at"`
-	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
-	// again"; null otherwise.
-	Note NilString `json:"note"`
-}
-
-// GetEvery returns the value of Every.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) GetEvery() ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery {
-	return s.Every
-}
-
-// GetNextAt returns the value of NextAt.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) GetNextAt() NilDateTime {
-	return s.NextAt
-}
-
-// GetNote returns the value of Note.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) GetNote() NilString {
-	return s.Note
-}
-
-// SetEvery sets the value of Every.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) SetEvery(val ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) {
-	s.Every = val
-}
-
-// SetNextAt sets the value of NextAt.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) SetNextAt(val NilDateTime) {
-	s.NextAt = val
-}
-
-// SetNote sets the value of Note.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemSchedule) SetNote(val NilString) {
-	s.Note = val
-}
-
-// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-// itself, counted from the start of its newest scan.
-type ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery string
-
-const (
-	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff     ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "off"
-	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily   ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "daily"
-	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly  ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "weekly"
-	ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery = "monthly"
-)
-
-// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery values.
-func (ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery {
-	return []ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery{
-		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff,
-		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily,
-		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly,
-		ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff:
-		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily:
-		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly:
-		return []byte(s), nil
-	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEvery(data) {
-	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff:
-		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryOff
-		return nil
-	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily:
-		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryDaily
-		return nil
-	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly:
-		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryWeekly
-		return nil
-	case ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly:
-		*s = ExposurePostExposureBoxIPVerifyOKItemsItemScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -58965,6 +66702,183 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemValidity) UnmarshalText(data 
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureIssuesHandleOK struct {
+	Handled int `json:"handled"`
+	// Issues not open, left as they were.
+	Skipped int `json:"skipped"`
+}
+
+// GetHandled returns the value of Handled.
+func (s *ExposurePostExposureIssuesHandleOK) GetHandled() int {
+	return s.Handled
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *ExposurePostExposureIssuesHandleOK) GetSkipped() int {
+	return s.Skipped
+}
+
+// SetHandled sets the value of Handled.
+func (s *ExposurePostExposureIssuesHandleOK) SetHandled(val int) {
+	s.Handled = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *ExposurePostExposureIssuesHandleOK) SetSkipped(val int) {
+	s.Skipped = val
+}
+
+type ExposurePostExposureIssuesHandleReq struct {
+	// Accepted only: the last day, from tomorrow to 365 days ahead (else 400 bad_until).
+	AcceptedUntil OptDate  `json:"accepted_until"`
+	Ids           []string `json:"ids"`
+	// Required (at least 3 characters) for false_positive, not_relevant and accepted.
+	Note       string                                        `json:"note"`
+	Resolution ExposurePostExposureIssuesHandleReqResolution `json:"resolution"`
+}
+
+// GetAcceptedUntil returns the value of AcceptedUntil.
+func (s *ExposurePostExposureIssuesHandleReq) GetAcceptedUntil() OptDate {
+	return s.AcceptedUntil
+}
+
+// GetIds returns the value of Ids.
+func (s *ExposurePostExposureIssuesHandleReq) GetIds() []string {
+	return s.Ids
+}
+
+// GetNote returns the value of Note.
+func (s *ExposurePostExposureIssuesHandleReq) GetNote() string {
+	return s.Note
+}
+
+// GetResolution returns the value of Resolution.
+func (s *ExposurePostExposureIssuesHandleReq) GetResolution() ExposurePostExposureIssuesHandleReqResolution {
+	return s.Resolution
+}
+
+// SetAcceptedUntil sets the value of AcceptedUntil.
+func (s *ExposurePostExposureIssuesHandleReq) SetAcceptedUntil(val OptDate) {
+	s.AcceptedUntil = val
+}
+
+// SetIds sets the value of Ids.
+func (s *ExposurePostExposureIssuesHandleReq) SetIds(val []string) {
+	s.Ids = val
+}
+
+// SetNote sets the value of Note.
+func (s *ExposurePostExposureIssuesHandleReq) SetNote(val string) {
+	s.Note = val
+}
+
+// SetResolution sets the value of Resolution.
+func (s *ExposurePostExposureIssuesHandleReq) SetResolution(val ExposurePostExposureIssuesHandleReqResolution) {
+	s.Resolution = val
+}
+
+type ExposurePostExposureIssuesHandleReqResolution string
+
+const (
+	ExposurePostExposureIssuesHandleReqResolutionPatched       ExposurePostExposureIssuesHandleReqResolution = "patched"
+	ExposurePostExposureIssuesHandleReqResolutionMitigated     ExposurePostExposureIssuesHandleReqResolution = "mitigated"
+	ExposurePostExposureIssuesHandleReqResolutionAccepted      ExposurePostExposureIssuesHandleReqResolution = "accepted"
+	ExposurePostExposureIssuesHandleReqResolutionNotRelevant   ExposurePostExposureIssuesHandleReqResolution = "not_relevant"
+	ExposurePostExposureIssuesHandleReqResolutionFalsePositive ExposurePostExposureIssuesHandleReqResolution = "false_positive"
+)
+
+// AllValues returns all ExposurePostExposureIssuesHandleReqResolution values.
+func (ExposurePostExposureIssuesHandleReqResolution) AllValues() []ExposurePostExposureIssuesHandleReqResolution {
+	return []ExposurePostExposureIssuesHandleReqResolution{
+		ExposurePostExposureIssuesHandleReqResolutionPatched,
+		ExposurePostExposureIssuesHandleReqResolutionMitigated,
+		ExposurePostExposureIssuesHandleReqResolutionAccepted,
+		ExposurePostExposureIssuesHandleReqResolutionNotRelevant,
+		ExposurePostExposureIssuesHandleReqResolutionFalsePositive,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureIssuesHandleReqResolution) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureIssuesHandleReqResolutionPatched:
+		return []byte(s), nil
+	case ExposurePostExposureIssuesHandleReqResolutionMitigated:
+		return []byte(s), nil
+	case ExposurePostExposureIssuesHandleReqResolutionAccepted:
+		return []byte(s), nil
+	case ExposurePostExposureIssuesHandleReqResolutionNotRelevant:
+		return []byte(s), nil
+	case ExposurePostExposureIssuesHandleReqResolutionFalsePositive:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureIssuesHandleReqResolution) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureIssuesHandleReqResolution(data) {
+	case ExposurePostExposureIssuesHandleReqResolutionPatched:
+		*s = ExposurePostExposureIssuesHandleReqResolutionPatched
+		return nil
+	case ExposurePostExposureIssuesHandleReqResolutionMitigated:
+		*s = ExposurePostExposureIssuesHandleReqResolutionMitigated
+		return nil
+	case ExposurePostExposureIssuesHandleReqResolutionAccepted:
+		*s = ExposurePostExposureIssuesHandleReqResolutionAccepted
+		return nil
+	case ExposurePostExposureIssuesHandleReqResolutionNotRelevant:
+		*s = ExposurePostExposureIssuesHandleReqResolutionNotRelevant
+		return nil
+	case ExposurePostExposureIssuesHandleReqResolutionFalsePositive:
+		*s = ExposurePostExposureIssuesHandleReqResolutionFalsePositive
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureIssuesReopenOK struct {
+	Reopened int `json:"reopened"`
+	// Issues not handled, left as they were.
+	Skipped int `json:"skipped"`
+}
+
+// GetReopened returns the value of Reopened.
+func (s *ExposurePostExposureIssuesReopenOK) GetReopened() int {
+	return s.Reopened
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *ExposurePostExposureIssuesReopenOK) GetSkipped() int {
+	return s.Skipped
+}
+
+// SetReopened sets the value of Reopened.
+func (s *ExposurePostExposureIssuesReopenOK) SetReopened(val int) {
+	s.Reopened = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *ExposurePostExposureIssuesReopenOK) SetSkipped(val int) {
+	s.Skipped = val
+}
+
+type ExposurePostExposureIssuesReopenReq struct {
+	Ids []string `json:"ids"`
+}
+
+// GetIds returns the value of Ids.
+func (s *ExposurePostExposureIssuesReopenReq) GetIds() []string {
+	return s.Ids
+}
+
+// SetIds sets the value of Ids.
+func (s *ExposurePostExposureIssuesReopenReq) SetIds(val []string) {
+	s.Ids = val
 }
 
 type ExposurePostExposureScanStopOK struct {
@@ -59706,8 +67620,6 @@ type ExposurePostExposureTargetsCreated struct {
 	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePostExposureTargetsCreatedScanState `json:"scan_state"`
 	Scannable bool                                        `json:"scannable"`
-	// How often the box scans the target by itself, when next, and why not.
-	Schedule ExposurePostExposureTargetsCreatedSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -59833,11 +67745,6 @@ func (s *ExposurePostExposureTargetsCreated) GetScanState() ExposurePostExposure
 // GetScannable returns the value of Scannable.
 func (s *ExposurePostExposureTargetsCreated) GetScannable() bool {
 	return s.Scannable
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ExposurePostExposureTargetsCreated) GetSchedule() ExposurePostExposureTargetsCreatedSchedule {
-	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -59983,11 +67890,6 @@ func (s *ExposurePostExposureTargetsCreated) SetScanState(val ExposurePostExposu
 // SetScannable sets the value of Scannable.
 func (s *ExposurePostExposureTargetsCreated) SetScannable(val bool) {
 	s.Scannable = val
-}
-
-// SetSchedule sets the value of Schedule.
-func (s *ExposurePostExposureTargetsCreated) SetSchedule(val ExposurePostExposureTargetsCreatedSchedule) {
-	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -60914,7 +68816,7 @@ type ExposurePostExposureTargetsCreatedProof struct {
 	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
 	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
-	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	// The registered domain: the DNS zone the record is added in ("example.com").
 	Zone string `json:"zone"`
 }
 
@@ -61032,107 +68934,6 @@ func (s *ExposurePostExposureTargetsCreatedScanState) UnmarshalText(data []byte)
 		return nil
 	case ExposurePostExposureTargetsCreatedScanStateScanning:
 		*s = ExposurePostExposureTargetsCreatedScanStateScanning
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// How often the box scans the target by itself, when next, and why not.
-type ExposurePostExposureTargetsCreatedSchedule struct {
-	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-	// itself, counted from the start of its newest scan.
-	Every ExposurePostExposureTargetsCreatedScheduleEvery `json:"every"`
-	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
-	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
-	// says why).
-	NextAt NilDateTime `json:"next_at"`
-	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
-	// again"; null otherwise.
-	Note NilString `json:"note"`
-}
-
-// GetEvery returns the value of Every.
-func (s *ExposurePostExposureTargetsCreatedSchedule) GetEvery() ExposurePostExposureTargetsCreatedScheduleEvery {
-	return s.Every
-}
-
-// GetNextAt returns the value of NextAt.
-func (s *ExposurePostExposureTargetsCreatedSchedule) GetNextAt() NilDateTime {
-	return s.NextAt
-}
-
-// GetNote returns the value of Note.
-func (s *ExposurePostExposureTargetsCreatedSchedule) GetNote() NilString {
-	return s.Note
-}
-
-// SetEvery sets the value of Every.
-func (s *ExposurePostExposureTargetsCreatedSchedule) SetEvery(val ExposurePostExposureTargetsCreatedScheduleEvery) {
-	s.Every = val
-}
-
-// SetNextAt sets the value of NextAt.
-func (s *ExposurePostExposureTargetsCreatedSchedule) SetNextAt(val NilDateTime) {
-	s.NextAt = val
-}
-
-// SetNote sets the value of Note.
-func (s *ExposurePostExposureTargetsCreatedSchedule) SetNote(val NilString) {
-	s.Note = val
-}
-
-// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-// itself, counted from the start of its newest scan.
-type ExposurePostExposureTargetsCreatedScheduleEvery string
-
-const (
-	ExposurePostExposureTargetsCreatedScheduleEveryOff     ExposurePostExposureTargetsCreatedScheduleEvery = "off"
-	ExposurePostExposureTargetsCreatedScheduleEveryDaily   ExposurePostExposureTargetsCreatedScheduleEvery = "daily"
-	ExposurePostExposureTargetsCreatedScheduleEveryWeekly  ExposurePostExposureTargetsCreatedScheduleEvery = "weekly"
-	ExposurePostExposureTargetsCreatedScheduleEveryMonthly ExposurePostExposureTargetsCreatedScheduleEvery = "monthly"
-)
-
-// AllValues returns all ExposurePostExposureTargetsCreatedScheduleEvery values.
-func (ExposurePostExposureTargetsCreatedScheduleEvery) AllValues() []ExposurePostExposureTargetsCreatedScheduleEvery {
-	return []ExposurePostExposureTargetsCreatedScheduleEvery{
-		ExposurePostExposureTargetsCreatedScheduleEveryOff,
-		ExposurePostExposureTargetsCreatedScheduleEveryDaily,
-		ExposurePostExposureTargetsCreatedScheduleEveryWeekly,
-		ExposurePostExposureTargetsCreatedScheduleEveryMonthly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureTargetsCreatedScheduleEvery) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePostExposureTargetsCreatedScheduleEveryOff:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsCreatedScheduleEveryDaily:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsCreatedScheduleEveryWeekly:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsCreatedScheduleEveryMonthly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureTargetsCreatedScheduleEvery) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureTargetsCreatedScheduleEvery(data) {
-	case ExposurePostExposureTargetsCreatedScheduleEveryOff:
-		*s = ExposurePostExposureTargetsCreatedScheduleEveryOff
-		return nil
-	case ExposurePostExposureTargetsCreatedScheduleEveryDaily:
-		*s = ExposurePostExposureTargetsCreatedScheduleEveryDaily
-		return nil
-	case ExposurePostExposureTargetsCreatedScheduleEveryWeekly:
-		*s = ExposurePostExposureTargetsCreatedScheduleEveryWeekly
-		return nil
-	case ExposurePostExposureTargetsCreatedScheduleEveryMonthly:
-		*s = ExposurePostExposureTargetsCreatedScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -62949,8 +70750,6 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePostExposureTargetsIDVerifyOKTargetScanState `json:"scan_state"`
 	Scannable bool                                                 `json:"scannable"`
-	// How often the box scans the target by itself, when next, and why not.
-	Schedule ExposurePostExposureTargetsIDVerifyOKTargetSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -63076,11 +70875,6 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetScanState() ExposurePos
 // GetScannable returns the value of Scannable.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetScannable() bool {
 	return s.Scannable
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ExposurePostExposureTargetsIDVerifyOKTarget) GetSchedule() ExposurePostExposureTargetsIDVerifyOKTargetSchedule {
-	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -63226,11 +71020,6 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetScanState(val ExposureP
 // SetScannable sets the value of Scannable.
 func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetScannable(val bool) {
 	s.Scannable = val
-}
-
-// SetSchedule sets the value of Schedule.
-func (s *ExposurePostExposureTargetsIDVerifyOKTarget) SetSchedule(val ExposurePostExposureTargetsIDVerifyOKTargetSchedule) {
-	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -64157,7 +71946,7 @@ type ExposurePostExposureTargetsIDVerifyOKTargetProof struct {
 	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
 	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
-	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	// The registered domain: the DNS zone the record is added in ("example.com").
 	Zone string `json:"zone"`
 }
 
@@ -64275,107 +72064,6 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetScanState) UnmarshalText(dat
 		return nil
 	case ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning:
 		*s = ExposurePostExposureTargetsIDVerifyOKTargetScanStateScanning
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// How often the box scans the target by itself, when next, and why not.
-type ExposurePostExposureTargetsIDVerifyOKTargetSchedule struct {
-	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-	// itself, counted from the start of its newest scan.
-	Every ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery `json:"every"`
-	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
-	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
-	// says why).
-	NextAt NilDateTime `json:"next_at"`
-	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
-	// again"; null otherwise.
-	Note NilString `json:"note"`
-}
-
-// GetEvery returns the value of Every.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) GetEvery() ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery {
-	return s.Every
-}
-
-// GetNextAt returns the value of NextAt.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) GetNextAt() NilDateTime {
-	return s.NextAt
-}
-
-// GetNote returns the value of Note.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) GetNote() NilString {
-	return s.Note
-}
-
-// SetEvery sets the value of Every.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) SetEvery(val ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) {
-	s.Every = val
-}
-
-// SetNextAt sets the value of NextAt.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) SetNextAt(val NilDateTime) {
-	s.NextAt = val
-}
-
-// SetNote sets the value of Note.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetSchedule) SetNote(val NilString) {
-	s.Note = val
-}
-
-// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-// itself, counted from the start of its newest scan.
-type ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery string
-
-const (
-	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff     ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "off"
-	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily   ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "daily"
-	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly  ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "weekly"
-	ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery = "monthly"
-)
-
-// AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery values.
-func (ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) AllValues() []ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery {
-	return []ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery{
-		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff,
-		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily,
-		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly,
-		ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly:
-		return []byte(s), nil
-	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery) UnmarshalText(data []byte) error {
-	switch ExposurePostExposureTargetsIDVerifyOKTargetScheduleEvery(data) {
-	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff:
-		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryOff
-		return nil
-	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily:
-		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryDaily
-		return nil
-	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly:
-		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryWeekly
-		return nil
-	case ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly:
-		*s = ExposurePostExposureTargetsIDVerifyOKTargetScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -64639,6 +72327,3580 @@ func (s *ExposurePostExposureTargetsReqKind) UnmarshalText(data []byte) error {
 		return nil
 	case ExposurePostExposureTargetsReqKindIP:
 		*s = ExposurePostExposureTargetsReqKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreated struct {
+	// Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor
+	// covered), no_commitment (no scan confirmation of the current sentence: an administrator's Scan now
+	// records it, an operator's is refused); null when it can be scanned.
+	Blocked NilExposurePostExposureTreeCreatedBlocked `json:"blocked"`
+	// The scan confirmation recorded by the first Scan now of an administrator; null when none.
+	Commitment NilExposurePostExposureTreeCreatedCommitment `json:"commitment"`
+	// The sentence the next Scan now of an administrator confirms; null once the node has a commitment of
+	// the current sentence.
+	CommitmentNotice NilExposurePostExposureTreeCreatedCommitmentNotice `json:"commitment_notice"`
+	Counts           ExposurePostExposureTreeCreatedCounts              `json:"counts"`
+	CreatedAt        time.Time                                          `json:"created_at"`
+	// Scans of this node are deep scans: the current testing terms are accepted.
+	Deep bool `json:"deep"`
+	// The node is scanned, by Scan now and by its schedule.
+	Enabled bool                                `json:"enabled"`
+	ID      string                              `json:"id"`
+	Kind    ExposurePostExposureTreeCreatedKind `json:"kind"`
+	// The newest run of this node, live or ended; null when never scanned.
+	LastScan NilExposurePostExposureTreeCreatedLastScan `json:"last_scan"`
+	Origin   ExposurePostExposureTreeCreatedOrigin      `json:"origin"`
+	// The domain target this node sits under; null at the top of the tree.
+	ParentID NilString                            `json:"parent_id"`
+	Proof    ExposurePostExposureTreeCreatedProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
+	// Domains: self scans only this name; all this name and every name found under it; selected this name
+	// and the names chosen (Host.selected). null for an IP.
+	ScopeMode NilExposurePostExposureTreeCreatedScopeMode `json:"scope_mode"`
+	// The accepted testing terms; null when none.
+	Terms NilExposurePostExposureTreeCreatedTerms `json:"terms"`
+	// The current testing terms for this node, to accept or read again.
+	TermsNotice ExposurePostExposureTreeCreatedTermsNotice `json:"terms_notice"`
+	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	TermsWarning NilString `json:"terms_warning"`
+	Value        string    `json:"value"`
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *ExposurePostExposureTreeCreated) GetBlocked() NilExposurePostExposureTreeCreatedBlocked {
+	return s.Blocked
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposurePostExposureTreeCreated) GetCommitment() NilExposurePostExposureTreeCreatedCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposurePostExposureTreeCreated) GetCommitmentNotice() NilExposurePostExposureTreeCreatedCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePostExposureTreeCreated) GetCounts() ExposurePostExposureTreeCreatedCounts {
+	return s.Counts
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposurePostExposureTreeCreated) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDeep returns the value of Deep.
+func (s *ExposurePostExposureTreeCreated) GetDeep() bool {
+	return s.Deep
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposurePostExposureTreeCreated) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePostExposureTreeCreated) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePostExposureTreeCreated) GetKind() ExposurePostExposureTreeCreatedKind {
+	return s.Kind
+}
+
+// GetLastScan returns the value of LastScan.
+func (s *ExposurePostExposureTreeCreated) GetLastScan() NilExposurePostExposureTreeCreatedLastScan {
+	return s.LastScan
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ExposurePostExposureTreeCreated) GetOrigin() ExposurePostExposureTreeCreatedOrigin {
+	return s.Origin
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ExposurePostExposureTreeCreated) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePostExposureTreeCreated) GetProof() ExposurePostExposureTreeCreatedProof {
+	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposurePostExposureTreeCreated) GetScheduleKey() string {
+	return s.ScheduleKey
+}
+
+// GetScopeMode returns the value of ScopeMode.
+func (s *ExposurePostExposureTreeCreated) GetScopeMode() NilExposurePostExposureTreeCreatedScopeMode {
+	return s.ScopeMode
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposurePostExposureTreeCreated) GetTerms() NilExposurePostExposureTreeCreatedTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePostExposureTreeCreated) GetTermsNotice() ExposurePostExposureTreeCreatedTermsNotice {
+	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePostExposureTreeCreated) GetTermsWarning() NilString {
+	return s.TermsWarning
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePostExposureTreeCreated) GetValue() string {
+	return s.Value
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *ExposurePostExposureTreeCreated) SetBlocked(val NilExposurePostExposureTreeCreatedBlocked) {
+	s.Blocked = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposurePostExposureTreeCreated) SetCommitment(val NilExposurePostExposureTreeCreatedCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposurePostExposureTreeCreated) SetCommitmentNotice(val NilExposurePostExposureTreeCreatedCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePostExposureTreeCreated) SetCounts(val ExposurePostExposureTreeCreatedCounts) {
+	s.Counts = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposurePostExposureTreeCreated) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDeep sets the value of Deep.
+func (s *ExposurePostExposureTreeCreated) SetDeep(val bool) {
+	s.Deep = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposurePostExposureTreeCreated) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePostExposureTreeCreated) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePostExposureTreeCreated) SetKind(val ExposurePostExposureTreeCreatedKind) {
+	s.Kind = val
+}
+
+// SetLastScan sets the value of LastScan.
+func (s *ExposurePostExposureTreeCreated) SetLastScan(val NilExposurePostExposureTreeCreatedLastScan) {
+	s.LastScan = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ExposurePostExposureTreeCreated) SetOrigin(val ExposurePostExposureTreeCreatedOrigin) {
+	s.Origin = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ExposurePostExposureTreeCreated) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePostExposureTreeCreated) SetProof(val ExposurePostExposureTreeCreatedProof) {
+	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposurePostExposureTreeCreated) SetScheduleKey(val string) {
+	s.ScheduleKey = val
+}
+
+// SetScopeMode sets the value of ScopeMode.
+func (s *ExposurePostExposureTreeCreated) SetScopeMode(val NilExposurePostExposureTreeCreatedScopeMode) {
+	s.ScopeMode = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePostExposureTreeCreated) SetTerms(val NilExposurePostExposureTreeCreatedTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePostExposureTreeCreated) SetTermsNotice(val ExposurePostExposureTreeCreatedTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePostExposureTreeCreated) SetTermsWarning(val NilString) {
+	s.TermsWarning = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePostExposureTreeCreated) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePostExposureTreeCreatedBlocked string
+
+const (
+	ExposurePostExposureTreeCreatedBlockedDisabled     ExposurePostExposureTreeCreatedBlocked = "disabled"
+	ExposurePostExposureTreeCreatedBlockedProof        ExposurePostExposureTreeCreatedBlocked = "proof"
+	ExposurePostExposureTreeCreatedBlockedNoCommitment ExposurePostExposureTreeCreatedBlocked = "no_commitment"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedBlocked values.
+func (ExposurePostExposureTreeCreatedBlocked) AllValues() []ExposurePostExposureTreeCreatedBlocked {
+	return []ExposurePostExposureTreeCreatedBlocked{
+		ExposurePostExposureTreeCreatedBlockedDisabled,
+		ExposurePostExposureTreeCreatedBlockedProof,
+		ExposurePostExposureTreeCreatedBlockedNoCommitment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedBlocked) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedBlockedDisabled:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedBlockedProof:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedBlockedNoCommitment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedBlocked) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedBlocked(data) {
+	case ExposurePostExposureTreeCreatedBlockedDisabled:
+		*s = ExposurePostExposureTreeCreatedBlockedDisabled
+		return nil
+	case ExposurePostExposureTreeCreatedBlockedProof:
+		*s = ExposurePostExposureTreeCreatedBlockedProof
+		return nil
+	case ExposurePostExposureTreeCreatedBlockedNoCommitment:
+		*s = ExposurePostExposureTreeCreatedBlockedNoCommitment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTreeCreatedCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTreeCreatedCommitment) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTreeCreatedCommitment) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTreeCreatedCommitment) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTreeCreatedCommitment) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTreeCreatedCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTreeCreatedCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTreeCreatedCommitment) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTreeCreatedCommitment) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTreeCreatedCommitment) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePostExposureTreeCreatedCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTreeCreatedCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTreeCreatedCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTreeCreatedCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTreeCreatedCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePostExposureTreeCreatedCounts struct {
+	// Names found under the node.
+	Hosts int `json:"hosts"`
+	// Open issues.
+	Issues int `json:"issues"`
+	// Open services.
+	Services int `json:"services"`
+	// Open services that answered HTTP.
+	Web int `json:"web"`
+	// The highest severity among open issues; null when none.
+	Worst NilExposurePostExposureTreeCreatedCountsWorst `json:"worst"`
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePostExposureTreeCreatedCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePostExposureTreeCreatedCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePostExposureTreeCreatedCounts) GetServices() int {
+	return s.Services
+}
+
+// GetWeb returns the value of Web.
+func (s *ExposurePostExposureTreeCreatedCounts) GetWeb() int {
+	return s.Web
+}
+
+// GetWorst returns the value of Worst.
+func (s *ExposurePostExposureTreeCreatedCounts) GetWorst() NilExposurePostExposureTreeCreatedCountsWorst {
+	return s.Worst
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePostExposureTreeCreatedCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePostExposureTreeCreatedCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePostExposureTreeCreatedCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// SetWeb sets the value of Web.
+func (s *ExposurePostExposureTreeCreatedCounts) SetWeb(val int) {
+	s.Web = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *ExposurePostExposureTreeCreatedCounts) SetWorst(val NilExposurePostExposureTreeCreatedCountsWorst) {
+	s.Worst = val
+}
+
+type ExposurePostExposureTreeCreatedCountsWorst string
+
+const (
+	ExposurePostExposureTreeCreatedCountsWorstCritical ExposurePostExposureTreeCreatedCountsWorst = "critical"
+	ExposurePostExposureTreeCreatedCountsWorstHigh     ExposurePostExposureTreeCreatedCountsWorst = "high"
+	ExposurePostExposureTreeCreatedCountsWorstMedium   ExposurePostExposureTreeCreatedCountsWorst = "medium"
+	ExposurePostExposureTreeCreatedCountsWorstLow      ExposurePostExposureTreeCreatedCountsWorst = "low"
+	ExposurePostExposureTreeCreatedCountsWorstInfo     ExposurePostExposureTreeCreatedCountsWorst = "info"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedCountsWorst values.
+func (ExposurePostExposureTreeCreatedCountsWorst) AllValues() []ExposurePostExposureTreeCreatedCountsWorst {
+	return []ExposurePostExposureTreeCreatedCountsWorst{
+		ExposurePostExposureTreeCreatedCountsWorstCritical,
+		ExposurePostExposureTreeCreatedCountsWorstHigh,
+		ExposurePostExposureTreeCreatedCountsWorstMedium,
+		ExposurePostExposureTreeCreatedCountsWorstLow,
+		ExposurePostExposureTreeCreatedCountsWorstInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedCountsWorst) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedCountsWorstCritical:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedCountsWorstHigh:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedCountsWorstMedium:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedCountsWorstLow:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedCountsWorstInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedCountsWorst) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedCountsWorst(data) {
+	case ExposurePostExposureTreeCreatedCountsWorstCritical:
+		*s = ExposurePostExposureTreeCreatedCountsWorstCritical
+		return nil
+	case ExposurePostExposureTreeCreatedCountsWorstHigh:
+		*s = ExposurePostExposureTreeCreatedCountsWorstHigh
+		return nil
+	case ExposurePostExposureTreeCreatedCountsWorstMedium:
+		*s = ExposurePostExposureTreeCreatedCountsWorstMedium
+		return nil
+	case ExposurePostExposureTreeCreatedCountsWorstLow:
+		*s = ExposurePostExposureTreeCreatedCountsWorstLow
+		return nil
+	case ExposurePostExposureTreeCreatedCountsWorstInfo:
+		*s = ExposurePostExposureTreeCreatedCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedKind string
+
+const (
+	ExposurePostExposureTreeCreatedKindDomain ExposurePostExposureTreeCreatedKind = "domain"
+	ExposurePostExposureTreeCreatedKindIP     ExposurePostExposureTreeCreatedKind = "ip"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedKind values.
+func (ExposurePostExposureTreeCreatedKind) AllValues() []ExposurePostExposureTreeCreatedKind {
+	return []ExposurePostExposureTreeCreatedKind{
+		ExposurePostExposureTreeCreatedKindDomain,
+		ExposurePostExposureTreeCreatedKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedKindDomain:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedKind) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedKind(data) {
+	case ExposurePostExposureTreeCreatedKindDomain:
+		*s = ExposurePostExposureTreeCreatedKindDomain
+		return nil
+	case ExposurePostExposureTreeCreatedKindIP:
+		*s = ExposurePostExposureTreeCreatedKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedLastScan struct {
+	// What the scan left; null until it ends done or partial.
+	Counts  NilExposurePostExposureTreeCreatedLastScanCounts `json:"counts"`
+	EndedAt NilDateTime                                      `json:"ended_at"`
+	Error   NilString                                        `json:"error"`
+	// Deep when the current testing terms of the target are accepted; surface otherwise.
+	Mode     ExposurePostExposureTreeCreatedLastScanMode `json:"mode"`
+	QueuedAt time.Time                                   `json:"queued_at"`
+	// Who asked (an e-mail), or system for a scheduled scan.
+	RequestedBy string `json:"requested_by"`
+	// The shared run: its steps, items and log are read there, and it is stopped there.
+	RunID      string                                         `json:"run_id"`
+	StartedAt  NilDateTime                                    `json:"started_at"`
+	Status     ExposurePostExposureTreeCreatedLastScanStatus  `json:"status"`
+	StopReason NilString                                      `json:"stop_reason"`
+	TargetID   string                                         `json:"target_id"`
+	Trigger    ExposurePostExposureTreeCreatedLastScanTrigger `json:"trigger"`
+	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetCounts() NilExposurePostExposureTreeCreatedLastScanCounts {
+	return s.Counts
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetError() NilString {
+	return s.Error
+}
+
+// GetMode returns the value of Mode.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetMode() ExposurePostExposureTreeCreatedLastScanMode {
+	return s.Mode
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetRunID returns the value of RunID.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetRunID() string {
+	return s.RunID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetStatus() ExposurePostExposureTreeCreatedLastScanStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetTrigger() ExposurePostExposureTreeCreatedLastScanTrigger {
+	return s.Trigger
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ExposurePostExposureTreeCreatedLastScan) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetCounts(val NilExposurePostExposureTreeCreatedLastScanCounts) {
+	s.Counts = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetMode(val ExposurePostExposureTreeCreatedLastScanMode) {
+	s.Mode = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetStatus(val ExposurePostExposureTreeCreatedLastScanStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetTrigger(val ExposurePostExposureTreeCreatedLastScanTrigger) {
+	s.Trigger = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ExposurePostExposureTreeCreatedLastScan) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ExposurePostExposureTreeCreatedLastScanCounts struct {
+	ClosedServices int `json:"closed_services"`
+	Hosts          int `json:"hosts"`
+	// Open issues after the scan.
+	Issues      int `json:"issues"`
+	NewIssues   int `json:"new_issues"`
+	NewServices int `json:"new_services"`
+	// Open services after the scan.
+	Services int `json:"services"`
+}
+
+// GetClosedServices returns the value of ClosedServices.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) GetClosedServices() int {
+	return s.ClosedServices
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetNewIssues returns the value of NewIssues.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) GetNewIssues() int {
+	return s.NewIssues
+}
+
+// GetNewServices returns the value of NewServices.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) GetNewServices() int {
+	return s.NewServices
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) GetServices() int {
+	return s.Services
+}
+
+// SetClosedServices sets the value of ClosedServices.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) SetClosedServices(val int) {
+	s.ClosedServices = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetNewIssues sets the value of NewIssues.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) SetNewIssues(val int) {
+	s.NewIssues = val
+}
+
+// SetNewServices sets the value of NewServices.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) SetNewServices(val int) {
+	s.NewServices = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePostExposureTreeCreatedLastScanCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// Deep when the current testing terms of the target are accepted; surface otherwise.
+type ExposurePostExposureTreeCreatedLastScanMode string
+
+const (
+	ExposurePostExposureTreeCreatedLastScanModeSurface ExposurePostExposureTreeCreatedLastScanMode = "surface"
+	ExposurePostExposureTreeCreatedLastScanModeDeep    ExposurePostExposureTreeCreatedLastScanMode = "deep"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedLastScanMode values.
+func (ExposurePostExposureTreeCreatedLastScanMode) AllValues() []ExposurePostExposureTreeCreatedLastScanMode {
+	return []ExposurePostExposureTreeCreatedLastScanMode{
+		ExposurePostExposureTreeCreatedLastScanModeSurface,
+		ExposurePostExposureTreeCreatedLastScanModeDeep,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedLastScanMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedLastScanModeSurface:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanModeDeep:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedLastScanMode) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedLastScanMode(data) {
+	case ExposurePostExposureTreeCreatedLastScanModeSurface:
+		*s = ExposurePostExposureTreeCreatedLastScanModeSurface
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanModeDeep:
+		*s = ExposurePostExposureTreeCreatedLastScanModeDeep
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedLastScanStatus string
+
+const (
+	ExposurePostExposureTreeCreatedLastScanStatusQueued   ExposurePostExposureTreeCreatedLastScanStatus = "queued"
+	ExposurePostExposureTreeCreatedLastScanStatusWaiting  ExposurePostExposureTreeCreatedLastScanStatus = "waiting"
+	ExposurePostExposureTreeCreatedLastScanStatusRunning  ExposurePostExposureTreeCreatedLastScanStatus = "running"
+	ExposurePostExposureTreeCreatedLastScanStatusStopping ExposurePostExposureTreeCreatedLastScanStatus = "stopping"
+	ExposurePostExposureTreeCreatedLastScanStatusDone     ExposurePostExposureTreeCreatedLastScanStatus = "done"
+	ExposurePostExposureTreeCreatedLastScanStatusPartial  ExposurePostExposureTreeCreatedLastScanStatus = "partial"
+	ExposurePostExposureTreeCreatedLastScanStatusFailed   ExposurePostExposureTreeCreatedLastScanStatus = "failed"
+	ExposurePostExposureTreeCreatedLastScanStatusStopped  ExposurePostExposureTreeCreatedLastScanStatus = "stopped"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedLastScanStatus values.
+func (ExposurePostExposureTreeCreatedLastScanStatus) AllValues() []ExposurePostExposureTreeCreatedLastScanStatus {
+	return []ExposurePostExposureTreeCreatedLastScanStatus{
+		ExposurePostExposureTreeCreatedLastScanStatusQueued,
+		ExposurePostExposureTreeCreatedLastScanStatusWaiting,
+		ExposurePostExposureTreeCreatedLastScanStatusRunning,
+		ExposurePostExposureTreeCreatedLastScanStatusStopping,
+		ExposurePostExposureTreeCreatedLastScanStatusDone,
+		ExposurePostExposureTreeCreatedLastScanStatusPartial,
+		ExposurePostExposureTreeCreatedLastScanStatusFailed,
+		ExposurePostExposureTreeCreatedLastScanStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedLastScanStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedLastScanStatusQueued:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanStatusWaiting:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanStatusRunning:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanStatusStopping:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanStatusDone:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanStatusPartial:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanStatusFailed:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedLastScanStatus) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedLastScanStatus(data) {
+	case ExposurePostExposureTreeCreatedLastScanStatusQueued:
+		*s = ExposurePostExposureTreeCreatedLastScanStatusQueued
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanStatusWaiting:
+		*s = ExposurePostExposureTreeCreatedLastScanStatusWaiting
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanStatusRunning:
+		*s = ExposurePostExposureTreeCreatedLastScanStatusRunning
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanStatusStopping:
+		*s = ExposurePostExposureTreeCreatedLastScanStatusStopping
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanStatusDone:
+		*s = ExposurePostExposureTreeCreatedLastScanStatusDone
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanStatusPartial:
+		*s = ExposurePostExposureTreeCreatedLastScanStatusPartial
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanStatusFailed:
+		*s = ExposurePostExposureTreeCreatedLastScanStatusFailed
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanStatusStopped:
+		*s = ExposurePostExposureTreeCreatedLastScanStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedLastScanTrigger string
+
+const (
+	ExposurePostExposureTreeCreatedLastScanTriggerManual   ExposurePostExposureTreeCreatedLastScanTrigger = "manual"
+	ExposurePostExposureTreeCreatedLastScanTriggerSchedule ExposurePostExposureTreeCreatedLastScanTrigger = "schedule"
+	ExposurePostExposureTreeCreatedLastScanTriggerEvent    ExposurePostExposureTreeCreatedLastScanTrigger = "event"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedLastScanTrigger values.
+func (ExposurePostExposureTreeCreatedLastScanTrigger) AllValues() []ExposurePostExposureTreeCreatedLastScanTrigger {
+	return []ExposurePostExposureTreeCreatedLastScanTrigger{
+		ExposurePostExposureTreeCreatedLastScanTriggerManual,
+		ExposurePostExposureTreeCreatedLastScanTriggerSchedule,
+		ExposurePostExposureTreeCreatedLastScanTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedLastScanTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedLastScanTriggerManual:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanTriggerSchedule:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedLastScanTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedLastScanTrigger) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedLastScanTrigger(data) {
+	case ExposurePostExposureTreeCreatedLastScanTriggerManual:
+		*s = ExposurePostExposureTreeCreatedLastScanTriggerManual
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanTriggerSchedule:
+		*s = ExposurePostExposureTreeCreatedLastScanTriggerSchedule
+		return nil
+	case ExposurePostExposureTreeCreatedLastScanTriggerEvent:
+		*s = ExposurePostExposureTreeCreatedLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedOrigin string
+
+const (
+	ExposurePostExposureTreeCreatedOriginPerson     ExposurePostExposureTreeCreatedOrigin = "person"
+	ExposurePostExposureTreeCreatedOriginBox        ExposurePostExposureTreeCreatedOrigin = "box"
+	ExposurePostExposureTreeCreatedOriginDiscovered ExposurePostExposureTreeCreatedOrigin = "discovered"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedOrigin values.
+func (ExposurePostExposureTreeCreatedOrigin) AllValues() []ExposurePostExposureTreeCreatedOrigin {
+	return []ExposurePostExposureTreeCreatedOrigin{
+		ExposurePostExposureTreeCreatedOriginPerson,
+		ExposurePostExposureTreeCreatedOriginBox,
+		ExposurePostExposureTreeCreatedOriginDiscovered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedOriginPerson:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedOriginBox:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedOriginDiscovered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedOrigin(data) {
+	case ExposurePostExposureTreeCreatedOriginPerson:
+		*s = ExposurePostExposureTreeCreatedOriginPerson
+		return nil
+	case ExposurePostExposureTreeCreatedOriginBox:
+		*s = ExposurePostExposureTreeCreatedOriginBox
+		return nil
+	case ExposurePostExposureTreeCreatedOriginDiscovered:
+		*s = ExposurePostExposureTreeCreatedOriginDiscovered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedProof struct {
+	// The ancestor whose proof covers this node; null unless state is covered.
+	CoveredBy NilExposurePostExposureTreeCreatedProofCoveredBy `json:"covered_by"`
+	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
+	DNS NilExposurePostExposureTreeCreatedProofDNS `json:"dns"`
+	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// IP typed in by a person: where its proof file goes; null otherwise.
+	File      NilExposurePostExposureTreeCreatedProofFile      `json:"file"`
+	LastCheck NilExposurePostExposureTreeCreatedProofLastCheck `json:"last_check"`
+	// How this node proves itself; null when covered by an ancestor or not proven yet.
+	Method NilExposurePostExposureTreeCreatedProofMethod `json:"method"`
+	// When the box checks the proof again by itself; null when it does not.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	State ExposurePostExposureTreeCreatedProofState `json:"state"`
+	// When this node's own proof was last found.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePostExposureTreeCreatedProof) GetCoveredBy() NilExposurePostExposureTreeCreatedProofCoveredBy {
+	return s.CoveredBy
+}
+
+// GetDNS returns the value of DNS.
+func (s *ExposurePostExposureTreeCreatedProof) GetDNS() NilExposurePostExposureTreeCreatedProofDNS {
+	return s.DNS
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposurePostExposureTreeCreatedProof) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFile returns the value of File.
+func (s *ExposurePostExposureTreeCreatedProof) GetFile() NilExposurePostExposureTreeCreatedProofFile {
+	return s.File
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposurePostExposureTreeCreatedProof) GetLastCheck() NilExposurePostExposureTreeCreatedProofLastCheck {
+	return s.LastCheck
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposurePostExposureTreeCreatedProof) GetMethod() NilExposurePostExposureTreeCreatedProofMethod {
+	return s.Method
+}
+
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePostExposureTreeCreatedProof) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetState returns the value of State.
+func (s *ExposurePostExposureTreeCreatedProof) GetState() ExposurePostExposureTreeCreatedProofState {
+	return s.State
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposurePostExposureTreeCreatedProof) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePostExposureTreeCreatedProof) SetCoveredBy(val NilExposurePostExposureTreeCreatedProofCoveredBy) {
+	s.CoveredBy = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *ExposurePostExposureTreeCreatedProof) SetDNS(val NilExposurePostExposureTreeCreatedProofDNS) {
+	s.DNS = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposurePostExposureTreeCreatedProof) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFile sets the value of File.
+func (s *ExposurePostExposureTreeCreatedProof) SetFile(val NilExposurePostExposureTreeCreatedProofFile) {
+	s.File = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposurePostExposureTreeCreatedProof) SetLastCheck(val NilExposurePostExposureTreeCreatedProofLastCheck) {
+	s.LastCheck = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposurePostExposureTreeCreatedProof) SetMethod(val NilExposurePostExposureTreeCreatedProofMethod) {
+	s.Method = val
+}
+
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePostExposureTreeCreatedProof) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePostExposureTreeCreatedProof) SetState(val ExposurePostExposureTreeCreatedProofState) {
+	s.State = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposurePostExposureTreeCreatedProof) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposurePostExposureTreeCreatedProofCoveredBy struct {
+	ID    string `json:"id"`
+	Value string `json:"value"`
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePostExposureTreeCreatedProofCoveredBy) GetID() string {
+	return s.ID
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePostExposureTreeCreatedProofCoveredBy) GetValue() string {
+	return s.Value
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePostExposureTreeCreatedProofCoveredBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePostExposureTreeCreatedProofCoveredBy) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePostExposureTreeCreatedProofDNS struct {
+	// The alternative name that proves this target only, "_vedette-verify" or "_vedette-verify."; null
+	// when it would pass 253 characters.
+	AltHost NilString `json:"alt_host"`
+	// The name to type in that zone: "@" for the zone apex.
+	Host string `json:"host"`
+	// The whole TXT value: vedette-verify=.
+	Value string `json:"value"`
+	// The registered domain: the DNS zone the record is added in.
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePostExposureTreeCreatedProofDNS) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePostExposureTreeCreatedProofDNS) GetHost() string {
+	return s.Host
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePostExposureTreeCreatedProofDNS) GetValue() string {
+	return s.Value
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePostExposureTreeCreatedProofDNS) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePostExposureTreeCreatedProofDNS) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePostExposureTreeCreatedProofDNS) SetHost(val string) {
+	s.Host = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePostExposureTreeCreatedProofDNS) SetValue(val string) {
+	s.Value = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePostExposureTreeCreatedProofDNS) SetZone(val string) {
+	s.Zone = val
+}
+
+type ExposurePostExposureTreeCreatedProofFile struct {
+	// The token: the whole content of /.well-known/vedette-verify.txt.
+	Content string `json:"content"`
+	// Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the
+	// IP, proves it too.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePostExposureTreeCreatedProofFile) GetContent() string {
+	return s.Content
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePostExposureTreeCreatedProofFile) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePostExposureTreeCreatedProofFile) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePostExposureTreeCreatedProofFile) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePostExposureTreeCreatedProofFile) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePostExposureTreeCreatedProofFile) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposurePostExposureTreeCreatedProofLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTreeCreatedProofLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureTreeCreatedProofLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePostExposureTreeCreatedProofLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTreeCreatedProofLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureTreeCreatedProofLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePostExposureTreeCreatedProofLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposurePostExposureTreeCreatedProofMethod string
+
+const (
+	ExposurePostExposureTreeCreatedProofMethodDNSTxt    ExposurePostExposureTreeCreatedProofMethod = "dns_txt"
+	ExposurePostExposureTreeCreatedProofMethodBoxEgress ExposurePostExposureTreeCreatedProofMethod = "box_egress"
+	ExposurePostExposureTreeCreatedProofMethodIPFile    ExposurePostExposureTreeCreatedProofMethod = "ip_file"
+	ExposurePostExposureTreeCreatedProofMethodIPPtr     ExposurePostExposureTreeCreatedProofMethod = "ip_ptr"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedProofMethod values.
+func (ExposurePostExposureTreeCreatedProofMethod) AllValues() []ExposurePostExposureTreeCreatedProofMethod {
+	return []ExposurePostExposureTreeCreatedProofMethod{
+		ExposurePostExposureTreeCreatedProofMethodDNSTxt,
+		ExposurePostExposureTreeCreatedProofMethodBoxEgress,
+		ExposurePostExposureTreeCreatedProofMethodIPFile,
+		ExposurePostExposureTreeCreatedProofMethodIPPtr,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedProofMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedProofMethodDNSTxt:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedProofMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedProofMethodIPFile:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedProofMethodIPPtr:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedProofMethod) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedProofMethod(data) {
+	case ExposurePostExposureTreeCreatedProofMethodDNSTxt:
+		*s = ExposurePostExposureTreeCreatedProofMethodDNSTxt
+		return nil
+	case ExposurePostExposureTreeCreatedProofMethodBoxEgress:
+		*s = ExposurePostExposureTreeCreatedProofMethodBoxEgress
+		return nil
+	case ExposurePostExposureTreeCreatedProofMethodIPFile:
+		*s = ExposurePostExposureTreeCreatedProofMethodIPFile
+		return nil
+	case ExposurePostExposureTreeCreatedProofMethodIPPtr:
+		*s = ExposurePostExposureTreeCreatedProofMethodIPPtr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+type ExposurePostExposureTreeCreatedProofState string
+
+const (
+	ExposurePostExposureTreeCreatedProofStateProven     ExposurePostExposureTreeCreatedProofState = "proven"
+	ExposurePostExposureTreeCreatedProofStateCovered    ExposurePostExposureTreeCreatedProofState = "covered"
+	ExposurePostExposureTreeCreatedProofStateMissing    ExposurePostExposureTreeCreatedProofState = "missing"
+	ExposurePostExposureTreeCreatedProofStateExpired    ExposurePostExposureTreeCreatedProofState = "expired"
+	ExposurePostExposureTreeCreatedProofStateNotCurrent ExposurePostExposureTreeCreatedProofState = "not_current"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedProofState values.
+func (ExposurePostExposureTreeCreatedProofState) AllValues() []ExposurePostExposureTreeCreatedProofState {
+	return []ExposurePostExposureTreeCreatedProofState{
+		ExposurePostExposureTreeCreatedProofStateProven,
+		ExposurePostExposureTreeCreatedProofStateCovered,
+		ExposurePostExposureTreeCreatedProofStateMissing,
+		ExposurePostExposureTreeCreatedProofStateExpired,
+		ExposurePostExposureTreeCreatedProofStateNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedProofState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedProofStateProven:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedProofStateCovered:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedProofStateMissing:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedProofStateExpired:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedProofStateNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedProofState) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedProofState(data) {
+	case ExposurePostExposureTreeCreatedProofStateProven:
+		*s = ExposurePostExposureTreeCreatedProofStateProven
+		return nil
+	case ExposurePostExposureTreeCreatedProofStateCovered:
+		*s = ExposurePostExposureTreeCreatedProofStateCovered
+		return nil
+	case ExposurePostExposureTreeCreatedProofStateMissing:
+		*s = ExposurePostExposureTreeCreatedProofStateMissing
+		return nil
+	case ExposurePostExposureTreeCreatedProofStateExpired:
+		*s = ExposurePostExposureTreeCreatedProofStateExpired
+		return nil
+	case ExposurePostExposureTreeCreatedProofStateNotCurrent:
+		*s = ExposurePostExposureTreeCreatedProofStateNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedScopeMode string
+
+const (
+	ExposurePostExposureTreeCreatedScopeModeSelf     ExposurePostExposureTreeCreatedScopeMode = "self"
+	ExposurePostExposureTreeCreatedScopeModeAll      ExposurePostExposureTreeCreatedScopeMode = "all"
+	ExposurePostExposureTreeCreatedScopeModeSelected ExposurePostExposureTreeCreatedScopeMode = "selected"
+)
+
+// AllValues returns all ExposurePostExposureTreeCreatedScopeMode values.
+func (ExposurePostExposureTreeCreatedScopeMode) AllValues() []ExposurePostExposureTreeCreatedScopeMode {
+	return []ExposurePostExposureTreeCreatedScopeMode{
+		ExposurePostExposureTreeCreatedScopeModeSelf,
+		ExposurePostExposureTreeCreatedScopeModeAll,
+		ExposurePostExposureTreeCreatedScopeModeSelected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeCreatedScopeMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeCreatedScopeModeSelf:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedScopeModeAll:
+		return []byte(s), nil
+	case ExposurePostExposureTreeCreatedScopeModeSelected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeCreatedScopeMode) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeCreatedScopeMode(data) {
+	case ExposurePostExposureTreeCreatedScopeModeSelf:
+		*s = ExposurePostExposureTreeCreatedScopeModeSelf
+		return nil
+	case ExposurePostExposureTreeCreatedScopeModeAll:
+		*s = ExposurePostExposureTreeCreatedScopeModeAll
+		return nil
+	case ExposurePostExposureTreeCreatedScopeModeSelected:
+		*s = ExposurePostExposureTreeCreatedScopeModeSelected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeCreatedTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTreeCreatedTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTreeCreatedTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTreeCreatedTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTreeCreatedTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTreeCreatedTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTreeCreatedTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTreeCreatedTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTreeCreatedTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTreeCreatedTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTreeCreatedTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this node, to accept or read again.
+type ExposurePostExposureTreeCreatedTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTreeCreatedTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTreeCreatedTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTreeCreatedTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTreeCreatedTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTreeCreatedTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTreeCreatedTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePostExposureTreeIDScanAccepted struct {
+	// What the scan left; null until it ends done or partial.
+	Counts  NilExposurePostExposureTreeIDScanAcceptedCounts `json:"counts"`
+	EndedAt NilDateTime                                     `json:"ended_at"`
+	Error   NilString                                       `json:"error"`
+	// Deep when the current testing terms of the target are accepted; surface otherwise.
+	Mode     ExposurePostExposureTreeIDScanAcceptedMode `json:"mode"`
+	QueuedAt time.Time                                  `json:"queued_at"`
+	// Who asked (an e-mail), or system for a scheduled scan.
+	RequestedBy string `json:"requested_by"`
+	// The shared run: its steps, items and log are read there, and it is stopped there.
+	RunID      string                                        `json:"run_id"`
+	StartedAt  NilDateTime                                   `json:"started_at"`
+	Status     ExposurePostExposureTreeIDScanAcceptedStatus  `json:"status"`
+	StopReason NilString                                     `json:"stop_reason"`
+	TargetID   string                                        `json:"target_id"`
+	Trigger    ExposurePostExposureTreeIDScanAcceptedTrigger `json:"trigger"`
+	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetCounts() NilExposurePostExposureTreeIDScanAcceptedCounts {
+	return s.Counts
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetError() NilString {
+	return s.Error
+}
+
+// GetMode returns the value of Mode.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetMode() ExposurePostExposureTreeIDScanAcceptedMode {
+	return s.Mode
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetRunID returns the value of RunID.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetRunID() string {
+	return s.RunID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetStatus() ExposurePostExposureTreeIDScanAcceptedStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetTrigger() ExposurePostExposureTreeIDScanAcceptedTrigger {
+	return s.Trigger
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ExposurePostExposureTreeIDScanAccepted) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetCounts(val NilExposurePostExposureTreeIDScanAcceptedCounts) {
+	s.Counts = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetMode(val ExposurePostExposureTreeIDScanAcceptedMode) {
+	s.Mode = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetStatus(val ExposurePostExposureTreeIDScanAcceptedStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetTrigger(val ExposurePostExposureTreeIDScanAcceptedTrigger) {
+	s.Trigger = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ExposurePostExposureTreeIDScanAccepted) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ExposurePostExposureTreeIDScanAcceptedCounts struct {
+	ClosedServices int `json:"closed_services"`
+	Hosts          int `json:"hosts"`
+	// Open issues after the scan.
+	Issues      int `json:"issues"`
+	NewIssues   int `json:"new_issues"`
+	NewServices int `json:"new_services"`
+	// Open services after the scan.
+	Services int `json:"services"`
+}
+
+// GetClosedServices returns the value of ClosedServices.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) GetClosedServices() int {
+	return s.ClosedServices
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetNewIssues returns the value of NewIssues.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) GetNewIssues() int {
+	return s.NewIssues
+}
+
+// GetNewServices returns the value of NewServices.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) GetNewServices() int {
+	return s.NewServices
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) GetServices() int {
+	return s.Services
+}
+
+// SetClosedServices sets the value of ClosedServices.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) SetClosedServices(val int) {
+	s.ClosedServices = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetNewIssues sets the value of NewIssues.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) SetNewIssues(val int) {
+	s.NewIssues = val
+}
+
+// SetNewServices sets the value of NewServices.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) SetNewServices(val int) {
+	s.NewServices = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePostExposureTreeIDScanAcceptedCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// Deep when the current testing terms of the target are accepted; surface otherwise.
+type ExposurePostExposureTreeIDScanAcceptedMode string
+
+const (
+	ExposurePostExposureTreeIDScanAcceptedModeSurface ExposurePostExposureTreeIDScanAcceptedMode = "surface"
+	ExposurePostExposureTreeIDScanAcceptedModeDeep    ExposurePostExposureTreeIDScanAcceptedMode = "deep"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDScanAcceptedMode values.
+func (ExposurePostExposureTreeIDScanAcceptedMode) AllValues() []ExposurePostExposureTreeIDScanAcceptedMode {
+	return []ExposurePostExposureTreeIDScanAcceptedMode{
+		ExposurePostExposureTreeIDScanAcceptedModeSurface,
+		ExposurePostExposureTreeIDScanAcceptedModeDeep,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDScanAcceptedMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDScanAcceptedModeSurface:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedModeDeep:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDScanAcceptedMode) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDScanAcceptedMode(data) {
+	case ExposurePostExposureTreeIDScanAcceptedModeSurface:
+		*s = ExposurePostExposureTreeIDScanAcceptedModeSurface
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedModeDeep:
+		*s = ExposurePostExposureTreeIDScanAcceptedModeDeep
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDScanAcceptedStatus string
+
+const (
+	ExposurePostExposureTreeIDScanAcceptedStatusQueued   ExposurePostExposureTreeIDScanAcceptedStatus = "queued"
+	ExposurePostExposureTreeIDScanAcceptedStatusWaiting  ExposurePostExposureTreeIDScanAcceptedStatus = "waiting"
+	ExposurePostExposureTreeIDScanAcceptedStatusRunning  ExposurePostExposureTreeIDScanAcceptedStatus = "running"
+	ExposurePostExposureTreeIDScanAcceptedStatusStopping ExposurePostExposureTreeIDScanAcceptedStatus = "stopping"
+	ExposurePostExposureTreeIDScanAcceptedStatusDone     ExposurePostExposureTreeIDScanAcceptedStatus = "done"
+	ExposurePostExposureTreeIDScanAcceptedStatusPartial  ExposurePostExposureTreeIDScanAcceptedStatus = "partial"
+	ExposurePostExposureTreeIDScanAcceptedStatusFailed   ExposurePostExposureTreeIDScanAcceptedStatus = "failed"
+	ExposurePostExposureTreeIDScanAcceptedStatusStopped  ExposurePostExposureTreeIDScanAcceptedStatus = "stopped"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDScanAcceptedStatus values.
+func (ExposurePostExposureTreeIDScanAcceptedStatus) AllValues() []ExposurePostExposureTreeIDScanAcceptedStatus {
+	return []ExposurePostExposureTreeIDScanAcceptedStatus{
+		ExposurePostExposureTreeIDScanAcceptedStatusQueued,
+		ExposurePostExposureTreeIDScanAcceptedStatusWaiting,
+		ExposurePostExposureTreeIDScanAcceptedStatusRunning,
+		ExposurePostExposureTreeIDScanAcceptedStatusStopping,
+		ExposurePostExposureTreeIDScanAcceptedStatusDone,
+		ExposurePostExposureTreeIDScanAcceptedStatusPartial,
+		ExposurePostExposureTreeIDScanAcceptedStatusFailed,
+		ExposurePostExposureTreeIDScanAcceptedStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDScanAcceptedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDScanAcceptedStatusQueued:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusWaiting:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusRunning:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusStopping:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusDone:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusPartial:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusFailed:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDScanAcceptedStatus) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDScanAcceptedStatus(data) {
+	case ExposurePostExposureTreeIDScanAcceptedStatusQueued:
+		*s = ExposurePostExposureTreeIDScanAcceptedStatusQueued
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusWaiting:
+		*s = ExposurePostExposureTreeIDScanAcceptedStatusWaiting
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusRunning:
+		*s = ExposurePostExposureTreeIDScanAcceptedStatusRunning
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusStopping:
+		*s = ExposurePostExposureTreeIDScanAcceptedStatusStopping
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusDone:
+		*s = ExposurePostExposureTreeIDScanAcceptedStatusDone
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusPartial:
+		*s = ExposurePostExposureTreeIDScanAcceptedStatusPartial
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusFailed:
+		*s = ExposurePostExposureTreeIDScanAcceptedStatusFailed
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedStatusStopped:
+		*s = ExposurePostExposureTreeIDScanAcceptedStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDScanAcceptedTrigger string
+
+const (
+	ExposurePostExposureTreeIDScanAcceptedTriggerManual   ExposurePostExposureTreeIDScanAcceptedTrigger = "manual"
+	ExposurePostExposureTreeIDScanAcceptedTriggerSchedule ExposurePostExposureTreeIDScanAcceptedTrigger = "schedule"
+	ExposurePostExposureTreeIDScanAcceptedTriggerEvent    ExposurePostExposureTreeIDScanAcceptedTrigger = "event"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDScanAcceptedTrigger values.
+func (ExposurePostExposureTreeIDScanAcceptedTrigger) AllValues() []ExposurePostExposureTreeIDScanAcceptedTrigger {
+	return []ExposurePostExposureTreeIDScanAcceptedTrigger{
+		ExposurePostExposureTreeIDScanAcceptedTriggerManual,
+		ExposurePostExposureTreeIDScanAcceptedTriggerSchedule,
+		ExposurePostExposureTreeIDScanAcceptedTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDScanAcceptedTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDScanAcceptedTriggerManual:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedTriggerSchedule:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDScanAcceptedTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDScanAcceptedTrigger) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDScanAcceptedTrigger(data) {
+	case ExposurePostExposureTreeIDScanAcceptedTriggerManual:
+		*s = ExposurePostExposureTreeIDScanAcceptedTriggerManual
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedTriggerSchedule:
+		*s = ExposurePostExposureTreeIDScanAcceptedTriggerSchedule
+		return nil
+	case ExposurePostExposureTreeIDScanAcceptedTriggerEvent:
+		*s = ExposurePostExposureTreeIDScanAcceptedTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDScanReq struct {
+	NoticeVersion OptString `json:"notice_version"`
+}
+
+// GetNoticeVersion returns the value of NoticeVersion.
+func (s *ExposurePostExposureTreeIDScanReq) GetNoticeVersion() OptString {
+	return s.NoticeVersion
+}
+
+// SetNoticeVersion sets the value of NoticeVersion.
+func (s *ExposurePostExposureTreeIDScanReq) SetNoticeVersion(val OptString) {
+	s.NoticeVersion = val
+}
+
+type ExposurePostExposureTreeIDVerifyOK struct {
+	Message  string                                 `json:"message"`
+	Node     ExposurePostExposureTreeIDVerifyOKNode `json:"node"`
+	Verified bool                                   `json:"verified"`
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureTreeIDVerifyOK) GetMessage() string {
+	return s.Message
+}
+
+// GetNode returns the value of Node.
+func (s *ExposurePostExposureTreeIDVerifyOK) GetNode() ExposurePostExposureTreeIDVerifyOKNode {
+	return s.Node
+}
+
+// GetVerified returns the value of Verified.
+func (s *ExposurePostExposureTreeIDVerifyOK) GetVerified() bool {
+	return s.Verified
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureTreeIDVerifyOK) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetNode sets the value of Node.
+func (s *ExposurePostExposureTreeIDVerifyOK) SetNode(val ExposurePostExposureTreeIDVerifyOKNode) {
+	s.Node = val
+}
+
+// SetVerified sets the value of Verified.
+func (s *ExposurePostExposureTreeIDVerifyOK) SetVerified(val bool) {
+	s.Verified = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNode struct {
+	// Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor
+	// covered), no_commitment (no scan confirmation of the current sentence: an administrator's Scan now
+	// records it, an operator's is refused); null when it can be scanned.
+	Blocked NilExposurePostExposureTreeIDVerifyOKNodeBlocked `json:"blocked"`
+	// The scan confirmation recorded by the first Scan now of an administrator; null when none.
+	Commitment NilExposurePostExposureTreeIDVerifyOKNodeCommitment `json:"commitment"`
+	// The sentence the next Scan now of an administrator confirms; null once the node has a commitment of
+	// the current sentence.
+	CommitmentNotice NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice `json:"commitment_notice"`
+	Counts           ExposurePostExposureTreeIDVerifyOKNodeCounts              `json:"counts"`
+	CreatedAt        time.Time                                                 `json:"created_at"`
+	// Scans of this node are deep scans: the current testing terms are accepted.
+	Deep bool `json:"deep"`
+	// The node is scanned, by Scan now and by its schedule.
+	Enabled bool                                       `json:"enabled"`
+	ID      string                                     `json:"id"`
+	Kind    ExposurePostExposureTreeIDVerifyOKNodeKind `json:"kind"`
+	// The newest run of this node, live or ended; null when never scanned.
+	LastScan NilExposurePostExposureTreeIDVerifyOKNodeLastScan `json:"last_scan"`
+	Origin   ExposurePostExposureTreeIDVerifyOKNodeOrigin      `json:"origin"`
+	// The domain target this node sits under; null at the top of the tree.
+	ParentID NilString                                   `json:"parent_id"`
+	Proof    ExposurePostExposureTreeIDVerifyOKNodeProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
+	// Domains: self scans only this name; all this name and every name found under it; selected this name
+	// and the names chosen (Host.selected). null for an IP.
+	ScopeMode NilExposurePostExposureTreeIDVerifyOKNodeScopeMode `json:"scope_mode"`
+	// The accepted testing terms; null when none.
+	Terms NilExposurePostExposureTreeIDVerifyOKNodeTerms `json:"terms"`
+	// The current testing terms for this node, to accept or read again.
+	TermsNotice ExposurePostExposureTreeIDVerifyOKNodeTermsNotice `json:"terms_notice"`
+	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	TermsWarning NilString `json:"terms_warning"`
+	Value        string    `json:"value"`
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetBlocked() NilExposurePostExposureTreeIDVerifyOKNodeBlocked {
+	return s.Blocked
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetCommitment() NilExposurePostExposureTreeIDVerifyOKNodeCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetCommitmentNotice() NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetCounts() ExposurePostExposureTreeIDVerifyOKNodeCounts {
+	return s.Counts
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDeep returns the value of Deep.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetDeep() bool {
+	return s.Deep
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetKind() ExposurePostExposureTreeIDVerifyOKNodeKind {
+	return s.Kind
+}
+
+// GetLastScan returns the value of LastScan.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetLastScan() NilExposurePostExposureTreeIDVerifyOKNodeLastScan {
+	return s.LastScan
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetOrigin() ExposurePostExposureTreeIDVerifyOKNodeOrigin {
+	return s.Origin
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetProof() ExposurePostExposureTreeIDVerifyOKNodeProof {
+	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetScheduleKey() string {
+	return s.ScheduleKey
+}
+
+// GetScopeMode returns the value of ScopeMode.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetScopeMode() NilExposurePostExposureTreeIDVerifyOKNodeScopeMode {
+	return s.ScopeMode
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetTerms() NilExposurePostExposureTreeIDVerifyOKNodeTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetTermsNotice() ExposurePostExposureTreeIDVerifyOKNodeTermsNotice {
+	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetTermsWarning() NilString {
+	return s.TermsWarning
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) GetValue() string {
+	return s.Value
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetBlocked(val NilExposurePostExposureTreeIDVerifyOKNodeBlocked) {
+	s.Blocked = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetCommitment(val NilExposurePostExposureTreeIDVerifyOKNodeCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetCommitmentNotice(val NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetCounts(val ExposurePostExposureTreeIDVerifyOKNodeCounts) {
+	s.Counts = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDeep sets the value of Deep.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetDeep(val bool) {
+	s.Deep = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetKind(val ExposurePostExposureTreeIDVerifyOKNodeKind) {
+	s.Kind = val
+}
+
+// SetLastScan sets the value of LastScan.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetLastScan(val NilExposurePostExposureTreeIDVerifyOKNodeLastScan) {
+	s.LastScan = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetOrigin(val ExposurePostExposureTreeIDVerifyOKNodeOrigin) {
+	s.Origin = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetProof(val ExposurePostExposureTreeIDVerifyOKNodeProof) {
+	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetScheduleKey(val string) {
+	s.ScheduleKey = val
+}
+
+// SetScopeMode sets the value of ScopeMode.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetScopeMode(val NilExposurePostExposureTreeIDVerifyOKNodeScopeMode) {
+	s.ScopeMode = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetTerms(val NilExposurePostExposureTreeIDVerifyOKNodeTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetTermsNotice(val ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetTermsWarning(val NilString) {
+	s.TermsWarning = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePostExposureTreeIDVerifyOKNode) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeBlocked string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeBlockedDisabled     ExposurePostExposureTreeIDVerifyOKNodeBlocked = "disabled"
+	ExposurePostExposureTreeIDVerifyOKNodeBlockedProof        ExposurePostExposureTreeIDVerifyOKNodeBlocked = "proof"
+	ExposurePostExposureTreeIDVerifyOKNodeBlockedNoCommitment ExposurePostExposureTreeIDVerifyOKNodeBlocked = "no_commitment"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeBlocked values.
+func (ExposurePostExposureTreeIDVerifyOKNodeBlocked) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeBlocked {
+	return []ExposurePostExposureTreeIDVerifyOKNodeBlocked{
+		ExposurePostExposureTreeIDVerifyOKNodeBlockedDisabled,
+		ExposurePostExposureTreeIDVerifyOKNodeBlockedProof,
+		ExposurePostExposureTreeIDVerifyOKNodeBlockedNoCommitment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeBlocked) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeBlockedDisabled:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeBlockedProof:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeBlockedNoCommitment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeBlocked) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeBlocked(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeBlockedDisabled:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeBlockedDisabled
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeBlockedProof:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeBlockedProof
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeBlockedNoCommitment:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeBlockedNoCommitment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitment) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitment) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitment) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitment) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitment) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitment) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitment) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeCounts struct {
+	// Names found under the node.
+	Hosts int `json:"hosts"`
+	// Open issues.
+	Issues int `json:"issues"`
+	// Open services.
+	Services int `json:"services"`
+	// Open services that answered HTTP.
+	Web int `json:"web"`
+	// The highest severity among open issues; null when none.
+	Worst NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst `json:"worst"`
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCounts) GetServices() int {
+	return s.Services
+}
+
+// GetWeb returns the value of Web.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCounts) GetWeb() int {
+	return s.Web
+}
+
+// GetWorst returns the value of Worst.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCounts) GetWorst() NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst {
+	return s.Worst
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// SetWeb sets the value of Web.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCounts) SetWeb(val int) {
+	s.Web = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCounts) SetWorst(val NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst) {
+	s.Worst = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeCountsWorst string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeCountsWorstCritical ExposurePostExposureTreeIDVerifyOKNodeCountsWorst = "critical"
+	ExposurePostExposureTreeIDVerifyOKNodeCountsWorstHigh     ExposurePostExposureTreeIDVerifyOKNodeCountsWorst = "high"
+	ExposurePostExposureTreeIDVerifyOKNodeCountsWorstMedium   ExposurePostExposureTreeIDVerifyOKNodeCountsWorst = "medium"
+	ExposurePostExposureTreeIDVerifyOKNodeCountsWorstLow      ExposurePostExposureTreeIDVerifyOKNodeCountsWorst = "low"
+	ExposurePostExposureTreeIDVerifyOKNodeCountsWorstInfo     ExposurePostExposureTreeIDVerifyOKNodeCountsWorst = "info"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeCountsWorst values.
+func (ExposurePostExposureTreeIDVerifyOKNodeCountsWorst) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeCountsWorst {
+	return []ExposurePostExposureTreeIDVerifyOKNodeCountsWorst{
+		ExposurePostExposureTreeIDVerifyOKNodeCountsWorstCritical,
+		ExposurePostExposureTreeIDVerifyOKNodeCountsWorstHigh,
+		ExposurePostExposureTreeIDVerifyOKNodeCountsWorstMedium,
+		ExposurePostExposureTreeIDVerifyOKNodeCountsWorstLow,
+		ExposurePostExposureTreeIDVerifyOKNodeCountsWorstInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeCountsWorst) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstCritical:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstHigh:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstMedium:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstLow:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeCountsWorst) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeCountsWorst(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstCritical:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeCountsWorstCritical
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstHigh:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeCountsWorstHigh
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstMedium:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeCountsWorstMedium
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstLow:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeCountsWorstLow
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeCountsWorstInfo:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeKind string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeKindDomain ExposurePostExposureTreeIDVerifyOKNodeKind = "domain"
+	ExposurePostExposureTreeIDVerifyOKNodeKindIP     ExposurePostExposureTreeIDVerifyOKNodeKind = "ip"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeKind values.
+func (ExposurePostExposureTreeIDVerifyOKNodeKind) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeKind {
+	return []ExposurePostExposureTreeIDVerifyOKNodeKind{
+		ExposurePostExposureTreeIDVerifyOKNodeKindDomain,
+		ExposurePostExposureTreeIDVerifyOKNodeKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeKindDomain:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeKind) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeKind(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeKindDomain:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeKindDomain
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeKindIP:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeLastScan struct {
+	// What the scan left; null until it ends done or partial.
+	Counts  NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts `json:"counts"`
+	EndedAt NilDateTime                                             `json:"ended_at"`
+	Error   NilString                                               `json:"error"`
+	// Deep when the current testing terms of the target are accepted; surface otherwise.
+	Mode     ExposurePostExposureTreeIDVerifyOKNodeLastScanMode `json:"mode"`
+	QueuedAt time.Time                                          `json:"queued_at"`
+	// Who asked (an e-mail), or system for a scheduled scan.
+	RequestedBy string `json:"requested_by"`
+	// The shared run: its steps, items and log are read there, and it is stopped there.
+	RunID      string                                                `json:"run_id"`
+	StartedAt  NilDateTime                                           `json:"started_at"`
+	Status     ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus  `json:"status"`
+	StopReason NilString                                             `json:"stop_reason"`
+	TargetID   string                                                `json:"target_id"`
+	Trigger    ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger `json:"trigger"`
+	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetCounts() NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts {
+	return s.Counts
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetError() NilString {
+	return s.Error
+}
+
+// GetMode returns the value of Mode.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetMode() ExposurePostExposureTreeIDVerifyOKNodeLastScanMode {
+	return s.Mode
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetRunID returns the value of RunID.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetRunID() string {
+	return s.RunID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetStatus() ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetTrigger() ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger {
+	return s.Trigger
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetCounts(val NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) {
+	s.Counts = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetMode(val ExposurePostExposureTreeIDVerifyOKNodeLastScanMode) {
+	s.Mode = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetStatus(val ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetTrigger(val ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger) {
+	s.Trigger = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScan) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts struct {
+	ClosedServices int `json:"closed_services"`
+	Hosts          int `json:"hosts"`
+	// Open issues after the scan.
+	Issues      int `json:"issues"`
+	NewIssues   int `json:"new_issues"`
+	NewServices int `json:"new_services"`
+	// Open services after the scan.
+	Services int `json:"services"`
+}
+
+// GetClosedServices returns the value of ClosedServices.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) GetClosedServices() int {
+	return s.ClosedServices
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetNewIssues returns the value of NewIssues.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) GetNewIssues() int {
+	return s.NewIssues
+}
+
+// GetNewServices returns the value of NewServices.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) GetNewServices() int {
+	return s.NewServices
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) GetServices() int {
+	return s.Services
+}
+
+// SetClosedServices sets the value of ClosedServices.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) SetClosedServices(val int) {
+	s.ClosedServices = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetNewIssues sets the value of NewIssues.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) SetNewIssues(val int) {
+	s.NewIssues = val
+}
+
+// SetNewServices sets the value of NewServices.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) SetNewServices(val int) {
+	s.NewServices = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// Deep when the current testing terms of the target are accepted; surface otherwise.
+type ExposurePostExposureTreeIDVerifyOKNodeLastScanMode string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanModeSurface ExposurePostExposureTreeIDVerifyOKNodeLastScanMode = "surface"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanModeDeep    ExposurePostExposureTreeIDVerifyOKNodeLastScanMode = "deep"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeLastScanMode values.
+func (ExposurePostExposureTreeIDVerifyOKNodeLastScanMode) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeLastScanMode {
+	return []ExposurePostExposureTreeIDVerifyOKNodeLastScanMode{
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanModeSurface,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanModeDeep,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeLastScanMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanModeSurface:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanModeDeep:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanMode) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeLastScanMode(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanModeSurface:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanModeSurface
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanModeDeep:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanModeDeep
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusQueued   ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus = "queued"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusWaiting  ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus = "waiting"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusRunning  ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus = "running"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusStopping ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus = "stopping"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusDone     ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus = "done"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusPartial  ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus = "partial"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusFailed   ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus = "failed"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusStopped  ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus = "stopped"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus values.
+func (ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus {
+	return []ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus{
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusQueued,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusWaiting,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusRunning,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusStopping,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusDone,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusPartial,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusFailed,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusQueued:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusWaiting:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusRunning:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusStopping:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusDone:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusPartial:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusFailed:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeLastScanStatus(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusQueued:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusQueued
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusWaiting:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusWaiting
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusRunning:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusRunning
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusStopping:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusStopping
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusDone:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusDone
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusPartial:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusPartial
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusFailed:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusFailed
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusStopped:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerManual   ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger = "manual"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerSchedule ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger = "schedule"
+	ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerEvent    ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger = "event"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger values.
+func (ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger {
+	return []ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger{
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerManual,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerSchedule,
+		ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerManual:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerSchedule:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeLastScanTrigger(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerManual:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerManual
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerSchedule:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerSchedule
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerEvent:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeOrigin string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeOriginPerson     ExposurePostExposureTreeIDVerifyOKNodeOrigin = "person"
+	ExposurePostExposureTreeIDVerifyOKNodeOriginBox        ExposurePostExposureTreeIDVerifyOKNodeOrigin = "box"
+	ExposurePostExposureTreeIDVerifyOKNodeOriginDiscovered ExposurePostExposureTreeIDVerifyOKNodeOrigin = "discovered"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeOrigin values.
+func (ExposurePostExposureTreeIDVerifyOKNodeOrigin) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeOrigin {
+	return []ExposurePostExposureTreeIDVerifyOKNodeOrigin{
+		ExposurePostExposureTreeIDVerifyOKNodeOriginPerson,
+		ExposurePostExposureTreeIDVerifyOKNodeOriginBox,
+		ExposurePostExposureTreeIDVerifyOKNodeOriginDiscovered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeOriginPerson:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeOriginBox:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeOriginDiscovered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeOrigin(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeOriginPerson:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeOriginPerson
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeOriginBox:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeOriginBox
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeOriginDiscovered:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeOriginDiscovered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeProof struct {
+	// The ancestor whose proof covers this node; null unless state is covered.
+	CoveredBy NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy `json:"covered_by"`
+	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
+	DNS NilExposurePostExposureTreeIDVerifyOKNodeProofDNS `json:"dns"`
+	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// IP typed in by a person: where its proof file goes; null otherwise.
+	File      NilExposurePostExposureTreeIDVerifyOKNodeProofFile      `json:"file"`
+	LastCheck NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck `json:"last_check"`
+	// How this node proves itself; null when covered by an ancestor or not proven yet.
+	Method NilExposurePostExposureTreeIDVerifyOKNodeProofMethod `json:"method"`
+	// When the box checks the proof again by itself; null when it does not.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	State ExposurePostExposureTreeIDVerifyOKNodeProofState `json:"state"`
+	// When this node's own proof was last found.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetCoveredBy() NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy {
+	return s.CoveredBy
+}
+
+// GetDNS returns the value of DNS.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetDNS() NilExposurePostExposureTreeIDVerifyOKNodeProofDNS {
+	return s.DNS
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFile returns the value of File.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetFile() NilExposurePostExposureTreeIDVerifyOKNodeProofFile {
+	return s.File
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetLastCheck() NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck {
+	return s.LastCheck
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetMethod() NilExposurePostExposureTreeIDVerifyOKNodeProofMethod {
+	return s.Method
+}
+
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetState returns the value of State.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetState() ExposurePostExposureTreeIDVerifyOKNodeProofState {
+	return s.State
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetCoveredBy(val NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) {
+	s.CoveredBy = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetDNS(val NilExposurePostExposureTreeIDVerifyOKNodeProofDNS) {
+	s.DNS = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFile sets the value of File.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetFile(val NilExposurePostExposureTreeIDVerifyOKNodeProofFile) {
+	s.File = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetLastCheck(val NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) {
+	s.LastCheck = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetMethod(val NilExposurePostExposureTreeIDVerifyOKNodeProofMethod) {
+	s.Method = val
+}
+
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetState(val ExposurePostExposureTreeIDVerifyOKNodeProofState) {
+	s.State = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy struct {
+	ID    string `json:"id"`
+	Value string `json:"value"`
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) GetID() string {
+	return s.ID
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) GetValue() string {
+	return s.Value
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeProofDNS struct {
+	// The alternative name that proves this target only, "_vedette-verify" or "_vedette-verify."; null
+	// when it would pass 253 characters.
+	AltHost NilString `json:"alt_host"`
+	// The name to type in that zone: "@" for the zone apex.
+	Host string `json:"host"`
+	// The whole TXT value: vedette-verify=.
+	Value string `json:"value"`
+	// The registered domain: the DNS zone the record is added in.
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofDNS) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofDNS) GetHost() string {
+	return s.Host
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofDNS) GetValue() string {
+	return s.Value
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofDNS) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofDNS) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofDNS) SetHost(val string) {
+	s.Host = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofDNS) SetValue(val string) {
+	s.Value = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofDNS) SetZone(val string) {
+	s.Zone = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeProofFile struct {
+	// The token: the whole content of /.well-known/vedette-verify.txt.
+	Content string `json:"content"`
+	// Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the
+	// IP, proves it too.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofFile) GetContent() string {
+	return s.Content
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofFile) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofFile) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofFile) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofFile) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofFile) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeProofMethod string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeProofMethodDNSTxt    ExposurePostExposureTreeIDVerifyOKNodeProofMethod = "dns_txt"
+	ExposurePostExposureTreeIDVerifyOKNodeProofMethodBoxEgress ExposurePostExposureTreeIDVerifyOKNodeProofMethod = "box_egress"
+	ExposurePostExposureTreeIDVerifyOKNodeProofMethodIPFile    ExposurePostExposureTreeIDVerifyOKNodeProofMethod = "ip_file"
+	ExposurePostExposureTreeIDVerifyOKNodeProofMethodIPPtr     ExposurePostExposureTreeIDVerifyOKNodeProofMethod = "ip_ptr"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeProofMethod values.
+func (ExposurePostExposureTreeIDVerifyOKNodeProofMethod) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeProofMethod {
+	return []ExposurePostExposureTreeIDVerifyOKNodeProofMethod{
+		ExposurePostExposureTreeIDVerifyOKNodeProofMethodDNSTxt,
+		ExposurePostExposureTreeIDVerifyOKNodeProofMethodBoxEgress,
+		ExposurePostExposureTreeIDVerifyOKNodeProofMethodIPFile,
+		ExposurePostExposureTreeIDVerifyOKNodeProofMethodIPPtr,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeProofMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeProofMethodDNSTxt:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofMethodIPFile:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofMethodIPPtr:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofMethod) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeProofMethod(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeProofMethodDNSTxt:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeProofMethodDNSTxt
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofMethodBoxEgress:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeProofMethodBoxEgress
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofMethodIPFile:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeProofMethodIPFile
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofMethodIPPtr:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeProofMethodIPPtr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+type ExposurePostExposureTreeIDVerifyOKNodeProofState string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeProofStateProven     ExposurePostExposureTreeIDVerifyOKNodeProofState = "proven"
+	ExposurePostExposureTreeIDVerifyOKNodeProofStateCovered    ExposurePostExposureTreeIDVerifyOKNodeProofState = "covered"
+	ExposurePostExposureTreeIDVerifyOKNodeProofStateMissing    ExposurePostExposureTreeIDVerifyOKNodeProofState = "missing"
+	ExposurePostExposureTreeIDVerifyOKNodeProofStateExpired    ExposurePostExposureTreeIDVerifyOKNodeProofState = "expired"
+	ExposurePostExposureTreeIDVerifyOKNodeProofStateNotCurrent ExposurePostExposureTreeIDVerifyOKNodeProofState = "not_current"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeProofState values.
+func (ExposurePostExposureTreeIDVerifyOKNodeProofState) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeProofState {
+	return []ExposurePostExposureTreeIDVerifyOKNodeProofState{
+		ExposurePostExposureTreeIDVerifyOKNodeProofStateProven,
+		ExposurePostExposureTreeIDVerifyOKNodeProofStateCovered,
+		ExposurePostExposureTreeIDVerifyOKNodeProofStateMissing,
+		ExposurePostExposureTreeIDVerifyOKNodeProofStateExpired,
+		ExposurePostExposureTreeIDVerifyOKNodeProofStateNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeProofState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeProofStateProven:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofStateCovered:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofStateMissing:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofStateExpired:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofStateNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofState) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeProofState(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeProofStateProven:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeProofStateProven
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofStateCovered:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeProofStateCovered
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofStateMissing:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeProofStateMissing
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofStateExpired:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeProofStateExpired
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeProofStateNotCurrent:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeProofStateNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeScopeMode string
+
+const (
+	ExposurePostExposureTreeIDVerifyOKNodeScopeModeSelf     ExposurePostExposureTreeIDVerifyOKNodeScopeMode = "self"
+	ExposurePostExposureTreeIDVerifyOKNodeScopeModeAll      ExposurePostExposureTreeIDVerifyOKNodeScopeMode = "all"
+	ExposurePostExposureTreeIDVerifyOKNodeScopeModeSelected ExposurePostExposureTreeIDVerifyOKNodeScopeMode = "selected"
+)
+
+// AllValues returns all ExposurePostExposureTreeIDVerifyOKNodeScopeMode values.
+func (ExposurePostExposureTreeIDVerifyOKNodeScopeMode) AllValues() []ExposurePostExposureTreeIDVerifyOKNodeScopeMode {
+	return []ExposurePostExposureTreeIDVerifyOKNodeScopeMode{
+		ExposurePostExposureTreeIDVerifyOKNodeScopeModeSelf,
+		ExposurePostExposureTreeIDVerifyOKNodeScopeModeAll,
+		ExposurePostExposureTreeIDVerifyOKNodeScopeModeSelected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeIDVerifyOKNodeScopeMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeIDVerifyOKNodeScopeModeSelf:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeScopeModeAll:
+		return []byte(s), nil
+	case ExposurePostExposureTreeIDVerifyOKNodeScopeModeSelected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeScopeMode) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeIDVerifyOKNodeScopeMode(data) {
+	case ExposurePostExposureTreeIDVerifyOKNodeScopeModeSelf:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeScopeModeSelf
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeScopeModeAll:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeScopeModeAll
+		return nil
+	case ExposurePostExposureTreeIDVerifyOKNodeScopeModeSelected:
+		*s = ExposurePostExposureTreeIDVerifyOKNodeScopeModeSelected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this node, to accept or read again.
+type ExposurePostExposureTreeIDVerifyOKNodeTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePostExposureTreeReq struct {
+	Kind      OptExposurePostExposureTreeReqKind      `json:"kind"`
+	ScopeMode OptExposurePostExposureTreeReqScopeMode `json:"scope_mode"`
+	Value     string                                  `json:"value"`
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePostExposureTreeReq) GetKind() OptExposurePostExposureTreeReqKind {
+	return s.Kind
+}
+
+// GetScopeMode returns the value of ScopeMode.
+func (s *ExposurePostExposureTreeReq) GetScopeMode() OptExposurePostExposureTreeReqScopeMode {
+	return s.ScopeMode
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePostExposureTreeReq) GetValue() string {
+	return s.Value
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePostExposureTreeReq) SetKind(val OptExposurePostExposureTreeReqKind) {
+	s.Kind = val
+}
+
+// SetScopeMode sets the value of ScopeMode.
+func (s *ExposurePostExposureTreeReq) SetScopeMode(val OptExposurePostExposureTreeReqScopeMode) {
+	s.ScopeMode = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePostExposureTreeReq) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePostExposureTreeReqKind string
+
+const (
+	ExposurePostExposureTreeReqKindDomain ExposurePostExposureTreeReqKind = "domain"
+	ExposurePostExposureTreeReqKindIP     ExposurePostExposureTreeReqKind = "ip"
+)
+
+// AllValues returns all ExposurePostExposureTreeReqKind values.
+func (ExposurePostExposureTreeReqKind) AllValues() []ExposurePostExposureTreeReqKind {
+	return []ExposurePostExposureTreeReqKind{
+		ExposurePostExposureTreeReqKindDomain,
+		ExposurePostExposureTreeReqKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeReqKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeReqKindDomain:
+		return []byte(s), nil
+	case ExposurePostExposureTreeReqKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeReqKind) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeReqKind(data) {
+	case ExposurePostExposureTreeReqKindDomain:
+		*s = ExposurePostExposureTreeReqKindDomain
+		return nil
+	case ExposurePostExposureTreeReqKindIP:
+		*s = ExposurePostExposureTreeReqKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTreeReqScopeMode string
+
+const (
+	ExposurePostExposureTreeReqScopeModeSelf     ExposurePostExposureTreeReqScopeMode = "self"
+	ExposurePostExposureTreeReqScopeModeAll      ExposurePostExposureTreeReqScopeMode = "all"
+	ExposurePostExposureTreeReqScopeModeSelected ExposurePostExposureTreeReqScopeMode = "selected"
+)
+
+// AllValues returns all ExposurePostExposureTreeReqScopeMode values.
+func (ExposurePostExposureTreeReqScopeMode) AllValues() []ExposurePostExposureTreeReqScopeMode {
+	return []ExposurePostExposureTreeReqScopeMode{
+		ExposurePostExposureTreeReqScopeModeSelf,
+		ExposurePostExposureTreeReqScopeModeAll,
+		ExposurePostExposureTreeReqScopeModeSelected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTreeReqScopeMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTreeReqScopeModeSelf:
+		return []byte(s), nil
+	case ExposurePostExposureTreeReqScopeModeAll:
+		return []byte(s), nil
+	case ExposurePostExposureTreeReqScopeModeSelected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTreeReqScopeMode) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTreeReqScopeMode(data) {
+	case ExposurePostExposureTreeReqScopeModeSelf:
+		*s = ExposurePostExposureTreeReqScopeModeSelf
+		return nil
+	case ExposurePostExposureTreeReqScopeModeAll:
+		*s = ExposurePostExposureTreeReqScopeModeAll
+		return nil
+	case ExposurePostExposureTreeReqScopeModeSelected:
+		*s = ExposurePostExposureTreeReqScopeModeSelected
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -65094,1756 +76356,6 @@ func (s *ExposurePutExposureGreenboneReq) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
-type ExposurePutExposureTargetsIDScheduleOK struct {
-	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
-	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
-	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
-	BlockedReason NilExposurePutExposureTargetsIDScheduleOKBlockedReason `json:"blocked_reason"`
-	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
-	// sentence shown next to the button.
-	Commitment NilExposurePutExposureTargetsIDScheduleOKCommitment `json:"commitment"`
-	// The sentence the first Scan now of an administrator confirms, with this target in it; null once the
-	// target has a commitment of the current sentence; an older one is asked again once, so a target with
-	// a commitment can carry it too.
-	CommitmentNotice NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice `json:"commitment_notice"`
-	CreatedAt        time.Time                                                 `json:"created_at"`
-	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
-	// re-checked right before every scan).
-	ExpiresAt NilDateTime `json:"expires_at"`
-	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
-	// the Scan now sentence.
-	FullScan bool   `json:"full_scan"`
-	ID       string `json:"id"`
-	// Typed IP: where the proof file goes and which domains of this box can carry a reverse DNS name that
-	// proves it; null for a domain and for an IP the box found.
-	IPProof   NilExposurePutExposureTargetsIDScheduleOKIPProof   `json:"ip_proof"`
-	Kind      ExposurePutExposureTargetsIDScheduleOKKind         `json:"kind"`
-	LastCheck NilExposurePutExposureTargetsIDScheduleOKLastCheck `json:"last_check"`
-	// When the newest scan started: every page names a scan by its start.
-	LastScanAt NilDateTime `json:"last_scan_at"`
-	// When the newest scan ended (its OpenVAS step is its last); null while OpenVAS still runs, when never
-	// scanned, or when not known.
-	LastScanFinishedAt OptNilDateTime                                  `json:"last_scan_finished_at"`
-	Latest             NilExposurePutExposureTargetsIDScheduleOKLatest `json:"latest"`
-	Method             NilExposurePutExposureTargetsIDScheduleOKMethod `json:"method"`
-	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
-	// every 6 hours while it is not found); null otherwise.
-	NextCheckAt NilDateTime `json:"next_check_at"`
-	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
-	OpenExposures int `json:"open_exposures"`
-	// The first 20 open ports of the newest scan, in its order (latest.ports is the total), so the list
-	// can say what is open; null when never scanned.
-	OpenPorts []ExposurePutExposureTargetsIDScheduleOKOpenPortsItem `json:"open_ports"`
-	// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
-	// its own egress address, neutral until its testing terms are accepted).
-	Origin ExposurePutExposureTargetsIDScheduleOKOrigin `json:"origin"`
-	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
-	Proof NilExposurePutExposureTargetsIDScheduleOKProof `json:"proof"`
-	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-	// scan confirmation or testing terms are not accepted yet).
-	ScanState ExposurePutExposureTargetsIDScheduleOKScanState `json:"scan_state"`
-	Scannable bool                                            `json:"scannable"`
-	// How often the box scans the target by itself, when next, and why not.
-	Schedule ExposurePutExposureTargetsIDScheduleOKSchedule `json:"schedule"`
-	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
-	Status ExposurePutExposureTargetsIDScheduleOKStatus `json:"status"`
-	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
-	// count (full_scan is false) until accepted again.
-	Terms NilExposurePutExposureTargetsIDScheduleOKTerms `json:"terms"`
-	// The current testing terms for this target, to accept or to read again.
-	TermsNotice ExposurePutExposureTargetsIDScheduleOKTermsNotice `json:"terms_notice"`
-	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
-	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
-	// shared_address) while it shows.
-	TermsWarning OptNilString `json:"terms_warning"`
-	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
-	// token the proof file carries (ip_proof). IP the box found: empty string.
-	Token string `json:"token"`
-	// IPs only: expiring = 5 days or less left.
-	Validity NilExposurePutExposureTargetsIDScheduleOKValidity `json:"validity"`
-	Value    string                                            `json:"value"`
-	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
-	// sighting renews it). Typed IP: the last time its proof was found.
-	VerifiedAt NilDateTime `json:"verified_at"`
-}
-
-// GetBlockedReason returns the value of BlockedReason.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetBlockedReason() NilExposurePutExposureTargetsIDScheduleOKBlockedReason {
-	return s.BlockedReason
-}
-
-// GetCommitment returns the value of Commitment.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetCommitment() NilExposurePutExposureTargetsIDScheduleOKCommitment {
-	return s.Commitment
-}
-
-// GetCommitmentNotice returns the value of CommitmentNotice.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetCommitmentNotice() NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice {
-	return s.CommitmentNotice
-}
-
-// GetCreatedAt returns the value of CreatedAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetCreatedAt() time.Time {
-	return s.CreatedAt
-}
-
-// GetExpiresAt returns the value of ExpiresAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetExpiresAt() NilDateTime {
-	return s.ExpiresAt
-}
-
-// GetFullScan returns the value of FullScan.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetFullScan() bool {
-	return s.FullScan
-}
-
-// GetID returns the value of ID.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetID() string {
-	return s.ID
-}
-
-// GetIPProof returns the value of IPProof.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetIPProof() NilExposurePutExposureTargetsIDScheduleOKIPProof {
-	return s.IPProof
-}
-
-// GetKind returns the value of Kind.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetKind() ExposurePutExposureTargetsIDScheduleOKKind {
-	return s.Kind
-}
-
-// GetLastCheck returns the value of LastCheck.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetLastCheck() NilExposurePutExposureTargetsIDScheduleOKLastCheck {
-	return s.LastCheck
-}
-
-// GetLastScanAt returns the value of LastScanAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetLastScanAt() NilDateTime {
-	return s.LastScanAt
-}
-
-// GetLastScanFinishedAt returns the value of LastScanFinishedAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetLastScanFinishedAt() OptNilDateTime {
-	return s.LastScanFinishedAt
-}
-
-// GetLatest returns the value of Latest.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetLatest() NilExposurePutExposureTargetsIDScheduleOKLatest {
-	return s.Latest
-}
-
-// GetMethod returns the value of Method.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetMethod() NilExposurePutExposureTargetsIDScheduleOKMethod {
-	return s.Method
-}
-
-// GetNextCheckAt returns the value of NextCheckAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetNextCheckAt() NilDateTime {
-	return s.NextCheckAt
-}
-
-// GetOpenExposures returns the value of OpenExposures.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetOpenExposures() int {
-	return s.OpenExposures
-}
-
-// GetOpenPorts returns the value of OpenPorts.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetOpenPorts() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItem {
-	return s.OpenPorts
-}
-
-// GetOrigin returns the value of Origin.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetOrigin() ExposurePutExposureTargetsIDScheduleOKOrigin {
-	return s.Origin
-}
-
-// GetProof returns the value of Proof.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetProof() NilExposurePutExposureTargetsIDScheduleOKProof {
-	return s.Proof
-}
-
-// GetScanState returns the value of ScanState.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetScanState() ExposurePutExposureTargetsIDScheduleOKScanState {
-	return s.ScanState
-}
-
-// GetScannable returns the value of Scannable.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetScannable() bool {
-	return s.Scannable
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetSchedule() ExposurePutExposureTargetsIDScheduleOKSchedule {
-	return s.Schedule
-}
-
-// GetStatus returns the value of Status.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetStatus() ExposurePutExposureTargetsIDScheduleOKStatus {
-	return s.Status
-}
-
-// GetTerms returns the value of Terms.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetTerms() NilExposurePutExposureTargetsIDScheduleOKTerms {
-	return s.Terms
-}
-
-// GetTermsNotice returns the value of TermsNotice.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetTermsNotice() ExposurePutExposureTargetsIDScheduleOKTermsNotice {
-	return s.TermsNotice
-}
-
-// GetTermsWarning returns the value of TermsWarning.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetTermsWarning() OptNilString {
-	return s.TermsWarning
-}
-
-// GetToken returns the value of Token.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetToken() string {
-	return s.Token
-}
-
-// GetValidity returns the value of Validity.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetValidity() NilExposurePutExposureTargetsIDScheduleOKValidity {
-	return s.Validity
-}
-
-// GetValue returns the value of Value.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetValue() string {
-	return s.Value
-}
-
-// GetVerifiedAt returns the value of VerifiedAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) GetVerifiedAt() NilDateTime {
-	return s.VerifiedAt
-}
-
-// SetBlockedReason sets the value of BlockedReason.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetBlockedReason(val NilExposurePutExposureTargetsIDScheduleOKBlockedReason) {
-	s.BlockedReason = val
-}
-
-// SetCommitment sets the value of Commitment.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetCommitment(val NilExposurePutExposureTargetsIDScheduleOKCommitment) {
-	s.Commitment = val
-}
-
-// SetCommitmentNotice sets the value of CommitmentNotice.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetCommitmentNotice(val NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) {
-	s.CommitmentNotice = val
-}
-
-// SetCreatedAt sets the value of CreatedAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetCreatedAt(val time.Time) {
-	s.CreatedAt = val
-}
-
-// SetExpiresAt sets the value of ExpiresAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetExpiresAt(val NilDateTime) {
-	s.ExpiresAt = val
-}
-
-// SetFullScan sets the value of FullScan.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetFullScan(val bool) {
-	s.FullScan = val
-}
-
-// SetID sets the value of ID.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetID(val string) {
-	s.ID = val
-}
-
-// SetIPProof sets the value of IPProof.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetIPProof(val NilExposurePutExposureTargetsIDScheduleOKIPProof) {
-	s.IPProof = val
-}
-
-// SetKind sets the value of Kind.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetKind(val ExposurePutExposureTargetsIDScheduleOKKind) {
-	s.Kind = val
-}
-
-// SetLastCheck sets the value of LastCheck.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetLastCheck(val NilExposurePutExposureTargetsIDScheduleOKLastCheck) {
-	s.LastCheck = val
-}
-
-// SetLastScanAt sets the value of LastScanAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetLastScanAt(val NilDateTime) {
-	s.LastScanAt = val
-}
-
-// SetLastScanFinishedAt sets the value of LastScanFinishedAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetLastScanFinishedAt(val OptNilDateTime) {
-	s.LastScanFinishedAt = val
-}
-
-// SetLatest sets the value of Latest.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetLatest(val NilExposurePutExposureTargetsIDScheduleOKLatest) {
-	s.Latest = val
-}
-
-// SetMethod sets the value of Method.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetMethod(val NilExposurePutExposureTargetsIDScheduleOKMethod) {
-	s.Method = val
-}
-
-// SetNextCheckAt sets the value of NextCheckAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetNextCheckAt(val NilDateTime) {
-	s.NextCheckAt = val
-}
-
-// SetOpenExposures sets the value of OpenExposures.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetOpenExposures(val int) {
-	s.OpenExposures = val
-}
-
-// SetOpenPorts sets the value of OpenPorts.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetOpenPorts(val []ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) {
-	s.OpenPorts = val
-}
-
-// SetOrigin sets the value of Origin.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetOrigin(val ExposurePutExposureTargetsIDScheduleOKOrigin) {
-	s.Origin = val
-}
-
-// SetProof sets the value of Proof.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetProof(val NilExposurePutExposureTargetsIDScheduleOKProof) {
-	s.Proof = val
-}
-
-// SetScanState sets the value of ScanState.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetScanState(val ExposurePutExposureTargetsIDScheduleOKScanState) {
-	s.ScanState = val
-}
-
-// SetScannable sets the value of Scannable.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetScannable(val bool) {
-	s.Scannable = val
-}
-
-// SetSchedule sets the value of Schedule.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetSchedule(val ExposurePutExposureTargetsIDScheduleOKSchedule) {
-	s.Schedule = val
-}
-
-// SetStatus sets the value of Status.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetStatus(val ExposurePutExposureTargetsIDScheduleOKStatus) {
-	s.Status = val
-}
-
-// SetTerms sets the value of Terms.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetTerms(val NilExposurePutExposureTargetsIDScheduleOKTerms) {
-	s.Terms = val
-}
-
-// SetTermsNotice sets the value of TermsNotice.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetTermsNotice(val ExposurePutExposureTargetsIDScheduleOKTermsNotice) {
-	s.TermsNotice = val
-}
-
-// SetTermsWarning sets the value of TermsWarning.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetTermsWarning(val OptNilString) {
-	s.TermsWarning = val
-}
-
-// SetToken sets the value of Token.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetToken(val string) {
-	s.Token = val
-}
-
-// SetValidity sets the value of Validity.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetValidity(val NilExposurePutExposureTargetsIDScheduleOKValidity) {
-	s.Validity = val
-}
-
-// SetValue sets the value of Value.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetValue(val string) {
-	s.Value = val
-}
-
-// SetVerifiedAt sets the value of VerifiedAt.
-func (s *ExposurePutExposureTargetsIDScheduleOK) SetVerifiedAt(val NilDateTime) {
-	s.VerifiedAt = val
-}
-
-type ExposurePutExposureTargetsIDScheduleOKBlockedReason string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified   ExposurePutExposureTargetsIDScheduleOKBlockedReason = "unverified"
-	ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired      ExposurePutExposureTargetsIDScheduleOKBlockedReason = "expired"
-	ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing   ExposurePutExposureTargetsIDScheduleOKBlockedReason = "txt_missing"
-	ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing ExposurePutExposureTargetsIDScheduleOKBlockedReason = "proof_missing"
-	ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment ExposurePutExposureTargetsIDScheduleOKBlockedReason = "no_commitment"
-	ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent ExposurePutExposureTargetsIDScheduleOKBlockedReason = "ip_not_current"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKBlockedReason values.
-func (ExposurePutExposureTargetsIDScheduleOKBlockedReason) AllValues() []ExposurePutExposureTargetsIDScheduleOKBlockedReason {
-	return []ExposurePutExposureTargetsIDScheduleOKBlockedReason{
-		ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified,
-		ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired,
-		ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing,
-		ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing,
-		ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment,
-		ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKBlockedReason) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKBlockedReason) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKBlockedReason(data) {
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified:
-		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonUnverified
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired:
-		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonExpired
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing:
-		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonTxtMissing
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing:
-		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonProofMissing
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment:
-		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonNoCommitment
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent:
-		*s = ExposurePutExposureTargetsIDScheduleOKBlockedReasonIPNotCurrent
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ExposurePutExposureTargetsIDScheduleOKCommitment struct {
-	At time.Time `json:"at"`
-	By string    `json:"by"`
-	// The exact sentence, with the target in it, kept with who and when; null on a commitment recorded by
-	// an older version.
-	Sentence NilString `json:"sentence"`
-	// Version of the sentence the administrator saw next to Scan now; null on a commitment recorded by an
-	// older version.
-	Version NilString `json:"version"`
-}
-
-// GetAt returns the value of At.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetAt() time.Time {
-	return s.At
-}
-
-// GetBy returns the value of By.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetBy() string {
-	return s.By
-}
-
-// GetSentence returns the value of Sentence.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetSentence() NilString {
-	return s.Sentence
-}
-
-// GetVersion returns the value of Version.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) GetVersion() NilString {
-	return s.Version
-}
-
-// SetAt sets the value of At.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetAt(val time.Time) {
-	s.At = val
-}
-
-// SetBy sets the value of By.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetBy(val string) {
-	s.By = val
-}
-
-// SetSentence sets the value of Sentence.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetSentence(val NilString) {
-	s.Sentence = val
-}
-
-// SetVersion sets the value of Version.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitment) SetVersion(val NilString) {
-	s.Version = val
-}
-
-type ExposurePutExposureTargetsIDScheduleOKCommitmentNotice struct {
-	Text    string `json:"text"`
-	Version string `json:"version"`
-}
-
-// GetText returns the value of Text.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) GetText() string {
-	return s.Text
-}
-
-// GetVersion returns the value of Version.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) GetVersion() string {
-	return s.Version
-}
-
-// SetText sets the value of Text.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetText(val string) {
-	s.Text = val
-}
-
-// SetVersion sets the value of Version.
-func (s *ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetVersion(val string) {
-	s.Version = val
-}
-
-type ExposurePutExposureTargetsIDScheduleOKIPProof struct {
-	// The token: the whole content of the file.
-	Content string `json:"content"`
-	// /.well-known/vedette-verify.txt.
-	Path string `json:"path"`
-	// Domains of this box that are proved as far as the last check knows: a reverse DNS (PTR) name of the
-	// IP under one of them, resolving back to the IP, proves it.
-	PtrDomains []string `json:"ptr_domains"`
-	// The two addresses the box asks, http and https, on the IP.
-	Urls []string `json:"urls"`
-}
-
-// GetContent returns the value of Content.
-func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetContent() string {
-	return s.Content
-}
-
-// GetPath returns the value of Path.
-func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetPath() string {
-	return s.Path
-}
-
-// GetPtrDomains returns the value of PtrDomains.
-func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetPtrDomains() []string {
-	return s.PtrDomains
-}
-
-// GetUrls returns the value of Urls.
-func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) GetUrls() []string {
-	return s.Urls
-}
-
-// SetContent sets the value of Content.
-func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetContent(val string) {
-	s.Content = val
-}
-
-// SetPath sets the value of Path.
-func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetPath(val string) {
-	s.Path = val
-}
-
-// SetPtrDomains sets the value of PtrDomains.
-func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetPtrDomains(val []string) {
-	s.PtrDomains = val
-}
-
-// SetUrls sets the value of Urls.
-func (s *ExposurePutExposureTargetsIDScheduleOKIPProof) SetUrls(val []string) {
-	s.Urls = val
-}
-
-type ExposurePutExposureTargetsIDScheduleOKKind string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKKindDomain ExposurePutExposureTargetsIDScheduleOKKind = "domain"
-	ExposurePutExposureTargetsIDScheduleOKKindIP     ExposurePutExposureTargetsIDScheduleOKKind = "ip"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKKind values.
-func (ExposurePutExposureTargetsIDScheduleOKKind) AllValues() []ExposurePutExposureTargetsIDScheduleOKKind {
-	return []ExposurePutExposureTargetsIDScheduleOKKind{
-		ExposurePutExposureTargetsIDScheduleOKKindDomain,
-		ExposurePutExposureTargetsIDScheduleOKKindIP,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKKind) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKKindDomain:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKKindIP:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKKind) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKKind(data) {
-	case ExposurePutExposureTargetsIDScheduleOKKindDomain:
-		*s = ExposurePutExposureTargetsIDScheduleOKKindDomain
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKKindIP:
-		*s = ExposurePutExposureTargetsIDScheduleOKKindIP
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ExposurePutExposureTargetsIDScheduleOKLastCheck struct {
-	At      time.Time `json:"at"`
-	Message string    `json:"message"`
-	Ok      bool      `json:"ok"`
-}
-
-// GetAt returns the value of At.
-func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) GetAt() time.Time {
-	return s.At
-}
-
-// GetMessage returns the value of Message.
-func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) GetMessage() string {
-	return s.Message
-}
-
-// GetOk returns the value of Ok.
-func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) GetOk() bool {
-	return s.Ok
-}
-
-// SetAt sets the value of At.
-func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) SetAt(val time.Time) {
-	s.At = val
-}
-
-// SetMessage sets the value of Message.
-func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) SetMessage(val string) {
-	s.Message = val
-}
-
-// SetOk sets the value of Ok.
-func (s *ExposurePutExposureTargetsIDScheduleOKLastCheck) SetOk(val bool) {
-	s.Ok = val
-}
-
-type ExposurePutExposureTargetsIDScheduleOKLatest struct {
-	AdminPanels   int `json:"admin_panels"`
-	CertsExpiring int `json:"certs_expiring"`
-	Ips           int `json:"ips"`
-	Ports         int `json:"ports"`
-	Subdomains    int `json:"subdomains"`
-}
-
-// GetAdminPanels returns the value of AdminPanels.
-func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetAdminPanels() int {
-	return s.AdminPanels
-}
-
-// GetCertsExpiring returns the value of CertsExpiring.
-func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetCertsExpiring() int {
-	return s.CertsExpiring
-}
-
-// GetIps returns the value of Ips.
-func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetIps() int {
-	return s.Ips
-}
-
-// GetPorts returns the value of Ports.
-func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetPorts() int {
-	return s.Ports
-}
-
-// GetSubdomains returns the value of Subdomains.
-func (s *ExposurePutExposureTargetsIDScheduleOKLatest) GetSubdomains() int {
-	return s.Subdomains
-}
-
-// SetAdminPanels sets the value of AdminPanels.
-func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetAdminPanels(val int) {
-	s.AdminPanels = val
-}
-
-// SetCertsExpiring sets the value of CertsExpiring.
-func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetCertsExpiring(val int) {
-	s.CertsExpiring = val
-}
-
-// SetIps sets the value of Ips.
-func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetIps(val int) {
-	s.Ips = val
-}
-
-// SetPorts sets the value of Ports.
-func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetPorts(val int) {
-	s.Ports = val
-}
-
-// SetSubdomains sets the value of Subdomains.
-func (s *ExposurePutExposureTargetsIDScheduleOKLatest) SetSubdomains(val int) {
-	s.Subdomains = val
-}
-
-type ExposurePutExposureTargetsIDScheduleOKMethod string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt    ExposurePutExposureTargetsIDScheduleOKMethod = "dns_txt"
-	ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress ExposurePutExposureTargetsIDScheduleOKMethod = "box_egress"
-	ExposurePutExposureTargetsIDScheduleOKMethodIPFile    ExposurePutExposureTargetsIDScheduleOKMethod = "ip_file"
-	ExposurePutExposureTargetsIDScheduleOKMethodIPPtr     ExposurePutExposureTargetsIDScheduleOKMethod = "ip_ptr"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKMethod values.
-func (ExposurePutExposureTargetsIDScheduleOKMethod) AllValues() []ExposurePutExposureTargetsIDScheduleOKMethod {
-	return []ExposurePutExposureTargetsIDScheduleOKMethod{
-		ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt,
-		ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress,
-		ExposurePutExposureTargetsIDScheduleOKMethodIPFile,
-		ExposurePutExposureTargetsIDScheduleOKMethodIPPtr,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKMethod) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKMethodIPFile:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKMethodIPPtr:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKMethod) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKMethod(data) {
-	case ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt:
-		*s = ExposurePutExposureTargetsIDScheduleOKMethodDNSTxt
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress:
-		*s = ExposurePutExposureTargetsIDScheduleOKMethodBoxEgress
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKMethodIPFile:
-		*s = ExposurePutExposureTargetsIDScheduleOKMethodIPFile
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKMethodIPPtr:
-		*s = ExposurePutExposureTargetsIDScheduleOKMethodIPPtr
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ExposurePutExposureTargetsIDScheduleOKOpenPortsItem struct {
-	// The network appliance the port names, with the inventory devices of that family; absent when none.
-	Appliance OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance `json:"appliance"`
-	// The names of the port's TLS certificate as the deep scan read them (subject common name, then DNS
-	// alternative names), at most 5.
-	CertNames []string `json:"cert_names"`
-	// How service identification named the service: probed (a probe's answer, or the surface scan's GET
-	// read a product), port (only the usual service of the port number: not confirmed), none (nothing
-	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
-	// the port, or an older scan.
-	Ident OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent `json:"ident"`
-	IP    string                                                      `json:"ip"`
-	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
-	// saw it open (INV-22).
-	LastSeen OptString `json:"last_seen"`
-	// Where the port's first page redirects, when the deep scan did not follow it (http-title).
-	Location OptString `json:"location"`
-	// With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the
-	// last scan).
-	Misses  OptInt    `json:"misses"`
-	Port    int       `json:"port"`
-	Product OptString `json:"product"`
-	// The HTTP Server header on the port (deep scan, http-server-header).
-	Server  OptString `json:"server"`
-	Service string    `json:"service"`
-	// The title of the web page on the port (deep scan, http-title).
-	Title OptString `json:"title"`
-	// The newest scan did not check the address: the row is as an earlier scan left it.
-	Unchecked OptBool `json:"unchecked"`
-}
-
-// GetAppliance returns the value of Appliance.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetAppliance() OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance {
-	return s.Appliance
-}
-
-// GetCertNames returns the value of CertNames.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetCertNames() []string {
-	return s.CertNames
-}
-
-// GetIdent returns the value of Ident.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetIdent() OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
-	return s.Ident
-}
-
-// GetIP returns the value of IP.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetIP() string {
-	return s.IP
-}
-
-// GetLastSeen returns the value of LastSeen.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetLastSeen() OptString {
-	return s.LastSeen
-}
-
-// GetLocation returns the value of Location.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetLocation() OptString {
-	return s.Location
-}
-
-// GetMisses returns the value of Misses.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetMisses() OptInt {
-	return s.Misses
-}
-
-// GetPort returns the value of Port.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetPort() int {
-	return s.Port
-}
-
-// GetProduct returns the value of Product.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetProduct() OptString {
-	return s.Product
-}
-
-// GetServer returns the value of Server.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetServer() OptString {
-	return s.Server
-}
-
-// GetService returns the value of Service.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetService() string {
-	return s.Service
-}
-
-// GetTitle returns the value of Title.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetTitle() OptString {
-	return s.Title
-}
-
-// GetUnchecked returns the value of Unchecked.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) GetUnchecked() OptBool {
-	return s.Unchecked
-}
-
-// SetAppliance sets the value of Appliance.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetAppliance(val OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) {
-	s.Appliance = val
-}
-
-// SetCertNames sets the value of CertNames.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetCertNames(val []string) {
-	s.CertNames = val
-}
-
-// SetIdent sets the value of Ident.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetIdent(val OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) {
-	s.Ident = val
-}
-
-// SetIP sets the value of IP.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetIP(val string) {
-	s.IP = val
-}
-
-// SetLastSeen sets the value of LastSeen.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetLastSeen(val OptString) {
-	s.LastSeen = val
-}
-
-// SetLocation sets the value of Location.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetLocation(val OptString) {
-	s.Location = val
-}
-
-// SetMisses sets the value of Misses.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetMisses(val OptInt) {
-	s.Misses = val
-}
-
-// SetPort sets the value of Port.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetPort(val int) {
-	s.Port = val
-}
-
-// SetProduct sets the value of Product.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetProduct(val OptString) {
-	s.Product = val
-}
-
-// SetServer sets the value of Server.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetServer(val OptString) {
-	s.Server = val
-}
-
-// SetService sets the value of Service.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetService(val string) {
-	s.Service = val
-}
-
-// SetTitle sets the value of Title.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetTitle(val OptString) {
-	s.Title = val
-}
-
-// SetUnchecked sets the value of Unchecked.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItem) SetUnchecked(val OptBool) {
-	s.Unchecked = val
-}
-
-// The network appliance the port names, with the inventory devices of that family; absent when none.
-type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance struct {
-	// The inventory devices of the family (its own vendor, model or OS, never a PC with the vendor's VPN
-	// client), at most 5, with their open exploited findings; [] when none is in the inventory; null when
-	// Vedette cannot tell or the product has no family.
-	Devices []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem `json:"devices"`
-	// Which statement of the port named it.
-	Evidence ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence `json:"evidence"`
-	// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-	// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
-	Kind ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind `json:"kind"`
-	// Devices of the family beyond the 5 listed.
-	More OptInt `json:"more"`
-	// The appliance family (FortiGate, Palo Alto firewall, Check Point gateway, F5 BIG-IP, WatchGuard
-	// Firebox…), or the product for a page of no appliance family (Synology DSM, Jenkins).
-	Name string `json:"name"`
-	// The family's vendor; "" for a product of no family.
-	Vendor string `json:"vendor"`
-}
-
-// GetDevices returns the value of Devices.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetDevices() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem {
-	return s.Devices
-}
-
-// GetEvidence returns the value of Evidence.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetEvidence() ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence {
-	return s.Evidence
-}
-
-// GetKind returns the value of Kind.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetKind() ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind {
-	return s.Kind
-}
-
-// GetMore returns the value of More.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetMore() OptInt {
-	return s.More
-}
-
-// GetName returns the value of Name.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetName() string {
-	return s.Name
-}
-
-// GetVendor returns the value of Vendor.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) GetVendor() string {
-	return s.Vendor
-}
-
-// SetDevices sets the value of Devices.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetDevices(val []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) {
-	s.Devices = val
-}
-
-// SetEvidence sets the value of Evidence.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetEvidence(val ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) {
-	s.Evidence = val
-}
-
-// SetKind sets the value of Kind.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetKind(val ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) {
-	s.Kind = val
-}
-
-// SetMore sets the value of More.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetMore(val OptInt) {
-	s.More = val
-}
-
-// SetName sets the value of Name.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetName(val string) {
-	s.Name = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetVendor(val string) {
-	s.Vendor = val
-}
-
-type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem struct {
-	DeviceID string `json:"device_id"`
-	Name     string `json:"name"`
-	// Open exploited (KEV) findings of the device.
-	OpenExploited int `json:"open_exploited"`
-}
-
-// GetDeviceID returns the value of DeviceID.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) GetDeviceID() string {
-	return s.DeviceID
-}
-
-// GetName returns the value of Name.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) GetName() string {
-	return s.Name
-}
-
-// GetOpenExploited returns the value of OpenExploited.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) GetOpenExploited() int {
-	return s.OpenExploited
-}
-
-// SetDeviceID sets the value of DeviceID.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) SetDeviceID(val string) {
-	s.DeviceID = val
-}
-
-// SetName sets the value of Name.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) SetName(val string) {
-	s.Name = val
-}
-
-// SetOpenExploited sets the value of OpenExploited.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceDevicesItem) SetOpenExploited(val int) {
-	s.OpenExploited = val
-}
-
-// Which statement of the port named it.
-type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "certificate"
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle       ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "title"
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer      ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "server"
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect    ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "redirect"
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct     ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence = "product"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence values.
-func (ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) AllValues() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence {
-	return []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence{
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate,
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle,
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer,
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect,
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidence(data) {
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceCertificate
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceTitle
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceServer
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceRedirect
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceEvidenceProduct
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// Admin: its management page; vpn: its VPN portal (faces the Internet by design, not counted as an
-// admin interface); admin_or_vpn: a certificate, Server header or product the family uses for both.
-type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin      ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind = "admin"
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn        ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind = "vpn"
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind = "admin_or_vpn"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind values.
-func (ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) AllValues() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind {
-	return []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind{
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin,
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn,
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKind(data) {
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdmin
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindVpn
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemApplianceKindAdminOrVpn
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// How service identification named the service: probed (a probe's answer, or the surface scan's GET
-// read a product), port (only the usual service of the port number: not confirmed), none (nothing
-// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
-// the port, or an older scan.
-type ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent = "probed"
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort   ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent = "port"
-	ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone   ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent = "none"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent values.
-func (ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) AllValues() []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
-	return []ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent{
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed,
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort,
-		ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent(data) {
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentProbed
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentPort
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone:
-		*s = ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdentNone
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// Who added the target: person (a domain or a public IP typed in) or box (a public IP the box found as
-// its own egress address, neutral until its testing terms are accepted).
-type ExposurePutExposureTargetsIDScheduleOKOrigin string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKOriginPerson ExposurePutExposureTargetsIDScheduleOKOrigin = "person"
-	ExposurePutExposureTargetsIDScheduleOKOriginBox    ExposurePutExposureTargetsIDScheduleOKOrigin = "box"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKOrigin values.
-func (ExposurePutExposureTargetsIDScheduleOKOrigin) AllValues() []ExposurePutExposureTargetsIDScheduleOKOrigin {
-	return []ExposurePutExposureTargetsIDScheduleOKOrigin{
-		ExposurePutExposureTargetsIDScheduleOKOriginPerson,
-		ExposurePutExposureTargetsIDScheduleOKOriginBox,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKOrigin) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKOriginPerson:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKOriginBox:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKOrigin) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKOrigin(data) {
-	case ExposurePutExposureTargetsIDScheduleOKOriginPerson:
-		*s = ExposurePutExposureTargetsIDScheduleOKOriginPerson
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKOriginBox:
-		*s = ExposurePutExposureTargetsIDScheduleOKOriginBox
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ExposurePutExposureTargetsIDScheduleOKProof struct {
-	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
-	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
-	// _vedette-verify. would pass 253 characters (no such name can exist).
-	AltHost NilString `json:"alt_host"`
-	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
-	// enough, no second record; null when none.
-	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
-	// there proves it, and an apex takes a record whatever the subdomain is).
-	Host string `json:"host"`
-	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
-	Zone string `json:"zone"`
-}
-
-// GetAltHost returns the value of AltHost.
-func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetAltHost() NilString {
-	return s.AltHost
-}
-
-// GetCoveredBy returns the value of CoveredBy.
-func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetCoveredBy() NilString {
-	return s.CoveredBy
-}
-
-// GetHost returns the value of Host.
-func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetHost() string {
-	return s.Host
-}
-
-// GetZone returns the value of Zone.
-func (s *ExposurePutExposureTargetsIDScheduleOKProof) GetZone() string {
-	return s.Zone
-}
-
-// SetAltHost sets the value of AltHost.
-func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetAltHost(val NilString) {
-	s.AltHost = val
-}
-
-// SetCoveredBy sets the value of CoveredBy.
-func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetCoveredBy(val NilString) {
-	s.CoveredBy = val
-}
-
-// SetHost sets the value of Host.
-func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetHost(val string) {
-	s.Host = val
-}
-
-// SetZone sets the value of Zone.
-func (s *ExposurePutExposureTargetsIDScheduleOKProof) SetZone(val string) {
-	s.Zone = val
-}
-
-// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-// scan confirmation or testing terms are not accepted yet).
-type ExposurePutExposureTargetsIDScheduleOKScanState string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKScanStateUnproved   ExposurePutExposureTargetsIDScheduleOKScanState = "unproved"
-	ExposurePutExposureTargetsIDScheduleOKScanStateExpired    ExposurePutExposureTargetsIDScheduleOKScanState = "expired"
-	ExposurePutExposureTargetsIDScheduleOKScanStatePaused     ExposurePutExposureTargetsIDScheduleOKScanState = "paused"
-	ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms ExposurePutExposureTargetsIDScheduleOKScanState = "needs_terms"
-	ExposurePutExposureTargetsIDScheduleOKScanStateReady      ExposurePutExposureTargetsIDScheduleOKScanState = "ready"
-	ExposurePutExposureTargetsIDScheduleOKScanStateQueued     ExposurePutExposureTargetsIDScheduleOKScanState = "queued"
-	ExposurePutExposureTargetsIDScheduleOKScanStateScanning   ExposurePutExposureTargetsIDScheduleOKScanState = "scanning"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKScanState values.
-func (ExposurePutExposureTargetsIDScheduleOKScanState) AllValues() []ExposurePutExposureTargetsIDScheduleOKScanState {
-	return []ExposurePutExposureTargetsIDScheduleOKScanState{
-		ExposurePutExposureTargetsIDScheduleOKScanStateUnproved,
-		ExposurePutExposureTargetsIDScheduleOKScanStateExpired,
-		ExposurePutExposureTargetsIDScheduleOKScanStatePaused,
-		ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms,
-		ExposurePutExposureTargetsIDScheduleOKScanStateReady,
-		ExposurePutExposureTargetsIDScheduleOKScanStateQueued,
-		ExposurePutExposureTargetsIDScheduleOKScanStateScanning,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKScanState) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKScanStateUnproved:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStateExpired:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStatePaused:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStateReady:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStateQueued:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStateScanning:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKScanState) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKScanState(data) {
-	case ExposurePutExposureTargetsIDScheduleOKScanStateUnproved:
-		*s = ExposurePutExposureTargetsIDScheduleOKScanStateUnproved
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStateExpired:
-		*s = ExposurePutExposureTargetsIDScheduleOKScanStateExpired
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStatePaused:
-		*s = ExposurePutExposureTargetsIDScheduleOKScanStatePaused
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms:
-		*s = ExposurePutExposureTargetsIDScheduleOKScanStateNeedsTerms
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStateReady:
-		*s = ExposurePutExposureTargetsIDScheduleOKScanStateReady
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStateQueued:
-		*s = ExposurePutExposureTargetsIDScheduleOKScanStateQueued
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKScanStateScanning:
-		*s = ExposurePutExposureTargetsIDScheduleOKScanStateScanning
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// How often the box scans the target by itself, when next, and why not.
-type ExposurePutExposureTargetsIDScheduleOKSchedule struct {
-	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-	// itself, counted from the start of its newest scan.
-	Every ExposurePutExposureTargetsIDScheduleOKScheduleEvery `json:"every"`
-	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
-	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
-	// says why).
-	NextAt NilDateTime `json:"next_at"`
-	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
-	// again"; null otherwise.
-	Note NilString `json:"note"`
-}
-
-// GetEvery returns the value of Every.
-func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) GetEvery() ExposurePutExposureTargetsIDScheduleOKScheduleEvery {
-	return s.Every
-}
-
-// GetNextAt returns the value of NextAt.
-func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) GetNextAt() NilDateTime {
-	return s.NextAt
-}
-
-// GetNote returns the value of Note.
-func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) GetNote() NilString {
-	return s.Note
-}
-
-// SetEvery sets the value of Every.
-func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) SetEvery(val ExposurePutExposureTargetsIDScheduleOKScheduleEvery) {
-	s.Every = val
-}
-
-// SetNextAt sets the value of NextAt.
-func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) SetNextAt(val NilDateTime) {
-	s.NextAt = val
-}
-
-// SetNote sets the value of Note.
-func (s *ExposurePutExposureTargetsIDScheduleOKSchedule) SetNote(val NilString) {
-	s.Note = val
-}
-
-// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-// itself, counted from the start of its newest scan.
-type ExposurePutExposureTargetsIDScheduleOKScheduleEvery string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff     ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "off"
-	ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily   ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "daily"
-	ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly  ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "weekly"
-	ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly ExposurePutExposureTargetsIDScheduleOKScheduleEvery = "monthly"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKScheduleEvery values.
-func (ExposurePutExposureTargetsIDScheduleOKScheduleEvery) AllValues() []ExposurePutExposureTargetsIDScheduleOKScheduleEvery {
-	return []ExposurePutExposureTargetsIDScheduleOKScheduleEvery{
-		ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff,
-		ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily,
-		ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly,
-		ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKScheduleEvery) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKScheduleEvery) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKScheduleEvery(data) {
-	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff:
-		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryOff
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily:
-		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryDaily
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly:
-		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryWeekly
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly:
-		*s = ExposurePutExposureTargetsIDScheduleOKScheduleEveryMonthly
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
-type ExposurePutExposureTargetsIDScheduleOKStatus string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKStatusUnverified ExposurePutExposureTargetsIDScheduleOKStatus = "unverified"
-	ExposurePutExposureTargetsIDScheduleOKStatusVerified   ExposurePutExposureTargetsIDScheduleOKStatus = "verified"
-	ExposurePutExposureTargetsIDScheduleOKStatusExpired    ExposurePutExposureTargetsIDScheduleOKStatus = "expired"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKStatus values.
-func (ExposurePutExposureTargetsIDScheduleOKStatus) AllValues() []ExposurePutExposureTargetsIDScheduleOKStatus {
-	return []ExposurePutExposureTargetsIDScheduleOKStatus{
-		ExposurePutExposureTargetsIDScheduleOKStatusUnverified,
-		ExposurePutExposureTargetsIDScheduleOKStatusVerified,
-		ExposurePutExposureTargetsIDScheduleOKStatusExpired,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKStatus) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKStatusUnverified:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKStatusVerified:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKStatusExpired:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKStatus) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKStatus(data) {
-	case ExposurePutExposureTargetsIDScheduleOKStatusUnverified:
-		*s = ExposurePutExposureTargetsIDScheduleOKStatusUnverified
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKStatusVerified:
-		*s = ExposurePutExposureTargetsIDScheduleOKStatusVerified
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKStatusExpired:
-		*s = ExposurePutExposureTargetsIDScheduleOKStatusExpired
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ExposurePutExposureTargetsIDScheduleOKTerms struct {
-	At time.Time `json:"at"`
-	By string    `json:"by"`
-	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// that send more than a harmless read too.
-	Disruptive bool `json:"disruptive"`
-	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
-	Text    string `json:"text"`
-	Version string `json:"version"`
-}
-
-// GetAt returns the value of At.
-func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetAt() time.Time {
-	return s.At
-}
-
-// GetBy returns the value of By.
-func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetBy() string {
-	return s.By
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetDisruptive() bool {
-	return s.Disruptive
-}
-
-// GetText returns the value of Text.
-func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetText() string {
-	return s.Text
-}
-
-// GetVersion returns the value of Version.
-func (s *ExposurePutExposureTargetsIDScheduleOKTerms) GetVersion() string {
-	return s.Version
-}
-
-// SetAt sets the value of At.
-func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetAt(val time.Time) {
-	s.At = val
-}
-
-// SetBy sets the value of By.
-func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetBy(val string) {
-	s.By = val
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetDisruptive(val bool) {
-	s.Disruptive = val
-}
-
-// SetText sets the value of Text.
-func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetText(val string) {
-	s.Text = val
-}
-
-// SetVersion sets the value of Version.
-func (s *ExposurePutExposureTargetsIDScheduleOKTerms) SetVersion(val string) {
-	s.Version = val
-}
-
-// The current testing terms for this target, to accept or to read again.
-type ExposurePutExposureTargetsIDScheduleOKTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
-	Text    string `json:"text"`
-	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) GetDisruptive() string {
-	return s.Disruptive
-}
-
-// GetText returns the value of Text.
-func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) GetText() string {
-	return s.Text
-}
-
-// GetVersion returns the value of Version.
-func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) GetVersion() string {
-	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
-}
-
-// SetText sets the value of Text.
-func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) SetText(val string) {
-	s.Text = val
-}
-
-// SetVersion sets the value of Version.
-func (s *ExposurePutExposureTargetsIDScheduleOKTermsNotice) SetVersion(val string) {
-	s.Version = val
-}
-
-type ExposurePutExposureTargetsIDScheduleOKValidity string
-
-const (
-	ExposurePutExposureTargetsIDScheduleOKValidityValid    ExposurePutExposureTargetsIDScheduleOKValidity = "valid"
-	ExposurePutExposureTargetsIDScheduleOKValidityExpiring ExposurePutExposureTargetsIDScheduleOKValidity = "expiring"
-	ExposurePutExposureTargetsIDScheduleOKValidityExpired  ExposurePutExposureTargetsIDScheduleOKValidity = "expired"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleOKValidity values.
-func (ExposurePutExposureTargetsIDScheduleOKValidity) AllValues() []ExposurePutExposureTargetsIDScheduleOKValidity {
-	return []ExposurePutExposureTargetsIDScheduleOKValidity{
-		ExposurePutExposureTargetsIDScheduleOKValidityValid,
-		ExposurePutExposureTargetsIDScheduleOKValidityExpiring,
-		ExposurePutExposureTargetsIDScheduleOKValidityExpired,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleOKValidity) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleOKValidityValid:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKValidityExpiring:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleOKValidityExpired:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleOKValidity) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleOKValidity(data) {
-	case ExposurePutExposureTargetsIDScheduleOKValidityValid:
-		*s = ExposurePutExposureTargetsIDScheduleOKValidityValid
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKValidityExpiring:
-		*s = ExposurePutExposureTargetsIDScheduleOKValidityExpiring
-		return nil
-	case ExposurePutExposureTargetsIDScheduleOKValidityExpired:
-		*s = ExposurePutExposureTargetsIDScheduleOKValidityExpired
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type ExposurePutExposureTargetsIDScheduleReq struct {
-	Every ExposurePutExposureTargetsIDScheduleReqEvery `json:"every"`
-}
-
-// GetEvery returns the value of Every.
-func (s *ExposurePutExposureTargetsIDScheduleReq) GetEvery() ExposurePutExposureTargetsIDScheduleReqEvery {
-	return s.Every
-}
-
-// SetEvery sets the value of Every.
-func (s *ExposurePutExposureTargetsIDScheduleReq) SetEvery(val ExposurePutExposureTargetsIDScheduleReqEvery) {
-	s.Every = val
-}
-
-type ExposurePutExposureTargetsIDScheduleReqEvery string
-
-const (
-	ExposurePutExposureTargetsIDScheduleReqEveryOff     ExposurePutExposureTargetsIDScheduleReqEvery = "off"
-	ExposurePutExposureTargetsIDScheduleReqEveryDaily   ExposurePutExposureTargetsIDScheduleReqEvery = "daily"
-	ExposurePutExposureTargetsIDScheduleReqEveryWeekly  ExposurePutExposureTargetsIDScheduleReqEvery = "weekly"
-	ExposurePutExposureTargetsIDScheduleReqEveryMonthly ExposurePutExposureTargetsIDScheduleReqEvery = "monthly"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDScheduleReqEvery values.
-func (ExposurePutExposureTargetsIDScheduleReqEvery) AllValues() []ExposurePutExposureTargetsIDScheduleReqEvery {
-	return []ExposurePutExposureTargetsIDScheduleReqEvery{
-		ExposurePutExposureTargetsIDScheduleReqEveryOff,
-		ExposurePutExposureTargetsIDScheduleReqEveryDaily,
-		ExposurePutExposureTargetsIDScheduleReqEveryWeekly,
-		ExposurePutExposureTargetsIDScheduleReqEveryMonthly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDScheduleReqEvery) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDScheduleReqEveryOff:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleReqEveryDaily:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleReqEveryWeekly:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDScheduleReqEveryMonthly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDScheduleReqEvery) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDScheduleReqEvery(data) {
-	case ExposurePutExposureTargetsIDScheduleReqEveryOff:
-		*s = ExposurePutExposureTargetsIDScheduleReqEveryOff
-		return nil
-	case ExposurePutExposureTargetsIDScheduleReqEveryDaily:
-		*s = ExposurePutExposureTargetsIDScheduleReqEveryDaily
-		return nil
-	case ExposurePutExposureTargetsIDScheduleReqEveryWeekly:
-		*s = ExposurePutExposureTargetsIDScheduleReqEveryWeekly
-		return nil
-	case ExposurePutExposureTargetsIDScheduleReqEveryMonthly:
-		*s = ExposurePutExposureTargetsIDScheduleReqEveryMonthly
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 type ExposurePutExposureTargetsIDTermsOK struct {
 	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
 	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
@@ -66895,8 +76407,6 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// scan confirmation or testing terms are not accepted yet).
 	ScanState ExposurePutExposureTargetsIDTermsOKScanState `json:"scan_state"`
 	Scannable bool                                         `json:"scannable"`
-	// How often the box scans the target by itself, when next, and why not.
-	Schedule ExposurePutExposureTargetsIDTermsOKSchedule `json:"schedule"`
 	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
 	Status ExposurePutExposureTargetsIDTermsOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
@@ -67022,11 +76532,6 @@ func (s *ExposurePutExposureTargetsIDTermsOK) GetScanState() ExposurePutExposure
 // GetScannable returns the value of Scannable.
 func (s *ExposurePutExposureTargetsIDTermsOK) GetScannable() bool {
 	return s.Scannable
-}
-
-// GetSchedule returns the value of Schedule.
-func (s *ExposurePutExposureTargetsIDTermsOK) GetSchedule() ExposurePutExposureTargetsIDTermsOKSchedule {
-	return s.Schedule
 }
 
 // GetStatus returns the value of Status.
@@ -67172,11 +76677,6 @@ func (s *ExposurePutExposureTargetsIDTermsOK) SetScanState(val ExposurePutExposu
 // SetScannable sets the value of Scannable.
 func (s *ExposurePutExposureTargetsIDTermsOK) SetScannable(val bool) {
 	s.Scannable = val
-}
-
-// SetSchedule sets the value of Schedule.
-func (s *ExposurePutExposureTargetsIDTermsOK) SetSchedule(val ExposurePutExposureTargetsIDTermsOKSchedule) {
-	s.Schedule = val
 }
 
 // SetStatus sets the value of Status.
@@ -68103,7 +77603,7 @@ type ExposurePutExposureTargetsIDTermsOKProof struct {
 	// The Name (host) to type in that zone: "@", the zone apex, for every target (the target's own record
 	// there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
-	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
+	// The registered domain: the DNS zone the record is added in ("example.com").
 	Zone string `json:"zone"`
 }
 
@@ -68221,107 +77721,6 @@ func (s *ExposurePutExposureTargetsIDTermsOKScanState) UnmarshalText(data []byte
 		return nil
 	case ExposurePutExposureTargetsIDTermsOKScanStateScanning:
 		*s = ExposurePutExposureTargetsIDTermsOKScanStateScanning
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// How often the box scans the target by itself, when next, and why not.
-type ExposurePutExposureTargetsIDTermsOKSchedule struct {
-	// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-	// itself, counted from the start of its newest scan.
-	Every ExposurePutExposureTargetsIDTermsOKScheduleEvery `json:"every"`
-	// When the next scheduled scan is expected to start: when it is due, moved to the next opening of the
-	// scan window; null when the schedule is off or the target cannot be scanned on schedule now (note
-	// says why).
-	NextAt NilDateTime `json:"next_at"`
-	// Why the target is not scanned on schedule, e.g. "Not scanned on schedule: terms need confirming
-	// again"; null otherwise.
-	Note NilString `json:"note"`
-}
-
-// GetEvery returns the value of Every.
-func (s *ExposurePutExposureTargetsIDTermsOKSchedule) GetEvery() ExposurePutExposureTargetsIDTermsOKScheduleEvery {
-	return s.Every
-}
-
-// GetNextAt returns the value of NextAt.
-func (s *ExposurePutExposureTargetsIDTermsOKSchedule) GetNextAt() NilDateTime {
-	return s.NextAt
-}
-
-// GetNote returns the value of Note.
-func (s *ExposurePutExposureTargetsIDTermsOKSchedule) GetNote() NilString {
-	return s.Note
-}
-
-// SetEvery sets the value of Every.
-func (s *ExposurePutExposureTargetsIDTermsOKSchedule) SetEvery(val ExposurePutExposureTargetsIDTermsOKScheduleEvery) {
-	s.Every = val
-}
-
-// SetNextAt sets the value of NextAt.
-func (s *ExposurePutExposureTargetsIDTermsOKSchedule) SetNextAt(val NilDateTime) {
-	s.NextAt = val
-}
-
-// SetNote sets the value of Note.
-func (s *ExposurePutExposureTargetsIDTermsOKSchedule) SetNote(val NilString) {
-	s.Note = val
-}
-
-// Off: only Scan now scans the target; daily, weekly (the default) or monthly: the box scans it by
-// itself, counted from the start of its newest scan.
-type ExposurePutExposureTargetsIDTermsOKScheduleEvery string
-
-const (
-	ExposurePutExposureTargetsIDTermsOKScheduleEveryOff     ExposurePutExposureTargetsIDTermsOKScheduleEvery = "off"
-	ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily   ExposurePutExposureTargetsIDTermsOKScheduleEvery = "daily"
-	ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly  ExposurePutExposureTargetsIDTermsOKScheduleEvery = "weekly"
-	ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly ExposurePutExposureTargetsIDTermsOKScheduleEvery = "monthly"
-)
-
-// AllValues returns all ExposurePutExposureTargetsIDTermsOKScheduleEvery values.
-func (ExposurePutExposureTargetsIDTermsOKScheduleEvery) AllValues() []ExposurePutExposureTargetsIDTermsOKScheduleEvery {
-	return []ExposurePutExposureTargetsIDTermsOKScheduleEvery{
-		ExposurePutExposureTargetsIDTermsOKScheduleEveryOff,
-		ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily,
-		ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly,
-		ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s ExposurePutExposureTargetsIDTermsOKScheduleEvery) MarshalText() ([]byte, error) {
-	switch s {
-	case ExposurePutExposureTargetsIDTermsOKScheduleEveryOff:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly:
-		return []byte(s), nil
-	case ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *ExposurePutExposureTargetsIDTermsOKScheduleEvery) UnmarshalText(data []byte) error {
-	switch ExposurePutExposureTargetsIDTermsOKScheduleEvery(data) {
-	case ExposurePutExposureTargetsIDTermsOKScheduleEveryOff:
-		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryOff
-		return nil
-	case ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily:
-		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryDaily
-		return nil
-	case ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly:
-		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryWeekly
-		return nil
-	case ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly:
-		*s = ExposurePutExposureTargetsIDTermsOKScheduleEveryMonthly
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -68548,6 +77947,1533 @@ func (s *ExposurePutExposureTargetsIDTermsReq) SetDisruptive(val bool) {
 
 // SetVersion sets the value of Version.
 func (s *ExposurePutExposureTargetsIDTermsReq) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTreeIDTermsOK struct {
+	// Why Scan now is refused: disabled (the node is off), proof (proof.state is neither proven nor
+	// covered), no_commitment (no scan confirmation of the current sentence: an administrator's Scan now
+	// records it, an operator's is refused); null when it can be scanned.
+	Blocked NilExposurePutExposureTreeIDTermsOKBlocked `json:"blocked"`
+	// The scan confirmation recorded by the first Scan now of an administrator; null when none.
+	Commitment NilExposurePutExposureTreeIDTermsOKCommitment `json:"commitment"`
+	// The sentence the next Scan now of an administrator confirms; null once the node has a commitment of
+	// the current sentence.
+	CommitmentNotice NilExposurePutExposureTreeIDTermsOKCommitmentNotice `json:"commitment_notice"`
+	Counts           ExposurePutExposureTreeIDTermsOKCounts              `json:"counts"`
+	CreatedAt        time.Time                                           `json:"created_at"`
+	// Scans of this node are deep scans: the current testing terms are accepted.
+	Deep bool `json:"deep"`
+	// The node is scanned, by Scan now and by its schedule.
+	Enabled bool                                 `json:"enabled"`
+	ID      string                               `json:"id"`
+	Kind    ExposurePutExposureTreeIDTermsOKKind `json:"kind"`
+	// The newest run of this node, live or ended; null when never scanned.
+	LastScan NilExposurePutExposureTreeIDTermsOKLastScan `json:"last_scan"`
+	Origin   ExposurePutExposureTreeIDTermsOKOrigin      `json:"origin"`
+	// The domain target this node sits under; null at the top of the tree.
+	ParentID NilString                             `json:"parent_id"`
+	Proof    ExposurePutExposureTreeIDTermsOKProof `json:"proof"`
+	// The key of its schedule in the shared schedules: exposure.target:.
+	ScheduleKey string `json:"schedule_key"`
+	// Domains: self scans only this name; all this name and every name found under it; selected this name
+	// and the names chosen (Host.selected). null for an IP.
+	ScopeMode NilExposurePutExposureTreeIDTermsOKScopeMode `json:"scope_mode"`
+	// The accepted testing terms; null when none.
+	Terms NilExposurePutExposureTreeIDTermsOKTerms `json:"terms"`
+	// The current testing terms for this node, to accept or read again.
+	TermsNotice ExposurePutExposureTreeIDTermsOKTermsNotice `json:"terms_notice"`
+	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	TermsWarning NilString `json:"terms_warning"`
+	Value        string    `json:"value"`
+}
+
+// GetBlocked returns the value of Blocked.
+func (s *ExposurePutExposureTreeIDTermsOK) GetBlocked() NilExposurePutExposureTreeIDTermsOKBlocked {
+	return s.Blocked
+}
+
+// GetCommitment returns the value of Commitment.
+func (s *ExposurePutExposureTreeIDTermsOK) GetCommitment() NilExposurePutExposureTreeIDTermsOKCommitment {
+	return s.Commitment
+}
+
+// GetCommitmentNotice returns the value of CommitmentNotice.
+func (s *ExposurePutExposureTreeIDTermsOK) GetCommitmentNotice() NilExposurePutExposureTreeIDTermsOKCommitmentNotice {
+	return s.CommitmentNotice
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePutExposureTreeIDTermsOK) GetCounts() ExposurePutExposureTreeIDTermsOKCounts {
+	return s.Counts
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *ExposurePutExposureTreeIDTermsOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetDeep returns the value of Deep.
+func (s *ExposurePutExposureTreeIDTermsOK) GetDeep() bool {
+	return s.Deep
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ExposurePutExposureTreeIDTermsOK) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePutExposureTreeIDTermsOK) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ExposurePutExposureTreeIDTermsOK) GetKind() ExposurePutExposureTreeIDTermsOKKind {
+	return s.Kind
+}
+
+// GetLastScan returns the value of LastScan.
+func (s *ExposurePutExposureTreeIDTermsOK) GetLastScan() NilExposurePutExposureTreeIDTermsOKLastScan {
+	return s.LastScan
+}
+
+// GetOrigin returns the value of Origin.
+func (s *ExposurePutExposureTreeIDTermsOK) GetOrigin() ExposurePutExposureTreeIDTermsOKOrigin {
+	return s.Origin
+}
+
+// GetParentID returns the value of ParentID.
+func (s *ExposurePutExposureTreeIDTermsOK) GetParentID() NilString {
+	return s.ParentID
+}
+
+// GetProof returns the value of Proof.
+func (s *ExposurePutExposureTreeIDTermsOK) GetProof() ExposurePutExposureTreeIDTermsOKProof {
+	return s.Proof
+}
+
+// GetScheduleKey returns the value of ScheduleKey.
+func (s *ExposurePutExposureTreeIDTermsOK) GetScheduleKey() string {
+	return s.ScheduleKey
+}
+
+// GetScopeMode returns the value of ScopeMode.
+func (s *ExposurePutExposureTreeIDTermsOK) GetScopeMode() NilExposurePutExposureTreeIDTermsOKScopeMode {
+	return s.ScopeMode
+}
+
+// GetTerms returns the value of Terms.
+func (s *ExposurePutExposureTreeIDTermsOK) GetTerms() NilExposurePutExposureTreeIDTermsOKTerms {
+	return s.Terms
+}
+
+// GetTermsNotice returns the value of TermsNotice.
+func (s *ExposurePutExposureTreeIDTermsOK) GetTermsNotice() ExposurePutExposureTreeIDTermsOKTermsNotice {
+	return s.TermsNotice
+}
+
+// GetTermsWarning returns the value of TermsWarning.
+func (s *ExposurePutExposureTreeIDTermsOK) GetTermsWarning() NilString {
+	return s.TermsWarning
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePutExposureTreeIDTermsOK) GetValue() string {
+	return s.Value
+}
+
+// SetBlocked sets the value of Blocked.
+func (s *ExposurePutExposureTreeIDTermsOK) SetBlocked(val NilExposurePutExposureTreeIDTermsOKBlocked) {
+	s.Blocked = val
+}
+
+// SetCommitment sets the value of Commitment.
+func (s *ExposurePutExposureTreeIDTermsOK) SetCommitment(val NilExposurePutExposureTreeIDTermsOKCommitment) {
+	s.Commitment = val
+}
+
+// SetCommitmentNotice sets the value of CommitmentNotice.
+func (s *ExposurePutExposureTreeIDTermsOK) SetCommitmentNotice(val NilExposurePutExposureTreeIDTermsOKCommitmentNotice) {
+	s.CommitmentNotice = val
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePutExposureTreeIDTermsOK) SetCounts(val ExposurePutExposureTreeIDTermsOKCounts) {
+	s.Counts = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *ExposurePutExposureTreeIDTermsOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetDeep sets the value of Deep.
+func (s *ExposurePutExposureTreeIDTermsOK) SetDeep(val bool) {
+	s.Deep = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ExposurePutExposureTreeIDTermsOK) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePutExposureTreeIDTermsOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ExposurePutExposureTreeIDTermsOK) SetKind(val ExposurePutExposureTreeIDTermsOKKind) {
+	s.Kind = val
+}
+
+// SetLastScan sets the value of LastScan.
+func (s *ExposurePutExposureTreeIDTermsOK) SetLastScan(val NilExposurePutExposureTreeIDTermsOKLastScan) {
+	s.LastScan = val
+}
+
+// SetOrigin sets the value of Origin.
+func (s *ExposurePutExposureTreeIDTermsOK) SetOrigin(val ExposurePutExposureTreeIDTermsOKOrigin) {
+	s.Origin = val
+}
+
+// SetParentID sets the value of ParentID.
+func (s *ExposurePutExposureTreeIDTermsOK) SetParentID(val NilString) {
+	s.ParentID = val
+}
+
+// SetProof sets the value of Proof.
+func (s *ExposurePutExposureTreeIDTermsOK) SetProof(val ExposurePutExposureTreeIDTermsOKProof) {
+	s.Proof = val
+}
+
+// SetScheduleKey sets the value of ScheduleKey.
+func (s *ExposurePutExposureTreeIDTermsOK) SetScheduleKey(val string) {
+	s.ScheduleKey = val
+}
+
+// SetScopeMode sets the value of ScopeMode.
+func (s *ExposurePutExposureTreeIDTermsOK) SetScopeMode(val NilExposurePutExposureTreeIDTermsOKScopeMode) {
+	s.ScopeMode = val
+}
+
+// SetTerms sets the value of Terms.
+func (s *ExposurePutExposureTreeIDTermsOK) SetTerms(val NilExposurePutExposureTreeIDTermsOKTerms) {
+	s.Terms = val
+}
+
+// SetTermsNotice sets the value of TermsNotice.
+func (s *ExposurePutExposureTreeIDTermsOK) SetTermsNotice(val ExposurePutExposureTreeIDTermsOKTermsNotice) {
+	s.TermsNotice = val
+}
+
+// SetTermsWarning sets the value of TermsWarning.
+func (s *ExposurePutExposureTreeIDTermsOK) SetTermsWarning(val NilString) {
+	s.TermsWarning = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePutExposureTreeIDTermsOK) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePutExposureTreeIDTermsOKBlocked string
+
+const (
+	ExposurePutExposureTreeIDTermsOKBlockedDisabled     ExposurePutExposureTreeIDTermsOKBlocked = "disabled"
+	ExposurePutExposureTreeIDTermsOKBlockedProof        ExposurePutExposureTreeIDTermsOKBlocked = "proof"
+	ExposurePutExposureTreeIDTermsOKBlockedNoCommitment ExposurePutExposureTreeIDTermsOKBlocked = "no_commitment"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKBlocked values.
+func (ExposurePutExposureTreeIDTermsOKBlocked) AllValues() []ExposurePutExposureTreeIDTermsOKBlocked {
+	return []ExposurePutExposureTreeIDTermsOKBlocked{
+		ExposurePutExposureTreeIDTermsOKBlockedDisabled,
+		ExposurePutExposureTreeIDTermsOKBlockedProof,
+		ExposurePutExposureTreeIDTermsOKBlockedNoCommitment,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKBlocked) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKBlockedDisabled:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKBlockedProof:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKBlockedNoCommitment:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKBlocked) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKBlocked(data) {
+	case ExposurePutExposureTreeIDTermsOKBlockedDisabled:
+		*s = ExposurePutExposureTreeIDTermsOKBlockedDisabled
+		return nil
+	case ExposurePutExposureTreeIDTermsOKBlockedProof:
+		*s = ExposurePutExposureTreeIDTermsOKBlockedProof
+		return nil
+	case ExposurePutExposureTreeIDTermsOKBlockedNoCommitment:
+		*s = ExposurePutExposureTreeIDTermsOKBlockedNoCommitment
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKCommitment struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTreeIDTermsOKCommitment) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTreeIDTermsOKCommitment) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTreeIDTermsOKCommitment) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTreeIDTermsOKCommitment) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTreeIDTermsOKCommitment) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTreeIDTermsOKCommitment) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTreeIDTermsOKCommitment) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTreeIDTermsOKCommitment) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTreeIDTermsOKCommitment) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTreeIDTermsOKCommitment) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTreeIDTermsOKCommitmentNotice struct {
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTreeIDTermsOKCommitmentNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTreeIDTermsOKCommitmentNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTreeIDTermsOKCommitmentNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTreeIDTermsOKCommitmentNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTreeIDTermsOKCounts struct {
+	// Names found under the node.
+	Hosts int `json:"hosts"`
+	// Open issues.
+	Issues int `json:"issues"`
+	// Open services.
+	Services int `json:"services"`
+	// Open services that answered HTTP.
+	Web int `json:"web"`
+	// The highest severity among open issues; null when none.
+	Worst NilExposurePutExposureTreeIDTermsOKCountsWorst `json:"worst"`
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePutExposureTreeIDTermsOKCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePutExposureTreeIDTermsOKCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePutExposureTreeIDTermsOKCounts) GetServices() int {
+	return s.Services
+}
+
+// GetWeb returns the value of Web.
+func (s *ExposurePutExposureTreeIDTermsOKCounts) GetWeb() int {
+	return s.Web
+}
+
+// GetWorst returns the value of Worst.
+func (s *ExposurePutExposureTreeIDTermsOKCounts) GetWorst() NilExposurePutExposureTreeIDTermsOKCountsWorst {
+	return s.Worst
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePutExposureTreeIDTermsOKCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePutExposureTreeIDTermsOKCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePutExposureTreeIDTermsOKCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// SetWeb sets the value of Web.
+func (s *ExposurePutExposureTreeIDTermsOKCounts) SetWeb(val int) {
+	s.Web = val
+}
+
+// SetWorst sets the value of Worst.
+func (s *ExposurePutExposureTreeIDTermsOKCounts) SetWorst(val NilExposurePutExposureTreeIDTermsOKCountsWorst) {
+	s.Worst = val
+}
+
+type ExposurePutExposureTreeIDTermsOKCountsWorst string
+
+const (
+	ExposurePutExposureTreeIDTermsOKCountsWorstCritical ExposurePutExposureTreeIDTermsOKCountsWorst = "critical"
+	ExposurePutExposureTreeIDTermsOKCountsWorstHigh     ExposurePutExposureTreeIDTermsOKCountsWorst = "high"
+	ExposurePutExposureTreeIDTermsOKCountsWorstMedium   ExposurePutExposureTreeIDTermsOKCountsWorst = "medium"
+	ExposurePutExposureTreeIDTermsOKCountsWorstLow      ExposurePutExposureTreeIDTermsOKCountsWorst = "low"
+	ExposurePutExposureTreeIDTermsOKCountsWorstInfo     ExposurePutExposureTreeIDTermsOKCountsWorst = "info"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKCountsWorst values.
+func (ExposurePutExposureTreeIDTermsOKCountsWorst) AllValues() []ExposurePutExposureTreeIDTermsOKCountsWorst {
+	return []ExposurePutExposureTreeIDTermsOKCountsWorst{
+		ExposurePutExposureTreeIDTermsOKCountsWorstCritical,
+		ExposurePutExposureTreeIDTermsOKCountsWorstHigh,
+		ExposurePutExposureTreeIDTermsOKCountsWorstMedium,
+		ExposurePutExposureTreeIDTermsOKCountsWorstLow,
+		ExposurePutExposureTreeIDTermsOKCountsWorstInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKCountsWorst) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKCountsWorstCritical:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKCountsWorstHigh:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKCountsWorstMedium:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKCountsWorstLow:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKCountsWorstInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKCountsWorst) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKCountsWorst(data) {
+	case ExposurePutExposureTreeIDTermsOKCountsWorstCritical:
+		*s = ExposurePutExposureTreeIDTermsOKCountsWorstCritical
+		return nil
+	case ExposurePutExposureTreeIDTermsOKCountsWorstHigh:
+		*s = ExposurePutExposureTreeIDTermsOKCountsWorstHigh
+		return nil
+	case ExposurePutExposureTreeIDTermsOKCountsWorstMedium:
+		*s = ExposurePutExposureTreeIDTermsOKCountsWorstMedium
+		return nil
+	case ExposurePutExposureTreeIDTermsOKCountsWorstLow:
+		*s = ExposurePutExposureTreeIDTermsOKCountsWorstLow
+		return nil
+	case ExposurePutExposureTreeIDTermsOKCountsWorstInfo:
+		*s = ExposurePutExposureTreeIDTermsOKCountsWorstInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKKind string
+
+const (
+	ExposurePutExposureTreeIDTermsOKKindDomain ExposurePutExposureTreeIDTermsOKKind = "domain"
+	ExposurePutExposureTreeIDTermsOKKindIP     ExposurePutExposureTreeIDTermsOKKind = "ip"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKKind values.
+func (ExposurePutExposureTreeIDTermsOKKind) AllValues() []ExposurePutExposureTreeIDTermsOKKind {
+	return []ExposurePutExposureTreeIDTermsOKKind{
+		ExposurePutExposureTreeIDTermsOKKindDomain,
+		ExposurePutExposureTreeIDTermsOKKindIP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKKindDomain:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKKindIP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKKind) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKKind(data) {
+	case ExposurePutExposureTreeIDTermsOKKindDomain:
+		*s = ExposurePutExposureTreeIDTermsOKKindDomain
+		return nil
+	case ExposurePutExposureTreeIDTermsOKKindIP:
+		*s = ExposurePutExposureTreeIDTermsOKKindIP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKLastScan struct {
+	// What the scan left; null until it ends done or partial.
+	Counts  NilExposurePutExposureTreeIDTermsOKLastScanCounts `json:"counts"`
+	EndedAt NilDateTime                                       `json:"ended_at"`
+	Error   NilString                                         `json:"error"`
+	// Deep when the current testing terms of the target are accepted; surface otherwise.
+	Mode     ExposurePutExposureTreeIDTermsOKLastScanMode `json:"mode"`
+	QueuedAt time.Time                                    `json:"queued_at"`
+	// Who asked (an e-mail), or system for a scheduled scan.
+	RequestedBy string `json:"requested_by"`
+	// The shared run: its steps, items and log are read there, and it is stopped there.
+	RunID      string                                          `json:"run_id"`
+	StartedAt  NilDateTime                                     `json:"started_at"`
+	Status     ExposurePutExposureTreeIDTermsOKLastScanStatus  `json:"status"`
+	StopReason NilString                                       `json:"stop_reason"`
+	TargetID   string                                          `json:"target_id"`
+	Trigger    ExposurePutExposureTreeIDTermsOKLastScanTrigger `json:"trigger"`
+	// Set only while status is waiting, e.g. "the scan window (opens 23:00)".
+	WaitingFor NilString `json:"waiting_for"`
+}
+
+// GetCounts returns the value of Counts.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetCounts() NilExposurePutExposureTreeIDTermsOKLastScanCounts {
+	return s.Counts
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetError returns the value of Error.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetError() NilString {
+	return s.Error
+}
+
+// GetMode returns the value of Mode.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetMode() ExposurePutExposureTreeIDTermsOKLastScanMode {
+	return s.Mode
+}
+
+// GetQueuedAt returns the value of QueuedAt.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetQueuedAt() time.Time {
+	return s.QueuedAt
+}
+
+// GetRequestedBy returns the value of RequestedBy.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetRequestedBy() string {
+	return s.RequestedBy
+}
+
+// GetRunID returns the value of RunID.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetRunID() string {
+	return s.RunID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetStartedAt() NilDateTime {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetStatus() ExposurePutExposureTreeIDTermsOKLastScanStatus {
+	return s.Status
+}
+
+// GetStopReason returns the value of StopReason.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetStopReason() NilString {
+	return s.StopReason
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetTargetID() string {
+	return s.TargetID
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetTrigger() ExposurePutExposureTreeIDTermsOKLastScanTrigger {
+	return s.Trigger
+}
+
+// GetWaitingFor returns the value of WaitingFor.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) GetWaitingFor() NilString {
+	return s.WaitingFor
+}
+
+// SetCounts sets the value of Counts.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetCounts(val NilExposurePutExposureTreeIDTermsOKLastScanCounts) {
+	s.Counts = val
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetError sets the value of Error.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetMode sets the value of Mode.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetMode(val ExposurePutExposureTreeIDTermsOKLastScanMode) {
+	s.Mode = val
+}
+
+// SetQueuedAt sets the value of QueuedAt.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetQueuedAt(val time.Time) {
+	s.QueuedAt = val
+}
+
+// SetRequestedBy sets the value of RequestedBy.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetRequestedBy(val string) {
+	s.RequestedBy = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetStartedAt(val NilDateTime) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetStatus(val ExposurePutExposureTreeIDTermsOKLastScanStatus) {
+	s.Status = val
+}
+
+// SetStopReason sets the value of StopReason.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetStopReason(val NilString) {
+	s.StopReason = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetTargetID(val string) {
+	s.TargetID = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetTrigger(val ExposurePutExposureTreeIDTermsOKLastScanTrigger) {
+	s.Trigger = val
+}
+
+// SetWaitingFor sets the value of WaitingFor.
+func (s *ExposurePutExposureTreeIDTermsOKLastScan) SetWaitingFor(val NilString) {
+	s.WaitingFor = val
+}
+
+type ExposurePutExposureTreeIDTermsOKLastScanCounts struct {
+	ClosedServices int `json:"closed_services"`
+	Hosts          int `json:"hosts"`
+	// Open issues after the scan.
+	Issues      int `json:"issues"`
+	NewIssues   int `json:"new_issues"`
+	NewServices int `json:"new_services"`
+	// Open services after the scan.
+	Services int `json:"services"`
+}
+
+// GetClosedServices returns the value of ClosedServices.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) GetClosedServices() int {
+	return s.ClosedServices
+}
+
+// GetHosts returns the value of Hosts.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) GetHosts() int {
+	return s.Hosts
+}
+
+// GetIssues returns the value of Issues.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) GetIssues() int {
+	return s.Issues
+}
+
+// GetNewIssues returns the value of NewIssues.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) GetNewIssues() int {
+	return s.NewIssues
+}
+
+// GetNewServices returns the value of NewServices.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) GetNewServices() int {
+	return s.NewServices
+}
+
+// GetServices returns the value of Services.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) GetServices() int {
+	return s.Services
+}
+
+// SetClosedServices sets the value of ClosedServices.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) SetClosedServices(val int) {
+	s.ClosedServices = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) SetHosts(val int) {
+	s.Hosts = val
+}
+
+// SetIssues sets the value of Issues.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) SetIssues(val int) {
+	s.Issues = val
+}
+
+// SetNewIssues sets the value of NewIssues.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) SetNewIssues(val int) {
+	s.NewIssues = val
+}
+
+// SetNewServices sets the value of NewServices.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) SetNewServices(val int) {
+	s.NewServices = val
+}
+
+// SetServices sets the value of Services.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanCounts) SetServices(val int) {
+	s.Services = val
+}
+
+// Deep when the current testing terms of the target are accepted; surface otherwise.
+type ExposurePutExposureTreeIDTermsOKLastScanMode string
+
+const (
+	ExposurePutExposureTreeIDTermsOKLastScanModeSurface ExposurePutExposureTreeIDTermsOKLastScanMode = "surface"
+	ExposurePutExposureTreeIDTermsOKLastScanModeDeep    ExposurePutExposureTreeIDTermsOKLastScanMode = "deep"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKLastScanMode values.
+func (ExposurePutExposureTreeIDTermsOKLastScanMode) AllValues() []ExposurePutExposureTreeIDTermsOKLastScanMode {
+	return []ExposurePutExposureTreeIDTermsOKLastScanMode{
+		ExposurePutExposureTreeIDTermsOKLastScanModeSurface,
+		ExposurePutExposureTreeIDTermsOKLastScanModeDeep,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKLastScanMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKLastScanModeSurface:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanModeDeep:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanMode) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKLastScanMode(data) {
+	case ExposurePutExposureTreeIDTermsOKLastScanModeSurface:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanModeSurface
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanModeDeep:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanModeDeep
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKLastScanStatus string
+
+const (
+	ExposurePutExposureTreeIDTermsOKLastScanStatusQueued   ExposurePutExposureTreeIDTermsOKLastScanStatus = "queued"
+	ExposurePutExposureTreeIDTermsOKLastScanStatusWaiting  ExposurePutExposureTreeIDTermsOKLastScanStatus = "waiting"
+	ExposurePutExposureTreeIDTermsOKLastScanStatusRunning  ExposurePutExposureTreeIDTermsOKLastScanStatus = "running"
+	ExposurePutExposureTreeIDTermsOKLastScanStatusStopping ExposurePutExposureTreeIDTermsOKLastScanStatus = "stopping"
+	ExposurePutExposureTreeIDTermsOKLastScanStatusDone     ExposurePutExposureTreeIDTermsOKLastScanStatus = "done"
+	ExposurePutExposureTreeIDTermsOKLastScanStatusPartial  ExposurePutExposureTreeIDTermsOKLastScanStatus = "partial"
+	ExposurePutExposureTreeIDTermsOKLastScanStatusFailed   ExposurePutExposureTreeIDTermsOKLastScanStatus = "failed"
+	ExposurePutExposureTreeIDTermsOKLastScanStatusStopped  ExposurePutExposureTreeIDTermsOKLastScanStatus = "stopped"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKLastScanStatus values.
+func (ExposurePutExposureTreeIDTermsOKLastScanStatus) AllValues() []ExposurePutExposureTreeIDTermsOKLastScanStatus {
+	return []ExposurePutExposureTreeIDTermsOKLastScanStatus{
+		ExposurePutExposureTreeIDTermsOKLastScanStatusQueued,
+		ExposurePutExposureTreeIDTermsOKLastScanStatusWaiting,
+		ExposurePutExposureTreeIDTermsOKLastScanStatusRunning,
+		ExposurePutExposureTreeIDTermsOKLastScanStatusStopping,
+		ExposurePutExposureTreeIDTermsOKLastScanStatusDone,
+		ExposurePutExposureTreeIDTermsOKLastScanStatusPartial,
+		ExposurePutExposureTreeIDTermsOKLastScanStatusFailed,
+		ExposurePutExposureTreeIDTermsOKLastScanStatusStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKLastScanStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusQueued:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusWaiting:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusRunning:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusStopping:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusDone:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusPartial:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusFailed:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanStatus) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKLastScanStatus(data) {
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusQueued:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanStatusQueued
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusWaiting:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanStatusWaiting
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusRunning:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanStatusRunning
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusStopping:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanStatusStopping
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusDone:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanStatusDone
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusPartial:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanStatusPartial
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusFailed:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanStatusFailed
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanStatusStopped:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanStatusStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKLastScanTrigger string
+
+const (
+	ExposurePutExposureTreeIDTermsOKLastScanTriggerManual   ExposurePutExposureTreeIDTermsOKLastScanTrigger = "manual"
+	ExposurePutExposureTreeIDTermsOKLastScanTriggerSchedule ExposurePutExposureTreeIDTermsOKLastScanTrigger = "schedule"
+	ExposurePutExposureTreeIDTermsOKLastScanTriggerEvent    ExposurePutExposureTreeIDTermsOKLastScanTrigger = "event"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKLastScanTrigger values.
+func (ExposurePutExposureTreeIDTermsOKLastScanTrigger) AllValues() []ExposurePutExposureTreeIDTermsOKLastScanTrigger {
+	return []ExposurePutExposureTreeIDTermsOKLastScanTrigger{
+		ExposurePutExposureTreeIDTermsOKLastScanTriggerManual,
+		ExposurePutExposureTreeIDTermsOKLastScanTriggerSchedule,
+		ExposurePutExposureTreeIDTermsOKLastScanTriggerEvent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKLastScanTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKLastScanTriggerManual:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanTriggerSchedule:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKLastScanTriggerEvent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKLastScanTrigger) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKLastScanTrigger(data) {
+	case ExposurePutExposureTreeIDTermsOKLastScanTriggerManual:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanTriggerManual
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanTriggerSchedule:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanTriggerSchedule
+		return nil
+	case ExposurePutExposureTreeIDTermsOKLastScanTriggerEvent:
+		*s = ExposurePutExposureTreeIDTermsOKLastScanTriggerEvent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKOrigin string
+
+const (
+	ExposurePutExposureTreeIDTermsOKOriginPerson     ExposurePutExposureTreeIDTermsOKOrigin = "person"
+	ExposurePutExposureTreeIDTermsOKOriginBox        ExposurePutExposureTreeIDTermsOKOrigin = "box"
+	ExposurePutExposureTreeIDTermsOKOriginDiscovered ExposurePutExposureTreeIDTermsOKOrigin = "discovered"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKOrigin values.
+func (ExposurePutExposureTreeIDTermsOKOrigin) AllValues() []ExposurePutExposureTreeIDTermsOKOrigin {
+	return []ExposurePutExposureTreeIDTermsOKOrigin{
+		ExposurePutExposureTreeIDTermsOKOriginPerson,
+		ExposurePutExposureTreeIDTermsOKOriginBox,
+		ExposurePutExposureTreeIDTermsOKOriginDiscovered,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKOrigin) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKOriginPerson:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKOriginBox:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKOriginDiscovered:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKOrigin) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKOrigin(data) {
+	case ExposurePutExposureTreeIDTermsOKOriginPerson:
+		*s = ExposurePutExposureTreeIDTermsOKOriginPerson
+		return nil
+	case ExposurePutExposureTreeIDTermsOKOriginBox:
+		*s = ExposurePutExposureTreeIDTermsOKOriginBox
+		return nil
+	case ExposurePutExposureTreeIDTermsOKOriginDiscovered:
+		*s = ExposurePutExposureTreeIDTermsOKOriginDiscovered
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKProof struct {
+	// The ancestor whose proof covers this node; null unless state is covered.
+	CoveredBy NilExposurePutExposureTreeIDTermsOKProofCoveredBy `json:"covered_by"`
+	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
+	DNS NilExposurePutExposureTreeIDTermsOKProofDNS `json:"dns"`
+	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	ExpiresAt NilDateTime `json:"expires_at"`
+	// IP typed in by a person: where its proof file goes; null otherwise.
+	File      NilExposurePutExposureTreeIDTermsOKProofFile      `json:"file"`
+	LastCheck NilExposurePutExposureTreeIDTermsOKProofLastCheck `json:"last_check"`
+	// How this node proves itself; null when covered by an ancestor or not proven yet.
+	Method NilExposurePutExposureTreeIDTermsOKProofMethod `json:"method"`
+	// When the box checks the proof again by itself; null when it does not.
+	NextCheckAt NilDateTime `json:"next_check_at"`
+	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	State ExposurePutExposureTreeIDTermsOKProofState `json:"state"`
+	// When this node's own proof was last found.
+	VerifiedAt NilDateTime `json:"verified_at"`
+}
+
+// GetCoveredBy returns the value of CoveredBy.
+func (s *ExposurePutExposureTreeIDTermsOKProof) GetCoveredBy() NilExposurePutExposureTreeIDTermsOKProofCoveredBy {
+	return s.CoveredBy
+}
+
+// GetDNS returns the value of DNS.
+func (s *ExposurePutExposureTreeIDTermsOKProof) GetDNS() NilExposurePutExposureTreeIDTermsOKProofDNS {
+	return s.DNS
+}
+
+// GetExpiresAt returns the value of ExpiresAt.
+func (s *ExposurePutExposureTreeIDTermsOKProof) GetExpiresAt() NilDateTime {
+	return s.ExpiresAt
+}
+
+// GetFile returns the value of File.
+func (s *ExposurePutExposureTreeIDTermsOKProof) GetFile() NilExposurePutExposureTreeIDTermsOKProofFile {
+	return s.File
+}
+
+// GetLastCheck returns the value of LastCheck.
+func (s *ExposurePutExposureTreeIDTermsOKProof) GetLastCheck() NilExposurePutExposureTreeIDTermsOKProofLastCheck {
+	return s.LastCheck
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposurePutExposureTreeIDTermsOKProof) GetMethod() NilExposurePutExposureTreeIDTermsOKProofMethod {
+	return s.Method
+}
+
+// GetNextCheckAt returns the value of NextCheckAt.
+func (s *ExposurePutExposureTreeIDTermsOKProof) GetNextCheckAt() NilDateTime {
+	return s.NextCheckAt
+}
+
+// GetState returns the value of State.
+func (s *ExposurePutExposureTreeIDTermsOKProof) GetState() ExposurePutExposureTreeIDTermsOKProofState {
+	return s.State
+}
+
+// GetVerifiedAt returns the value of VerifiedAt.
+func (s *ExposurePutExposureTreeIDTermsOKProof) GetVerifiedAt() NilDateTime {
+	return s.VerifiedAt
+}
+
+// SetCoveredBy sets the value of CoveredBy.
+func (s *ExposurePutExposureTreeIDTermsOKProof) SetCoveredBy(val NilExposurePutExposureTreeIDTermsOKProofCoveredBy) {
+	s.CoveredBy = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *ExposurePutExposureTreeIDTermsOKProof) SetDNS(val NilExposurePutExposureTreeIDTermsOKProofDNS) {
+	s.DNS = val
+}
+
+// SetExpiresAt sets the value of ExpiresAt.
+func (s *ExposurePutExposureTreeIDTermsOKProof) SetExpiresAt(val NilDateTime) {
+	s.ExpiresAt = val
+}
+
+// SetFile sets the value of File.
+func (s *ExposurePutExposureTreeIDTermsOKProof) SetFile(val NilExposurePutExposureTreeIDTermsOKProofFile) {
+	s.File = val
+}
+
+// SetLastCheck sets the value of LastCheck.
+func (s *ExposurePutExposureTreeIDTermsOKProof) SetLastCheck(val NilExposurePutExposureTreeIDTermsOKProofLastCheck) {
+	s.LastCheck = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposurePutExposureTreeIDTermsOKProof) SetMethod(val NilExposurePutExposureTreeIDTermsOKProofMethod) {
+	s.Method = val
+}
+
+// SetNextCheckAt sets the value of NextCheckAt.
+func (s *ExposurePutExposureTreeIDTermsOKProof) SetNextCheckAt(val NilDateTime) {
+	s.NextCheckAt = val
+}
+
+// SetState sets the value of State.
+func (s *ExposurePutExposureTreeIDTermsOKProof) SetState(val ExposurePutExposureTreeIDTermsOKProofState) {
+	s.State = val
+}
+
+// SetVerifiedAt sets the value of VerifiedAt.
+func (s *ExposurePutExposureTreeIDTermsOKProof) SetVerifiedAt(val NilDateTime) {
+	s.VerifiedAt = val
+}
+
+type ExposurePutExposureTreeIDTermsOKProofCoveredBy struct {
+	ID    string `json:"id"`
+	Value string `json:"value"`
+}
+
+// GetID returns the value of ID.
+func (s *ExposurePutExposureTreeIDTermsOKProofCoveredBy) GetID() string {
+	return s.ID
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePutExposureTreeIDTermsOKProofCoveredBy) GetValue() string {
+	return s.Value
+}
+
+// SetID sets the value of ID.
+func (s *ExposurePutExposureTreeIDTermsOKProofCoveredBy) SetID(val string) {
+	s.ID = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePutExposureTreeIDTermsOKProofCoveredBy) SetValue(val string) {
+	s.Value = val
+}
+
+type ExposurePutExposureTreeIDTermsOKProofDNS struct {
+	// The alternative name that proves this target only, "_vedette-verify" or "_vedette-verify."; null
+	// when it would pass 253 characters.
+	AltHost NilString `json:"alt_host"`
+	// The name to type in that zone: "@" for the zone apex.
+	Host string `json:"host"`
+	// The whole TXT value: vedette-verify=.
+	Value string `json:"value"`
+	// The registered domain: the DNS zone the record is added in.
+	Zone string `json:"zone"`
+}
+
+// GetAltHost returns the value of AltHost.
+func (s *ExposurePutExposureTreeIDTermsOKProofDNS) GetAltHost() NilString {
+	return s.AltHost
+}
+
+// GetHost returns the value of Host.
+func (s *ExposurePutExposureTreeIDTermsOKProofDNS) GetHost() string {
+	return s.Host
+}
+
+// GetValue returns the value of Value.
+func (s *ExposurePutExposureTreeIDTermsOKProofDNS) GetValue() string {
+	return s.Value
+}
+
+// GetZone returns the value of Zone.
+func (s *ExposurePutExposureTreeIDTermsOKProofDNS) GetZone() string {
+	return s.Zone
+}
+
+// SetAltHost sets the value of AltHost.
+func (s *ExposurePutExposureTreeIDTermsOKProofDNS) SetAltHost(val NilString) {
+	s.AltHost = val
+}
+
+// SetHost sets the value of Host.
+func (s *ExposurePutExposureTreeIDTermsOKProofDNS) SetHost(val string) {
+	s.Host = val
+}
+
+// SetValue sets the value of Value.
+func (s *ExposurePutExposureTreeIDTermsOKProofDNS) SetValue(val string) {
+	s.Value = val
+}
+
+// SetZone sets the value of Zone.
+func (s *ExposurePutExposureTreeIDTermsOKProofDNS) SetZone(val string) {
+	s.Zone = val
+}
+
+type ExposurePutExposureTreeIDTermsOKProofFile struct {
+	// The token: the whole content of /.well-known/vedette-verify.txt.
+	Content string `json:"content"`
+	// Proven domains of this box: a reverse DNS name of the IP under one of them, resolving back to the
+	// IP, proves it too.
+	PtrDomains []string `json:"ptr_domains"`
+	// The two addresses the box asks, http and https, on the IP.
+	Urls []string `json:"urls"`
+}
+
+// GetContent returns the value of Content.
+func (s *ExposurePutExposureTreeIDTermsOKProofFile) GetContent() string {
+	return s.Content
+}
+
+// GetPtrDomains returns the value of PtrDomains.
+func (s *ExposurePutExposureTreeIDTermsOKProofFile) GetPtrDomains() []string {
+	return s.PtrDomains
+}
+
+// GetUrls returns the value of Urls.
+func (s *ExposurePutExposureTreeIDTermsOKProofFile) GetUrls() []string {
+	return s.Urls
+}
+
+// SetContent sets the value of Content.
+func (s *ExposurePutExposureTreeIDTermsOKProofFile) SetContent(val string) {
+	s.Content = val
+}
+
+// SetPtrDomains sets the value of PtrDomains.
+func (s *ExposurePutExposureTreeIDTermsOKProofFile) SetPtrDomains(val []string) {
+	s.PtrDomains = val
+}
+
+// SetUrls sets the value of Urls.
+func (s *ExposurePutExposureTreeIDTermsOKProofFile) SetUrls(val []string) {
+	s.Urls = val
+}
+
+type ExposurePutExposureTreeIDTermsOKProofLastCheck struct {
+	At      time.Time `json:"at"`
+	Message string    `json:"message"`
+	Ok      bool      `json:"ok"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTreeIDTermsOKProofLastCheck) GetAt() time.Time {
+	return s.At
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePutExposureTreeIDTermsOKProofLastCheck) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *ExposurePutExposureTreeIDTermsOKProofLastCheck) GetOk() bool {
+	return s.Ok
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTreeIDTermsOKProofLastCheck) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePutExposureTreeIDTermsOKProofLastCheck) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *ExposurePutExposureTreeIDTermsOKProofLastCheck) SetOk(val bool) {
+	s.Ok = val
+}
+
+type ExposurePutExposureTreeIDTermsOKProofMethod string
+
+const (
+	ExposurePutExposureTreeIDTermsOKProofMethodDNSTxt    ExposurePutExposureTreeIDTermsOKProofMethod = "dns_txt"
+	ExposurePutExposureTreeIDTermsOKProofMethodBoxEgress ExposurePutExposureTreeIDTermsOKProofMethod = "box_egress"
+	ExposurePutExposureTreeIDTermsOKProofMethodIPFile    ExposurePutExposureTreeIDTermsOKProofMethod = "ip_file"
+	ExposurePutExposureTreeIDTermsOKProofMethodIPPtr     ExposurePutExposureTreeIDTermsOKProofMethod = "ip_ptr"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKProofMethod values.
+func (ExposurePutExposureTreeIDTermsOKProofMethod) AllValues() []ExposurePutExposureTreeIDTermsOKProofMethod {
+	return []ExposurePutExposureTreeIDTermsOKProofMethod{
+		ExposurePutExposureTreeIDTermsOKProofMethodDNSTxt,
+		ExposurePutExposureTreeIDTermsOKProofMethodBoxEgress,
+		ExposurePutExposureTreeIDTermsOKProofMethodIPFile,
+		ExposurePutExposureTreeIDTermsOKProofMethodIPPtr,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKProofMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKProofMethodDNSTxt:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKProofMethodBoxEgress:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKProofMethodIPFile:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKProofMethodIPPtr:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKProofMethod) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKProofMethod(data) {
+	case ExposurePutExposureTreeIDTermsOKProofMethodDNSTxt:
+		*s = ExposurePutExposureTreeIDTermsOKProofMethodDNSTxt
+		return nil
+	case ExposurePutExposureTreeIDTermsOKProofMethodBoxEgress:
+		*s = ExposurePutExposureTreeIDTermsOKProofMethodBoxEgress
+		return nil
+	case ExposurePutExposureTreeIDTermsOKProofMethodIPFile:
+		*s = ExposurePutExposureTreeIDTermsOKProofMethodIPFile
+		return nil
+	case ExposurePutExposureTreeIDTermsOKProofMethodIPPtr:
+		*s = ExposurePutExposureTreeIDTermsOKProofMethodIPPtr
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
+// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
+// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+type ExposurePutExposureTreeIDTermsOKProofState string
+
+const (
+	ExposurePutExposureTreeIDTermsOKProofStateProven     ExposurePutExposureTreeIDTermsOKProofState = "proven"
+	ExposurePutExposureTreeIDTermsOKProofStateCovered    ExposurePutExposureTreeIDTermsOKProofState = "covered"
+	ExposurePutExposureTreeIDTermsOKProofStateMissing    ExposurePutExposureTreeIDTermsOKProofState = "missing"
+	ExposurePutExposureTreeIDTermsOKProofStateExpired    ExposurePutExposureTreeIDTermsOKProofState = "expired"
+	ExposurePutExposureTreeIDTermsOKProofStateNotCurrent ExposurePutExposureTreeIDTermsOKProofState = "not_current"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKProofState values.
+func (ExposurePutExposureTreeIDTermsOKProofState) AllValues() []ExposurePutExposureTreeIDTermsOKProofState {
+	return []ExposurePutExposureTreeIDTermsOKProofState{
+		ExposurePutExposureTreeIDTermsOKProofStateProven,
+		ExposurePutExposureTreeIDTermsOKProofStateCovered,
+		ExposurePutExposureTreeIDTermsOKProofStateMissing,
+		ExposurePutExposureTreeIDTermsOKProofStateExpired,
+		ExposurePutExposureTreeIDTermsOKProofStateNotCurrent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKProofState) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKProofStateProven:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKProofStateCovered:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKProofStateMissing:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKProofStateExpired:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKProofStateNotCurrent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKProofState) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKProofState(data) {
+	case ExposurePutExposureTreeIDTermsOKProofStateProven:
+		*s = ExposurePutExposureTreeIDTermsOKProofStateProven
+		return nil
+	case ExposurePutExposureTreeIDTermsOKProofStateCovered:
+		*s = ExposurePutExposureTreeIDTermsOKProofStateCovered
+		return nil
+	case ExposurePutExposureTreeIDTermsOKProofStateMissing:
+		*s = ExposurePutExposureTreeIDTermsOKProofStateMissing
+		return nil
+	case ExposurePutExposureTreeIDTermsOKProofStateExpired:
+		*s = ExposurePutExposureTreeIDTermsOKProofStateExpired
+		return nil
+	case ExposurePutExposureTreeIDTermsOKProofStateNotCurrent:
+		*s = ExposurePutExposureTreeIDTermsOKProofStateNotCurrent
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKScopeMode string
+
+const (
+	ExposurePutExposureTreeIDTermsOKScopeModeSelf     ExposurePutExposureTreeIDTermsOKScopeMode = "self"
+	ExposurePutExposureTreeIDTermsOKScopeModeAll      ExposurePutExposureTreeIDTermsOKScopeMode = "all"
+	ExposurePutExposureTreeIDTermsOKScopeModeSelected ExposurePutExposureTreeIDTermsOKScopeMode = "selected"
+)
+
+// AllValues returns all ExposurePutExposureTreeIDTermsOKScopeMode values.
+func (ExposurePutExposureTreeIDTermsOKScopeMode) AllValues() []ExposurePutExposureTreeIDTermsOKScopeMode {
+	return []ExposurePutExposureTreeIDTermsOKScopeMode{
+		ExposurePutExposureTreeIDTermsOKScopeModeSelf,
+		ExposurePutExposureTreeIDTermsOKScopeModeAll,
+		ExposurePutExposureTreeIDTermsOKScopeModeSelected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTreeIDTermsOKScopeMode) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTreeIDTermsOKScopeModeSelf:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKScopeModeAll:
+		return []byte(s), nil
+	case ExposurePutExposureTreeIDTermsOKScopeModeSelected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTreeIDTermsOKScopeMode) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTreeIDTermsOKScopeMode(data) {
+	case ExposurePutExposureTreeIDTermsOKScopeModeSelf:
+		*s = ExposurePutExposureTreeIDTermsOKScopeModeSelf
+		return nil
+	case ExposurePutExposureTreeIDTermsOKScopeModeAll:
+		*s = ExposurePutExposureTreeIDTermsOKScopeModeAll
+		return nil
+	case ExposurePutExposureTreeIDTermsOKScopeModeSelected:
+		*s = ExposurePutExposureTreeIDTermsOKScopeModeSelected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePutExposureTreeIDTermsOKTerms struct {
+	At time.Time `json:"at"`
+	By string    `json:"by"`
+	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	Disruptive bool `json:"disruptive"`
+	// The exact text accepted, with the target in it.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTreeIDTermsOKTerms) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTreeIDTermsOKTerms) GetBy() string {
+	return s.By
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTreeIDTermsOKTerms) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTreeIDTermsOKTerms) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTreeIDTermsOKTerms) GetVersion() string {
+	return s.Version
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTreeIDTermsOKTerms) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTreeIDTermsOKTerms) SetBy(val string) {
+	s.By = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTreeIDTermsOKTerms) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTreeIDTermsOKTerms) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTreeIDTermsOKTerms) SetVersion(val string) {
+	s.Version = val
+}
+
+// The current testing terms for this node, to accept or read again.
+type ExposurePutExposureTreeIDTermsOKTermsNotice struct {
+	// The sentence of the extra tick, off by default.
+	Disruptive string `json:"disruptive"`
+	// The terms with the target in them, one paragraph per line.
+	Text    string `json:"text"`
+	Version string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) GetDisruptive() string {
+	return s.Disruptive
+}
+
+// GetText returns the value of Text.
+func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) GetText() string {
+	return s.Text
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) SetDisruptive(val string) {
+	s.Disruptive = val
+}
+
+// SetText sets the value of Text.
+func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) SetText(val string) {
+	s.Text = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) SetVersion(val string) {
+	s.Version = val
+}
+
+type ExposurePutExposureTreeIDTermsReq struct {
+	Disruptive bool   `json:"disruptive"`
+	Version    string `json:"version"`
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposurePutExposureTreeIDTermsReq) GetDisruptive() bool {
+	return s.Disruptive
+}
+
+// GetVersion returns the value of Version.
+func (s *ExposurePutExposureTreeIDTermsReq) GetVersion() string {
+	return s.Version
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposurePutExposureTreeIDTermsReq) SetDisruptive(val bool) {
+	s.Disruptive = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ExposurePutExposureTreeIDTermsReq) SetVersion(val string) {
 	s.Version = val
 }
 
@@ -170442,6 +181368,591 @@ func (o NilExposureDeleteExposureTargetsIDTermsOKValidity) Or(d ExposureDeleteEx
 	return d
 }
 
+// NewNilExposureDeleteExposureTreeIDTermsOKBlocked returns new NilExposureDeleteExposureTreeIDTermsOKBlocked with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKBlocked(v ExposureDeleteExposureTreeIDTermsOKBlocked) NilExposureDeleteExposureTreeIDTermsOKBlocked {
+	return NilExposureDeleteExposureTreeIDTermsOKBlocked{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKBlocked is nullable ExposureDeleteExposureTreeIDTermsOKBlocked.
+type NilExposureDeleteExposureTreeIDTermsOKBlocked struct {
+	Value ExposureDeleteExposureTreeIDTermsOKBlocked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKBlocked) SetTo(v ExposureDeleteExposureTreeIDTermsOKBlocked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKBlocked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKBlocked) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKBlocked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKBlocked) Get() (v ExposureDeleteExposureTreeIDTermsOKBlocked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKBlocked) Or(d ExposureDeleteExposureTreeIDTermsOKBlocked) ExposureDeleteExposureTreeIDTermsOKBlocked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKCommitment returns new NilExposureDeleteExposureTreeIDTermsOKCommitment with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKCommitment(v ExposureDeleteExposureTreeIDTermsOKCommitment) NilExposureDeleteExposureTreeIDTermsOKCommitment {
+	return NilExposureDeleteExposureTreeIDTermsOKCommitment{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKCommitment is nullable ExposureDeleteExposureTreeIDTermsOKCommitment.
+type NilExposureDeleteExposureTreeIDTermsOKCommitment struct {
+	Value ExposureDeleteExposureTreeIDTermsOKCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKCommitment) SetTo(v ExposureDeleteExposureTreeIDTermsOKCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKCommitment) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKCommitment) Get() (v ExposureDeleteExposureTreeIDTermsOKCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKCommitment) Or(d ExposureDeleteExposureTreeIDTermsOKCommitment) ExposureDeleteExposureTreeIDTermsOKCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKCommitmentNotice returns new NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKCommitmentNotice(v ExposureDeleteExposureTreeIDTermsOKCommitmentNotice) NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice {
+	return NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice is nullable ExposureDeleteExposureTreeIDTermsOKCommitmentNotice.
+type NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice struct {
+	Value ExposureDeleteExposureTreeIDTermsOKCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice) SetTo(v ExposureDeleteExposureTreeIDTermsOKCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice) Get() (v ExposureDeleteExposureTreeIDTermsOKCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKCommitmentNotice) Or(d ExposureDeleteExposureTreeIDTermsOKCommitmentNotice) ExposureDeleteExposureTreeIDTermsOKCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKCountsWorst returns new NilExposureDeleteExposureTreeIDTermsOKCountsWorst with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKCountsWorst(v ExposureDeleteExposureTreeIDTermsOKCountsWorst) NilExposureDeleteExposureTreeIDTermsOKCountsWorst {
+	return NilExposureDeleteExposureTreeIDTermsOKCountsWorst{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKCountsWorst is nullable ExposureDeleteExposureTreeIDTermsOKCountsWorst.
+type NilExposureDeleteExposureTreeIDTermsOKCountsWorst struct {
+	Value ExposureDeleteExposureTreeIDTermsOKCountsWorst
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKCountsWorst) SetTo(v ExposureDeleteExposureTreeIDTermsOKCountsWorst) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKCountsWorst) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKCountsWorst) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKCountsWorst
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKCountsWorst) Get() (v ExposureDeleteExposureTreeIDTermsOKCountsWorst, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKCountsWorst) Or(d ExposureDeleteExposureTreeIDTermsOKCountsWorst) ExposureDeleteExposureTreeIDTermsOKCountsWorst {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKLastScan returns new NilExposureDeleteExposureTreeIDTermsOKLastScan with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKLastScan(v ExposureDeleteExposureTreeIDTermsOKLastScan) NilExposureDeleteExposureTreeIDTermsOKLastScan {
+	return NilExposureDeleteExposureTreeIDTermsOKLastScan{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKLastScan is nullable ExposureDeleteExposureTreeIDTermsOKLastScan.
+type NilExposureDeleteExposureTreeIDTermsOKLastScan struct {
+	Value ExposureDeleteExposureTreeIDTermsOKLastScan
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKLastScan) SetTo(v ExposureDeleteExposureTreeIDTermsOKLastScan) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKLastScan) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKLastScan) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKLastScan
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKLastScan) Get() (v ExposureDeleteExposureTreeIDTermsOKLastScan, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKLastScan) Or(d ExposureDeleteExposureTreeIDTermsOKLastScan) ExposureDeleteExposureTreeIDTermsOKLastScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKLastScanCounts returns new NilExposureDeleteExposureTreeIDTermsOKLastScanCounts with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKLastScanCounts(v ExposureDeleteExposureTreeIDTermsOKLastScanCounts) NilExposureDeleteExposureTreeIDTermsOKLastScanCounts {
+	return NilExposureDeleteExposureTreeIDTermsOKLastScanCounts{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKLastScanCounts is nullable ExposureDeleteExposureTreeIDTermsOKLastScanCounts.
+type NilExposureDeleteExposureTreeIDTermsOKLastScanCounts struct {
+	Value ExposureDeleteExposureTreeIDTermsOKLastScanCounts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKLastScanCounts) SetTo(v ExposureDeleteExposureTreeIDTermsOKLastScanCounts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKLastScanCounts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKLastScanCounts) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKLastScanCounts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKLastScanCounts) Get() (v ExposureDeleteExposureTreeIDTermsOKLastScanCounts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKLastScanCounts) Or(d ExposureDeleteExposureTreeIDTermsOKLastScanCounts) ExposureDeleteExposureTreeIDTermsOKLastScanCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKProofCoveredBy returns new NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKProofCoveredBy(v ExposureDeleteExposureTreeIDTermsOKProofCoveredBy) NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy {
+	return NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy is nullable ExposureDeleteExposureTreeIDTermsOKProofCoveredBy.
+type NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy struct {
+	Value ExposureDeleteExposureTreeIDTermsOKProofCoveredBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy) SetTo(v ExposureDeleteExposureTreeIDTermsOKProofCoveredBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKProofCoveredBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy) Get() (v ExposureDeleteExposureTreeIDTermsOKProofCoveredBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy) Or(d ExposureDeleteExposureTreeIDTermsOKProofCoveredBy) ExposureDeleteExposureTreeIDTermsOKProofCoveredBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKProofDNS returns new NilExposureDeleteExposureTreeIDTermsOKProofDNS with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKProofDNS(v ExposureDeleteExposureTreeIDTermsOKProofDNS) NilExposureDeleteExposureTreeIDTermsOKProofDNS {
+	return NilExposureDeleteExposureTreeIDTermsOKProofDNS{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKProofDNS is nullable ExposureDeleteExposureTreeIDTermsOKProofDNS.
+type NilExposureDeleteExposureTreeIDTermsOKProofDNS struct {
+	Value ExposureDeleteExposureTreeIDTermsOKProofDNS
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofDNS) SetTo(v ExposureDeleteExposureTreeIDTermsOKProofDNS) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofDNS) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofDNS) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKProofDNS
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofDNS) Get() (v ExposureDeleteExposureTreeIDTermsOKProofDNS, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofDNS) Or(d ExposureDeleteExposureTreeIDTermsOKProofDNS) ExposureDeleteExposureTreeIDTermsOKProofDNS {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKProofFile returns new NilExposureDeleteExposureTreeIDTermsOKProofFile with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKProofFile(v ExposureDeleteExposureTreeIDTermsOKProofFile) NilExposureDeleteExposureTreeIDTermsOKProofFile {
+	return NilExposureDeleteExposureTreeIDTermsOKProofFile{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKProofFile is nullable ExposureDeleteExposureTreeIDTermsOKProofFile.
+type NilExposureDeleteExposureTreeIDTermsOKProofFile struct {
+	Value ExposureDeleteExposureTreeIDTermsOKProofFile
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofFile) SetTo(v ExposureDeleteExposureTreeIDTermsOKProofFile) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofFile) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofFile) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKProofFile
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofFile) Get() (v ExposureDeleteExposureTreeIDTermsOKProofFile, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofFile) Or(d ExposureDeleteExposureTreeIDTermsOKProofFile) ExposureDeleteExposureTreeIDTermsOKProofFile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKProofLastCheck returns new NilExposureDeleteExposureTreeIDTermsOKProofLastCheck with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKProofLastCheck(v ExposureDeleteExposureTreeIDTermsOKProofLastCheck) NilExposureDeleteExposureTreeIDTermsOKProofLastCheck {
+	return NilExposureDeleteExposureTreeIDTermsOKProofLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKProofLastCheck is nullable ExposureDeleteExposureTreeIDTermsOKProofLastCheck.
+type NilExposureDeleteExposureTreeIDTermsOKProofLastCheck struct {
+	Value ExposureDeleteExposureTreeIDTermsOKProofLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofLastCheck) SetTo(v ExposureDeleteExposureTreeIDTermsOKProofLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKProofLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofLastCheck) Get() (v ExposureDeleteExposureTreeIDTermsOKProofLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofLastCheck) Or(d ExposureDeleteExposureTreeIDTermsOKProofLastCheck) ExposureDeleteExposureTreeIDTermsOKProofLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKProofMethod returns new NilExposureDeleteExposureTreeIDTermsOKProofMethod with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKProofMethod(v ExposureDeleteExposureTreeIDTermsOKProofMethod) NilExposureDeleteExposureTreeIDTermsOKProofMethod {
+	return NilExposureDeleteExposureTreeIDTermsOKProofMethod{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKProofMethod is nullable ExposureDeleteExposureTreeIDTermsOKProofMethod.
+type NilExposureDeleteExposureTreeIDTermsOKProofMethod struct {
+	Value ExposureDeleteExposureTreeIDTermsOKProofMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofMethod) SetTo(v ExposureDeleteExposureTreeIDTermsOKProofMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofMethod) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKProofMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofMethod) Get() (v ExposureDeleteExposureTreeIDTermsOKProofMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofMethod) Or(d ExposureDeleteExposureTreeIDTermsOKProofMethod) ExposureDeleteExposureTreeIDTermsOKProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKScopeMode returns new NilExposureDeleteExposureTreeIDTermsOKScopeMode with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKScopeMode(v ExposureDeleteExposureTreeIDTermsOKScopeMode) NilExposureDeleteExposureTreeIDTermsOKScopeMode {
+	return NilExposureDeleteExposureTreeIDTermsOKScopeMode{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKScopeMode is nullable ExposureDeleteExposureTreeIDTermsOKScopeMode.
+type NilExposureDeleteExposureTreeIDTermsOKScopeMode struct {
+	Value ExposureDeleteExposureTreeIDTermsOKScopeMode
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKScopeMode) SetTo(v ExposureDeleteExposureTreeIDTermsOKScopeMode) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKScopeMode) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKScopeMode) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKScopeMode
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKScopeMode) Get() (v ExposureDeleteExposureTreeIDTermsOKScopeMode, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKScopeMode) Or(d ExposureDeleteExposureTreeIDTermsOKScopeMode) ExposureDeleteExposureTreeIDTermsOKScopeMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureDeleteExposureTreeIDTermsOKTerms returns new NilExposureDeleteExposureTreeIDTermsOKTerms with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKTerms(v ExposureDeleteExposureTreeIDTermsOKTerms) NilExposureDeleteExposureTreeIDTermsOKTerms {
+	return NilExposureDeleteExposureTreeIDTermsOKTerms{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKTerms is nullable ExposureDeleteExposureTreeIDTermsOKTerms.
+type NilExposureDeleteExposureTreeIDTermsOKTerms struct {
+	Value ExposureDeleteExposureTreeIDTermsOKTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKTerms) SetTo(v ExposureDeleteExposureTreeIDTermsOKTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKTerms) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKTerms) Get() (v ExposureDeleteExposureTreeIDTermsOKTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKTerms) Or(d ExposureDeleteExposureTreeIDTermsOKTerms) ExposureDeleteExposureTreeIDTermsOKTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureGreenboneOKFeed returns new NilExposureGetExposureGreenboneOKFeed with value set to v.
 func NewNilExposureGetExposureGreenboneOKFeed(v ExposureGetExposureGreenboneOKFeed) NilExposureGetExposureGreenboneOKFeed {
 	return NilExposureGetExposureGreenboneOKFeed{
@@ -171696,6 +183207,2076 @@ func (o NilExposureGetExposureTargetsOKItemsItemValidity) Get() (v ExposureGetEx
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposureGetExposureTargetsOKItemsItemValidity) Or(d ExposureGetExposureTargetsOKItemsItemValidity) ExposureGetExposureTargetsOKItemsItemValidity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDHostsOKItemsItemChild returns new NilExposureGetExposureTreeIDHostsOKItemsItemChild with value set to v.
+func NewNilExposureGetExposureTreeIDHostsOKItemsItemChild(v ExposureGetExposureTreeIDHostsOKItemsItemChild) NilExposureGetExposureTreeIDHostsOKItemsItemChild {
+	return NilExposureGetExposureTreeIDHostsOKItemsItemChild{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDHostsOKItemsItemChild is nullable ExposureGetExposureTreeIDHostsOKItemsItemChild.
+type NilExposureGetExposureTreeIDHostsOKItemsItemChild struct {
+	Value ExposureGetExposureTreeIDHostsOKItemsItemChild
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDHostsOKItemsItemChild) SetTo(v ExposureGetExposureTreeIDHostsOKItemsItemChild) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDHostsOKItemsItemChild) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDHostsOKItemsItemChild) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDHostsOKItemsItemChild
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDHostsOKItemsItemChild) Get() (v ExposureGetExposureTreeIDHostsOKItemsItemChild, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDHostsOKItemsItemChild) Or(d ExposureGetExposureTreeIDHostsOKItemsItemChild) ExposureGetExposureTreeIDHostsOKItemsItemChild {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity returns new NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity with value set to v.
+func NewNilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity(v ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity {
+	return NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity is nullable ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity.
+type NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity struct {
+	Value ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetTo(v ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) Get() (v ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) Or(d ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity) ExposureGetExposureTreeIDIssuesOKItemsItemCvesItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDIssuesOKItemsItemResolution returns new NilExposureGetExposureTreeIDIssuesOKItemsItemResolution with value set to v.
+func NewNilExposureGetExposureTreeIDIssuesOKItemsItemResolution(v ExposureGetExposureTreeIDIssuesOKItemsItemResolution) NilExposureGetExposureTreeIDIssuesOKItemsItemResolution {
+	return NilExposureGetExposureTreeIDIssuesOKItemsItemResolution{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDIssuesOKItemsItemResolution is nullable ExposureGetExposureTreeIDIssuesOKItemsItemResolution.
+type NilExposureGetExposureTreeIDIssuesOKItemsItemResolution struct {
+	Value ExposureGetExposureTreeIDIssuesOKItemsItemResolution
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDIssuesOKItemsItemResolution) SetTo(v ExposureGetExposureTreeIDIssuesOKItemsItemResolution) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDIssuesOKItemsItemResolution) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDIssuesOKItemsItemResolution) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDIssuesOKItemsItemResolution
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDIssuesOKItemsItemResolution) Get() (v ExposureGetExposureTreeIDIssuesOKItemsItemResolution, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDIssuesOKItemsItemResolution) Or(d ExposureGetExposureTreeIDIssuesOKItemsItemResolution) ExposureGetExposureTreeIDIssuesOKItemsItemResolution {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKBlocked returns new NilExposureGetExposureTreeIDOKBlocked with value set to v.
+func NewNilExposureGetExposureTreeIDOKBlocked(v ExposureGetExposureTreeIDOKBlocked) NilExposureGetExposureTreeIDOKBlocked {
+	return NilExposureGetExposureTreeIDOKBlocked{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKBlocked is nullable ExposureGetExposureTreeIDOKBlocked.
+type NilExposureGetExposureTreeIDOKBlocked struct {
+	Value ExposureGetExposureTreeIDOKBlocked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKBlocked) SetTo(v ExposureGetExposureTreeIDOKBlocked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKBlocked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKBlocked) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKBlocked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKBlocked) Get() (v ExposureGetExposureTreeIDOKBlocked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKBlocked) Or(d ExposureGetExposureTreeIDOKBlocked) ExposureGetExposureTreeIDOKBlocked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKCommitment returns new NilExposureGetExposureTreeIDOKCommitment with value set to v.
+func NewNilExposureGetExposureTreeIDOKCommitment(v ExposureGetExposureTreeIDOKCommitment) NilExposureGetExposureTreeIDOKCommitment {
+	return NilExposureGetExposureTreeIDOKCommitment{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKCommitment is nullable ExposureGetExposureTreeIDOKCommitment.
+type NilExposureGetExposureTreeIDOKCommitment struct {
+	Value ExposureGetExposureTreeIDOKCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKCommitment) SetTo(v ExposureGetExposureTreeIDOKCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKCommitment) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKCommitment) Get() (v ExposureGetExposureTreeIDOKCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKCommitment) Or(d ExposureGetExposureTreeIDOKCommitment) ExposureGetExposureTreeIDOKCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKCommitmentNotice returns new NilExposureGetExposureTreeIDOKCommitmentNotice with value set to v.
+func NewNilExposureGetExposureTreeIDOKCommitmentNotice(v ExposureGetExposureTreeIDOKCommitmentNotice) NilExposureGetExposureTreeIDOKCommitmentNotice {
+	return NilExposureGetExposureTreeIDOKCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKCommitmentNotice is nullable ExposureGetExposureTreeIDOKCommitmentNotice.
+type NilExposureGetExposureTreeIDOKCommitmentNotice struct {
+	Value ExposureGetExposureTreeIDOKCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKCommitmentNotice) SetTo(v ExposureGetExposureTreeIDOKCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKCommitmentNotice) Get() (v ExposureGetExposureTreeIDOKCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKCommitmentNotice) Or(d ExposureGetExposureTreeIDOKCommitmentNotice) ExposureGetExposureTreeIDOKCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKCountsWorst returns new NilExposureGetExposureTreeIDOKCountsWorst with value set to v.
+func NewNilExposureGetExposureTreeIDOKCountsWorst(v ExposureGetExposureTreeIDOKCountsWorst) NilExposureGetExposureTreeIDOKCountsWorst {
+	return NilExposureGetExposureTreeIDOKCountsWorst{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKCountsWorst is nullable ExposureGetExposureTreeIDOKCountsWorst.
+type NilExposureGetExposureTreeIDOKCountsWorst struct {
+	Value ExposureGetExposureTreeIDOKCountsWorst
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKCountsWorst) SetTo(v ExposureGetExposureTreeIDOKCountsWorst) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKCountsWorst) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKCountsWorst) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKCountsWorst
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKCountsWorst) Get() (v ExposureGetExposureTreeIDOKCountsWorst, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKCountsWorst) Or(d ExposureGetExposureTreeIDOKCountsWorst) ExposureGetExposureTreeIDOKCountsWorst {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKLastScan returns new NilExposureGetExposureTreeIDOKLastScan with value set to v.
+func NewNilExposureGetExposureTreeIDOKLastScan(v ExposureGetExposureTreeIDOKLastScan) NilExposureGetExposureTreeIDOKLastScan {
+	return NilExposureGetExposureTreeIDOKLastScan{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKLastScan is nullable ExposureGetExposureTreeIDOKLastScan.
+type NilExposureGetExposureTreeIDOKLastScan struct {
+	Value ExposureGetExposureTreeIDOKLastScan
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKLastScan) SetTo(v ExposureGetExposureTreeIDOKLastScan) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKLastScan) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKLastScan) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKLastScan
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKLastScan) Get() (v ExposureGetExposureTreeIDOKLastScan, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKLastScan) Or(d ExposureGetExposureTreeIDOKLastScan) ExposureGetExposureTreeIDOKLastScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKLastScanCounts returns new NilExposureGetExposureTreeIDOKLastScanCounts with value set to v.
+func NewNilExposureGetExposureTreeIDOKLastScanCounts(v ExposureGetExposureTreeIDOKLastScanCounts) NilExposureGetExposureTreeIDOKLastScanCounts {
+	return NilExposureGetExposureTreeIDOKLastScanCounts{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKLastScanCounts is nullable ExposureGetExposureTreeIDOKLastScanCounts.
+type NilExposureGetExposureTreeIDOKLastScanCounts struct {
+	Value ExposureGetExposureTreeIDOKLastScanCounts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKLastScanCounts) SetTo(v ExposureGetExposureTreeIDOKLastScanCounts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKLastScanCounts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKLastScanCounts) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKLastScanCounts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKLastScanCounts) Get() (v ExposureGetExposureTreeIDOKLastScanCounts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKLastScanCounts) Or(d ExposureGetExposureTreeIDOKLastScanCounts) ExposureGetExposureTreeIDOKLastScanCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKProofCoveredBy returns new NilExposureGetExposureTreeIDOKProofCoveredBy with value set to v.
+func NewNilExposureGetExposureTreeIDOKProofCoveredBy(v ExposureGetExposureTreeIDOKProofCoveredBy) NilExposureGetExposureTreeIDOKProofCoveredBy {
+	return NilExposureGetExposureTreeIDOKProofCoveredBy{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKProofCoveredBy is nullable ExposureGetExposureTreeIDOKProofCoveredBy.
+type NilExposureGetExposureTreeIDOKProofCoveredBy struct {
+	Value ExposureGetExposureTreeIDOKProofCoveredBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKProofCoveredBy) SetTo(v ExposureGetExposureTreeIDOKProofCoveredBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKProofCoveredBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKProofCoveredBy) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKProofCoveredBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKProofCoveredBy) Get() (v ExposureGetExposureTreeIDOKProofCoveredBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKProofCoveredBy) Or(d ExposureGetExposureTreeIDOKProofCoveredBy) ExposureGetExposureTreeIDOKProofCoveredBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKProofDNS returns new NilExposureGetExposureTreeIDOKProofDNS with value set to v.
+func NewNilExposureGetExposureTreeIDOKProofDNS(v ExposureGetExposureTreeIDOKProofDNS) NilExposureGetExposureTreeIDOKProofDNS {
+	return NilExposureGetExposureTreeIDOKProofDNS{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKProofDNS is nullable ExposureGetExposureTreeIDOKProofDNS.
+type NilExposureGetExposureTreeIDOKProofDNS struct {
+	Value ExposureGetExposureTreeIDOKProofDNS
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKProofDNS) SetTo(v ExposureGetExposureTreeIDOKProofDNS) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKProofDNS) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKProofDNS) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKProofDNS
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKProofDNS) Get() (v ExposureGetExposureTreeIDOKProofDNS, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKProofDNS) Or(d ExposureGetExposureTreeIDOKProofDNS) ExposureGetExposureTreeIDOKProofDNS {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKProofFile returns new NilExposureGetExposureTreeIDOKProofFile with value set to v.
+func NewNilExposureGetExposureTreeIDOKProofFile(v ExposureGetExposureTreeIDOKProofFile) NilExposureGetExposureTreeIDOKProofFile {
+	return NilExposureGetExposureTreeIDOKProofFile{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKProofFile is nullable ExposureGetExposureTreeIDOKProofFile.
+type NilExposureGetExposureTreeIDOKProofFile struct {
+	Value ExposureGetExposureTreeIDOKProofFile
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKProofFile) SetTo(v ExposureGetExposureTreeIDOKProofFile) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKProofFile) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKProofFile) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKProofFile
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKProofFile) Get() (v ExposureGetExposureTreeIDOKProofFile, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKProofFile) Or(d ExposureGetExposureTreeIDOKProofFile) ExposureGetExposureTreeIDOKProofFile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKProofLastCheck returns new NilExposureGetExposureTreeIDOKProofLastCheck with value set to v.
+func NewNilExposureGetExposureTreeIDOKProofLastCheck(v ExposureGetExposureTreeIDOKProofLastCheck) NilExposureGetExposureTreeIDOKProofLastCheck {
+	return NilExposureGetExposureTreeIDOKProofLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKProofLastCheck is nullable ExposureGetExposureTreeIDOKProofLastCheck.
+type NilExposureGetExposureTreeIDOKProofLastCheck struct {
+	Value ExposureGetExposureTreeIDOKProofLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKProofLastCheck) SetTo(v ExposureGetExposureTreeIDOKProofLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKProofLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKProofLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKProofLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKProofLastCheck) Get() (v ExposureGetExposureTreeIDOKProofLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKProofLastCheck) Or(d ExposureGetExposureTreeIDOKProofLastCheck) ExposureGetExposureTreeIDOKProofLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKProofMethod returns new NilExposureGetExposureTreeIDOKProofMethod with value set to v.
+func NewNilExposureGetExposureTreeIDOKProofMethod(v ExposureGetExposureTreeIDOKProofMethod) NilExposureGetExposureTreeIDOKProofMethod {
+	return NilExposureGetExposureTreeIDOKProofMethod{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKProofMethod is nullable ExposureGetExposureTreeIDOKProofMethod.
+type NilExposureGetExposureTreeIDOKProofMethod struct {
+	Value ExposureGetExposureTreeIDOKProofMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKProofMethod) SetTo(v ExposureGetExposureTreeIDOKProofMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKProofMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKProofMethod) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKProofMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKProofMethod) Get() (v ExposureGetExposureTreeIDOKProofMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKProofMethod) Or(d ExposureGetExposureTreeIDOKProofMethod) ExposureGetExposureTreeIDOKProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKScopeMode returns new NilExposureGetExposureTreeIDOKScopeMode with value set to v.
+func NewNilExposureGetExposureTreeIDOKScopeMode(v ExposureGetExposureTreeIDOKScopeMode) NilExposureGetExposureTreeIDOKScopeMode {
+	return NilExposureGetExposureTreeIDOKScopeMode{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKScopeMode is nullable ExposureGetExposureTreeIDOKScopeMode.
+type NilExposureGetExposureTreeIDOKScopeMode struct {
+	Value ExposureGetExposureTreeIDOKScopeMode
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKScopeMode) SetTo(v ExposureGetExposureTreeIDOKScopeMode) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKScopeMode) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKScopeMode) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKScopeMode
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKScopeMode) Get() (v ExposureGetExposureTreeIDOKScopeMode, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKScopeMode) Or(d ExposureGetExposureTreeIDOKScopeMode) ExposureGetExposureTreeIDOKScopeMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDOKTerms returns new NilExposureGetExposureTreeIDOKTerms with value set to v.
+func NewNilExposureGetExposureTreeIDOKTerms(v ExposureGetExposureTreeIDOKTerms) NilExposureGetExposureTreeIDOKTerms {
+	return NilExposureGetExposureTreeIDOKTerms{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKTerms is nullable ExposureGetExposureTreeIDOKTerms.
+type NilExposureGetExposureTreeIDOKTerms struct {
+	Value ExposureGetExposureTreeIDOKTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKTerms) SetTo(v ExposureGetExposureTreeIDOKTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKTerms) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKTerms) Get() (v ExposureGetExposureTreeIDOKTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKTerms) Or(d ExposureGetExposureTreeIDOKTerms) ExposureGetExposureTreeIDOKTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDScansOKItemsItemCounts returns new NilExposureGetExposureTreeIDScansOKItemsItemCounts with value set to v.
+func NewNilExposureGetExposureTreeIDScansOKItemsItemCounts(v ExposureGetExposureTreeIDScansOKItemsItemCounts) NilExposureGetExposureTreeIDScansOKItemsItemCounts {
+	return NilExposureGetExposureTreeIDScansOKItemsItemCounts{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDScansOKItemsItemCounts is nullable ExposureGetExposureTreeIDScansOKItemsItemCounts.
+type NilExposureGetExposureTreeIDScansOKItemsItemCounts struct {
+	Value ExposureGetExposureTreeIDScansOKItemsItemCounts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDScansOKItemsItemCounts) SetTo(v ExposureGetExposureTreeIDScansOKItemsItemCounts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDScansOKItemsItemCounts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDScansOKItemsItemCounts) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDScansOKItemsItemCounts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDScansOKItemsItemCounts) Get() (v ExposureGetExposureTreeIDScansOKItemsItemCounts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDScansOKItemsItemCounts) Or(d ExposureGetExposureTreeIDScansOKItemsItemCounts) ExposureGetExposureTreeIDScansOKItemsItemCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeIDServicesOKItemsItemCert returns new NilExposureGetExposureTreeIDServicesOKItemsItemCert with value set to v.
+func NewNilExposureGetExposureTreeIDServicesOKItemsItemCert(v ExposureGetExposureTreeIDServicesOKItemsItemCert) NilExposureGetExposureTreeIDServicesOKItemsItemCert {
+	return NilExposureGetExposureTreeIDServicesOKItemsItemCert{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDServicesOKItemsItemCert is nullable ExposureGetExposureTreeIDServicesOKItemsItemCert.
+type NilExposureGetExposureTreeIDServicesOKItemsItemCert struct {
+	Value ExposureGetExposureTreeIDServicesOKItemsItemCert
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDServicesOKItemsItemCert) SetTo(v ExposureGetExposureTreeIDServicesOKItemsItemCert) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDServicesOKItemsItemCert) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDServicesOKItemsItemCert) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDServicesOKItemsItemCert
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDServicesOKItemsItemCert) Get() (v ExposureGetExposureTreeIDServicesOKItemsItemCert, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDServicesOKItemsItemCert) Or(d ExposureGetExposureTreeIDServicesOKItemsItemCert) ExposureGetExposureTreeIDServicesOKItemsItemCert {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKBoxIPLastRun returns new NilExposureGetExposureTreeOKBoxIPLastRun with value set to v.
+func NewNilExposureGetExposureTreeOKBoxIPLastRun(v ExposureGetExposureTreeOKBoxIPLastRun) NilExposureGetExposureTreeOKBoxIPLastRun {
+	return NilExposureGetExposureTreeOKBoxIPLastRun{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKBoxIPLastRun is nullable ExposureGetExposureTreeOKBoxIPLastRun.
+type NilExposureGetExposureTreeOKBoxIPLastRun struct {
+	Value ExposureGetExposureTreeOKBoxIPLastRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKBoxIPLastRun) SetTo(v ExposureGetExposureTreeOKBoxIPLastRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKBoxIPLastRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKBoxIPLastRun) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKBoxIPLastRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKBoxIPLastRun) Get() (v ExposureGetExposureTreeOKBoxIPLastRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKBoxIPLastRun) Or(d ExposureGetExposureTreeOKBoxIPLastRun) ExposureGetExposureTreeOKBoxIPLastRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKGateway returns new NilExposureGetExposureTreeOKGateway with value set to v.
+func NewNilExposureGetExposureTreeOKGateway(v ExposureGetExposureTreeOKGateway) NilExposureGetExposureTreeOKGateway {
+	return NilExposureGetExposureTreeOKGateway{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKGateway is nullable ExposureGetExposureTreeOKGateway.
+type NilExposureGetExposureTreeOKGateway struct {
+	Value ExposureGetExposureTreeOKGateway
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKGateway) SetTo(v ExposureGetExposureTreeOKGateway) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKGateway) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKGateway) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKGateway
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKGateway) Get() (v ExposureGetExposureTreeOKGateway, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKGateway) Or(d ExposureGetExposureTreeOKGateway) ExposureGetExposureTreeOKGateway {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemBlocked returns new NilExposureGetExposureTreeOKItemsItemBlocked with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemBlocked(v ExposureGetExposureTreeOKItemsItemBlocked) NilExposureGetExposureTreeOKItemsItemBlocked {
+	return NilExposureGetExposureTreeOKItemsItemBlocked{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemBlocked is nullable ExposureGetExposureTreeOKItemsItemBlocked.
+type NilExposureGetExposureTreeOKItemsItemBlocked struct {
+	Value ExposureGetExposureTreeOKItemsItemBlocked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemBlocked) SetTo(v ExposureGetExposureTreeOKItemsItemBlocked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemBlocked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemBlocked) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemBlocked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemBlocked) Get() (v ExposureGetExposureTreeOKItemsItemBlocked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemBlocked) Or(d ExposureGetExposureTreeOKItemsItemBlocked) ExposureGetExposureTreeOKItemsItemBlocked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemCommitment returns new NilExposureGetExposureTreeOKItemsItemCommitment with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemCommitment(v ExposureGetExposureTreeOKItemsItemCommitment) NilExposureGetExposureTreeOKItemsItemCommitment {
+	return NilExposureGetExposureTreeOKItemsItemCommitment{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemCommitment is nullable ExposureGetExposureTreeOKItemsItemCommitment.
+type NilExposureGetExposureTreeOKItemsItemCommitment struct {
+	Value ExposureGetExposureTreeOKItemsItemCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemCommitment) SetTo(v ExposureGetExposureTreeOKItemsItemCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemCommitment) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemCommitment) Get() (v ExposureGetExposureTreeOKItemsItemCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemCommitment) Or(d ExposureGetExposureTreeOKItemsItemCommitment) ExposureGetExposureTreeOKItemsItemCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemCommitmentNotice returns new NilExposureGetExposureTreeOKItemsItemCommitmentNotice with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemCommitmentNotice(v ExposureGetExposureTreeOKItemsItemCommitmentNotice) NilExposureGetExposureTreeOKItemsItemCommitmentNotice {
+	return NilExposureGetExposureTreeOKItemsItemCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemCommitmentNotice is nullable ExposureGetExposureTreeOKItemsItemCommitmentNotice.
+type NilExposureGetExposureTreeOKItemsItemCommitmentNotice struct {
+	Value ExposureGetExposureTreeOKItemsItemCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemCommitmentNotice) SetTo(v ExposureGetExposureTreeOKItemsItemCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemCommitmentNotice) Get() (v ExposureGetExposureTreeOKItemsItemCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemCommitmentNotice) Or(d ExposureGetExposureTreeOKItemsItemCommitmentNotice) ExposureGetExposureTreeOKItemsItemCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemCountsWorst returns new NilExposureGetExposureTreeOKItemsItemCountsWorst with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemCountsWorst(v ExposureGetExposureTreeOKItemsItemCountsWorst) NilExposureGetExposureTreeOKItemsItemCountsWorst {
+	return NilExposureGetExposureTreeOKItemsItemCountsWorst{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemCountsWorst is nullable ExposureGetExposureTreeOKItemsItemCountsWorst.
+type NilExposureGetExposureTreeOKItemsItemCountsWorst struct {
+	Value ExposureGetExposureTreeOKItemsItemCountsWorst
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemCountsWorst) SetTo(v ExposureGetExposureTreeOKItemsItemCountsWorst) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemCountsWorst) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemCountsWorst) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemCountsWorst
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemCountsWorst) Get() (v ExposureGetExposureTreeOKItemsItemCountsWorst, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemCountsWorst) Or(d ExposureGetExposureTreeOKItemsItemCountsWorst) ExposureGetExposureTreeOKItemsItemCountsWorst {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemLastScan returns new NilExposureGetExposureTreeOKItemsItemLastScan with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemLastScan(v ExposureGetExposureTreeOKItemsItemLastScan) NilExposureGetExposureTreeOKItemsItemLastScan {
+	return NilExposureGetExposureTreeOKItemsItemLastScan{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemLastScan is nullable ExposureGetExposureTreeOKItemsItemLastScan.
+type NilExposureGetExposureTreeOKItemsItemLastScan struct {
+	Value ExposureGetExposureTreeOKItemsItemLastScan
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemLastScan) SetTo(v ExposureGetExposureTreeOKItemsItemLastScan) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemLastScan) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemLastScan) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemLastScan
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemLastScan) Get() (v ExposureGetExposureTreeOKItemsItemLastScan, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemLastScan) Or(d ExposureGetExposureTreeOKItemsItemLastScan) ExposureGetExposureTreeOKItemsItemLastScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemLastScanCounts returns new NilExposureGetExposureTreeOKItemsItemLastScanCounts with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemLastScanCounts(v ExposureGetExposureTreeOKItemsItemLastScanCounts) NilExposureGetExposureTreeOKItemsItemLastScanCounts {
+	return NilExposureGetExposureTreeOKItemsItemLastScanCounts{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemLastScanCounts is nullable ExposureGetExposureTreeOKItemsItemLastScanCounts.
+type NilExposureGetExposureTreeOKItemsItemLastScanCounts struct {
+	Value ExposureGetExposureTreeOKItemsItemLastScanCounts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemLastScanCounts) SetTo(v ExposureGetExposureTreeOKItemsItemLastScanCounts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemLastScanCounts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemLastScanCounts) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemLastScanCounts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemLastScanCounts) Get() (v ExposureGetExposureTreeOKItemsItemLastScanCounts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemLastScanCounts) Or(d ExposureGetExposureTreeOKItemsItemLastScanCounts) ExposureGetExposureTreeOKItemsItemLastScanCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemProofCoveredBy returns new NilExposureGetExposureTreeOKItemsItemProofCoveredBy with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemProofCoveredBy(v ExposureGetExposureTreeOKItemsItemProofCoveredBy) NilExposureGetExposureTreeOKItemsItemProofCoveredBy {
+	return NilExposureGetExposureTreeOKItemsItemProofCoveredBy{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemProofCoveredBy is nullable ExposureGetExposureTreeOKItemsItemProofCoveredBy.
+type NilExposureGetExposureTreeOKItemsItemProofCoveredBy struct {
+	Value ExposureGetExposureTreeOKItemsItemProofCoveredBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemProofCoveredBy) SetTo(v ExposureGetExposureTreeOKItemsItemProofCoveredBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemProofCoveredBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemProofCoveredBy) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemProofCoveredBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemProofCoveredBy) Get() (v ExposureGetExposureTreeOKItemsItemProofCoveredBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemProofCoveredBy) Or(d ExposureGetExposureTreeOKItemsItemProofCoveredBy) ExposureGetExposureTreeOKItemsItemProofCoveredBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemProofDNS returns new NilExposureGetExposureTreeOKItemsItemProofDNS with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemProofDNS(v ExposureGetExposureTreeOKItemsItemProofDNS) NilExposureGetExposureTreeOKItemsItemProofDNS {
+	return NilExposureGetExposureTreeOKItemsItemProofDNS{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemProofDNS is nullable ExposureGetExposureTreeOKItemsItemProofDNS.
+type NilExposureGetExposureTreeOKItemsItemProofDNS struct {
+	Value ExposureGetExposureTreeOKItemsItemProofDNS
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemProofDNS) SetTo(v ExposureGetExposureTreeOKItemsItemProofDNS) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemProofDNS) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemProofDNS) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemProofDNS
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemProofDNS) Get() (v ExposureGetExposureTreeOKItemsItemProofDNS, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemProofDNS) Or(d ExposureGetExposureTreeOKItemsItemProofDNS) ExposureGetExposureTreeOKItemsItemProofDNS {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemProofFile returns new NilExposureGetExposureTreeOKItemsItemProofFile with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemProofFile(v ExposureGetExposureTreeOKItemsItemProofFile) NilExposureGetExposureTreeOKItemsItemProofFile {
+	return NilExposureGetExposureTreeOKItemsItemProofFile{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemProofFile is nullable ExposureGetExposureTreeOKItemsItemProofFile.
+type NilExposureGetExposureTreeOKItemsItemProofFile struct {
+	Value ExposureGetExposureTreeOKItemsItemProofFile
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemProofFile) SetTo(v ExposureGetExposureTreeOKItemsItemProofFile) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemProofFile) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemProofFile) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemProofFile
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemProofFile) Get() (v ExposureGetExposureTreeOKItemsItemProofFile, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemProofFile) Or(d ExposureGetExposureTreeOKItemsItemProofFile) ExposureGetExposureTreeOKItemsItemProofFile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemProofLastCheck returns new NilExposureGetExposureTreeOKItemsItemProofLastCheck with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemProofLastCheck(v ExposureGetExposureTreeOKItemsItemProofLastCheck) NilExposureGetExposureTreeOKItemsItemProofLastCheck {
+	return NilExposureGetExposureTreeOKItemsItemProofLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemProofLastCheck is nullable ExposureGetExposureTreeOKItemsItemProofLastCheck.
+type NilExposureGetExposureTreeOKItemsItemProofLastCheck struct {
+	Value ExposureGetExposureTreeOKItemsItemProofLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemProofLastCheck) SetTo(v ExposureGetExposureTreeOKItemsItemProofLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemProofLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemProofLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemProofLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemProofLastCheck) Get() (v ExposureGetExposureTreeOKItemsItemProofLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemProofLastCheck) Or(d ExposureGetExposureTreeOKItemsItemProofLastCheck) ExposureGetExposureTreeOKItemsItemProofLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemProofMethod returns new NilExposureGetExposureTreeOKItemsItemProofMethod with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemProofMethod(v ExposureGetExposureTreeOKItemsItemProofMethod) NilExposureGetExposureTreeOKItemsItemProofMethod {
+	return NilExposureGetExposureTreeOKItemsItemProofMethod{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemProofMethod is nullable ExposureGetExposureTreeOKItemsItemProofMethod.
+type NilExposureGetExposureTreeOKItemsItemProofMethod struct {
+	Value ExposureGetExposureTreeOKItemsItemProofMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemProofMethod) SetTo(v ExposureGetExposureTreeOKItemsItemProofMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemProofMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemProofMethod) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemProofMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemProofMethod) Get() (v ExposureGetExposureTreeOKItemsItemProofMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemProofMethod) Or(d ExposureGetExposureTreeOKItemsItemProofMethod) ExposureGetExposureTreeOKItemsItemProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemScopeMode returns new NilExposureGetExposureTreeOKItemsItemScopeMode with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemScopeMode(v ExposureGetExposureTreeOKItemsItemScopeMode) NilExposureGetExposureTreeOKItemsItemScopeMode {
+	return NilExposureGetExposureTreeOKItemsItemScopeMode{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemScopeMode is nullable ExposureGetExposureTreeOKItemsItemScopeMode.
+type NilExposureGetExposureTreeOKItemsItemScopeMode struct {
+	Value ExposureGetExposureTreeOKItemsItemScopeMode
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemScopeMode) SetTo(v ExposureGetExposureTreeOKItemsItemScopeMode) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemScopeMode) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemScopeMode) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemScopeMode
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemScopeMode) Get() (v ExposureGetExposureTreeOKItemsItemScopeMode, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemScopeMode) Or(d ExposureGetExposureTreeOKItemsItemScopeMode) ExposureGetExposureTreeOKItemsItemScopeMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureTreeOKItemsItemTerms returns new NilExposureGetExposureTreeOKItemsItemTerms with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemTerms(v ExposureGetExposureTreeOKItemsItemTerms) NilExposureGetExposureTreeOKItemsItemTerms {
+	return NilExposureGetExposureTreeOKItemsItemTerms{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemTerms is nullable ExposureGetExposureTreeOKItemsItemTerms.
+type NilExposureGetExposureTreeOKItemsItemTerms struct {
+	Value ExposureGetExposureTreeOKItemsItemTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemTerms) SetTo(v ExposureGetExposureTreeOKItemsItemTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemTerms) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemTerms) Get() (v ExposureGetExposureTreeOKItemsItemTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemTerms) Or(d ExposureGetExposureTreeOKItemsItemTerms) ExposureGetExposureTreeOKItemsItemTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKBlocked returns new NilExposurePatchExposureTreeIDOKBlocked with value set to v.
+func NewNilExposurePatchExposureTreeIDOKBlocked(v ExposurePatchExposureTreeIDOKBlocked) NilExposurePatchExposureTreeIDOKBlocked {
+	return NilExposurePatchExposureTreeIDOKBlocked{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKBlocked is nullable ExposurePatchExposureTreeIDOKBlocked.
+type NilExposurePatchExposureTreeIDOKBlocked struct {
+	Value ExposurePatchExposureTreeIDOKBlocked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKBlocked) SetTo(v ExposurePatchExposureTreeIDOKBlocked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKBlocked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKBlocked) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKBlocked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKBlocked) Get() (v ExposurePatchExposureTreeIDOKBlocked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKBlocked) Or(d ExposurePatchExposureTreeIDOKBlocked) ExposurePatchExposureTreeIDOKBlocked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKCommitment returns new NilExposurePatchExposureTreeIDOKCommitment with value set to v.
+func NewNilExposurePatchExposureTreeIDOKCommitment(v ExposurePatchExposureTreeIDOKCommitment) NilExposurePatchExposureTreeIDOKCommitment {
+	return NilExposurePatchExposureTreeIDOKCommitment{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKCommitment is nullable ExposurePatchExposureTreeIDOKCommitment.
+type NilExposurePatchExposureTreeIDOKCommitment struct {
+	Value ExposurePatchExposureTreeIDOKCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKCommitment) SetTo(v ExposurePatchExposureTreeIDOKCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKCommitment) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKCommitment) Get() (v ExposurePatchExposureTreeIDOKCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKCommitment) Or(d ExposurePatchExposureTreeIDOKCommitment) ExposurePatchExposureTreeIDOKCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKCommitmentNotice returns new NilExposurePatchExposureTreeIDOKCommitmentNotice with value set to v.
+func NewNilExposurePatchExposureTreeIDOKCommitmentNotice(v ExposurePatchExposureTreeIDOKCommitmentNotice) NilExposurePatchExposureTreeIDOKCommitmentNotice {
+	return NilExposurePatchExposureTreeIDOKCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKCommitmentNotice is nullable ExposurePatchExposureTreeIDOKCommitmentNotice.
+type NilExposurePatchExposureTreeIDOKCommitmentNotice struct {
+	Value ExposurePatchExposureTreeIDOKCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKCommitmentNotice) SetTo(v ExposurePatchExposureTreeIDOKCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKCommitmentNotice) Get() (v ExposurePatchExposureTreeIDOKCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKCommitmentNotice) Or(d ExposurePatchExposureTreeIDOKCommitmentNotice) ExposurePatchExposureTreeIDOKCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKCountsWorst returns new NilExposurePatchExposureTreeIDOKCountsWorst with value set to v.
+func NewNilExposurePatchExposureTreeIDOKCountsWorst(v ExposurePatchExposureTreeIDOKCountsWorst) NilExposurePatchExposureTreeIDOKCountsWorst {
+	return NilExposurePatchExposureTreeIDOKCountsWorst{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKCountsWorst is nullable ExposurePatchExposureTreeIDOKCountsWorst.
+type NilExposurePatchExposureTreeIDOKCountsWorst struct {
+	Value ExposurePatchExposureTreeIDOKCountsWorst
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKCountsWorst) SetTo(v ExposurePatchExposureTreeIDOKCountsWorst) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKCountsWorst) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKCountsWorst) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKCountsWorst
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKCountsWorst) Get() (v ExposurePatchExposureTreeIDOKCountsWorst, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKCountsWorst) Or(d ExposurePatchExposureTreeIDOKCountsWorst) ExposurePatchExposureTreeIDOKCountsWorst {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKLastScan returns new NilExposurePatchExposureTreeIDOKLastScan with value set to v.
+func NewNilExposurePatchExposureTreeIDOKLastScan(v ExposurePatchExposureTreeIDOKLastScan) NilExposurePatchExposureTreeIDOKLastScan {
+	return NilExposurePatchExposureTreeIDOKLastScan{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKLastScan is nullable ExposurePatchExposureTreeIDOKLastScan.
+type NilExposurePatchExposureTreeIDOKLastScan struct {
+	Value ExposurePatchExposureTreeIDOKLastScan
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKLastScan) SetTo(v ExposurePatchExposureTreeIDOKLastScan) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKLastScan) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKLastScan) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKLastScan
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKLastScan) Get() (v ExposurePatchExposureTreeIDOKLastScan, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKLastScan) Or(d ExposurePatchExposureTreeIDOKLastScan) ExposurePatchExposureTreeIDOKLastScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKLastScanCounts returns new NilExposurePatchExposureTreeIDOKLastScanCounts with value set to v.
+func NewNilExposurePatchExposureTreeIDOKLastScanCounts(v ExposurePatchExposureTreeIDOKLastScanCounts) NilExposurePatchExposureTreeIDOKLastScanCounts {
+	return NilExposurePatchExposureTreeIDOKLastScanCounts{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKLastScanCounts is nullable ExposurePatchExposureTreeIDOKLastScanCounts.
+type NilExposurePatchExposureTreeIDOKLastScanCounts struct {
+	Value ExposurePatchExposureTreeIDOKLastScanCounts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKLastScanCounts) SetTo(v ExposurePatchExposureTreeIDOKLastScanCounts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKLastScanCounts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKLastScanCounts) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKLastScanCounts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKLastScanCounts) Get() (v ExposurePatchExposureTreeIDOKLastScanCounts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKLastScanCounts) Or(d ExposurePatchExposureTreeIDOKLastScanCounts) ExposurePatchExposureTreeIDOKLastScanCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKProofCoveredBy returns new NilExposurePatchExposureTreeIDOKProofCoveredBy with value set to v.
+func NewNilExposurePatchExposureTreeIDOKProofCoveredBy(v ExposurePatchExposureTreeIDOKProofCoveredBy) NilExposurePatchExposureTreeIDOKProofCoveredBy {
+	return NilExposurePatchExposureTreeIDOKProofCoveredBy{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKProofCoveredBy is nullable ExposurePatchExposureTreeIDOKProofCoveredBy.
+type NilExposurePatchExposureTreeIDOKProofCoveredBy struct {
+	Value ExposurePatchExposureTreeIDOKProofCoveredBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKProofCoveredBy) SetTo(v ExposurePatchExposureTreeIDOKProofCoveredBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKProofCoveredBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKProofCoveredBy) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKProofCoveredBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKProofCoveredBy) Get() (v ExposurePatchExposureTreeIDOKProofCoveredBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKProofCoveredBy) Or(d ExposurePatchExposureTreeIDOKProofCoveredBy) ExposurePatchExposureTreeIDOKProofCoveredBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKProofDNS returns new NilExposurePatchExposureTreeIDOKProofDNS with value set to v.
+func NewNilExposurePatchExposureTreeIDOKProofDNS(v ExposurePatchExposureTreeIDOKProofDNS) NilExposurePatchExposureTreeIDOKProofDNS {
+	return NilExposurePatchExposureTreeIDOKProofDNS{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKProofDNS is nullable ExposurePatchExposureTreeIDOKProofDNS.
+type NilExposurePatchExposureTreeIDOKProofDNS struct {
+	Value ExposurePatchExposureTreeIDOKProofDNS
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKProofDNS) SetTo(v ExposurePatchExposureTreeIDOKProofDNS) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKProofDNS) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKProofDNS) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKProofDNS
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKProofDNS) Get() (v ExposurePatchExposureTreeIDOKProofDNS, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKProofDNS) Or(d ExposurePatchExposureTreeIDOKProofDNS) ExposurePatchExposureTreeIDOKProofDNS {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKProofFile returns new NilExposurePatchExposureTreeIDOKProofFile with value set to v.
+func NewNilExposurePatchExposureTreeIDOKProofFile(v ExposurePatchExposureTreeIDOKProofFile) NilExposurePatchExposureTreeIDOKProofFile {
+	return NilExposurePatchExposureTreeIDOKProofFile{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKProofFile is nullable ExposurePatchExposureTreeIDOKProofFile.
+type NilExposurePatchExposureTreeIDOKProofFile struct {
+	Value ExposurePatchExposureTreeIDOKProofFile
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKProofFile) SetTo(v ExposurePatchExposureTreeIDOKProofFile) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKProofFile) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKProofFile) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKProofFile
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKProofFile) Get() (v ExposurePatchExposureTreeIDOKProofFile, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKProofFile) Or(d ExposurePatchExposureTreeIDOKProofFile) ExposurePatchExposureTreeIDOKProofFile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKProofLastCheck returns new NilExposurePatchExposureTreeIDOKProofLastCheck with value set to v.
+func NewNilExposurePatchExposureTreeIDOKProofLastCheck(v ExposurePatchExposureTreeIDOKProofLastCheck) NilExposurePatchExposureTreeIDOKProofLastCheck {
+	return NilExposurePatchExposureTreeIDOKProofLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKProofLastCheck is nullable ExposurePatchExposureTreeIDOKProofLastCheck.
+type NilExposurePatchExposureTreeIDOKProofLastCheck struct {
+	Value ExposurePatchExposureTreeIDOKProofLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKProofLastCheck) SetTo(v ExposurePatchExposureTreeIDOKProofLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKProofLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKProofLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKProofLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKProofLastCheck) Get() (v ExposurePatchExposureTreeIDOKProofLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKProofLastCheck) Or(d ExposurePatchExposureTreeIDOKProofLastCheck) ExposurePatchExposureTreeIDOKProofLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKProofMethod returns new NilExposurePatchExposureTreeIDOKProofMethod with value set to v.
+func NewNilExposurePatchExposureTreeIDOKProofMethod(v ExposurePatchExposureTreeIDOKProofMethod) NilExposurePatchExposureTreeIDOKProofMethod {
+	return NilExposurePatchExposureTreeIDOKProofMethod{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKProofMethod is nullable ExposurePatchExposureTreeIDOKProofMethod.
+type NilExposurePatchExposureTreeIDOKProofMethod struct {
+	Value ExposurePatchExposureTreeIDOKProofMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKProofMethod) SetTo(v ExposurePatchExposureTreeIDOKProofMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKProofMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKProofMethod) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKProofMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKProofMethod) Get() (v ExposurePatchExposureTreeIDOKProofMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKProofMethod) Or(d ExposurePatchExposureTreeIDOKProofMethod) ExposurePatchExposureTreeIDOKProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKScopeMode returns new NilExposurePatchExposureTreeIDOKScopeMode with value set to v.
+func NewNilExposurePatchExposureTreeIDOKScopeMode(v ExposurePatchExposureTreeIDOKScopeMode) NilExposurePatchExposureTreeIDOKScopeMode {
+	return NilExposurePatchExposureTreeIDOKScopeMode{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKScopeMode is nullable ExposurePatchExposureTreeIDOKScopeMode.
+type NilExposurePatchExposureTreeIDOKScopeMode struct {
+	Value ExposurePatchExposureTreeIDOKScopeMode
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKScopeMode) SetTo(v ExposurePatchExposureTreeIDOKScopeMode) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKScopeMode) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKScopeMode) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKScopeMode
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKScopeMode) Get() (v ExposurePatchExposureTreeIDOKScopeMode, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKScopeMode) Or(d ExposurePatchExposureTreeIDOKScopeMode) ExposurePatchExposureTreeIDOKScopeMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKTerms returns new NilExposurePatchExposureTreeIDOKTerms with value set to v.
+func NewNilExposurePatchExposureTreeIDOKTerms(v ExposurePatchExposureTreeIDOKTerms) NilExposurePatchExposureTreeIDOKTerms {
+	return NilExposurePatchExposureTreeIDOKTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKTerms is nullable ExposurePatchExposureTreeIDOKTerms.
+type NilExposurePatchExposureTreeIDOKTerms struct {
+	Value ExposurePatchExposureTreeIDOKTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKTerms) SetTo(v ExposurePatchExposureTreeIDOKTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKTerms) Get() (v ExposurePatchExposureTreeIDOKTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKTerms) Or(d ExposurePatchExposureTreeIDOKTerms) ExposurePatchExposureTreeIDOKTerms {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -173457,6 +187038,1221 @@ func (o NilExposurePostExposureTargetsIDVerifyOKTargetValidity) Or(d ExposurePos
 	return d
 }
 
+// NewNilExposurePostExposureTreeCreatedBlocked returns new NilExposurePostExposureTreeCreatedBlocked with value set to v.
+func NewNilExposurePostExposureTreeCreatedBlocked(v ExposurePostExposureTreeCreatedBlocked) NilExposurePostExposureTreeCreatedBlocked {
+	return NilExposurePostExposureTreeCreatedBlocked{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedBlocked is nullable ExposurePostExposureTreeCreatedBlocked.
+type NilExposurePostExposureTreeCreatedBlocked struct {
+	Value ExposurePostExposureTreeCreatedBlocked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedBlocked) SetTo(v ExposurePostExposureTreeCreatedBlocked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedBlocked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedBlocked) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedBlocked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedBlocked) Get() (v ExposurePostExposureTreeCreatedBlocked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedBlocked) Or(d ExposurePostExposureTreeCreatedBlocked) ExposurePostExposureTreeCreatedBlocked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedCommitment returns new NilExposurePostExposureTreeCreatedCommitment with value set to v.
+func NewNilExposurePostExposureTreeCreatedCommitment(v ExposurePostExposureTreeCreatedCommitment) NilExposurePostExposureTreeCreatedCommitment {
+	return NilExposurePostExposureTreeCreatedCommitment{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedCommitment is nullable ExposurePostExposureTreeCreatedCommitment.
+type NilExposurePostExposureTreeCreatedCommitment struct {
+	Value ExposurePostExposureTreeCreatedCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedCommitment) SetTo(v ExposurePostExposureTreeCreatedCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedCommitment) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedCommitment) Get() (v ExposurePostExposureTreeCreatedCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedCommitment) Or(d ExposurePostExposureTreeCreatedCommitment) ExposurePostExposureTreeCreatedCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedCommitmentNotice returns new NilExposurePostExposureTreeCreatedCommitmentNotice with value set to v.
+func NewNilExposurePostExposureTreeCreatedCommitmentNotice(v ExposurePostExposureTreeCreatedCommitmentNotice) NilExposurePostExposureTreeCreatedCommitmentNotice {
+	return NilExposurePostExposureTreeCreatedCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedCommitmentNotice is nullable ExposurePostExposureTreeCreatedCommitmentNotice.
+type NilExposurePostExposureTreeCreatedCommitmentNotice struct {
+	Value ExposurePostExposureTreeCreatedCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedCommitmentNotice) SetTo(v ExposurePostExposureTreeCreatedCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedCommitmentNotice) Get() (v ExposurePostExposureTreeCreatedCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedCommitmentNotice) Or(d ExposurePostExposureTreeCreatedCommitmentNotice) ExposurePostExposureTreeCreatedCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedCountsWorst returns new NilExposurePostExposureTreeCreatedCountsWorst with value set to v.
+func NewNilExposurePostExposureTreeCreatedCountsWorst(v ExposurePostExposureTreeCreatedCountsWorst) NilExposurePostExposureTreeCreatedCountsWorst {
+	return NilExposurePostExposureTreeCreatedCountsWorst{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedCountsWorst is nullable ExposurePostExposureTreeCreatedCountsWorst.
+type NilExposurePostExposureTreeCreatedCountsWorst struct {
+	Value ExposurePostExposureTreeCreatedCountsWorst
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedCountsWorst) SetTo(v ExposurePostExposureTreeCreatedCountsWorst) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedCountsWorst) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedCountsWorst) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedCountsWorst
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedCountsWorst) Get() (v ExposurePostExposureTreeCreatedCountsWorst, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedCountsWorst) Or(d ExposurePostExposureTreeCreatedCountsWorst) ExposurePostExposureTreeCreatedCountsWorst {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedLastScan returns new NilExposurePostExposureTreeCreatedLastScan with value set to v.
+func NewNilExposurePostExposureTreeCreatedLastScan(v ExposurePostExposureTreeCreatedLastScan) NilExposurePostExposureTreeCreatedLastScan {
+	return NilExposurePostExposureTreeCreatedLastScan{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedLastScan is nullable ExposurePostExposureTreeCreatedLastScan.
+type NilExposurePostExposureTreeCreatedLastScan struct {
+	Value ExposurePostExposureTreeCreatedLastScan
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedLastScan) SetTo(v ExposurePostExposureTreeCreatedLastScan) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedLastScan) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedLastScan) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedLastScan
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedLastScan) Get() (v ExposurePostExposureTreeCreatedLastScan, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedLastScan) Or(d ExposurePostExposureTreeCreatedLastScan) ExposurePostExposureTreeCreatedLastScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedLastScanCounts returns new NilExposurePostExposureTreeCreatedLastScanCounts with value set to v.
+func NewNilExposurePostExposureTreeCreatedLastScanCounts(v ExposurePostExposureTreeCreatedLastScanCounts) NilExposurePostExposureTreeCreatedLastScanCounts {
+	return NilExposurePostExposureTreeCreatedLastScanCounts{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedLastScanCounts is nullable ExposurePostExposureTreeCreatedLastScanCounts.
+type NilExposurePostExposureTreeCreatedLastScanCounts struct {
+	Value ExposurePostExposureTreeCreatedLastScanCounts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedLastScanCounts) SetTo(v ExposurePostExposureTreeCreatedLastScanCounts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedLastScanCounts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedLastScanCounts) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedLastScanCounts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedLastScanCounts) Get() (v ExposurePostExposureTreeCreatedLastScanCounts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedLastScanCounts) Or(d ExposurePostExposureTreeCreatedLastScanCounts) ExposurePostExposureTreeCreatedLastScanCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedProofCoveredBy returns new NilExposurePostExposureTreeCreatedProofCoveredBy with value set to v.
+func NewNilExposurePostExposureTreeCreatedProofCoveredBy(v ExposurePostExposureTreeCreatedProofCoveredBy) NilExposurePostExposureTreeCreatedProofCoveredBy {
+	return NilExposurePostExposureTreeCreatedProofCoveredBy{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedProofCoveredBy is nullable ExposurePostExposureTreeCreatedProofCoveredBy.
+type NilExposurePostExposureTreeCreatedProofCoveredBy struct {
+	Value ExposurePostExposureTreeCreatedProofCoveredBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedProofCoveredBy) SetTo(v ExposurePostExposureTreeCreatedProofCoveredBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedProofCoveredBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedProofCoveredBy) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedProofCoveredBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedProofCoveredBy) Get() (v ExposurePostExposureTreeCreatedProofCoveredBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedProofCoveredBy) Or(d ExposurePostExposureTreeCreatedProofCoveredBy) ExposurePostExposureTreeCreatedProofCoveredBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedProofDNS returns new NilExposurePostExposureTreeCreatedProofDNS with value set to v.
+func NewNilExposurePostExposureTreeCreatedProofDNS(v ExposurePostExposureTreeCreatedProofDNS) NilExposurePostExposureTreeCreatedProofDNS {
+	return NilExposurePostExposureTreeCreatedProofDNS{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedProofDNS is nullable ExposurePostExposureTreeCreatedProofDNS.
+type NilExposurePostExposureTreeCreatedProofDNS struct {
+	Value ExposurePostExposureTreeCreatedProofDNS
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedProofDNS) SetTo(v ExposurePostExposureTreeCreatedProofDNS) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedProofDNS) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedProofDNS) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedProofDNS
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedProofDNS) Get() (v ExposurePostExposureTreeCreatedProofDNS, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedProofDNS) Or(d ExposurePostExposureTreeCreatedProofDNS) ExposurePostExposureTreeCreatedProofDNS {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedProofFile returns new NilExposurePostExposureTreeCreatedProofFile with value set to v.
+func NewNilExposurePostExposureTreeCreatedProofFile(v ExposurePostExposureTreeCreatedProofFile) NilExposurePostExposureTreeCreatedProofFile {
+	return NilExposurePostExposureTreeCreatedProofFile{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedProofFile is nullable ExposurePostExposureTreeCreatedProofFile.
+type NilExposurePostExposureTreeCreatedProofFile struct {
+	Value ExposurePostExposureTreeCreatedProofFile
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedProofFile) SetTo(v ExposurePostExposureTreeCreatedProofFile) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedProofFile) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedProofFile) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedProofFile
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedProofFile) Get() (v ExposurePostExposureTreeCreatedProofFile, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedProofFile) Or(d ExposurePostExposureTreeCreatedProofFile) ExposurePostExposureTreeCreatedProofFile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedProofLastCheck returns new NilExposurePostExposureTreeCreatedProofLastCheck with value set to v.
+func NewNilExposurePostExposureTreeCreatedProofLastCheck(v ExposurePostExposureTreeCreatedProofLastCheck) NilExposurePostExposureTreeCreatedProofLastCheck {
+	return NilExposurePostExposureTreeCreatedProofLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedProofLastCheck is nullable ExposurePostExposureTreeCreatedProofLastCheck.
+type NilExposurePostExposureTreeCreatedProofLastCheck struct {
+	Value ExposurePostExposureTreeCreatedProofLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedProofLastCheck) SetTo(v ExposurePostExposureTreeCreatedProofLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedProofLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedProofLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedProofLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedProofLastCheck) Get() (v ExposurePostExposureTreeCreatedProofLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedProofLastCheck) Or(d ExposurePostExposureTreeCreatedProofLastCheck) ExposurePostExposureTreeCreatedProofLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedProofMethod returns new NilExposurePostExposureTreeCreatedProofMethod with value set to v.
+func NewNilExposurePostExposureTreeCreatedProofMethod(v ExposurePostExposureTreeCreatedProofMethod) NilExposurePostExposureTreeCreatedProofMethod {
+	return NilExposurePostExposureTreeCreatedProofMethod{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedProofMethod is nullable ExposurePostExposureTreeCreatedProofMethod.
+type NilExposurePostExposureTreeCreatedProofMethod struct {
+	Value ExposurePostExposureTreeCreatedProofMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedProofMethod) SetTo(v ExposurePostExposureTreeCreatedProofMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedProofMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedProofMethod) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedProofMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedProofMethod) Get() (v ExposurePostExposureTreeCreatedProofMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedProofMethod) Or(d ExposurePostExposureTreeCreatedProofMethod) ExposurePostExposureTreeCreatedProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedScopeMode returns new NilExposurePostExposureTreeCreatedScopeMode with value set to v.
+func NewNilExposurePostExposureTreeCreatedScopeMode(v ExposurePostExposureTreeCreatedScopeMode) NilExposurePostExposureTreeCreatedScopeMode {
+	return NilExposurePostExposureTreeCreatedScopeMode{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedScopeMode is nullable ExposurePostExposureTreeCreatedScopeMode.
+type NilExposurePostExposureTreeCreatedScopeMode struct {
+	Value ExposurePostExposureTreeCreatedScopeMode
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedScopeMode) SetTo(v ExposurePostExposureTreeCreatedScopeMode) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedScopeMode) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedScopeMode) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedScopeMode
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedScopeMode) Get() (v ExposurePostExposureTreeCreatedScopeMode, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedScopeMode) Or(d ExposurePostExposureTreeCreatedScopeMode) ExposurePostExposureTreeCreatedScopeMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeCreatedTerms returns new NilExposurePostExposureTreeCreatedTerms with value set to v.
+func NewNilExposurePostExposureTreeCreatedTerms(v ExposurePostExposureTreeCreatedTerms) NilExposurePostExposureTreeCreatedTerms {
+	return NilExposurePostExposureTreeCreatedTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedTerms is nullable ExposurePostExposureTreeCreatedTerms.
+type NilExposurePostExposureTreeCreatedTerms struct {
+	Value ExposurePostExposureTreeCreatedTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedTerms) SetTo(v ExposurePostExposureTreeCreatedTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedTerms) Get() (v ExposurePostExposureTreeCreatedTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedTerms) Or(d ExposurePostExposureTreeCreatedTerms) ExposurePostExposureTreeCreatedTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDScanAcceptedCounts returns new NilExposurePostExposureTreeIDScanAcceptedCounts with value set to v.
+func NewNilExposurePostExposureTreeIDScanAcceptedCounts(v ExposurePostExposureTreeIDScanAcceptedCounts) NilExposurePostExposureTreeIDScanAcceptedCounts {
+	return NilExposurePostExposureTreeIDScanAcceptedCounts{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDScanAcceptedCounts is nullable ExposurePostExposureTreeIDScanAcceptedCounts.
+type NilExposurePostExposureTreeIDScanAcceptedCounts struct {
+	Value ExposurePostExposureTreeIDScanAcceptedCounts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDScanAcceptedCounts) SetTo(v ExposurePostExposureTreeIDScanAcceptedCounts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDScanAcceptedCounts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDScanAcceptedCounts) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDScanAcceptedCounts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDScanAcceptedCounts) Get() (v ExposurePostExposureTreeIDScanAcceptedCounts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDScanAcceptedCounts) Or(d ExposurePostExposureTreeIDScanAcceptedCounts) ExposurePostExposureTreeIDScanAcceptedCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeBlocked returns new NilExposurePostExposureTreeIDVerifyOKNodeBlocked with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeBlocked(v ExposurePostExposureTreeIDVerifyOKNodeBlocked) NilExposurePostExposureTreeIDVerifyOKNodeBlocked {
+	return NilExposurePostExposureTreeIDVerifyOKNodeBlocked{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeBlocked is nullable ExposurePostExposureTreeIDVerifyOKNodeBlocked.
+type NilExposurePostExposureTreeIDVerifyOKNodeBlocked struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeBlocked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeBlocked) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeBlocked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeBlocked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeBlocked) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeBlocked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeBlocked) Get() (v ExposurePostExposureTreeIDVerifyOKNodeBlocked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeBlocked) Or(d ExposurePostExposureTreeIDVerifyOKNodeBlocked) ExposurePostExposureTreeIDVerifyOKNodeBlocked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeCommitment returns new NilExposurePostExposureTreeIDVerifyOKNodeCommitment with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeCommitment(v ExposurePostExposureTreeIDVerifyOKNodeCommitment) NilExposurePostExposureTreeIDVerifyOKNodeCommitment {
+	return NilExposurePostExposureTreeIDVerifyOKNodeCommitment{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeCommitment is nullable ExposurePostExposureTreeIDVerifyOKNodeCommitment.
+type NilExposurePostExposureTreeIDVerifyOKNodeCommitment struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeCommitment) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeCommitment) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeCommitment) Get() (v ExposurePostExposureTreeIDVerifyOKNodeCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeCommitment) Or(d ExposurePostExposureTreeIDVerifyOKNodeCommitment) ExposurePostExposureTreeIDVerifyOKNodeCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice returns new NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice(v ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice {
+	return NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice is nullable ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice.
+type NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) Get() (v ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) Or(d ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice) ExposurePostExposureTreeIDVerifyOKNodeCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeCountsWorst returns new NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeCountsWorst(v ExposurePostExposureTreeIDVerifyOKNodeCountsWorst) NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst {
+	return NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst is nullable ExposurePostExposureTreeIDVerifyOKNodeCountsWorst.
+type NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeCountsWorst
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeCountsWorst) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeCountsWorst
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst) Get() (v ExposurePostExposureTreeIDVerifyOKNodeCountsWorst, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeCountsWorst) Or(d ExposurePostExposureTreeIDVerifyOKNodeCountsWorst) ExposurePostExposureTreeIDVerifyOKNodeCountsWorst {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeLastScan returns new NilExposurePostExposureTreeIDVerifyOKNodeLastScan with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeLastScan(v ExposurePostExposureTreeIDVerifyOKNodeLastScan) NilExposurePostExposureTreeIDVerifyOKNodeLastScan {
+	return NilExposurePostExposureTreeIDVerifyOKNodeLastScan{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeLastScan is nullable ExposurePostExposureTreeIDVerifyOKNodeLastScan.
+type NilExposurePostExposureTreeIDVerifyOKNodeLastScan struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeLastScan
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeLastScan) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeLastScan) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeLastScan) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeLastScan) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeLastScan
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeLastScan) Get() (v ExposurePostExposureTreeIDVerifyOKNodeLastScan, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeLastScan) Or(d ExposurePostExposureTreeIDVerifyOKNodeLastScan) ExposurePostExposureTreeIDVerifyOKNodeLastScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts returns new NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts(v ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts {
+	return NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts is nullable ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts.
+type NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) Get() (v ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) Or(d ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts) ExposurePostExposureTreeIDVerifyOKNodeLastScanCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy returns new NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy(v ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy {
+	return NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy is nullable ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy.
+type NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) Get() (v ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) Or(d ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy) ExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeProofDNS returns new NilExposurePostExposureTreeIDVerifyOKNodeProofDNS with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeProofDNS(v ExposurePostExposureTreeIDVerifyOKNodeProofDNS) NilExposurePostExposureTreeIDVerifyOKNodeProofDNS {
+	return NilExposurePostExposureTreeIDVerifyOKNodeProofDNS{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeProofDNS is nullable ExposurePostExposureTreeIDVerifyOKNodeProofDNS.
+type NilExposurePostExposureTreeIDVerifyOKNodeProofDNS struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeProofDNS
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofDNS) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeProofDNS) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofDNS) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofDNS) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeProofDNS
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofDNS) Get() (v ExposurePostExposureTreeIDVerifyOKNodeProofDNS, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofDNS) Or(d ExposurePostExposureTreeIDVerifyOKNodeProofDNS) ExposurePostExposureTreeIDVerifyOKNodeProofDNS {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeProofFile returns new NilExposurePostExposureTreeIDVerifyOKNodeProofFile with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeProofFile(v ExposurePostExposureTreeIDVerifyOKNodeProofFile) NilExposurePostExposureTreeIDVerifyOKNodeProofFile {
+	return NilExposurePostExposureTreeIDVerifyOKNodeProofFile{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeProofFile is nullable ExposurePostExposureTreeIDVerifyOKNodeProofFile.
+type NilExposurePostExposureTreeIDVerifyOKNodeProofFile struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeProofFile
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofFile) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeProofFile) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofFile) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofFile) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeProofFile
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofFile) Get() (v ExposurePostExposureTreeIDVerifyOKNodeProofFile, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofFile) Or(d ExposurePostExposureTreeIDVerifyOKNodeProofFile) ExposurePostExposureTreeIDVerifyOKNodeProofFile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck returns new NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck(v ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck {
+	return NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck is nullable ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck.
+type NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) Get() (v ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) Or(d ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck) ExposurePostExposureTreeIDVerifyOKNodeProofLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeProofMethod returns new NilExposurePostExposureTreeIDVerifyOKNodeProofMethod with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeProofMethod(v ExposurePostExposureTreeIDVerifyOKNodeProofMethod) NilExposurePostExposureTreeIDVerifyOKNodeProofMethod {
+	return NilExposurePostExposureTreeIDVerifyOKNodeProofMethod{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeProofMethod is nullable ExposurePostExposureTreeIDVerifyOKNodeProofMethod.
+type NilExposurePostExposureTreeIDVerifyOKNodeProofMethod struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeProofMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofMethod) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeProofMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofMethod) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeProofMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofMethod) Get() (v ExposurePostExposureTreeIDVerifyOKNodeProofMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofMethod) Or(d ExposurePostExposureTreeIDVerifyOKNodeProofMethod) ExposurePostExposureTreeIDVerifyOKNodeProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeScopeMode returns new NilExposurePostExposureTreeIDVerifyOKNodeScopeMode with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeScopeMode(v ExposurePostExposureTreeIDVerifyOKNodeScopeMode) NilExposurePostExposureTreeIDVerifyOKNodeScopeMode {
+	return NilExposurePostExposureTreeIDVerifyOKNodeScopeMode{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeScopeMode is nullable ExposurePostExposureTreeIDVerifyOKNodeScopeMode.
+type NilExposurePostExposureTreeIDVerifyOKNodeScopeMode struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeScopeMode
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeScopeMode) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeScopeMode) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeScopeMode) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeScopeMode) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeScopeMode
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeScopeMode) Get() (v ExposurePostExposureTreeIDVerifyOKNodeScopeMode, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeScopeMode) Or(d ExposurePostExposureTreeIDVerifyOKNodeScopeMode) ExposurePostExposureTreeIDVerifyOKNodeScopeMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeTerms returns new NilExposurePostExposureTreeIDVerifyOKNodeTerms with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeTerms(v ExposurePostExposureTreeIDVerifyOKNodeTerms) NilExposurePostExposureTreeIDVerifyOKNodeTerms {
+	return NilExposurePostExposureTreeIDVerifyOKNodeTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeTerms is nullable ExposurePostExposureTreeIDVerifyOKNodeTerms.
+type NilExposurePostExposureTreeIDVerifyOKNodeTerms struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeTerms) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeTerms) Get() (v ExposurePostExposureTreeIDVerifyOKNodeTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeTerms) Or(d ExposurePostExposureTreeIDVerifyOKNodeTerms) ExposurePostExposureTreeIDVerifyOKNodeTerms {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePutExposureBoxIPSettingsOKLastRun returns new NilExposurePutExposureBoxIPSettingsOKLastRun with value set to v.
 func NewNilExposurePutExposureBoxIPSettingsOKLastRun(v ExposurePutExposureBoxIPSettingsOKLastRun) NilExposurePutExposureBoxIPSettingsOKLastRun {
 	return NilExposurePutExposureBoxIPSettingsOKLastRun{
@@ -173541,456 +188337,6 @@ func (o NilExposurePutExposureGreenboneOKFeed) Get() (v ExposurePutExposureGreen
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePutExposureGreenboneOKFeed) Or(d ExposurePutExposureGreenboneOKFeed) ExposurePutExposureGreenboneOKFeed {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePutExposureTargetsIDScheduleOKBlockedReason returns new NilExposurePutExposureTargetsIDScheduleOKBlockedReason with value set to v.
-func NewNilExposurePutExposureTargetsIDScheduleOKBlockedReason(v ExposurePutExposureTargetsIDScheduleOKBlockedReason) NilExposurePutExposureTargetsIDScheduleOKBlockedReason {
-	return NilExposurePutExposureTargetsIDScheduleOKBlockedReason{
-		Value: v,
-	}
-}
-
-// NilExposurePutExposureTargetsIDScheduleOKBlockedReason is nullable ExposurePutExposureTargetsIDScheduleOKBlockedReason.
-type NilExposurePutExposureTargetsIDScheduleOKBlockedReason struct {
-	Value ExposurePutExposureTargetsIDScheduleOKBlockedReason
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePutExposureTargetsIDScheduleOKBlockedReason) SetTo(v ExposurePutExposureTargetsIDScheduleOKBlockedReason) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePutExposureTargetsIDScheduleOKBlockedReason) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePutExposureTargetsIDScheduleOKBlockedReason) SetToNull() {
-	o.Null = true
-	var v ExposurePutExposureTargetsIDScheduleOKBlockedReason
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePutExposureTargetsIDScheduleOKBlockedReason) Get() (v ExposurePutExposureTargetsIDScheduleOKBlockedReason, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePutExposureTargetsIDScheduleOKBlockedReason) Or(d ExposurePutExposureTargetsIDScheduleOKBlockedReason) ExposurePutExposureTargetsIDScheduleOKBlockedReason {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePutExposureTargetsIDScheduleOKCommitment returns new NilExposurePutExposureTargetsIDScheduleOKCommitment with value set to v.
-func NewNilExposurePutExposureTargetsIDScheduleOKCommitment(v ExposurePutExposureTargetsIDScheduleOKCommitment) NilExposurePutExposureTargetsIDScheduleOKCommitment {
-	return NilExposurePutExposureTargetsIDScheduleOKCommitment{
-		Value: v,
-	}
-}
-
-// NilExposurePutExposureTargetsIDScheduleOKCommitment is nullable ExposurePutExposureTargetsIDScheduleOKCommitment.
-type NilExposurePutExposureTargetsIDScheduleOKCommitment struct {
-	Value ExposurePutExposureTargetsIDScheduleOKCommitment
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePutExposureTargetsIDScheduleOKCommitment) SetTo(v ExposurePutExposureTargetsIDScheduleOKCommitment) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePutExposureTargetsIDScheduleOKCommitment) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePutExposureTargetsIDScheduleOKCommitment) SetToNull() {
-	o.Null = true
-	var v ExposurePutExposureTargetsIDScheduleOKCommitment
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePutExposureTargetsIDScheduleOKCommitment) Get() (v ExposurePutExposureTargetsIDScheduleOKCommitment, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePutExposureTargetsIDScheduleOKCommitment) Or(d ExposurePutExposureTargetsIDScheduleOKCommitment) ExposurePutExposureTargetsIDScheduleOKCommitment {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePutExposureTargetsIDScheduleOKCommitmentNotice returns new NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice with value set to v.
-func NewNilExposurePutExposureTargetsIDScheduleOKCommitmentNotice(v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice {
-	return NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice{
-		Value: v,
-	}
-}
-
-// NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice is nullable ExposurePutExposureTargetsIDScheduleOKCommitmentNotice.
-type NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice struct {
-	Value ExposurePutExposureTargetsIDScheduleOKCommitmentNotice
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetTo(v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) SetToNull() {
-	o.Null = true
-	var v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) Get() (v ExposurePutExposureTargetsIDScheduleOKCommitmentNotice, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePutExposureTargetsIDScheduleOKCommitmentNotice) Or(d ExposurePutExposureTargetsIDScheduleOKCommitmentNotice) ExposurePutExposureTargetsIDScheduleOKCommitmentNotice {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePutExposureTargetsIDScheduleOKIPProof returns new NilExposurePutExposureTargetsIDScheduleOKIPProof with value set to v.
-func NewNilExposurePutExposureTargetsIDScheduleOKIPProof(v ExposurePutExposureTargetsIDScheduleOKIPProof) NilExposurePutExposureTargetsIDScheduleOKIPProof {
-	return NilExposurePutExposureTargetsIDScheduleOKIPProof{
-		Value: v,
-	}
-}
-
-// NilExposurePutExposureTargetsIDScheduleOKIPProof is nullable ExposurePutExposureTargetsIDScheduleOKIPProof.
-type NilExposurePutExposureTargetsIDScheduleOKIPProof struct {
-	Value ExposurePutExposureTargetsIDScheduleOKIPProof
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePutExposureTargetsIDScheduleOKIPProof) SetTo(v ExposurePutExposureTargetsIDScheduleOKIPProof) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePutExposureTargetsIDScheduleOKIPProof) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePutExposureTargetsIDScheduleOKIPProof) SetToNull() {
-	o.Null = true
-	var v ExposurePutExposureTargetsIDScheduleOKIPProof
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePutExposureTargetsIDScheduleOKIPProof) Get() (v ExposurePutExposureTargetsIDScheduleOKIPProof, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePutExposureTargetsIDScheduleOKIPProof) Or(d ExposurePutExposureTargetsIDScheduleOKIPProof) ExposurePutExposureTargetsIDScheduleOKIPProof {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePutExposureTargetsIDScheduleOKLastCheck returns new NilExposurePutExposureTargetsIDScheduleOKLastCheck with value set to v.
-func NewNilExposurePutExposureTargetsIDScheduleOKLastCheck(v ExposurePutExposureTargetsIDScheduleOKLastCheck) NilExposurePutExposureTargetsIDScheduleOKLastCheck {
-	return NilExposurePutExposureTargetsIDScheduleOKLastCheck{
-		Value: v,
-	}
-}
-
-// NilExposurePutExposureTargetsIDScheduleOKLastCheck is nullable ExposurePutExposureTargetsIDScheduleOKLastCheck.
-type NilExposurePutExposureTargetsIDScheduleOKLastCheck struct {
-	Value ExposurePutExposureTargetsIDScheduleOKLastCheck
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePutExposureTargetsIDScheduleOKLastCheck) SetTo(v ExposurePutExposureTargetsIDScheduleOKLastCheck) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePutExposureTargetsIDScheduleOKLastCheck) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePutExposureTargetsIDScheduleOKLastCheck) SetToNull() {
-	o.Null = true
-	var v ExposurePutExposureTargetsIDScheduleOKLastCheck
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePutExposureTargetsIDScheduleOKLastCheck) Get() (v ExposurePutExposureTargetsIDScheduleOKLastCheck, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePutExposureTargetsIDScheduleOKLastCheck) Or(d ExposurePutExposureTargetsIDScheduleOKLastCheck) ExposurePutExposureTargetsIDScheduleOKLastCheck {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePutExposureTargetsIDScheduleOKLatest returns new NilExposurePutExposureTargetsIDScheduleOKLatest with value set to v.
-func NewNilExposurePutExposureTargetsIDScheduleOKLatest(v ExposurePutExposureTargetsIDScheduleOKLatest) NilExposurePutExposureTargetsIDScheduleOKLatest {
-	return NilExposurePutExposureTargetsIDScheduleOKLatest{
-		Value: v,
-	}
-}
-
-// NilExposurePutExposureTargetsIDScheduleOKLatest is nullable ExposurePutExposureTargetsIDScheduleOKLatest.
-type NilExposurePutExposureTargetsIDScheduleOKLatest struct {
-	Value ExposurePutExposureTargetsIDScheduleOKLatest
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePutExposureTargetsIDScheduleOKLatest) SetTo(v ExposurePutExposureTargetsIDScheduleOKLatest) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePutExposureTargetsIDScheduleOKLatest) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePutExposureTargetsIDScheduleOKLatest) SetToNull() {
-	o.Null = true
-	var v ExposurePutExposureTargetsIDScheduleOKLatest
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePutExposureTargetsIDScheduleOKLatest) Get() (v ExposurePutExposureTargetsIDScheduleOKLatest, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePutExposureTargetsIDScheduleOKLatest) Or(d ExposurePutExposureTargetsIDScheduleOKLatest) ExposurePutExposureTargetsIDScheduleOKLatest {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePutExposureTargetsIDScheduleOKMethod returns new NilExposurePutExposureTargetsIDScheduleOKMethod with value set to v.
-func NewNilExposurePutExposureTargetsIDScheduleOKMethod(v ExposurePutExposureTargetsIDScheduleOKMethod) NilExposurePutExposureTargetsIDScheduleOKMethod {
-	return NilExposurePutExposureTargetsIDScheduleOKMethod{
-		Value: v,
-	}
-}
-
-// NilExposurePutExposureTargetsIDScheduleOKMethod is nullable ExposurePutExposureTargetsIDScheduleOKMethod.
-type NilExposurePutExposureTargetsIDScheduleOKMethod struct {
-	Value ExposurePutExposureTargetsIDScheduleOKMethod
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePutExposureTargetsIDScheduleOKMethod) SetTo(v ExposurePutExposureTargetsIDScheduleOKMethod) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePutExposureTargetsIDScheduleOKMethod) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePutExposureTargetsIDScheduleOKMethod) SetToNull() {
-	o.Null = true
-	var v ExposurePutExposureTargetsIDScheduleOKMethod
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePutExposureTargetsIDScheduleOKMethod) Get() (v ExposurePutExposureTargetsIDScheduleOKMethod, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePutExposureTargetsIDScheduleOKMethod) Or(d ExposurePutExposureTargetsIDScheduleOKMethod) ExposurePutExposureTargetsIDScheduleOKMethod {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePutExposureTargetsIDScheduleOKProof returns new NilExposurePutExposureTargetsIDScheduleOKProof with value set to v.
-func NewNilExposurePutExposureTargetsIDScheduleOKProof(v ExposurePutExposureTargetsIDScheduleOKProof) NilExposurePutExposureTargetsIDScheduleOKProof {
-	return NilExposurePutExposureTargetsIDScheduleOKProof{
-		Value: v,
-	}
-}
-
-// NilExposurePutExposureTargetsIDScheduleOKProof is nullable ExposurePutExposureTargetsIDScheduleOKProof.
-type NilExposurePutExposureTargetsIDScheduleOKProof struct {
-	Value ExposurePutExposureTargetsIDScheduleOKProof
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePutExposureTargetsIDScheduleOKProof) SetTo(v ExposurePutExposureTargetsIDScheduleOKProof) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePutExposureTargetsIDScheduleOKProof) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePutExposureTargetsIDScheduleOKProof) SetToNull() {
-	o.Null = true
-	var v ExposurePutExposureTargetsIDScheduleOKProof
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePutExposureTargetsIDScheduleOKProof) Get() (v ExposurePutExposureTargetsIDScheduleOKProof, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePutExposureTargetsIDScheduleOKProof) Or(d ExposurePutExposureTargetsIDScheduleOKProof) ExposurePutExposureTargetsIDScheduleOKProof {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePutExposureTargetsIDScheduleOKTerms returns new NilExposurePutExposureTargetsIDScheduleOKTerms with value set to v.
-func NewNilExposurePutExposureTargetsIDScheduleOKTerms(v ExposurePutExposureTargetsIDScheduleOKTerms) NilExposurePutExposureTargetsIDScheduleOKTerms {
-	return NilExposurePutExposureTargetsIDScheduleOKTerms{
-		Value: v,
-	}
-}
-
-// NilExposurePutExposureTargetsIDScheduleOKTerms is nullable ExposurePutExposureTargetsIDScheduleOKTerms.
-type NilExposurePutExposureTargetsIDScheduleOKTerms struct {
-	Value ExposurePutExposureTargetsIDScheduleOKTerms
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePutExposureTargetsIDScheduleOKTerms) SetTo(v ExposurePutExposureTargetsIDScheduleOKTerms) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePutExposureTargetsIDScheduleOKTerms) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePutExposureTargetsIDScheduleOKTerms) SetToNull() {
-	o.Null = true
-	var v ExposurePutExposureTargetsIDScheduleOKTerms
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePutExposureTargetsIDScheduleOKTerms) Get() (v ExposurePutExposureTargetsIDScheduleOKTerms, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePutExposureTargetsIDScheduleOKTerms) Or(d ExposurePutExposureTargetsIDScheduleOKTerms) ExposurePutExposureTargetsIDScheduleOKTerms {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilExposurePutExposureTargetsIDScheduleOKValidity returns new NilExposurePutExposureTargetsIDScheduleOKValidity with value set to v.
-func NewNilExposurePutExposureTargetsIDScheduleOKValidity(v ExposurePutExposureTargetsIDScheduleOKValidity) NilExposurePutExposureTargetsIDScheduleOKValidity {
-	return NilExposurePutExposureTargetsIDScheduleOKValidity{
-		Value: v,
-	}
-}
-
-// NilExposurePutExposureTargetsIDScheduleOKValidity is nullable ExposurePutExposureTargetsIDScheduleOKValidity.
-type NilExposurePutExposureTargetsIDScheduleOKValidity struct {
-	Value ExposurePutExposureTargetsIDScheduleOKValidity
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilExposurePutExposureTargetsIDScheduleOKValidity) SetTo(v ExposurePutExposureTargetsIDScheduleOKValidity) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilExposurePutExposureTargetsIDScheduleOKValidity) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilExposurePutExposureTargetsIDScheduleOKValidity) SetToNull() {
-	o.Null = true
-	var v ExposurePutExposureTargetsIDScheduleOKValidity
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilExposurePutExposureTargetsIDScheduleOKValidity) Get() (v ExposurePutExposureTargetsIDScheduleOKValidity, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilExposurePutExposureTargetsIDScheduleOKValidity) Or(d ExposurePutExposureTargetsIDScheduleOKValidity) ExposurePutExposureTargetsIDScheduleOKValidity {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -174441,6 +188787,591 @@ func (o NilExposurePutExposureTargetsIDTermsOKValidity) Get() (v ExposurePutExpo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePutExposureTargetsIDTermsOKValidity) Or(d ExposurePutExposureTargetsIDTermsOKValidity) ExposurePutExposureTargetsIDTermsOKValidity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKBlocked returns new NilExposurePutExposureTreeIDTermsOKBlocked with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKBlocked(v ExposurePutExposureTreeIDTermsOKBlocked) NilExposurePutExposureTreeIDTermsOKBlocked {
+	return NilExposurePutExposureTreeIDTermsOKBlocked{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKBlocked is nullable ExposurePutExposureTreeIDTermsOKBlocked.
+type NilExposurePutExposureTreeIDTermsOKBlocked struct {
+	Value ExposurePutExposureTreeIDTermsOKBlocked
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKBlocked) SetTo(v ExposurePutExposureTreeIDTermsOKBlocked) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKBlocked) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKBlocked) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKBlocked
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKBlocked) Get() (v ExposurePutExposureTreeIDTermsOKBlocked, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKBlocked) Or(d ExposurePutExposureTreeIDTermsOKBlocked) ExposurePutExposureTreeIDTermsOKBlocked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKCommitment returns new NilExposurePutExposureTreeIDTermsOKCommitment with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKCommitment(v ExposurePutExposureTreeIDTermsOKCommitment) NilExposurePutExposureTreeIDTermsOKCommitment {
+	return NilExposurePutExposureTreeIDTermsOKCommitment{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKCommitment is nullable ExposurePutExposureTreeIDTermsOKCommitment.
+type NilExposurePutExposureTreeIDTermsOKCommitment struct {
+	Value ExposurePutExposureTreeIDTermsOKCommitment
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKCommitment) SetTo(v ExposurePutExposureTreeIDTermsOKCommitment) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKCommitment) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKCommitment) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKCommitment
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKCommitment) Get() (v ExposurePutExposureTreeIDTermsOKCommitment, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKCommitment) Or(d ExposurePutExposureTreeIDTermsOKCommitment) ExposurePutExposureTreeIDTermsOKCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKCommitmentNotice returns new NilExposurePutExposureTreeIDTermsOKCommitmentNotice with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKCommitmentNotice(v ExposurePutExposureTreeIDTermsOKCommitmentNotice) NilExposurePutExposureTreeIDTermsOKCommitmentNotice {
+	return NilExposurePutExposureTreeIDTermsOKCommitmentNotice{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKCommitmentNotice is nullable ExposurePutExposureTreeIDTermsOKCommitmentNotice.
+type NilExposurePutExposureTreeIDTermsOKCommitmentNotice struct {
+	Value ExposurePutExposureTreeIDTermsOKCommitmentNotice
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKCommitmentNotice) SetTo(v ExposurePutExposureTreeIDTermsOKCommitmentNotice) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKCommitmentNotice) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKCommitmentNotice) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKCommitmentNotice
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKCommitmentNotice) Get() (v ExposurePutExposureTreeIDTermsOKCommitmentNotice, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKCommitmentNotice) Or(d ExposurePutExposureTreeIDTermsOKCommitmentNotice) ExposurePutExposureTreeIDTermsOKCommitmentNotice {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKCountsWorst returns new NilExposurePutExposureTreeIDTermsOKCountsWorst with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKCountsWorst(v ExposurePutExposureTreeIDTermsOKCountsWorst) NilExposurePutExposureTreeIDTermsOKCountsWorst {
+	return NilExposurePutExposureTreeIDTermsOKCountsWorst{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKCountsWorst is nullable ExposurePutExposureTreeIDTermsOKCountsWorst.
+type NilExposurePutExposureTreeIDTermsOKCountsWorst struct {
+	Value ExposurePutExposureTreeIDTermsOKCountsWorst
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKCountsWorst) SetTo(v ExposurePutExposureTreeIDTermsOKCountsWorst) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKCountsWorst) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKCountsWorst) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKCountsWorst
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKCountsWorst) Get() (v ExposurePutExposureTreeIDTermsOKCountsWorst, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKCountsWorst) Or(d ExposurePutExposureTreeIDTermsOKCountsWorst) ExposurePutExposureTreeIDTermsOKCountsWorst {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKLastScan returns new NilExposurePutExposureTreeIDTermsOKLastScan with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKLastScan(v ExposurePutExposureTreeIDTermsOKLastScan) NilExposurePutExposureTreeIDTermsOKLastScan {
+	return NilExposurePutExposureTreeIDTermsOKLastScan{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKLastScan is nullable ExposurePutExposureTreeIDTermsOKLastScan.
+type NilExposurePutExposureTreeIDTermsOKLastScan struct {
+	Value ExposurePutExposureTreeIDTermsOKLastScan
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKLastScan) SetTo(v ExposurePutExposureTreeIDTermsOKLastScan) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKLastScan) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKLastScan) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKLastScan
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKLastScan) Get() (v ExposurePutExposureTreeIDTermsOKLastScan, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKLastScan) Or(d ExposurePutExposureTreeIDTermsOKLastScan) ExposurePutExposureTreeIDTermsOKLastScan {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKLastScanCounts returns new NilExposurePutExposureTreeIDTermsOKLastScanCounts with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKLastScanCounts(v ExposurePutExposureTreeIDTermsOKLastScanCounts) NilExposurePutExposureTreeIDTermsOKLastScanCounts {
+	return NilExposurePutExposureTreeIDTermsOKLastScanCounts{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKLastScanCounts is nullable ExposurePutExposureTreeIDTermsOKLastScanCounts.
+type NilExposurePutExposureTreeIDTermsOKLastScanCounts struct {
+	Value ExposurePutExposureTreeIDTermsOKLastScanCounts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKLastScanCounts) SetTo(v ExposurePutExposureTreeIDTermsOKLastScanCounts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKLastScanCounts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKLastScanCounts) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKLastScanCounts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKLastScanCounts) Get() (v ExposurePutExposureTreeIDTermsOKLastScanCounts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKLastScanCounts) Or(d ExposurePutExposureTreeIDTermsOKLastScanCounts) ExposurePutExposureTreeIDTermsOKLastScanCounts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKProofCoveredBy returns new NilExposurePutExposureTreeIDTermsOKProofCoveredBy with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKProofCoveredBy(v ExposurePutExposureTreeIDTermsOKProofCoveredBy) NilExposurePutExposureTreeIDTermsOKProofCoveredBy {
+	return NilExposurePutExposureTreeIDTermsOKProofCoveredBy{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKProofCoveredBy is nullable ExposurePutExposureTreeIDTermsOKProofCoveredBy.
+type NilExposurePutExposureTreeIDTermsOKProofCoveredBy struct {
+	Value ExposurePutExposureTreeIDTermsOKProofCoveredBy
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKProofCoveredBy) SetTo(v ExposurePutExposureTreeIDTermsOKProofCoveredBy) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKProofCoveredBy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKProofCoveredBy) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKProofCoveredBy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKProofCoveredBy) Get() (v ExposurePutExposureTreeIDTermsOKProofCoveredBy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKProofCoveredBy) Or(d ExposurePutExposureTreeIDTermsOKProofCoveredBy) ExposurePutExposureTreeIDTermsOKProofCoveredBy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKProofDNS returns new NilExposurePutExposureTreeIDTermsOKProofDNS with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKProofDNS(v ExposurePutExposureTreeIDTermsOKProofDNS) NilExposurePutExposureTreeIDTermsOKProofDNS {
+	return NilExposurePutExposureTreeIDTermsOKProofDNS{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKProofDNS is nullable ExposurePutExposureTreeIDTermsOKProofDNS.
+type NilExposurePutExposureTreeIDTermsOKProofDNS struct {
+	Value ExposurePutExposureTreeIDTermsOKProofDNS
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKProofDNS) SetTo(v ExposurePutExposureTreeIDTermsOKProofDNS) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKProofDNS) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKProofDNS) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKProofDNS
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKProofDNS) Get() (v ExposurePutExposureTreeIDTermsOKProofDNS, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKProofDNS) Or(d ExposurePutExposureTreeIDTermsOKProofDNS) ExposurePutExposureTreeIDTermsOKProofDNS {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKProofFile returns new NilExposurePutExposureTreeIDTermsOKProofFile with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKProofFile(v ExposurePutExposureTreeIDTermsOKProofFile) NilExposurePutExposureTreeIDTermsOKProofFile {
+	return NilExposurePutExposureTreeIDTermsOKProofFile{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKProofFile is nullable ExposurePutExposureTreeIDTermsOKProofFile.
+type NilExposurePutExposureTreeIDTermsOKProofFile struct {
+	Value ExposurePutExposureTreeIDTermsOKProofFile
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKProofFile) SetTo(v ExposurePutExposureTreeIDTermsOKProofFile) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKProofFile) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKProofFile) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKProofFile
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKProofFile) Get() (v ExposurePutExposureTreeIDTermsOKProofFile, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKProofFile) Or(d ExposurePutExposureTreeIDTermsOKProofFile) ExposurePutExposureTreeIDTermsOKProofFile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKProofLastCheck returns new NilExposurePutExposureTreeIDTermsOKProofLastCheck with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKProofLastCheck(v ExposurePutExposureTreeIDTermsOKProofLastCheck) NilExposurePutExposureTreeIDTermsOKProofLastCheck {
+	return NilExposurePutExposureTreeIDTermsOKProofLastCheck{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKProofLastCheck is nullable ExposurePutExposureTreeIDTermsOKProofLastCheck.
+type NilExposurePutExposureTreeIDTermsOKProofLastCheck struct {
+	Value ExposurePutExposureTreeIDTermsOKProofLastCheck
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKProofLastCheck) SetTo(v ExposurePutExposureTreeIDTermsOKProofLastCheck) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKProofLastCheck) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKProofLastCheck) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKProofLastCheck
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKProofLastCheck) Get() (v ExposurePutExposureTreeIDTermsOKProofLastCheck, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKProofLastCheck) Or(d ExposurePutExposureTreeIDTermsOKProofLastCheck) ExposurePutExposureTreeIDTermsOKProofLastCheck {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKProofMethod returns new NilExposurePutExposureTreeIDTermsOKProofMethod with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKProofMethod(v ExposurePutExposureTreeIDTermsOKProofMethod) NilExposurePutExposureTreeIDTermsOKProofMethod {
+	return NilExposurePutExposureTreeIDTermsOKProofMethod{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKProofMethod is nullable ExposurePutExposureTreeIDTermsOKProofMethod.
+type NilExposurePutExposureTreeIDTermsOKProofMethod struct {
+	Value ExposurePutExposureTreeIDTermsOKProofMethod
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKProofMethod) SetTo(v ExposurePutExposureTreeIDTermsOKProofMethod) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKProofMethod) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKProofMethod) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKProofMethod
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKProofMethod) Get() (v ExposurePutExposureTreeIDTermsOKProofMethod, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKProofMethod) Or(d ExposurePutExposureTreeIDTermsOKProofMethod) ExposurePutExposureTreeIDTermsOKProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKScopeMode returns new NilExposurePutExposureTreeIDTermsOKScopeMode with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKScopeMode(v ExposurePutExposureTreeIDTermsOKScopeMode) NilExposurePutExposureTreeIDTermsOKScopeMode {
+	return NilExposurePutExposureTreeIDTermsOKScopeMode{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKScopeMode is nullable ExposurePutExposureTreeIDTermsOKScopeMode.
+type NilExposurePutExposureTreeIDTermsOKScopeMode struct {
+	Value ExposurePutExposureTreeIDTermsOKScopeMode
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKScopeMode) SetTo(v ExposurePutExposureTreeIDTermsOKScopeMode) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKScopeMode) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKScopeMode) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKScopeMode
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKScopeMode) Get() (v ExposurePutExposureTreeIDTermsOKScopeMode, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKScopeMode) Or(d ExposurePutExposureTreeIDTermsOKScopeMode) ExposurePutExposureTreeIDTermsOKScopeMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKTerms returns new NilExposurePutExposureTreeIDTermsOKTerms with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKTerms(v ExposurePutExposureTreeIDTermsOKTerms) NilExposurePutExposureTreeIDTermsOKTerms {
+	return NilExposurePutExposureTreeIDTermsOKTerms{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKTerms is nullable ExposurePutExposureTreeIDTermsOKTerms.
+type NilExposurePutExposureTreeIDTermsOKTerms struct {
+	Value ExposurePutExposureTreeIDTermsOKTerms
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKTerms) SetTo(v ExposurePutExposureTreeIDTermsOKTerms) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKTerms) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKTerms) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKTerms
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKTerms) Get() (v ExposurePutExposureTreeIDTermsOKTerms, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKTerms) Or(d ExposurePutExposureTreeIDTermsOKTerms) ExposurePutExposureTreeIDTermsOKTerms {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -198275,6 +213206,52 @@ func (o OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) Or(d Exposu
 	return d
 }
 
+// NewOptExposureDeleteExposureTreeIDIgnore returns new OptExposureDeleteExposureTreeIDIgnore with value set to v.
+func NewOptExposureDeleteExposureTreeIDIgnore(v ExposureDeleteExposureTreeIDIgnore) OptExposureDeleteExposureTreeIDIgnore {
+	return OptExposureDeleteExposureTreeIDIgnore{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureDeleteExposureTreeIDIgnore is optional ExposureDeleteExposureTreeIDIgnore.
+type OptExposureDeleteExposureTreeIDIgnore struct {
+	Value ExposureDeleteExposureTreeIDIgnore
+	Set   bool
+}
+
+// IsSet returns true if OptExposureDeleteExposureTreeIDIgnore was set.
+func (o OptExposureDeleteExposureTreeIDIgnore) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureDeleteExposureTreeIDIgnore) Reset() {
+	var v ExposureDeleteExposureTreeIDIgnore
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureDeleteExposureTreeIDIgnore) SetTo(v ExposureDeleteExposureTreeIDIgnore) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureDeleteExposureTreeIDIgnore) Get() (v ExposureDeleteExposureTreeIDIgnore, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureDeleteExposureTreeIDIgnore) Or(d ExposureDeleteExposureTreeIDIgnore) ExposureDeleteExposureTreeIDIgnore {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposureGetExposureTargetsIDOKOpenPortsItemAppliance returns new OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance with value set to v.
 func NewOptExposureGetExposureTargetsIDOKOpenPortsItemAppliance(v ExposureGetExposureTargetsIDOKOpenPortsItemAppliance) OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance {
 	return OptExposureGetExposureTargetsIDOKOpenPortsItemAppliance{
@@ -198787,6 +213764,52 @@ func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) Or(d Exposur
 	return d
 }
 
+// NewOptExposurePatchExposureTreeIDReqScopeMode returns new OptExposurePatchExposureTreeIDReqScopeMode with value set to v.
+func NewOptExposurePatchExposureTreeIDReqScopeMode(v ExposurePatchExposureTreeIDReqScopeMode) OptExposurePatchExposureTreeIDReqScopeMode {
+	return OptExposurePatchExposureTreeIDReqScopeMode{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePatchExposureTreeIDReqScopeMode is optional ExposurePatchExposureTreeIDReqScopeMode.
+type OptExposurePatchExposureTreeIDReqScopeMode struct {
+	Value ExposurePatchExposureTreeIDReqScopeMode
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePatchExposureTreeIDReqScopeMode was set.
+func (o OptExposurePatchExposureTreeIDReqScopeMode) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePatchExposureTreeIDReqScopeMode) Reset() {
+	var v ExposurePatchExposureTreeIDReqScopeMode
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePatchExposureTreeIDReqScopeMode) SetTo(v ExposurePatchExposureTreeIDReqScopeMode) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePatchExposureTreeIDReqScopeMode) Get() (v ExposurePatchExposureTreeIDReqScopeMode, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePatchExposureTreeIDReqScopeMode) Or(d ExposurePatchExposureTreeIDReqScopeMode) ExposurePatchExposureTreeIDReqScopeMode {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance returns new OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance with value set to v.
 func NewOptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance(v ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance) OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance {
 	return OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemAppliance{
@@ -199159,38 +214182,38 @@ func (o OptExposurePostExposureTargetsReqKind) Or(d ExposurePostExposureTargetsR
 	return d
 }
 
-// NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance returns new OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance with value set to v.
-func NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance {
-	return OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance{
+// NewOptExposurePostExposureTreeIDScanReq returns new OptExposurePostExposureTreeIDScanReq with value set to v.
+func NewOptExposurePostExposureTreeIDScanReq(v ExposurePostExposureTreeIDScanReq) OptExposurePostExposureTreeIDScanReq {
+	return OptExposurePostExposureTreeIDScanReq{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance is optional ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance.
-type OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance struct {
-	Value ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance
+// OptExposurePostExposureTreeIDScanReq is optional ExposurePostExposureTreeIDScanReq.
+type OptExposurePostExposureTreeIDScanReq struct {
+	Value ExposurePostExposureTreeIDScanReq
 	Set   bool
 }
 
-// IsSet returns true if OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance was set.
-func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) IsSet() bool { return o.Set }
+// IsSet returns true if OptExposurePostExposureTreeIDScanReq was set.
+func (o OptExposurePostExposureTreeIDScanReq) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) Reset() {
-	var v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance
+func (o *OptExposurePostExposureTreeIDScanReq) Reset() {
+	var v ExposurePostExposureTreeIDScanReq
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) SetTo(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) {
+func (o *OptExposurePostExposureTreeIDScanReq) SetTo(v ExposurePostExposureTreeIDScanReq) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) Get() (v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance, ok bool) {
+func (o OptExposurePostExposureTreeIDScanReq) Get() (v ExposurePostExposureTreeIDScanReq, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -199198,45 +214221,45 @@ func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) Get() (
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) Or(d ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance) ExposurePutExposureTargetsIDScheduleOKOpenPortsItemAppliance {
+func (o OptExposurePostExposureTreeIDScanReq) Or(d ExposurePostExposureTreeIDScanReq) ExposurePostExposureTreeIDScanReq {
 	if v, ok := o.Get(); ok {
 		return v
 	}
 	return d
 }
 
-// NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent returns new OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent with value set to v.
-func NewOptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
-	return OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent{
+// NewOptExposurePostExposureTreeReqKind returns new OptExposurePostExposureTreeReqKind with value set to v.
+func NewOptExposurePostExposureTreeReqKind(v ExposurePostExposureTreeReqKind) OptExposurePostExposureTreeReqKind {
+	return OptExposurePostExposureTreeReqKind{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent is optional ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent.
-type OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent struct {
-	Value ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent
+// OptExposurePostExposureTreeReqKind is optional ExposurePostExposureTreeReqKind.
+type OptExposurePostExposureTreeReqKind struct {
+	Value ExposurePostExposureTreeReqKind
 	Set   bool
 }
 
-// IsSet returns true if OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent was set.
-func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) IsSet() bool { return o.Set }
+// IsSet returns true if OptExposurePostExposureTreeReqKind was set.
+func (o OptExposurePostExposureTreeReqKind) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) Reset() {
-	var v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent
+func (o *OptExposurePostExposureTreeReqKind) Reset() {
+	var v ExposurePostExposureTreeReqKind
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) SetTo(v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) {
+func (o *OptExposurePostExposureTreeReqKind) SetTo(v ExposurePostExposureTreeReqKind) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) Get() (v ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent, ok bool) {
+func (o OptExposurePostExposureTreeReqKind) Get() (v ExposurePostExposureTreeReqKind, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -199244,7 +214267,53 @@ func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) Get() (v Ex
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) Or(d ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent) ExposurePutExposureTargetsIDScheduleOKOpenPortsItemIdent {
+func (o OptExposurePostExposureTreeReqKind) Or(d ExposurePostExposureTreeReqKind) ExposurePostExposureTreeReqKind {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePostExposureTreeReqScopeMode returns new OptExposurePostExposureTreeReqScopeMode with value set to v.
+func NewOptExposurePostExposureTreeReqScopeMode(v ExposurePostExposureTreeReqScopeMode) OptExposurePostExposureTreeReqScopeMode {
+	return OptExposurePostExposureTreeReqScopeMode{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePostExposureTreeReqScopeMode is optional ExposurePostExposureTreeReqScopeMode.
+type OptExposurePostExposureTreeReqScopeMode struct {
+	Value ExposurePostExposureTreeReqScopeMode
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePostExposureTreeReqScopeMode was set.
+func (o OptExposurePostExposureTreeReqScopeMode) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePostExposureTreeReqScopeMode) Reset() {
+	var v ExposurePostExposureTreeReqScopeMode
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePostExposureTreeReqScopeMode) SetTo(v ExposurePostExposureTreeReqScopeMode) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePostExposureTreeReqScopeMode) Get() (v ExposurePostExposureTreeReqScopeMode, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePostExposureTreeReqScopeMode) Or(d ExposurePostExposureTreeReqScopeMode) ExposurePostExposureTreeReqScopeMode {
 	if v, ok := o.Get(); ok {
 		return v
 	}

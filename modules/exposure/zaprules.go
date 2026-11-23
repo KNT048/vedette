@@ -337,7 +337,7 @@ const (
 // basis "js_library"; a product and version of a Server or X-Powered-By header go through the Matcher like a service nmap identified,
 // unless nmap already read a version of that product on that port. A row never replaces one already there for the same address, port
 // and CVE. A failed comparison is a "Not checked" line, never "no exploited CVE".
-func (s *Service) withWebVersions(ctx context.Context, snap *Snapshot) {
+func (s *Service) withWebVersions(ctx context.Context, snap *vulnSet) {
 	var dropped int
 	snap.WebFindings, dropped = webOnRead(snap.WebFindings)
 	if dropped > 0 { // a snapshot stored before the list: its "web" line counted alerts that are no longer shown (review r1 L6)
@@ -467,7 +467,7 @@ func jsSummary(port int, product, version, cve string) string {
 
 // webVersionsFailed is the "Not checked" line of a comparison that did not run: the reason of an *Unavailable as is (the Feeds module
 // is off: trying again does not help), otherwise the error is logged and the line says to try again.
-func (s *Service) webVersionsFailed(ctx context.Context, snap *Snapshot, err error) string {
+func (s *Service) webVersionsFailed(ctx context.Context, snap *vulnSet, err error) string {
 	var un *Unavailable
 	if errors.As(err, &un) {
 		return "Versions ZAP read on the web pages were not compared with exploited vulnerabilities: " + clipText(un.Reason, 200)

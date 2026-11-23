@@ -1,0 +1,4234 @@
+{
+ "_note": "Anonymised scans of a test network (addresses, names and domains replaced; certificate and host-key fingerprints, ids and cookie values replaced with fakes; certificate validity moved and rounded to the day; public product strings kept), in the order they ran. Each content is what the engines handed over for one scan.",
+ "targets": [
+  {
+   "id": "xt-ip",
+   "kind": "ip",
+   "value": "198.51.100.2",
+   "origin": "box"
+  },
+  {
+   "id": "xt-git",
+   "kind": "domain",
+   "value": "git.example.com",
+   "origin": "person"
+  },
+  {
+   "id": "xt-apex",
+   "kind": "domain",
+   "value": "example.com",
+   "origin": "person"
+  }
+ ],
+ "scans": [
+  {
+   "target": "xt-ip",
+   "started_at": "2026-11-13T23:43:49.742Z",
+   "content": {
+    "hosts": [],
+    "ports": [
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "service": "sip"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "service": "https",
+      "product": "nginx"
+     }
+    ],
+    "admin_panels": [],
+    "certs": [
+     {
+      "host": "198.51.100.2:10443",
+      "issuer": "YE2",
+      "expires_at": "2027-01-15T00:00:00.000Z"
+     }
+    ],
+    "web_findings": [],
+    "greenbone": [],
+    "scripts": [],
+    "services": [],
+    "templates": []
+   }
+  },
+  {
+   "target": "xt-ip",
+   "started_at": "2026-11-14T21:42:04.334Z",
+   "content": {
+    "hosts": [],
+    "ports": [
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "service": "sip"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "service": "https",
+      "product": "nginx"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 2000,
+      "service": "cisco-sccp"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "service": "ssh",
+      "product": "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "service": "unknown"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "service": "ssl/unknown"
+     }
+    ],
+    "admin_panels": [],
+    "certs": [
+     {
+      "host": "198.51.100.2:10443",
+      "issuer": "YE2",
+      "expires_at": "2027-01-15T00:00:00.000Z"
+     }
+    ],
+    "web_findings": [
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10003",
+      "name": "Vulnerable JS Library",
+      "risk": "high",
+      "confidence": "medium",
+      "cwe": 1395,
+      "description": "The identified library appears to be vulnerable.",
+      "solution": "Upgrade to the latest version of the affected library.",
+      "urls": [
+       "https://198.51.100.2:10443/assets/webpack/main.02b8bf31.chunk.js"
+      ],
+      "count": 1,
+      "group": "fix",
+      "software": [
+       {
+        "product": "DOMPurify",
+        "version": "3.4.13",
+        "cves": [
+         "CVE-2026-109344",
+         "CVE-2026-109345",
+         "CVE-2026-116802",
+         "CVE-2026-116803",
+         "CVE-2026-116804"
+        ],
+        "distro": ""
+       }
+      ]
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10038",
+      "name": "Content Security Policy (CSP) Header Not Set",
+      "risk": "medium",
+      "confidence": "high",
+      "cwe": 693,
+      "description": "Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks, including Cross Site Scripting (XSS) and data injection attacks. These attacks are used for everything from data theft to site defacement or distribution of malware. CSP provides a set of standard HTTP headers that allow website owners to declare approved sources of content that…",
+      "solution": "Ensure that your web server, application server, load balancer, etc. is configured to set the Content-Security-Policy header.",
+      "urls": [
+       "https://198.51.100.2:10443/admin"
+      ],
+      "count": 1,
+      "group": "hardening",
+      "software": []
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10010",
+      "name": "Cookie No HttpOnly Flag",
+      "risk": "low",
+      "confidence": "medium",
+      "cwe": 1004,
+      "description": "A cookie has been set without the HttpOnly flag, which means that the cookie can be accessed by JavaScript. If a malicious script can be run on this page then the cookie will be accessible and can be transmitted to another site. If this is a session cookie then session hijacking may be possible.",
+      "solution": "Ensure that the HttpOnly flag is set for all cookies.",
+      "urls": [
+       "https://198.51.100.2:10443/users/sign_in"
+      ],
+      "count": 1,
+      "group": "hardening",
+      "software": []
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10054",
+      "name": "Cookie with SameSite Attribute None",
+      "risk": "low",
+      "confidence": "medium",
+      "cwe": 1275,
+      "description": "A cookie has been set with its SameSite attribute set to \"none\", which means that the cookie can be sent as a result of a 'cross-site' request. The SameSite attribute is an effective counter measure to cross-site request forgery, cross-site script inclusion, and timing attacks.",
+      "solution": "Ensure that the SameSite attribute is set to either 'lax' or ideally 'strict' for all cookies.",
+      "urls": [
+       "https://198.51.100.2:10443/sitemap.xml",
+       "https://198.51.100.2:10443/users/sign_in"
+      ],
+      "count": 3,
+      "group": "hardening",
+      "software": []
+     }
+    ],
+    "greenbone": [
+     {
+      "ip": "198.51.100.2",
+      "port": "general/tcp",
+      "severity": 2.6,
+      "name": "TCP Timestamps Information Disclosure",
+      "qod": 80,
+      "cves": [],
+      "solution": "To disable TCP timestamps on linux add the line 'net.ipv4.tcp_timestamps = 0' to /etc/sysctl.conf. Execute 'sysctl -p' to apply the settings at runtime. To disable TCP timestamps on Windows execute 'netsh int tcp set global timestamps=disabled' Starting with Windows Server 2008 and Vista, the timestamp can not be completely disabled. The default behavior of the TCP/IP stack on this Systems is to…",
+      "oid": "198.51.100.4.4.1.25623.1.0.80091"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": "10022/tcp",
+      "severity": 2.6,
+      "name": "Weak host-64 Algorithm(s) Supported (SSH)",
+      "qod": 80,
+      "cves": [],
+      "solution": "Disable the reported weak host-64 algorithm(s).",
+      "oid": "198.51.100.4.4.1.25623.1.0.105610"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": "general/icmp",
+      "severity": 2.1,
+      "name": "ICMP Timestamp Reply Information Disclosure",
+      "qod": 80,
+      "cves": [
+       "CVE-1999-0524"
+      ],
+      "solution": "Various mitigations are possible: - Disable the support for ICMP timestamp on the remote host completely - Protect the remote host by a firewall, and block ICMP packets passing through the firewall in either direction (either completely or only for untrusted networks)",
+      "oid": "198.51.100.4.4.1.25623.1.0.103190"
+     }
+    ],
+    "scripts": [
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh2-enum-algos",
+      "output": "kex_algorithms: (12)\n      person@example.com\n      curve25519-sha256\n      person@example.com\n      ecdh-sha2-nistp256\n      ecdh-sha2-nistp384\n      ecdh-sha2-nistp521\n      diffie-hellman-group-exchange-sha256\n      diffie-hellman-group16-sha512\n      diffie-hellman-group18-sha512\n      diffie-hellman-group14-sha256\n      ext-info-s\n      person@example.com\n  server_host_key_algorithms: (4)\n      rsa-sha2-512\n      rsa-sha2-256\n      ecdsa-sha2-nistp256\n      ssh-ed25519\n  encryption_algorithms: (6)\n      person@example.com\n      aes128-ctr\n      aes192-ctr\n      aes256-ctr\n      person@example.com\n      person@example.com\n  host-64_algorithms: (10)\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      hmac-sha2-256\n      hmac-sha2-512\n      hmac-sha1\n  compression_algorithms: (2)\n      none\n      person@example.com",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "banner",
+      "output": "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.20",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh-hostkey",
+      "output": "256 b2:77:28:f7:dd:6e:b6:a7:4b:2b:e3:9e:ee:f5:61:c7 (ECDSA)\n  256 ab:0a:8c:09:ba:26:b1:fe:12:83:09:78:54:85:c9:37 (ED25519)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-csrf",
+      "output": "Couldn't find any CSRF vulnerabilities.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-headers",
+      "output": "Server: nginx\n  Date: Sat, 14 Nov 2026 21:52:34 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"e48063478befbde799e358a0533df014\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=3e83a9c98ab1eef1273788120bdfa24b; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"c23ac431d037dc606f942a29d2\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: eb14bd021ad63ee234b12d506c\n  X-Runtime: 0.132494\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-date",
+      "output": "Sat, 14 Nov 2026 21:52:32 GMT; 0s from local time.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-useragent-tester",
+      "output": "Status for browser useragent: 200\n  Redirected To: https://198.51.100.2:10443/users/sign_in\n  Allowed User Agents: \n    Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)\n    libwww\n    lwp-trivial\n    libcurl-agent/1.0\n    PHP/\n    Python-urllib/2.5\n    GT::WWW\n    Snoopy\n    MFC_Tear_Sample\n    HTTP::Lite\n    PHPCrawl\n    URI::Fetch\n    Zend_Http_Client\n    http client\n    PECL::HTTP\n    Wget/1.13.4 (linux-gnu)\n    WWW-Mechanize/1.34",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-security-headers",
+      "output": "Strict_Transport_Security: \n    Header: Strict-Transport-Security: max-age=63072000\n  X_Frame_Options: \n    Header: X-Frame-Options: SAMEORIGIN\n    Description: The browser must not display this content in any frame from a page of different origin than the content itself.\n  X_XSS_Protection: \n    Header: X-XSS-Protection: 1; mode=block\n    Description: The browser will prevent the rendering of the page when XSS is detected.\n  X_Content_Type_Options: \n    Header: X-Content-Type-Options: nosniff\n    Description: Will prevent the browser from MIME-sniffing a response away from the declared content-type. \n  Content_Security_Policy: \n    Header: Content-Security-Policy: \n  X_Permitted_Cross_Domain_Policies: \n    Header: X-Permitted-Cross-Domain-Policies: none\n    Description: No policy files are allowed anywhere on the target server, including this master policy file. \n  Cookie: \n    Cookies are secured with Secure Flag in HTTPS Connection\n  Cache_Control: \n    Header: Cache-Control: max-age=0, private, must-revalidate",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-malware-host",
+      "output": "Host appears to be clean",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-comments-displayer",
+      "output": "Couldn't find any comments.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-traceroute",
+      "output": "Possible reverse proxy detected.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-referer-checker",
+      "output": "Couldn't find any cross-domain scripts.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "unusual-port",
+      "output": "http unexpected on port tcp/10443",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-title",
+      "output": "400 The plain HTTP request was sent to HTTPS port",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-dombased-xss",
+      "output": "Couldn't find any DOM based XSS.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-grep",
+      "output": "(1) https://198.51.100.2:10443/users/sign_in: \n    (1) ip: \n      + 198.51.100.2",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-methods",
+      "output": "Supported Methods: GET HEAD POST OPTIONS",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-enum",
+      "output": "/robots.txt: Robots file",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-vuln-cve2010-0738",
+      "output": "/jmx-console/: Authentication was not required",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-mobileversion-checker",
+      "output": "No mobile version detected.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-vuln-cve2017-1001000",
+      "output": "ERROR: Script execution failed (use -d to debug)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-17T00:00:00\nNot valid after:  2027-01-15T00:00:00\nMD5:   825d:9bac:1ed9:7714:7ae7:5a86:5dbd:c553\nSHA-1: 10fa:6d66:e9d0:efb3:56e8:2a91:288a:848e:eac2:1a94",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-favicon",
+      "output": "Unknown favicon MD5: 296aa0c254cdfa705be25e0d52d55186",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-trane-info",
+      "output": "Problem with XML parsing of /evox/about",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "id": "fingerprint-strings",
+      "output": "DNSStatusRequestTCP, DNSVersionBindReqTCP, Help, Kerberos, RPCCheck, SMBProgNeg, SSLSessionReq, TLSSessionReq, TerminalServerCookie, X11Probe: \n    HTTP/1.1 400 Bad Request\n    Connection: close\n  FourOhFourRequest: \n    HTTP/1.1 301 Moved Permanently\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    location: https://:11443/nice%20ports%2C/Tri%6Eity.txt%2ebak\n    Date: Sat, 14 Nov 2026 21:49:34 GMT\n    Connection: close\n  GetRequest, HTTPOptions, RTSPRequest: \n    HTTP/1.1 301 Moved Permanently\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    location: https://:11443/\n    Date: Sat, 14 Nov 2026 21:49:34 GMT\n    Connection: close",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-31T00:00:00\nNot valid after:  2028-09-02T00:00:00\nMD5:   be1d:9665:c14e:6135:7f88:a916:30ed:4d5c\nSHA-1: a4e9:3414:ecea:4880:8bde:6100:be54:f4fc:5992:7c19",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "fingerprint-strings",
+      "output": "GetRequest: \n    HTTP/1.1 200 OK\n    Content-Encoding: gzip\n    Content-Type: text/html\n    ETag: N3jN01tkpqcsN0xxpwN81r4mNpmm7fjk\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    Date: Sat, 14 Nov 2026 21:49:45 GMT\n    Connection: close\n    <v@88\n    f0\"L0\n    ^GQ!\n    \\xae&\n    jr}y\n    $J.5\n    \\xb2\n    '1Y2",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "path-mtu",
+      "output": "PMTU == 1500",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "port-states",
+      "output": "tcp: \n    open: 2000,5060,10022,10443,11080,11443\n    filtered: 1-112,114-1999,2001-5059,5061-10021,10023-10442,10444-11079,11081-11442,11444-65535\n    closed: 113",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "ipidseq",
+      "output": "Unknown",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "qscan",
+      "output": "PORT   FAMILY  MEAN (us)  STDDEV  LOSS (%)\n113    0       374.40     83.84   0.0%\n2000   0       464.20     171.33  0.0%\n5060   0       578.10     517.35  0.0%\n10022  1       1144.10    232.40  0.0%\n10443  1       994.40     205.68  0.0%\n11080  0       373.70     116.71  0.0%\n11443  2       492.20     130.56  0.0%",
+      "findings": []
+     }
+    ],
+    "services": [
+     {
+      "ip": "198.51.100.2",
+      "port": 2000,
+      "name": "cisco-sccp",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": ""
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "name": "sip",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": ""
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "name": "ssh",
+      "product": "OpenSSH",
+      "version": "9.6p1 Ubuntu 3ubuntu13.20",
+      "cpe": "cpe:/a:openbsd:openssh:9.6p1",
+      "extra": "Ubuntu Linux; protocol 2.0"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "name": "ssl/http",
+      "product": "nginx",
+      "version": "",
+      "cpe": "cpe:/a:igor_sysoev:nginx",
+      "extra": ""
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "name": "unknown",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": ""
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "name": "ssl/unknown",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": ""
+     }
+    ],
+    "templates": [
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "oidc-detect",
+      "outcome": "matched",
+      "name": "Detect OpenID Connect provider",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "oauth-authorization-server-exposure",
+      "outcome": "matched",
+      "name": "Well-Known OAuth Authorization Server Metadata",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "robots-txt",
+      "outcome": "matched",
+      "name": "robots.txt file",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "weak-csp-detect",
+      "outcome": "matched",
+      "name": "Weak Content Security Policy - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "xss-deprecated-header",
+      "outcome": "matched",
+      "name": "XSS-Protection Header - Cross-Site Scripting",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "ssl-dns-names",
+      "outcome": "matched",
+      "name": "SSL DNS Names",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "self-signed-ssl",
+      "outcome": "matched",
+      "name": "Self Signed SSL Certificate",
+      "severity": "low"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     }
+    ]
+   }
+  },
+  {
+   "target": "xt-ip",
+   "started_at": "2026-11-16T23:02:37.631Z",
+   "content": {
+    "hosts": [],
+    "ports": [
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "service": "sip",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "service": "https",
+      "product": "nginx",
+      "ident": "probed",
+      "cert_names": [
+       "git.example.com"
+      ],
+      "title": "Sign in \\xC2\\xB7 GitLab"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 2000,
+      "service": "cisco-sccp",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "service": "ssh",
+      "product": "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20",
+      "ident": "probed"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "service": "unknown",
+      "ident": "none"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "service": "ssl/unknown",
+      "ident": "none",
+      "cert_names": [
+       "FortiGate"
+      ]
+     }
+    ],
+    "admin_panels": [],
+    "certs": [
+     {
+      "host": "198.51.100.2:10443",
+      "issuer": "YE2",
+      "expires_at": "2027-01-15T00:00:00.000Z"
+     }
+    ],
+    "web_findings": [
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10003",
+      "name": "Vulnerable JS Library",
+      "risk": "high",
+      "confidence": "medium",
+      "cwe": 1395,
+      "description": "The identified library appears to be vulnerable.",
+      "solution": "Upgrade to the latest version of the affected library.",
+      "urls": [
+       "https://198.51.100.2:10443/assets/webpack/main.02b8bf31.chunk.js"
+      ],
+      "count": 1,
+      "group": "fix",
+      "software": [
+       {
+        "product": "DOMPurify",
+        "version": "3.4.13",
+        "cves": [
+         "CVE-2026-109344",
+         "CVE-2026-109345",
+         "CVE-2026-116802",
+         "CVE-2026-116803",
+         "CVE-2026-116804"
+        ],
+        "distro": ""
+       }
+      ]
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10038",
+      "name": "Content Security Policy (CSP) Header Not Set",
+      "risk": "medium",
+      "confidence": "high",
+      "cwe": 693,
+      "description": "Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks, including Cross Site Scripting (XSS) and data injection attacks. These attacks are used for everything from data theft to site defacement or distribution of malware. CSP provides a set of standard HTTP headers that allow website owners to declare approved sources of content that…",
+      "solution": "Ensure that your web server, application server, load balancer, etc. is configured to set the Content-Security-Policy header.",
+      "urls": [
+       "https://198.51.100.2:10443/admin"
+      ],
+      "count": 1,
+      "group": "hardening",
+      "software": []
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10010",
+      "name": "Cookie No HttpOnly Flag",
+      "risk": "low",
+      "confidence": "medium",
+      "cwe": 1004,
+      "description": "A cookie has been set without the HttpOnly flag, which means that the cookie can be accessed by JavaScript. If a malicious script can be run on this page then the cookie will be accessible and can be transmitted to another site. If this is a session cookie then session hijacking may be possible.",
+      "solution": "Ensure that the HttpOnly flag is set for all cookies.",
+      "urls": [
+       "https://198.51.100.2:10443/users/sign_in"
+      ],
+      "count": 1,
+      "group": "hardening",
+      "software": []
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10054",
+      "name": "Cookie with SameSite Attribute None",
+      "risk": "low",
+      "confidence": "medium",
+      "cwe": 1275,
+      "description": "A cookie has been set with its SameSite attribute set to \"none\", which means that the cookie can be sent as a result of a 'cross-site' request. The SameSite attribute is an effective counter measure to cross-site request forgery, cross-site script inclusion, and timing attacks.",
+      "solution": "Ensure that the SameSite attribute is set to either 'lax' or ideally 'strict' for all cookies.",
+      "urls": [
+       "https://198.51.100.2:10443/sitemap.xml",
+       "https://198.51.100.2:10443/users/sign_in"
+      ],
+      "count": 3,
+      "group": "hardening",
+      "software": []
+     }
+    ],
+    "greenbone": [
+     {
+      "ip": "198.51.100.2",
+      "port": "general/tcp",
+      "severity": 2.6,
+      "name": "TCP Timestamps Information Disclosure",
+      "qod": 80,
+      "cves": [],
+      "solution": "To disable TCP timestamps on linux add the line 'net.ipv4.tcp_timestamps = 0' to /etc/sysctl.conf. Execute 'sysctl -p' to apply the settings at runtime. To disable TCP timestamps on Windows execute 'netsh int tcp set global timestamps=disabled' Starting with Windows Server 2008 and Vista, the timestamp can not be completely disabled. The default behavior of the TCP/IP stack on this Systems is to…",
+      "oid": "198.51.100.4.4.1.25623.1.0.80091"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": "10022/tcp",
+      "severity": 2.6,
+      "name": "Weak host-64 Algorithm(s) Supported (SSH)",
+      "qod": 80,
+      "cves": [],
+      "solution": "Disable the reported weak host-64 algorithm(s).",
+      "oid": "198.51.100.4.4.1.25623.1.0.105610"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": "general/icmp",
+      "severity": 2.1,
+      "name": "ICMP Timestamp Reply Information Disclosure",
+      "qod": 80,
+      "cves": [
+       "CVE-1999-0524"
+      ],
+      "solution": "Various mitigations are possible: - Disable the support for ICMP timestamp on the remote host completely - Protect the remote host by a firewall, and block ICMP packets passing through the firewall in either direction (either completely or only for untrusted networks)",
+      "oid": "198.51.100.4.4.1.25623.1.0.103190"
+     }
+    ],
+    "scripts": [
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh2-enum-algos",
+      "output": "kex_algorithms: (12)\n      person@example.com\n      curve25519-sha256\n      person@example.com\n      ecdh-sha2-nistp256\n      ecdh-sha2-nistp384\n      ecdh-sha2-nistp521\n      diffie-hellman-group-exchange-sha256\n      diffie-hellman-group16-sha512\n      diffie-hellman-group18-sha512\n      diffie-hellman-group14-sha256\n      ext-info-s\n      person@example.com\n  server_host_key_algorithms: (4)\n      rsa-sha2-512\n      rsa-sha2-256\n      ecdsa-sha2-nistp256\n      ssh-ed25519\n  encryption_algorithms: (6)\n      person@example.com\n      aes128-ctr\n      aes192-ctr\n      aes256-ctr\n      person@example.com\n      person@example.com\n  host-64_algorithms: (10)\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      hmac-sha2-256\n      hmac-sha2-512\n      hmac-sha1\n  compression_algorithms: (2)\n      none\n      person@example.com",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh-hostkey",
+      "output": "256 b2:77:28:f7:dd:6e:b6:a7:4b:2b:e3:9e:ee:f5:61:c7 (ECDSA)\n  256 ab:0a:8c:09:ba:26:b1:fe:12:83:09:78:54:85:c9:37 (ED25519)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "banner",
+      "output": "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.20",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-comments-displayer",
+      "output": "Couldn't find any comments.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-csrf",
+      "output": "Couldn't find any CSRF vulnerabilities.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-referer-checker",
+      "output": "Couldn't find any cross-domain scripts.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-date",
+      "output": "Mon, 16 Nov 2026 23:19:07 GMT; 0s from local time.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-methods",
+      "output": "Supported Methods: GET HEAD POST OPTIONS",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-title",
+      "output": "Sign in \\xC2\\xB7 GitLab\nRequested resource was https://198.51.100.2:10443/users/sign_in",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-17T00:00:00\nNot valid after:  2027-01-15T00:00:00\nMD5:   825d:9bac:1ed9:7714:7ae7:5a86:5dbd:c553\nSHA-1: 10fa:6d66:e9d0:efb3:56e8:2a91:288a:848e:eac2:1a94",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-favicon",
+      "output": "Unknown favicon MD5: 296aa0c254cdfa705be25e0d52d55186",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-traceroute",
+      "output": "Possible reverse proxy detected.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-vuln-cve2017-1001000",
+      "output": "ERROR: Script execution failed (use -d to debug)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-dombased-xss",
+      "output": "Couldn't find any DOM based XSS.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-mobileversion-checker",
+      "output": "ERROR: Script execution failed (use -d to debug)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-trane-info",
+      "output": "Problem with XML parsing of /evox/about",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-headers",
+      "output": "Server: nginx\n  Date: Mon, 16 Nov 2026 23:19:03 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"57bba8f7fda940ef2c7be9d3ee1bdaa1\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=1d29561822af5dfff8f087a308e79392; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"cec5597fca6c76708b25dad787\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: 3979ba66f4f470629825f36f4c\n  X-Runtime: 0.136558\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "unusual-port",
+      "output": "http unexpected on port tcp/10443",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-useragent-tester",
+      "output": "Status for browser useragent: 200\n  Redirected To: https://198.51.100.2:10443/users/sign_in\n  Allowed User Agents: \n    Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)\n    libwww\n    lwp-trivial\n    libcurl-agent/1.0\n    PHP/\n    Python-urllib/2.5\n    GT::WWW\n    Snoopy\n    MFC_Tear_Sample\n    HTTP::Lite\n    PHPCrawl\n    URI::Fetch\n    Zend_Http_Client\n    http client\n    Wget/1.13.4 (linux-gnu)\n    WWW-Mechanize/1.34\n  Change in Status Code: \n    PECL::HTTP: false",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-security-headers",
+      "output": "Strict_Transport_Security: \n    Header: Strict-Transport-Security: max-age=63072000\n  X_Frame_Options: \n    Header: X-Frame-Options: SAMEORIGIN\n    Description: The browser must not display this content in any frame from a page of different origin than the content itself.\n  X_XSS_Protection: \n    Header: X-XSS-Protection: 1; mode=block\n    Description: The browser will prevent the rendering of the page when XSS is detected.\n  X_Content_Type_Options: \n    Header: X-Content-Type-Options: nosniff\n    Description: Will prevent the browser from MIME-sniffing a response away from the declared content-type. \n  Content_Security_Policy: \n    Header: Content-Security-Policy: \n  X_Permitted_Cross_Domain_Policies: \n    Header: X-Permitted-Cross-Domain-Policies: none\n    Description: No policy files are allowed anywhere on the target server, including this master policy file. \n  Cookie: \n    Cookies are secured with Secure Flag in HTTPS Connection\n  Cache_Control: \n    Header: Cache-Control: max-age=0, private, must-revalidate",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-vuln-cve2010-0738",
+      "output": "/jmx-console/: Authentication was not required",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-enum",
+      "output": "/robots.txt: Robots file",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "id": "fingerprint-strings",
+      "output": "DNSStatusRequestTCP, DNSVersionBindReqTCP, Hello, Help, Kerberos, RPCCheck, SMBProgNeg, SSLSessionReq, SSLv23SessionReq, TLSSessionReq, TerminalServerCookie: \n    HTTP/1.1 400 Bad Request\n    Connection: close\n  GetRequest, HTTPOptions, RTSPRequest: \n    HTTP/1.1 301 Moved Permanently\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    location: https://:11443/\n    Date: Mon, 16 Nov 2026 23:10:07 GMT\n    Connection: close",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-31T00:00:00\nNot valid after:  2028-09-02T00:00:00\nMD5:   be1d:9665:c14e:6135:7f88:a916:30ed:4d5c\nSHA-1: a4e9:3414:ecea:4880:8bde:6100:be54:f4fc:5992:7c19",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "fingerprint-strings",
+      "output": "GetRequest: \n    HTTP/1.1 200 OK\n    Content-Encoding: gzip\n    Content-Type: text/html\n    ETag: N3jN01tkpqcsN0xxpwN81r4mNpmm7fjk\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    Date: Mon, 16 Nov 2026 23:10:18 GMT\n    Connection: close\n    <v@88\n    f0\"L0\n    ^GQ!\n    \\xae&\n    jr}y\n    $J.5\n    \\xb2\n    '1Y2",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "ipidseq",
+      "output": "Incremental!",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "qscan",
+      "output": "PORT   FAMILY  MEAN (us)  STDDEV  LOSS (%)\n113    0       686.40     90.70   0.0%\n2000   0       647.80     166.92  0.0%\n5060   0       677.90     103.25  0.0%\n10022  1       1577.40    347.01  0.0%\n10443  1       1576.80    213.99  0.0%\n11080  0       688.40     94.77   0.0%\n11443  0       639.60     162.27  0.0%",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "path-mtu",
+      "output": "PMTU == 1500",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "port-states",
+      "output": "tcp: \n    open: 2000,5060,10022,10443,11080,11443\n    filtered: 1-112,114-1999,2001-5059,5061-10021,10023-10442,10444-11079,11081-11442,11444-65535\n    closed: 113",
+      "findings": []
+     }
+    ],
+    "services": [
+     {
+      "ip": "198.51.100.2",
+      "port": 2000,
+      "name": "cisco-sccp",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "name": "sip",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "name": "ssh",
+      "product": "OpenSSH",
+      "version": "9.6p1 Ubuntu 3ubuntu13.20",
+      "cpe": "cpe:/a:openbsd:openssh:9.6p1",
+      "extra": "Ubuntu Linux; protocol 2.0",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "name": "ssl/http",
+      "product": "nginx",
+      "version": "",
+      "cpe": "cpe:/a:igor_sysoev:nginx",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "name": "unknown",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "name": "ssl/unknown",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     }
+    ],
+    "templates": [
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "oidc-detect",
+      "outcome": "matched",
+      "name": "Detect OpenID Connect provider",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "oauth-authorization-server-exposure",
+      "outcome": "matched",
+      "name": "Well-Known OAuth Authorization Server Metadata",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "robots-txt",
+      "outcome": "matched",
+      "name": "robots.txt file",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "weak-csp-detect",
+      "outcome": "matched",
+      "name": "Weak Content Security Policy - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "xss-deprecated-header",
+      "outcome": "matched",
+      "name": "XSS-Protection Header - Cross-Site Scripting",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "ssl-dns-names",
+      "outcome": "matched",
+      "name": "SSL DNS Names",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "self-signed-ssl",
+      "outcome": "matched",
+      "name": "Self Signed SSL Certificate",
+      "severity": "low"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     }
+    ]
+   }
+  },
+  {
+   "target": "xt-ip",
+   "started_at": "2026-11-17T14:01:13.481Z",
+   "content": {
+    "hosts": [],
+    "ports": [
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "service": "sip",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "service": "https",
+      "product": "nginx",
+      "ident": "probed",
+      "cert_names": [
+       "git.example.com"
+      ],
+      "title": "400 The plain HTTP request was sent to HTTPS port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 2000,
+      "service": "cisco-sccp",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "service": "ssh",
+      "product": "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20",
+      "ident": "probed"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "service": "unknown",
+      "ident": "none"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "service": "ssl/unknown",
+      "ident": "none",
+      "cert_names": [
+       "FortiGate"
+      ]
+     }
+    ],
+    "admin_panels": [],
+    "certs": [
+     {
+      "host": "198.51.100.2:10443",
+      "issuer": "YE2",
+      "expires_at": "2027-01-15T00:00:00.000Z"
+     }
+    ],
+    "web_findings": [
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10003",
+      "name": "Vulnerable JS Library",
+      "risk": "high",
+      "confidence": "medium",
+      "cwe": 1395,
+      "description": "The identified library appears to be vulnerable.",
+      "solution": "Upgrade to the latest version of the affected library.",
+      "urls": [
+       "https://198.51.100.2:10443/assets/webpack/main.02b8bf31.chunk.js"
+      ],
+      "count": 1,
+      "group": "fix",
+      "software": [
+       {
+        "product": "DOMPurify",
+        "version": "3.4.13",
+        "cves": [
+         "CVE-2026-109344",
+         "CVE-2026-109345",
+         "CVE-2026-116802",
+         "CVE-2026-116803",
+         "CVE-2026-116804"
+        ],
+        "distro": ""
+       }
+      ]
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10038",
+      "name": "Content Security Policy (CSP) Header Not Set",
+      "risk": "medium",
+      "confidence": "high",
+      "cwe": 693,
+      "description": "Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks, including Cross Site Scripting (XSS) and data injection attacks. These attacks are used for everything from data theft to site defacement or distribution of malware. CSP provides a set of standard HTTP headers that allow website owners to declare approved sources of content that…",
+      "solution": "Ensure that your web server, application server, load balancer, etc. is configured to set the Content-Security-Policy header.",
+      "urls": [
+       "https://198.51.100.2:10443/admin"
+      ],
+      "count": 1,
+      "group": "hardening",
+      "software": []
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10010",
+      "name": "Cookie No HttpOnly Flag",
+      "risk": "low",
+      "confidence": "medium",
+      "cwe": 1004,
+      "description": "A cookie has been set without the HttpOnly flag, which means that the cookie can be accessed by JavaScript. If a malicious script can be run on this page then the cookie will be accessible and can be transmitted to another site. If this is a session cookie then session hijacking may be possible.",
+      "solution": "Ensure that the HttpOnly flag is set for all cookies.",
+      "urls": [
+       "https://198.51.100.2:10443/users/sign_in"
+      ],
+      "count": 1,
+      "group": "hardening",
+      "software": []
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10054",
+      "name": "Cookie with SameSite Attribute None",
+      "risk": "low",
+      "confidence": "medium",
+      "cwe": 1275,
+      "description": "A cookie has been set with its SameSite attribute set to \"none\", which means that the cookie can be sent as a result of a 'cross-site' request. The SameSite attribute is an effective counter measure to cross-site request forgery, cross-site script inclusion, and timing attacks.",
+      "solution": "Ensure that the SameSite attribute is set to either 'lax' or ideally 'strict' for all cookies.",
+      "urls": [
+       "https://198.51.100.2:10443/sitemap.xml",
+       "https://198.51.100.2:10443/users/sign_in"
+      ],
+      "count": 3,
+      "group": "hardening",
+      "software": []
+     }
+    ],
+    "greenbone": [],
+    "scripts": [
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "id": "sip-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "banner",
+      "output": "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.20",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh2-enum-algos",
+      "output": "kex_algorithms: (12)\n      person@example.com\n      curve25519-sha256\n      person@example.com\n      ecdh-sha2-nistp256\n      ecdh-sha2-nistp384\n      ecdh-sha2-nistp521\n      diffie-hellman-group-exchange-sha256\n      diffie-hellman-group16-sha512\n      diffie-hellman-group18-sha512\n      diffie-hellman-group14-sha256\n      ext-info-s\n      person@example.com\n  server_host_key_algorithms: (4)\n      rsa-sha2-512\n      rsa-sha2-256\n      ecdsa-sha2-nistp256\n      ssh-ed25519\n  encryption_algorithms: (6)\n      person@example.com\n      aes128-ctr\n      aes192-ctr\n      aes256-ctr\n      person@example.com\n      person@example.com\n  host-64_algorithms: (10)\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      hmac-sha2-256\n      hmac-sha2-512\n      hmac-sha1\n  compression_algorithms: (2)\n      none\n      person@example.com",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh-hostkey",
+      "output": "256 b2:77:28:f7:dd:6e:b6:a7:4b:2b:e3:9e:ee:f5:61:c7 (ECDSA)\n  256 ab:0a:8c:09:ba:26:b1:fe:12:83:09:78:54:85:c9:37 (ED25519)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-methods",
+      "output": "Supported Methods: GET HEAD POST OPTIONS",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "unusual-port",
+      "output": "http unexpected on port tcp/10443",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-17T00:00:00\nNot valid after:  2027-01-15T00:00:00\nMD5:   825d:9bac:1ed9:7714:7ae7:5a86:5dbd:c553\nSHA-1: 10fa:6d66:e9d0:efb3:56e8:2a91:288a:848e:eac2:1a94",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-title",
+      "output": "400 The plain HTTP request was sent to HTTPS port",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-headers",
+      "output": "Server: nginx\n  Date: Tue, 17 Nov 2026 14:17:31 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"d10640f4034f01b9d9a7704b980cb6be\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=ec70511d5ac594c33e2d7863ca77aded; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"6cd08682aff2d950e69dd9c022\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: 5f42b06cea376dda6aec7daa0e\n  X-Runtime: 0.365767\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-trane-info",
+      "output": "Problem with XML parsing of /evox/about",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-vuln-cve2010-0738",
+      "output": "/jmx-console/: Authentication was not required",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-date",
+      "output": "Tue, 17 Nov 2026 14:17:32 GMT; 0s from local time.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-malware-host",
+      "output": "Host appears to be clean",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "id": "fingerprint-strings",
+      "output": "DNSStatusRequestTCP, DNSVersionBindReqTCP, Hello, Help, Kerberos, RPCCheck, SMBProgNeg, SSLSessionReq, SSLv23SessionReq, TLSSessionReq, TerminalServerCookie: \n    HTTP/1.1 400 Bad Request\n    Connection: close\n  GetRequest, HTTPOptions, RTSPRequest: \n    HTTP/1.1 301 Moved Permanently\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    location: https://:11443/\n    Date: Tue, 17 Nov 2026 14:08:43 GMT\n    Connection: close",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-31T00:00:00\nNot valid after:  2028-09-02T00:00:00\nMD5:   be1d:9665:c14e:6135:7f88:a916:30ed:4d5c\nSHA-1: a4e9:3414:ecea:4880:8bde:6100:be54:f4fc:5992:7c19",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "fingerprint-strings",
+      "output": "GetRequest: \n    HTTP/1.1 200 OK\n    Content-Encoding: gzip\n    Content-Type: text/html\n    ETag: N3jN01tkpqcsN0xxpwN81r4mNpmm7fjk\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    Date: Tue, 17 Nov 2026 14:08:54 GMT\n    Connection: close\n    <v@88\n    f0\"L0\n    ^GQ!\n    \\xae&\n    jr}y\n    $J.5\n    \\xb2\n    '1Y2",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "port-states",
+      "output": "tcp: \n    open: 2000,5060,10022,10443,11080,11443\n    filtered: 1-112,114-1999,2001-5059,5061-10021,10023-10442,10444-11079,11081-11442,11444-65535\n    closed: 113",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "ipidseq",
+      "output": "Incremental!",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "path-mtu",
+      "output": "PMTU == 1500",
+      "findings": []
+     }
+    ],
+    "services": [
+     {
+      "ip": "198.51.100.2",
+      "port": 2000,
+      "name": "cisco-sccp",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "name": "sip",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "name": "ssh",
+      "product": "OpenSSH",
+      "version": "9.6p1 Ubuntu 3ubuntu13.20",
+      "cpe": "cpe:/a:openbsd:openssh:9.6p1",
+      "extra": "Ubuntu Linux; protocol 2.0",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "name": "ssl/http",
+      "product": "nginx",
+      "version": "",
+      "cpe": "cpe:/a:igor_sysoev:nginx",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "name": "unknown",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "name": "ssl/unknown",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     }
+    ],
+    "templates": [
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "graphql-ruby-detect",
+      "outcome": "matched",
+      "name": "Graphql Ruby Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "oidc-detect",
+      "outcome": "matched",
+      "name": "Detect OpenID Connect provider",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "waf-detect",
+      "outcome": "matched",
+      "name": "WAF Detection",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "oauth-authorization-server-exposure",
+      "outcome": "matched",
+      "name": "Well-Known OAuth Authorization Server Metadata",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "graphql-alias-batching",
+      "outcome": "matched",
+      "name": "GraphQL Alias-based Batching",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "graphql-get-method",
+      "outcome": "matched",
+      "name": "GraphQL CSRF / GET method",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "robots-txt",
+      "outcome": "matched",
+      "name": "robots.txt file",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "weak-csp-detect",
+      "outcome": "matched",
+      "name": "Weak Content Security Policy - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "xss-deprecated-header",
+      "outcome": "matched",
+      "name": "XSS-Protection Header - Cross-Site Scripting",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "ssl-dns-names",
+      "outcome": "matched",
+      "name": "SSL DNS Names",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "self-signed-ssl",
+      "outcome": "matched",
+      "name": "Self Signed SSL Certificate",
+      "severity": "low"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     }
+    ]
+   }
+  },
+  {
+   "target": "xt-ip",
+   "started_at": "2026-11-18T02:17:16.554Z",
+   "content": {
+    "hosts": [],
+    "ports": [
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "service": "sip",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "service": "https",
+      "product": "nginx",
+      "ident": "probed",
+      "cert_names": [
+       "git.example.com"
+      ]
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "service": "https",
+      "product": "FortiGate",
+      "ident": "probed",
+      "cert_names": [
+       "FortiGate"
+      ]
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 2000,
+      "service": "cisco-sccp",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "service": "ssh",
+      "product": "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20",
+      "ident": "probed"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "service": "unknown",
+      "ident": "none"
+     }
+    ],
+    "admin_panels": [
+     {
+      "url": "https://198.51.100.2:11443",
+      "product": "FortiGate",
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "risk": "danger"
+     }
+    ],
+    "certs": [
+     {
+      "host": "198.51.100.2:10443",
+      "issuer": "YE2",
+      "expires_at": "2027-01-15T00:00:00.000Z"
+     },
+     {
+      "host": "198.51.100.2:11443",
+      "issuer": "Self-signed",
+      "expires_at": "2028-09-02T00:00:00.000Z"
+     }
+    ],
+    "web_findings": [
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10003",
+      "name": "Vulnerable JS Library",
+      "risk": "high",
+      "confidence": "medium",
+      "cwe": 1395,
+      "description": "The identified library appears to be vulnerable.",
+      "solution": "Upgrade to the latest version of the affected library.",
+      "urls": [
+       "https://198.51.100.2:10443/assets/webpack/main.02b8bf31.chunk.js"
+      ],
+      "count": 1,
+      "group": "fix",
+      "software": [
+       {
+        "product": "DOMPurify",
+        "version": "3.4.13",
+        "cves": [
+         "CVE-2026-109344",
+         "CVE-2026-109345",
+         "CVE-2026-116802",
+         "CVE-2026-116803",
+         "CVE-2026-116804"
+        ],
+        "distro": ""
+       }
+      ]
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10038",
+      "name": "Content Security Policy (CSP) Header Not Set",
+      "risk": "medium",
+      "confidence": "high",
+      "cwe": 693,
+      "description": "Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks, including Cross Site Scripting (XSS) and data injection attacks. These attacks are used for everything from data theft to site defacement or distribution of malware. CSP provides a set of standard HTTP headers that allow website owners to declare approved sources of content that…",
+      "solution": "Ensure that your web server, application server, load balancer, etc. is configured to set the Content-Security-Policy header.",
+      "urls": [
+       "https://198.51.100.2:10443/admin"
+      ],
+      "count": 1,
+      "group": "hardening",
+      "software": []
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10010",
+      "name": "Cookie No HttpOnly Flag",
+      "risk": "low",
+      "confidence": "medium",
+      "cwe": 1004,
+      "description": "A cookie has been set without the HttpOnly flag, which means that the cookie can be accessed by JavaScript. If a malicious script can be run on this page then the cookie will be accessible and can be transmitted to another site. If this is a session cookie then session hijacking may be possible.",
+      "solution": "Ensure that the HttpOnly flag is set for all cookies.",
+      "urls": [
+       "https://198.51.100.2:10443/users/sign_in"
+      ],
+      "count": 1,
+      "group": "hardening",
+      "software": []
+     },
+     {
+      "site": "https://198.51.100.2:10443/",
+      "plugin_id": "10054",
+      "name": "Cookie with SameSite Attribute None",
+      "risk": "low",
+      "confidence": "medium",
+      "cwe": 1275,
+      "description": "A cookie has been set with its SameSite attribute set to \"none\", which means that the cookie can be sent as a result of a 'cross-site' request. The SameSite attribute is an effective counter measure to cross-site request forgery, cross-site script inclusion, and timing attacks.",
+      "solution": "Ensure that the SameSite attribute is set to either 'lax' or ideally 'strict' for all cookies.",
+      "urls": [
+       "https://198.51.100.2:10443/sitemap.xml",
+       "https://198.51.100.2:10443/users/sign_in"
+      ],
+      "count": 3,
+      "group": "hardening",
+      "software": []
+     }
+    ],
+    "greenbone": [
+     {
+      "ip": "198.51.100.2",
+      "port": "general/tcp",
+      "severity": 2.6,
+      "name": "TCP Timestamps Information Disclosure",
+      "qod": 80,
+      "cves": [],
+      "solution": "To disable TCP timestamps on linux add the line 'net.ipv4.tcp_timestamps = 0' to /etc/sysctl.conf. Execute 'sysctl -p' to apply the settings at runtime. To disable TCP timestamps on Windows execute 'netsh int tcp set global timestamps=disabled' Starting with Windows Server 2008 and Vista, the timestamp can not be completely disabled. The default behavior of the TCP/IP stack on this Systems is to…",
+      "oid": "198.51.100.4.4.1.25623.1.0.80091"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": "10022/tcp",
+      "severity": 2.6,
+      "name": "Weak host-64 Algorithm(s) Supported (SSH)",
+      "qod": 80,
+      "cves": [],
+      "solution": "Disable the reported weak host-64 algorithm(s).",
+      "oid": "198.51.100.4.4.1.25623.1.0.105610"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": "general/icmp",
+      "severity": 2.1,
+      "name": "ICMP Timestamp Reply Information Disclosure",
+      "qod": 80,
+      "cves": [
+       "CVE-1999-0524"
+      ],
+      "solution": "Various mitigations are possible: - Disable the support for ICMP timestamp on the remote host completely - Protect the remote host by a firewall, and block ICMP packets passing through the firewall in either direction (either completely or only for untrusted networks)",
+      "oid": "198.51.100.4.4.1.25623.1.0.103190"
+     }
+    ],
+    "scripts": [
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "id": "sip-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "banner",
+      "output": "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.20",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh2-enum-algos",
+      "output": "kex_algorithms: (12)\n      person@example.com\n      curve25519-sha256\n      person@example.com\n      ecdh-sha2-nistp256\n      ecdh-sha2-nistp384\n      ecdh-sha2-nistp521\n      diffie-hellman-group-exchange-sha256\n      diffie-hellman-group16-sha512\n      diffie-hellman-group18-sha512\n      diffie-hellman-group14-sha256\n      ext-info-s\n      person@example.com\n  server_host_key_algorithms: (4)\n      rsa-sha2-512\n      rsa-sha2-256\n      ecdsa-sha2-nistp256\n      ssh-ed25519\n  encryption_algorithms: (6)\n      person@example.com\n      aes128-ctr\n      aes192-ctr\n      aes256-ctr\n      person@example.com\n      person@example.com\n  host-64_algorithms: (10)\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      hmac-sha2-256\n      hmac-sha2-512\n      hmac-sha1\n  compression_algorithms: (2)\n      none\n      person@example.com",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh-hostkey",
+      "output": "256 b2:77:28:f7:dd:6e:b6:a7:4b:2b:e3:9e:ee:f5:61:c7 (ECDSA)\n  256 ab:0a:8c:09:ba:26:b1:fe:12:83:09:78:54:85:c9:37 (ED25519)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-vuln-cve2010-0738",
+      "output": "/jmx-console/: Authentication was not required",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-methods",
+      "output": "Supported Methods: GET HEAD POST OPTIONS",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-traceroute",
+      "output": "Possible reverse proxy detected.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "unusual-port",
+      "output": "http unexpected on port tcp/10443",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-17T00:00:00\nNot valid after:  2027-01-15T00:00:00\nMD5:   825d:9bac:1ed9:7714:7ae7:5a86:5dbd:c553\nSHA-1: 10fa:6d66:e9d0:efb3:56e8:2a91:288a:848e:eac2:1a94",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-vuln-cve2017-1001000",
+      "output": "ERROR: Script execution failed (use -d to debug)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "id": "fingerprint-strings",
+      "output": "DNSStatusRequestTCP, DNSVersionBindReqTCP, Hello, Help, Kerberos, RPCCheck, SMBProgNeg, SSLSessionReq, SSLv23SessionReq, TLSSessionReq, TerminalServerCookie: \n    HTTP/1.1 400 Bad Request\n    Connection: close\n  GetRequest, HTTPOptions, RTSPRequest: \n    HTTP/1.1 301 Moved Permanently\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    location: https://:11443/\n    Date: Wed, 18 Nov 2026 02:24:48 GMT\n    Connection: close",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "fingerprint-strings",
+      "output": "GetRequest: \n    HTTP/1.1 200 OK\n    Content-Encoding: gzip\n    Content-Type: text/html\n    ETag: N3jN01tkpqcsN0xxpwN81r4mNpmm7fjk\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    Date: Wed, 18 Nov 2026 02:24:59 GMT\n    Connection: close\n    <v@88\n    f0\"L0\n    ^GQ!\n    \\xae&\n    jr}y\n    $J.5\n    \\xb2\n    '1Y2",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-31T00:00:00\nNot valid after:  2028-09-02T00:00:00\nMD5:   be1d:9665:c14e:6135:7f88:a916:30ed:4d5c\nSHA-1: a4e9:3414:ecea:4880:8bde:6100:be54:f4fc:5992:7c19",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "qscan",
+      "output": "PORT   FAMILY  MEAN (us)  STDDEV  LOSS (%)\n113    0       662.00     154.11  0.0%\n2000   0       738.50     209.08  0.0%\n5060   0       596.30     226.77  0.0%\n10022  1       1517.50    165.46  0.0%\n10443  1       1560.50    323.75  0.0%\n11080  0       752.60     196.11  0.0%\n11443  0       568.70     214.43  0.0%",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "ipidseq",
+      "output": "Unknown",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "path-mtu",
+      "output": "PMTU == 1500",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "port-states",
+      "output": "tcp: \n    open: 2000,5060,10022,10443,11080,11443\n    filtered: 1-112,114-1999,2001-5059,5061-10021,10023-10442,10444-11079,11081-11442,11444-65535\n    closed: 113",
+      "findings": []
+     }
+    ],
+    "services": [
+     {
+      "ip": "198.51.100.2",
+      "port": 2000,
+      "name": "cisco-sccp",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "name": "sip",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "name": "ssh",
+      "product": "OpenSSH",
+      "version": "9.6p1 Ubuntu 3ubuntu13.20",
+      "cpe": "cpe:/a:openbsd:openssh:9.6p1",
+      "extra": "Ubuntu Linux; protocol 2.0",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "name": "ssl/http",
+      "product": "nginx",
+      "version": "",
+      "cpe": "cpe:/a:igor_sysoev:nginx",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "name": "unknown",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "name": "ssl/unknown",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     }
+    ],
+    "templates": [
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "graphql-ruby-detect",
+      "outcome": "matched",
+      "name": "Graphql Ruby Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "oidc-detect",
+      "outcome": "matched",
+      "name": "Detect OpenID Connect provider",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "waf-detect",
+      "outcome": "matched",
+      "name": "WAF Detection",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "oauth-authorization-server-exposure",
+      "outcome": "matched",
+      "name": "Well-Known OAuth Authorization Server Metadata",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "graphql-alias-batching",
+      "outcome": "matched",
+      "name": "GraphQL Alias-based Batching",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "graphql-get-method",
+      "outcome": "matched",
+      "name": "GraphQL CSRF / GET method",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "robots-txt",
+      "outcome": "matched",
+      "name": "robots.txt file",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "weak-csp-detect",
+      "outcome": "matched",
+      "name": "Weak Content Security Policy - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "xss-deprecated-header",
+      "outcome": "matched",
+      "name": "XSS-Protection Header - Cross-Site Scripting",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "ssl-dns-names",
+      "outcome": "matched",
+      "name": "SSL DNS Names",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "self-signed-ssl",
+      "outcome": "matched",
+      "name": "Self Signed SSL Certificate",
+      "severity": "low"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     }
+    ]
+   }
+  },
+  {
+   "target": "xt-apex",
+   "started_at": "2026-11-18T05:38:21.930Z",
+   "content": {
+    "hosts": [
+     {
+      "name": "example.com",
+      "ip": "198.51.100.5",
+      "source": "dns",
+      "ips": [
+       {
+        "ip": "198.51.100.5",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 1
+       }
+      ]
+     },
+     {
+      "name": "autodiscover.example.com",
+      "ip": "198.51.100.6",
+      "source": "wordlist",
+      "cname": "autodiscover.example.net",
+      "ips": [
+       {
+        "ip": "198.51.100.6",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "refused",
+        "last_tried": "2026-11-18T05:38:42.015Z"
+       },
+       {
+        "ip": "198.51.100.7",
+        "family": "ipv4",
+        "class": "public",
+        "deep": "refused",
+        "last_tried": "2026-11-18T05:38:42.015Z"
+       },
+       {
+        "ip": "198.51.100.8",
+        "family": "ipv4",
+        "class": "public",
+        "deep": "refused",
+        "last_tried": "2026-11-18T05:38:42.015Z"
+       },
+       {
+        "ip": "198.51.100.9",
+        "family": "ipv4",
+        "class": "public",
+        "deep": "refused",
+        "last_tried": "2026-11-18T05:38:42.015Z"
+       },
+       {
+        "ip": "2001:db8:c01:248b::8",
+        "family": "ipv6",
+        "class": "public"
+       },
+       {
+        "ip": "2001:db8:c01:248d::8",
+        "family": "ipv6",
+        "class": "public"
+       },
+       {
+        "ip": "2001:db8:c01:3000::8",
+        "family": "ipv6",
+        "class": "public"
+       },
+       {
+        "ip": "2001:db8:c01:3001::8",
+        "family": "ipv6",
+        "class": "public"
+       }
+      ]
+     },
+     {
+      "name": "sub-01.example.com",
+      "ip": "198.51.100.10",
+      "source": "wordlist",
+      "ips": [
+       {
+        "ip": "198.51.100.10",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 3
+       }
+      ]
+     },
+     {
+      "name": "sub-02.example.com",
+      "ip": "198.51.100.10",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.10",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 3
+       }
+      ]
+     },
+     {
+      "name": "ftp.example.com",
+      "ip": "198.51.100.5",
+      "source": "wordlist",
+      "cname": "example.com",
+      "ips": [
+       {
+        "ip": "198.51.100.5",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 1
+       }
+      ]
+     },
+     {
+      "name": "git.example.com",
+      "ip": "198.51.100.2",
+      "source": "wordlist",
+      "cname": "dyn-01.example.net",
+      "ips": [
+       {
+        "ip": "198.51.100.2",
+        "family": "ipv4",
+        "class": "box",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 4
+       }
+      ]
+     },
+     {
+      "name": "sub-03.example.com",
+      "ip": "198.51.100.10",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.10",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 3
+       }
+      ]
+     },
+     {
+      "name": "sub-04.example.com",
+      "ip": "198.51.100.11",
+      "source": "wordlist",
+      "ips": [
+       {
+        "ip": "198.51.100.11",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "scanned",
+        "last_deep": "2026-11-18T05:38:42.015Z",
+        "last_tried": "2026-11-18T05:38:42.015Z"
+       }
+      ]
+     },
+     {
+      "name": "sub-05.example.com",
+      "ip": "198.51.100.10",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.10",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 3
+       }
+      ]
+     },
+     {
+      "name": "sub-06.example.com",
+      "ip": "198.51.100.10",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.10",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 3
+       }
+      ]
+     },
+     {
+      "name": "sub-07.example.com",
+      "ip": "198.51.100.12",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.12",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "scanned",
+        "last_deep": "2026-11-18T05:38:42.015Z",
+        "last_tried": "2026-11-18T05:38:42.015Z"
+       }
+      ]
+     },
+     {
+      "name": "sub-08.example.com",
+      "ip": "198.51.100.13",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.13",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "scanned",
+        "last_deep": "2026-11-18T05:38:42.015Z",
+        "last_tried": "2026-11-18T05:38:42.015Z"
+       }
+      ]
+     },
+     {
+      "name": "sub-09.example.com",
+      "ip": "198.51.100.10",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.10",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 3
+       }
+      ]
+     },
+     {
+      "name": "sub-10.example.com",
+      "ip": "198.51.100.14",
+      "source": "wordlist",
+      "ips": [
+       {
+        "ip": "198.51.100.14",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 2
+       }
+      ]
+     },
+     {
+      "name": "sub-11.example.com",
+      "ip": "198.51.100.11",
+      "source": "wordlist",
+      "ips": [
+       {
+        "ip": "198.51.100.11",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "scanned",
+        "last_deep": "2026-11-18T05:38:42.015Z",
+        "last_tried": "2026-11-18T05:38:42.015Z"
+       }
+      ]
+     },
+     {
+      "name": "www.example.com",
+      "ip": "198.51.100.5",
+      "source": "wordlist",
+      "cname": "example.com",
+      "ips": [
+       {
+        "ip": "198.51.100.5",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 1
+       }
+      ]
+     },
+     {
+      "name": "sub-12.example.com",
+      "ip": "198.51.100.10",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.10",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 3
+       }
+      ]
+     },
+     {
+      "name": "sub-13.example.com",
+      "ip": "198.51.100.10",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.10",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 3
+       }
+      ]
+     },
+     {
+      "name": "sub-14.example.com",
+      "ip": "198.51.100.10",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.10",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 3
+       }
+      ]
+     },
+     {
+      "name": "sub-15.example.com",
+      "ip": "198.51.100.10",
+      "source": "ct",
+      "ips": [
+       {
+        "ip": "198.51.100.10",
+        "family": "ipv4",
+        "class": "public",
+        "contacted": true,
+        "deep": "waiting",
+        "next_in_line": 3
+       }
+      ]
+     }
+    ],
+    "ports": [
+     {
+      "ip": "198.51.100.2",
+      "port": 53,
+      "service": "domain",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "service": "sip",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "service": "https",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "service": "https",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.11",
+      "port": 53,
+      "service": "domain",
+      "product": "Unbound",
+      "ident": "probed"
+     },
+     {
+      "ip": "198.51.100.11",
+      "port": 2000,
+      "service": "cisco-sccp",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.11",
+      "port": 5060,
+      "service": "sip",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 53,
+      "service": "domain",
+      "product": "Unbound",
+      "ident": "probed"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 80,
+      "service": "http",
+      "product": "Caddy httpd",
+      "ident": "probed",
+      "server": "Caddy"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "service": "ssl/http",
+      "product": "Caddy httpd",
+      "ident": "probed",
+      "cert_names": [
+       "sub-07.example.com"
+      ],
+      "title": "host-44 Routing Instances",
+      "server": "Caddy"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 2000,
+      "service": "cisco-sccp",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 5060,
+      "service": "sip",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 53,
+      "service": "domain",
+      "product": "Unbound",
+      "ident": "probed"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "service": "http",
+      "product": "Caddy httpd",
+      "ident": "probed",
+      "server": "Caddy"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "service": "ssl/http",
+      "product": "Caddy httpd",
+      "ident": "probed",
+      "cert_names": [
+       "sub-08.example.com"
+      ],
+      "server": "Caddy"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 2000,
+      "service": "cisco-sccp",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 5060,
+      "service": "sip",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "service": "ssl/http",
+      "product": "Caddy httpd",
+      "ident": "probed",
+      "cert_names": [
+       "sub-08.example.com"
+      ],
+      "server": "Caddy"
+     }
+    ],
+    "admin_panels": [],
+    "certs": [
+     {
+      "host": "example.com",
+      "issuer": "YE1",
+      "expires_at": "2026-12-28T00:00:00.000Z"
+     },
+     {
+      "host": "sub-02.example.com",
+      "issuer": "YE2",
+      "expires_at": "2026-12-28T00:00:00.000Z"
+     },
+     {
+      "host": "ftp.example.com",
+      "issuer": "YE1",
+      "expires_at": "2026-12-28T00:00:00.000Z"
+     },
+     {
+      "host": "sub-03.example.com",
+      "issuer": "YE2",
+      "expires_at": "2027-01-26T00:00:00.000Z"
+     },
+     {
+      "host": "sub-05.example.com",
+      "issuer": "YE2",
+      "expires_at": "2027-02-02T00:00:00.000Z"
+     },
+     {
+      "host": "sub-06.example.com",
+      "issuer": "YE2",
+      "expires_at": "2026-12-22T00:00:00.000Z"
+     },
+     {
+      "host": "sub-07.example.com",
+      "issuer": "YE2",
+      "expires_at": "2027-01-05T00:00:00.000Z"
+     },
+     {
+      "host": "sub-08.example.com",
+      "issuer": "YE2",
+      "expires_at": "2027-01-06T00:00:00.000Z"
+     },
+     {
+      "host": "sub-09.example.com",
+      "issuer": "YE1",
+      "expires_at": "2027-01-12T00:00:00.000Z"
+     },
+     {
+      "host": "sub-10.example.com",
+      "issuer": "YE1",
+      "expires_at": "2027-01-22T00:00:00.000Z"
+     },
+     {
+      "host": "www.example.com",
+      "issuer": "YE1",
+      "expires_at": "2026-12-28T00:00:00.000Z"
+     },
+     {
+      "host": "sub-12.example.com",
+      "issuer": "YE2",
+      "expires_at": "2027-02-02T00:00:00.000Z"
+     },
+     {
+      "host": "sub-14.example.com",
+      "issuer": "YE1",
+      "expires_at": "2027-02-02T00:00:00.000Z"
+     },
+     {
+      "host": "sub-15.example.com",
+      "issuer": "YE1",
+      "expires_at": "2026-12-28T00:00:00.000Z"
+     }
+    ],
+    "web_findings": [],
+    "greenbone": [
+     {
+      "ip": "198.51.100.11",
+      "port": "general/tcp",
+      "severity": 2.6,
+      "name": "TCP Timestamps Information Disclosure",
+      "qod": 80,
+      "cves": [],
+      "solution": "To disable TCP timestamps on linux add the line 'net.ipv4.tcp_timestamps = 0' to /etc/sysctl.conf. Execute 'sysctl -p' to apply the settings at runtime. To disable TCP timestamps on Windows execute 'netsh int tcp set global timestamps=disabled' Starting with Windows Server 2008 and Vista, the timestamp can not be completely disabled. The default behavior of the TCP/IP stack on this Systems is to…",
+      "oid": "198.51.100.4.4.1.25623.1.0.80091"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": "general/tcp",
+      "severity": 2.6,
+      "name": "TCP Timestamps Information Disclosure",
+      "qod": 80,
+      "cves": [],
+      "solution": "To disable TCP timestamps on linux add the line 'net.ipv4.tcp_timestamps = 0' to /etc/sysctl.conf. Execute 'sysctl -p' to apply the settings at runtime. To disable TCP timestamps on Windows execute 'netsh int tcp set global timestamps=disabled' Starting with Windows Server 2008 and Vista, the timestamp can not be completely disabled. The default behavior of the TCP/IP stack on this Systems is to…",
+      "oid": "198.51.100.4.4.1.25623.1.0.80091"
+     }
+    ],
+    "scripts": [
+     {
+      "ip": "198.51.100.11",
+      "port": 0,
+      "id": "ipidseq",
+      "output": "All zeros",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.11",
+      "port": 0,
+      "id": "qscan",
+      "output": "PORT  FAMILY  MEAN (us)  STDDEV  LOSS (%)\n53    0       505.10     142.40  0.0%\n113   1       710.50     121.43  0.0%\n2000  1       751.00     199.50  0.0%\n5060  1       795.10     228.44  0.0%",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.11",
+      "port": 0,
+      "id": "path-mtu",
+      "output": "PMTU == 1500",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.11",
+      "port": 0,
+      "id": "port-states",
+      "output": "tcp: \n    open: 53,2000,5060\n    filtered: 1-52,54-112,114-1999,2001-5059,5061-65535\n    closed: 113",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 80,
+      "id": "http-server-header",
+      "output": "Caddy",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 80,
+      "id": "citrix-brute-xml",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-security-headers",
+      "output": "Strict_Transport_Security: \n    HSTS not configured in HTTPS Server\n  Cache_Control: \n    Header: Cache-Control: no-store",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-vuln-cve2017-1001000",
+      "output": "ERROR: Script execution failed (use -d to debug)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-title",
+      "output": "host-44 Routing Instances",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-useragent-tester",
+      "output": "Status for browser useragent: 200\n  Allowed User Agents: \n    Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)\n    libwww\n    lwp-trivial\n    libcurl-agent/1.0\n    PHP/\n    Python-urllib/2.5\n    GT::WWW\n    Snoopy\n    MFC_Tear_Sample\n    HTTP::Lite\n    PHPCrawl\n    URI::Fetch\n    Zend_Http_Client\n    http client\n    PECL::HTTP\n    Wget/1.13.4 (linux-gnu)\n    WWW-Mechanize/1.34",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-slowloris",
+      "output": "Probably vulnerable:\n  the DoS attack took +2s\n  with 1 concurrent connections\n  and 0 sent queries\n  Monitoring thread couldn't communicate with the server. This is probably due to max clients exhaustion or something similar but not due to slowloris attack.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "citrix-brute-xml",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-favicon",
+      "output": "Unknown favicon MD5: dcf019866480f5aeb692dd4d67e2e9fe",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-majordomo2-dir-traversal",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-referer-checker",
+      "output": "Couldn't find any cross-domain scripts.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-malware-host",
+      "output": "false",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-date",
+      "output": "Wed, 18 Nov 2026 06:20:44 GMT; 0s from local time.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=sub-07.example.com\nSubject Alternative Name: DNS:sub-07.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-07T00:00:00\nNot valid after:  2027-01-05T00:00:00\nMD5:   6421:7224:e151:b516:635f:8d8a:80c8:ca2f\nSHA-1: 5130:3da8:74aa:cf81:ef3d:e212:3a11:5770:8c49:7b4b",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-headers",
+      "output": "Accept-Ranges: bytes\n  Alt-Svc: h3=\":443\"; ma=2592000\n  Cache-Control: no-store\n  Content-Length: 18764\n  Content-Type: text/html; charset=utf-8\n  Etag: \"dm05twniemb1eh8\"\n  Last-Modified: Fri, 09 Oct 2026 08:21:24 GMT\n  Server: Caddy\n  Vary: Accept-Encoding\n  Date: Wed, 18 Nov 2026 06:20:53 GMT\n  Connection: close\n  \n  (Request type: HEAD)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-dombased-xss",
+      "output": "Couldn't find any DOM based XSS.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-traceroute",
+      "output": "Possible reverse proxy detected.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-methods",
+      "output": "Supported Methods: GET HEAD",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-mobileversion-checker",
+      "output": "No mobile version detected.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-comments-displayer",
+      "output": "Couldn't find any comments.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "id": "http-server-header",
+      "output": "Caddy",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 5060,
+      "id": "sip-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 0,
+      "id": "port-states",
+      "output": "tcp: \n    open: 53,80,443,2000,5060\n    filtered: 1-21,23-52,54-79,81-112,114-442,444-1999,2001-5059,5061-65535\n    closed: 22,113",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 0,
+      "id": "qscan",
+      "output": "PORT  FAMILY  MEAN (us)  STDDEV  LOSS (%)\n22    0       2730.60    251.42  0.0%\n53    1       293.80     84.59   0.0%\n80    0       2844.20    429.21  0.0%\n443   2       3020.30    429.22  0.0%\n2000  3       528.10     141.30  0.0%\n5060  3       512.50     91.77   0.0%",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 0,
+      "id": "ipidseq",
+      "output": "All zeros",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 0,
+      "id": "path-mtu",
+      "output": "1492 <= PMTU < 1500",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "id": "http-title",
+      "output": "Site doesn't have a title.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "id": "http-malware-host",
+      "output": "Host appears to be clean",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "id": "http-date",
+      "output": "Wed, 18 Nov 2026 06:40:24 GMT; 0s from local time.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "id": "citrix-brute-xml",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "id": "http-methods",
+      "output": "Supported Methods: GET HEAD POST OPTIONS",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "id": "http-comments-displayer",
+      "output": "Couldn't find any comments.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "id": "http-server-header",
+      "output": "Caddy",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "id": "http-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "id": "http-favicon",
+      "output": "Unknown favicon MD5: dcf019866480f5aeb692dd4d67e2e9fe",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "id": "http-methods",
+      "output": "Supported Methods: GET HEAD",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "id": "http-server-header",
+      "output": "Caddy",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "id": "citrix-brute-xml",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=sub-08.example.com\nSubject Alternative Name: DNS:sub-08.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-08T00:00:00\nNot valid after:  2027-01-06T00:00:00\nMD5:   4029:0659:b041:a949:eea3:5133:4c1e:f337\nSHA-1: 4730:9fc8:edcd:127a:a329:2ac0:70f0:f1cb:5262:28c5",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 5060,
+      "id": "sip-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "http-malware-host",
+      "output": "false",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "unusual-port",
+      "output": "http unexpected on port tcp/10443",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "http-headers",
+      "output": "Alt-Svc: h3=\":10443\"; ma=2592000\n  Server: Caddy\n  Date: Wed, 18 Nov 2026 06:40:24 GMT\n  Connection: close\n  \n  (Request type: HEAD)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "http-phpmyadmin-dir-traversal",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "http-server-header",
+      "output": "Caddy",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "http-traceroute",
+      "output": "Possible reverse proxy detected.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "http-brute",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "http-majordomo2-dir-traversal",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "http-methods",
+      "output": "Supported Methods: GET HEAD POST OPTIONS",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "http-vuln-cve2013-7091",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=sub-08.example.com\nSubject Alternative Name: DNS:sub-08.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-08T00:00:00\nNot valid after:  2027-01-06T00:00:00\nMD5:   4029:0659:b041:a949:eea3:5133:4c1e:f337\nSHA-1: 4730:9fc8:edcd:127a:a329:2ac0:70f0:f1cb:5262:28c5",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "id": "http-vuln-cve2017-1001000",
+      "output": "ERROR: Script execution failed (use -d to debug)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 0,
+      "id": "port-states",
+      "output": "tcp: \n    open: 53,80,443,2000,5060,10443\n    filtered: 1-21,23-52,54-79,81-112,114-442,444-1999,2001-5059,5061-10442,10444-65535\n    closed: 22,113",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 0,
+      "id": "ipidseq",
+      "output": "All zeros",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 0,
+      "id": "path-mtu",
+      "output": "1492 <= PMTU < 1500",
+      "findings": []
+     }
+    ],
+    "services": [
+     {
+      "ip": "198.51.100.11",
+      "port": 53,
+      "name": "domain",
+      "product": "Unbound",
+      "version": "",
+      "cpe": "cpe:/a:nlnetlabs:unbound",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.11",
+      "port": 2000,
+      "name": "cisco-sccp",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.11",
+      "port": 5060,
+      "name": "sip",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 53,
+      "name": "domain",
+      "product": "Unbound",
+      "version": "",
+      "cpe": "cpe:/a:nlnetlabs:unbound",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 80,
+      "name": "http",
+      "product": "Caddy httpd",
+      "version": "",
+      "cpe": "cpe:/a:matt_holt:caddy",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "name": "ssl/http",
+      "product": "Caddy httpd",
+      "version": "",
+      "cpe": "cpe:/a:matt_holt:caddy",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 2000,
+      "name": "cisco-sccp",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 5060,
+      "name": "sip",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 53,
+      "name": "domain",
+      "product": "Unbound",
+      "version": "",
+      "cpe": "cpe:/a:nlnetlabs:unbound",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "name": "http",
+      "product": "Caddy httpd",
+      "version": "",
+      "cpe": "cpe:/a:matt_holt:caddy",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "name": "ssl/http",
+      "product": "Caddy httpd",
+      "version": "",
+      "cpe": "cpe:/a:matt_holt:caddy",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 2000,
+      "name": "cisco-sccp",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 5060,
+      "name": "sip",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "name": "ssl/http",
+      "product": "Caddy httpd",
+      "version": "",
+      "cpe": "cpe:/a:matt_holt:caddy",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     }
+    ],
+    "templates": [
+     {
+      "ip": "198.51.100.12",
+      "port": 80,
+      "cve": "",
+      "template": "fingerprinthub-web-fingerprints",
+      "outcome": "matched",
+      "name": "FingerprintHub Technology Fingerprint",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 80,
+      "cve": "",
+      "template": "http-missing-security-headers",
+      "outcome": "matched",
+      "name": "HTTP Missing Security Headers",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "cve": "",
+      "template": "fingerprinthub-web-fingerprints",
+      "outcome": "matched",
+      "name": "FingerprintHub Technology Fingerprint",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "cve": "",
+      "template": "jan-detect",
+      "outcome": "matched",
+      "name": "Jan AI - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "cve": "",
+      "template": "http-missing-security-headers",
+      "outcome": "matched",
+      "name": "HTTP Missing Security Headers",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "cve": "",
+      "template": "missing-sri",
+      "outcome": "matched",
+      "name": "Missing Subresource Integrity",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "cve": "",
+      "template": "ssl-dns-names",
+      "outcome": "matched",
+      "name": "SSL DNS Names",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.12",
+      "port": 443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "cve": "",
+      "template": "fingerprinthub-web-fingerprints",
+      "outcome": "matched",
+      "name": "FingerprintHub Technology Fingerprint",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 80,
+      "cve": "",
+      "template": "http-missing-security-headers",
+      "outcome": "matched",
+      "name": "HTTP Missing Security Headers",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "cve": "",
+      "template": "fingerprinthub-web-fingerprints",
+      "outcome": "matched",
+      "name": "FingerprintHub Technology Fingerprint",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "cve": "",
+      "template": "jan-detect",
+      "outcome": "matched",
+      "name": "Jan AI - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "cve": "",
+      "template": "http-missing-security-headers",
+      "outcome": "matched",
+      "name": "HTTP Missing Security Headers",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "cve": "",
+      "template": "missing-sri",
+      "outcome": "matched",
+      "name": "Missing Subresource Integrity",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "cve": "",
+      "template": "ssl-dns-names",
+      "outcome": "matched",
+      "name": "SSL DNS Names",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "cve": "",
+      "template": "fingerprinthub-web-fingerprints",
+      "outcome": "matched",
+      "name": "FingerprintHub Technology Fingerprint",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "cve": "",
+      "template": "http-missing-security-headers",
+      "outcome": "matched",
+      "name": "HTTP Missing Security Headers",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "cve": "",
+      "template": "ssl-issuer",
+      "outcome": "matched",
+      "name": "Detect SSL Certificate Issuer",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "cve": "",
+      "template": "ssl-dns-names",
+      "outcome": "matched",
+      "name": "SSL DNS Names",
+      "severity": "info"
+     },
+     {
+      "ip": "198.51.100.13",
+      "port": 10443,
+      "cve": "",
+      "template": "tls-version",
+      "outcome": "matched",
+      "name": "TLS Version - Detect",
+      "severity": "info"
+     }
+    ]
+   }
+  },
+  {
+   "target": "xt-git",
+   "started_at": "2026-11-18T09:16:52.213Z",
+   "content": {
+    "hosts": [
+     {
+      "name": "git.example.com",
+      "ip": "198.51.100.2",
+      "source": "dns",
+      "cname": "dyn-01.example.net",
+      "ips": [
+       {
+        "ip": "198.51.100.2",
+        "family": "ipv4",
+        "class": "box",
+        "contacted": true,
+        "deep": "scanned",
+        "last_deep": "2026-11-18T09:17:31.869Z",
+        "last_tried": "2026-11-18T09:17:31.869Z"
+       }
+      ]
+     }
+    ],
+    "ports": [
+     {
+      "ip": "198.51.100.2",
+      "port": 53,
+      "service": "domain",
+      "ident": "probed"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "service": "sip",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "service": "https",
+      "ident": "probed",
+      "cert_names": [
+       "org-firewall",
+       "localhost"
+      ]
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "service": "https",
+      "ident": "probed",
+      "cert_names": [
+       "git.example.com"
+      ],
+      "title": "Sign in · GitLab"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "service": "ssl/unknown",
+      "ident": "none",
+      "cert_names": [
+       "FortiGate"
+      ]
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 2000,
+      "service": "cisco-sccp",
+      "ident": "port"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "service": "ssh",
+      "product": "OpenSSH 9.6p1 Ubuntu 3ubuntu13.20",
+      "ident": "probed"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "service": "unknown",
+      "ident": "none"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 22222,
+      "service": "ssh",
+      "product": "OpenSSH 10.2",
+      "ident": "probed"
+     }
+    ],
+    "admin_panels": [
+     {
+      "url": "https://198.51.100.2:11443/",
+      "product": "FortiGate",
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "risk": "danger"
+     }
+    ],
+    "certs": [],
+    "web_findings": [],
+    "greenbone": [
+     {
+      "ip": "198.51.100.2",
+      "port": "general/tcp",
+      "severity": 2.6,
+      "name": "TCP Timestamps Information Disclosure",
+      "qod": 80,
+      "cves": [],
+      "solution": "To disable TCP timestamps on linux add the line 'net.ipv4.tcp_timestamps = 0' to /etc/sysctl.conf. Execute 'sysctl -p' to apply the settings at runtime. To disable TCP timestamps on Windows execute 'netsh int tcp set global timestamps=disabled' Starting with Windows Server 2008 and Vista, the timestamp can not be completely disabled. The default behavior of the TCP/IP stack on this Systems is to…",
+      "oid": "198.51.100.4.4.1.25623.1.0.80091"
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": "general/icmp",
+      "severity": 2.1,
+      "name": "ICMP Timestamp Reply Information Disclosure",
+      "qod": 80,
+      "cves": [
+       "CVE-1999-0524"
+      ],
+      "solution": "Various mitigations are possible: - Disable the support for ICMP timestamp on the remote host completely - Protect the remote host by a firewall, and block ICMP packets passing through the firewall in either direction (either completely or only for untrusted networks)",
+      "oid": "198.51.100.4.4.1.25623.1.0.103190"
+     }
+    ],
+    "scripts": [
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-traceroute",
+      "output": "ERROR: Script execution failed (use -d to debug)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-methods",
+      "output": "Supported Methods: GET HEAD",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-referer-checker",
+      "output": "Couldn't find any cross-domain scripts.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=org-firewall/organizationName=org Global Company/stateOrProvinceName=Seoul/countryName=KR\nSubject Alternative Name: DNS:org-firewall, DNS:localhost, IP Address:127.0.0.1\nIssuer: commonName=org-firewall/organizationName=org Global Company/stateOrProvinceName=Seoul/countryName=KR\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA256\nNot valid before: 2026-08-16T00:00:00\nNot valid after:  2036-08-13T00:00:00\nMD5:   e95b:d723:c1dc:8bb7:b905:5653:0300:8165\nSHA-1: 57b4:29e0:9dc3:35c7:6bf7:0422:0114:05cc:2944:853c",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-favicon",
+      "output": "Unknown favicon MD5: 352a459cd772b058de61826c7fbb72c6",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-vuln-cve2017-1001000",
+      "output": "ERROR: Script execution failed (use -d to debug)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-malware-host",
+      "output": "Host appears to be clean",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-title",
+      "output": "Site doesn't have a title.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-csrf",
+      "output": "Couldn't find any CSRF vulnerabilities.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-majordomo2-dir-traversal",
+      "output": "Output not stored: it can hold credentials.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-trane-info",
+      "output": "Problem with XML parsing of /evox/about",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-security-headers",
+      "output": "Strict_Transport_Security: \n    Header: Strict-Transport-Security: max-age=31536000; includeSubDomains\n  X_Frame_Options: \n    Header: X-Frame-Options: DENY\n    Description: The browser must not display this content in any frame.\n  X_XSS_Protection: \n    Header: X-XSS-Protection: 1; mode=block\n    Description: The browser will prevent the rendering of the page when XSS is detected.\n  X_Content_Type_Options: \n    Header: X-Content-Type-Options: nosniff\n    Description: Will prevent the browser from MIME-sniffing a response away from the declared content-type.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-date",
+      "output": "Wed, 18 Nov 2026 09:33:51 GMT; 0s from local time.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-cakephp-version",
+      "output": "Version of codebase: 1.1.x, 1.2.x\nVersion of icons: 1.3.x",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-comments-displayer",
+      "output": "Couldn't find any comments.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-useragent-tester",
+      "output": "Status for browser useragent: 200",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-mobileversion-checker",
+      "output": "No mobile version detected.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-dombased-xss",
+      "output": "Couldn't find any DOM based XSS.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-enum",
+      "output": "/blog/: Blog\n  /weblog/: Blog\n  /weblogs/: Blog\n  /wordpress/: Blog\n  /wiki/: Wiki\n  /mediawiki/: Wiki\n  /wiki/Main_Page: Wiki\n  /tikiwiki/: Tikiwiki\n  /cgi-bin/mj_wwwusr: Majordomo2 Mailing List\n  /majordomo/mj_wwwusr: Majordomo2 Mailing List\n  /j2ee/examples/servlets/: Oracle j2ee examples\n  /j2ee/examples/jsp/: Oracle j2ee examples\n  /dsc/: Trend Micro Data Loss Prevention Virtual Appliance\n  /reg_1.htm: Polycom IP phone\n  /adr.htm: Snom IP Phone\n  /line_login.htm?l=1: Snom IP Phone\n  /tbook.csv: Snom IP Phone\n  /globalSIPsettings.html: Aastra IP Phone\n  /SIPsettingsLine1.html: Aastra IP Phone\n  /websvn/: WEBSVN Repository\n  /repos/: Possible code repository\n  /repo/: Possible code repository\n  /svn/: Possible code repository\n  /cvs/: Possible code repository\n  /login.stm: Belkin G Wireless Router\n  /tools_admin.php: D-Link DIR-300\n  /bsc_lan.php: D-Link DIR-300, DIR-320, DIR-615 revD\n  /Manage.tri: Linksys WRT54G2\n  //system.html: CMNC-200 IP Camera\n  /main_configure.cgi: Intellinet IP Camera\n  /OvCgi/Toolbar.exe: HP OpenView Network Node Manager\n  /frontend/x3/: CPanel\n  /awstatstotals/awstatstotals.php: AWStats Totals\n  /awstats/awstatstotals.php: AWStats Totals\n  /awstatstotals.php: AWStats Totals\n  /awstats/index.php: AWStats Totals\n  /awstatstotals/index.php: AWStats Totals\n  /egroupware/: eGroupware\n  /calendar/cal_search.php: ExtCalendar\n  /cal_search.php: ExtCalendar\n  /a_viewusers.php: Andys PHP Knowledgebase\n  /aphpkb/: Andys PHP Knowledgebase\n  /webedition/we/include/we_modules/: Web Edition\n  /webedition/: Web Edition\n  /Examples/: Possible documentation files\n  /LightNEasy.php?do=login: LightNEasy\n  /channel_detail.php: DzTube\n  /cgi-bin/vcs: Mitel Audio and Web Conferencing (AWC)\n  /ocsreports/: OCS Inventory\n  /vbseo.php: vBSEO\n  /forum/: Forum\n  /forums/: Forum\n  /smf/: Forum\n  /phpbb/: Forum\n  /manager/: Possible admin folder\n  /admin.php: Possible admin folder\n  /admin/: Possible admin folder\n  /admin/admin/: Possible admin folder\n  /administra",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "unusual-port",
+      "output": "http unexpected on port tcp/9443",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "ssl-cert-intaddr",
+      "output": "X509v3 Subject Alternative Name: \n    127.0.0.1",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "id": "http-headers",
+      "output": "Accept-Ranges: bytes\n  Alt-Svc: h3=\":443\"; ma=2592000\n  Content-Length: 1181\n  Content-Type: text/html; charset=utf-8\n  Etag: \"dmx68zh6k6wwwt\"\n  Last-Modified: Tue, 17 Nov 2026 03:39:05 GMT\n  Referrer-Policy: strict-origin-when-cross-origin\n  Strict-Transport-Security: max-age=31536000; includeSubDomains\n  Vary: Accept-Encoding\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  X-Xss-Protection: 1; mode=block\n  Date: Wed, 18 Nov 2026 09:33:51 GMT\n  Connection: close\n  \n  (Request type: HEAD)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "banner",
+      "output": "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.20",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh-hostkey",
+      "output": "256 b2:77:28:f7:dd:6e:b6:a7:4b:2b:e3:9e:ee:f5:61:c7 (ECDSA)\n  256 ab:0a:8c:09:ba:26:b1:fe:12:83:09:78:54:85:c9:37 (ED25519)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "id": "ssh2-enum-algos",
+      "output": "kex_algorithms: (12)\n      person@example.com\n      curve25519-sha256\n      person@example.com\n      ecdh-sha2-nistp256\n      ecdh-sha2-nistp384\n      ecdh-sha2-nistp521\n      diffie-hellman-group-exchange-sha256\n      diffie-hellman-group16-sha512\n      diffie-hellman-group18-sha512\n      diffie-hellman-group14-sha256\n      ext-info-s\n      person@example.com\n  server_host_key_algorithms: (4)\n      rsa-sha2-512\n      rsa-sha2-256\n      ecdsa-sha2-nistp256\n      ssh-ed25519\n  encryption_algorithms: (6)\n      person@example.com\n      aes128-ctr\n      aes192-ctr\n      aes256-ctr\n      person@example.com\n      person@example.com\n  host-64_algorithms: (10)\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      hmac-sha2-256\n      hmac-sha2-512\n      hmac-sha1\n  compression_algorithms: (2)\n      none\n      person@example.com",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-vuln-cve2010-0738",
+      "output": "/jmx-console/: Authentication was not required",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-dombased-xss",
+      "output": "Couldn't find any DOM based XSS.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-referer-checker",
+      "output": "Couldn't find any cross-domain scripts.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-title",
+      "output": "Sign in \\xC2\\xB7 GitLab\nRequested resource was https://198.51.100.2:10443/users/sign_in",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-favicon",
+      "output": "Unknown favicon MD5: 296aa0c254cdfa705be25e0d52d55186",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=git.example.com\nSubject Alternative Name: DNS:git.example.com\nIssuer: commonName=YE2/organizationName=Let's Encrypt/countryName=US\nPublic Key type: ec\nPublic Key bits: 256\nSignature Algorithm: ecdsa-with-SHA384\nNot valid before: 2026-10-17T00:00:00\nNot valid after:  2027-01-15T00:00:00\nMD5:   825d:9bac:1ed9:7714:7ae7:5a86:5dbd:c553\nSHA-1: 10fa:6d66:e9d0:efb3:56e8:2a91:288a:848e:eac2:1a94",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-security-headers",
+      "output": "Strict_Transport_Security: \n    Header: Strict-Transport-Security: max-age=63072000\n  X_Frame_Options: \n    Header: X-Frame-Options: SAMEORIGIN\n    Description: The browser must not display this content in any frame from a page of different origin than the content itself.\n  X_XSS_Protection: \n    Header: X-XSS-Protection: 1; mode=block\n    Description: The browser will prevent the rendering of the page when XSS is detected.\n  X_Content_Type_Options: \n    Header: X-Content-Type-Options: nosniff\n    Description: Will prevent the browser from MIME-sniffing a response away from the declared content-type. \n  Content_Security_Policy: \n    Header: Content-Security-Policy: \n  X_Permitted_Cross_Domain_Policies: \n    Header: X-Permitted-Cross-Domain-Policies: none\n    Description: No policy files are allowed anywhere on the target server, including this master policy file. \n  Cookie: \n    Cookies are secured with Secure Flag in HTTPS Connection\n  Cache_Control: \n    Header: Cache-Control: max-age=0, private, must-revalidate",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-traceroute",
+      "output": "Possible reverse proxy detected.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "unusual-port",
+      "output": "http unexpected on port tcp/10443",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-comments-displayer",
+      "output": "Spidering limited to: maxdepth=3; maxpagecount=20; withinhost=198.51.100.2\n    \n    Path: https://198.51.100.2:10443/users/sign_in\n    Line number: 16\n    Comment: \n        \n        //]]>\n    \n    Path: https://198.51.100.2:10443/users/sign_in\n    Line number: 14\n    Comment: \n        \n        //<![CDATA[",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-malware-host",
+      "output": "Host appears to be clean",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-trane-info",
+      "output": "Problem with XML parsing of /evox/about",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-methods",
+      "output": "Supported Methods: GET HEAD POST OPTIONS",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-csrf",
+      "output": "Couldn't find any CSRF vulnerabilities.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-mobileversion-checker",
+      "output": "No mobile version detected.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-useragent-tester",
+      "output": "Status for browser useragent: 200\n  Redirected To: https://198.51.100.2:10443/users/sign_in\n  Allowed User Agents: \n    Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)\n  Change in Status Code: \n    libwww: false",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-vuln-cve2017-1001000",
+      "output": "ERROR: Script execution failed (use -d to debug)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-date",
+      "output": "Wed, 18 Nov 2026 09:33:48 GMT; 0s from local time.",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "id": "http-headers",
+      "output": "Server: nginx\n  Date: Wed, 18 Nov 2026 09:33:51 GMT\n  Content-Type: text/html; charset=utf-8\n  Content-Length: 0\n  Connection: close\n  Cache-Control: max-age=0, private, must-revalidate\n  Content-Security-Policy: \n  Etag: W/\"1f1abec03c0f83fd5885078aceee5d21\"\n  Nel: {\"max_age\": 0}\n  Permissions-Policy: interest-cohort=()\n  Set-Cookie: preferred_language=en; path=/; Secure; SameSite=None\n  Set-Cookie: _gitlab_session=a70f9f6099b500f47049433aa0c7302e; path=/; secure; HttpOnly; SameSite=None\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: SAMEORIGIN\n  X-Gitlab-Meta: {\"correlation_id\":\"36984fce676444b9fc318cb3d3\",\"version\":\"1\"}\n  X-Permitted-Cross-Domain-Policies: none\n  X-Request-Id: 24331157fca33efa65d67daf98\n  X-Runtime: 0.116204\n  X-Ua-Compatible: IE=edge\n  X-Xss-Protection: 1; mode=block\n  Strict-Transport-Security: max-age=63072000\n  Referrer-Policy: strict-origin-when-cross-origin\n  \n  (Request type: HEAD)",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "id": "fingerprint-strings",
+      "output": "DNSStatusRequestTCP, DNSVersionBindReqTCP, Hello, Help, Kerberos, RPCCheck, SMBProgNeg, SSLSessionReq, SSLv23SessionReq, TLSSessionReq, TerminalServerCookie: \n    HTTP/1.1 400 Bad Request\n    Connection: close\n  GetRequest, HTTPOptions: \n    HTTP/1.1 301 Moved Permanently\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    location: https://:11443/\n    Date: Wed, 18 Nov 2026 09:25:01 GMT\n    Connection: close\n  RTSPRequest: \n    HTTP/1.1 301 Moved Permanently\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    location: https://:11443/\n    Date: Wed, 18 Nov 2026 09:25:02 GMT\n    Connection: close",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "ssl-date",
+      "output": "TLS randomness does not represent time",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "fingerprint-strings",
+      "output": "GetRequest: \n    HTTP/1.1 200 OK\n    Content-Encoding: gzip\n    Content-Type: text/html\n    ETag: N3jN01tkpqcsN0xxpwN81r4mNpmm7fjk\n    X-Frame-Options: SAMEORIGIN\n    Content-Security-Policy: frame-ancestors 'self'\n    X-XSS-Protection: 1; mode=block\n    Strict-Transport-Security: max-age=15552000\n    Date: Wed, 18 Nov 2026 09:25:13 GMT\n    Connection: close\n    <v@88\n    f0\"L0\n    ^GQ!\n    \\xae&\n    jr}y\n    $J.5\n    \\xb2\n    '1Y2",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "id": "ssl-cert",
+      "output": "Subject: commonName=FortiGate/organizationName=Fortinet Ltd.\nIssuer: commonName=FortiGate/organizationName=Fortinet Ltd.\nPublic Key type: rsa\nPublic Key bits: 2048\nSignature Algorithm: sha256WithRSAEncryption\nNot valid before: 2026-05-31T00:00:00\nNot valid after:  2028-09-02T00:00:00\nMD5:   be1d:9665:c14e:6135:7f88:a916:30ed:4d5c\nSHA-1: a4e9:3414:ecea:4880:8bde:6100:be54:f4fc:5992:7c19",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 22222,
+      "id": "banner",
+      "output": "SSH-2.0-OpenSSH_10.2",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 22222,
+      "id": "unusual-port",
+      "output": "ssh unexpected on port tcp/22222",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 22222,
+      "id": "ssh2-enum-algos",
+      "output": "kex_algorithms: (10)\n      mlkem768x25519-sha256\n      sntrup761x25519-sha512\n      person@example.com\n      curve25519-sha256\n      person@example.com\n      ecdh-sha2-nistp256\n      ecdh-sha2-nistp384\n      ecdh-sha2-nistp521\n      ext-info-s\n      person@example.com\n  server_host_key_algorithms: (4)\n      rsa-sha2-512\n      rsa-sha2-256\n      ecdsa-sha2-nistp256\n      ssh-ed25519\n  encryption_algorithms: (6)\n      person@example.com\n      person@example.com\n      person@example.com\n      aes128-ctr\n      aes192-ctr\n      aes256-ctr\n  host-64_algorithms: (10)\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      person@example.com\n      hmac-sha2-256\n      hmac-sha2-512\n      hmac-sha1\n  compression_algorithms: (2)\n      none\n      person@example.com",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "path-mtu",
+      "output": "PMTU == 1500",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "ipidseq",
+      "output": "All zeros",
+      "findings": []
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 0,
+      "id": "port-states",
+      "output": "tcp: \n    open: 53,2000,5060,9443,10022,10443,11080,11443,22222\n    filtered: 1-52,54-112,114-1999,2001-5059,5061-9442,9444-10021,10023-10442,10444-11079,11081-11442,11444-22221,22223-65535\n    closed: 113",
+      "findings": []
+     }
+    ],
+    "services": [
+     {
+      "ip": "198.51.100.2",
+      "port": 53,
+      "name": "domain",
+      "product": "Unbound",
+      "version": "",
+      "cpe": "cpe:/a:nlnetlabs:unbound",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 2000,
+      "name": "cisco-sccp",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 5060,
+      "name": "sip",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 9443,
+      "name": "ssl/http",
+      "product": "Caddy httpd",
+      "version": "",
+      "cpe": "cpe:/a:matt_holt:caddy",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10022,
+      "name": "ssh",
+      "product": "OpenSSH",
+      "version": "9.6p1 Ubuntu 3ubuntu13.20",
+      "cpe": "cpe:/a:openbsd:openssh:9.6p1",
+      "extra": "Ubuntu Linux; protocol 2.0",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 10443,
+      "name": "ssl/http",
+      "product": "nginx",
+      "version": "",
+      "cpe": "cpe:/a:igor_sysoev:nginx",
+      "extra": "",
+      "method": "probed",
+      "conf": 10
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11080,
+      "name": "unknown",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 11443,
+      "name": "ssl/unknown",
+      "product": "",
+      "version": "",
+      "cpe": "",
+      "extra": "",
+      "method": "table",
+      "conf": 3
+     },
+     {
+      "ip": "198.51.100.2",
+      "port": 22222,
+      "name": "ssh",
+      "product": "OpenSSH",
+      "version": "10.2",
+      "cpe": "cpe:/a:openbsd:openssh:10.2",
+      "extra": "protocol 2.0",
+      "method": "probed",
+      "conf": 10
+     }
+    ],
+    "templates": []
+   }
+  }
+ ]
+}

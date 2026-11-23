@@ -95,17 +95,13 @@ func (d *cnameDNS) LookupCNAME(_ context.Context, name string) (string, error) {
 	return name + ".", nil
 }
 
-// newProofEnv is newEnv with the CNAME-aware resolver: git.beyondnetglobal.com is a CNAME to beyondhcm.ddns.net (a real-world case).
+// newProofEnv is newEnv with the CNAME-aware resolver: git.example.org is a CNAME to example.ddns.net (a real-world case).
 func newProofEnv(t *testing.T) (*env, *cnameDNS) {
 	t.Helper()
 	e := newEnv(t)
-	d := &cnameDNS{fakeResolver: e.dns, cname: map[string]string{"git.beyondnetglobal.com": "beyondhcm.ddns.net"}, wildCNAME: map[string]string{},
+	d := &cnameDNS{fakeResolver: e.dns, cname: map[string]string{"git.example.org": "example.ddns.net"}, wildCNAME: map[string]string{},
 		wildTXT: map[string][]string{}, nx: map[string]bool{}, fail: map[string]error{}}
-	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Resolver: d, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Location: time.UTC})
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.svc = svc
+	e.useService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Resolver: d, Prober: e.prober, Publisher: e.pub, Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now, Location: time.UTC})
 	return e, d
 }
 
@@ -128,35 +124,35 @@ func (e *env) verify(id string) VerifyResult {
 	return r
 }
 
-// A verified beyondnetglobal.com covers git.beyondnetglobal.com with no record of its own; a child added before
+// A verified example.org covers git.example.org with no record of its own; a child added before
 // its parent was verified is covered when the parent is; another user's target of the same box covers too; the scan of the child
 // tells the executors to check the parent's record; the parent removed from the box, or its record removed,
 // covers the child no more at its next check (the one right before a scan).
 func TestProof_ParentCoversChild(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
-	child := e.add("alice@acme.example", "git.beyondnetglobal.com") // added first, by one user
-	deep := e.add("alice@acme.example", "a.b.git.beyondnetglobal.com")
-	parent := e.add("bob@acme.example", "beyondnetglobal.com") // the parent, by another user of the box
+	child := e.add("alice@acme.example", "git.example.org") // added first, by one user
+	deep := e.add("alice@acme.example", "a.b.git.example.org")
+	parent := e.add("bob@acme.example", "example.org") // the parent, by another user of the box
 	if r := e.verify(child.ID); r.Verified {
 		t.Fatalf("nothing published yet: %+v", r)
 	}
-	e.dns.put("beyondnetglobal.com", "v=spf1 -all", txtRecord(parent.Token))
-	if r := e.verify(parent.ID); !r.Verified || r.Message != "Found the TXT record vedette-verify="+parent.Token+" on beyondnetglobal.com." {
+	e.dns.put("example.org", "v=spf1 -all", txtRecord(parent.Token))
+	if r := e.verify(parent.ID); !r.Verified || r.Message != "Found the TXT record vedette-verify="+parent.Token+" on example.org." {
 		t.Fatalf("parent: %+v", r)
 	}
 	// Only a domain whose own record is on its own name covers the names under it: git is verified by its parent's
-	// record, so it covers nothing, and a.b.git is covered by beyondnetglobal.com
-	for id, by := range map[string]string{child.ID: "beyondnetglobal.com", deep.ID: "beyondnetglobal.com"} {
+	// record, so it covers nothing, and a.b.git is covered by example.org
+	for id, by := range map[string]string{child.ID: "example.org", deep.ID: "example.org"} {
 		v := e.target(id)
-		if v.Status != "verified" || v.LastCheck == nil || !v.LastCheck.OK || !strings.Contains(v.LastCheck.Message, "Covered by the TXT record on beyondnetglobal.com") {
+		if v.Status != "verified" || v.LastCheck == nil || !v.LastCheck.OK || !strings.Contains(v.LastCheck.Message, "Covered by the TXT record on example.org") {
 			t.Fatalf("a target added before its parent was verified is covered when it is: %+v %+v", v, v.LastCheck)
 		}
 		if v.Proof == nil || v.Proof.CoveredBy == nil || *v.Proof.CoveredBy != by {
 			t.Fatalf("covered_by: %+v", v.Proof)
 		}
 	}
-	if r := e.verify(child.ID); !r.Verified || r.Message != "Found the TXT record of beyondnetglobal.com on beyondnetglobal.com: it proves beyondnetglobal.com and every name under it, git.beyondnetglobal.com included." {
+	if r := e.verify(child.ID); !r.Verified || r.Message != "Found the TXT record of example.org on example.org: it proves example.org and every name under it, git.example.org included." {
 		t.Fatalf("child's own check: %+v", r)
 	}
 	// the scan of the child names the parent's domain and token, the record the executors' fence checks (one rule)
@@ -168,16 +164,16 @@ func TestProof_ParentCoversChild(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", child.ID); err != nil {
 		t.Fatal(err)
 	}
-	if p := run.last.Proof; p == nil || p.Domain != "beyondnetglobal.com" || p.Token != parent.Token || run.last.Value != "git.beyondnetglobal.com" {
+	if p := run.last.Proof; p == nil || p.Domain != "example.org" || p.Token != parent.Token || run.last.Value != "git.example.org" {
 		t.Fatalf("scan target %+v proof %+v", run.last, run.last.Proof)
 	}
 	// the parent's record goes: the child is covered no more right before its next scan
-	e.dns.put("beyondnetglobal.com", "v=spf1 -all")
+	e.dns.put("example.org", "v=spf1 -all")
 	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", child.ID); ok || why != BlockedTxtMissing {
 		t.Fatalf("parent's record removed: %v %v", ok, why)
 	}
 	// the record is back but the parent target is removed from the box: its token proves nothing for the box any more
-	e.dns.put("beyondnetglobal.com", txtRecord(parent.Token))
+	e.dns.put("example.org", txtRecord(parent.Token))
 	if err := e.svc.Delete(e.ctx(), "admin@acme.example", parent.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +181,7 @@ func TestProof_ParentCoversChild(t *testing.T) {
 		t.Fatalf("parent target removed: %v %v", ok, why)
 	}
 	// Not only the target at that name: the child's own token on a parent name proves the child
-	e.dns.put("beyondnetglobal.com", txtRecord(child.Token))
+	e.dns.put("example.org", txtRecord(child.Token))
 	if r := e.verify(child.ID); !r.Verified || !strings.Contains(r.Message, "this target's own record on a parent name") {
 		t.Fatalf("the child's token on its parent: %+v", r)
 	}
@@ -195,12 +191,12 @@ func TestProof_ParentCoversChild(t *testing.T) {
 func TestProof_ParentRemovedDuringTheCheck(t *testing.T) {
 	t.Parallel()
 	e, d := newProofEnv(t)
-	parent := e.add("admin@acme.example", "beyondnetglobal.com")
-	child := e.add("admin@acme.example", "www.beyondnetglobal.com")
-	e.dns.put("beyondnetglobal.com", txtRecord(parent.Token))
+	parent := e.add("admin@acme.example", "example.org")
+	child := e.add("admin@acme.example", "www.example.org")
+	e.dns.put("example.org", txtRecord(parent.Token))
 	var once sync.Once
 	d.onTXT = func(name string) {
-		if name == "beyondnetglobal.com" {
+		if name == "example.org" {
 			once.Do(func() {
 				if err := e.svc.Delete(context.WithoutCancel(e.ctx()), "admin@acme.example", parent.ID); err != nil {
 					t.Error(err)
@@ -220,15 +216,15 @@ func TestProof_PublicSuffixCoversNothing(t *testing.T) {
 		proven, name string
 		want         bool
 	}{
-		{"beyondnetglobal.com", "git.beyondnetglobal.com", true},
-		{"beyondnetglobal.com", "beyondnetglobal.com", true},
-		{"git.beyondnetglobal.com", "beyondnetglobal.com", false}, // never upward
-		{"beyondnetglobal.com", "evilbeyondnetglobal.com", false},
-		{"com", "beyondnetglobal.com", false},
+		{"example.org", "git.example.org", true},
+		{"example.org", "example.org", true},
+		{"git.example.org", "example.org", false}, // never upward
+		{"example.org", "evilexample.org", false},
+		{"com", "example.org", false},
 		{"co.uk", "acme.co.uk", false},
-		{"ddns.net", "beyondhcm.ddns.net", false},
+		{"ddns.net", "example.ddns.net", false},
 		{"github.io", "acme.github.io", false},
-		{"beyondhcm.ddns.net", "git.beyondhcm.ddns.net", true},
+		{"example.ddns.net", "git.example.ddns.net", true},
 		{"acme.github.io", "other.github.io", false},
 	} {
 		if got := Covers(c.proven, c.name); got != c.want {
@@ -241,15 +237,15 @@ func TestProof_PublicSuffixCoversNothing(t *testing.T) {
 			t.Fatalf("%s added: %v", suffix, err)
 		}
 	}
-	v := e.add("admin@acme.example", "beyondhcm.ddns.net")
+	v := e.add("admin@acme.example", "example.ddns.net")
 	e.dns.put("ddns.net", txtRecord(v.Token))
 	if r := e.verify(v.ID); r.Verified {
 		t.Fatalf("a record on a public suffix verified %s: %+v", v.Value, r)
 	}
-	if ch := proofChain("x.beyondhcm.ddns.net"); strings.Join(ch, ",") != "x.beyondhcm.ddns.net,beyondhcm.ddns.net" {
+	if ch := proofChain("x.example.ddns.net"); strings.Join(ch, ",") != "x.example.ddns.net,example.ddns.net" {
 		t.Fatalf("chain %v", ch)
 	}
-	if p := v.Proof; p == nil || p.Zone != "beyondhcm.ddns.net" || p.Host != "@" {
+	if p := v.Proof; p == nil || p.Zone != "example.ddns.net" || p.Host != "@" {
 		t.Fatalf("hint %+v", p)
 	}
 	// A public suffix stored by an older release is refused as one, not with "add the record back"
@@ -259,58 +255,58 @@ func TestProof_PublicSuffixCoversNothing(t *testing.T) {
 	}
 }
 
-// git.beyondnetglobal.com is a CNAME, so its provider refuses a TXT beside it ("Record could not be added"); the record on
-// _vedette-verify.git.beyondnetglobal.com proves it, and the scan gate accepts it. A record reached through the CNAME is not git's.
+// git.example.org is a CNAME, so its provider refuses a TXT beside it ("Record could not be added"); the record on
+// _vedette-verify.git.example.org proves it, and the scan gate accepts it. A record reached through the CNAME is not git's.
 func TestProof_VerifyLabelUnderACNAME(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
-	v := e.add("admin@acme.example", "git.beyondnetglobal.com")
-	if p := v.Proof; p == nil || p.Zone != "beyondnetglobal.com" || p.Host != "@" || p.AltHost == nil || *p.AltHost != "_vedette-verify.git" || p.CoveredBy != nil {
+	v := e.add("admin@acme.example", "git.example.org")
+	if p := v.Proof; p == nil || p.Zone != "example.org" || p.Host != "@" || p.AltHost == nil || *p.AltHost != "_vedette-verify.git" || p.CoveredBy != nil {
 		t.Fatalf("hint %+v", p)
 	}
-	e.dns.put("beyondhcm.ddns.net", txtRecord(v.Token)) // answered through git's CNAME: the ddns.net name's record, not git's
-	if r := e.verify(v.ID); r.Verified || !strings.Contains(r.Message, "git.beyondnetglobal.com is a CNAME to another name, so its TXT record is not its own") {
+	e.dns.put("example.ddns.net", txtRecord(v.Token)) // answered through git's CNAME: the ddns.net name's record, not git's
+	if r := e.verify(v.ID); r.Verified || !strings.Contains(r.Message, "git.example.org is a CNAME to another name, so its TXT record is not its own") {
 		t.Fatalf("through the CNAME: %+v", r)
 	}
-	e.dns.put("_vedette-verify.git.beyondnetglobal.com", txtRecord(v.Token))
-	if r := e.verify(v.ID); !r.Verified || r.Message != "Found the TXT record vedette-verify="+v.Token+" on _vedette-verify.git.beyondnetglobal.com." {
+	e.dns.put("_vedette-verify.git.example.org", txtRecord(v.Token))
+	if r := e.verify(v.ID); !r.Verified || r.Message != "Found the TXT record vedette-verify="+v.Token+" on _vedette-verify.git.example.org." {
 		t.Fatalf("%+v", r)
 	}
 	if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", v.ID); err != nil || why == BlockedTxtMissing {
 		t.Fatalf("gate: %v %v", why, err)
 	}
-	a := e.add("admin@acme.example", "beyondnetglobal.com")
+	a := e.add("admin@acme.example", "example.org")
 	if p := a.Proof; p == nil || p.Host != "@" || p.AltHost == nil || *p.AltHost != "_vedette-verify" {
 		t.Fatalf("apex hint %+v", p)
 	}
-	long := strings.Repeat("a", 60) + "." + strings.Repeat("b", 60) + "." + strings.Repeat("c", 60) + "." + strings.Repeat("d", 40) + ".beyondnetglobal.com"
+	long := strings.Repeat("a", 60) + "." + strings.Repeat("b", 60) + "." + strings.Repeat("c", 60) + "." + strings.Repeat("d", 48) + ".example.org"
 	if p := proofHint(Target{ID: "x", Kind: KindDomain, Value: long}, nil); p == nil || p.AltHost != nil {
 		t.Fatalf("a name too long for the dedicated label gets no alt_host: %+v", p)
 	}
 }
 
-// A wildcard on the zone never proves it. "*.beyondnetglobal.com CNAME lb.lapsed-vendor.example" makes
-// _vedette-verify.beyondnetglobal.com a CNAME to a name whoever registers the lapsed domain controls; "*.beyondnetglobal.com TXT"
+// A wildcard on the zone never proves it. "*.example.org CNAME lb.lapsed-vendor.example" makes
+// _vedette-verify.example.org a CNAME to a name whoever registers the lapsed domain controls; "*.example.org TXT"
 // answers any name beside it too. And a parent that is a CNAME (b.… CNAME tenant.vendor.example) does not prove names under it.
 func TestProof_WildcardsAndCNAMEdParentsProveNothing(t *testing.T) {
 	t.Parallel()
 	e, d := newProofEnv(t)
-	zone := e.add("admin@acme.example", "beyondnetglobal.com")
-	e.dns.put("beyondnetglobal.com", "v=spf1 -all")
-	d.wildCNAME["beyondnetglobal.com"] = "lb.lapsed-vendor.example"
+	zone := e.add("admin@acme.example", "example.org")
+	e.dns.put("example.org", "v=spf1 -all")
+	d.wildCNAME["example.org"] = "lb.lapsed-vendor.example"
 	e.dns.put("lb.lapsed-vendor.example", txtRecord(zone.Token)) // the attacker's record on the name they registered
-	if r := e.verify(zone.ID); r.Verified || !strings.Contains(r.Message, "_vedette-verify.beyondnetglobal.com is a CNAME to another name") {
+	if r := e.verify(zone.ID); r.Verified || !strings.Contains(r.Message, "_vedette-verify.example.org is a CNAME to another name") {
 		t.Fatalf("wildcard CNAME: %+v", r)
 	}
-	delete(d.wildCNAME, "beyondnetglobal.com")
-	d.wildTXT["beyondnetglobal.com"] = []string{txtRecord(zone.Token)}
+	delete(d.wildCNAME, "example.org")
+	d.wildTXT["example.org"] = []string{txtRecord(zone.Token)}
 	if r := e.verify(zone.ID); r.Verified || !strings.Contains(r.Message, "answers through a wildcard") {
 		t.Fatalf("wildcard TXT: %+v", r)
 	}
-	delete(d.wildTXT, "beyondnetglobal.com")
-	b := e.add("admin@acme.example", "b.beyondnetglobal.com")
-	api := e.add("admin@acme.example", "api.b.beyondnetglobal.com")
-	d.cname["b.beyondnetglobal.com"] = "tenant.vendor.example"
+	delete(d.wildTXT, "example.org")
+	b := e.add("admin@acme.example", "b.example.org")
+	api := e.add("admin@acme.example", "api.b.example.org")
+	d.cname["b.example.org"] = "tenant.vendor.example"
 	e.dns.put("tenant.vendor.example", txtRecord(b.Token))
 	if r := e.verify(b.ID); r.Verified {
 		t.Fatalf("a CNAME'd parent: %+v", r)
@@ -325,37 +321,37 @@ func TestProof_WildcardsAndCNAMEdParentsProveNothing(t *testing.T) {
 func TestProof_TheErrorSaysWhatWasAskedAndWhatCameBack(t *testing.T) {
 	t.Parallel()
 	e, d := newProofEnv(t)
-	git := e.add("admin@acme.example", "git.beyondnetglobal.com")
+	git := e.add("admin@acme.example", "git.example.org")
 	r := e.verify(git.ID)
 	for _, want := range []string{
-		"No TXT record vedette-verify=" + git.Token + " was found. Vedette asked git.beyondnetglobal.com, _vedette-verify.git.beyondnetglobal.com, beyondnetglobal.com, _vedette-verify.beyondnetglobal.com.",
-		"git.beyondnetglobal.com: a CNAME to beyondhcm.ddns.net, so a TXT record cannot sit on this name: put it on @ of the zone (the registered domain) or on _vedette-verify.git.beyondnetglobal.com instead.",
-		"_vedette-verify.git.beyondnetglobal.com: no TXT record.",
-		"beyondnetglobal.com: no TXT record.",
+		"No TXT record vedette-verify=" + git.Token + " was found. Vedette asked git.example.org, _vedette-verify.git.example.org, example.org, _vedette-verify.example.org.",
+		"git.example.org: a CNAME to example.ddns.net, so a TXT record cannot sit on this name: put it on @ of the zone (the registered domain) or on _vedette-verify.git.example.org instead.",
+		"_vedette-verify.git.example.org: no TXT record.",
+		"example.org: no TXT record.",
 		"No domain of this box above it covers it.",
 	} {
 		if r.Verified || !strings.Contains(r.Message, want) {
 			t.Fatalf("missing %q in %q", want, r.Message)
 		}
 	}
-	e.add("admin@acme.example", "beyondnetglobal.com")
-	if r := e.verify(git.ID); !strings.Contains(r.Message, "The box's beyondnetglobal.com would cover it only with its own record on that name itself (or _vedette-verify before it); there is none there now.") {
+	e.add("admin@acme.example", "example.org")
+	if r := e.verify(git.ID); !strings.Contains(r.Message, "The box's example.org would cover it only with its own record on that name itself (or _vedette-verify before it); there is none there now.") {
 		t.Fatalf("parent named: %q", r.Message)
 	}
-	nx := e.add("admin@acme.example", "nope.beyondnetglobal.com")
-	d.nx["nope.beyondnetglobal.com"] = true
-	if r := e.verify(nx.ID); !strings.Contains(r.Message, "nope.beyondnetglobal.com: the name does not exist (NXDOMAIN), or has no address or TXT record.") {
+	nx := e.add("admin@acme.example", "nope.example.org")
+	d.nx["nope.example.org"] = true
+	if r := e.verify(nx.ID); !strings.Contains(r.Message, "nope.example.org: the name does not exist (NXDOMAIN), or has no address or TXT record.") {
 		t.Fatalf("nxdomain: %q", r.Message)
 	}
-	slow := e.add("admin@acme.example", "slow.beyondnetglobal.com")
-	d.fail["slow.beyondnetglobal.com"] = &net.DNSError{Err: "i/o timeout", Name: "slow.beyondnetglobal.com", IsTimeout: true}
-	if r := e.verify(slow.ID); !strings.Contains(r.Message, "slow.beyondnetglobal.com: no answer within 5 seconds (timeout).") {
+	slow := e.add("admin@acme.example", "slow.example.org")
+	d.fail["slow.example.org"] = &net.DNSError{Err: "i/o timeout", Name: "slow.example.org", IsTimeout: true}
+	if r := e.verify(slow.ID); !strings.Contains(r.Message, "slow.example.org: no answer within 5 seconds (timeout).") {
 		t.Fatalf("timeout: %q", r.Message)
 	}
-	other := e.add("admin@acme.example", "www.beyondnetglobal.com")
-	e.dns.put("www.beyondnetglobal.com", "google-site-verification=abc\x1b[31m\u202e"+strings.Repeat("x", 200))
+	other := e.add("admin@acme.example", "www.example.org")
+	e.dns.put("www.example.org", "google-site-verification=abc\x1b[31m\u202e"+strings.Repeat("x", 200))
 	r = e.verify(other.ID)
-	if !strings.Contains(r.Message, `www.beyondnetglobal.com: one TXT record, not this one: "google-site-verification=abc [31m `) || strings.ContainsAny(r.Message, "\x1b\u202e") || len(r.Message) > 1500 {
+	if !strings.Contains(r.Message, `www.example.org: one TXT record, not this one: "google-site-verification=abc [31m `) || strings.ContainsAny(r.Message, "\x1b\u202e") || len(r.Message) > 1500 {
 		t.Fatalf("other TXT: %q", r.Message)
 	}
 }

@@ -90,13 +90,7 @@ func (s *Service) ModeNow(ctx context.Context, actor, id string) (ScanMode, erro
 	if err != nil || reason != "" {
 		return ScanMode{}, err
 	}
-	m := t.mode()
-	s.runMu.Lock() // INV-36: the scheduled scan that runs now never gets the disruptive checks, whatever the terms allow
-	if r := s.run; r != nil && r.view.Status == RunRunning && r.view.TargetID == t.ID && r.view.Scheduled {
-		m.Disruptive = false
-	}
-	s.runMu.Unlock()
-	return m, nil
+	return boxMode(actor, t.mode()), nil
 }
 
 // TermsNotice is the terms as the page shows them (contract.ts TermsNotice): the version, the text with the target in it (one
@@ -281,20 +275,25 @@ func (a ScanMode) above(b ScanMode) bool {
 	return (a.Full && !b.Full) || (a.Disruptive && !b.Disruptive)
 }
 
-// stopRunAbove cancels the run of target id when its mode is above m: withdrawing or lowering the terms must
-// reach a scan that runs now, the case where the service is being hurt. Every step reads the run's context: the Greenbone step stops
-// gvmd's task (stop_task) and keeps the snapshot of the earlier steps, as a Stop does. The run is found and cancelled under runMu in
-// one step, and only a run really cancelled gets its own audit row, on the action of the terms change, after its row.
+// stopRunAbove stops the scan of target id that runs now when its mode is above m: withdrawing or lowering the terms must reach a
+// scan that runs now, the case where the service is being hurt. A queued scan has no mode yet: it reads the terms when it starts. Every step reads the run's context: the OpenVAS step stops
+// gvmd's task (stop_task) and keeps the rows the earlier steps wrote, as a Stop does. Only a run really stopped gets its own audit
+// row, on the action of the terms change.
 func (s *Service) stopRunAbove(ctx context.Context, id, value string, m ScanMode, user, action, why string) {
 	s.runMu.Lock()
-	r := s.run
-	// INV-36: a scheduled scan runs only under the full terms, so terms that are no longer full stop it whatever its mode
-	stop := r != nil && r.view.Status == RunRunning && r.view.TargetID == id && (r.mode.above(m) || (r.view.Scheduled && !m.Full))
-	if stop {
-		r.cancel(&stoppedBy{by: user + " (" + why + ")", why: why, reason: StopTerms, person: user})
+	runID := ""
+	for rid, x := range s.execs {
+		if x.targetID == id && x.mode.above(m) {
+			runID = rid
+		}
 	}
 	s.runMu.Unlock()
-	if !stop {
+	if runID == "" || s.cfg.Runs == nil {
+		return
+	}
+	s.setStopCause(runID, &stoppedBy{by: user + " (" + why + ")", why: why, reason: StopTerms, person: user})
+	if err := s.cfg.Runs.Stop(ctx, runID, user, why); err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: stopping the scan after a terms change", "target", value, "error", err)
 		return
 	}
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
@@ -338,19 +337,14 @@ func (s *Service) RevokeTerms(ctx context.Context, user, id string) (TargetView,
 
 // setTerms stores an acceptance, or clears it (nil).
 func setTerms(ctx context.Context, tx *sql.Tx, id string, t *Terms) error {
-	var v, by, at, text, uid, method any
-	disruptive := 0
-	if t != nil {
-		v, by, at, text, uid, method = t.Version, t.By, t.At, t.Text, nullIf(t.UserID), nullIf(t.Method)
-		if t.Disruptive {
-			disruptive = 1
-		}
+	if t == nil {
+		return dropConsent(ctx, tx, id, consentTerms)
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE exp_target SET terms_version = ?, terms_by = ?, terms_at = ?, terms_text = ?, terms_user_id = ?, terms_method = ?, terms_disruptive = ? WHERE id = ?`,
-		v, by, at, text, uid, method, disruptive, id); err != nil {
+	at, err := parseTS(t.At)
+	if err != nil {
 		return fmt.Errorf("recording the testing terms of %s: %w", id, err)
 	}
-	return nil
+	return putConsent(ctx, tx, id, consentTerms, consentRow{Version: t.Version, Text: t.Text, By: t.By, UserID: t.UserID, Method: t.Method, Disruptive: t.Disruptive, At: at})
 }
 
 func yesNo(b bool) string {

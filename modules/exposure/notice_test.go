@@ -142,15 +142,11 @@ func TestContract_INV17_StaleOrMissingNoticeVersionIsRefused(t *testing.T) {
 }
 
 // oldCommitted is a verified domain whose commitment was recorded under an older sentence (version "2026-11-13", or none).
-func (e *env) oldCommitted(version *string) TargetView {
+func (e *env) oldCommitted(_ *string) TargetView {
 	e.t.Helper()
 	d := e.addVerifiedDomain()
 	err := e.svc.write(e.ctx(), func(tx *sql.Tx, _ func(string, any)) error {
 		if err := setCommitment(e.ctx(), tx, d.ID, "first@acme.example", t0, Notice{Version: "2026-11-13", Text: "old sentence"}, "u-first", "app"); err != nil {
-			return err
-		}
-		if version == nil { // recorded by an older release: no version, no sentence
-			_, err := tx.ExecContext(e.ctx(), `UPDATE exp_target SET commitment_version = NULL, commitment_sentence = NULL, commitment_user_id = NULL, commitment_method = NULL WHERE id = ?`, d.ID)
 			return err
 		}
 		return nil
@@ -208,9 +204,6 @@ func TestContract_INV17_OlderCommitmentIsAskedAgainOnce(t *testing.T) {
 			}
 		}
 		old := "2026-11-13"
-		if ver == nil {
-			old = "recorded before versions"
-		}
 		if !strings.Contains(detail, "re-confirmed under the new sentence (replaces notice "+old+", confirmed by first@acme.example at ") || !strings.Contains(detail, NoticeVersion) {
 			t.Fatalf("%s: audit detail %q", name, detail)
 		}
@@ -308,7 +301,7 @@ func TestContract_INV17_IPNotCurrentRecordsButDoesNotScan(t *testing.T) {
 	}
 }
 
-// The record keeps the user id and how two-step was met; a commitment written by an older release (no sentence, no id) still loads.
+// The record keeps the user id and how two-step was met.
 func TestCommitmentRecordKeepsUserAndMethod(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -320,22 +313,5 @@ func TestCommitmentRecordKeepsUserAndMethod(t *testing.T) {
 	}
 	if c := e.target(d.ID).Commitment; c == nil || c.UserID != adminOn.ID || c.Method != "sso" {
 		t.Fatalf("commitment = %+v", c)
-	}
-	old, err := e.svc.AddDomain(e.ctx(), "admin@acme.example", "old.example")
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.dns.put(old.Value, txtRecord(old.Token))
-	if r, err := e.svc.Verify(e.ctx(), "operator@acme.example", old.ID); err != nil || !r.Verified {
-		t.Fatal(err)
-	}
-	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_target SET commitment_by = 'old@acme.example', commitment_at = ? WHERE id = ?`, store.FormatTS(t0), old.ID)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if c := e.target(old.ID).Commitment; c == nil || c.Version != nil || c.Sentence != nil || c.UserID != "" {
-		t.Fatalf("old commitment = %+v", c)
 	}
 }

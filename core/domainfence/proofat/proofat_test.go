@@ -10,21 +10,21 @@ func TestWithin(t *testing.T) {
 		domain, at string
 		want       bool
 	}{
-		{"git.beyondnetglobal.com", "beyondnetglobal.com", true},
-		{"git.beyondnetglobal.com", "git.beyondnetglobal.com", true},
-		{"a.b.beyondnetglobal.com", "b.beyondnetglobal.com", true},
-		{"git.beyondnetglobal.com", "com", false},
-		{"beyondnetglobal.com", "git.beyondnetglobal.com", false},
-		{"git.beyondnetglobal.com", "evil.com", false},
-		{"x.beyondhcm.ddns.net", "ddns.net", false},
-		{"x.beyondhcm.ddns.net", "beyondhcm.ddns.net", true},
+		{"git.example.org", "example.org", true},
+		{"git.example.org", "git.example.org", true},
+		{"a.b.example.org", "b.example.org", true},
+		{"git.example.org", "com", false},
+		{"example.org", "git.example.org", false},
+		{"git.example.org", "evil.com", false},
+		{"x.example.ddns.net", "ddns.net", false},
+		{"x.example.ddns.net", "example.ddns.net", true},
 		{"victim.github.io", "github.io", false},
 		{"a.b.co.uk", "co.uk", false},
 		{"a.b.co.uk", "b.co.uk", true},
 		{"bucket.s3.amazonaws.com", "amazonaws.com", false},
 		{"bucket.s3.amazonaws.com", "s3.amazonaws.com", false},
 		{"x.bucket.s3.amazonaws.com", "bucket.s3.amazonaws.com", true},
-		{"git.beyondnetglobal.com", "", false},
+		{"git.example.org", "", false},
 	} {
 		if got := Within(c.domain, c.at); got != c.want {
 			t.Errorf("Within(%s, %s) = %v, want %v", c.domain, c.at, got, c.want)

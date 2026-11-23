@@ -25,7 +25,6 @@ const ALLOWED: { file: string; heading: string; why: string }[] = [
   { file: 'features/scanning/EnginesTab.tsx', heading: "t('adminOnly')", why: 'says the reader\'s role cannot change the engines: a state of this page' },
   { file: 'features/scanning/SafetyTab.tsx', heading: "t('safety.adminOnly')", why: 'says the reader\'s role cannot change the settings: a state of this page' },
   { file: 'features/response/ApprovePage.tsx', heading: 't(`approve.state.', why: 'the state of an approval link (expired, used, decided): the whole answer of that page' },
-  { file: 'features/exposure/SurfacePanel.tsx', heading: "t('surface.older')", why: 'says this scan has no surface map, in place of the map: a state of the panel' },
   { file: 'features/core/BugReportDialog.tsx', heading: "t('bug.noSend')", why: 'tells the person, inside the dialog that drafts the report, that nothing leaves the box by itself (a privacy statement next to the action)' },
 ]
 

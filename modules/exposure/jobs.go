@@ -16,17 +16,15 @@ const JobTick = time.Minute
 // JobTick and checks the box's public IPs when one is due (INV-11): the first time right after the module starts,
 // then every interval_min minutes while the customer has auto-detect on.
 //
-// scan-schedule wakes up every ScheduleTick and queues the targets whose scheduled scan is due, inside the scan window (INV-36,
-// RunSchedule); the next run counts from the stored start of the newest scan, so it survives a restart.
-//
 // greenbone-feed wakes up every GreenboneSyncTick and updates Greenbone's feed once a week while Greenbone is enabled
-// (RunGreenboneSync); most wake-ups do nothing.
+// (RunGreenboneSync); most wake-ups do nothing. accept-expiry opens again the issues whose accepted risk's last day is over
+// (RunAcceptExpiry). The scans a target's schedule starts are core/schedule's, not a job of this module.
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "auto-detect", Every: JobTick, Run: svc.RunAutoDetect},
 		{Module: ModuleID, Name: "ip-proof", Every: IPProofTick, Run: svc.RunIPRecheck},
 		{Module: ModuleID, Name: "greenbone-feed", Every: GreenboneSyncTick, Run: svc.RunGreenboneSync},
-		{Module: ModuleID, Name: "scan-schedule", Every: ScheduleTick, Run: svc.RunSchedule},
+		{Module: ModuleID, Name: "accept-expiry", Every: AcceptTick, Run: svc.RunAcceptExpiry},
 	}
 }
 

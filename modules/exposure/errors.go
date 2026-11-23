@@ -69,11 +69,15 @@ var (
 	ErrNotRunning = apiErr(409, "not_running", "No scan is running now.")
 )
 
-// TooManyNames is the answer when the certificate-transparency logs list more names under domain than one scan reads:
-// nothing is scanned rather than a part that would change from day to day.
+// TooManyNames is the answer when the certificate-transparency logs list more names under domain than one scan reads, counting only
+// the names this target scans (not those of its own subdomain targets): nothing is scanned rather than a part that would change from
+// day to day.
 func TooManyNames(domain string) *APIError {
-	return apiErr(400, "too_many", "The certificate-transparency logs list more than 300 names under %s, more than one scan reads, so nothing was scanned. Add a narrower subdomain (for example shop.%s) as its own domain and scan that.", domain, domain)
+	return apiErr(400, "too_many", "The certificate-transparency logs list more than 300 names under %s that this target would scan, more than one scan reads, so nothing was scanned. Set its scope to only this name or to the names you choose, or add its largest subdomain (for example shop.%s) as its own target: the names a subdomain target scans do not count here.", domain, domain)
 }
+
+// NotNamesCut is the "Not checked" line of a scan whose scope is the names chosen, on a domain with more names than one scan lists.
+const NotNamesCut = "Names under the domain: more than 300 in the certificate logs, so only the names you chose were looked up and scanned, and new names were not listed."
 
 // Messages that are shared by a response and the stored result of a check.
 const (

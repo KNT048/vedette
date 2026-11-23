@@ -2,7 +2,6 @@ package exposure
 
 import (
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
@@ -1078,7 +1077,7 @@ func TestContract_INV25_StopDuringTheCap(t *testing.T) {
 			g.states, g.stopTo = []string{"Running"}, "Stop Requested"
 			g.onPoll = func() {
 				if h.gvm.seen("stop_task") { // a poll of gbPartial: the customer presses Stop
-					e.svc.cancelRun("admin@acme.example")
+					e.svc.StopScan(context.Background(), "admin@acme.example")
 				}
 			}
 		})
@@ -1088,12 +1087,11 @@ func TestContract_INV25_StopDuringTheCap(t *testing.T) {
 		}
 		e.acceptTerms(ips[0].ID, false)
 		e.svc.SetRunner(&fakeRunner{content: gbOpen()})
-		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err == nil {
+		snap, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID)
+		if err == nil {
 			t.Fatal("a stopped run reads as done")
 		}
-		run := e.svc.CurrentScan()
-		snap, err := e.svc.SnapshotOf(e.ctx(), ips[0].ID, run.StartedAt[:10])
-		if err != nil || snap.GreenboneRun.State != GBRunStopped || len(snap.Greenbone) != 0 || !slices.Contains(notChecked(snap), gbStoppedLine(personStop("admin@acme.example"), false)) || !h.gvm.seen("delete_task") {
+		if snap.GreenboneRun.State != GBRunStopped || len(snap.Greenbone) != 0 || !slices.Contains(notChecked(snap), gbStoppedLine(personStop("admin@acme.example"), false)) || !h.gvm.seen("delete_task") {
 			t.Fatalf("run %+v, not checked %q, cmds %q, %v", snap.GreenboneRun, notChecked(snap), h.gvm.cmds, err)
 		}
 	})
@@ -1160,63 +1158,6 @@ func TestGreenboneProbePortsAreClipped(t *testing.T) {
 	}
 }
 
-// kevLookup is a Matcher that also says which CVE ids are on the list.
-type kevLookup struct {
-	fakeMatcher
-	kev map[string]KEVEntry
-}
-
-func (k *kevLookup) Exploited(_ context.Context, ids []string) (map[string]KEVEntry, error) {
-	out := map[string]KEVEntry{}
-	for _, id := range ids {
-		if e, ok := k.kev[id]; ok {
-			out[id] = e
-		}
-	}
-	return out, nil
-}
-
-// INV-25: a CVE Greenbone names that is on the list becomes a row of basis greenbone with its QoD, next to the version row of the
-// same CVE, which keeps its basis and text; a CVE not on the list is not a row; Greenbone's rows do not enter the day comparison.
-func TestContract_INV25_GreenboneNeverReplacesAVersionRow(t *testing.T) {
-	t.Parallel()
-	e, _ := gbEnv(t)
-	e.enable()
-	version := VulnRow{IP: ipA, Port: 443, CVE: "CVE-2021-41773", Name: "Apache path traversal", Basis: "version", Summary: "In range."}
-	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: []ServiceRow{{IP: ipA, Port: 443, Name: "https", Product: "Apache httpd", Version: "2.4.49"}}}}
-	e.svc.cfg.Matcher = &kevLookup{fakeMatcher: fakeMatcher{m: Matches{Compared: 1, Vulns: []VulnRow{version}}},
-		kev: map[string]KEVEntry{"CVE-2021-41773": {Name: "Apache path traversal"}, "CVE-2023-48795": {Name: "Terrapin"}}}
-	s := e.scanIP(gbOpen())
-	var basis []string
-	for _, v := range s.Vulns {
-		basis = append(basis, v.CVE+" "+v.Basis)
-	}
-	want := []string{"CVE-2021-41773 version", "CVE-2021-41773 greenbone", "CVE-2023-48795 greenbone"}
-	if !slices.Equal(basis, want) {
-		t.Fatalf("vulns = %q", basis)
-	}
-	if s.Vulns[0] != version {
-		t.Fatalf("version row changed: %+v", s.Vulns[0])
-	}
-	if s.Vulns[1].QoD != 99 || s.Vulns[1].Port != 443 || s.Vulns[1].IP != ipA || !strings.HasPrefix(s.Vulns[1].Summary, "Scanner: OpenVAS, QoD 99.") {
-		t.Fatalf("greenbone row = %+v", s.Vulns[1])
-	}
-	// without the lookup, Greenbone's CVEs stay in its own section and the page says they were not compared
-	e.svc.cfg.Matcher = &fakeMatcher{m: Matches{Compared: 1, Vulns: []VulnRow{version}}}
-	got, err := e.svc.SnapshotOf(e.ctx(), e.ipTarget(), s.Date)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got.Vulns) != 1 || !slices.Contains(notChecked(got), notGBNotCompared) {
-		t.Fatalf("vulns = %+v, not checked %q", got.Vulns, notChecked(got))
-	}
-	for _, d := range entriesOf(s) {
-		if strings.Contains(d, "CVE-2023-48795") {
-			t.Fatalf("a Greenbone row entered the comparison: %q", d)
-		}
-	}
-}
-
 // ipTarget is the id of the target of ipA (scanIP's).
 func (e *env) ipTarget() string {
 	e.t.Helper()
@@ -1232,15 +1173,6 @@ func (e *env) ipTarget() string {
 	}
 	e.t.Fatalf("no target %s", ip)
 	return ""
-}
-
-func entriesOf(s Snapshot) []string {
-	m, _ := entries(s)
-	var out []string
-	for k := range m {
-		out = append(out, k)
-	}
-	return out
 }
 
 // ---- more Greenbone cases ----
@@ -1320,53 +1252,6 @@ func TestContract_INV25_LeftoversAndCleanup(t *testing.T) {
 	}
 }
 
-// M5: the snapshot of the other steps is stored before Greenbone starts and the run shows its own phase; Greenbone's rows are added
-// to that snapshot when it ends.
-func TestContract_INV25_SnapshotFirstThenGreenbone(t *testing.T) {
-	t.Parallel()
-	e, h := gbEnv(t)
-	e.enable()
-	var stored int
-	var phase string
-	var during GreenboneRun
-	var began time.Time
-	h.gvm.with(func(g *fakeGVM) {
-		g.states = []string{"Running", "Done"}
-		g.onPoll = func() {
-			if stored == 0 {
-				_ = e.db.Reader().QueryRowContext(context.Background(), `SELECT count(*) FROM exp_snapshot WHERE not_checked LIKE '%runs for up to 90 minutes%'`).Scan(&stored)
-				if r := e.svc.CurrentScan(); r != nil {
-					phase = r.Phase
-					if snap, err := e.svc.SnapshotOf(context.Background(), r.TargetID, r.StartedAt[:10]); err == nil {
-						during = snap.GreenboneRun
-					}
-				}
-				began = e.clock.Now()
-				e.advance(time.Minute) // OpenVAS runs after the snapshot is stored
-			}
-		}
-	})
-	s := e.scanIP(gbOpen())
-	// "Last scanned" is when the scan started, the time every page names it by; the scan's end is when OpenVAS ended
-	var last string
-	if err := e.db.Reader().QueryRowContext(context.Background(), `SELECT last_scan_at FROM exp_target`).Scan(&last); err != nil ||
-		last != s.StartedAt || s.StartedAt > s.ScannedAt || s.FinishedAt == nil || *s.FinishedAt != store.FormatTS(e.clock.Now()) || *s.FinishedAt == s.ScannedAt ||
-		s.GreenboneRun.EndedAt == nil || *s.GreenboneRun.EndedAt != *s.FinishedAt || s.GreenboneRun.Stop != nil {
-		t.Fatalf("last_scan_at %q (%v), now %s, snapshot %+v", last, err, store.FormatTS(e.clock.Now()), s)
-	}
-	if stored != 1 || phase != PhaseGreenbone {
-		t.Fatalf("stored before Greenbone = %d, phase %q", stored, phase)
-	}
-	// While it scans, the snapshot says so, with the start as a timestamp (the page formats it), and no box-time text
-	if during.State != GBRunRunning || during.StartedAt == nil || *during.StartedAt != store.FormatTS(began) || s.GreenboneRun.State != GBRunDone ||
-		s.GreenboneRun.StartedAt == nil || *s.GreenboneRun.StartedAt != *during.StartedAt {
-		t.Fatalf("during %+v, after %+v", during, s.GreenboneRun)
-	}
-	if len(s.Greenbone) != 4 || slices.ContainsFunc(notChecked(s), func(l string) bool { return strings.Contains(l, "runs for up to 90 minutes") }) {
-		t.Fatalf("greenbone %d, not checked %q", len(s.Greenbone), notChecked(s))
-	}
-}
-
 // M5: a stop during the Greenbone step keeps the snapshot of the other steps, says Greenbone was stopped, stops gvmd's task, and
 // writes one exposure.scan row (the snapshot) and one exposure.greenbone_scan row (stopped).
 func TestContract_INV25_StopKeepsTheEarlierResults(t *testing.T) {
@@ -1376,7 +1261,7 @@ func TestContract_INV25_StopKeepsTheEarlierResults(t *testing.T) {
 	e.svc.gb().poll = time.Millisecond
 	h.gvm.with(func(g *fakeGVM) {
 		g.states = []string{"Running"}
-		g.onPoll = func() { e.svc.cancelRun("admin@acme.example") }
+		g.onPoll = func() { e.svc.StopScan(context.Background(), "admin@acme.example") }
 	})
 	ips := e.detect(ipA)
 	if _, err := e.commit(ips[0].ID); err != nil {
@@ -1384,22 +1269,18 @@ func TestContract_INV25_StopKeepsTheEarlierResults(t *testing.T) {
 	}
 	e.acceptTerms(ips[0].ID, false)
 	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{IP: ipA, Port: 443, Service: "https"}}}})
-	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err == nil {
+	snap, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID)
+	if err == nil {
 		t.Fatal("a stopped run reads as done")
 	}
-	run := e.svc.CurrentScan()
-	if run == nil || run.Status != RunStopped || run.SnapshotID == nil {
+	if run := e.svc.CurrentScan(e.ctx()); run == nil || run.Status != RunStopped {
 		t.Fatalf("run = %+v", run)
-	}
-	snap, err := e.svc.SnapshotOf(e.ctx(), ips[0].ID, run.StartedAt[:10])
-	if err != nil {
-		t.Fatal(err)
 	}
 	// why and by whom it was stopped, and when (the page shows the time in the viewer's zone)
 	st := snap.GreenboneRun.Stop
 	if len(snap.Ports) != 1 || !slices.Contains(notChecked(snap), "OpenVAS was stopped before it finished (admin@acme.example pressed Stop), so its results are not shown. The results of the other checks above are kept.") ||
 		!h.gvm.seen("stop_task") || snap.GreenboneRun.State != GBRunStopped || st == nil || st.Reason != StopPerson || st.By == nil || *st.By != "admin@acme.example" ||
-		snap.GreenboneRun.EndedAt == nil || snap.FinishedAt == nil || *snap.FinishedAt != *snap.GreenboneRun.EndedAt {
+		snap.GreenboneRun.EndedAt == nil {
 		t.Fatalf("ports %d, not checked %q, cmds %q, run %+v", len(snap.Ports), notChecked(snap), h.gvm.cmds, snap.GreenboneRun)
 	}
 	var rows []string
@@ -1526,7 +1407,7 @@ func TestContract_INV25_TermsDecideGreenbone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, _ := e.svc.SnapshotOf(e.ctx(), id, snap.Date)
+	got := snap
 	if !slices.ContainsFunc(notChecked(got), func(l string) bool { return strings.Contains(l, "did not keep safe checks off") }) {
 		t.Fatalf("not checked %q", notChecked(got))
 	}
@@ -1625,14 +1506,14 @@ func TestContract_INV25_WeeklyFeedUpdate(t *testing.T) {
 	}
 	e.advance(GreenboneSyncEvery)
 	e.svc.runMu.Lock()
-	e.svc.run = &scanRun{view: ScanRun{Status: RunRunning}}
+	e.svc.execs["run-1"] = &scanExec{targetID: "xt-1", started: true, done: make(chan struct{})}
 	e.svc.runMu.Unlock()
 	run()
 	if h.syncCount() != 0 {
 		t.Fatal("updated during a scan")
 	}
 	e.svc.runMu.Lock()
-	e.svc.run = nil
+	delete(e.svc.execs, "run-1")
 	e.svc.runMu.Unlock()
 	ips := e.detect(ipA)
 	if _, err := e.commit(ips[0].ID); err != nil {
@@ -1817,114 +1698,6 @@ func TestContract_INV25_NeedsNoSCAPOrCERTData(t *testing.T) {
 			}
 		}
 	})
-}
-
-// One state for the OpenVAS heading. A snapshot left "running" by a restart of the box (no run scans it now) reads as
-// stopped; a snapshot older than the column gets the state its lines say; a stored state that is not one is not believed.
-func TestContract_INV25_OneStateForTheHeading(t *testing.T) {
-	t.Parallel()
-	e, _ := gbEnv(t)
-	e.enable()
-	s := e.scanIP(gbOpen())
-	id := e.ipTarget()
-	for _, tc := range []struct{ run, want string }{
-		{`{"state":"running","started_at":"2026-11-09T10:00:00.000Z"}`, GBRunStopped}, // a restart in the middle: nothing scans it now
-		{`{"state":"partial","started_at":"2026-11-09T10:00:00.000Z"}`, GBRunPartial},
-		{`{"state":"bogus"}`, GBRunDone}, // not believed: the lines say (this scan has a greenbone check row)
-		{`{}`, GBRunDone},
-	} {
-		if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-			_, err := tx.ExecContext(e.ctx(), `UPDATE exp_snapshot SET greenbone_run = ? WHERE id = ?`, tc.run, s.ID)
-			return err
-		}); err != nil {
-			t.Fatal(err)
-		}
-		got, err := e.svc.SnapshotOf(e.ctx(), id, s.Date)
-		if err != nil || got.GreenboneRun.State != tc.want {
-			t.Fatalf("%s: %+v, %v", tc.run, got.GreenboneRun, err)
-		}
-	}
-	// the waiting line of a step a restart cut off says it was stopped, never "scanning"; so does an old line with a box time
-	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_snapshot SET greenbone_run = '{"state":"running","started_at":"2026-11-09T10:00:00.000Z"}', not_checked = ? WHERE id = ?`,
-			`[{"kind":"greenbone","text":"`+gbPending+`"},{"kind":"greenbone","text":"OpenVAS started at 14 Nov 2026, 18:16 and runs for up to 90 minutes."}]`, s.ID)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	got, err := e.svc.SnapshotOf(e.ctx(), id, s.Date)
-	if err != nil || got.GreenboneRun.State != GBRunStopped || !slices.Equal(notChecked(got)[:2], []string{gbStoppedLine(&GreenboneStop{Reason: StopRestart}, false), gbStoppedLine(&GreenboneStop{Reason: StopRestart}, false)}) ||
-		got.GreenboneRun.Stop == nil || got.GreenboneRun.Stop.Reason != StopRestart {
-		t.Fatalf("run %+v, not checked %q, %v", got.GreenboneRun, notChecked(got), err)
-	}
-	old := func(lines ...string) Content {
-		c := Content{}
-		for _, l := range lines {
-			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "greenbone", Text: l})
-		}
-		return c
-	}
-	for _, tc := range []struct {
-		c    Content
-		want string
-	}{
-		{old("OpenVAS started at 14 Nov 2026, 18:16 and runs for up to 90 minutes; its results are added here when it finishes."), GBRunStopped},
-		{old(notGBSlowOld), GBRunFailed},
-		{old("8.8.4.4 (www.acme.example): " + notGBFail), GBRunFailed}, // a domain's line carries its address
-		{old("8.8.4.4 (www.acme.example): "+notGBOff, notGBStopped), GBRunStopped},
-		{old(notGBOff), GBRunNotRun},
-		{Content{}, GBRunNotRun},
-	} {
-		if got := storedGreenboneRun(GreenboneRun{}, tc.c); got.State != tc.want || got.StartedAt != nil {
-			t.Fatalf("%+v: %+v", tc.c.NotChecked, got)
-		}
-	}
-	bad := "18:16"
-	if got := storedGreenboneRun(GreenboneRun{State: GBRunDone, StartedAt: &bad}, Content{}); got.StartedAt != nil {
-		t.Fatalf("a start that is not a time was kept: %+v", got)
-	}
-}
-
-// At start-up the database itself is corrected: a step a restart left "running" is stored as stopped with the line
-// that says so, for every reader; a step that ended is left alone.
-func TestContract_INV25_StartUpStopsWhatARestartCutOff(t *testing.T) {
-	t.Parallel()
-	e, _ := gbEnv(t)
-	e.enable()
-	s := e.scanIP(gbOpen())
-	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_snapshot SET greenbone_run = '{"state":"running","started_at":"2026-11-09T10:00:00.000Z","addresses":[]}', not_checked = ? WHERE id = ?`,
-			`[{"kind":"greenbone","text":"`+gbPending+`"}]`, s.ID)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_snapshot SET finished_at = NULL WHERE id = ?`, s.ID)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-	e.clock.Advance(2 * time.Hour) // the box comes back two hours later
-	seen := store.FormatTS(e.clock.Now())
-	e.svc.CutOffAtStart(e.ctx())
-	var state, lines, reason, ended, finished string
-	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT json_extract(greenbone_run, '$.state'), not_checked, json_extract(greenbone_run, '$.stop.reason'),
-		json_extract(greenbone_run, '$.ended_at'), finished_at FROM exp_snapshot WHERE id = ?`, s.ID).Scan(&state, &lines, &reason, &ended, &finished); err != nil {
-		t.Fatal(err)
-	}
-	// stopped, why (a restart) and when it was seen, for the page; the scan's end is that moment too
-	if state != GBRunStopped || !strings.Contains(lines, "Vedette restarted") || strings.Contains(lines, gbPending) || reason != StopRestart || ended != seen || finished != seen {
-		t.Fatalf("state %q, lines %s, reason %q, ended %q, finished %q (want %s)", state, lines, reason, ended, finished, seen)
-	}
-	// Settings › Scanning's OpenVAS card says so too
-	runs, err := e.svc.EngineRuns(e.ctx())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if r := runs[StepOpenVAS]; r.Outcome != StepStopped || r.At != seen || !strings.Contains(r.Text, "stopped while OpenVAS ran (Vedette restarted)") {
-		t.Fatalf("OpenVAS card %+v", r)
-	}
 }
 
 // The setting shows the date of the vulnerability tests OpenVAS has loaded, read from gvmd's get_feeds, from the first feed

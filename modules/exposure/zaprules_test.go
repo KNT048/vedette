@@ -185,8 +185,8 @@ func TestContract_INV24_ZAPVersionsBecomeExploitedRows(t *testing.T) {
 	}
 	e.svc.cfg.Matcher = m
 	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Services: []ServiceRow{
-		{IP: ipA, Port: 80, Name: "http"}, // nmap read no product: the header version counts
-		{IP: ipA, Port: 18443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"},
+		{IP: ipA, Port: 80, Name: "http", Method: "probed"}, // nmap read no product: the header version counts
+		{IP: ipA, Port: 18443, Name: "ssl/http", Method: "probed", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"},
 	}}}
 	page80, page18443 := "http://"+ipA+"/", "https://"+ipA+":18443/"
 	w := &fakeWeb{report: func(page string) []byte {
@@ -245,16 +245,16 @@ func TestContract_INV24_ZAPVersionsBecomeExploitedRows(t *testing.T) {
 	// The list cannot be read: a "Not checked" line, never "no exploited CVE"; a reason the page may show is said as is, since trying
 	// again does not help while the Feeds module is off.
 	m.lookErr = &Unavailable{Reason: "the Feeds module is off."}
-	snap := s
+	snap := vulnSet{Content: s.Content}
 	e.svc.withVulns(e.ctx(), &snap)
-	if n := notChecked(snap); !slices.Contains(n, "Versions ZAP read on the web pages were not compared with exploited vulnerabilities: the Feeds module is off.") || slices.Contains(n, notWebVersionsFail) {
+	if n := notChecked(ScanResult{Content: snap.Content}); !slices.Contains(n, "Versions ZAP read on the web pages were not compared with exploited vulnerabilities: the Feeds module is off.") || slices.Contains(n, notWebVersionsFail) {
 		t.Fatalf("not checked = %q", n)
 	}
 	m.lookErr = errors.New("disk")
-	snap = s
+	snap = vulnSet{Content: s.Content}
 	e.svc.withVulns(e.ctx(), &snap)
-	if !slices.Contains(notChecked(snap), notWebVersionsFail) {
-		t.Fatalf("not checked = %q", notChecked(snap))
+	if !slices.Contains(notChecked(ScanResult{Content: snap.Content}), notWebVersionsFail) {
+		t.Fatalf("not checked = %q", notChecked(ScanResult{Content: snap.Content}))
 	}
 }
 
@@ -271,19 +271,5 @@ func TestContract_INV24_CapKeepsFixFirst(t *testing.T) {
 	out := sanitizeWeb(in)
 	if len(out) != maxWebFindings || out[0].PluginID != "10036" || out[2].PluginID != "10036" || out[3].PluginID != "10038" {
 		t.Fatalf("kept %d, first %+v", len(out), out[:4])
-	}
-}
-
-// a snapshot stored before the list counted alerts the page no longer shows; its "web" line says how many are hidden.
-func TestContract_INV24_OldSnapshotSaysWhatIsHidden(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	snap := Snapshot{Content: Content{
-		WebFindings: []WebFindingRow{{Site: zapPage, PluginID: "10109", Risk: "info"}, {Site: zapPage, PluginID: "10096", Risk: "low"}, {Site: zapPage, PluginID: "10020", Risk: "medium"}},
-		Checks:      []CheckRow{{Kind: "web", Text: "Passive web scan (ZAP baseline: spider and passive rules, no form sent) of 1 page: " + zapPage + ". 3 alerts."}},
-	}}
-	e.svc.withVulns(e.ctx(), &snap)
-	if len(snap.WebFindings) != 1 || !strings.HasSuffix(snap.Checks[0].Text, "3 alerts. 2 of them hidden: Vedette's rule list treats them as noise.") {
-		t.Fatalf("findings %+v, checks %+v", snap.WebFindings, snap.Checks)
 	}
 }

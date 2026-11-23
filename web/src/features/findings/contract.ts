@@ -488,7 +488,7 @@ export const endpoints = defineEndpoints([
     params: z.object({ id: z.string().min(1).max(96) }), body: z.object({ answer: z.enum(['affected', 'not_affected']), note: z.string().max(500) }),
     response: z.object({ finding: z.string().nullable().describe('affected: the finding') }) },
   { method: 'get', path: '/findings', summary: 'The findings of one device in every state, newest first, each with its history: what a version entry, "I updated it" or "Not installed" changed on the device', stories: ['S-MIT-1', 'S-SCAN-3'], role: 'viewer',
-    query: z.object({ asset: z.string().min(1).max(96) }), response: FindingList },
+    query: z.object({ asset: z.string().min(1).max(96) }), response: FindingList, example: { query: { asset: 'a-bn340' } } },
   { method: 'get', path: '/findings/{id}', summary: 'One finding: evidence, recommendation, compromise indicators, AI results', stories: ['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2'], role: 'viewer',
     params: idParams, response: FindingDetail, example: { params: { id: 'f-1' } } },
   { method: 'post', path: '/findings/{id}/applied', summary: 'Log "Applied" for one recommendation item; does not change the status by itself', stories: ['S-MIT-1'], role: 'operator',

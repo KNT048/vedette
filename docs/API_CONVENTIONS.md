@@ -90,7 +90,7 @@ Extracted **statically** from every call of `fail(`/`refuse(`/the `bad(` functio
 
 Codes built by a validation function with its own table (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) were added by hand.
 
-#### HTTP 400 (259 codes)
+#### HTTP 400 (258 codes)
 
 | Code | HTTP | Sample message (EN, from the mock) | Endpoint |
 |---|---|---|---|

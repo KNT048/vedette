@@ -40,7 +40,7 @@ export default function TrapIpsTab({ hits, lan, lanKnown = true, smbName }: { hi
   return (
     <Section id="trap-ips" title={t('trapIp.title')} description={t('trapIp.description', { lan })} info={t('trapIp.descriptionInfo')}>
       {/* §0: a Trap IP goes on the LAN range; while the box does not know it, the way to the exact field */}
-      {lanKnown ? null : admin ? <DependencyLink className="mb-4" reason={t('trapIp.noLan')} to="/devices/setup?tab=scope#range-input" label={t('trapIp.noLanLink')} />
+      {lanKnown ? null : admin ? <DependencyLink className="mb-4" reason={t('trapIp.noLan')} to="/settings/scanning?tab=safety#range-input" label={t('trapIp.noLanLink')} />
         : <p className="mb-4 text-meta text-muted">{t('trapIp.noLan')} {t('trapIp.noLanAskAdmin')}</p>}
       <QueryState query={q}>{(d) => <Inner data={d} hits={hits} smbName={smbName} />}</QueryState>
     </Section>

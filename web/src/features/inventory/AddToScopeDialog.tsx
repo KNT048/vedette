@@ -35,7 +35,7 @@ export function AddToScopeDialog({ entry, onClose, onDone }: { entry: string | n
   const [error, setError] = useState<string | null>(null)
   const s = settings.data
   const range = entry ? asRange(entry) : null
-  // The checks of the Scope page (NetworkForm): a public range or one overlapping a saved range is said before the commitment, not after.
+  // The checks of the scope editor (Settings › Scanning › Safety): a public range or one overlapping a saved range is said before the commitment, not after.
   const problem = range && s && !s.lan_ranges.includes(range) ? rangeProblem(range, s.lan_ranges) : null
   function submit() {
     if (!s) return
@@ -66,7 +66,7 @@ export function AddToScopeDialog({ entry, onClose, onDone }: { entry: string | n
           {changed ? <Notice tone="warn" role="alert" className="mb-0" title={t('toScope.changed')} /> : null}
           {problem ? <Notice tone="danger" role="alert" className="mb-0" title={t(`network.problem.${problem}`, { value: range, net: range ? cidrRange(range).network : '', other: overlapping(range ?? '', s?.lan_ranges ?? []) ?? '' })} /> : null}
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-          <DependencyLink reason={t('toScope.restWhy')} to="/devices/setup?tab=scope#active-from" label={t('toScope.rest')} />
+          <DependencyLink reason={t('toScope.restWhy')} to="/settings/scanning?tab=safety#win-from" label={t('toScope.rest')} />
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
             <Button variant="primary" disabled={!confirmed || !s || !!problem} busy={save.isPending || add.isPending} busyLabel={t(range ? 'common:busy.adding' : 'common:busy.confirming')} onClick={submit}>{range ? t('toScope.add') : t('toScope.confirm')}</Button>

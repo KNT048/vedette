@@ -436,7 +436,7 @@ function NoDevices({ boxOnly, canOp, canAdmin, needRole, onAdd }: { boxOnly: boo
   const kind = ranges === 'saved' ? 'Watching' : ranges === 'none' ? '' : 'Neutral'
   const body = (boxOnly ? 'empty.bodyBoxOnly' : 'empty.body') + kind
   return (
-    <EmptyState art={boxOnly ? undefined : 'no-devices'} title={boxOnly ? t('empty.titleBoxOnly') : t('empty.title')} info={t('empty.info')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={() => onAdd('manual')}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={() => onAdd('csv')}>{t('import.open')}</Button>{ranges === 'none' ? <Link to="/devices/setup?tab=scope#range-input" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(body)}</EmptyState>
+    <EmptyState art={boxOnly ? undefined : 'no-devices'} title={boxOnly ? t('empty.titleBoxOnly') : t('empty.title')} info={t('empty.info')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={() => onAdd('manual')}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={() => onAdd('csv')}>{t('import.open')}</Button>{ranges === 'none' ? <Link to="/settings/scanning?tab=safety#range-input" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(body)}</EmptyState>
   )
 }
 

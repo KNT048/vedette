@@ -307,6 +307,90 @@ func TestNormalScanKeepsThePortsOfTheWeeklyRunFor14Days(t *testing.T) {
 	}
 }
 
+// The weekly discovery tries each port once: a port a normal scan read in the last week that it does not see stays with its product,
+// version and read time; a week later the weekly run removes a port it still does not see.
+func TestAllPortsLeavesAPortANormalScanReadThisWeek(t *testing.T) {
+	t.Parallel()
+	e := allPortsEnv(t)
+	all := string(fixtureXML(t, "allports.xml"))
+	i := strings.Index(all, `<port protocol="tcp" portid="22">`)
+	j := i + strings.Index(all[i:], "</port>") + len("</port>")
+	no22 := filepath.Join(t.TempDir(), "allports_no22.xml")
+	if err := os.WriteFile(no22, []byte(all[:i]+all[j:]), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e.nm = writeFakeNmap(t, fakeOpts{})
+	e.build()
+	if err := e.svc.ScanDevice(e.ctx(), "a-web", "discovered"); err != nil {
+		t.Fatal(err)
+	}
+	read := e.readAt(22)
+	if read.IsZero() {
+		t.Fatal("the normal scan set no read time on 22")
+	}
+	e.nm = writeFakeNmap(t, fakeOpts{always: no22})
+	e.build()
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	ssh := func() (observe.Service, bool) {
+		e.sink.mu.Lock()
+		defer e.sink.mu.Unlock()
+		k := slices.IndexFunc(e.sink.svc["192.168.10.20"], func(s observe.Service) bool { return s.Port == 22 })
+		if k < 0 {
+			return observe.Service{}, false
+		}
+		return e.sink.svc["192.168.10.20"][k], true
+	}
+	if sv, ok := ssh(); !ok || sv.Product != "OpenSSH" || sv.Version != "8.9p1" || !e.readAt(22).Equal(read) {
+		t.Fatalf("after a weekly run that missed 22: %+v (kept %v), read %v, want %v", sv, ok, e.readAt(22), read)
+	}
+	if !slices.Contains(e.webPorts(), 40000) {
+		t.Fatalf("the weekly run did not record 40000: %v", e.webPorts())
+	}
+	e.setBase(e.baseTime().Add(8 * 24 * time.Hour))
+	sweptToday(e)
+	e.inv.mu.Lock()
+	e.inv.addrs = map[netip.Addr]string{netip.MustParseAddr("192.168.10.20"): "a-web"}
+	e.inv.mu.Unlock()
+	if err := e.db.Write(e.ctx(), func(tx dbTx) error { _, err := tx.ExecContext(e.ctx(), dropQueueSQL); return err }); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := ssh(); ok {
+		t.Fatalf("a week later the weekly run still did not see 22, and kept it: %v", e.webPorts())
+	}
+}
+
+// A normal scan's software replaces what an older weekly follow-up read on a port it read itself (observe.PortInstance), and leaves
+// the follow-up's reading of a port outside its own list.
+func TestNormalScanReplacesTheFollowUpReadingOfItsOwnPorts(t *testing.T) {
+	t.Parallel()
+	e := allPortsEnv(t)
+	e.sink.mu.Lock()
+	e.sink.sw = map[string][]observe.Software{"192.168.10.20": {
+		{Display: "OpenSSH 7.4", Vendor: "openbsd", Product: "openssh", Version: "7.4", Instance: observe.PortInstance(22)},
+		{Display: "Acme admin 1.0", Vendor: "acme", Product: "admin", Version: "1.0", Instance: observe.PortInstance(40000)},
+	}}
+	e.sink.mu.Unlock()
+	e.nm = writeFakeNmap(t, fakeOpts{})
+	e.build()
+	if err := e.svc.ScanDevice(e.ctx(), "a-web", "again"); err != nil {
+		t.Fatal(err)
+	}
+	e.sink.mu.Lock()
+	defer e.sink.mu.Unlock()
+	var displays []string
+	for _, sw := range e.sink.sw["192.168.10.20"] {
+		displays = append(displays, sw.Display)
+	}
+	if slices.Contains(displays, "OpenSSH 7.4") || !slices.Contains(displays, "Acme admin 1.0") {
+		t.Fatalf("software after the normal scan: %q", displays)
+	}
+}
+
 // probeFunc is a Prober answering each argv with fn.
 type probeFunc func(ctx context.Context, argv []string) (sa.Output, error)
 

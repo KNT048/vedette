@@ -15,6 +15,7 @@
 
 ## Modifying: runs (`core/run`, `RunHandlers`; INV-41)
 - **A module adopting runs** registers its `run.Kind` on `deps.Runs` while it is built in `buildServices` (before `serve` calls `Start`: the restart recovery resumes only the kinds it knows), queues with `CreateTx` in the transaction that writes its own rows keyed by `run_id`, and reports through `Exec` (steps, items, log). A resumable kind must skip the steps that are `done` when `Exec.Resumed`.
+- **Resume vs ResumeWaiting**: `Resume` is the person's button (a waiting run, or a stopped one with work left of a resumable kind). Code that starts on its own what it read as waiting (a window tick, a scan worker heartbeat, a queue drain, a pass that gave way) calls `ResumeWaiting`, which queues only a run that still waits in the same transaction: with `Resume` there, a person's Stop pressed between the read and the resume is undone.
 - **The lane** is the database's guard: two kinds that must never run together share a lane; a kind with its own lane runs beside the others. Changing a kind's lane changes what can run at once.
 - **`core_run` columns** are read by `run.Run`/`run.Detail` (the API, the web contract `web/src/features/scanning/contract.ts` `Run`, `RunDetail`, its mock `runsStore`), `export_policy.go` and `run.Invariants`. A new state is a new value of `run.Statuses` and `RUN_STATUSES` together (shape check only, no table rebuild).
 - **`core/server/modules.go`** maps `/runs` to core (and `web/src/lib/apiModules.ts`, `api/route-modules.json`).

@@ -152,3 +152,44 @@ func TestTheBoxResumingARunSaysResumedOnce(t *testing.T) {
 		t.Fatalf("log: %s", got)
 	}
 }
+
+// The box starts only what still waits: a person's stop that came after the box read the waiting runs is not undone by the box's
+// resume, although the person may resume that stopped run; a run that still waits is queued again as before.
+func TestTheBoxResumesOnlyARunThatStillWaits(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	p := b.process(nil, g.kind("sensor-active", "device_check", "nmap", true))
+	p.start(t)
+	s := spec("sensor-active", "device_check", "Check of printer")
+	s.WaitingFor = "the scan worker to be available"
+	stopped := create(t, p, s)
+	if err := p.Stop(t.Context(), stopped, "ann@example.com", ""); err != nil {
+		t.Fatal(err)
+	}
+	if d := b.get(p, stopped); d.Status != run.Stopped || !d.CanResume {
+		t.Fatalf("stopped while waiting = %s (can resume %v), want stopped and resumable by a person", d.Status, d.CanResume)
+	}
+	if err := p.ResumeWaiting(t.Context(), stopped); !errors.Is(err, run.ErrNotResumable) {
+		t.Fatalf("the box resuming a stopped run = %v, want ErrNotResumable", err)
+	}
+	if d := b.get(p, stopped); d.Status != run.Stopped || strings.Contains(b.logText(p, stopped), "Queued again") {
+		t.Fatalf("after the box's resume = %s, log %q; want still stopped", d.Status, b.logText(p, stopped))
+	}
+	if err := p.ResumeWaiting(t.Context(), "run-nope"); !errors.Is(err, run.ErrNotFound) {
+		t.Fatalf("the box resuming an unknown run = %v, want ErrNotFound", err)
+	}
+	waiting := create(t, p, s)
+	if err := p.ResumeWaiting(t.Context(), waiting); err != nil {
+		t.Fatal(err)
+	}
+	if x := g.waitStarted(t); x.ID() != waiting {
+		t.Fatalf("started %s, want %s", x.ID(), waiting)
+	}
+	g.release <- run.Result{}
+	p.waitEnded(t, waiting)
+	if d := b.get(p, waiting); d.Status != run.Done || !strings.Contains(b.logText(p, waiting), "Queued again") {
+		t.Fatalf("resumed waiting run = %s, log %q", d.Status, b.logText(p, waiting))
+	}
+	b.invariantsHold()
+}

@@ -91,12 +91,24 @@ func (m *Manager) stopTx(ctx context.Context, tx *sql.Tx, id, reason, now string
 // Resume queues again a run that is waiting, or that was stopped with work left when its kind can go on from its steps
 // (CanResume). A person's resume is audited (scanning.run_resume). ErrNotFound or ErrNotResumable.
 func (m *Manager) Resume(ctx context.Context, id, by string) error {
+	return m.resume(ctx, id, by, false)
+}
+
+// ResumeWaiting queues again run id only while it is waiting, decided in the transaction that queues it: the box starting what waits
+// for its turn (the scan window, the scan worker, the lane) never undoes a stop that came between its read of the waiting runs and
+// this call, even for a kind whose stopped runs a person may resume. ErrNotFound, or ErrNotResumable for a run that is not waiting.
+func (m *Manager) ResumeWaiting(ctx context.Context, id string) error {
+	return m.resume(ctx, id, System, true)
+}
+
+// resume is Resume, and ResumeWaiting when onlyWaiting is set.
+func (m *Manager) resume(ctx context.Context, id, by string, onlyWaiting bool) error {
 	err := m.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		r, err := m.getTx(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		if !r.CanResume {
+		if !r.CanResume || (onlyWaiting && r.Status != Waiting) {
 			return ErrNotResumable
 		}
 		now := m.now()

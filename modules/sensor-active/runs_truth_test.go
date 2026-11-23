@@ -254,6 +254,75 @@ func TestTruthACheckWaitingForTheWorkerStartsWhenItReports(t *testing.T) {
 	}
 }
 
+// A person's Stop holds: when the scan worker reports, the box reads the checks that wait for it and resumes them, and a Stop pressed
+// between that read and the resume is not undone (a device check is a kind a person may resume, so a plain resume would queue it again).
+func TestTruthAPersonsStopBetweenTheReadAndTheResumeHolds(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, outsideWindow)
+	e.sweptBefore()
+	w := &reportingWorker{}
+	e.withProber(w)
+	m, err := e.svc.StartManual(e.ctx(), "ann@example.com", []string{"a-web"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := waitRun(t, e, m.ID, run.Waiting); r.Status != run.Waiting {
+		t.Fatalf("before the worker reported: %+v", r)
+	}
+	stopped := false
+	sa.SetBeforeBoxResume(e.svc, func(id string) {
+		if id != m.ID {
+			return
+		}
+		stopped = true
+		if err := e.svc.Runs().Stop(context.WithoutCancel(e.ctx()), id, "ann@example.com", ""); err != nil {
+			t.Error(err)
+		}
+	})
+	w.report(false)
+	sa.WaitBackground(e.svc)
+	if !stopped {
+		t.Fatal("the heartbeat did not try to resume the waiting check")
+	}
+	r, err := e.svc.Runs().Read(e.ctx(), m.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Status != run.Stopped || r.StopReason == nil || *r.StopReason != "Stopped by ann@example.com" {
+		t.Fatalf("after the person's Stop and the heartbeat: %s (%s), want stopped by the person", r.Status, r.Summary)
+	}
+	if got := logOf(t, e, m.ID); strings.Contains(got, "Queued again") {
+		t.Fatalf("the box queued the stopped check again: %s", got)
+	}
+}
+
+// A heartbeat that arrives while the module closes starts nothing after Close returned: Close waits for a pass it let start, and a pass
+// that comes after Close began is refused (the check that waits stays waiting for the next start).
+func TestTruthAHeartbeatDuringCloseStartsNothingAfterIt(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, outsideWindow)
+	e.sweptBefore()
+	w := &reportingWorker{}
+	e.withProber(w)
+	m, err := e.svc.StartManual(e.ctx(), "ann@example.com", []string{"a-web"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := waitRun(t, e, m.ID, run.Waiting); r.Status != run.Waiting {
+		t.Fatalf("before the worker reported: %+v", r)
+	}
+	sa.SetBeforeBackground(e.svc, e.svc.Close) // Close runs, to its end, between the heartbeat and its pass
+	w.report(false)
+	sa.WaitBackground(e.svc)
+	r, err := e.svc.Runs().Read(e.ctx(), m.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Status != run.Waiting {
+		t.Fatalf("a pass ran after Close returned: the check is %s (%s), want still waiting", r.Status, r.Summary)
+	}
+}
+
 // A person's check gives up in plain words when the worker never comes back (30 minutes), or comes back saying nmap is missing (at once).
 func TestTruthACheckWaitingForTheWorkerGivesUp(t *testing.T) {
 	t.Parallel()

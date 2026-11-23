@@ -151,7 +151,7 @@ func (s *Service) resumeYielded(ctx context.Context, ending string) {
 		return
 	}
 	s.setYielded(sw.ID, false)
-	if err := s.runs.Resume(ctx, sw.ID, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) {
+	if err := s.resumeWaiting(ctx, sw.ID); err != nil && !errors.Is(err, run.ErrNotResumable) {
 		s.log.WarnContext(ctx, "sensoractive: resuming the pass after the work it gave way to failed", "run", sw.ID, "error", err)
 	}
 }

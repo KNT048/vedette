@@ -461,7 +461,7 @@ func (s *Service) resumeChildren(ctx context.Context, parent string) {
 	}
 	_ = rows.Close()
 	for _, id := range ids {
-		if err := s.runs.Resume(ctx, id, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) {
+		if err := s.resumeWaiting(ctx, id); err != nil && !errors.Is(err, run.ErrNotResumable) {
 			s.log.WarnContext(ctx, "sensoractive: queueing a device check after a sweep failed", "run", id, "error", err)
 		}
 	}

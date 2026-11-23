@@ -119,10 +119,21 @@ const (
 // workerReported is the scan worker's heartbeat (workerReporter.OnReport): the person's checks that wait for it start now, on a goroutine
 // of their own (the heartbeat must not wait), one pass at a time.
 func (s *Service) workerReported() {
-	if s.closed.Load() || !s.waking.CompareAndSwap(false, true) {
+	if !s.waking.CompareAndSwap(false, true) {
+		return
+	}
+	if s.beforeBackground != nil {
+		s.beforeBackground()
+	}
+	// closed is read and the pass counted under bgMu, as Close sets it: Close either refuses the pass or waits for it.
+	s.bgMu.Lock()
+	if s.closed {
+		s.bgMu.Unlock()
+		s.waking.Store(false)
 		return
 	}
 	s.bg.Add(1)
+	s.bgMu.Unlock()
 	go func() {
 		defer s.bg.Done()
 		defer s.waking.Store(false)
@@ -141,6 +152,15 @@ func later(a, b time.Time) time.Time {
 		return b
 	}
 	return a
+}
+
+// resumeWaiting queues again run id that the box read as waiting, only while it still waits (run.ResumeWaiting): a person's Stop that
+// came after the read holds. Every resume the box makes on its own goes through it; a person's Resume and Scan now do not.
+func (s *Service) resumeWaiting(ctx context.Context, id string) error {
+	if s.beforeBoxResume != nil {
+		s.beforeBoxResume(id)
+	}
+	return s.runs.ResumeWaiting(ctx, id)
 }
 
 // workerReportedFor bounds one workerReported pass.
@@ -181,7 +201,7 @@ func (s *Service) resumePersonsChecks(ctx context.Context) {
 		var err error
 		switch {
 		case ready:
-			err = s.runs.Resume(ctx, w.id, run.System)
+			err = s.resumeWaiting(ctx, w.id)
 		case noNmap:
 			err = s.runs.GiveUp(ctx, w.id, gaveUpNoNmap)
 		case !w.since.IsZero() && s.clock().Sub(later(w.since, s.since)) >= personWaitMax: // Vedette off meanwhile: counted from its start
@@ -342,7 +362,7 @@ func (s *Service) drainQueue(ctx context.Context, first bool, limit int, until t
 			return nil
 		}
 		s.expect(id)
-		if err := s.runs.Resume(ctx, id, run.System); err != nil {
+		if err := s.resumeWaiting(ctx, id); err != nil {
 			if errors.Is(err, run.ErrNotResumable) || errors.Is(err, run.ErrNotFound) {
 				continue // a person stopped it meanwhile
 			}
@@ -413,7 +433,7 @@ func (s *Service) followPass(ctx context.Context, id string, turns, resumeOnce b
 			}
 			s.setYielded(id, false)
 			s.expect(id)
-			if err := s.runs.Resume(ctx, id, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) {
+			if err := s.resumeWaiting(ctx, id); err != nil && !errors.Is(err, run.ErrNotResumable) {
 				return r, err
 			}
 			continue
@@ -421,7 +441,7 @@ func (s *Service) followPass(ctx context.Context, id string, turns, resumeOnce b
 		if turns && s.available(ctx) == nil { // a device waiting for its check makes the pass give way after its batch
 			if next, err := s.nextWaitingCheck(ctx); err == nil && next != "" && !tried[next] {
 				tried[next] = true
-				if err := s.runs.Resume(ctx, next, run.System); err != nil && !errors.Is(err, run.ErrNotResumable) {
+				if err := s.resumeWaiting(ctx, next); err != nil && !errors.Is(err, run.ErrNotResumable) {
 					return r, err
 				}
 			}
@@ -510,7 +530,9 @@ func (s *Service) discover(ctx context.Context, base run.Spec) (Result, error) {
 	case sw.Status == run.Waiting:
 		id = sw.ID
 		s.expect(id)
-		if err := s.runs.Resume(ctx, id, run.System); err != nil {
+		if err := s.resumeWaiting(ctx, id); errors.Is(err, run.ErrNotResumable) {
+			return Result{JobID: id}, ErrStopped // a person stopped the pass after it was read as waiting
+		} else if err != nil {
 			return Result{}, err
 		}
 	default:

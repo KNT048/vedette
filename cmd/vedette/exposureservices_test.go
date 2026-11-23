@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -15,7 +17,6 @@ import (
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/sensorlink/linktest"
 	"github.com/knt048/vedette/modules/exposure"
-	"github.com/knt048/vedette/modules/scan/commonports"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
@@ -45,18 +46,41 @@ func startFakeScanWorkerFull(t *testing.T, s *stack, full bool, answer func(sens
 	go func() {
 		defer close(done)
 		for ctx.Err() == nil {
+			// Several jobs in a row can run into the link's rate limit: the worker waits as the answer says, like the real one
+			limited := func(err error) bool {
+				var e *sensorlink.Error
+				if !errors.As(err, &e) || e.Status != 429 {
+					return false
+				}
+				select {
+				case <-ctx.Done():
+				case <-time.After(e.RetryAfter):
+				}
+				return true
+			}
 			if _, err := c.ActiveHeartbeat(ctx, &sensorlink.ActiveHeartbeat{Version: "1.0.0", Nmap: sensorlink.HeartbeatNmap{Present: true, Version: "7.94", Full: full}}); err != nil {
+				if limited(err) {
+					continue
+				}
 				return
 			}
 			rep, err := c.Jobs(ctx, nil, time.Second)
 			if err != nil {
+				if limited(err) {
+					continue
+				}
 				return
 			}
 			for _, j := range rep.Jobs {
 				f.mu.Lock()
 				f.jobs = append(f.jobs, j)
 				f.mu.Unlock()
-				_ = c.PostResult(ctx, j.ID, answer(j))
+				res := answer(j)
+				for {
+					if err := c.PostResult(ctx, j.ID, res); !limited(err) {
+						break
+					}
+				}
 			}
 		}
 	}()
@@ -108,8 +132,17 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	s := newStack(t)
 	s.startRuns()
 	var mu sync.Mutex
-	answer := xmlResult(nmapFixture(t, "external.xml"))
-	w := startFakeScanWorker(t, s, func(sensorlink.Job) *sensorlink.JobResult { mu.Lock(); defer mu.Unlock(); return answer })
+	// The external shape is two jobs: the discovery (no ports; nmap's top ports, 22, 443 and 666 open) and the -sV run (its ports).
+	discovery := xmlResult(bytes.ReplaceAll(nmapFixture(t, "external_top_ports.xml"), []byte("198.51.100.7"), []byte(ownPublicIP.String())))
+	disc, answer := discovery, xmlResult(nmapFixture(t, "external.xml"))
+	w := startFakeScanWorker(t, s, func(j sensorlink.Job) *sensorlink.JobResult {
+		mu.Lock()
+		defer mu.Unlock()
+		if len(j.Ports) == 0 {
+			return disc
+		}
+		return answer
+	})
 	g := &gateFor{ok: true}
 	sc := exposureServicesFor(*s.d, g.gate, nil) // the K-4 scope: ModeNow is never asked
 	for deadline := time.Now().Add(20 * time.Second); strings.Contains(s.d.SensorDispatcher.NmapHealth(), "has not reported"); waitTick(t) {
@@ -124,21 +157,30 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Ports != len(commonports.List) || len(got.Services) != 4 || got.Services[2] != (exposure.ServiceRow{IP: "8.8.8.8", Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)", Method: "probed", Conf: 10}) { // tunnel="ssl"
+	if got.Ports < 1000 || got.Ports != len(got.Probed) || !slices.Contains(got.Probed, 666) || len(got.Services) != 4 || got.Services[2] != (exposure.ServiceRow{IP: "8.8.8.8", Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)", Method: "probed", Conf: 10}) { // tunnel="ssl"
 		t.Fatalf("got %+v", got)
 	}
 	jobs := w.received()
-	if len(jobs) != 1 || jobs[0].Shape != "external" || jobs[0].Rate != 100 || len(jobs[0].Targets) != 1 || jobs[0].Targets[0] != "8.8.8.8" {
+	wantPorts, err := nmapargv.ExternalVersionPorts([]int{22, 443, 666})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 2 || len(jobs[0].Ports) != 0 || !slices.Equal(jobs[1].Ports, wantPorts) {
 		t.Fatalf("jobs = %+v", jobs)
 	}
-	if len(g.actors) != 1 || g.actors[0] != "ops@acme.example" {
+	for _, j := range jobs {
+		if j.Shape != "external" || j.Rate != 100 || len(j.Targets) != 1 || j.Targets[0] != "8.8.8.8" {
+			t.Fatalf("jobs = %+v", jobs)
+		}
+	}
+	if len(g.actors) != 2 || g.actors[0] != "ops@acme.example" || g.actors[1] != "ops@acme.example" {
 		t.Fatalf("the gate was asked as %v", g.actors)
 	}
 
 	refusal := func(name string, res *sensorlink.JobResult, want string) {
 		t.Helper()
 		mu.Lock()
-		answer = res
+		disc, answer = res, res
 		mu.Unlock()
 		_, err := sc.ScanServices(ctx, target, ownPublicIP)
 		var un *exposure.Unavailable
@@ -150,7 +192,7 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	refusal("the worker could not check", &sensorlink.JobResult{Status: "refused", Reason: "egress_unverified", ExitCode: -1}, "could not reach the public IP services to check that 8.8.8.8")
 	refusal("an older worker", &sensorlink.JobResult{Status: "refused", Reason: "invalid_job", ExitCode: -1}, "may be older than the rest of Vedette")
 	mu.Lock()
-	answer = xmlResult(nmapFixture(t, "external_timedout.xml"))
+	disc = xmlResult(nmapFixture(t, "external_timedout.xml"))
 	mu.Unlock()
 	if _, err := sc.ScanServices(ctx, target, ownPublicIP); !errors.Is(err, exposure.ErrServicesTimedOut) { // Its own line
 		t.Fatalf("nmap gave up: err = %v", err)
@@ -169,7 +211,7 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	g.ok = true
 	g.mu.Unlock()
 	mu.Lock()
-	answer = xmlResult(nmapFixture(t, "external_unprobed.xml"))
+	disc, answer = discovery, xmlResult(nmapFixture(t, "external_unprobed.xml"))
 	mu.Unlock()
 	var un *exposure.Unavailable
 	if _, err := sc.ScanServices(ctx, target, ownPublicIP); err == nil || errors.As(err, &un) {
@@ -178,7 +220,7 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 }
 
 // What the page reads when the step cannot run: the module off (nothing asked), the nmap slot busy, a stop by the module's switch;
-// a stop by exposure's own bound stays the context's error, so exposure says "did not finish within 5 minutes".
+// a stop by exposure's own bound stays the context's error, so exposure says "did not finish within 8 minutes".
 func TestExposureServiceScanReasons(t *testing.T) {
 	t.Parallel()
 	ip := ownPublicIP
@@ -196,7 +238,7 @@ func TestExposureServiceScanReasons(t *testing.T) {
 			panic("scanned while the module is off")
 		}, gate: yes}, "Active discovery module is off"},
 		"busy":             {exposureServiceScan{scan: scanErr(sensoractive.ErrBusy), gate: yes}, "busy with another scan"},
-		"no time left":     {exposureServiceScan{scan: scanErr(sensoractive.ErrNoTime), gate: yes}, "too little of the 5 minutes"},
+		"no time left":     {exposureServiceScan{scan: scanErr(sensoractive.ErrNoTime), gate: yes}, "too little of the 8 minutes"},
 		"no check":         {exposureServiceScan{scan: scanErr(fmt.Errorf("%w: %w", sensoractive.ErrWorkerRefused, sensoractive.ErrEgressUnverified)), gate: yes}, "could not reach the public IP services"},
 		"stopped":          {exposureServiceScan{scan: scanErr(sensoractive.ErrStopped), gate: yes}, "module was turned off"},
 		"no worker":        {exposureServiceScan{scan: scanErr(sensoractive.ErrWorkerUnavailable), gate: yes}, "scan container is not available"},
@@ -231,8 +273,7 @@ func TestExposureServiceScanReasons(t *testing.T) {
 	}
 }
 
-// The shape and the step's bound follow the target's mode: the K-4 scope keeps the External shape and 5 minutes exactly as
-// before; accepted terms are the deep scan, the disruptive tick its disruptive shape, both bounded by FullServicesTimeout.
+// The shape and the step's bound follow the target's mode: the K-4 scope keeps the External shape (with its 8 minutes); accepted terms are the deep scan, the disruptive tick its disruptive shape, both bounded by FullServicesTimeout.
 func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 	t.Parallel()
 	for name, c := range map[string]struct {
@@ -259,6 +300,13 @@ func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 	// slot (2 minutes), core's fence (30 s), the worker's (25 s) and the pickup and the result (15 s) around it.
 	if exposure.FullHostLimit != nmapargv.FullHostTimeout || exposure.FullServicesTimeout < nmapargv.FullHostTimeout+2*time.Minute+70*time.Second {
 		t.Fatalf("exposure %s/%s against nmap's %s", exposure.FullServicesTimeout, exposure.FullHostLimit, nmapargv.FullHostTimeout)
+	}
+	// The default scan's two jobs: each the worker's fence (25 s) and the pickup and the result (15 s) around nmap's host timeout,
+	// core's fence (30 s), and room to wait for the nmap slot. exposure's lines name 2 and 3 minutes, 8 minutes and nmap's top 1000.
+	if exposure.ServicesTimeout < nmapargv.ExternalDiscoveryTimeout+nmapargv.ExternalVersionsTimeout+2*40*time.Second+30*time.Second+time.Minute ||
+		exposure.ServicesTimeout != 8*time.Minute || nmapargv.ExternalDiscoveryTimeout != 2*time.Minute || nmapargv.ExternalVersionsTimeout != 3*time.Minute ||
+		nmapargv.ExternalTopPorts != 1000 {
+		t.Fatalf("exposure %s against nmap's %s + %s", exposure.ServicesTimeout, nmapargv.ExternalDiscoveryTimeout, nmapargv.ExternalVersionsTimeout)
 	}
 }
 

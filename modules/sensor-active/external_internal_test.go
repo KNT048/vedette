@@ -30,7 +30,7 @@ func readExternal(data []byte) (External, error) {
 	if err != nil {
 		return External{}, err
 	}
-	ext, err := versionsOf(all, ownIP, externalPorts)
+	ext, err := versionsOf(all, ownIP, externalPorts, false)
 	ext.Ports = len(externalPorts)
 	return ext, err
 }
@@ -47,7 +47,7 @@ func readDiscovery(data []byte) (scanned, open []int, err error) {
 // The discovery of the External shape (nmap's --top-ports 1000, SYN only): the ports it probed are read back from nmap's own
 // <scaninfo services>, never from a list of Vedette's; its open ports are those of the host. Anything but exactly the 1000 ports
 // asked fails closed, as does an open port outside them; more than commonports.MaxBelievableOpen open is ErrAnswersEverywhere
-// before any -sV run; a host nmap gave up on is ErrHostTimedOut.
+// (the -sV run then reads the fixed list alone); a host nmap gave up on is ErrHostTimedOut.
 func TestExternalDiscoveryReadsTheProbedPortsFromScaninfo(t *testing.T) {
 	t.Parallel()
 	base := string(fixture(t, "external_top_ports.xml"))
@@ -78,11 +78,31 @@ func TestExternalDiscoveryReadsTheProbedPortsFromScaninfo(t *testing.T) {
 		"41 open ports":            {strings.Replace(base, "</ports>", many.String()+"</ports>", 1), ErrAnswersEverywhere},
 		"nmap gave up on the host": {strings.Replace(base, `<host starttime`, `<host timedout="true" starttime`, 1), ErrHostTimedOut},
 		"another address":          {strings.Replace(base, `addr="198.51.100.7"`, `addr="198.51.100.8"`, 1), errXMLInvalid},
+		"the earlier fixed line":   {strings.Replace(base, `services="1-1000"`, `services="`+nmapargv.ExtraPorts+`"`, 1), errXMLInvalid},
 	} {
 		if _, _, err := readDiscovery([]byte(c.data)); !errors.Is(err, c.want) {
 			t.Errorf("%s: err = %v, want %v", name, err, c.want)
 		}
 	}
+	// A worker of an earlier release runs its external line (-sV over exactly the surface list) for the discovery job: said as an
+	// older worker, never as output to believe. A count other than 1000 is named in the error the probe row reads.
+	old := strings.Replace(base, `services="1-1000"`, `services="`+plainList(commonports.Numbers())+`"`, 1)
+	if _, _, err := readDiscovery([]byte(old)); !errors.Is(err, errOlderShape) || !errors.Is(err, ErrWorkerRefused) {
+		t.Errorf("the earlier line: err = %v", err)
+	}
+	var count *topPortsError
+	if _, _, err := readDiscovery([]byte(strings.Replace(base, `services="1-1000"`, `services="1-999"`, 1))); !errors.As(err, &count) || count.n != 999 {
+		t.Errorf("999 ports: err = %v", err)
+	}
+}
+
+// plainList writes ports as a comma-separated list.
+func plainList(ns []int) string {
+	ss := make([]string, len(ns))
+	for i, n := range ns {
+		ss[i] = fmt.Sprint(n)
+	}
+	return strings.Join(ss, ",")
 }
 
 // Count test: the TCP ports the default scan of the box's own public IP probes. Before, the external shape named exactly the
@@ -291,7 +311,8 @@ func TestExternalServicesFromTheXML(t *testing.T) {
 }
 
 // An HTTPS page on 4443 (name="http" tunnel="ssl") reaches exposure as "ssl/http", so its templates speak TLS; an
-// address with 60 of the -sV run's ports open (a router or SYN proxy answering for all of them) is ErrAnswersEverywhere, never 60 services.
+// address with 60 of the -sV run's ports open (a router or SYN proxy answering for all of them) keeps only the ports where -sV
+// named a real service, never 60 tcpwrapped services, and says it answers everywhere.
 func TestExternalTLSTunnelAndAnswersEverywhere(t *testing.T) {
 	t.Parallel()
 	base := string(fixture(t, "external.xml"))
@@ -305,14 +326,19 @@ func TestExternalTLSTunnelAndAnswersEverywhere(t *testing.T) {
 	for _, p := range externalPorts[:60] {
 		fmt.Fprintf(&tarpit, `<port protocol="tcp" portid="%d"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="tcpwrapped" method="probed" conf="8"/></port>`, p)
 	}
-	if got, err := readExternal([]byte(strings.Replace(base, ports, tarpit.String(), 1))); !errors.Is(err, ErrAnswersEverywhere) {
-		t.Fatalf("tarpit: %d services, %v", len(got.Services), err)
+	if got, err := readExternal([]byte(strings.Replace(base, ports, tarpit.String(), 1))); err != nil || !got.AnswersEverywhere || len(got.Services) != 0 {
+		t.Fatalf("tarpit: %d services, everywhere %v, %v", len(got.Services), got.AnswersEverywhere, err)
+	}
+	last := externalPorts[len(externalPorts)-1]
+	named := fmt.Sprintf(`<port protocol="tcp" portid="%d"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="http" product="lighttpd" method="probed" conf="10"/></port>`, last)
+	if got, err := readExternal([]byte(strings.Replace(base, ports, tarpit.String()+named, 1))); err != nil || !got.AnswersEverywhere || len(got.Services) != 1 || got.Services[0].Port != last {
+		t.Fatalf("tarpit with a real service: %+v, %v", got.Services, err)
 	}
 	var forty strings.Builder // exactly the limit is still believed
 	for _, p := range externalPorts[:40] {
 		fmt.Fprintf(&forty, `<port protocol="tcp" portid="%d"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="tcpwrapped" method="probed" conf="8"/></port>`, p)
 	}
-	if got, err := readExternal([]byte(strings.Replace(base, ports, forty.String(), 1))); err != nil || len(got.Services) != 40 {
+	if got, err := readExternal([]byte(strings.Replace(base, ports, forty.String(), 1))); err != nil || len(got.Services) != 40 || got.AnswersEverywhere {
 		t.Fatalf("40 open: %d services, %v", len(got.Services), err)
 	}
 }
@@ -356,6 +382,25 @@ func TestExternalOutputFailsClosed(t *testing.T) {
 	} {
 		if got, err := readExternal([]byte(data)); !errors.Is(err, errXMLInvalid) {
 			t.Errorf("%s: %+v %v", name, got, err)
+		}
+	}
+}
+
+// identifiedService keeps a port where -sV named a real service and drops what a SYN proxy prints on every port.
+func TestIdentifiedService(t *testing.T) {
+	t.Parallel()
+	for x, want := range map[ExternalService]bool{
+		{Port: 22, Name: "ssh", Product: "OpenSSH", Method: "probed", Conf: 10}: true,
+		{Port: 8443, Name: "ssl/http", Version: "2.4.49", Method: "probed"}:     true,
+		{Port: 443, Name: "ssl/https", Method: "probed", Conf: 10}:              true,
+		{Port: 10443, Name: "tcpwrapped", Method: "probed", Conf: 8}:            false,
+		{Port: 10444, Name: "ssl/tcpwrapped", Method: "probed"}:                 false,
+		{Port: 9999, Name: "unknown", Method: "probed"}:                         false,
+		{Port: 3306, Name: "mysql", Method: "table", Conf: 3}:                   false,
+		{Port: 3307}: false,
+	} {
+		if identifiedService(x) != want {
+			t.Errorf("%+v: %v", x, !want)
 		}
 	}
 }

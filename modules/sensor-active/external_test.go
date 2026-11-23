@@ -149,32 +149,82 @@ func TestScanExternalThroughTheWorker(t *testing.T) {
 	}
 }
 
-// A discovery that finds more open ports than are believable (a router or SYN proxy answering for every port) ends the run before
-// any -sV is sent: one nmap job, ErrAnswersEverywhere, the probe row says why.
-func TestScanExternalStopsAfterADiscoveryThatAnswersEverywhere(t *testing.T) {
-	t.Parallel()
+// discoveryVariant is the discovery fixture about the box's address with edit applied, written to a temporary file.
+func discoveryVariant(t *testing.T, edit func([]byte) []byte) string {
+	t.Helper()
 	b, err := os.ReadFile(discoveryFixture(t, boxIP))
 	if err != nil {
 		t.Fatal(err)
 	}
+	p := filepath.Join(t.TempDir(), "variant.xml")
+	if err := os.WriteFile(p, edit(b), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// The fixed list always gets its -sV run, whatever the discovery said. A discovery that hit its host timeout, or whose output is not
+// believed (a <scaninfo> that is not the top 1000), is followed by the -sV run over the fixed list alone: Probed is that list and
+// DiscoveryCut says why. A discovery that saw the address answer on almost every port (a router or SYN proxy) is followed by the -sV
+// run over the fixed list alone, and only the ports where -sV named a real service are kept (10443's tcpwrapped is dropped).
+// The -sV options are those of the shape before the discovery existed.
+func TestScanExternalAlwaysReadsTheFixedList(t *testing.T) {
+	t.Parallel()
 	var many strings.Builder
 	for p := range 60 {
 		fmt.Fprintf(&many, `<port protocol="tcp" portid="%d"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="tcpwrapped" method="table" conf="3"/></port>`, 100+p)
 	}
-	p := filepath.Join(t.TempDir(), "everywhere.xml")
-	if err := os.WriteFile(p, bytes.Replace(b, []byte("</ports>"), []byte(many.String()+"</ports>"), 1), 0o600); err != nil { //nolint:gosec // a file of the test's own temp directory
+	fixed := make([]string, len(nmapargv.ExtraPortNumbers))
+	for i, p := range nmapargv.ExtraPortNumbers {
+		fixed[i] = strconv.Itoa(p)
+	}
+	wantArgv := []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", strings.Join(fixed, ","), "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
+	fx, err := filepath.Abs(filepath.Join("testdata", "external.xml"))
+	if err != nil {
 		t.Fatal(err)
 	}
-	e := externalEnvWithNmap(t, boxIP, fakeOpts{always: p})
-	_, err = e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, &ownFence{ok: []netip.Addr{boxIP}})
-	if !errors.Is(err, sa.ErrAnswersEverywhere) {
-		t.Fatalf("err = %v", err)
-	}
-	if n := len(e.nm.calls(t)); n != 1 {
-		t.Fatalf("nmap ran %d times", n)
-	}
-	if r := e.str(`SELECT result FROM sa_probe`); !strings.HasPrefix(r, "failed: the address answers on almost every port") {
-		t.Fatalf("probe result = %s", r)
+	for name, c := range map[string]struct {
+		edit       func([]byte) []byte
+		cut, every bool
+		services   int
+		discovery  string
+	}{
+		"discovery timed out": {func(b []byte) []byte {
+			return bytes.Replace(b, []byte("<host starttime"), []byte(`<host timedout="true" starttime`), 1)
+		}, true, false, 4,
+			"failed: nmap gave up on the address at its host timeout"},
+		"discovery not believed": {func(b []byte) []byte {
+			return bytes.Replace(b, []byte(`services="1-1000"`), []byte(`services="1-999"`), 1)
+		}, true, false, 4,
+			"failed: nmap probed 999 ports, not its top 1000; output discarded"},
+		"answers everywhere": {func(b []byte) []byte {
+			return bytes.Replace(b, []byte("</ports>"), []byte(many.String()+"</ports>"), 1)
+		}, false, true, 3,
+			"ok: more than 40 ports open, the address answers on almost every port; -sV reads the fixed list next"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e := externalEnvWithNmap(t, boxIP, fakeOpts{always: fx, topPorts: discoveryVariant(t, c.edit)})
+			got, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, &ownFence{ok: []netip.Addr{boxIP}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.DiscoveryCut != c.cut || got.AnswersEverywhere != c.every || !slices.Equal(got.Probed, nmapargv.ExtraPortNumbers) ||
+				got.Ports != len(nmapargv.ExtraPortNumbers) || len(got.Services) != c.services {
+				t.Fatalf("got cut=%v everywhere=%v %d ports, services %+v", got.DiscoveryCut, got.AnswersEverywhere, got.Ports, got.Services)
+			}
+			for _, x := range got.Services {
+				if x.Name == "tcpwrapped" && c.every {
+					t.Fatalf("kept a tcpwrapped port: %+v", x)
+				}
+			}
+			if calls := e.nm.calls(t); len(calls) != 2 || !slices.Equal(calls[1], wantArgv) {
+				t.Fatalf("nmap argv = %q", calls)
+			}
+			if r := e.str(`SELECT result FROM sa_probe ORDER BY id LIMIT 1`); r != c.discovery {
+				t.Fatalf("discovery row = %s", r)
+			}
+		})
 	}
 }
 

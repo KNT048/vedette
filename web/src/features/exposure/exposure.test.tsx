@@ -1394,7 +1394,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(tls).getByText('certificate for nas01.acme.example, backup.acme.example')).toBeInTheDocument()
     expect(within(services).queryByText(/^ssl\/unknown$|^sip$/)).toBeNull()
     const checked = screen.getByRole('list', { name: 'Checked' })
-    expect(within(checked).getByText(/Service identification \(nmap -sV\) on 1052 TCP ports: 2 services identified, 1 named by port number only, 2 not identified\./)).toBeInTheDocument()
+    expect(within(checked).getByText(/Port scan \(nmap\) of 1052 TCP ports, then service identification \(nmap -sV\) of the open ones: 2 services identified, 1 named by port number only, 2 not identified\./)).toBeInTheDocument()
     expect(within(checked).getByText(/2 of 5 services compared with today's CISA list of exploited vulnerabilities/)).toBeInTheDocument()
     const not = screen.getByRole('list', { name: 'Not checked' })
     for (const line of ['UDP ports: the scan connects over TCP only.', "TCP ports other than the 1052 ports this scan probed: nmap's 1000 most common ports and the fixed list of commonly exposed ports.", /only the CISA list of exploited vulnerabilities \(KEV\) is compared/]) expect(within(not).getByText(line)).toBeInTheDocument()

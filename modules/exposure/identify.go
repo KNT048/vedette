@@ -95,6 +95,11 @@ type ServiceScan struct {
 	// Probed are the TCP ports the default scan probed, ascending: nmap's own most common ports (as nmap said it probed them) and
 	// the fixed list. nil when the scanner does not say (a deep scan, which probes every port).
 	Probed []int
+	// DiscoveryCut: nmap's search of its most common ports did not finish, so Probed is only the fixed list the -sV run read.
+	DiscoveryCut bool
+	// AnswersEverywhere: the address answers on almost every port (a router or SYN proxy); Services holds only the ports of the fixed
+	// list where -sV named a real service.
+	AnswersEverywhere bool
 	// The NSE script results of a deep scan (ScanMode.Full): nmap's "default", "safe" and
 	// "vuln" scripts (and "dos", "brute" with the disruptive tick) on the open ports and the host. Untrusted; sanitizeScripts
 	// limits them before they are stored. nil for a scan that is not deep.
@@ -175,11 +180,17 @@ var (
 const (
 	notUDP          = "UDP ports: the scan connects over TCP only."
 	notOtherPortsIP = "TCP ports outside the fixed list of commonly exposed ports."
-	// notOtherPortsProbed replaces notOtherPortsIP once service identification said which ports it probed (%s: "1052 ports").
+	// notOtherPortsProbed replaces notOtherPortsIP once service identification said which ports it probed (%s: "1052 ports");
+	// notOtherPortsCut when its search of nmap's most common ports did not finish ("2 minutes": nmapargv.ExternalDiscoveryTimeout).
 	notOtherPortsProbed = "TCP ports other than the %s this scan probed: nmap's 1000 most common ports and the fixed list of commonly exposed ports."
-	notOtherPortsDom    = "Other ports of the names under this domain: names get web checks by name only; ports are scanned only on the box's own verified public IP."
-	notNonExploited     = "Vulnerabilities that are not known to be exploited: only the CISA list of exploited vulnerabilities (KEV) is compared."
-	notServicesDom      = "Service identification (nmap -sV): it runs on the box's own verified public IP only, not on the names of a domain."
+	notOtherPortsCut    = "TCP ports outside the fixed list of commonly exposed ports: nmap's search of its 1000 most common ports did not finish this time."
+	// notAnswersEverywhereKept is the line of a default scan of an address that answers on almost every port: service
+	// identification still read the fixed list, and only the ports where a service named itself were kept ("40":
+	// commonports.MaxBelievableOpen).
+	notAnswersEverywhereKept = "More than 40 ports answered, more than a normal box exposes: a router or firewall that answers for every port looks like this. Only the ports of the fixed list where a service named itself were kept; the other ports may be the firewall answering."
+	notOtherPortsDom         = "Other ports of the names under this domain: names get web checks by name only; ports are scanned only on the box's own verified public IP."
+	notNonExploited          = "Vulnerabilities that are not known to be exploited: only the CISA list of exploited vulnerabilities (KEV) is compared."
+	notServicesDom           = "Service identification (nmap -sV): it runs on the box's own verified public IP only, not on the names of a domain."
 	// NotSetUpServices is the line of every scan while no ServiceScanner is wired (the scan container's nmap -sV is not set up).
 	NotSetUpServices = "Service identification (nmap -sV) is not set up on this box yet."
 	notServicesFail  = "Service identification (nmap -sV) failed, so no service versions were read. The box log has the error."
@@ -308,7 +319,10 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: NotSetUpServices})
 		return s.runTemplates(ctx, st, netip.Addr{}, c) // no services, so it only says why it did not run
 	}
-	if answersEverywhere(c.Ports, ip) { // The surface scan already saw it; nmap -sV is not sent at all
+	// The surface scan already saw the address answer on almost every port. A deep scan is not sent (-sV on every port of a SYN
+	// proxy would only run into its hour); the default scan still reads the fixed list and keeps the ports that named a service.
+	surfaceEverywhere := answersEverywhere(c.Ports, ip)
+	if surfaceEverywhere && st.Mode.Full {
 		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notAnswersEverywhere})
 		return c, nil
@@ -326,21 +340,31 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			}
 		}
 		c.Services = append(c.Services, got...)
+		if !st.Mode.Full && (res.AnswersEverywhere || surfaceEverywhere) {
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notAnswersEverywhereKept})
+		}
 		if probed := sanitizeProbed(res.Probed); !st.Mode.Full && len(probed) > 0 { // INV-22: the ports this scan checked on ip
 			if c.Probed == nil {
 				c.Probed = map[string][]int{}
 			}
 			c.Probed[ip.String()] = probed
+			line := fmt.Sprintf(notOtherPortsProbed, plural(len(probed), "port"))
+			if res.DiscoveryCut {
+				line = notOtherPortsCut
+			}
 			for i, n := range c.NotChecked {
 				if n.Kind == "ports" && n.Text == notOtherPortsIP {
-					c.NotChecked[i].Text = fmt.Sprintf(notOtherPortsProbed, plural(len(probed), "port"))
+					c.NotChecked[i].Text = line
 				}
 			}
 		}
 		// Only what a probe named counts as identified; the guesses and the unknown ones are said apart
 		read := servicesRead(got)
 		text := fmt.Sprintf("Service identification (nmap -sV): %s.", read)
-		if res.Ports > 0 {
+		switch {
+		case !st.Mode.Full && len(res.Probed) > 0: // the default scan: -sV read only the open ones of the ports it probed
+			text = fmt.Sprintf("Port scan (nmap) of %s, then service identification (nmap -sV) of the open ones: %s.", plural(len(sanitizeProbed(res.Probed)), "TCP port"), read)
+		case res.Ports > 0:
 			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s.", plural(res.Ports, "TCP port"), read)
 		}
 		if st.Mode.Full { // the script results of the deep scan, kept apart from the services

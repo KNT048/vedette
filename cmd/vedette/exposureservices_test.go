@@ -191,8 +191,8 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 	refusal("the worker's fence", &sensorlink.JobResult{Status: "refused", Reason: "not_own_ip", ExitCode: -1}, "no longer reaches the Internet through 8.8.8.8")
 	refusal("the worker could not check", &sensorlink.JobResult{Status: "refused", Reason: "egress_unverified", ExitCode: -1}, "could not reach the public IP services to check that 8.8.8.8")
 	refusal("an older worker", &sensorlink.JobResult{Status: "refused", Reason: "invalid_job", ExitCode: -1}, "may be older than the rest of Vedette")
-	mu.Lock()
-	disc = xmlResult(nmapFixture(t, "external_timedout.xml"))
+	mu.Lock() // the discovery gave up, the -sV run of the fixed list that still follows gave up too
+	disc, answer = xmlResult(nmapFixture(t, "external_timedout.xml")), xmlResult(nmapFixture(t, "external_timedout.xml"))
 	mu.Unlock()
 	if _, err := sc.ScanServices(ctx, target, ownPublicIP); !errors.Is(err, exposure.ErrServicesTimedOut) { // Its own line
 		t.Fatalf("nmap gave up: err = %v", err)

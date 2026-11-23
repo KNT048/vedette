@@ -61,8 +61,9 @@ var List = []Port{
 //   - it bounds the -sV run: nmap reads about 20 ports at a time at the default timing, so 40 identifications fit the external
 //     shape's 3-minute host timeout.
 //
-// With more open than this, exposure skips service identification and the template checks and says why; sensor-active's external
-// discovery stops before any -sV is sent (its -sV run and the full shapes discard their rows the same way).
+// With more open than this, the default scan of the public IP still runs -sV over the fixed list (never skipped: real services sit
+// behind SYN proxies too) and keeps only the ports where -sV named a real service, dropping the tcpwrapped rows of the proxy, and
+// exposure says the address answers everywhere; the deep scan (every port) is not sent, and its rows are discarded the same way.
 const MaxBelievableOpen = 40
 
 // Numbers returns the port numbers of List, in its order (ascending).

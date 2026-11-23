@@ -38,8 +38,9 @@ const (
 	// the same name: first port discovery (-sS, no -sV) over nmap's own ExternalTopPorts most common TCP ports (--top-ports, read
 	// from the nmap-services of the nmap the box installed, never copied here), then -sS -sV over ExtraPortNumbers (the surface
 	// scan's list, commonports, and the reviewed admin ports) plus the ports the discovery found open outside it (FlagsFor with
-	// ports, at most commonports.MaxBelievableOpen of them). -sV only ever reads open ports, so it runs on the open ports only, and a
-	// discovery with more than commonports.MaxBelievableOpen open ends before any -sV is sent. Both at ExternalRate, with no -O and
+	// ports, at most commonports.MaxBelievableOpen of them). -sV only ever reads open ports, so it runs on the open ports only. The
+	// fixed list always gets its -sV run: after a discovery that failed, hit its host timeout or saw more than
+	// commonports.MaxBelievableOpen open, the -sV run names the fixed list alone. Both at ExternalRate, with no -O and
 	// no --script (only what -sV runs itself). It is the only shape whose target is public outside the full ones, and it takes
 	// exactly one; every other shape takes local addresses only. Whether the address is the box's own is not grammar: core checks
 	// it before it hands each job out, the worker again before nmap.

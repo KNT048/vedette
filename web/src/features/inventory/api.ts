@@ -30,6 +30,13 @@ export const useDevice = (id: string, enabled = true) => useQuery({ queryKey: ['
   refetchInterval: (q) => (q.state.status === 'error' ? false : devicePoll.ms) })
 /** The device's three source rows (network scan, SNMP, agent), each decided on the server. `modules` names the state of the modules
  *  behind them, so turning one on or off (from a row or from Settings) reads the rows again. */
+/** The box's own agent reads its packages and ports now: its source rows come back read, and the device page reads the box again. */
+export function useBoxCheck(id: string) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: () => api.post<DeviceSourcesView>('/inventory/box/check'), onSuccess: () => {
+    void qc.invalidateQueries({ queryKey: ['inventory', 'device', id] })
+  } })
+}
 export const useDeviceSourceRows = (id: string, modules: string, enabled = true) =>
   useQuery({ queryKey: ['inventory', 'device', id, 'sources', modules], queryFn: () => api.get<DeviceSourcesView>(`/inventory/devices/${encodeURIComponent(id)}/sources`), retry: false, enabled: enabled && id !== '' })
 /** The contract allows at most 80 characters in `q` (the backend answers 400 above that; the mock clips). A pasted long text is clipped here so suggestions keep working. */

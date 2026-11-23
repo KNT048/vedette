@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, screen, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { modulesStore, sessionStore } from '@/mocks/stores'
@@ -43,6 +43,21 @@ describe('Device page: Sources, three rows from the server', () => {
     await expectNoA11yViolations(container)
     await user.click(within(agent).getByRole('button', { name: 'Create agent token' }))
     expect(await screen.findByRole('dialog', { name: 'Install osquery on SRV-AD' }, T)).toBeInTheDocument()
+  })
+
+  it('the box\'s own agent is a row like any agent: reporting, its last and next report, and Check now reads it at once', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/a-box', { role: 'operator' })
+    await sources()
+    expect(await row('scan')).toHaveTextContent('Not scanned: the box lists its own open ports')
+    expect(await row('snmp')).toHaveTextContent('Not needed: the box reads itself')
+    const agent = await row('agent')
+    expect(agent).toHaveTextContent('Reporting (this box)')
+    expect(agent).toHaveTextContent(/last report 20 minutes ago/)
+    expect(agent).toHaveTextContent(/next report in 40 minutes/)
+    await user.click(within(agent).getByRole('button', { name: 'Check now' }))
+    expect(await screen.findByText('The box read its packages and open ports again.', undefined, T)).toBeInTheDocument()
+    await waitFor(async () => expect(await row('agent')).toHaveTextContent(/next report in (60 minutes|1 hour)/), T)
   })
 
   it('a module that is off: the row says so and offers to turn it on; a person who is not an administrator is told who can', async () => {

@@ -245145,6 +245145,10 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) encodeFields(e *jx.Enc
 		s.LastAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("next_at")
+		s.NextAt.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("source")
 		s.Source.Encode(e)
 	}
@@ -245162,15 +245166,16 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) encodeFields(e *jx.Enc
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDSourcesOKRowsItem = [8]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDSourcesOKRowsItem = [9]string{
 	0: "action",
 	1: "agent",
 	2: "dot",
 	3: "last_at",
-	4: "source",
-	5: "state",
-	6: "switch",
-	7: "token",
+	4: "next_at",
+	5: "source",
+	6: "state",
+	7: "switch",
+	8: "token",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDSourcesOKRowsItem from json.
@@ -245178,7 +245183,7 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) Decode(d *jx.Decoder) 
 	if s == nil {
 		return errors.New("invalid: unable to decode InventoryGetInventoryDevicesIDSourcesOKRowsItem to nil")
 	}
-	var requiredBitSet [1]uint8
+	var requiredBitSet [2]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -245222,8 +245227,18 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) Decode(d *jx.Decoder) 
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_at\"")
 			}
-		case "source":
+		case "next_at":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.NextAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_at\"")
+			}
+		case "source":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Source.Decode(d); err != nil {
 					return err
@@ -245233,7 +245248,7 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "state":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -245243,7 +245258,7 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"state\"")
 			}
 		case "switch":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Switch.Decode(d); err != nil {
 					return err
@@ -245253,7 +245268,7 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"switch\"")
 			}
 		case "token":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.Token.Decode(d); err != nil {
 					return err
@@ -245271,8 +245286,9 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) Decode(d *jx.Decoder) 
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
+	for i, mask := range [2]uint8{
 		0b11111111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -245350,6 +245366,8 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemAction) Decode(d *jx.Dec
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemActionShowSetup
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemActionCheck:
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemActionCheck
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemActionBoxCheck:
+		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemActionBoxCheck
 	default:
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemAction(v)
 	}
@@ -258239,6 +258257,967 @@ func (s *InventoryPostInventoryAgentsWazuhTestReq) MarshalJSON() ([]byte, error)
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InventoryPostInventoryAgentsWazuhTestReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryPostInventoryBoxCheckOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryPostInventoryBoxCheckOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("manual_at")
+		s.ManualAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("only")
+		s.Only.Encode(e)
+	}
+	{
+		e.FieldStart("rows")
+		e.ArrStart()
+		for _, elem := range s.Rows {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfInventoryPostInventoryBoxCheckOK = [3]string{
+	0: "manual_at",
+	1: "only",
+	2: "rows",
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOK from json.
+func (s *InventoryPostInventoryBoxCheckOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "manual_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.ManualAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"manual_at\"")
+			}
+		case "only":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Only.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"only\"")
+			}
+		case "rows":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.Rows = make([]InventoryPostInventoryBoxCheckOKRowsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem InventoryPostInventoryBoxCheckOKRowsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Rows = append(s.Rows, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"rows\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryPostInventoryBoxCheckOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryPostInventoryBoxCheckOK) {
+					name = jsonFieldsNameOfInventoryPostInventoryBoxCheckOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryPostInventoryBoxCheckOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKOnly as json.
+func (s InventoryPostInventoryBoxCheckOKOnly) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKOnly from json.
+func (s *InventoryPostInventoryBoxCheckOKOnly) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOKOnly to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryPostInventoryBoxCheckOKOnly(v) {
+	case InventoryPostInventoryBoxCheckOKOnlyPassive:
+		*s = InventoryPostInventoryBoxCheckOKOnlyPassive
+	case InventoryPostInventoryBoxCheckOKOnlyManual:
+		*s = InventoryPostInventoryBoxCheckOKOnlyManual
+	default:
+		*s = InventoryPostInventoryBoxCheckOKOnly(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryPostInventoryBoxCheckOKOnly) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKOnly) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("action")
+		s.Action.Encode(e)
+	}
+	{
+		e.FieldStart("agent")
+		s.Agent.Encode(e)
+	}
+	{
+		e.FieldStart("dot")
+		s.Dot.Encode(e)
+	}
+	{
+		e.FieldStart("last_at")
+		s.LastAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("next_at")
+		s.NextAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("source")
+		s.Source.Encode(e)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("switch")
+		s.Switch.Encode(e)
+	}
+	{
+		e.FieldStart("token")
+		s.Token.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfInventoryPostInventoryBoxCheckOKRowsItem = [9]string{
+	0: "action",
+	1: "agent",
+	2: "dot",
+	3: "last_at",
+	4: "next_at",
+	5: "source",
+	6: "state",
+	7: "switch",
+	8: "token",
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItem from json.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOKRowsItem to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "action":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "agent":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Agent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"agent\"")
+			}
+		case "dot":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Dot.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dot\"")
+			}
+		case "last_at":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.LastAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_at\"")
+			}
+		case "next_at":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.NextAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"next_at\"")
+			}
+		case "source":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Source.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "switch":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.Switch.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"switch\"")
+			}
+		case "token":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.Token.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"token\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryPostInventoryBoxCheckOKRowsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryPostInventoryBoxCheckOKRowsItem) {
+					name = jsonFieldsNameOfInventoryPostInventoryBoxCheckOKRowsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemAction as json.
+func (s InventoryPostInventoryBoxCheckOKRowsItemAction) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemAction from json.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemAction) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOKRowsItemAction to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryPostInventoryBoxCheckOKRowsItemAction(v) {
+	case InventoryPostInventoryBoxCheckOKRowsItemActionTurnOnModule:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionTurnOnModule
+	case InventoryPostInventoryBoxCheckOKRowsItemActionScanNow:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionScanNow
+	case InventoryPostInventoryBoxCheckOKRowsItemActionApprove:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionApprove
+	case InventoryPostInventoryBoxCheckOKRowsItemActionSetUp:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionSetUp
+	case InventoryPostInventoryBoxCheckOKRowsItemActionCheckNow:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionCheckNow
+	case InventoryPostInventoryBoxCheckOKRowsItemActionCreateToken:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionCreateToken
+	case InventoryPostInventoryBoxCheckOKRowsItemActionShowSetup:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionShowSetup
+	case InventoryPostInventoryBoxCheckOKRowsItemActionCheck:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionCheck
+	case InventoryPostInventoryBoxCheckOKRowsItemActionBoxCheck:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemActionBoxCheck
+	default:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemAction(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemAction) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemAction) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemAgent as json.
+func (s InventoryPostInventoryBoxCheckOKRowsItemAgent) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemAgent from json.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemAgent) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOKRowsItemAgent to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryPostInventoryBoxCheckOKRowsItemAgent(v) {
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentOsquery:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemAgentOsquery
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentWazuh:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemAgentWazuh
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentBox:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemAgentBox
+	case InventoryPostInventoryBoxCheckOKRowsItemAgentNone:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemAgentNone
+	default:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemAgent(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemAgent) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemAgent) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemDot as json.
+func (s InventoryPostInventoryBoxCheckOKRowsItemDot) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemDot from json.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemDot) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOKRowsItemDot to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryPostInventoryBoxCheckOKRowsItemDot(v) {
+	case InventoryPostInventoryBoxCheckOKRowsItemDotGreen:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemDotGreen
+	case InventoryPostInventoryBoxCheckOKRowsItemDotAmber:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemDotAmber
+	case InventoryPostInventoryBoxCheckOKRowsItemDotRed:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemDotRed
+	case InventoryPostInventoryBoxCheckOKRowsItemDotGrey:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemDotGrey
+	default:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemDot(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemDot) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemDot) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemSource as json.
+func (s InventoryPostInventoryBoxCheckOKRowsItemSource) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemSource from json.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemSource) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOKRowsItemSource to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryPostInventoryBoxCheckOKRowsItemSource(v) {
+	case InventoryPostInventoryBoxCheckOKRowsItemSourceScan:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSourceScan
+	case InventoryPostInventoryBoxCheckOKRowsItemSourceSnmp:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSourceSnmp
+	case InventoryPostInventoryBoxCheckOKRowsItemSourceAgent:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSourceAgent
+	default:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSource(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemSource) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemSource) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemState as json.
+func (s InventoryPostInventoryBoxCheckOKRowsItemState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemState from json.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOKRowsItemState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryPostInventoryBoxCheckOKRowsItemState(v) {
+	case InventoryPostInventoryBoxCheckOKRowsItemStateModuleOff:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateModuleOff
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNoAddress:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNoAddress
+	case InventoryPostInventoryBoxCheckOKRowsItemStateOff:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateOff
+	case InventoryPostInventoryBoxCheckOKRowsItemStateWaiting:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateWaiting
+	case InventoryPostInventoryBoxCheckOKRowsItemStateWorking:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateWorking
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNotApproved:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNotApproved
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNotSetUp:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNotSetUp
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNotAnswering:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNotAnswering
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNone:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNone
+	case InventoryPostInventoryBoxCheckOKRowsItemStateReporting:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateReporting
+	case InventoryPostInventoryBoxCheckOKRowsItemStateQuiet:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateQuiet
+	case InventoryPostInventoryBoxCheckOKRowsItemStateNeverReported:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateNeverReported
+	case InventoryPostInventoryBoxCheckOKRowsItemStateReplaced:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateReplaced
+	case InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable
+	case InventoryPostInventoryBoxCheckOKRowsItemStateBox:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateBox
+	case InventoryPostInventoryBoxCheckOKRowsItemStateIgnored:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateIgnored
+	default:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemSwitch as json.
+func (s InventoryPostInventoryBoxCheckOKRowsItemSwitch) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemSwitch from json.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemSwitch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOKRowsItemSwitch to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryPostInventoryBoxCheckOKRowsItemSwitch(v) {
+	case InventoryPostInventoryBoxCheckOKRowsItemSwitchOn:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSwitchOn
+	case InventoryPostInventoryBoxCheckOKRowsItemSwitchOff:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSwitchOff
+	default:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemSwitch(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemSwitch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemSwitch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("created_at")
+		json.EncodeDateTime(e, s.CreatedAt)
+	}
+	{
+		e.FieldStart("created_by")
+		s.CreatedBy.Encode(e)
+	}
+	{
+		e.FieldStart("device_id")
+		s.DeviceID.Encode(e)
+	}
+	{
+		e.FieldStart("expires_at")
+		s.ExpiresAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("hosts")
+		e.Int(s.Hosts)
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("last4")
+		e.Str(s.Last4)
+	}
+	{
+		e.FieldStart("last_received")
+		s.LastReceived.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfInventoryPostInventoryBoxCheckOKRowsItemToken = [10]string{
+	0: "created_at",
+	1: "created_by",
+	2: "device_id",
+	3: "expires_at",
+	4: "hosts",
+	5: "id",
+	6: "kind",
+	7: "last4",
+	8: "last_received",
+	9: "name",
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemToken from json.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOKRowsItemToken to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "created_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.CreatedAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"created_at\"")
+			}
+		case "created_by":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.CreatedBy.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"created_by\"")
+			}
+		case "device_id":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.DeviceID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device_id\"")
+			}
+		case "expires_at":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.ExpiresAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expires_at\"")
+			}
+		case "hosts":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Int()
+				s.Hosts = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hosts\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "last4":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.Last4 = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last4\"")
+			}
+		case "last_received":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.LastReceived.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_received\"")
+			}
+		case "name":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryPostInventoryBoxCheckOKRowsItemToken")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryPostInventoryBoxCheckOKRowsItemToken) {
+					name = jsonFieldsNameOfInventoryPostInventoryBoxCheckOKRowsItemToken[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemToken) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemTokenKind as json.
+func (s InventoryPostInventoryBoxCheckOKRowsItemTokenKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemTokenKind from json.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemTokenKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventoryBoxCheckOKRowsItemTokenKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InventoryPostInventoryBoxCheckOKRowsItemTokenKind(v) {
+	case InventoryPostInventoryBoxCheckOKRowsItemTokenKindOsquery:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemTokenKindOsquery
+	default:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemTokenKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InventoryPostInventoryBoxCheckOKRowsItemTokenKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemTokenKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -292801,6 +293780,226 @@ func (s NilInventoryPostInventoryAgentsDevicesIDReportOKState) MarshalJSON() ([]
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilInventoryPostInventoryAgentsDevicesIDReportOKState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKOnly as json.
+func (o NilInventoryPostInventoryBoxCheckOKOnly) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKOnly from json.
+func (o *NilInventoryPostInventoryBoxCheckOKOnly) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilInventoryPostInventoryBoxCheckOKOnly to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v InventoryPostInventoryBoxCheckOKOnly
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilInventoryPostInventoryBoxCheckOKOnly) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilInventoryPostInventoryBoxCheckOKOnly) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemAction as json.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemAction) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemAction from json.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemAction) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilInventoryPostInventoryBoxCheckOKRowsItemAction to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v InventoryPostInventoryBoxCheckOKRowsItemAction
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilInventoryPostInventoryBoxCheckOKRowsItemAction) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilInventoryPostInventoryBoxCheckOKRowsItemAction) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemAgent as json.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemAgent) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemAgent from json.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemAgent) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilInventoryPostInventoryBoxCheckOKRowsItemAgent to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v InventoryPostInventoryBoxCheckOKRowsItemAgent
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilInventoryPostInventoryBoxCheckOKRowsItemAgent) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilInventoryPostInventoryBoxCheckOKRowsItemAgent) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemSwitch as json.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemSwitch) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemSwitch from json.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemSwitch) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilInventoryPostInventoryBoxCheckOKRowsItemSwitch to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v InventoryPostInventoryBoxCheckOKRowsItemSwitch
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilInventoryPostInventoryBoxCheckOKRowsItemSwitch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilInventoryPostInventoryBoxCheckOKRowsItemSwitch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InventoryPostInventoryBoxCheckOKRowsItemToken as json.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemToken) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes InventoryPostInventoryBoxCheckOKRowsItemToken from json.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemToken) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilInventoryPostInventoryBoxCheckOKRowsItemToken to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v InventoryPostInventoryBoxCheckOKRowsItemToken
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilInventoryPostInventoryBoxCheckOKRowsItemToken) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilInventoryPostInventoryBoxCheckOKRowsItemToken) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

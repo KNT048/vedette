@@ -279,6 +279,7 @@ var Operations = map[string]Operation{
 	"inventory_post_inventory_agents_tokens_remove_unused":   {Method: "POST", Path: "/inventory/agents/tokens/remove-unused", MinRole: Admin, Tag: "inventory"},
 	"inventory_post_inventory_agents_wazuh_sample_data":      {Method: "POST", Path: "/inventory/agents/wazuh/sample-data", MinRole: Admin, Tag: "inventory"},
 	"inventory_post_inventory_agents_wazuh_test":             {Method: "POST", Path: "/inventory/agents/wazuh/test", MinRole: Admin, Tag: "inventory"},
+	"inventory_post_inventory_box_check":                     {Method: "POST", Path: "/inventory/box/check", MinRole: Operator, Tag: "inventory"},
 	"inventory_post_inventory_devices":                       {Method: "POST", Path: "/inventory/devices", MinRole: Operator, Tag: "inventory"},
 	"inventory_post_inventory_devices_id_approve":            {Method: "POST", Path: "/inventory/devices/{id}/approve", MinRole: Operator, Tag: "inventory"},
 	"inventory_post_inventory_devices_id_differs_field_keep": {Method: "POST", Path: "/inventory/devices/{id}/differs/{field}/keep", MinRole: Operator, Tag: "inventory"},

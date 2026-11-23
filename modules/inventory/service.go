@@ -114,6 +114,7 @@ type Service struct {
 	askAgent    func(ctx context.Context, actor, id string)
 	lifecycle   *lifecycle.Hooks
 	ownedHit    atomic.Int64 // observations ignored because their address is box-owned
+	boxRead     atomic.Int64 // when the box last read its own packages since start (Unix ms; 0: not yet), for its agent row's next report
 	clock       func() time.Time
 	log         *slog.Logger
 	cat         catalogCache

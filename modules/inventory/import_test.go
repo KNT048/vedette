@@ -532,3 +532,44 @@ func TestNotFoundComesBeforeBadInput(t *testing.T) {
 	_, err = e.svc.AddSoftware(e.ctx(), "it@acme.example", id, inventory.AddInput{Vendor: "only a vendor"})
 	wantAPIError(t, err, 400, "incomplete_product")
 }
+
+// A CSV cell with the common word for Java ("jdk", "jre") imports: every Java build of the catalogue is matched as the same exploited
+// product, so the word is no guess of the make; "openjdk" is the OpenJDK package. A word several makers use for different products is
+// still refused.
+func TestCSVImport_CommonJavaWords(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	r := e.importCSV("name,ip,product,version\r\napp-1,,jdk,17.0.9\r\napp-2,,JRE,8u401\r\napp-3,,openjdk,21.0.7\r\napp-4,,Dns,\r\n")
+	if r.Created != 3 || len(r.Errors) != 1 || r.Errors[0].Line != 5 {
+		t.Fatalf("result = %+v", r)
+	}
+}
+
+// A word several makers use for different products stays refused even when one catalogue product is named exactly that: "iOS" is
+// Cisco's network OS as well as Apple's, "NAS" and "USG" are several makers' devices, so a file's cell is not the one product of that
+// name. Only an alias whose products are all the same exploited product ("openjdk") is read further.
+func TestCSVImport_AWordOfSeveralMakersIsNotTheProductOfThatName(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	r := e.importCSV("name,ip,product,version\r\nsw-1,,IOS,15.2\r\nnas-1,,NAS,\r\nfw-1,,USG,\r\nbk-1,,Backup,\r\nhv-1,,Hypervisor,\r\nweb-1,,Web Server,\r\n")
+	if r.Created != 0 || len(r.Errors) != 6 {
+		t.Fatalf("result = %+v", r)
+	}
+}
+
+// "Linux" is Ubuntu, Debian, Red Hat Enterprise Linux and the kernel itself. They share one exploited-product key, but each
+// distribution has its own fixes and its own version numbers, so a file's "Linux" is not one of them: the row is refused and the
+// message asks for the distribution. A named distribution imports.
+func TestCSVImport_LinuxAloneAsksForTheDistribution(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	r := e.importCSV("name,ip,product,version\r\nsrv-1,,Linux,12\r\nsrv-2,,linux,\r\nsrv-3,,Debian,12\r\nsrv-4,,rhel,9.4\r\n")
+	if r.Created != 2 || len(r.Errors) != 2 {
+		t.Fatalf("result = %+v", r)
+	}
+	for _, x := range r.Errors {
+		if !strings.Contains(x.Message, "Name the distribution") || !strings.Contains(x.Message, "Debian Linux") {
+			t.Errorf("line %d: %q", x.Line, x.Message)
+		}
+	}
+}

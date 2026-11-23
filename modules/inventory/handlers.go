@@ -139,6 +139,24 @@ func (h *Handlers) InventoryGetInventoryDevicesIDSources(ctx context.Context, pa
 	return convert[oas.InventoryGetInventoryDevicesIDSourcesOK](v)
 }
 
+// InventoryPostInventoryBoxCheck implements POST /inventory/box/check (operator): the box's own agent reads its packages and ports now.
+func (h *Handlers) InventoryPostInventoryBoxCheck(ctx context.Context) (*oas.InventoryPostInventoryBoxCheckOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	v, err := h.svc.CheckBox(ctx, who)
+	if err != nil {
+		return nil, fail(err)
+	}
+	if p, ok := server.PrincipalFrom(ctx); !ok || p.Role != routes.Admin { // as GET .../sources: the tokens are an administrator's
+		for i := range v.Rows {
+			v.Rows[i].Token = nil
+		}
+	}
+	return convert[oas.InventoryPostInventoryBoxCheckOK](v)
+}
+
 // InventoryPutInventoryDevicesIDSources implements PUT /inventory/devices/{id}/sources (admin).
 func (h *Handlers) InventoryPutInventoryDevicesIDSources(ctx context.Context, req *oas.InventoryPutInventoryDevicesIDSourcesReq, params oas.InventoryPutInventoryDevicesIDSourcesParams) (*oas.InventoryPutInventoryDevicesIDSourcesOK, error) {
 	who, err := actor(ctx)

@@ -135,6 +135,14 @@ func (s *Service) workerReported() {
 	}()
 }
 
+// later is the later of a and b.
+func later(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+	return a
+}
+
 // workerReportedFor bounds one workerReported pass.
 const workerReportedFor = 30 * time.Second
 
@@ -176,7 +184,7 @@ func (s *Service) resumePersonsChecks(ctx context.Context) {
 			err = s.runs.Resume(ctx, w.id, run.System)
 		case noNmap:
 			err = s.runs.GiveUp(ctx, w.id, gaveUpNoNmap)
-		case !w.since.IsZero() && s.clock().Sub(w.since) >= personWaitMax:
+		case !w.since.IsZero() && s.clock().Sub(later(w.since, s.since)) >= personWaitMax: // Vedette off meanwhile: counted from its start
 			err = s.runs.GiveUp(ctx, w.id, gaveUpNoWorker)
 		}
 		if err != nil && !errors.Is(err, run.ErrNotResumable) && !errors.Is(err, run.ErrNotFound) && !errors.Is(err, run.ErrNotLive) {

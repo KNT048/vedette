@@ -125,6 +125,9 @@ type Service struct {
 	bg     sync.WaitGroup
 	closed atomic.Bool
 	waking atomic.Bool // a workerReported pass is going on: another heartbeat meanwhile starts none
+	// since is when this process started: a person's check waits personWaitMax for the scan worker from then at the earliest, since
+	// the worker starts with it (resumePersonsChecks).
+	since  time.Time
 	progMu sync.Mutex
 	prog   map[string]runProg
 	// typical and typicalAt: how long a device check takes on this box and when that was read (typicalCheck), under mu.
@@ -243,6 +246,7 @@ func New(cfg Config) (*Service, error) {
 	if s.clock == nil {
 		s.clock = time.Now
 	}
+	s.since = s.clock()
 	if s.log == nil {
 		s.log = slog.New(slog.DiscardHandler)
 	}
@@ -1470,10 +1474,11 @@ func (s *Service) identifyIn(ctx context.Context, assetID string) (Identificatio
 		if s.stops.Load() != stops || ctx.Err() != nil { // the module was turned off while it waited (#723)
 			return Identification{}, ErrStopped
 		}
-		got, err := s.identifyOnce(ctx, assetID)
+		got, err := s.identifyOnce(ctx, assetID, try < maxIdentifyTries)
 		// A person asked to check the device, not an address: a device that moved while it was checked, or settings that changed but
 		// still allow the check, are checked again from the start (every rule read again), a few times at most.
 		if errors.Is(err, ErrStopped) && canGoOn(err) && ctx.Err() == nil && try < maxIdentifyTries {
+			s.dropProgress(runIDOf(ctx)) // the new try's nmap reports from its start: the cut one's last report no longer says where it is
 			continue
 		}
 		return got, err
@@ -1483,8 +1488,8 @@ func (s *Service) identifyIn(ctx context.Context, assetID string) (Identificatio
 // maxIdentifyTries bounds how often a person's check starts again after a stop it can go on after (canGoOn).
 const maxIdentifyTries = 3
 
-// identifyOnce is one try of identifyIn, under runMu.
-func (s *Service) identifyOnce(ctx context.Context, assetID string) (Identification, error) {
+// identifyOnce is one try of identifyIn, under runMu; more says another try may follow it.
+func (s *Service) identifyOnce(ctx context.Context, assetID string, more bool) (Identification, error) {
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	cur := &running{cancel: cancel, asset: assetID, picked: true, runID: runIDOf(ctx)}
@@ -1574,7 +1579,7 @@ func (s *Service) identifyOnce(ctx context.Context, assetID string) (Identificat
 	case errors.Is(err, ErrStopped):
 		why := cmpErr(s.whyStopped(cur), err)
 		line := "Stopped: " + stopWords(why)
-		if canGoOn(why) && ctx.Err() == nil {
+		if more && canGoOn(why) && ctx.Err() == nil {
 			line += "; the device is checked again"
 		}
 		s.finishJob(ctx, id, StatusStopped, 0, 0, line)

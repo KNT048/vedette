@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/run"
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
@@ -287,4 +289,120 @@ func TestTruthACheckWaitingForTheWorkerGivesUp(t *testing.T) {
 		!strings.Contains(r.Summary, "nmap is not installed") {
 		t.Fatalf("the worker reports nmap missing: %+v", r)
 	}
+}
+
+// The 30 minutes a person's check waits for the scan worker count from when this process started too: after Vedette was off for hours,
+// the check does not fail at the first tick, before the worker that starts with it had a chance to report.
+func TestTruthACheckWaitingForTheWorkerIsNotGivenUpRightAfterARestart(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, outsideWindow)
+	e.sweptBefore()
+	e.withProber(&reportingWorker{})
+	m, err := e.svc.StartManual(e.ctx(), "ann@example.com", []string{"a-web"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.setBase(e.baseTime().Add(3 * time.Hour)) // Vedette was off for three hours
+	e.withProber(&reportingWorker{})           // it starts again, with a worker that has not reported yet
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if r := waitRun(t, e, m.ID, run.Waiting, run.Failed, run.Done, run.Partial, run.Stopped); r.Status != run.Waiting {
+		t.Fatalf("at the first tick after the restart: %+v", r)
+	}
+	e.setBase(e.baseTime().Add(31 * time.Minute))
+	if err := e.svc.Tick(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if r := waitRun(t, e, m.ID, run.Failed, run.Done, run.Partial, run.Stopped); r.Status != run.Failed ||
+		!strings.HasPrefix(r.Summary, "Failed: The scan worker did not report for 30 minutes") {
+		t.Fatalf("31 minutes after the restart: %+v", r)
+	}
+}
+
+// A device that keeps moving is tried at most 3 times, and only the tries that are followed by another one say "checked again": the
+// last one ends the check with its reason.
+func TestTruthAPersonsCheckOfADeviceThatKeepsMovingSaysCheckedAgainOnlyWhenItIs(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, outsideWindow)
+	e.sweptBefore()
+	var mu sync.Mutex
+	next := 21
+	e.withProber(probeFunc(func(ctx context.Context, _ []string) (sa.Output, error) {
+		mu.Lock()
+		addr := netip.MustParseAddr("192.168.10." + strconv.Itoa(next))
+		next++
+		mu.Unlock()
+		e.inv.mu.Lock()
+		e.inv.assets["a-web"] = addr
+		e.inv.mu.Unlock()
+		if err := e.svc.AssetChanged(context.WithoutCancel(ctx), "a-web"); err != nil {
+			t.Error(err)
+		}
+		<-ctx.Done()
+		return sa.Output{}, ctx.Err()
+	}))
+	m, err := e.svc.StartManual(e.ctx(), "ann@example.com", []string{"a-web"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := waitRun(t, e, m.ID, run.Done, run.Partial, run.Failed, run.Stopped)
+	log := logOf(t, e, m.ID)
+	if r.Status != run.Failed || !strings.Contains(r.Summary, "no longer at the address") {
+		t.Fatalf("the check: %+v; log: %s", r, log)
+	}
+	if n := strings.Count(log, "checked again"); n != 2 {
+		t.Fatalf("%d lines say the device is checked again, want 2 (3 tries); log: %s", n, log)
+	}
+}
+
+// A person's check that starts again after its device moved shows where the new try is, not the last report of the try that was cut
+// short: the line moves only forward within one try.
+func TestTruthACheckThatStartsAgainShowsTheProgressOfTheNewTry(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, outsideWindow)
+	e.sweptBefore()
+	moved := netip.MustParseAddr("192.168.10.21")
+	reported, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	e.withProber(probeFunc(func(ctx context.Context, argv []string) (sa.Output, error) {
+		sink := progress.SinkFrom(ctx)
+		if sink == nil {
+			t.Error("no progress sink on the probe")
+			return sa.Output{}, nil
+		}
+		if slices.Contains(argv, "192.168.10.20") {
+			sink.Report(progress.Update{Phase: progress.PhasePorts, Percent: 60, NewPass: true})
+			e.inv.mu.Lock()
+			e.inv.assets["a-web"] = moved
+			e.inv.mu.Unlock()
+			if err := e.svc.AssetChanged(context.WithoutCancel(ctx), "a-web"); err != nil {
+				t.Error(err)
+			}
+			<-ctx.Done()
+			return sa.Output{}, ctx.Err()
+		}
+		first := false
+		once.Do(func() { first = true })
+		if first {
+			sink.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: 10, NewPass: true})
+			close(reported)
+			<-release
+		}
+		return sa.Output{XML: emptyScan}, nil
+	}))
+	m, err := e.svc.StartManual(e.ctx(), "ann@example.com", []string{"a-web"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-reported
+	r, err := e.svc.Runs().Read(e.ctx(), m.ID)
+	close(release)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(r.Summary, "pass 1 of 2: looking for the device, 10%") {
+		t.Fatalf("while the new try runs: %q", r.Summary)
+	}
+	waitRun(t, e, m.ID, run.Done, run.Partial, run.Failed, run.Stopped)
 }

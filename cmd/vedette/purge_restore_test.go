@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -20,112 +19,6 @@ import (
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules"
 )
-
-// plantEveryTable writes one row into every data table of db, in one transaction: every column holds a value of its declared type,
-// and a column that references another table holds the value planted in the column it references, so every foreign key holds. CHECK
-// constraints are ignored for the planted rows: they need not look like real rows, only be there, so that a test over "every table of
-// every module" really has data in each. It returns the names of the tables, sorted.
-func plantEveryTable(t *testing.T, db *store.DB) []string {
-	t.Helper()
-	ctx := t.Context()
-	tables := tableColumns(t, db)
-	type fk struct{ table, to string }
-	refs := map[string]map[string]fk{} // table -> column -> the table and column it references
-	for tbl := range tables {
-		rows, err := db.Reader().QueryContext(ctx, `SELECT "table", "from", "to" FROM pragma_foreign_key_list(?)`, tbl)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for rows.Next() {
-			var to fk
-			var from string
-			var toCol sql.NullString
-			if err := rows.Scan(&to.table, &from, &toCol); err != nil {
-				t.Fatal(err)
-			}
-			to.to = toCol.String
-			if refs[tbl] == nil {
-				refs[tbl] = map[string]fk{}
-			}
-			refs[tbl][from] = to
-		}
-		if err := rows.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}
-	colType := func(tbl, col string) string {
-		for _, c := range tables[tbl] {
-			if c[0] == col {
-				return c[1]
-			}
-		}
-		return ""
-	}
-	// value is the planted value of a column of that type; a reference takes the value of the column it points at (its primary key
-	// when the reference names no column), so both ends hold the same value.
-	var value func(tbl, col string, depth int) any
-	value = func(tbl, col string, depth int) any {
-		if r, ok := refs[tbl][col]; ok && depth < 8 {
-			to := r.to
-			if to == "" {
-				if err := db.Reader().QueryRowContext(ctx, `SELECT name FROM pragma_table_info(?) WHERE pk = 1`, r.table).Scan(&to); err != nil {
-					t.Fatalf("%s.%s references %s, which has no single primary key: %v", tbl, col, r.table, err)
-				}
-			}
-			return value(r.table, to, depth+1)
-		}
-		typ := strings.ToUpper(colType(tbl, col))
-		switch {
-		case strings.Contains(typ, "INT"):
-			return int64(900001)
-		case strings.Contains(typ, "REAL"), strings.Contains(typ, "FLOA"), strings.Contains(typ, "DOUBLE"):
-			return 0.5
-		case strings.Contains(typ, "BLOB"):
-			return []byte{0x01}
-		default:
-			return "plant"
-		}
-	}
-	names := make([]string, 0, len(tables))
-	for tbl := range tables {
-		names = append(names, tbl)
-	}
-	slices.Sort(names)
-	err := db.Write(ctx, func(tx *sql.Tx) error {
-		for _, q := range []string{"PRAGMA defer_foreign_keys = ON", "PRAGMA ignore_check_constraints = ON"} {
-			if _, err := tx.ExecContext(ctx, q); err != nil {
-				return err
-			}
-		}
-		for _, tbl := range names {
-			var cols, marks []string
-			var args []any
-			xrows, err := tx.QueryContext(ctx, `SELECT name FROM pragma_table_xinfo(?) WHERE hidden = 0 ORDER BY cid`, tbl) // not a generated column
-			if err != nil {
-				return err
-			}
-			for xrows.Next() {
-				var c string
-				if err := xrows.Scan(&c); err != nil {
-					return err
-				}
-				cols, marks, args = append(cols, `"`+c+`"`), append(marks, "?"), append(args, value(tbl, c, 0))
-			}
-			if err := xrows.Close(); err != nil {
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO "`+tbl+`" (`+strings.Join(cols, ", ")+`) VALUES (`+strings.Join(marks, ", ")+`)`, args...); err != nil { //nolint:gosec // names read from sqlite_master, quoted
-				return fmt.Errorf("plant a row in %s: %w", tbl, err)
-			}
-		}
-		_, err := tx.ExecContext(ctx, "PRAGMA ignore_check_constraints = OFF")
-		return err
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return names
-}
 
 // tableDigest is every row of every data table of db, as text, sorted per table: two databases with the same digest hold the same data.
 func tableDigest(t *testing.T, db *sql.DB, tables []string) map[string]string {

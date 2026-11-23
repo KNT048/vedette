@@ -21,7 +21,7 @@ import (
 // anything. What it names is checked by response (savePlan) before anything is stored; this adapter only moves text.
 type responsePlanner struct {
 	svc   *ai.Service
-	facts ai.Facts     // the exploited-list entry of the CVE; nil = the CVE id only
+	cases caseSource   // the brief of the CVE; a zero source = the CVE id only
 	log   *slog.Logger // nil = a failed activity row is not logged (tests)
 }
 
@@ -110,7 +110,7 @@ func (p responsePlanner) Plan(ctx context.Context, a response.PlanAsk) (response
 		Job: ai.JobResponsePlan, Actor: "system", Task: planTask,
 		Question: "Write the response plan for this finding.",
 		// The catalog is data, not Task: the before-AI hooks look at every data block, and they do not look at Task.
-		Data: []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry " + t.CVE, Text: p.factsOf(ctx, t.CVE)}, {Kind: "inventory", Source: "the device of the finding", Text: dev},
+		Data: []ai.DataBlock{{Kind: ai.DataFeed, Source: "CVE brief " + t.CVE, Text: p.factsOf(ctx, t.CVE)}, {Kind: "inventory", Source: "the device of the finding", Text: dev},
 			{Kind: ai.DataDocument, Source: "actions you may propose", Text: cat.String()}, {Kind: ai.DataDocument, Source: "reads the box made in the last 24 hours", Text: reads}},
 		// a plan with its steps and actions is about 1,500 tokens; the rest is room for what the model thinks first
 		Schema: &provider.Schema{Name: "response_plan", JSON: json.RawMessage(planSchema)}, MaxTokens: 6000,
@@ -184,11 +184,13 @@ func planError(err, ready error) error {
 	return err
 }
 
-// factsOf is the exploited-list entry of a CVE as text; a lookup that fails or finds nothing gives the id alone (the plan is then thinner, not refused).
+// factsOf is the brief of a CVE as text, the one the finding's page and the assistant read; a lookup that fails or finds nothing gives the
+// id alone (the plan is then thinner, not refused).
 func (p responsePlanner) factsOf(ctx context.Context, cve string) string {
-	if p.facts != nil {
-		if c, ok, err := p.facts.CVE(ctx, cve); err == nil && ok {
-			return fmt.Sprintf("CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nDescription: %s\nExploited-list source: %s\nRequired action (from that source): %s\nUsed in ransomware campaigns: %t\n", c.CVE, c.Vendor, c.Product, c.Name, c.Description, ai.ListLabel(c.Source), c.RequiredAction, c.Ransomware)
+	if p.cases.feeds != nil {
+		if b, ok, err := p.cases.feeds.Brief(ctx, cve); err == nil && ok {
+			c := findingCase{Brief: b, Known: true}
+			return c.briefFeedText(c.Links())
 		}
 	}
 	return "CVE: " + cve + "\n"
@@ -203,16 +205,16 @@ type responseCritical struct {
 }
 
 func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, error) {
-	recs, err := r.fnd.List(ctx, "")
+	all, err := r.fnd.Views(ctx, findings.ViewFilter{OpenOnly: true})
 	if err != nil {
 		return nil, err
 	}
-	var open []findings.Record
+	var open []findings.View
 	var ids []string
-	for _, f := range recs {
-		if f.Severity == findings.SeverityCritical && f.Status.Open() && findings.Announced(f.Row) {
-			open = append(open, f)
-			ids = append(ids, f.AssetID)
+	for _, v := range all {
+		if v.Severity != nil && findings.SeverityBand(*v.Severity) == "critical" && findings.Announced(v.Finding) {
+			open = append(open, v)
+			ids = append(ids, v.Finding.AssetID)
 		}
 	}
 	if len(open) == 0 {
@@ -223,7 +225,8 @@ func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, erro
 		return nil, err
 	}
 	var out []response.PlanTarget
-	for _, f := range open {
+	for _, v := range open {
+		f := v.Finding
 		a, ok := assets[f.AssetID]
 		if !ok {
 			continue
@@ -232,7 +235,7 @@ func (r responseCritical) list(ctx context.Context) ([]response.PlanTarget, erro
 		if n := aiVal(a.Name, 64); n != "" && a.Name != a.ID { // the name every page shows (inventory.Names: the name in Vedette first), as the AI gets text
 			name = n
 		}
-		t := response.PlanTarget{FindingID: f.ID, CVE: f.CVE, AssetID: f.AssetID, AssetName: name, AssetIP: a.IP, AssetKind: a.Kind, Urgency: findings.LayerCode(f.Row.Urgency)}
+		t := response.PlanTarget{FindingID: f.ID, CVE: f.CVE, AssetID: f.AssetID, AssetName: name, AssetIP: a.IP, AssetKind: a.Kind, Urgency: findings.LayerCode(f.Urgency)}
 		if a.IP == "—" { // unknown address
 			t.AssetIP = ""
 		}

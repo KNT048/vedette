@@ -112,7 +112,7 @@ func TestTheNameInVedetteReachesEveryReader(t *testing.T) {
 				out["ai ask"] = r.Name
 			}
 		}
-		facts, err := aiFacts{findings: s.d.Findings, inv: findingsInventory{inv}}.AffectedAssets(ctx, "CVE-2024-21762")
+		facts, err := aiFacts{cases: caseSource{findings: s.d.Findings}, inv: findingsInventory{inv}}.AffectedAssets(ctx, "CVE-2024-21762")
 		if err != nil || len(facts) != 1 {
 			t.Fatalf("AffectedAssets = %+v, %v", facts, err)
 		}

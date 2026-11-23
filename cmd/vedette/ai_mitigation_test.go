@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/modules/ai"
+	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/mitigation"
@@ -16,26 +17,46 @@ import (
 
 func obs(v string) *inventory.Observed { return &inventory.Observed{Value: v} }
 
+// caseOf is a findingCase for a subject: the finding's CVE, evidence and software line, the exploited-list entry's vendor and product
+// and the device it is on.
+func caseOf(s aiSubject) findingCase {
+	fc := findingCase{Known: true}
+	fc.View.Finding = findings.Finding{CVE: s.CVE, SoftwareID: s.SoftwareID, Urgency: findings.UrgencyExploited, State: findings.StateOpen, Verified: findings.VerifiedNo, Basis: findings.DetectBannerVersion,
+		Fix: findings.Fix{Kind: findings.FixUnknown}}
+	if s.Evidence != "" {
+		fc.View.Finding.Evidence = &findings.Evidence{Summary: s.Evidence}
+	}
+	fc.View.Device = findings.AssetView{Name: s.AssetName, IP: s.AssetIP, Kind: "server"}
+	fc.Brief = feeds.Brief{CVE: s.CVE}
+	if s.Product != "" {
+		fc.Brief.Lists = []feeds.ListEntry{{Source: "cisa-kev", SourceName: "CISA KEV", Vendor: s.Vendor, Product: s.Product, Display: s.Vendor + " " + s.Product, DateAdded: "2024-02-08"}}
+	}
+	return fc
+}
+
+func vectorOf(v string) *feeds.BriefCVSS {
+	return &feeds.BriefCVSS{CVSS: feeds.CVSS{Score: 7.8, Version: "3.1", Source: "nvd", Vector: v}, Severity: "HIGH", Reading: feeds.ReadVector(v)}
+}
+
 // Regression: the mitigation-config answer for a Juniper EX4200 said "the data on this box does not list affected versions" and
 // named no firewall, while the page showed the version, the range "before 20.4" and FortiGate was in Devices. The AI now gets the
-// facts the page has.
+// facts the page has, from the finding's view and the CVE brief: the fix of this device is the stored one, the affected versions and the
+// vendor's own advisory are the brief's, and every reference is offered by number.
 func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 	ver, http := "15.1R7.9", "J-Web"
 	host := "core-switch"
-	req := mitigation.AIRequest{
-		Skill: mitigation.SkillConfig,
-		Finding: findings.Row{
-			CVE: "CVE-2023-36845", Status: "suspected", Severity: "critical", Basis: "version", Confidence: 0.7,
-			Asset: &findings.AssetView{Name: "Juniper Networks EX4200-48T", IP: "192.168.18.47", Kind: "switch", Display: "Juniper Junos OS"},
-			Kev:   &findings.KevInfo{Vendor: "Juniper", Product: "Junos OS", Name: "Junos OS PHP External Variable Modification", Links: []string{"https://supportportal.juniper.net/JSA72300"}},
-			CVSS:  &findings.CVSS{Score: 9.8, Version: "3.1", Vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"},
-		},
-		FixedIn: &findings.FixedIn{Kind: "branches", Branches: []findings.FixedBranch{{Branch: "21.2", Fixed: "21.2R3-S7"}, {Branch: "20.4", Fixed: "20.4R3-S9"}}, More: 3, Source: "NVD affected versions"},
-	}
-	// the evidence type is findings' own: set it the way the page gets it, from JSON
-	if err := json.Unmarshal([]byte(`{"evidence":{"summary":"Juniper Networks EX4200-48T runs Juniper Junos OS 15.1R7.9. Its version is inside the range affected by CVE-2023-36845 (before 20.4).","checked_at":"2026-11-16T00:00:00Z"}}`), &req.Finding); err != nil {
-		t.Fatal(err)
-	}
+	fc := caseOf(aiSubject{CVE: "CVE-2023-36845", Vendor: "Juniper", Product: "Junos OS", AssetName: "Juniper Networks EX4200-48T", AssetIP: "192.168.18.47",
+		Evidence: "Juniper Networks EX4200-48T runs Juniper Junos OS 15.1R7.9. Its version is inside the range affected by CVE-2023-36845 (before 20.4)."})
+	fc.View.Finding.Fix = findings.Fix{Kind: findings.FixUpdate, Version: "21.2R3-S7"}
+	fc.View.Finding.MatchedVersion = ver
+	fc.View.Line = &findings.Line{ID: "s1", Display: "Juniper Junos OS", Version: ver}
+	fc.Brief.Title = "Junos OS PHP External Variable Modification"
+	fc.Brief.CVSS = vectorOf("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H")
+	fc.Brief.Ranges = []feeds.BriefRange{{Counts: true, Versions: "from 21.2 before 21.2R3-S7"}, {Counts: true, Versions: "before 20.4"}}
+	fc.Brief.RangesFrom = feeds.OriginNVD
+	fc.Brief.References = []feeds.Reference{{URL: "https://supportportal.juniper.net/JSA72300", Group: "vendor-advisory"}, {URL: "javascript:alert(1)", Group: "patch"}}
+	fc.Brief.NVDURL = "https://nvd.nist.gov/vuln/detail/CVE-2023-36845"
+	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, FindingID: "f1"}
 	dev := inventory.Device{AssetCore: inventory.AssetCore{IP: "192.168.18.47", Hostname: &host, Kind: "switch", Vendor: obs("Juniper Networks"), Model: obs("EX4200-48T"), OS: obs("JUNOS 15.1R7.9"),
 		Services: []inventory.ServiceRow{{Port: 443, Proto: "tcp", Name: "https", Product: &http}, {Port: 22, Proto: "tcp", Name: "ssh"}}},
 		Software: []inventory.Software{{Display: "Juniper Junos OS", Version: &ver}}}
@@ -43,18 +64,20 @@ func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 		{AssetCore: inventory.AssetCore{IP: "192.168.18.2", Kind: "firewall", Vendor: obs("Fortinet"), Model: obs("FortiGate 60F"), OS: obs("FortiOS 7.2.5")}},
 		{AssetCore: inventory.AssetCore{IP: "192.168.18.1", Kind: "firewall"}},
 	}
-	blocks := aiFindingData(req, &dev, aiFirewalls{Walls: walls, Paths: []aiPath{pathSameSubnet, pathGateway}, OnPath: true})
+	blocks, links := aiFindingData(req, fc, &dev, aiFirewalls{Walls: walls, Paths: []aiPath{pathSameSubnet, pathGateway}, OnPath: true})
 	if len(blocks) != 3 {
-		t.Fatalf("blocks = %d, want feed, device and network", len(blocks))
+		t.Fatalf("blocks = %d, want brief, device and network", len(blocks))
 	}
 	all := blocks[0].Text + blocks[1].Text + blocks[2].Text
 	for _, want := range []string{
-		"15.1R7.9", "before 20.4", // the installed version and the affected range (the Evidence)
-		"21.2 fixed in 21.2R3-S7", "20.4 fixed in 20.4R3-S9", "3 more release lines", // the fix of each release line
-		"Software of the finding: Juniper Junos OS 15.1R7.9", "Attack vector (CVSS): network; user interaction: not needed",
+		"15.1R7.9", "before 20.4", // the installed version and the affected versions (the brief and the Evidence)
+		"Fix for this device: Update Juniper Junos OS to 21.2R3-S7.", // the stored fix, in the page's words
+		"Software of the finding: Juniper Junos OS 15.1R7.9", "Attack conditions (nvd CVSS 3.1 vector): attack vector: network; privileges required: none; user interaction: none",
 		"Vendor: Juniper Networks", "Model: EX4200-48T", "Operating system: JUNOS 15.1R7.9", "192.168.18.47",
 		"443/tcp https (J-Web)", "22/tcp ssh", // the open ports
-		"matched by version, confidence 0.70", "CVSS 3.1 base score: 9.8",
+		"Not confirmed yet: the version was read from a service banner or a fingerprint.", "CVSS 3.1 base score: 7.8",
+		"Workaround: No workaround is published: install the fix.",
+		"Reference [1]: Vendor advisory, https://supportportal.juniper.net/JSA72300",
 		"Vendor: Fortinet; Model: FortiGate 60F; Operating system: FortiOS 7.2.5", // the firewall in Devices
 		"192.168.18.1, kind firewall; vendor not known; path: the default gateway of this device's network",
 	} {
@@ -65,31 +88,70 @@ func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 	if blocks[1].Kind != "inventory" || blocks[2].Kind != "inventory" || blocks[0].Kind != ai.DataFeed {
 		t.Fatalf("kinds = %s %s %s", blocks[0].Kind, blocks[1].Kind, blocks[2].Kind)
 	}
+	if len(links) != 2 || links[0].URL != "https://supportportal.juniper.net/JSA72300" || links[1].Title != "NVD" || strings.Contains(all, "javascript:") {
+		t.Fatalf("references = %+v: only plain http(s) addresses, the vendor's own first", links)
+	}
 
-	// explain gets the device facts but not the firewalls; no firewall in Devices is said, not left out
+	// explain gets the device facts but not the firewalls
 	req.Skill = mitigation.SkillExplain
-	if b := aiFindingData(req, &dev, aiFirewalls{}); len(b) != 2 || !strings.Contains(b[1].Text, "before 20.4") {
+	if b, _ := aiFindingData(req, fc, &dev, aiFirewalls{}); len(b) != 2 || !strings.Contains(b[1].Text, "Fix for this device: Update Juniper Junos OS to 21.2R3-S7.") {
 		t.Fatalf("explain blocks = %+v", b)
 	}
-	req.Skill, req.FixedIn = mitigation.SkillConfig, nil
-	b := aiFindingData(req, nil, aiFirewalls{})
-	if !strings.Contains(b[2].Text, "No firewall or router is in the inventory.") || !strings.Contains(b[1].Text, "Fixed version: not known on this box (NVD's affected versions name none); the vendor advisory in the links may name it.") {
+	req.Skill = mitigation.SkillConfig
+	b, _ := aiFindingData(req, fc, nil, aiFirewalls{})
+	if !strings.Contains(b[2].Text, "No firewall or router is in the inventory.") {
 		t.Fatalf("no device, no firewall: %+v", b)
 	}
 }
 
-// Ask my AI said "20.4 is the fixed release" while the page said 20.4 is not the fix (end_listed). Every kind the page
-// shows reaches the AI as a fact, never as "not named".
-func TestAIFixedIn_EveryKindIsAFact(t *testing.T) {
-	for _, kind := range []string{"fixed", "up_to", "end_listed", "distro", "feature_update", "esu"} {
-		got := aiFixedIn(&findings.FixedIn{Kind: kind, Version: "15.1R7.9", Fixed: "20.4", Source: "NVD affected versions"}, true)
-		if !strings.Contains(got, "20.4") || strings.Contains(got, "not named") {
-			t.Errorf("%s: %s", kind, got)
+// Every kind of fix the page shows reaches the AI as a fact in the page's words; a fix with no release says so and never names the end of
+// an affected range.
+func TestFindingCase_EveryFixIsAFact(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		fix  findings.Fix
+		want string
+	}{
+		{findings.Fix{Kind: findings.FixUpdate, Version: "10.6"}, "Update OpenSSH to 10.6."},
+		{findings.Fix{Kind: findings.FixDistroUpdate, Version: "1:9.6p1-3ubuntu13.5"}, "package, version 1:9.6p1-3ubuntu13.5"},
+		{findings.Fix{Kind: findings.FixDistroUpdate}, "has not published a fixed package yet"},
+		{findings.Fix{Kind: findings.FixOSUpdate, Version: "10.0.26100.4061", Ref: "KB5060842"}, "10.0.26100.4061 (KB5060842)"},
+		{findings.Fix{Kind: findings.FixFeatureUpdate, Version: "24H2"}, "Move OpenSSH to 24H2"},
+		{findings.Fix{Kind: findings.FixNoneYet}, "No fixed release exists yet"},
+		{findings.Fix{Kind: findings.FixUnknown}, "not known for this device's version"},
+		{findings.Fix{Kind: findings.FixUpdate}, "not known for this device's version"},
+	} {
+		fc := caseOf(aiSubject{CVE: "CVE-2024-1"})
+		fc.View.Finding.Fix = c.fix
+		fc.View.Line = &findings.Line{Display: "OpenSSH"}
+		if got := fc.FixText(); !strings.Contains(got, c.want) {
+			t.Errorf("%+v: %q lacks %q", c.fix, got, c.want)
 		}
 	}
-	got := aiFixedIn(&findings.FixedIn{Kind: "end_listed", Version: "15.1R7.9", Fixed: "20.4", Source: "NVD affected versions"}, true)
-	if !strings.Contains(got, "20.4 is not a fix") || strings.Contains(got, "fixed in 20.4") {
-		t.Errorf("end_listed: %s", got)
+}
+
+// Who confirmed a finding reads the same everywhere: a person's confirmation names the person (and, for the MCP tools, only "a person"),
+// and an unconfirmed finding says it is not.
+func TestFindingCase_ConfirmedReadsConfirmed(t *testing.T) {
+	t.Parallel()
+	day := time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)
+	fc := caseOf(aiSubject{CVE: "CVE-2025-22225"})
+	fc.View.Finding.Verified = findings.VerifiedPerson
+	fc.View.Finding.Basis = findings.DetectPerson
+	fc.View.Events = []findings.Event{{Kind: findings.EvConfirmed, Actor: "it@example.com", TS: day}}
+	if got := fc.ConfirmText(); got != "Confirmed by it@example.com on 2026-11-20 on their own word." {
+		t.Fatalf("person: %q", got)
+	}
+	if got := fc.ConfirmWords(); strings.Contains(got, "example.com") || !strings.HasPrefix(got, "Confirmed by a person on 2026-11-20") {
+		t.Fatalf("person, anonymous: %q", got)
+	}
+	fc.View.Finding.Verified = findings.VerifiedScan
+	if got := fc.ConfirmText(); !strings.HasPrefix(got, "Confirmed by a safe check") {
+		t.Fatalf("scan: %q", got)
+	}
+	fc.View.Finding.Verified = findings.VerifiedNo
+	if got := fc.ConfirmText(); !strings.HasPrefix(got, "Not confirmed yet") {
+		t.Fatalf("unconfirmed: %q", got)
 	}
 }
 
@@ -114,23 +176,28 @@ func TestAIMitigationFacts_ReadsTheInventory(t *testing.T) {
 	m := aiMitigation{svc: d.AI, inv: d.Inventory, log: d.Log, net: func(context.Context) aiNet {
 		return aiNetOf(api.NetState{Interfaces: []api.NetInterface{{Name: "eth0", Addresses: []string{"192.168.30.9/24"}}}, DefaultRoute: &api.NetRoute{Gateway: "192.168.30.1"}})
 	}}
-	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{AssetID: srv.ID}}
-	dev, walls := m.facts(ctx, req)
+	onDevice := func(id string) findingCase {
+		fc := caseOf(aiSubject{CVE: "CVE-2024-1"})
+		fc.View.Finding.AssetID = id
+		return fc
+	}
+	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, FindingID: "f1"}
+	dev, walls := m.facts(ctx, mitigation.SkillConfig, onDevice(srv.ID))
 	if dev == nil || dev.IP != "192.168.30.40" || len(walls.Walls) != 1 || walls.Walls[0].ID != fw.ID || !walls.OnPath || walls.Others != 1 {
 		t.Fatalf("config: device %+v, firewalls %+v", dev, walls)
 	}
-	if b := aiFindingData(req, dev, walls); !strings.Contains(b[2].Text, "fw-hq, IP 192.168.30.1") || strings.Contains(b[2].Text, "100.64.20.1") || strings.Contains(b[2].Text, "fw-branch") {
+	if b, _ := aiFindingData(req, onDevice(srv.ID), dev, walls); !strings.Contains(b[2].Text, "fw-hq, IP 192.168.30.1") || strings.Contains(b[2].Text, "100.64.20.1") || strings.Contains(b[2].Text, "fw-branch") {
 		t.Fatalf("network block = %q", b[2].Text)
 	}
 	// without the box's network every firewall is offered, as an assumption; the finding's own device is never one of them
 	m.net = nil
-	if _, walls = m.facts(ctx, mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{AssetID: fw.ID}}); len(walls.Walls) != 1 || walls.Walls[0].ID != far.ID || walls.OnPath || walls.Why == "" {
+	if _, walls = m.facts(ctx, mitigation.SkillConfig, onDevice(fw.ID)); len(walls.Walls) != 1 || walls.Walls[0].ID != far.ID || walls.OnPath || walls.Why == "" {
 		t.Fatalf("no network: %+v", walls)
 	}
-	if _, walls = m.facts(ctx, mitigation.AIRequest{Skill: mitigation.SkillExplain, Finding: findings.Row{AssetID: fw.ID}}); walls.Walls != nil {
+	if _, walls = m.facts(ctx, mitigation.SkillExplain, onDevice(fw.ID)); walls.Walls != nil {
 		t.Fatal("explain must not read the other devices")
 	}
-	if dev, _ = m.facts(ctx, mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{AssetID: "gone"}}); dev != nil {
+	if dev, _ = m.facts(ctx, mitigation.SkillConfig, onDevice("gone")); dev != nil {
 		t.Fatal("a removed device has no facts")
 	}
 }
@@ -141,8 +208,10 @@ func TestAIFindingData_R1_OneLineValuesAndAttackVector(t *testing.T) {
 	host := "bad\nname"
 	dev := inventory.Device{AssetCore: inventory.AssetCore{IP: "192.168.18.5", Kind: "server", Services: []inventory.ServiceRow{{Port: 80, Proto: "tcp", Name: "http", Product: &evil}}}}
 	walls := []inventory.Device{{AssetCore: inventory.AssetCore{IP: "192.168.18.1\nIP 203.0.113.9", Hostname: &host, Kind: "firewall"}}}
-	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: findings.Row{CVE: "CVE-2024-1", CVSS: &findings.CVSS{Score: 7.8, Version: "3.1", Vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:R/S:U/C:H/I:H/A:H"}}}
-	b := aiFindingData(req, &dev, aiFirewalls{Walls: walls, Paths: []aiPath{pathGateway}, OnPath: true})
+	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, FindingID: "f1"}
+	fc := caseOf(aiSubject{CVE: "CVE-2024-1"})
+	fc.Brief.CVSS = vectorOf("CVSS:3.1/AV:L/AC:L/PR:L/UI:R/S:U/C:H/I:H/A:H")
+	b, _ := aiFindingData(req, fc, &dev, aiFirewalls{Walls: walls, Paths: []aiPath{pathGateway}, OnPath: true})
 	for i, blk := range b[1:] {
 		heads := 0 // a banner may be quoted on more than one line of the data; it may never start one
 		for _, l := range strings.Split(blk.Text, "\n") {
@@ -157,7 +226,7 @@ func TestAIFindingData_R1_OneLineValuesAndAttackVector(t *testing.T) {
 	if !strings.Contains(b[2].Text, "IP no IP address") || strings.Contains(b[2].Text, "203.0.113.9") {
 		t.Fatalf("an address that does not parse must not reach the model: %q", b[2].Text)
 	}
-	if !strings.Contains(b[0].Text, "Attack vector (CVSS): local (an account or code on the device); user interaction: needed") {
+	if !strings.Contains(b[0].Text, "attack vector: local; privileges required: low; user interaction: required") {
 		t.Fatalf("attack vector missing: %q", b[0].Text)
 	}
 }
@@ -169,10 +238,7 @@ func TestAITrustedAndMatched_R2(t *testing.T) {
 	goV, apV := "1.22", "2.4.58"
 	dev := inventory.Device{AssetCore: inventory.AssetCore{IP: "192.168.18.5", Services: []inventory.ServiceRow{{Port: 80, Proto: "tcp", Name: "http", Product: &banner}}},
 		Software: []inventory.Software{{Display: "Go", Version: &goV}, {Display: "Apache HTTP Server", Version: &apV}}}
-	row := findings.Row{Asset: &findings.AssetView{IP: "192.168.18.5"}}
-	if err := json.Unmarshal([]byte(`{"evidence":{"summary":"web-01 runs Apache HTTP Server 2.4.58. Going by the version, it is affected.","checked_at":"2026-11-16T00:00:00Z"}}`), &row); err != nil {
-		t.Fatal(err)
-	}
+	row := aiSubject{AssetIP: "192.168.18.5", Evidence: "web-01 runs Apache HTTP Server 2.4.58. Going by the version, it is affected."}
 	walls := []inventory.Device{{AssetCore: inventory.AssetCore{IP: "192.168.18.1"}}, {AssetCore: inventory.AssetCore{IP: "not an ip"}}}
 	if got := fmt.Sprint(aiTrusted(row, &dev, aiFirewalls{Walls: walls})); got != "[192.168.18.5 192.168.18.1]" {
 		t.Fatalf("trusted = %s", got)
@@ -249,10 +315,10 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 		return r
 	}
 	udp := func(r inventory.ServiceRow) inventory.ServiceRow { r.Proto = "udp"; return r }
-	junos := findings.Row{CVE: "CVE-2023-36844", Kev: &findings.KevInfo{Vendor: "Juniper", Product: "Junos OS"}}
-	iosxe := findings.Row{CVE: "CVE-2023-20198", Kev: &findings.KevInfo{Vendor: "Cisco", Product: "IOS XE"}}
-	windows := findings.Row{CVE: "CVE-2022-21907", Kev: &findings.KevInfo{Vendor: "Microsoft", Product: "Windows"}}
-	tomcat := findings.Row{CVE: "CVE-2025-24813", Kev: &findings.KevInfo{Vendor: "Apache", Product: "Tomcat"}}
+	junos := aiSubject{CVE: "CVE-2023-36844", Vendor: "Juniper", Product: "Junos OS"}
+	iosxe := aiSubject{CVE: "CVE-2023-20198", Vendor: "Cisco", Product: "IOS XE"}
+	windows := aiSubject{CVE: "CVE-2022-21907", Vendor: "Microsoft", Product: "Windows"}
+	tomcat := aiSubject{CVE: "CVE-2025-24813", Vendor: "Apache", Product: "Tomcat"}
 	switchDev := inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Juniper Networks"), Model: obs("EX4200-48T"), Services: []inventory.ServiceRow{
 		svc(22, "ssh", "OpenSSH", "6.9", ""),
 		svc(80, "http", "Embedthis-Appweb", "3.2.3", "title: Log In - Juniper Web Device Manager"),
@@ -276,16 +342,16 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 	winNoOS.OS = nil
 	routerNoVendor := router
 	routerNoVendor.Vendor, routerNoVendor.OS = nil, obs("Linux 4.X")
-	exchange := findings.Row{CVE: "CVE-2021-26855", Kev: &findings.KevInfo{Vendor: "Microsoft", Product: "Exchange Server"}}
+	exchange := aiSubject{CVE: "CVE-2021-26855", Vendor: "Microsoft", Product: "Exchange Server"}
 	mailHost := inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Dell"), OS: obs("Microsoft Windows Server 2019"), Services: []inventory.ServiceRow{
 		svc(25, "smtp", "Microsoft Exchange smtpd", "", ""), svc(80, "http", "Microsoft IIS httpd", "10.0", ""), svc(443, "ssl/http", "Microsoft IIS httpd", "10.0", ""),
 		svc(135, "msrpc", "Microsoft Windows RPC", "", ""),
 	}}}
-	sophos := findings.Row{CVE: "CVE-2022-1040", Kev: &findings.KevInfo{Vendor: "Sophos", Product: "Firewall"}}
+	sophos := aiSubject{CVE: "CVE-2022-1040", Vendor: "Sophos", Product: "Firewall"}
 	sophosDev := inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Sophos"), Model: obs("XGS 2100"), OS: obs("SFOS 19.5.3"), Services: []inventory.ServiceRow{
 		svc(22, "ssh", "", "", ""), svc(443, "ssl/https", "", "", "certificate: commonName=Sophos_XGS"), svc(4444, "ssl/http", "", "", ""),
 	}}}
-	wsus := findings.Row{CVE: "CVE-2025-59287", Kev: &findings.KevInfo{Vendor: "Microsoft", Product: "Windows Server Update Service (WSUS)"}}
+	wsus := aiSubject{CVE: "CVE-2025-59287", Vendor: "Microsoft", Product: "Windows Server Update Service (WSUS)"}
 	wsusHost := inventory.Device{AssetCore: inventory.AssetCore{Vendor: obs("Dell"), OS: obs("Windows Server 2022"), Services: []inventory.ServiceRow{
 		svc(135, "msrpc", "Microsoft Windows RPC", "", ""), svc(8530, "http", "Microsoft IIS httpd", "10.0", ""), svc(8531, "ssl/http", "Microsoft IIS httpd", "10.0", ""),
 		svc(443, "ssl/https", "Microsoft IIS httpd", "10.0", "title: Intranet"),
@@ -301,7 +367,7 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 	)
 	for _, c := range []struct {
 		name string
-		row  findings.Row
+		row  aiSubject
 		dev  inventory.Device
 		want string
 	}{
@@ -358,8 +424,9 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 	}
 
 	// the config job gets the line and the safe apply; the explain job gets neither
-	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, Finding: junos}
-	text := aiFindingData(req, &switchDev, aiFirewalls{})[1].Text
+	req := mitigation.AIRequest{Skill: mitigation.SkillConfig, FindingID: "f1"}
+	jb, _ := aiFindingData(req, caseOf(junos), &switchDev, aiFirewalls{})
+	text := jb[1].Text
 	for _, w := range []string{"Ports of the vulnerable product: the vulnerability is in the device's own platform", "web: 80/tcp http (Embedthis-Appweb 3.2.3), 443/tcp ssl/https (product not read)",
 		"Safe apply on this device: Junos: the block ends with `commit confirmed 5`"} {
 		if !strings.Contains(text, w) {
@@ -367,7 +434,8 @@ func TestAIVulnPorts_TheVulnerableProductsPortsOnly(t *testing.T) {
 		}
 	}
 	req.Skill = mitigation.SkillExplain
-	if text := aiFindingData(req, &switchDev, aiFirewalls{})[1].Text; strings.Contains(text, "Safe apply") || strings.Contains(text, "Ports of the vulnerable product") {
+	eb, _ := aiFindingData(req, caseOf(junos), &switchDev, aiFirewalls{})
+	if text := eb[1].Text; strings.Contains(text, "Safe apply") || strings.Contains(text, "Ports of the vulnerable product") {
 		t.Errorf("explain device block:\n%s", text)
 	}
 }

@@ -521,7 +521,7 @@ func TestContract_INV3_AIResultIsLabelledStoredAndGated(t *testing.T) {
 	if b["pack"] != nil || b["ai"].(map[string]any)["config"] != nil {
 		t.Fatalf("an AI result leaked into the pack or the other skill: %v", b)
 	}
-	if call := r.ai.calls[0]; call.Skill != SkillExplain || call.HasPack || call.User != "it@acme.example" || call.Finding.ID != id {
+	if call := r.ai.calls[0]; call.Skill != SkillExplain || call.HasPack || call.User != "it@acme.example" || call.FindingID != id {
 		t.Fatalf("call = %+v", call)
 	}
 	// it survives a reload of the page, and the audit row names no content
@@ -579,10 +579,24 @@ func TestContract_INV3_M2_2_ConfigAnswerKeepsItsConfigBlocks(t *testing.T) {
 	if got := b["ai"].(map[string]any)["config"].(map[string]any)["configs"].([]any); len(got) != 1 {
 		t.Fatalf("config blocks lost on reload: %v", got)
 	}
-	want, _ := json.Marshal(b["fixed_in"])
-	got, _ := json.Marshal(r.ai.calls[0].FixedIn)
-	if string(got) != string(want) {
-		t.Fatalf("the AI got fixed_in %s, the page shows %s", got, want)
+	if call := r.ai.calls[0]; call.Skill != SkillConfig || call.FindingID != id {
+		t.Fatalf("the AI was asked %+v: it reads the finding itself, by its id", call)
+	}
+}
+
+// The four answers are stored with the result and come back on the page; a link that is not http(s) never reaches it, a fifth answer and
+// the links beyond eight are dropped.
+func TestAIAnswersAreStoredAndLimited(t *testing.T) {
+	t.Parallel()
+	o := AIOutput{Model: "m", Answers: []findings.AIAnswer{
+		{Key: "affected", Text: "Yes: confirmed by a person.", Links: []findings.AILink{{Title: "Advisory", URL: "https://example.com/a"}, {Title: "Bad", URL: "javascript:alert(1)"}}},
+		{Key: "fix", Text: strings.Repeat("é", maxAIAnswer+10)}, {Key: "workaround", Text: "None."}, {Key: "urgency", Text: "High."}, {Key: "extra", Text: "x"}}}
+	res := sanitizeAI(SkillExplain, t0, o)
+	if len(res.Answers) != maxAIAnswers || res.Answers[0].Key != "affected" || len(res.Answers[0].Links) != 1 || res.Answers[0].Links[0].URL != "https://example.com/a" || len([]rune(res.Answers[1].Text)) != maxAIAnswer {
+		t.Fatalf("answers = %+v", res.Answers)
+	}
+	if res.Answers[1].Links == nil {
+		t.Fatal("an answer without links must carry an empty list, not null")
 	}
 }
 

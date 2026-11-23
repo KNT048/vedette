@@ -126,7 +126,7 @@ func (c findingCase) FixText() string {
 	v := c.View
 	fx := v.Finding.Fix
 	if w := fixWords(fx.Kind, v.FixProduct(), "", fx.Version, fx.Ref); w != "" {
-		return "Fixed: " + w + "."
+		return capitalFirst(w) + "."
 	}
 	if fx.Kind == findings.FixNoneYet {
 		return "No fixed release exists yet: the vendor's affected versions have no end."
@@ -150,7 +150,13 @@ func (c findingCase) matchingRange() *feeds.BriefRange {
 }
 
 // ConfirmText says who or what confirmed the finding, or that nobody has.
-func (c findingCase) ConfirmText() string {
+func (c findingCase) ConfirmText() string { return c.confirmWords(true) }
+
+// ConfirmWords is ConfirmText for a reader that is not given the people of the box (the MCP tools): a person's confirmation says "a
+// person", never who.
+func (c findingCase) ConfirmWords() string { return c.confirmWords(false) }
+
+func (c findingCase) confirmWords(named bool) string {
 	cf := c.View.Confirmation()
 	day := ""
 	if !cf.At.IsZero() {
@@ -158,7 +164,11 @@ func (c findingCase) ConfirmText() string {
 	}
 	switch cf.Verified {
 	case findings.VerifiedPerson:
-		return "Confirmed by " + cmp.Or(aiVal(cf.By, 100), "a person") + day + " on their own word."
+		who := "a person"
+		if named {
+			who = cmp.Or(aiVal(cf.By, 100), who)
+		}
+		return "Confirmed by " + who + day + " on their own word."
 	case findings.VerifiedScan:
 		return "Confirmed by a safe check Vedette ran" + day + "."
 	case findings.VerifiedDevice:
@@ -179,8 +189,10 @@ func basisWords(b findings.DetectionBasis) string {
 }
 
 // WorkaroundText is the workaround the CVE record gives, or the plain sentence when it gives none.
-func (c findingCase) WorkaroundText() string {
-	if w := aiVal(c.Brief.Workaround, 800); w != "" {
+func (c findingCase) WorkaroundText() string { return briefWorkaround(c.Brief) }
+
+func briefWorkaround(b feeds.Brief) string {
+	if w := aiVal(b.Workaround, 800); w != "" {
 		return w
 	}
 	return "No workaround is published: install the fix."
@@ -263,7 +275,7 @@ func (c findingCase) attackWords() string {
 		return "Attack conditions: not known (no CVSS vector)."
 	}
 	r := b.Reading
-	s := "Attack conditions (" + aiVal(b.Source, 10) + " CVSS " + aiVal(b.Version, 5) + " vector): reached over the " + aiVal(r.AttackVector, 20) + "; privileges required: " +
+	s := "Attack conditions (" + aiVal(b.Source, 10) + " CVSS " + aiVal(b.Version, 5) + " vector): attack vector: " + aiVal(r.AttackVector, 20) + "; privileges required: " +
 		aiVal(r.PrivilegesRequired, 20)
 	if r.UserInteraction != "" {
 		s += "; user interaction: " + aiVal(r.UserInteraction, 20)
@@ -303,8 +315,11 @@ func (c findingCase) briefFeedText(links []caseLink) string {
 	}
 	p("%s", c.attackWords())
 	for _, l := range b.Lists {
-		p("Exploited list: %s lists it, added %s; required action from the list: %s; used in ransomware campaigns: %t", aiVal(cmp.Or(l.SourceName, l.Source), 60), aiVal(l.DateAdded, 20),
-			aiVal(l.RequiredAction, 400), l.Ransomware)
+		line := fmt.Sprintf("Exploited list: %s lists it, added %s", aiVal(cmp.Or(l.SourceName, l.Source), 60), aiVal(l.DateAdded, 20))
+		if a := aiVal(l.RequiredAction, 400); a != "" {
+			line += "; required action from the list: " + a
+		}
+		p("%s; used in ransomware campaigns: %t", line, l.Ransomware)
 	}
 	for _, g := range b.Signals {
 		p("Signal: %s from %s, first seen %s", aiVal(g.Kind, 40), aiVal(g.SourceName, 60), g.FirstSeen.UTC().Format(time.DateOnly))
@@ -394,7 +409,7 @@ func (c findingCase) deviceFactsText() string {
 		p("Your device matches: %s (fixed release %s).", aiVal(r.Versions, 100), aiVal(cmp.Or(r.FixedRelease, r.Fixed), 80))
 	}
 	p("Confirmation: %s", c.ConfirmText())
-	p("Finding status: %s; urgency: %s", v.Status(), c.StatusWords())
+	p("Finding status: %s", c.StatusWords())
 	if f.Evidence != nil && f.Evidence.Summary != "" {
 		p("Evidence (installed version and affected range): %s", aiVal(f.Evidence.Summary, 600))
 	}

@@ -157,10 +157,14 @@ func TestReadersNeverCallAFindingAboveLayerTwoExploited(t *testing.T) {
 		}
 	}
 	for _, r := range above {
-		if mcpExploited(mcpFinding(r)) {
+		c, err := caseSource{findings: s.d.Findings}.One(ctx, r.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mcpExploited(mcpFinding(c)) {
 			counts["mcp"]++
 		}
-		if aiExploited(aiFindingRow(r, nil)) {
+		if aiExploited(aiFindingRow(c, nil)) {
 			counts["ai context"]++
 		}
 	}

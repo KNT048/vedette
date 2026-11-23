@@ -27,8 +27,8 @@ type Inventory interface {
 	Devices(ctx context.Context) ([]Device, error)
 }
 
-// Finding is a finding as the PDPL assessment reads it. Status is one of confirmed, suspected, mitigated, patched,
-// false_positive, not_relevant, risk_accepted; Severity one of critical, high, medium, low, info.
+// Finding is an open finding as the PDPL assessment reads it. Status is confirmed (a scan or a person confirmed it) or suspected:
+// handled findings never arrive. Severity is one of critical, high, medium, low, info.
 type Finding struct {
 	ID, AssetID, CVE string
 	Status, Severity string
@@ -36,7 +36,7 @@ type Finding struct {
 	Agent            bool // the version compared is the one the device's own agent reports
 }
 
-// Findings lists every finding of a watched device, for the PDPL assessment.
+// Findings lists every open finding of a watched device, for the PDPL assessment.
 type Findings interface {
 	All(ctx context.Context) ([]Finding, error)
 }

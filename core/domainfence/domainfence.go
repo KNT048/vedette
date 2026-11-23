@@ -284,10 +284,12 @@ type ProofResolver interface {
 }
 
 // Proof is the answer of Owned: At is the name the record was found on ("" when none); Unchecked says a lookup failed, so nothing is
-// known (fail closed); Detail says why in words for a log line.
+// known (fail closed); Refused says a record of the token was found but does not count; Detail says why in words for a log line
+// (callers decide from the fields, never from Detail).
 type Proof struct {
 	At        string
 	Unchecked bool
+	Refused   bool // reached through a CNAME, or answered by a wildcard
 	Detail    string
 }
 
@@ -363,7 +365,7 @@ func Owned(ctx context.Context, r ProofResolver, domain, token string, timeout t
 		return Proof{Unchecked: true, Detail: "the DNS lookup at " + failed + " failed"}
 	}
 	if why != "" {
-		return Proof{Detail: why}
+		return Proof{Refused: true, Detail: why}
 	}
 	return Proof{Detail: strings.Join(names, " and ") + " have no TXT record vedette-verify=<the token>"}
 }

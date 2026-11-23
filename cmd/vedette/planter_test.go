@@ -23,9 +23,16 @@ type planter struct {
 	pks    map[string]string          // table -> its single primary key column
 	keyed  map[string]map[string]bool // table -> the columns a foreign key references: they hold the planted default
 	n      int                        // rows written: a column nothing references holds a value of this row only, so unique indexes hold
+	// base is the value a column takes when the row does not give it, in place of the planted default (also in the rows a foreign key
+	// makes the planter write): a test that needs rows that look valid sets it.
+	base map[string]map[string]any
 }
 
 type plantRef struct{ table, column string }
+
+// danglingRef is a value for a foreign key column whose row the planter must not write: the row then references a row that is not
+// there (planted with foreign keys off).
+type danglingRef string
 
 func newPlanter(t *testing.T, db *store.DB) *planter {
 	t.Helper()
@@ -160,8 +167,15 @@ func (p *planter) write(ctx context.Context, tx *sql.Tx, tbl string, set map[str
 	var cols, marks []string
 	var args []any
 	p.n++
+	skip := map[string]bool{} // dangling references: the referenced row is not written
 	for _, c := range names {
 		v, given := set[c]
+		if !given {
+			v, given = p.base[tbl][c]
+		}
+		if d, ok := v.(danglingRef); ok {
+			v, skip[c] = string(d), true
+		}
 		if !given {
 			v = p.value(tbl, c)
 			if _, ref := p.refs[tbl][c]; !ref && !p.keyed[tbl][c] { // nothing points at it: a value of this row only
@@ -179,7 +193,7 @@ func (p *planter) write(ctx context.Context, tx *sql.Tx, tbl string, set map[str
 	if depth < 8 {
 		for c, r := range p.refs[tbl] {
 			v := vals[c]
-			if v == nil || r.column == "" || (r.table == tbl && v == vals[r.column]) { // NULL, or a row that references itself
+			if v == nil || skip[c] || r.column == "" || (r.table == tbl && v == vals[r.column]) { // NULL, dangling, or a row that references itself
 				continue
 			}
 			if err := p.write(ctx, tx, r.table, map[string]any{r.column: v}, "INSERT OR IGNORE", depth+1); err != nil {

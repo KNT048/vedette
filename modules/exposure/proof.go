@@ -392,8 +392,8 @@ func (s *Service) whyNot(ctx context.Context, memo *memoResolver, t Target, cand
 		if c.t.ID != t.ID {
 			continue
 		}
-		if d := c.got.Detail; strings.Contains(d, "CNAME to another name") || strings.Contains(d, "wildcard") || c.got.Unchecked {
-			b.WriteString("Not counted: " + cleanDNS(d, 200) + ". ")
+		if c.got.Refused || c.got.Unchecked {
+			b.WriteString("Not counted: " + cleanDNS(c.got.Detail, 200) + ". ")
 		}
 	}
 	var above, viaRecords []string

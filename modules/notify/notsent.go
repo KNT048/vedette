@@ -379,6 +379,10 @@ func (s *Service) notSentNotices(ctx context.Context, q dbtx, since time.Time) (
 		return nil, fmt.Errorf("notify: read failed notices: %w", err)
 	}
 	loc := s.loc(ctx)
+	rules, err := loadRules(ctx, q)
+	if err != nil {
+		return nil, err
+	}
 	for _, r := range list {
 		sev := Severity(r.sev)
 		var ns NotSent
@@ -387,6 +391,11 @@ func (s *Service) notSentNotices(ctx context.Context, q dbtx, since time.Time) (
 		case w != nil && w.now != "":
 			ns = noticeNotSent(UnsentQueued, sev, "", "", "", loc)
 		case w != nil && w.group != "":
+			// The queue releases no grouped batch during quiet hours: a window that ends inside them waits for their end.
+			if due, err := time.Parse(time.RFC3339, w.group); err == nil && rules.Quiet.Active(due.In(loc)) {
+				ns = noticeNotSent(UnsentQuietHours, sev, "", "", store.FormatTS(rules.Quiet.EndsAt(due.In(loc))), loc)
+				break
+			}
 			ns = noticeNotSent(UnsentGrouped, sev, "", "", w.group, loc)
 		case w != nil:
 			ns = noticeNotSent(UnsentQuietHours, sev, "", "", w.quiet, loc)

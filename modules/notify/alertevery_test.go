@@ -245,3 +245,30 @@ func TestHistoryNamesEveryNoticeNotSentAndWhy(t *testing.T) {
 		t.Errorf("a grouped notice says until when: %+v", w)
 	}
 }
+
+// A notice waiting for its grouping window whose end falls in quiet hours is held until they end (the queue releases no grouped batch
+// while they last), so History says so and when, not a grouping time that has already passed.
+func TestHistoryGroupedNoticeWhoseWindowEndsInQuietHoursSaysQuietHours(t *testing.T) {
+	dir := &liveFindings{}
+	e, pub := alertEnv(t, dir)
+	e.rules(notify.Quiet{Enabled: true, From: "10:30", To: "07:00"}, notify.Grouping{Enabled: true, WindowMin: 60}) // now is 10:00
+	dir.at("f-eve", 3, finding("Example NAS", "CVE-2026-5", "nas-01", notify.High))
+	pub(notify.EventFindingCreated, findings.CreatedEvent{FindingID: "f-eve", CVE: "CVE-2026-5", Severity: findings.SeverityHigh})
+	e.flush()
+	e.clock.Add(65 * time.Minute) // the grouping window ended at 11:00, inside quiet hours
+	e.flush()
+	if n := e.count(`SELECT count(*) FROM notify_pending WHERE notice_id = 'nt-f-eve-created'`); n != 1 {
+		t.Fatalf("queued rows = %d, want the notice still held", n)
+	}
+	h, err := e.svc.History(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(h.NotSent) != 1 {
+		t.Fatalf("not sent = %+v, want the held notice", h.NotSent)
+	}
+	ns := h.NotSent[0].NotSent
+	if ns.Reason != notify.UnsentQuietHours || !strings.Contains(ns.Text, "until 07:00") {
+		t.Errorf("not sent = %+v, want held for quiet hours until 07:00", ns)
+	}
+}

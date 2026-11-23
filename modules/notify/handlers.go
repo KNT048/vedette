@@ -103,6 +103,19 @@ func (h *NotifyHandlers) NotifyPostNotifyHistoryIDResend(ctx context.Context, pa
 	return convert[oas.NotifyPostNotifyHistoryIDResendOK](it)
 }
 
+// NotifyPostNotifyNoticesIDSend implements POST /notify/notices/{id}/send (operator).
+func (h *NotifyHandlers) NotifyPostNotifyNoticesIDSend(ctx context.Context, params oas.NotifyPostNotifyNoticesIDSendParams) (*oas.NotifyPostNotifyNoticesIDSendOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	n, err := h.svc.SendNow(ctx, who, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.NotifyPostNotifyNoticesIDSendOK](n)
+}
+
 // NotifyGetNotifyFindingsIDNotices implements GET /notify/findings/{id}/notices (viewer).
 func (h *NotifyHandlers) NotifyGetNotifyFindingsIDNotices(ctx context.Context, params oas.NotifyGetNotifyFindingsIDNoticesParams) (*oas.NotifyGetNotifyFindingsIDNoticesOK, error) {
 	l, err := h.svc.FindingNotices(ctx, params.ID)

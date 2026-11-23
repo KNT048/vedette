@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
@@ -46,8 +47,15 @@ type Notice struct {
 	Status, Verification string
 	// Layer is the urgency layer of the vulnerability (FindingInfo.Layer); a digest says "exploited" only when every notice is.
 	Layer int
-	Link  string // absolute URL of the finding or incident in Vedette
-	At    time.Time
+	// Lines are the detail lines of a notice about several findings (a first-run summary): one per finding, worded as a digest line
+	// ("<product>: <CVE> on <device> — <reasons> · <verification>"), in the order of FindingIDs. Empty: the message lists the CVEs.
+	Lines []string `json:",omitempty"`
+	// More counts the findings the notice tells but does not list (a first-run summary of more findings than an event lists).
+	More int `json:",omitempty"`
+	// Forced: a person asked to send it now (History, Send now). The channels' minimum severity does not hold it back; everything else does.
+	Forced bool   `json:",omitempty"`
+	Link   string // absolute URL of the finding or incident in Vedette
+	At     time.Time
 
 	// IncidentKind (incidents) and DeviceIDs (parallel to Devices, when the ids are known) only feed the structured
 	// fields of the webhook payload (kind, devices[]); the text channels do not use them.
@@ -142,7 +150,7 @@ func GroupHeld(ns []Notice, floor Severity) []Batch { return group(ns, held, flo
 func group(ns []Notice, window time.Duration, floor Severity) []Batch {
 	sorted := make([]Notice, 0, len(ns))
 	for _, n := range ns {
-		if n.Sendable() && MeetsMin(n.Severity, floor) {
+		if n.Sendable() && (n.Forced || MeetsMin(n.Severity, floor)) {
 			sorted = append(sorted, n)
 		}
 	}
@@ -166,8 +174,9 @@ func group(ns []Notice, window time.Duration, floor Severity) []Batch {
 // digest merges the vulnerability batches a channel sends in one run into one message: the first matching after a
 // product is added makes a burst of findings, often critical (never grouped by window), and one message each floods the chat
 // and runs into the provider's rate limit. Nothing waits longer for this: only batches already due now are merged. Critical notices
-// come first. Incident batches stay their own message. link is the findings list, the link of a digest of several products.
-func digest(release []Batch, link string) []Batch {
+// come first. Incident batches stay their own message. A digest of several products links to the findings list filtered to the statuses
+// of its findings; link makes a path of the box an address.
+func digest(release []Batch, link func(path string) string) []Batch {
 	at := -1
 	var notices []Notice
 	var out []Batch
@@ -194,7 +203,7 @@ func digest(release []Batch, link string) []Batch {
 		}
 		return a.At.Compare(b.At)
 	})
-	out[at] = Batch{Notices: notices, min: out[at].min, link: link}
+	out[at] = Batch{Notices: notices, min: out[at].min, link: link(findingsListOf(noticeLayers(notices)))}
 	return out
 }
 
@@ -250,7 +259,7 @@ func (b Batch) Message() (channel.Message, error) {
 		return channel.Message{}, ErrUnsendable
 	}
 	for _, n := range b.Notices {
-		if !n.Sendable() || !MeetsMin(n.Severity, b.min) {
+		if !n.Sendable() || !n.Forced && !MeetsMin(n.Severity, b.min) {
 			return channel.Message{}, ErrUnsendable
 		}
 	}
@@ -260,6 +269,9 @@ func (b Batch) Message() (channel.Message, error) {
 			Devices: deviceRefs(first.Devices, first.DeviceIDs), What: first.What, Action: first.Action, Link: first.Link}
 		if first.Kind == KindVuln {
 			m.Items = slices.Clone(first.CVEs)
+			if len(first.Lines) > 0 { // a summary: one line per finding, as a digest says it
+				m.Items, m.More = slices.Clone(first.Lines), max(first.More, 0)
+			}
 		}
 		return m, nil
 	}
@@ -283,24 +295,7 @@ func (b Batch) Message() (channel.Message, error) {
 	}
 	listed := b.Listed()
 	for _, n := range listed {
-		line := strings.Join(dedupe(n.CVEs), ", ")
-		change := n.Change
-		if line == "" {
-			line, change = n.Title, "" // the title already says what changed
-		}
-		if mixed && strings.TrimSpace(n.Product) != "" {
-			line = strings.TrimSpace(n.Product) + ": " + line
-		}
-		if d := joinDevices(n.Devices); d != "" {
-			line += " on " + d
-		}
-		if change != "" {
-			line += ": " + change
-		}
-		if why := findingLine(n, channel.MaxItemRunes-utf8.RuneCountInString(line)-3); why != "" {
-			line += " — " + why
-		}
-		items = append(items, line)
+		items = append(items, itemLine(n, mixed))
 	}
 	more := len(b.Notices) - len(listed)
 	if mixed { // a digest of a burst across products
@@ -341,8 +336,31 @@ func (b Batch) Message() (channel.Message, error) {
 		Title:  title,
 		Device: joinDevices(devices), Devices: deviceRefs(devices, nil),
 		What:   what,
-		Action: first.Action, Items: items, More: more, Link: first.Link,
+		Action: first.Action, Items: items, More: more, Link: cmp.Or(b.link, first.Link),
 	}, nil
+}
+
+// itemLine is the line a message gives one finding's notice among others: "[<product>: ]<CVE> on <device>[: <change>] — <reasons> ·
+// <verification>", at most channel.MaxItemRunes long. withProduct names the product first (a digest of several products, a summary).
+func itemLine(n Notice, withProduct bool) string {
+	line := strings.Join(dedupe(n.CVEs), ", ")
+	change := n.Change
+	if line == "" {
+		line, change = n.Title, "" // the title already says what changed
+	}
+	if withProduct && strings.TrimSpace(n.Product) != "" {
+		line = strings.TrimSpace(n.Product) + ": " + line
+	}
+	if d := joinDevices(n.Devices); d != "" {
+		line += " on " + d
+	}
+	if change != "" {
+		line += ": " + change
+	}
+	if why := findingLine(n, channel.MaxItemRunes-utf8.RuneCountInString(line)-3); why != "" {
+		line += " — " + why
+	}
+	return line
 }
 
 // findingLine is what a digest line says of its finding after the CVE and the device, as the finding page says it: the reasons line

@@ -625,6 +625,7 @@
       "notify.incident_open": "Open incident",
       "notify.incident_status": "Change incident status",
       "notify.resend": "Send alert again",
+      "notify.notice_send_now": "Send an alert that was not sent",
       "notify.rules_save": "Save alert rules",
       "notify.stale_dropped": "Old alerts dropped",
       "box-ca.create": "Create box certificate authority",

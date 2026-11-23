@@ -63,9 +63,9 @@ export const IncidentKind = z.string().regex(/^[a-z0-9_]{1,40}$/).describe('What
 export const IncidentStatus = z.enum(['new', 'acknowledged', 'resolved'])
 export const SendRecord = z.object({ id: z.string(), channel: ChannelType, to: z.string(), at: iso, ok: z.boolean(), error: z.string().optional(),
   delayed: z.boolean().describe('The provider asked to slow down (HTTP 429, Zalo -32): the message waits in the queue and is sent again by itself; not a failure, no Resend') })
-export const NotSentReason = z.enum(['queued', 'quiet_hours', 'grouped', 'no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'unknown'])
+export const NotSentReason = z.enum(['queued', 'quiet_hours', 'grouped', 'no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed', 'dropped_stale', 'first_run_summary', 'line_left_out', 'unknown'])
 export const NotSent = z.object({
-  reason: NotSentReason.describe('Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; unknown = opened before the reason was kept and today\'s channels would take it'),
+  reason: NotSentReason.describe('Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and grouped (a vulnerability notice waiting for its grouping window) still go out by themselves; line_left_out = a vulnerability notice that was queued and sent, but its line was past what the message could hold; unknown = opened before the reason was kept and today\'s channels would take it'),
   text: z.string().describe('One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only send high and above."'),
   channel: ChannelType.optional().describe('The channel to fix: the one whose last attempt failed (failed), the one turned off or removed while the message waited (channel_off, channel_removed), or the one with the lowest minimum (below_min_severity)'),
   until: iso.optional().describe('quiet_hours, grouped: when the held message goes out'),
@@ -104,7 +104,7 @@ export const HistoryItem = z.object({
 })
 export const UnsentNotice = z.object({
   id: z.string(), at: iso.describe('When the notice was made'), what: z.string().describe('Its title: "<product> on <device>: <status> (<CVE>)"'),
-  link: z.string().describe('The finding it is about, or the findings list for a first-run summary'), not_sent: NotSent,
+  link: z.string().describe('The finding it is about, or the list of urgent findings for a first-run summary'), not_sent: NotSent,
 })
 export const HistoryResponse = z.object({
   items: z.array(HistoryItem),
@@ -152,6 +152,7 @@ export const endpoints = defineEndpoints([
     response: z.object({ updated: z.number().int().describe('Incidents changed'), already_resolved: z.number().int().describe('Resolved incidents, left as they were'), already_acknowledged: z.number().int().describe('Acknowledge only: incidents already acknowledged, left as they were') }) },
   { method: 'get', path: '/notify/history', summary: 'Every message sent (incidents, vulnerability notices, approval requests) and the count of new vulnerabilities matching no device (not sent)', stories: ['S-ALERT-1', 'S-NOT-1'], role: 'admin', response: HistoryResponse },
   { method: 'post', path: '/notify/history/{id}/resend', summary: 'Send a message again through the same channel', stories: ['S-NOT-1'], role: 'operator', params: id, response: HistoryItem },
+  { method: 'post', path: '/notify/notices/{id}/send', summary: 'Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its findings as they are now, queued on every channel that is on whatever its minimum severity, quiet hours or grouping; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or channel_not_ready', stories: ['S-ALERT-1', 'S-NOT-1'], role: 'operator', params: id, response: UnsentNotice },
   { method: 'get', path: '/notify/findings/{id}/notices', summary: 'Who was notified about this finding, on which channel, and whether it arrived', stories: ['S-ALERT-1'], role: 'viewer', params: id, response: FindingNotices, example: { params: { id: 'f-1' } } },
   { method: 'get', path: '/notify/alerts/{id}/target', summary: 'Old alert link: the incident or the finding it became', stories: ['S-ALERT-3'], role: 'viewer', params: id, response: LegacyTarget, example: { params: { id: 'al-1' } } },
   { method: 'get', path: '/notify/channels', summary: 'Alert channels, quiet hours, batching rules (without secrets), and how many users sign in with email codes', stories: ['S-NOT-1'], role: 'admin', response: ChannelsResponse },

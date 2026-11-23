@@ -604,6 +604,13 @@ export const handlers = [
     return HttpResponse.json({ items: history(), not_sent: [], suppressed: suppressed(notices.get()) })
   }),
 
+  http.post(`${API}/notify/notices/:id/send`, ({ params }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const c = channels.get().find((x) => x.configured && x.enabled)
+    if (!c) return fail(409, 'channel_not_ready', 'No alert channel is on. An administrator can set one up or turn one on in Settings, Alert channels.')
+    return HttpResponse.json({ id: String(params.id), at: nowIso(), what: 'Alert', link: '/findings?tab=device', not_sent: { reason: 'queued', text: 'Waiting to be sent: it goes out within a minute.' } })
+  }),
+
   http.post(`${API}/notify/history/:id/resend`, ({ params }) => {
     const denied = guard('operator'); if (denied) return denied
     const id = String(params.id)

@@ -13,7 +13,7 @@ const wrap = (C: ComponentType<Record<string, unknown>>): ComponentType<Record<s
 export const feature: Feature = {
   id: 'ai',
   routes: [{ path: 'assistant', lazy: () => import('./AssistantPage').then((m) => ({ Component: m.default })) }],
-  nav: [{ to: '/assistant', label: 'ai:nav.assistant', icon: Bot, module: 'ai', group: 'assist', order: 10 }],
-  settings: [{ id: 'ai', label: 'ai:settings.nav', module: 'ai', minRole: 'admin', order: 40, element: <Suspense fallback={<Loading />}><AiSettings /></Suspense> }],
+  nav: [{ to: '/assistant', label: 'common:shell.assistant', icon: Bot, module: 'ai', group: 'assist', order: 10 }],
+  settings: [{ id: 'ai', label: 'common:shell.aiSettings', module: 'ai', minRole: 'admin', order: 40, element: <Suspense fallback={<Loading />}><AiSettings /></Suspense> }],
   slots: { 'cve.panels': wrap(CvePanels), 'logs.panels': wrap(LogsPanel) },
 }

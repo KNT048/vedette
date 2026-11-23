@@ -54,7 +54,7 @@ func TestContract_DiscoveredWhileTheSourceIsLearning(t *testing.T) {
 	}
 	nmap := func(ip string) {
 		t.Helper()
-		if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, observe.Nmap, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.8}}); err != nil {
+		if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr(ip)}, observe.Nmap, observe.ServiceScope{}, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.8}}); err != nil {
 			t.Fatal(err)
 		}
 	}

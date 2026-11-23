@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- hand-written fixture shaped after the nmap DTD (the discovery run of the external shape, - -top-ports 1000); no live
+     network was scanned. 198.51.100.7 stands for the box's own public IP. The scaninfo list is an invented stand-in of 1000
+     ports (1-1000), not nmap's own top-ports list: that list lives in nmap-services, which is not copied into this repository. -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -Pn -n --max-rate 100 --max-retries 2 --host-timeout 2m --top-ports 1000 --stats-every 5s -oX - 198.51.100.7" start="1762650000" version="7.95" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<host starttime="1762650001" endtime="1762650031"><status state="up" reason="user-set" reason_ttl="0"/>
+<address addr="198.51.100.7" addrtype="ipv4"/>
+<hostnames/>
+<ports>
+<extraports state="filtered" count="997"><extrareasons reason="no-responses" count="997"/></extraports>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="ssh" method="table" conf="3"/></port>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="https" method="table" conf="3"/></port>
+<port protocol="tcp" portid="666"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="doom" method="table" conf="3"/></port>
+</ports>
+<times srtt="9000" rttvar="3000" to="100000"/>
+</host>
+<runstats><finished time="1762650031" timestr="Sun Nov  9 00:00:31 2026" elapsed="31.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

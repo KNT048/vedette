@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"slices"
 	"testing"
 	"time"
 )
@@ -198,5 +199,47 @@ func TestNotSeen_FailedLookupKeepsThePorts(t *testing.T) {
 	moved.Ports = moved.Ports[:2]
 	if d := scan(moved); len(d.Ports) != 2 {
 		t.Fatalf("a moved name: %+v", d.Ports)
+	}
+}
+
+// INV-22 with the default scan's nmap ports: a port outside the runner's fixed list but among nmap's most common ports (666 here)
+// is checked by every scan whose service step says it probed it (ServiceScan.Probed), so one miss marks it and the second scan in
+// a row that misses it closes it. Without that list (no service step, or one that did not say) the same port is never called
+// missed or closed: the scan did not probe it.
+func TestNotSeen_TopPortClosedOnlyByScansThatProbedIt(t *testing.T) {
+	t.Parallel()
+	top := make([]int, 1000)
+	for i := range top {
+		top[i] = i + 1
+	}
+	misses666 := func(s Snapshot) (PortRow, bool) {
+		for _, p := range s.Ports {
+			if p.Port == 666 {
+				return p, true
+			}
+		}
+		return PortRow{}, false
+	}
+	n := newNS(t)
+	n.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: len(top), Probed: top}}
+	n.scan(day, ports(80, 666))
+	d2 := n.scan(day, ports(80))
+	if p, ok := misses666(d2); !ok || p.Misses != 1 || p.Unchecked {
+		t.Fatalf("after one miss: %+v", d2.Ports)
+	}
+	if !slices.Contains(notChecked(d2), "TCP ports other than the 1000 ports this scan probed: nmap's 1000 most common ports and the fixed list of commonly exposed ports.") {
+		t.Fatalf("not checked = %q", notChecked(d2))
+	}
+	if d3 := n.scan(day, ports(80)); func() bool { _, ok := misses666(d3); return ok }() {
+		t.Fatalf("two scans that probed it missed it, still open: %+v", d3.Ports)
+	}
+
+	unprobed := newNS(t) // no service step: only the runner's fixed list was probed
+	unprobed.scan(day, ports(80, 666))
+	for range 2 {
+		s := unprobed.scan(day, ports(80))
+		if p, ok := misses666(s); !ok || p.Misses != 0 || !p.Unchecked {
+			t.Fatalf("a scan that did not probe 666 marked it: %+v", s.Ports)
+		}
 	}
 }

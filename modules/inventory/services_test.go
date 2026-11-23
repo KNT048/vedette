@@ -46,10 +46,10 @@ func TestContract_INV23_ServicesReplacedPerSource(t *testing.T) {
 		{Port: 22, Proto: "tcp", Name: "ssh-again", Confidence: 0.1}, // the same port twice: the first one counts
 		{Port: 22, Proto: "udp", Name: "", Confidence: 0.3},          // another protocol is another service; the name may be empty
 	}
-	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, nmap); err != nil {
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, observe.ServiceScope{}, nmap); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.svc.ReplaceServices(ctx, hint, observe.Agent, []observe.Service{{Port: 443, Proto: "tcp", Name: "https", Product: "nginx", Confidence: 0.9}}); err != nil {
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Agent, observe.ServiceScope{}, []observe.Service{{Port: 443, Proto: "tcp", Name: "https", Product: "nginx", Confidence: 0.9}}); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"22/tcp ssh OpenSSH 8.9p1 nmap", "22/udp    nmap", "80/tcp http   nmap", "443/tcp https nginx  agent"}
@@ -58,7 +58,7 @@ func TestContract_INV23_ServicesReplacedPerSource(t *testing.T) {
 	}
 	// The next scan: 22 got a new version, 80 closed. The agent's row is not touched.
 	e.tick(time.Hour)
-	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Product: "OpenSSH", Version: "9.6p1", Confidence: 0.95}}); err != nil {
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, observe.ServiceScope{}, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Product: "OpenSSH", Version: "9.6p1", Confidence: 0.95}}); err != nil {
 		t.Fatal(err)
 	}
 	want = []string{"22/tcp ssh OpenSSH 9.6p1 nmap", "443/tcp https nginx  agent"}
@@ -69,14 +69,14 @@ func TestContract_INV23_ServicesReplacedPerSource(t *testing.T) {
 		t.Fatalf("the refreshed row's seen_at did not move (%d rows at the new time)", n)
 	}
 	// An empty list: that source saw nothing open.
-	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, nil); err != nil {
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, observe.ServiceScope{}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := servicesOf(e.detail(id)); len(got) != 1 || got[0] != "443/tcp https nginx  agent" {
 		t.Fatalf("after an empty nmap list: %q", got)
 	}
 	// "manual" is never a sensor's source.
-	if err := e.svc.ReplaceServices(ctx, hint, observe.Manual, nil); !errors.Is(err, inventory.ErrInvalid) {
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Manual, observe.ServiceScope{}, nil); !errors.Is(err, inventory.ErrInvalid) {
 		t.Fatalf("manual source: %v", err)
 	}
 	if n := e.count(`SELECT count(*) FROM inv_asset`); n != 1 {
@@ -112,7 +112,7 @@ func TestContract_INV23_ServiceBounds(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			e := newEnv(t)
-			if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: ipSvc}, observe.Nmap, items); !errors.Is(err, inventory.ErrInvalid) {
+			if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: ipSvc}, observe.Nmap, observe.ServiceScope{}, items); !errors.Is(err, inventory.ErrInvalid) {
 				t.Fatalf("want ErrInvalid, got %v", err)
 			}
 			if n := e.count(`SELECT count(*) FROM inv_asset`) + e.count(`SELECT count(*) FROM inv_service`); n != 0 {
@@ -126,7 +126,7 @@ func TestContract_INV23_ServiceBounds(t *testing.T) {
 	for i := range full {
 		full[i] = observe.Service{Port: 65535 - i, Proto: "udp", Name: strings.Repeat("n", 100), Product: strings.Repeat("p", 200), Version: strings.Repeat("1", 100), Confidence: 1}
 	}
-	if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: ipSvc}, observe.Nmap, full); err != nil {
+	if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: ipSvc}, observe.Nmap, observe.ServiceScope{}, full); err != nil {
 		t.Fatalf("the largest list: %v", err)
 	}
 	if n := e.count(`SELECT count(*) FROM inv_service`); n != 1000 {
@@ -138,7 +138,7 @@ func TestContract_INV23_ServiceBounds(t *testing.T) {
 		{Port: 22, Proto: "tcp", Name: "ssh", Product: "Open\u202eHSS", Confidence: 0.5},
 		{Port: 80, Proto: "tcp", Name: "http\ufe0f", Confidence: 0.5},
 	}
-	if err := e2.svc.ReplaceServices(e2.ctx(), observe.AssetHint{IP: ipSvc}, observe.Nmap, items); err != nil {
+	if err := e2.svc.ReplaceServices(e2.ctx(), observe.AssetHint{IP: ipSvc}, observe.Nmap, observe.ServiceScope{}, items); err != nil {
 		t.Fatal(err)
 	}
 	if n := e2.count(`SELECT count(*) FROM inv_service WHERE port = 80 AND name = 'http'`) + e2.count(`SELECT count(*) FROM inv_service`); n != 2 {
@@ -153,7 +153,7 @@ func TestContract_INV23_ServicesOfABoxOwnedAddressAreDropped(t *testing.T) {
 	e := newEnv(t, func(c *inventory.Config) {
 		c.BoxOwnedIPs = func(context.Context) []netip.Addr { return []netip.Addr{owned} }
 	})
-	if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: owned}, observe.Nmap, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.5}}); err != nil {
+	if err := e.svc.ReplaceServices(e.ctx(), observe.AssetHint{IP: owned}, observe.Nmap, observe.ServiceScope{}, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.5}}); err != nil {
 		t.Fatal(err)
 	}
 	if n := e.count(`SELECT count(*) FROM inv_asset`) + e.count(`SELECT count(*) FROM inv_service`); n != 0 || e.svc.BoxOwnedSkipped() != 1 {
@@ -167,11 +167,11 @@ func TestPruneServicesRemovesOnlyRowsNotSeenFor90Days(t *testing.T) {
 	e := newEnv(t)
 	ctx := e.ctx()
 	other := netip.MustParseAddr("192.168.10.21")
-	if err := e.svc.ReplaceServices(ctx, observe.AssetHint{IP: ipSvc}, observe.Nmap, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.5}}); err != nil {
+	if err := e.svc.ReplaceServices(ctx, observe.AssetHint{IP: ipSvc}, observe.Nmap, observe.ServiceScope{}, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.5}}); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(60 * 24 * time.Hour)
-	if err := e.svc.ReplaceServices(ctx, observe.AssetHint{IP: other}, observe.Nmap, []observe.Service{{Port: 80, Proto: "tcp", Name: "http", Confidence: 0.5}}); err != nil {
+	if err := e.svc.ReplaceServices(ctx, observe.AssetHint{IP: other}, observe.Nmap, observe.ServiceScope{}, []observe.Service{{Port: 80, Proto: "tcp", Name: "http", Confidence: 0.5}}); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(30 * 24 * time.Hour) // the first row is exactly 90 days old: kept
@@ -213,7 +213,7 @@ func TestContract_INV23_AddServicesKeepsTheFullList(t *testing.T) {
 		{Port: 22, Proto: "tcp", Name: "ssh", Product: "OpenSSH", Version: "8.9p1", Confidence: 0.95},
 		{Port: 8080, Proto: "tcp", Name: "http-proxy", Product: "Squid http proxy", Version: "5.7", Confidence: 0.76},
 	}
-	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, full); err != nil {
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, observe.ServiceScope{}, full); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(time.Hour)
@@ -244,5 +244,211 @@ func TestContract_INV23_AddServicesKeepsTheFullList(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM inv_service WHERE port = 22 AND product = 'OpenSSH' AND version = '8.9p1'`); n != 1 {
 		t.Fatal("a partial look without a product changed port 22")
+	}
+}
+
+// A scan of a few ports replaces the rows of those ports and leaves the device's other services (the scoped ReplaceServices).
+func TestScopedReplaceServicesKeepsThePortsItDidNotScan(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx := e.ctx()
+	e.record(obs(ipSvc, macA, observe.MAC, macA, observe.Passive, 0.9))
+	id := e.idByMAC(macA)
+	hint := observe.AssetHint{IP: ipSvc}
+	full := []observe.Service{
+		{Port: 22, Proto: "tcp", Name: "ssh", Product: "OpenSSH", Version: "8.9p1", Confidence: 0.95},
+		{Port: 80, Proto: "tcp", Name: "http", Product: "nginx", Version: "1.24.0", Confidence: 0.9},
+		{Port: 40000, Proto: "tcp", Name: "http", Product: "Acme admin", Version: "1.0", Confidence: 0.8},
+	}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, observe.ServiceScope{}, full); err != nil {
+		t.Fatal(err)
+	}
+	// a scan of ports 1-1000: 22 has a new version, 80 closed; 40000 was not looked at
+	scope := observe.ServiceScope{Ports: []observe.PortRange{{From: 1, To: 1000}}}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, scope, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Product: "OpenSSH", Version: "9.6p1", Confidence: 0.95}}); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"22/tcp ssh OpenSSH 9.6p1 nmap", "40000/tcp http Acme admin 1.0 nmap"}
+	if got := servicesOf(e.detail(id)); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("after a scan of ports 1-1000\n got %q\nwant %q", got, want)
+	}
+	// a scan that only found which ports are open leaves what a fuller scan said about a port
+	disc := observe.ServiceScope{Ports: []observe.PortRange{{From: 1, To: 65535}}, NoVersions: true}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, disc, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.5}, {Port: 8443, Proto: "tcp", Name: "https-alt", Confidence: 0.5}}); err != nil {
+		t.Fatal(err)
+	}
+	want = []string{"22/tcp ssh OpenSSH 9.6p1 nmap", "8443/tcp https-alt   nmap"}
+	if got := servicesOf(e.detail(id)); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("after a discovery of every port\n got %q\nwant %q", got, want)
+	}
+}
+
+// A service outside the scope, or not TCP, makes a scoped list invalid; so does a bad range.
+func TestScopedReplaceServicesRefusesWhatIsOutsideTheScope(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	hint := observe.AssetHint{IP: ipSvc}
+	scope := observe.ServiceScope{Ports: []observe.PortRange{{From: 1, To: 1000}}}
+	for name, c := range map[string]struct {
+		scope observe.ServiceScope
+		items []observe.Service
+	}{
+		"port outside":     {scope, []observe.Service{{Port: 8080, Proto: "tcp", Confidence: 1}}},
+		"udp in a scope":   {scope, []observe.Service{{Port: 53, Proto: "udp", Confidence: 1}}},
+		"backwards range":  {observe.ServiceScope{Ports: []observe.PortRange{{From: 90, To: 80}}}, nil},
+		"range over 65535": {observe.ServiceScope{Ports: []observe.PortRange{{From: 1, To: 70000}}}, nil},
+		"negative keep":    {observe.ServiceScope{Ports: []observe.PortRange{{From: 1, To: 10}}, KeepFor: -time.Hour}, nil},
+	} {
+		if err := e.svc.ReplaceServices(e.ctx(), hint, observe.Nmap, c.scope, c.items); !errors.Is(err, inventory.ErrInvalid) {
+			t.Errorf("%s: %v, want ErrInvalid", name, err)
+		}
+	}
+}
+
+// A row outside the scope that the source has not seen for scope.KeepFor goes with the scan; a younger one stays. A port that
+// goes takes the software the source read on it (observe.PortInstance).
+func TestScopedReplaceServicesAgesOutOthersAndTheirSoftware(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx := e.ctx()
+	e.record(obs(ipSvc, macA, observe.MAC, macA, observe.Passive, 0.9))
+	id := e.idByMAC(macA)
+	hint := observe.AssetHint{IP: ipSvc}
+	sv := func(p int) observe.Service {
+		return observe.Service{Port: p, Proto: "tcp", Name: "http", Confidence: 0.8}
+	}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, observe.ServiceScope{}, []observe.Service{sv(40000)}); err != nil {
+		t.Fatal(err)
+	}
+	read := observe.Software{Display: "Acme admin 1.0", Vendor: "acme", Product: "admin", Version: "1.0", Instance: observe.PortInstance(40000), Confidence: 0.8}
+	if err := e.svc.ReplaceSoftware(ctx, hint, observe.Nmap, []string{read.Instance}, []observe.Software{read}); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(13 * 24 * time.Hour)
+	scope := observe.ServiceScope{Ports: []observe.PortRange{{From: 1, To: 1000}}, KeepFor: 14 * 24 * time.Hour}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, scope, []observe.Service{sv(80)}); err != nil {
+		t.Fatal(err)
+	}
+	if got := servicesOf(e.detail(id)); len(got) != 2 {
+		t.Fatalf("13 days after the port was seen: %q", got)
+	}
+	readings := func() int {
+		return e.count(`SELECT count(*) FROM inv_software_reading r JOIN inv_software s ON s.id = r.software_id WHERE s.asset_id = ? AND r.instance = ?`, id, read.Instance)
+	}
+	if readings() != 1 {
+		t.Fatal("the reading of port 40000 is missing")
+	}
+	e.tick(2 * 24 * time.Hour)
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, scope, []observe.Service{sv(80)}); err != nil {
+		t.Fatal(err)
+	}
+	if got := servicesOf(e.detail(id)); len(got) != 1 || got[0] != "80/tcp http   nmap" {
+		t.Fatalf("15 days after the port was seen: %q", got)
+	}
+	if readings() != 0 {
+		t.Fatal("the software read on the port that went is still there")
+	}
+}
+
+// read_at (INV-23) is when the source last read a port's name, product and version: a list that read versions sets it on every port
+// it lists (one that named no product too), a scan that only found open ports leaves it, and a port that names a product in such a
+// scan or in an added list sets it. PortReadTimes gives it by port. The 90 days of PruneServices still count from seen_at.
+func TestContract_INV23_ReadAtMovesOnlyOnAVersionRead(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx := e.ctx()
+	e.record(obs(ipSvc, macA, observe.MAC, macA, observe.Passive, 0.9))
+	id := e.idByMAC(macA)
+	hint := observe.AssetHint{IP: ipSvc}
+	reads := func() map[int]time.Time {
+		t.Helper()
+		m, err := e.svc.PortReadTimes(ctx, id, observe.Nmap)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	same := func(got, want map[int]time.Time) bool {
+		if len(got) != len(want) {
+			return false
+		}
+		for p, w := range want {
+			if !got[p].Equal(w) {
+				return false
+			}
+		}
+		return true
+	}
+	t0 := e.now
+	normal := observe.ServiceScope{Ports: []observe.PortRange{{From: 1, To: 1000}}}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, normal, []observe.Service{
+		{Port: 22, Proto: "tcp", Name: "ssh", Product: "OpenSSH", Version: "9.6p1", Confidence: 0.95},
+		{Port: 23, Proto: "tcp", Name: "tcpwrapped", Confidence: 0.5}, // read, named nothing
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t0}) {
+		t.Fatalf("after a scan with versions: %v", got)
+	}
+	// the weekly discovery of every port reads no versions: it keeps the read times and adds 40000 unread
+	e.tick(24 * time.Hour)
+	disc := observe.ServiceScope{Ports: []observe.PortRange{{From: 1, To: 65535}}, NoVersions: true}
+	found := []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.5}, {Port: 23, Proto: "tcp", Name: "telnet", Confidence: 0.5}, {Port: 40000, Proto: "tcp", Name: "unknown", Confidence: 0.5}}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, disc, found); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t0}) {
+		t.Fatalf("after a discovery: %v", got)
+	}
+	// its follow-up reads 40000 and 23 with versions: both move, the one that names nothing too, and 22 keeps its time
+	e.tick(time.Hour)
+	t1 := e.now
+	follow := observe.ServiceScope{Ports: []observe.PortRange{{From: 23, To: 23}, {From: 40000, To: 40000}}}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, follow, []observe.Service{
+		{Port: 23, Proto: "tcp", Name: "tcpwrapped", Confidence: 0.5},
+		{Port: 40000, Proto: "tcp", Name: "http", Product: "Acme admin", Version: "1.0", Confidence: 0.8},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t1, 40000: t1}) {
+		t.Fatalf("after the follow-up: %v", got)
+	}
+	// a gentle look names no product and moves nothing; a discovery whose port names a product moves that port
+	e.tick(time.Hour)
+	t2 := e.now
+	if err := e.svc.AddServices(ctx, hint, observe.Nmap, []observe.Service{{Port: 22, Proto: "tcp", Name: "ssh", Confidence: 0.3}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, disc, []observe.Service{found[0], found[1], {Port: 40000, Proto: "tcp", Name: "http", Product: "Acme admin", Version: "1.1", Confidence: 0.8}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t1, 40000: t2}) {
+		t.Fatalf("after a gentle look and a discovery that named a product: %v", got)
+	}
+	// a port that closes takes its read time with it; the other source's rows and an unknown device have none
+	e.tick(time.Hour)
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, disc, found[:2]); err != nil {
+		t.Fatal(err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t1}) {
+		t.Fatalf("after 40000 closed: %v", got)
+	}
+	if m, err := e.svc.PortReadTimes(ctx, id, observe.Agent); err != nil || len(m) != 0 {
+		t.Fatalf("agent read times %v, %v", m, err)
+	}
+	if m, err := e.svc.PortReadTimes(ctx, "no-such-device", observe.Nmap); err != nil || len(m) != 0 {
+		t.Fatalf("unknown device: %v, %v", m, err)
+	}
+	// 91 days after 22 was read but a day after a discovery saw it, the prune keeps it: it counts from seen_at
+	e.tick(89 * 24 * time.Hour)
+	if err := e.svc.ReplaceServices(ctx, hint, observe.Nmap, disc, found[:2]); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(24 * time.Hour)
+	if n, err := e.svc.PruneServices(ctx); err != nil || n != 0 {
+		t.Fatalf("prune removed %d (%v), want 0", n, err)
+	}
+	if got := reads(); !same(got, map[int]time.Time{22: t0, 23: t1}) {
+		t.Fatalf("after the prune: %v", got)
 	}
 }

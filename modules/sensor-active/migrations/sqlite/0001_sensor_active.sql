@@ -12,27 +12,15 @@
 -- surface list and the reviewed admin ports, nmapargv.ExtraPorts); 'all_ports' is the weekly port discovery over every TCP port of
 -- each LAN device that is not fragile (its job is of kind 'device', reason 'all_ports'); 'port_versions' is its -sV follow-up on
 -- at most 20 of the ports it found. For them sa_probe is rebuilt with the same columns and ids the way 0006 did it, the
--- AUTOINCREMENT counter going on from the old one. sa_all_ports keeps, per device: when its last weekly run was made or found the
--- device not eligible (fragile, kind unknown, never, the box: looked at again a week later; NULL: never) or answering on every
--- port; the open ports and software a normal scan found (the follow-up does not read them again; the weekly run adds its products
--- to that software); the products the follow-ups read, by port; when each port was last read; and the open ports the last done weekly run found outside
--- nmapargv.ExtraPorts with that run's time, so a normal scan keeps the ones it does not find itself until the next weekly run, 14
--- days at most. Rows of devices the inventory no longer has are removed by the weekly round. Forward-only (DATA_MODEL 6, rule 1).
+-- AUTOINCREMENT counter going on from the old one. sa_all_ports keeps, per device, the schedule of its weekly run: when it was last
+-- made or found the device not eligible (fragile, kind unknown, never, the box: looked at again a week later; NULL: never) or
+-- answering on every port. What the scans found is in the inventory (the weekly run and the normal scan each replace only the ports
+-- they looked at; when each port was last read with -sV is inv_service.read_at), not here. Rows of devices the inventory no longer has are removed by the weekly round. Forward-only (DATA_MODEL 6, rule 1).
 CREATE TABLE sa_all_ports (
     asset_id     TEXT NOT NULL PRIMARY KEY CHECK (length(asset_id) BETWEEN 1 AND 96),
     last_at      TEXT CHECK (last_at IS NULL OR last_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
     -- retry: one failure, tried again in the next window (still due); the others make the device due a week after last_at
-    outcome      TEXT CHECK (outcome IS NULL OR outcome IN ('done', 'not_eligible', 'answers_everywhere', 'retry', 'failed')),
-    -- observe.Service[] of the open ports outside nmapargv.ExtraPorts that the last done weekly run found, at extra_at
-    extra        TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(extra) AND json_type(extra) = 'array' AND length(extra) <= 262144),
-    -- [{port, software}] the weekly follow-ups read, kept by port and product
-    extra_sw     TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(extra_sw) AND json_type(extra_sw) = 'array' AND length(extra_sw) <= 262144),
-    extra_at     TEXT CHECK (extra_at IS NULL OR extra_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'),
-    -- {"port": time} when the follow-up last read each open port with -sV
-    versioned    TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(versioned) AND json_type(versioned) = 'object' AND length(versioned) <= 65536),
-    -- the TCP ports and the software the last normal or versions scan found (NULL software: none recorded by an older scan)
-    normal_ports TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(normal_ports) AND json_type(normal_ports) = 'array' AND length(normal_ports) <= 16384),
-    normal_sw    TEXT CHECK (normal_sw IS NULL OR (json_valid(normal_sw) AND json_type(normal_sw) = 'array' AND length(normal_sw) <= 262144))
+    outcome      TEXT CHECK (outcome IS NULL OR outcome IN ('done', 'not_eligible', 'answers_everywhere', 'retry', 'failed'))
 );
 
 -- One row per nmap or SNMP job sent (INV-9: no packet without a log line), kept ProbeRetention. run_id is the run it was sent for;

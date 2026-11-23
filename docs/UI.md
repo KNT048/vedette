@@ -4,7 +4,7 @@ The one standard for every screen of `web/` (#842). Order of work: this page →
 components built once in `web/src/components/` and `web/src/app/` → Devices as the reference page (light, dark, phone
 screenshots) → other pages in groups → dashboard (#825). Done for each step = before/after screenshots of every
 top-level page in the PR, checked on a real box. A page never styles itself; it composes the components named here.
-`docs/FRONTEND.md` keeps the stack, voice and anti-"AI look" checklist; every visual rule lives here.
+`docs/FRONTEND.md` keeps the stack, voice and generic-look checklist; every visual rule lives here.
 **exists** = use as is, **fix** = change named here, **build** = new, name given.
 
 ## 0. Customer ease first: every page follows these (on the #849 drafts)

@@ -1,7 +1,7 @@
 import { ShieldAlert } from 'lucide-react'
 import type { Feature } from '@/app/feature'
 
-// Module findings: danh sách + chi tiết phát hiện. Phần "Làm gì" (S-MIT-1) là của module mitigation, tắt thì chỉ phần đó hiện ModuleOff.
+// Module findings: the findings list and detail. The "What to do" part belongs to the mitigation module; when it is off, only that part shows ModuleOff.
 // The device page shows a device's findings in its Findings tab (DevicePanel.tsx).
 export const feature: Feature = {
   id: 'findings',
@@ -12,6 +12,6 @@ export const feature: Feature = {
     { path: 'plan', lazy: () => import('./FindingsPage').then((m) => ({ Component: m.PlanRedirect })) },
   ],
   nav: [
-    { to: '/findings', label: 'findings:nav.findings', icon: ShieldAlert, module: 'findings', group: 'monitor', order: 20 },
+    { to: '/findings', label: 'common:shell.findings', icon: ShieldAlert, module: 'findings', group: 'monitor', order: 20 },
   ],
 }

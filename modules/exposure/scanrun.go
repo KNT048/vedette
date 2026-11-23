@@ -140,8 +140,8 @@ func stopWhy(st *GreenboneStop) string {
 
 // begin registers a run and starts it in the background, or refuses (INV-1, INV-18): the gate's reason, no runner (501), another
 // run (409 busy), the same target within ScanEvery (429). The run's context comes from the Service, not from the request, so the
-// scan goes on after the 202 has been sent; it ends when its last step returns (each step has its own cap: 5 minutes for the runner,
-// service identification and the templates, 8 minutes a page for ZAP, 90 minutes for the optional Greenbone step;
+// scan goes on after the 202 has been sent; it ends when its last step returns (each step has its own cap: 5 minutes for the runner and the
+// templates, 8 minutes for service identification (ServicesTimeout) and a page for ZAP, 90 minutes for the optional Greenbone step;
 // 70 minutes for the service step of a deep scan, FullServicesTimeout), or on StopScan. No cap covers the whole run.
 //
 // With a (POST …/openvas) the run is OpenVAS again on a's snapshot (executeAgain): it needs no runner. With q the run is that queued

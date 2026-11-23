@@ -19,14 +19,14 @@ import (
 // and the references (feeds_cve_ref) while NVD has tagged none (nvdRefs): NVD's record carries the CNA's and CISA's weaknesses and
 // references, tagged by an analyst. CVSS scores stay NVD's: NVD's record carries the CNA's and CISA's scores too.
 
-// importantSQL is the CVEs whose references the catalogue keeps (with the pinned CVEs the caller adds): an exploited-list entry (a
-// custom list's too) or a qualifying signal. Only its public part (publicListedSQL) is ever asked for by ID.
+// importantSQL is the CVEs the box holds for a reason of its own (with the pinned CVEs the caller adds): an exploited-list entry (a
+// custom list's too) or a qualifying signal. Only its public part (publicListedSQL) is ever asked for by ID. References do not depend
+// on it: every CVE the catalogue holds keeps them, and they go with the CVE (feeds_cve_ref cascades from feeds_cve).
 const importantSQL = keepSetSQL
 
 // recordKeep says which records the box stores.
 type recordKeep struct {
-	have      map[string]bool // in the catalogue, or kept whatever their age (an exploited-list entry, a qualifying signal, a pin)
-	important map[string]bool // the references of these are kept: an exploited-list entry, a qualifying signal, a pin
+	have map[string]bool // in the catalogue, or kept whatever their age (an exploited-list entry, a qualifying signal, a pin)
 	// askable are the kept CVEs whose record may be asked for by ID because every box asks the same: one a public source names
 	// (publicListedSQL), or one published inside the window. Never a CVE kept only for a finding or a custom list.
 	askable map[string]bool
@@ -39,19 +39,15 @@ func recordKeepOf(ctx context.Context, q queryer, now time.Time, pinned []string
 	if err != nil {
 		return recordKeep{}, err
 	}
-	imp, err := stringSet(ctx, q, importantSQL)
-	if err != nil {
-		return recordKeep{}, err
-	}
 	for _, c := range pinned {
-		have[c], imp[c] = true, true
+		have[c] = true
 	}
 	cutoff := now.AddDate(0, 0, -windowDays)
 	ask, err := stringSet(ctx, q, publicListedSQL+` UNION SELECT cve FROM feeds_cve WHERE published >= ?`, store.FormatTS(cutoff))
 	if err != nil {
 		return recordKeep{}, err
 	}
-	return recordKeep{have: have, important: imp, askable: ask, cutoff: cutoff}, nil
+	return recordKeep{have: have, askable: ask, cutoff: cutoff}, nil
 }
 
 // keeps says whether a record read is stored: its CVE is in the catalogue or kept, or it was published inside the window.
@@ -108,7 +104,7 @@ func (s *recordStmts) close() {
 }
 
 // writeRecords writes the records the keep rule keeps (recordKeep.keeps), each whole: its catalogue row's record columns, its record
-// ranges (cna and adp, replacing the ones it had) and, for an important CVE, its references. A rejected record of a CVE the catalogue
+// ranges (cna and adp, replacing the ones it had) and its references (every CVE the catalogue holds keeps them). A rejected record of a CVE the catalogue
 // holds drops its record ranges and references (NVD's status and the retention rule decide whether the CVE stays). Every CVE written
 // is stamped read (record_at).
 func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKeep, now time.Time) (recordWrite, error) {
@@ -187,7 +183,7 @@ func writeRecords(ctx context.Context, tx *sql.Tx, recs []CVERecord, k recordKee
 		if err := st.nvdRefs.QueryRowContext(ctx, r.CVE).Scan(&nvdHas); err != nil {
 			return out, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
 		}
-		if k.important[r.CVE] && r.State == RecordPublished && !nvdHas {
+		if r.State == RecordPublished && !nvdHas {
 			for _, ref := range r.Refs {
 				tags, err := json.Marshal(ref.Tags)
 				if err != nil {
@@ -255,18 +251,6 @@ func replaceRecordRanges(ctx context.Context, tx *sql.Tx, st *recordStmts, r CVE
 func sameRecordRange(a, b Range) bool {
 	return a.Origin == b.Origin && a.Part == b.Part && a.Vendor == clipBytes(b.Vendor) && a.Product == clipBytes(b.Product) && a.CPE == b.CPE &&
 		sameSpan(a, b) && a.DefaultStatus == b.DefaultStatus
-}
-
-// pruneRecordRefs drops the references of CVEs that are no longer important (no list entry, no qualifying signal, no pin).
-func pruneRecordRefs(ctx context.Context, tx *sql.Tx, pinned []string) error {
-	pins, err := json.Marshal(append([]string{}, pinned...))
-	if err != nil {
-		return err
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_cve_ref WHERE cve NOT IN (`+importantSQL+`) AND cve NOT IN (SELECT value FROM json_each(?))`, string(pins)); err != nil {
-		return fmt.Errorf("feeds: prune CVE references: %w", err)
-	}
-	return nil
 }
 
 // ---- the exploited lists' view, as findings reads it today (KevAffected, RangesFromCVEOrg) ----

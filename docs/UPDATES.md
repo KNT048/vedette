@@ -1,59 +1,59 @@
-# Cập nhật — thiết kế từ ngày đầu
+# Updates: designed in from day one
 
-Sản phẩm bảo mật phải cập nhật thường xuyên; chỗ cho việc đó phải có trong thiết kế ban đầu.
+A security product must be updated often; the place for that must be in the original design.
 
-> **Dữ liệu và gói nội dung:** GitHub chỉ còn phát hành **bản cập nhật phần mềm đã ký**. Kênh "1. Dữ liệu" bên dưới không còn đi qua GitHub/builder: hộp tự kéo từng feed từ nguồn (`docs/DATA_PIPELINE.md` §0). Kênh "2. Gói nội dung" (skill, gói khuyến nghị đã xác nhận, parser log…) nay **đóng gói cùng bản cập nhật phần mềm**. Rollout theo lô (§2) áp dụng cho bản cập nhật phần mềm. Bài kiểm tra an toàn feed (§5) chạy trên hộp trước khi dùng dữ liệu.
+> **Data and content packs:** GitHub now publishes only **signed software updates**. The channel "1. Data" below no longer goes through GitHub/the builder: the box pulls each feed from its source itself (`docs/DATA_PIPELINE.md` §0). The channel "2. Content packs" (skills, confirmed recommendation packs, log parsers...) is now **packaged with the software update**. A staged rollout (§2) applies to software updates. The feed safety test (§5) runs on the box before the data is used.
 
-> **Appliance chạy container:** hộp là appliance chạy container. Kênh "3. Phần mềm" nay là **image OCI ký bằng cosign** (digest ghim, phát hành theo lô, hoàn tác bằng tag cũ), **thay cơ chế A/B slot cho binary**; **cập nhật hệ điều hành** của hộp đi qua `vedette-host` (thay `vedette-updater`). Chi tiết vận hành: `docs/DEPLOYMENT.md` §9. Kiểu cài *Chỉ container* không có `vedette-host`: không tự cập nhật, GUI báo bản mới và hiện lệnh.
+> **A container-based appliance:** the box is an appliance that runs containers. The channel "3. Software" is now a **cosign-signed OCI image** (a pinned digest, a staged release, a rollback with the old tag), **replacing the A/B slot mechanism for the binary**; the box's **operating system update** goes through `vedette-host` (replacing `vedette-updater`). Operating detail: `docs/DEPLOYMENT.md` §9. The *Container only* install type has no `vedette-host`: it does not update itself, the GUI announces the new version and shows the command.
 
-## 0. Cập nhật trên appliance: phần mềm và hệ điều hành
+## 0. Updates on the appliance: software and operating system
 
-| Lớp | Cái được cập nhật | Cơ chế | Rollback |
+| Layer | What is updated | Mechanism | Rollback |
 |---|---|---|---|
-| Phần mềm Vedette | image `core`, `sensor`, `honeypot`, `scan` (+ digest của `greenbone`) | `vedette-host` lấy `release.json` (ký minisign, xác minh offline được) liệt kê digest từng image, kênh, % rollout, phiên bản host tối thiểu, `revoked[]`; kéo theo digest; **cosign bắt buộc** (policy trên host, fail-closed); sao lưu DB; thay container theo thứ tự `core` → `sensor`/`scan` → `honeypot` → `greenbone` (sensor/worker không bao giờ mới hơn `core`, `core` nhận proto sensor N và N-1, `specs/sensor-protocol.md` §10; Rollback đi ngược, `core` sau cùng); health gate | quay về digest/tag trước (giữ 1 đời); migration chỉ expand để bản liền trước chạy được |
-| Hệ điều hành | gói apt, kernel, reboot (S-CORE-7) | `vedette-host` chạy danh sách lệnh apt cố định, lịch theo cửa sổ bảo trì | sao lưu DB trước, health gate sau; nâng bản phát hành OS chỉ hướng dẫn |
-| `vedette-host` | chính nó | gói `.deb` có SHA-256 trong manifest ký, cài bởi `vedette-host` cũ (`host.self_update`, bước đầu của run phần mềm) hoặc `install.sh`; chi tiết `specs/host-api.md` §6.14 | tự động: giữ gói trước, bản mới không khoẻ thì cài lại nó; không có rollback bằng tay |
+| Vedette software | the images `core`, `sensor`, `honeypot`, `scan` (+ the digest of `greenbone`) | `vedette-host` fetches `release.json` (minisign-signed, verifiable offline) listing each image digest, the channel, the rollout %, the minimum host version, `revoked[]`; pulls by digest; **cosign is mandatory** (a policy on the host, fail closed); backs up the DB; replaces containers in the order `core` → `sensor`/`scan` → `honeypot` → `greenbone` (a sensor/worker is never newer than `core`, `core` accepts sensor protocol N and N-1, `specs/sensor-protocol.md` §10; a rollback goes the other way, `core` last); a health gate | go back to the previous digest/tag (1 generation kept); migrations are expand-only so the previous version can run |
+| Operating system | apt packages, kernel, reboot (S-CORE-7) | `vedette-host` runs a fixed list of apt commands, scheduled by a maintenance window | back up the DB first, a health gate after; upgrading the OS release is guidance only |
+| `vedette-host` | itself | a `.deb` package with its SHA-256 in the signed manifest, installed by the old `vedette-host` (`host.self_update`, the first step of the software run) or `install.sh`; detail in `specs/host-api.md` §6.14 | automatic: the previous package is kept, if the new one is not healthy the old one is installed again; no manual rollback |
 
-Cohort, `beta` → `stable` ≥ 7 ngày, danh sách thu hồi, bundle offline: giữ nguyên như §1–§3. Cohort chỉ chặn cập nhật **tự động** (người dùng bấm tay: xem `DEPLOYMENT.md` câu hỏi B6).
+Cohort, `beta` → `stable` ≥ 7 days, the revocation list, the offline bundle: unchanged as in §1-§3. A cohort blocks only **automatic** updates (when a user clicks by hand: see `DEPLOYMENT.md` question B6).
 
-Còn lại của tài liệu này mô tả kênh dữ liệu/nội dung/advisory và phát hành CI; chỗ nào nhắc "binary", "slot A/B", "minisign + cosign cho binary" thì đọc theo bảng trên.
+The rest of this document describes the data/content/advisory channels and the CI release; wherever it mentions "binary", "slot A/B", "minisign + cosign for the binary", read it according to the table above.
 
-## 1. Bốn kênh
+## 1. Four channels
 
-| Kênh | Nội dung | Chu kỳ | Cơ chế | Rollback |
+| Channel | Content | Interval | Mechanism | Rollback |
 |---|---|---|---|---|
-| **1. Dữ liệu** | `feeds/*` (vuln, hot, ioc, slug) | 30–60 phút | `index.json` ký; ETag; delta | giữ bản trước; `revoked[]` rút file xấu |
-| **2. Gói nội dung** (gói giảm thiểu: đi trong image `core` ký) | skill, mitigation pack, nuclei subset, recog DB, parser log, rule pack, template câu tiếng Việt | ngày | `content-packs/<name>-<semver>.tar.zst` ký; manifest liệt kê file + sha256 | N-1 giữ; chuyển về 1 bấm |
-| **3. Phần mềm** | image OCI `core`/`sensor`/`honeypot`/`scan` (SPA nhúng trong `core`); ~~binary + A/B slot~~ | theo phát hành; kênh `stable`/`beta` | `release.json` ký minisign; kéo image theo digest, cosign bắt buộc; thay container, health gate; fail → về digest trước | tag/digest cũ (giữ 1 đời); nút Rollback; xem §0 |
-| **4. Advisory sản phẩm** | lỗ hổng của chính Vedette, dependency | khi có | `security.json` trong index; UI banner; mail/Telegram cho admin | — |
+| **1. Data** | `feeds/*` (vuln, hot, ioc, slug) | 30-60 minutes | a signed `index.json`; ETag; delta | the previous version is kept; `revoked[]` withdraws a bad file |
+| **2. Content packs** (mitigation packs: shipped inside the signed `core` image) | skills, mitigation packs, a nuclei subset, the recog DB, log parsers, rule packs, Vietnamese sentence templates | daily | a signed `content-packs/<name>-<semver>.tar.zst`; the manifest lists files + sha256 | N-1 is kept; back in 1 click |
+| **3. Software** | OCI images `core`/`sensor`/`honeypot`/`scan` (the SPA is embedded in `core`); ~~binary + A/B slot~~ | per release; channels `stable`/`beta` | a minisign-signed `release.json`; pull images by digest, cosign mandatory; replace containers, a health gate; fail → back to the previous digest | the old tag/digest (1 generation kept); a Rollback button; see §0 |
+| **4. Product advisories** | flaws in Vedette itself, dependencies | when there is one | `security.json` in the index; a UI banner; mail/Telegram to the admin | none |
 
-Mọi kênh: chữ ký bắt buộc, khoá công khai trong binary (2 khoá: `builder-vn`, `builder-gh`, + khoá phát hành phần mềm riêng), **danh sách thu hồi** trong `index.json`.
+Every channel: a signature is mandatory, the public keys are in the binary (2 keys: `builder-vn`, `builder-gh`, + a separate software release key), a **revocation list** in `index.json`.
 
 ## 2. Rollout theo lô
 
-- Mỗi hộp có `cohort = hash(install_id) mod 100`. `index.json` ghi `rollout: {content-pack X: 10}` → chỉ hộp cohort <10 nhận; tăng dần 10 → 50 → 100 sau 24 giờ không có báo lỗi (hit ẩn danh opt-in hoặc issue). Phần mềm: `beta` trước `stable` ≥ 7 ngày.
-- Không bao giờ bật toàn cục một thay đổi dữ liệu/rule (bài học Cloudflare 2025-12-05).
+- Each box has `cohort = hash(install_id) mod 100`. `index.json` records `rollout: {content-pack X: 10}` → only boxes with cohort <10 receive it; it grows 10 → 50 → 100 after 24 hours with no error report (an anonymous opt-in hit or an issue). Software: `beta` before `stable` by ≥ 7 days.
+- Never switch on a data/rule change globally (the Cloudflare lesson of 2025-12-05).
 
-## 3. Trang Cập nhật (S-CORE-2)
+## 3. The Updates page (S-CORE-2)
 
-Hiện: phiên bản phần mềm/dữ liệu/gói nội dung, "cập nhật lúc", kênh, lịch sử 20 lần gần nhất, trạng thái chữ ký, nút kiểm tra ngay, nút rollback từng kênh, chế độ tự động/tay, **bundle offline** (hoãn sau v1: GUI không đưa ra, `/core/updates/bundle` trả 501) (`vedette bundle export/import` cho mạng cách ly), tình trạng advisory sản phẩm.
+Shows: the software/data/content pack version, "updated at", the channel, the history of the last 20 updates, the signature state, a check-now button, a rollback button per channel, automatic/manual mode, the **offline bundle** (postponed until after v1: the GUI does not offer it, `/core/updates/bundle` returns 501) (`vedette bundle export/import` for air-gapped networks), the state of product advisories.
 
 ## 4. Quy trình phát hành (CI, GitHub Actions)
 
 1. Test (Go, FE), lint, `govulncheck`, `trivy fs`, licence check (không GPL/AGPL vào lõi).
-2. Build reproducible (`-trimpath`, `CGO_ENABLED=0`), đa kiến trúc (amd64/arm64: `make images`, một manifest list mỗi image, biên dịch chéo không qemu; `make host-deb VERSION=<x.y.z> RELEASE_PREV_INDEX=<thư mục chỉ mục đã đăng>` đặt sàn `sequence` của chỉ mục trong `vedette-host` bằng sequence của chỉ mục đó; bản thật không có `RELEASE_PREV_INDEX` thì bị từ chối, trừ `MIN_SEQUENCE=0` cho bản phát hành đầu tiên; bản thật cũng bị từ chối khi cây git bẩn hoặc `GOFLAGS` có `-overlay`/`-tags`, và binary dựng xong phải mang đúng byte khoá công khai thật), **image OCI** cho từng container và gói `.deb` cho `vedette-host` (`make host-deb`, nfpm; thông số gói ở `DEPLOYMENT.md` §3.1).
-3. SBOM CycloneDX và quét lỗ hổng bằng một công cụ duy nhất, **trivy** (không dùng syft/grype): `make sbom` ghi SBOM cho từng image và từng kiến trúc cùng cây mã nguồn vào `dist/sbom/`; `make vuln-scan` dừng khi có lỗ hổng HIGH/CRITICAL đã có bản vá, ngoại lệ chỉ qua `.trivyignore.yaml` có lý do và ngày hết hạn; `make notices-check` so `THIRD_PARTY_NOTICES.md` với module Go thật sự được liên kết và phụ thuộc web. Bước này chạy trên máy người duy trì, cùng lượt với bước 2, không cần khoá (gắn SBOM vào image bằng `cosign attest` là việc của bước 4, WP-08k).
-4. Ký: **cosign** cho từng image (hộp xác minh khi kéo); **minisign** cho `release.json` và gói `vedette-host` (xác minh offline). Cosign theo khoá hay keyless: câu hỏi mở A3 trong `ARCHITECTURE.md`.
-5. Changelog từ commit; GitHub Release; `index.json` cập nhật qua builder; `beta` trước.
-6. Tag do người duy trì tạo tay.
+2. Reproducible builds (`-trimpath`, `CGO_ENABLED=0`), multi-architecture (amd64/arm64: `make images`, one manifest list per image, cross-compiled without qemu; `make host-deb VERSION=<x.y.z> RELEASE_PREV_INDEX=<folder of the published index>` sets the `sequence` floor of the index inside `vedette-host` to the sequence of that index; a real build without `RELEASE_PREV_INDEX` is refused, except `MIN_SEQUENCE=0` for the first release; a real build is also refused when the git tree is dirty or `GOFLAGS` has `-overlay`/`-tags`, and the finished binary must carry exactly the bytes of the real public key), an **OCI image** for each container and a `.deb` package for `vedette-host` (`make host-deb`, nfpm; package parameters in `DEPLOYMENT.md` §3.1).
+3. A CycloneDX SBOM and vulnerability scanning with a single tool, **trivy** (no syft/grype): `make sbom` writes the SBOM for each image and each architecture plus the source tree into `dist/sbom/`; `make vuln-scan` stops when there is a HIGH/CRITICAL flaw that already has a fix, with exceptions only through `.trivyignore.yaml` with a reason and an expiry date; `make notices-check` compares `THIRD_PARTY_NOTICES.md` with the Go modules actually linked and the web dependencies. This step runs on the maintainer's machine, in the same pass as step 2, and needs no key (attaching the SBOM to the image with `cosign attest` belongs to step 4).
+4. Signing: **cosign** for each image (the box verifies when pulling); **minisign** for `release.json` and the `vedette-host` package (verifiable offline). Whether cosign is key-based or keyless: open question A3 in `ARCHITECTURE.md`.
+5. A changelog from commits; a GitHub Release; `index.json` updated through the builder; `beta` first.
+6. The tag is created by hand by a maintainer.
 
-## 5. Lỗ hổng của chính sản phẩm
+## 5. Flaws in the product itself
 
 - `SECURITY.md`: kênh báo riêng, SLA 2/14/30 ngày.
-- Dependency: Renovate hàng tuần, ghim phiên bản; CVE nghiêm trọng trong dependency → phát hành vá trong 7 ngày.
-- Dữ liệu feed độc hại (IOC "chặn Google", template Nuclei nguy hiểm): builder có **bài kiểm tra an toàn** trước khi ký — whitelist top-10k domain không được xuất hiện trong block list; nuclei subset chỉ tag an toàn; parser log chạy fuzz 60 giây.
-- Hộp giữ log cập nhật (ai, khi nào, sha256) trong `core_audit`.
+- Dependencies: Renovate weekly, pinned versions; a serious CVE in a dependency → a fix release within 7 days.
+- Malicious feed data (an IOC that "blocks Google", a dangerous Nuclei template): the builder has a **safety test** before signing: the top-10k-domain whitelist must not appear in the block list; the nuclei subset only has safe tags; log parsers run a 60-second fuzz.
+- The box keeps an update log (who, when, sha256) in `core_audit`.
 
-## 6. Khi hạ tầng free thay đổi
+## 6. When the free infrastructure changes
 
-Mọi URL trong một file `channels.json` (ký) → đổi host = đổi một file. Mirror thứ hai (Releases ↔ R2) luôn tồn tại; hộp thử lần lượt.
+Every URL is in one (signed) `channels.json` file → changing the host = changing one file. A second mirror (Releases ↔ R2) always exists; the box tries them in turn.

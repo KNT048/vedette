@@ -1,11 +1,15 @@
 package sensoractive_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -19,6 +23,21 @@ import (
 )
 
 var boxIP = netip.MustParseAddr("8.8.8.8") // stands for the box's own verified public IP (testdata/external.xml)
+
+// discoveryFixture is testdata/external_top_ports.xml (the external shape's discovery: 1000 ports probed, 22, 443 and 666 open)
+// about ip, written to a temporary file for the fake nmap.
+func discoveryFixture(t *testing.T, ip netip.Addr) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("testdata", "external_top_ports.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(t.TempDir(), "discovery.xml")
+	if err := os.WriteFile(p, bytes.ReplaceAll(b, []byte("198.51.100.7"), []byte(ip.String())), 0o600); err != nil { //nolint:gosec // a file of the test's own temp directory
+		t.Fatal(err)
+	}
+	return p
+}
 
 // ownFence is the core side of the own-IP fence (exposure's gate in production): yes for the addresses in ok.
 type ownFence struct {
@@ -53,7 +72,13 @@ func externalEnvWith(t *testing.T, egress netip.Addr, name string) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := newEnv(t, fakeOpts{always: fx})
+	return externalEnvWithNmap(t, egress, fakeOpts{always: fx, topPorts: discoveryFixture(t, boxIP)})
+}
+
+// externalEnvWithNmap is externalEnv with the fake nmap of o.
+func externalEnvWithNmap(t *testing.T, egress netip.Addr, o fakeOpts) *env {
+	t.Helper()
+	e := newEnv(t, o)
 	d := sa.NewDispatcher(sa.DispatcherOptions{Tick: 20 * time.Millisecond})
 	link := linktest.New(t, activeBackend{d})
 	w, err := worker.New(worker.Config{Link: link.Client(t, sensorlink.Active), NmapPath: e.nm.path, Version: "1.0.0", Wait: time.Second, Egress: workerEgress{egress}})
@@ -73,9 +98,11 @@ func externalEnvWith(t *testing.T, egress netip.Addr, name string) *env {
 	return e
 }
 
-// -sV on the box's own public IP through the scan container: the fence asked right before the job, the probe row written
-// with the external shape and its -p list, the job of kind external, the services read from the XML and nothing written to the
-// inventory. The LAN settings do not bind it: scanning switched off and an empty scope change nothing.
+// The default scan of the box's own public IP through the scan container, two nmap jobs under one job row: the discovery (SYN
+// only, --top-ports 1000) and the -sV run over the fixed list plus the open port the discovery found outside it (666), each with its
+// probe row and core's fence asked right before it; the services read from the -sV run, the probed ports from both (the
+// discovery's scaninfo and the -sV run's list), and nothing written to the inventory. The LAN settings do not bind it: scanning
+// switched off and an empty scope change nothing.
 func TestScanExternalThroughTheWorker(t *testing.T) {
 	t.Parallel()
 	e := externalEnv(t, boxIP)
@@ -85,20 +112,33 @@ func TestScanExternalThroughTheWorker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Ports != 99 || len(got.Services) != 4 || got.Services[2].Product != "Apache httpd" || got.Services[2].Version != "2.4.49" || got.Services[2].CPE != "cpe:/a:apache:http_server:2.4.49" {
+	wantPorts, err := nmapargv.ExternalVersionPorts([]int{22, 443, 666})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Services) != 4 || got.Services[2].Product != "Apache httpd" || got.Services[2].Version != "2.4.49" || got.Services[2].CPE != "cpe:/a:apache:http_server:2.4.49" {
 		t.Fatalf("got %+v", got)
 	}
-	if own.asked != 1 {
+	if got.Ports != len(got.Probed) || got.Ports < 1000 || !slices.Contains(got.Probed, 666) || !slices.Contains(got.Probed, 37777) || !slices.Contains(got.Probed, 1) {
+		t.Fatalf("probed %d ports: %v", got.Ports, got.Probed)
+	}
+	if own.asked != 2 {
 		t.Fatalf("the fence was asked %d times", own.asked)
 	}
+	list := make([]string, len(wantPorts))
+	for i, p := range wantPorts {
+		list[i] = strconv.Itoa(p)
+	}
 	calls := e.nm.calls(t)
-	if len(calls) != 1 || !slices.Equal(calls[0], []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", nmapargv.ExternalPorts, "--stats-every", "5s", "-oX", "-", "8.8.8.8"}) {
+	if len(calls) != 2 ||
+		!slices.Equal(calls[0], []string{"--privileged", "-sS", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "2m", "--top-ports", "1000", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}) ||
+		!slices.Equal(calls[1], []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", strings.Join(list, ","), "--stats-every", "5s", "-oX", "-", "8.8.8.8"}) {
 		t.Fatalf("nmap argv = %q", calls)
 	}
-	if s := e.str(`SELECT shape || '|' || rate || '|' || hosts || '|' || targets || '|' || result FROM sa_probe`); s != "external|100|1|8.8.8.8|ok: 4 open ports" {
-		t.Fatalf("probe row = %s", s)
+	if s := e.str(`SELECT group_concat(shape || '|' || rate || '|' || hosts || '|' || targets || '|' || result, ';') FROM (SELECT * FROM sa_probe ORDER BY id)`); s != "external|100|1|8.8.8.8|ok: 3 of 1000 ports open;external|100|1|8.8.8.8|ok: 4 open ports" {
+		t.Fatalf("probe rows = %s", s)
 	}
-	if f := e.str(`SELECT flags FROM sa_probe`); !strings.HasSuffix(f, "-p "+nmapargv.ExternalPorts+" --stats-every "+nmapargv.StatsEvery) || len(f) <= 300 {
+	if f := e.str(`SELECT flags FROM sa_probe ORDER BY id DESC LIMIT 1`); !strings.HasSuffix(f, "-p "+strings.Join(list, ",")+" --stats-every "+nmapargv.StatsEvery) {
 		t.Fatalf("flags = %s", f)
 	}
 	if s := e.str(`SELECT kind || '|' || reason || '|' || status FROM jobs_v`); s != "external|exposure|done" {
@@ -106,6 +146,85 @@ func TestScanExternalThroughTheWorker(t *testing.T) {
 	}
 	if len(e.sink.observations()) != 0 || len(e.sink.svc) != 0 {
 		t.Fatal("an external scan wrote to the inventory")
+	}
+}
+
+// discoveryVariant is the discovery fixture about the box's address with edit applied, written to a temporary file.
+func discoveryVariant(t *testing.T, edit func([]byte) []byte) string {
+	t.Helper()
+	b, err := os.ReadFile(discoveryFixture(t, boxIP))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(t.TempDir(), "variant.xml")
+	if err := os.WriteFile(p, edit(b), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+// The fixed list always gets its -sV run, whatever the discovery said. A discovery that hit its host timeout, or whose output is not
+// believed (a <scaninfo> that is not the top 1000), is followed by the -sV run over the fixed list alone: Probed is that list and
+// DiscoveryCut says why. A discovery that saw the address answer on almost every port (a router or SYN proxy) is followed by the -sV
+// run over the fixed list alone, and only the ports where -sV named a real service are kept (10443's tcpwrapped is dropped).
+// The -sV options are those of the shape before the discovery existed.
+func TestScanExternalAlwaysReadsTheFixedList(t *testing.T) {
+	t.Parallel()
+	var many strings.Builder
+	for p := range 60 {
+		fmt.Fprintf(&many, `<port protocol="tcp" portid="%d"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="tcpwrapped" method="table" conf="3"/></port>`, 100+p)
+	}
+	fixed := make([]string, len(nmapargv.ExtraPortNumbers))
+	for i, p := range nmapargv.ExtraPortNumbers {
+		fixed[i] = strconv.Itoa(p)
+	}
+	wantArgv := []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", strings.Join(fixed, ","), "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
+	fx, err := filepath.Abs(filepath.Join("testdata", "external.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, c := range map[string]struct {
+		edit       func([]byte) []byte
+		cut, every bool
+		services   int
+		discovery  string
+	}{
+		"discovery timed out": {func(b []byte) []byte {
+			return bytes.Replace(b, []byte("<host starttime"), []byte(`<host timedout="true" starttime`), 1)
+		}, true, false, 4,
+			"failed: nmap gave up on the address at its host timeout"},
+		"discovery not believed": {func(b []byte) []byte {
+			return bytes.Replace(b, []byte(`services="1-1000"`), []byte(`services="1-999"`), 1)
+		}, true, false, 4,
+			"failed: nmap probed 999 ports, not its top 1000; output discarded"},
+		"answers everywhere": {func(b []byte) []byte {
+			return bytes.Replace(b, []byte("</ports>"), []byte(many.String()+"</ports>"), 1)
+		}, false, true, 3,
+			"ok: more than 40 ports open, the address answers on almost every port; -sV reads the fixed list next"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e := externalEnvWithNmap(t, boxIP, fakeOpts{always: fx, topPorts: discoveryVariant(t, c.edit)})
+			got, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, &ownFence{ok: []netip.Addr{boxIP}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.DiscoveryCut != c.cut || got.AnswersEverywhere != c.every || !slices.Equal(got.Probed, nmapargv.ExtraPortNumbers) ||
+				got.Ports != len(nmapargv.ExtraPortNumbers) || len(got.Services) != c.services {
+				t.Fatalf("got cut=%v everywhere=%v %d ports, services %+v", got.DiscoveryCut, got.AnswersEverywhere, got.Ports, got.Services)
+			}
+			for _, x := range got.Services {
+				if x.Name == "tcpwrapped" && c.every {
+					t.Fatalf("kept a tcpwrapped port: %+v", x)
+				}
+			}
+			if calls := e.nm.calls(t); len(calls) != 2 || !slices.Equal(calls[1], wantArgv) {
+				t.Fatalf("nmap argv = %q", calls)
+			}
+			if r := e.str(`SELECT result FROM sa_probe ORDER BY id LIMIT 1`); r != c.discovery {
+				t.Fatalf("discovery row = %s", r)
+			}
+		})
 	}
 }
 

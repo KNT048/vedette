@@ -1,7 +1,4 @@
 {
-  "nav": {
-    "logs": "Logs"
-  },
   "title": "Today: {{bad}}, {{fresh}}, {{spikes}}.",
   "headline": {
     "bad": "{{what}} to bad destinations",
@@ -279,7 +276,6 @@
     "saved": "Log retention saved."
   },
   "siem": {
-    "nav": "SIEM forwarding",
     "title": "Forward to a SIEM",
     "description": "Copies events to your SIEM (Wazuh, Graylog, Splunk, Elastic).",
     "descriptionInfo": "Data only goes to the destination you enter here; switching it off stops it immediately.",

@@ -1,8 +1,4 @@
 {
-  "nav": {
-    "home": "Home",
-    "lookup": "Lookup"
-  },
   "home": {
     "titleLoading": "Today",
     "meta": "Data updated {{time}}. Sources: {{sources}}, each fetched directly from its source.",
@@ -150,7 +146,6 @@
     "oldNoteInfo": "For an old CVE that also joined the exploited list more than 12 months ago, Vedette makes a finding only when it can compare a version (or a scan that reads the version finds it): a device that matches by the product name alone is listed below but is not a finding. To check such a device, add its version, install the agent on it or scan it."
   },
   "settings": {
-    "nav": "Feeds",
     "title": "Feeds",
     "direct": "Vedette fetches each feed directly from its source.",
     "directInfo": "Some sources publish their lists on GitHub, so those come from raw.githubusercontent.com; Vedette's own GitHub repository is used only for software updates."

@@ -242,11 +242,32 @@ type Service struct {
 	Confidence float64
 }
 
-// ServiceSink receives the full list of open ports of one device from one source. The list replaces the rows
-// that source reported before (rows of other sources are untouched); an empty list says that source saw none open.
+// PortRange is the TCP ports From to To, both included.
+type PortRange struct{ From, To int }
+
+// ServiceScope says which ports a list of open ports covers. The zero value is the whole list of the source: every port, TCP and
+// UDP. A scan of a few ports sets Ports to the ports it looked at, and only the rows of those TCP ports are replaced: a port the
+// scan did not look at keeps the row another scan wrote.
+type ServiceScope struct {
+	// Ports are the TCP ports the scan looked at; nil is every port. A listed service must be a TCP port inside them.
+	Ports []PortRange
+	// NoVersions says the scan only found which ports are open (no service detection): a listed port that names no product keeps
+	// the name, product and version its row has, and only a port that names one gets them updated.
+	NoVersions bool
+	// KeepFor is how long a row outside Ports that the source has not seen again is kept; 0 keeps it until the 90 days of
+	// ServiceRetention. It only matters with Ports.
+	KeepFor time.Duration
+}
+
+// PortInstance is the Software.Instance of what a source read on one port of a device with a product-and-version scan: a scan that
+// looked at a few ports replaces the software of those instances only, and a port that closes takes its instance with it.
+func PortInstance(port int) string { return fmt.Sprintf("port-%d", port) }
+
+// ServiceSink receives the list of open ports of one device from one source. The list replaces the rows
+// that source reported before inside its scope (rows of other sources are untouched); an empty list says that source saw none open.
 // AddServices is for a partial look (a gentle scan of a few ports): ports not listed yet are added, a port the source already
 // listed keeps what it said and is only marked seen, and nothing is removed.
 type ServiceSink interface {
-	ReplaceServices(ctx context.Context, hint AssetHint, source Source, items []Service) error
+	ReplaceServices(ctx context.Context, hint AssetHint, source Source, scope ServiceScope, items []Service) error
 	AddServices(ctx context.Context, hint AssetHint, source Source, items []Service) error
 }

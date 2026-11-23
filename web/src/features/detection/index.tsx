@@ -9,5 +9,5 @@ export const feature: Feature = {
     { path: 'detection', lazy: () => import('./DetectionPage').then((m) => ({ Component: m.default })) },
     { path: 'detection/alerts/:id', lazy: () => import('./AlertPage').then((m) => ({ Component: m.default })) },
   ],
-  nav: [{ to: '/detection', label: 'detection:nav', icon: ShieldAlert, module: 'core', group: 'detect', order: 5 }],
+  nav: [{ to: '/detection', label: 'common:shell.detection', icon: ShieldAlert, module: 'core', group: 'detect', order: 5 }],
 }

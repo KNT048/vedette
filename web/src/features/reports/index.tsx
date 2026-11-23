@@ -9,5 +9,5 @@ export const feature: Feature = {
     { path: 'reports/sent/:id', lazy: () => import('./SentPage').then((m) => ({ Component: m.default })) },
     { path: 'reports/print/pdpl', lazy: () => import('./PrintPage').then((m) => ({ Component: m.PdplPrintPage })) },
   ],
-  nav: [{ to: '/reports', label: 'reports:nav.reports', icon: FileText, module: 'reports', group: 'assist', order: 20 }],
+  nav: [{ to: '/reports', label: 'common:shell.reports', icon: FileText, module: 'reports', group: 'assist', order: 20 }],
 }

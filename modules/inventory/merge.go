@@ -6,11 +6,13 @@ import (
 	"unicode"
 )
 
-// sourceRank orders the sources (DATA_MODEL 5.1 (2)): manual > agent > snmp > nmap = scan > passive.
+// sourceRank orders the sources (DATA_MODEL 5.1 (2)): manual = declared > agent > snmp > nmap = scan > passive. A declared OS (the
+// stored decision of a declared software line) is only ever written when no person typed an OS, so it never competes with a manual one.
+// Every ranking reader filters a declared row out, so its place here is only a safeguard.
 // An unknown source ranks lowest; the database refuses one anyway.
 func sourceRank(s string) int {
 	switch s {
-	case "manual":
+	case "manual", "declared":
 		return 5
 	case "agent":
 		return 4

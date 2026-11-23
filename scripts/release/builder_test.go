@@ -415,6 +415,7 @@ func TestMinUpgradeFromAboveLatest(t *testing.T) {
 		{"new epoch, min_upgrade_from is this release", buildOpts{version: "0.1.1", minUpgrade: "0.1.1", cur: v2, earlier: beta}, ""},
 		{"new epoch, no min_upgrade_from", buildOpts{version: "0.1.1", cur: v2, earlier: beta}, ""},
 		{"new epoch, min_upgrade_from not SemVer", buildOpts{version: "0.1.1", minUpgrade: "v0.1", cur: v2, earlier: beta}, "min_upgrade_from"},
+		{"new epoch, min_upgrade_from above this release", buildOpts{version: "0.1.1", minUpgrade: "0.2.0", cur: v2, earlier: beta}, "is above 0.1.1, this release"},
 	}
 	for _, c := range cases {
 		c.o.channel, c.o.prevDir = "beta", prev

@@ -112,8 +112,9 @@ const maxHashedFile = 1 << 30
 var serviceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 // BuildManifest builds release-manifest.json (unsigned). It refuses, with the reason:
-//   - a version that is not above the channel's latest in the published index, or a min_upgrade_from above that latest (allowed
-//     for a release that starts a new schema epoch, which no box of the earlier epoch can update to in place);
+//   - a version that is not above the channel's latest in the published index, a min_upgrade_from above this version, or one
+//     above that latest (allowed for a release that starts a new schema epoch, which no box of the earlier epoch can update to in
+//     place);
 //   - migrations that do not continue the history of an earlier release of the same schema epoch (one removed, edited or numbered
 //     below, CheckHistory), whatever rollback.safe says, and a schema epoch below an earlier release's (HistoryError);
 //   - rollback.safe=true for a release whose schema epoch is above the newest earlier release's (a new migration history);
@@ -190,6 +191,16 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 	// for a release that starts a new schema epoch: no box of an earlier epoch can update to it in place anyway (its core refuses
 	// the database, the health gate fails and the host puts the previous release back), and a min_upgrade_from of this version
 	// makes such a box say "needs an intermediate release first" at the check instead of downloading the release and failing.
+	// Above this release itself it is never right: the verifier of every box refuses such a manifest (internal/release).
+	if in.MinUpgradeFrom != "" {
+		c, err := release.CompareVersions(in.MinUpgradeFrom, in.Version)
+		if err != nil {
+			return res, fmt.Errorf("min_upgrade_from %q: %w", in.MinUpgradeFrom, err)
+		}
+		if c > 0 {
+			return res, fmt.Errorf("min_upgrade_from %s is above %s, this release", in.MinUpgradeFrom, in.Version)
+		}
+	}
 	if latest != "" && in.MinUpgradeFrom != "" {
 		c, err := release.CompareVersions(in.MinUpgradeFrom, latest)
 		if err != nil {

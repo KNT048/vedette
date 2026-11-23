@@ -5,13 +5,16 @@ package webui
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"io/fs"
 	"mime"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -49,7 +52,7 @@ func init() {
 // or with an asset extension (assetExt): those are 404, so a missing chunk is never answered with HTML.
 // The top-level files that are not hashed (the favicon) get an ETag from a content hash taken once, here, so that no-cache revalidates to a 304.
 func Handler(fsys fs.FS) http.Handler {
-	h := handler{fsys: fsys, etag: map[string]string{}}
+	h := handler{fsys: fsys, etag: map[string]string{}, gz: &sync.Map{}}
 	if fsys != nil {
 		ents, _ := fs.ReadDir(fsys, ".")
 		for _, e := range ents {
@@ -65,6 +68,47 @@ func Handler(fsys fs.FS) http.Handler {
 type handler struct {
 	fsys fs.FS
 	etag map[string]string // top-level file name -> ETag
+	gz   *sync.Map         // file name -> gzip of its content, made on the first request that accepts gzip (the files never change while running)
+}
+
+// gzipExt: the text formats worth compressing. Fonts (woff, woff2) and raster images are compressed already.
+var gzipExt = map[string]bool{
+	".js": true, ".mjs": true, ".css": true, ".map": true, ".svg": true, ".json": true, ".txt": true, ".webmanifest": true, ".html": true, ".ico": true,
+}
+
+// gzipped returns the gzip form of body when the client accepts it and the file is a compressible text format of a useful size.
+func (h handler) gzipped(r *http.Request, name string, body []byte) ([]byte, bool) {
+	if len(body) < 1024 || !gzipExt[strings.ToLower(path.Ext(name))] || r.Header.Get("Range") != "" || !acceptsGzip(r.Header.Get("Accept-Encoding")) {
+		return nil, false
+	}
+	if v, ok := h.gz.Load(name); ok {
+		return v.([]byte), true
+	}
+	var buf bytes.Buffer
+	zw, _ := gzip.NewWriterLevel(&buf, gzip.BestCompression)
+	_, _ = zw.Write(body)
+	if zw.Close() != nil || buf.Len() >= len(body) {
+		return nil, false
+	}
+	v, _ := h.gz.LoadOrStore(name, buf.Bytes())
+	return v.([]byte), true
+}
+
+// acceptsGzip reports whether an Accept-Encoding value allows gzip (q=0 refuses it).
+func acceptsGzip(v string) bool {
+	for _, part := range strings.Split(v, ",") {
+		name, params, _ := strings.Cut(strings.TrimSpace(part), ";")
+		if !strings.EqualFold(strings.TrimSpace(name), "gzip") {
+			continue
+		}
+		if rest, ok := strings.CutPrefix(strings.TrimSpace(params), "q="); ok {
+			if f, err := strconv.ParseFloat(rest, 64); err == nil && f <= 0 {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -135,10 +179,24 @@ func (h handler) file(name string) ([]byte, bool) {
 	return b, err == nil
 }
 
-func (handler) serve(w http.ResponseWriter, r *http.Request, name string, body []byte, cache string) {
+func (h handler) serve(w http.ResponseWriter, r *http.Request, name string, body []byte, cache string) {
 	w.Header().Set("Cache-Control", cache)
+	w.Header().Add("Vary", "Accept-Encoding")
 	if path.Ext(name) == ".html" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	}
+	if h.fsys != nil {
+		if zb, ok := h.gzipped(r, name, body); ok {
+			if ct := mime.TypeByExtension(path.Ext(name)); ct != "" && w.Header().Get("Content-Type") == "" {
+				w.Header().Set("Content-Type", ct) // ServeContent would sniff the compressed bytes otherwise
+			}
+			w.Header().Set("Content-Encoding", "gzip")
+			if e := w.Header().Get("ETag"); e != "" { // another representation: another strong validator
+				w.Header().Set("ETag", strings.TrimSuffix(e, `"`)+`-gzip"`)
+			}
+			w.Header().Set("Content-Length", strconv.Itoa(len(zb))) // ServeContent leaves it out of an encoded response
+			body = zb
+		}
 	}
 	http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(body)) // GET and HEAD, ranges; no body on HEAD
 }

@@ -66,7 +66,7 @@ func TestContract_INV30_ADeepRunGivesEachStepItsLastRun(t *testing.T) {
 	at := store.FormatTS(t0)
 	for engine, text := range want {
 		r, ok := runs[engine]
-		if !ok || r.Outcome != StepOK || r.Text != text || r.Target != ipA || r.At != at || !strings.HasPrefix(r.RunID, "sr") || r.RunID != runs[StepZAP].RunID {
+		if !ok || r.Outcome != StepOK || r.Text != text || r.Target != ipA || r.At != at || !strings.HasPrefix(r.RunID, "run") || r.RunID != runs[StepZAP].RunID {
 			t.Errorf("%s: %+v (ok %v), want ok %q at %s", engine, r, ok, text, at)
 		}
 	}
@@ -87,8 +87,8 @@ func TestContract_INV30_ARunThatSkippedAStepLeavesItsEarlierRun(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", e.detectedID(ipA)); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.count(`SELECT count(*) FROM exp_snapshot WHERE json_extract(greenbone_run, '$.state') = 'not_run'`); n != 1 {
-		t.Fatalf("the second scan's snapshot: %d with OpenVAS not run", n)
+	if n := e.count(`SELECT count(*) FROM core_run_step WHERE name = ?`, stepNameOpenVAS); n != 1 {
+		t.Fatalf("%d OpenVAS steps; the second scan did not run it", n)
 	}
 	second := e.engineRuns()
 	if second[StepOpenVAS] != first[StepOpenVAS] {

@@ -29,7 +29,7 @@ func TestContract_INV27_SurfaceIsStoredAndSaysWhatWasNotScanned(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := e.svc.SnapshotOf(e.ctx(), dom.ID, snap.Date)
+	got, err := snap, error(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,9 +57,8 @@ func TestContract_INV27_SurfaceIsStoredAndSaysWhatWasNotScanned(t *testing.T) {
 	}
 }
 
-// Review r2 M3 (INV-27, INV-22): a name whose address lookup failed this time keeps its last row (marked lookup_failed): it is not
-// "gone" in the comparison, the counts stay, its port is not closed, and one line says so. The domain itself failing is the
-// runner's ErrDNSDown: the scan fails and no snapshot is stored, as for crt.sh.
+// INV-27, INV-22: a name whose address lookup failed this time keeps its row and its addresses as the scan before saw them, and
+// one line says so. The domain itself failing is the runner's ErrDNSDown: the scan fails and writes nothing, as for crt.sh.
 func TestContract_INV27_FailedLookupKeepsTheName(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -81,30 +80,25 @@ func TestContract_INV27_FailedLookupKeepsTheName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if second.Counts != first.Counts {
-		t.Fatalf("counts %+v, were %+v", second.Counts, first.Counts)
+	if second.Rows.Hosts != first.Rows.Hosts || second.Rows.Hosts != 2 {
+		t.Fatalf("names %+v, were %+v", second.Rows, first.Rows)
 	}
-	got, err := e.svc.SnapshotOf(e.ctx(), dom.ID, second.Date)
-	if err != nil {
-		t.Fatal(err)
+	var lastSeen string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT last_seen FROM exp_host WHERE name = 'vpn.acme.example'`).Scan(&lastSeen); err != nil || lastSeen != "2026-11-09T10:00:00.000Z" {
+		t.Fatalf("the name whose lookup failed: last seen %q, %v", lastSeen, err)
 	}
-	i := slices.IndexFunc(got.Hosts, func(h HostRow) bool { return h.Name == "vpn.acme.example" })
-	if len(got.Hosts) != 2 || i < 0 || !got.Hosts[i].LookupFailed || got.Hosts[i].IP != ipB {
-		t.Fatalf("hosts %+v", got.Hosts)
+	if n := e.count(`SELECT count(*) FROM exp_address WHERE ip = ?`, ipB); n != 1 {
+		t.Fatalf("%d address rows of the name whose lookup failed", n)
 	}
-	if n := notChecked(got); !slices.Contains(n, "Names whose address lookup got no answer this time (2 names): shown as the last scan found them.") {
+	if n := notChecked(second); !slices.Contains(n, "Names whose address lookup got no answer this time (2 names): shown as the last scan found them.") {
 		t.Fatalf("not checked %q", n)
-	}
-	d, err := e.svc.Diff(e.ctx(), dom.ID, first.Date, second.Date)
-	if err != nil || len(d.Removed) != 0 {
-		t.Fatalf("diff %+v, %v", d, err)
 	}
 	// the domain itself without an answer: nothing stored
 	e.advance(24 * time.Hour)
 	run.err = fmt.Errorf("%w (surface: the DNS resolver gave no answer for the domain)", ErrDNSDown)
 	_, err = e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
 	wantAPI(t, err, 502, "unreachable")
-	if n := e.count(`SELECT count(*) FROM exp_snapshot`); n != 2 {
-		t.Fatalf("%d snapshots", n)
+	if n := e.count(`SELECT count(*) FROM exp_host`); n != 2 {
+		t.Fatalf("%d names", n)
 	}
 }

@@ -45,6 +45,11 @@
 
 ## Modifying: `deviceOS`, `deviceSoftware`, `withoutCoveredWindows`, `osRow.reads`, `OSVersion` (INV-4c (2))
 - **inventory** shows the OS these keep as the device's OS (`DeclaredOSRow` through `Config.DeclaredOS`): a change of which row decides changes the device page in the same commit. `cmd/vedette` `TestWiringDeclaredOSPageIsTheMatchersOS` must still pass.
+- **Cost**: the fix readers (`RowFixes`, `FixedInForAll`, `FixedInFor`) read a device's rows once (`devRows`: the rows, their `swInfo`, their
+  normalised KEV keys) and answer every finding of the device from it; a new fix reader takes `devRows` instead of calling
+  `deviceSoftware` or `newSWInfo` per finding. `TestFixGrouping_SameAnswersOnTheFixture` keeps every answer of the three readers on a
+  fixed fixture (`testdata/equiv-fixes.json.gz`); a change meant to keep behaviour must leave it green, and a change of behaviour
+  regenerates it on purpose (`VEDETTE_UPDATE_GOLDEN=1`).
 
 ## Modifying: thư viện thuần `modules/findings` (không DB; `Service` bọc ngoài)
 - `MatchAsset(Asset, []Vuln, have, now) MatchResult` — bộ khớp. Gọi từ service (`OnMatchChanged`, `Reconcile`, `scanLine`) và từ `cmd/vedette` (`exposurematch.go`, `ai.go`). Đổi quy tắc ⇒ đổi số finding và tin `notify`; test `TestContract_INV4_*`, `TestGolden_*`.

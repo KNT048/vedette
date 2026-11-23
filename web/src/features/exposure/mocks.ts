@@ -19,9 +19,12 @@ import { canonHash, GENESIS } from '@/lib/chain'
 import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, withDeep, type Content, type StoredTarget } from './data'
 import { serviceLabel } from './services'
-import { NOTICE_TEMPLATE, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
+import { seedTree, seedTreeRows, type StoredNode, type TreeRows } from './treeSeed'
+import { MAX_ISSUE_IDS, MAX_SELECTED, SELECTED_LIMIT_WHY, NOTICE_TEMPLATE, Resolution as ResolutionEnum, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
 import { mockDeviceProgress } from '@/lib/progress'
-import type { BoxIpSettings, Commitment, ScanSchedule, ScheduleEvery, Terms, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
+import { scheduleSubjects } from '@/features/core/schedulesMock'
+import type { Proof, ProofState, Resolution, RunStatus, Scan, ScopeMode, Severity, TargetKind, TargetNode } from './types'
+import type { BoxIpSettings, Commitment, Terms, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
@@ -42,7 +45,6 @@ const commitments = collection<Record<string, Commitment>>('exp_commitments', ()
   }
 }, () => ({}))
 /** INV-36: how often each target is scanned by itself; a target with no entry is weekly (the default, also of older targets). */
-const schedules = collection<Record<string, ScheduleEvery>>('exp_schedules', () => ({}), () => ({}))
 /** Timestamps of verification attempts in the last hour (rate limit, anti-abuse). */
 const attempts = collection<string[]>('exp_attempts', () => [], () => [])
 /** Auto-detect settings. Same defaults on a clean install; only the sample has a last check. */
@@ -234,27 +236,7 @@ function view(t: StoredTarget): Target {
     ip_proof: typed ? { path: '/.well-known/vedette-verify.txt', content: t.token, urls: [`http://${t.value}/.well-known/vedette-verify.txt`, `https://${t.value}/.well-known/vedette-verify.txt`], ptr_domains: targets.get().filter((o) => o.kind === 'domain' && o.verified_at !== null && o.txt_ok).map((o) => o.value) } : null,
     next_check_at: typed && verified && t.expires_at ? plus(t.expires_at, -7) : null,
     scan_state: blocked === null ? 'ready' : blocked === 'expired' ? 'expired' : blocked === 'ip_not_current' ? 'paused' : blocked === 'no_commitment' ? 'needs_terms' : 'unproved',
-    schedule: scheduleOf(t, blocked, terms?.version === TERMS_VERSION, !!terms),
   }
-}
-
-/** INV-36: the schedule as the box shows it. The mock has no scan window (Settings › Scanning › Safety): the next scan is when it is due. */
-function scheduleOf(t: StoredTarget, blocked: Target['blocked_reason'], full: boolean, hadTerms: boolean): ScanSchedule {
-  const every = schedules.get()[t.id] ?? 'weekly'
-  if (every === 'off') return { every, next_at: null, note: null }
-  const why = blocked === 'unverified' ? 'ownership is not proved' : blocked === 'expired' ? 'the ownership proof expired'
-    : blocked === 'no_commitment' || !full ? (hadTerms ? 'terms need confirming again' : 'the testing terms are not accepted')
-    : blocked === 'ip_not_current' ? 'the box no longer goes out through this IP' : null
-  if (why) return { every, next_at: null, note: `Not scanned on schedule: ${why}` }
-  const now = new Date()
-  let due = now
-  if (t.last_scan_at) {
-    due = new Date(t.last_scan_at)
-    if (every === 'daily') due.setDate(due.getDate() + 1)
-    else if (every === 'weekly') due.setDate(due.getDate() + 7)
-    else due.setMonth(due.getMonth() + 1)
-  }
-  return { every, next_at: (due < now ? now : due).toISOString(), note: null }
 }
 
 const find = (id: unknown) => targets.get().find((t) => t.id === id)
@@ -442,6 +424,407 @@ export function ipPaused(t: { id: string; value: string }) {
 function autoDetectIfDue() {
   const s = boxIp.get()
   if (s.auto && (!s.last_run || Date.now() >= Date.parse(s.last_run.at) + s.interval_min * 60_000)) detect('system')
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Target tree (exp_tree, exp_tree_rows): nodes with proof per node and through ancestors, rows with first and last seen,
+// and scans as runs. A run of the mock ends done a few seconds after it starts; one runs at a time, the others wait.
+const tree = collection<StoredNode[]>('exp_tree', seedTree, () => [])
+const treeRows = collection<TreeRows>('exp_tree_rows', seedTreeRows, () => ({ hosts: {}, addresses: {}, services: {}, issues: [], scans: [] }))
+const MOCK_SCAN_MS = 4000
+const PROOF_DAYS_MS = VERIFY_DAYS * 864e5
+const SEVERITY_RANK: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 }
+const RESOLUTIONS: readonly string[] = ResolutionEnum.options
+const LIVE: readonly RunStatus[] = ['queued', 'waiting', 'running', 'stopping']
+
+const nodeOf = (id: unknown) => tree.get().find((n) => n.id === String(id))
+const noNode = () => fail(404, 'not_found', 'No such target. It may have been deleted.')
+const zoneOf = (name: string) => name.split('.').slice(-2).join('.')
+
+/** The node's own proof, without its ancestors. */
+function ownProof(n: StoredNode): 'proven' | 'missing' | 'expired' {
+  if (!n.method || !n.verified_at) return 'missing'
+  if (n.kind === 'ip' && Date.now() - Date.parse(n.verified_at) > PROOF_DAYS_MS) return 'expired'
+  return n.last_check && !n.last_check.ok ? 'missing' : 'proven'
+}
+
+function ancestorsOf(n: StoredNode, all: StoredNode[]): StoredNode[] {
+  const out: StoredNode[] = []
+  for (let p = all.find((x) => x.id === n.parent_id); p && out.length < 50; p = all.find((x) => x.id === p!.parent_id)) out.push(p)
+  return out
+}
+
+function nodeProof(n: StoredNode, all: StoredNode[]): Proof {
+  const own = ownProof(n)
+  const cover = own === 'proven' ? undefined : ancestorsOf(n, all).find((a) => ownProof(a) === 'proven')
+  const state: ProofState = cover ? 'covered' : own
+  const zone = zoneOf(n.value), label = n.value === zone ? '' : n.value.slice(0, -zone.length - 1)
+  return {
+    state,
+    method: cover ? null : n.method,
+    covered_by: cover ? { id: cover.id, value: cover.value } : null,
+    verified_at: cover ? null : n.verified_at,
+    expires_at: n.kind === 'ip' && n.verified_at && !cover ? new Date(Date.parse(n.verified_at) + PROOF_DAYS_MS).toISOString() : null,
+    next_check_at: n.kind === 'ip' && n.origin === 'person' && n.verified_at ? new Date(Date.parse(n.verified_at) + PROOF_DAYS_MS - 7 * 864e5).toISOString() : null,
+    last_check: cover ? null : n.last_check,
+    dns: n.kind === 'domain' && !cover ? { zone, host: '@', alt_host: label ? `_vedette-verify.${label}` : '_vedette-verify', value: `vedette-verify=${n.token}` } : null,
+    file: n.kind === 'ip' && n.origin === 'person' ? {
+      urls: [`http://${n.value}/.well-known/vedette-verify.txt`, `https://${n.value}/.well-known/vedette-verify.txt`],
+      content: n.token,
+      ptr_domains: all.filter((x) => x.kind === 'domain' && ownProof(x) === 'proven').map((x) => x.value),
+    } : null,
+  }
+}
+
+/** Moves the runs on: a running one ends done after a few seconds, then the oldest waiting one starts. */
+function advanceRuns() {
+  const rows = treeRows.get()
+  let changed = false
+  const scans = rows.scans.map((s) => {
+    if (s.status !== 'running' || Date.now() - Date.parse(s.started_at!) < MOCK_SCAN_MS) return s
+    changed = true
+    const services = (rows.services[s.target_id] ?? []).filter((x) => x.state === 'open').length
+    const issues = rows.issues.filter((x) => x.target_id === s.target_id && x.state === 'open').length
+    return { ...s, status: 'done' as const, ended_at: nowIso(), counts: { hosts: (rows.hosts[s.target_id] ?? []).length, services, new_services: 0, closed_services: 0, issues, new_issues: 0 } }
+  })
+  if (!scans.some((s) => s.status === 'running')) {
+    const next = scans.filter((s) => s.status === 'queued').sort((a, b) => a.queued_at.localeCompare(b.queued_at))[0]
+    if (next) { changed = true; Object.assign(next, { status: 'running', started_at: nowIso() }) }
+  }
+  if (changed) treeRows.set({ ...rows, scans })
+}
+
+function nodeView(n: StoredNode, all = tree.get()): TargetNode {
+  const rows = treeRows.get()
+  const proof = nodeProof(n, all)
+  const open = (rows.services[n.id] ?? []).filter((s) => s.state === 'open')
+  const issues = rows.issues.filter((i) => i.target_id === n.id && i.state === 'open')
+  const worst = issues.map((i) => i.severity).sort((a, b) => SEVERITY_RANK[a] - SEVERITY_RANK[b])[0] ?? null
+  const scans = rows.scans.filter((s) => s.target_id === n.id).sort((a, b) => b.queued_at.localeCompare(a.queued_at))
+  const commitmentCurrent = n.commitment?.version === NOTICE_VERSION
+  return {
+    id: n.id, parent_id: n.parent_id, schedule_key: `exposure.target:${n.id}`, kind: n.kind, value: n.value, origin: n.origin, scope_mode: n.scope_mode, enabled: n.enabled, created_at: n.created_at,
+    proof,
+    commitment: n.commitment, terms: n.terms,
+    commitment_notice: commitmentCurrent ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', n.value) },
+    terms_notice: { version: TERMS_VERSION, text: (n.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', n.value), disruptive: TERMS_DISRUPTIVE },
+    terms_warning: null,
+    deep: n.terms?.version === TERMS_VERSION,
+    blocked: !n.enabled ? 'disabled' : proof.state !== 'proven' && proof.state !== 'covered' ? 'proof' : !commitmentCurrent ? 'no_commitment' : null,
+    last_scan: scans[0] ?? null,
+    counts: { hosts: (rows.hosts[n.id] ?? []).length, services: open.length, web: open.filter((s) => s.is_web).length, issues: issues.length, worst },
+  }
+}
+
+/** Every node in tree order: each right after its parent, siblings by value. */
+function treeOrder(all: StoredNode[]): StoredNode[] {
+  const out: StoredNode[] = []
+  const visit = (parent: string | null) => {
+    for (const n of all.filter((x) => x.parent_id === parent).sort((a, b) => a.value.localeCompare(b.value))) { out.push(n); visit(n.id) }
+  }
+  visit(null)
+  return out
+}
+
+function patchNode(id: string, fn: (n: StoredNode) => StoredNode) {
+  tree.update((l) => l.map((x) => (x.id === id ? fn(x) : x)))
+  return nodeOf(id)!
+}
+
+/** The name entries of a parent that are this target: the parent then skips them (Host.child). */
+function linkChild(parentId: string | null, child: { id: string; value: string } | null, name: string) {
+  if (!parentId) return
+  treeRows.update((r) => ({ ...r, hosts: { ...r.hosts, [parentId]: (r.hosts[parentId] ?? []).map((h) => (h.name === name ? { ...h, child } : h)) } }))
+}
+
+/** Shodan's answer about a node's IP beside the open services of the node (the target tree). */
+function outsideNodeView(id: string): OutsideView | null {
+  const o = outside.get()[id]
+  if (!o) return null
+  const rows = treeRows.get()
+  const open = (rows.services[id] ?? []).filter((x) => x.state === 'open' && x.ip === o.ip)
+  const last = rows.scans.filter((x) => x.target_id === id && x.started_at).sort((a, b) => b.queued_at.localeCompare(a.queued_at))[0]
+  return { ...o, scan_ports: last ? [...new Set(open.map((x) => x.port))].sort((a, b) => a - b) : null, scan_at: last?.started_at ?? null }
+}
+
+/** An administrator's click sends a node's proven IP to Shodan InternetDB (at most once a minute on the box). */
+function outsideNodeAsk(n: StoredNode) {
+  if (n.kind !== 'ip') return fail(400, 'bad_value', 'Only a public IP of this box can be checked with Shodan, not a domain.')
+  if (nodeProof(n, tree.get()).state !== 'proven') return fail(409, 'not_verified', `${n.value} has no ownership proof now, so it cannot be checked with Shodan.`)
+  if (Date.now() - outsideAskedMs < 60_000) return fail(429, 'rate_limited', 'The box asked Shodan less than a minute ago. Try again in a minute: it asks at most once a minute.')
+  outsideAskedMs = Date.now()
+  const a = outsideAnswer(n.value)
+  outside.update((m) => ({ ...m, [n.id]: { ip: n.value, checked_at: nowIso(), checked_by: currentUser()?.email ?? '', ...a } }))
+  audit('exposure.outside_view', n.value, a.found ? `sent to internetdb.shodan.io; Shodan lists ${a.ports.length} ports and ${a.vulns.length} CVEs` : 'sent to internetdb.shodan.io; Shodan has no record of it')
+  return HttpResponse.json(outsideNodeView(n.id))
+}
+
+// The schedules mock asks here whether a target exists and whether its scan can start now, as the box's owner of exposure.target does.
+scheduleSubjects['exposure.target'] = (id) => {
+  const n = nodeOf(id)
+  if (!n) return { gone: true }
+  const b = nodeView(n).blocked
+  return { gone: false, refuse: b === 'disabled' ? `${n.value} is switched off, so it is not scanned.` : b === 'proof' ? `${n.value} has no ownership proof, so it cannot be scanned. Finish verification first.`
+    : b === 'no_commitment' ? `${n.value} has not been confirmed yet. An administrator must run the first scan: it records that your company owns ${n.value} and that the scan is authorized.` : undefined }
+}
+
+const treeHandlers = [
+  http.get(`${API}/exposure/tree`, () => {
+    const denied = guard('viewer'); if (denied) return denied
+    advanceRuns()
+    const all = tree.get()
+    const items = treeOrder(all).map((n) => nodeView(n, all))
+    const gateway = items.some((x) => x.kind === 'ip' && x.origin === 'box' && x.counts.services > 0) ? { ip: '10.0.0.1', device_id: 'dev-gateway', name: 'fortigate-hq', open_exploited: 2 } : null
+    return HttpResponse.json({ items, box_ip: boxView(), ignored: ignored.get().slice().sort((a, b) => b.ignored_at.localeCompare(a.ignored_at)), gateway })
+  }),
+
+  http.post(`${API}/exposure/tree`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ value: string; kind?: TargetKind; scope_mode?: ScopeMode }>(request)
+    const value = String(b.value ?? '').trim().toLowerCase().replace(/\.$/, '')
+    if (!value) return fail(400, 'empty', b.kind === 'ip' ? 'Enter a public IPv4 address, for example 198.51.100.10.' : 'Enter a domain, for example example.com.')
+    const kind: TargetKind = b.kind ?? (IPV4_RE.test(value) ? 'ip' : 'domain')
+    const all = tree.get()
+    if (all.some((t) => t.value === value)) return fail(409, 'duplicate', `${value} is already in the list.`)
+    if (all.length >= MAX_TARGETS) return fail(400, 'too_many', `At most ${MAX_TARGETS} targets. Delete ones you no longer use.`)
+    if (b.scope_mode !== undefined && (kind === 'ip' || !(['self', 'all', 'selected'] as const).includes(b.scope_mode))) return fail(400, 'bad_value', 'A scope is chosen for a domain only: this name, every name found under it, or the names you choose.')
+    const base = { id: newId('xt'), value, origin: 'person' as const, enabled: true, created_at: nowIso(), token: randomToken(), verified_at: null, last_check: null, checks: 0, commitment: null, terms: null }
+    let n: StoredNode
+    if (kind === 'ip') {
+      if (isIPv6Text(value) || (IPV4_RE.test(value) && !isPublicIp(value))) return fail(400, 'ip_not_allowed', IP_NOT_PUBLIC)
+      if (!IPV4_RE.test(value)) return fail(400, 'bad_value', 'Not an IP address. Example: 198.51.100.10.')
+      if (ignored.get().some((x) => x.value === value)) return fail(400, 'bad_value', `${value} is on your Ignored list. Restore it first.`)
+      n = { ...base, parent_id: null, kind: 'ip', scope_mode: null, method: null }
+    } else {
+      if (isIPv6Text(value) || IPV4_RE.test(value)) return fail(400, 'ip_not_allowed', IP_NOT_A_DOMAIN)
+      if (/[/:@\s]/.test(value) || !DOMAIN_RE.test(value)) return fail(400, 'bad_value', 'Enter only a domain name, without http://, a path, a port or spaces. Example: example.com.')
+      // The nearest domain target this is a name of becomes its parent; targets that are names of it move under it.
+      const parent = all.filter((x) => x.kind === 'domain' && value.endsWith(`.${x.value}`)).sort((a, b) => b.value.length - a.value.length)[0] ?? null
+      n = { ...base, parent_id: parent?.id ?? null, kind: 'domain', scope_mode: b.scope_mode ?? 'all', method: 'dns_txt' }
+      const moved = all.filter((x) => x.kind === 'domain' && x.value.endsWith(`.${value}`) && x.parent_id === n.parent_id)
+      tree.update((l) => l.map((x) => (moved.some((m) => m.id === x.id) ? { ...x, parent_id: n.id } : x)))
+      linkChild(n.parent_id, { id: n.id, value }, value)
+    }
+    tree.update((l) => [...l, n])
+    audit('exposure.target_add', value, n.parent_id ? `under ${nodeOf(n.parent_id)?.value}` : kind === 'ip' ? 'public IP, typed in; not scanned until proved' : '')
+    return HttpResponse.json(nodeView(n), { status: 201 })
+  }),
+
+  http.get(`${API}/exposure/tree/:id`, ({ params }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    advanceRuns()
+    const n = nodeOf(params.id)
+    return n ? HttpResponse.json(nodeView(n)) : noNode()
+  }),
+
+  http.patch(`${API}/exposure/tree/:id`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const n = nodeOf(params.id)
+    if (!n) return noNode()
+    const b = await body<{ scope_mode?: ScopeMode; enabled?: boolean; selected?: string[] }>(request)
+    if (b.scope_mode !== undefined && (n.kind === 'ip' || !(['self', 'all', 'selected'] as const).includes(b.scope_mode))) return fail(400, 'bad_value', 'A scope is chosen for a domain only: this name, every name found under it, or the names you choose.')
+    if (b.enabled !== undefined && typeof b.enabled !== 'boolean') return fail(400, 'bad_value', 'enabled is true or false.')
+    const scope = b.scope_mode ?? n.scope_mode
+    if (b.selected !== undefined) {
+      const hosts = treeRows.get().hosts[n.id] ?? []
+      if (scope !== 'selected') return fail(400, 'bad_value', 'Names are chosen only when the scope is "the names I choose".')
+      if (Array.isArray(b.selected) && b.selected.length > MAX_SELECTED) return fail(400, 'invalid', SELECTED_LIMIT_WHY)
+      if (!Array.isArray(b.selected) || b.selected.some((h) => !hosts.some((x) => x.id === h))) return fail(400, 'bad_value', 'One of the chosen names is not a name found under this target.')
+      const pick = new Set(b.selected)
+      treeRows.update((r) => ({ ...r, hosts: { ...r.hosts, [n.id]: hosts.map((h) => ({ ...h, selected: pick.has(h.id) })) } }))
+    }
+    const next = patchNode(n.id, (x) => ({ ...x, scope_mode: scope, enabled: b.enabled ?? x.enabled }))
+    audit('exposure.target_edit', n.value, `scope: ${next.scope_mode ?? 'n/a'}, enabled: ${next.enabled ? 'yes' : 'no'}${b.selected ? `, names chosen: ${b.selected.length}` : ''}`)
+    return HttpResponse.json(nodeView(next))
+  }),
+
+  http.delete(`${API}/exposure/tree/:id`, ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const n = nodeOf(params.id)
+    if (!n) return noNode()
+    const ignore = new URL(request.url).searchParams.get('ignore') === 'true'
+    if (ignore && n.kind !== 'ip') return fail(400, 'bad_value', 'Only an IP can go on the Ignored list.')
+    tree.update((l) => l.filter((x) => x.id !== n.id).map((x) => (x.parent_id === n.id ? { ...x, parent_id: n.parent_id } : x)))
+    linkChild(n.parent_id, null, n.value)
+    treeRows.update((r) => {
+      const drop = <T,>(m: Record<string, T>) => { const c = { ...m }; delete c[n.id]; return c }
+      return { hosts: drop(r.hosts), addresses: drop(r.addresses), services: drop(r.services), issues: r.issues.filter((i) => i.target_id !== n.id), scans: r.scans.filter((s) => s.target_id !== n.id) }
+    })
+    if (ignore) ignored.update((l) => [...l.filter((x) => x.value !== n.value), { value: n.value, ignored_by: currentUser()?.email ?? '', ignored_at: nowIso() }])
+    audit('exposure.target_delete', n.value, ignore ? 'and put on the Ignored list' : '')
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.post(`${API}/exposure/tree/:id/verify`, ({ params }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const n = nodeOf(params.id)
+    if (!n) return noNode()
+    const proof = nodeProof(n, tree.get())
+    if (proof.state === 'covered') {
+      return HttpResponse.json({ verified: true, message: `Ownership already proven by the TXT record at ${proof.covered_by!.value}.`, node: nodeView(n) })
+    }
+    const at = nowIso(), checks = n.checks + 1
+    // The mock finds a new record or file from the second check on; the box's own IP is seen while it goes out through it.
+    const found = n.origin === 'box' || checks >= 2
+    const message = n.origin === 'box' ? `The box reaches the Internet via ${n.value}.`
+      : n.kind === 'domain' ? `The TXT record vedette-verify=${n.token} was ${found ? '' : 'not '}found on ${n.value}.`
+        : found ? `The proof file was found at http://${n.value}/.well-known/vedette-verify.txt.` : `No proof file at http://${n.value}/.well-known/vedette-verify.txt or https://${n.value}/.well-known/vedette-verify.txt.`
+    const next = patchNode(n.id, (x) => ({ ...x, checks, last_check: { at, ok: found, message }, ...(found ? { verified_at: at, method: x.method ?? (x.kind === 'domain' ? 'dns_txt' : 'ip_file') } : {}) }))
+    audit('exposure.verify', n.value, message)
+    return HttpResponse.json({ verified: found, message, node: nodeView(next) })
+  }),
+
+  http.put(`${API}/exposure/tree/:id/terms`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const n = nodeOf(params.id)
+    if (!n) return noNode()
+    const me = currentUser()!
+    if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then accept the testing terms.')
+    const b = await body<{ version?: string; disruptive?: boolean }>(request)
+    if (b.version !== TERMS_VERSION) return fail(409, 'notice_changed', 'The testing terms changed since this page loaded. Read them again, then accept them again.')
+    const v = nodeView(n)
+    if (v.proof.state !== 'proven' && v.proof.state !== 'covered') return fail(409, 'not_verified', 'Prove ownership first; only then can the testing terms be accepted.')
+    const disruptive = b.disruptive === true
+    const at = nowIso()
+    const next = patchNode(n.id, (x) => ({
+      ...x,
+      commitment: x.commitment?.version === NOTICE_VERSION ? x.commitment : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', x.value), by: me.email, at, disruptive: false },
+      terms: { version: TERMS_VERSION, text: v.terms_notice.text + (disruptive ? `\n${TERMS_DISRUPTIVE}` : ''), by: me.email, at, disruptive },
+    }))
+    audit('exposure.terms_accept', n.value, `disruptive checks: ${disruptive ? 'yes' : 'no'}`)
+    return HttpResponse.json(nodeView(next))
+  }),
+
+  http.delete(`${API}/exposure/tree/:id/terms`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const n = nodeOf(params.id)
+    if (!n) return noNode()
+    if (n.terms) audit('exposure.terms_revoke', n.value, `withdrawn (terms ${n.terms.version}, accepted by ${n.terms.by} at ${n.terms.at})`)
+    return HttpResponse.json(nodeView(patchNode(n.id, (x) => ({ ...x, terms: null }))))
+  }),
+
+  http.post(`${API}/exposure/tree/:id/scan`, async ({ params, request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const n = nodeOf(params.id)
+    if (!n) return noNode()
+    advanceRuns()
+    const v = nodeView(n)
+    if (v.blocked === 'disabled') return fail(409, 'disabled', `${n.value} is turned off. Turn it on to scan it.`)
+    if (v.blocked === 'proof') return fail(409, 'not_verified', `${n.value} has no ownership proof, so it cannot be scanned. Prove it first.`)
+    const me = currentUser()!
+    if (v.blocked === 'no_commitment') {
+      if (me.role !== 'admin') return fail(400, 'commitment_required', `${n.value} has not been confirmed yet. An administrator must run the first scan: it records that your company owns ${n.value} and that the scan is authorized.`)
+      if (!me.twofa && !me.sso) return fail(403, 'twofa_required', 'Turn on two-step sign-in for your account first (My account), then run the first scan again.')
+      const sent = await body<{ notice_version?: string }>(request)
+      if (!sent.notice_version) return fail(400, 'commitment_required', `The first scan of ${n.value} records a confirmation, so the request must carry notice_version of the sentence shown next to Scan now.`)
+      if (sent.notice_version !== NOTICE_VERSION) return fail(409, 'notice_changed', 'The confirmation text changed since this page loaded. Read it again, then press Scan now again.')
+      patchNode(n.id, (x) => ({ ...x, commitment: { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', x.value), by: me.email, at: nowIso(), disruptive: false } }))
+      audit('exposure.commitment', n.value, 'confirmed by the first Scan now')
+    }
+    const rows = treeRows.get()
+    if (rows.scans.some((s) => s.target_id === n.id && LIVE.includes(s.status))) return fail(409, 'busy', `A scan of ${n.value} is already queued or running.`)
+    const running = rows.scans.some((s) => s.status === 'running')
+    const at = nowIso()
+    const s: Scan = { run_id: newId('run'), target_id: n.id, status: running ? 'queued' : 'running', trigger: 'manual', requested_by: me.email, mode: v.deep ? 'deep' : 'surface',
+      queued_at: at, started_at: running ? null : at, ended_at: null, waiting_for: null, stop_reason: null, error: null, counts: null }
+    treeRows.update((r) => ({ ...r, scans: [s, ...r.scans] }))
+    audit('exposure.scan', n.value, `${s.mode} scan ${s.status}`)
+    return HttpResponse.json(s, { status: 202 })
+  }),
+
+  http.get(`${API}/exposure/tree/:id/scans`, ({ params }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    if (!nodeOf(params.id)) return noNode()
+    advanceRuns()
+    const items = treeRows.get().scans.filter((s) => s.target_id === params.id).sort((a, b) => b.queued_at.localeCompare(a.queued_at)).slice(0, 100)
+    return HttpResponse.json({ items })
+  }),
+
+  http.get(`${API}/exposure/tree/:id/hosts`, ({ params }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    if (!nodeOf(params.id)) return noNode()
+    return HttpResponse.json({ items: (treeRows.get().hosts[String(params.id)] ?? []).slice().sort((a, b) => a.name.localeCompare(b.name)) })
+  }),
+
+  http.get(`${API}/exposure/tree/:id/addresses`, ({ params }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    if (!nodeOf(params.id)) return noNode()
+    return HttpResponse.json({ items: treeRows.get().addresses[String(params.id)] ?? [] })
+  }),
+
+  http.get(`${API}/exposure/tree/:id/services`, ({ params }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    if (!nodeOf(params.id)) return noNode()
+    const items = (treeRows.get().services[String(params.id)] ?? []).slice().sort((a, b) => a.state.localeCompare(b.state) * -1 || a.ip.localeCompare(b.ip) || a.port - b.port)
+    return HttpResponse.json({ items })
+  }),
+
+  http.get(`${API}/exposure/tree/:id/issues`, ({ params }) => {
+    const denied = guard('viewer'); if (denied) return denied
+    if (!nodeOf(params.id)) return noNode()
+    const items = treeRows.get().issues.filter((i) => i.target_id === params.id).sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity] || a.title.localeCompare(b.title))
+    return HttpResponse.json({ items })
+  }),
+
+  http.post(`${API}/exposure/issues/handle`, async ({ request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const b = await body<{ ids: string[]; resolution: Resolution; note: string; accepted_until?: string }>(request)
+    const ids = issueIdsOf(b.ids)
+    if (!ids) return fail(400, 'invalid', `Choose between 1 and ${MAX_ISSUE_IDS} issues.`)
+    if (!RESOLUTIONS.includes(b.resolution as Resolution)) return fail(400, 'bad_value', 'Choose how the issues were handled.')
+    if (typeof b.note !== 'string' || b.note.length > 500) return fail(400, 'bad_value', 'The note is at most 500 characters.')
+    if ((b.resolution === 'false_positive' || b.resolution === 'not_relevant' || b.resolution === 'accepted') && b.note.trim().length < 3) return fail(400, 'note_required', 'Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands.')
+    const until = b.accepted_until
+    if (b.resolution === 'accepted') {
+      const today = new Date().toISOString().slice(0, 10), last = new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10)
+      if (!until || !/^\d{4}-\d{2}-\d{2}$/.test(until) || until <= today || until > last) return fail(400, 'bad_until', 'Accept the risk until a date from tomorrow up to one year from today.')
+    } else if (until !== undefined) return fail(400, 'bad_until', 'A last day is set only when the risk is accepted.')
+    const me = currentUser()!.email, at = nowIso()
+    let handled = 0
+    treeRows.update((r) => ({ ...r, issues: r.issues.map((i) => {
+      if (!ids.has(i.id) || i.state !== 'open') return i
+      handled++
+      audit('exposure.issue_handle', i.title, `${b.resolution}${until ? ` until ${until}` : ''}${b.note ? `: ${b.note}` : ''}`)
+      return { ...i, state: 'handled' as const, resolution: b.resolution as Resolution, resolved_by: me, resolved_at: at, note: b.note || null, accepted_until: b.resolution === 'accepted' ? until! : null }
+    }) }))
+    return HttpResponse.json({ handled, skipped: ids.size - handled })
+  }),
+
+  http.post(`${API}/exposure/issues/reopen`, async ({ request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const ids = issueIdsOf((await body<{ ids: string[] }>(request)).ids)
+    if (!ids) return fail(400, 'invalid', `Choose between 1 and ${MAX_ISSUE_IDS} issues.`)
+    let reopened = 0
+    treeRows.update((r) => ({ ...r, issues: r.issues.map((i) => {
+      if (!ids.has(i.id) || i.state !== 'handled') return i
+      reopened++
+      audit('exposure.issue_reopen', i.title, `was ${i.resolution}`)
+      return { ...i, state: 'open' as const, resolution: null, resolved_by: null, resolved_at: null, note: null, accepted_until: null }
+    }) }))
+    return HttpResponse.json({ reopened, skipped: ids.size - reopened })
+  }),
+]
+
+// Stopping a scan of the tree goes through the shared runs. A run id that is not a scan of the tree falls through to the
+// shared runs mock (no answer here).
+treeHandlers.push(http.post(`${API}/runs/:id/stop`, ({ params }) => {
+  const s = treeRows.get().scans.find((x) => x.run_id === params.id)
+  if (!s) return undefined
+  const denied = guard('operator'); if (denied) return denied
+  if (!LIVE.includes(s.status)) return fail(409, 'not_running', 'This run has already ended, so there is nothing to stop.')
+  const by = currentUser()?.email ?? 'system'
+  const at = nowIso()
+  const stopped: Scan = { ...s, status: 'stopped', stop_reason: `Stopped by ${by}`, waiting_for: null, ended_at: at }
+  treeRows.update((r) => ({ ...r, scans: r.scans.map((x) => (x.run_id === s.run_id ? stopped : x)) }))
+  audit('scanning.run_stop', nodeOf(s.target_id)?.value ?? s.target_id, stopped.stop_reason ?? '')
+  return HttpResponse.json({ id: s.run_id, module: 'exposure', kind: 'exposure_scan', lane: 'exposure', title: `Exposure scan of ${nodeOf(s.target_id)?.value ?? s.target_id}`,
+    trigger: s.trigger, trigger_note: null, requested_by: s.requested_by, schedule_id: null, subject: null, parent_id: null, status: 'stopped', waiting_for: null,
+    stop_reason: stopped.stop_reason, error: null, total: 0, done: 0, queued_at: s.queued_at, started_at: s.started_at, ended_at: at, updated_at: at, can_stop: false, can_resume: false })
+}))
+
+function issueIdsOf(v: unknown): Set<string> | null {
+  if (!Array.isArray(v) || v.length < 1 || v.length > MAX_ISSUE_IDS || v.some((x) => typeof x !== 'string')) return null
+  return new Set(v as string[])
 }
 
 export const handlers = [
@@ -672,21 +1055,6 @@ export const handlers = [
     return HttpResponse.json(run, { status: 202 })
   }),
 
-  // INV-36: how often the box scans the target by itself (admin).
-  http.put(`${API}/exposure/targets/:id/schedule`, async ({ params, request }) => {
-    const denied = guard('admin'); if (denied) return denied
-    const t = find(params.id)
-    if (!t) return notFound()
-    const { every } = await body<{ every?: string }>(request)
-    if (every !== 'off' && every !== 'daily' && every !== 'weekly' && every !== 'monthly') return fail(400, 'bad_value', 'Choose Off, Daily, Weekly or Monthly.')
-    const was = schedules.get()[t.id] ?? 'weekly'
-    if (was !== every) {
-      schedules.update((m) => ({ ...m, [t.id]: every }))
-      audit('exposure.schedule', t.value, `${every} (was ${was})`)
-    }
-    return HttpResponse.json(view(t))
-  }),
-
   // The mock starts every scan at once (no queue), so nothing ever waits to be taken out.
   http.delete(`${API}/exposure/targets/:id/queue`, ({ params }) => {
     const denied = guard('operator'); if (denied) return denied
@@ -739,7 +1107,7 @@ export const handlers = [
   // What the Internet sees: reading sends nothing.
   http.get(`${API}/exposure/targets/:id/outside`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
-    if (!find(params.id)) return notFound()
+    if (!find(params.id)) return nodeOf(params.id) ? HttpResponse.json(outsideNodeView(String(params.id))) : notFound()
     return HttpResponse.json(outsideView(String(params.id)))
   }),
 
@@ -747,7 +1115,7 @@ export const handlers = [
   http.post(`${API}/exposure/targets/:id/outside`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
     const t = find(params.id)
-    if (!t) return notFound()
+    if (!t) return nodeOf(params.id) ? outsideNodeAsk(nodeOf(params.id)!) : notFound()
     if (t.kind !== 'ip') return fail(400, 'bad_value', 'Only a public IP of this box can be checked with Shodan, not a domain.')
     const v = view(t)
     if (v.status === 'unverified') return fail(409, 'not_verified', `${t.value} has no ownership proof, so it cannot be checked with Shodan. Finish verification first.`)
@@ -802,6 +1170,7 @@ export const handlers = [
     if (a.date === b.date) return fail(400, 'same_date', 'Pick two different days to compare.')
     return HttpResponse.json(a.date < b.date ? diff(a, b) : diff(b, a))
   }),
+  ...treeHandlers,
 ]
 
 // Shared inside the mock layer: the scan module only scans external targets that are verified (IPs: seen by the box within 30 days).

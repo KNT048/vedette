@@ -39,14 +39,14 @@ describe('schedules', () => {
   })
 
   it('saves, pauses and runs once', async () => {
-    const before = Schedule.parse(await (await api('/schedules/exposure.target:tgt-2')).json())
+    const before = Schedule.parse(await (await api('/schedules/exposure.target:xt-14')).json())
     expect(before.saved).toBe(false)
     const paused = new Date(Date.now() + 5 * 864e5).toISOString()
-    const res = await api('/schedules/exposure.target:tgt-2', { method: 'PUT', body: JSON.stringify({ enabled: true, paused_until: paused, rule: rule({ freq: 'daily', at_time: '02:30' }) }) })
+    const res = await api('/schedules/exposure.target:xt-14', { method: 'PUT', body: JSON.stringify({ enabled: true, paused_until: paused, rule: rule({ freq: 'daily', at_time: '02:30' }) }) })
     const saved = Schedule.parse(await res.json())
     expect(saved.saved).toBe(true)
     expect(Date.parse(saved.next_due_at!)).toBeGreaterThan(Date.parse(paused))
-    const run = (await (await api('/schedules/exposure.target:tgt-2/run', { method: 'POST' })).json()) as { run_id: string | null }
+    const run = (await (await api('/schedules/exposure.target:xt-14/run', { method: 'POST' })).json()) as { run_id: string | null }
     expect(run.run_id).toBeTruthy()
   })
 })

@@ -19,6 +19,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/exec/exectest"
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/honeypot"
@@ -588,11 +589,16 @@ func TestScanningExternalLastRuns(t *testing.T) {
 		}
 	}
 
-	// What an external deep scan of the box's IP stores (exposure's saveSteps): every step ran; ZAP lost a page, OpenVAS found 3.
-	const ins = `INSERT INTO exp_engine_run (engine, run_id, target, at, outcome, text) VALUES (?, 'sr-1', '203.0.113.10', ?, ?, ?)`
-	exec(ins, "nuclei", "2026-11-16T06:30:00.000Z", "ok", "External scan of 203.0.113.10: safe templates ran, 0 matched")
-	exec(ins, "zap", "2026-11-16T06:40:00.000Z", "partial", "External scan of 203.0.113.10: ZAP scanned 1 of 2 pages, 4 alerts")
-	exec(ins, "openvas", "2026-11-16T07:55:00.000Z", "ok", "External scan of 203.0.113.10: OpenVAS found 3 results")
+	// What an external deep scan of the box's IP records: its run with a step per engine; every step ran, ZAP lost a page, OpenVAS found 3.
+	exec(`INSERT INTO exp_target (id, kind, value, origin, method, token, created_at) VALUES ('xt-ext', 'ip', '203.0.113.10', 'box', 'box_egress', '', '2026-11-16T06:00:00.000Z')`)
+	exec(`INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, subject_kind, subject_id, subject_label, status, queued_at, started_at, ended_at, updated_at)
+		VALUES ('run-ext', 'exposure', 'exposure_scan', 'exposure', 'External scan of 203.0.113.10', 'manual', 'admin@acme.example', 'target', 'xt-ext', '203.0.113.10', 'done',
+		'2026-11-16T06:00:00.000Z', '2026-11-16T06:00:00.000Z', '2026-11-16T07:55:00.000Z', '2026-11-16T07:55:00.000Z')`)
+	exec(`INSERT INTO exp_scan (run_id, target_id, mode) VALUES ('run-ext', 'xt-ext', 'deep')`)
+	const ins = `INSERT INTO core_run_step (run_id, seq, name, status, note, started_at, ended_at) VALUES ('run-ext', ?, ?, ?, ?, ?, ?)`
+	exec(ins, 1, "Templates (nuclei)", "done", "External scan of 203.0.113.10: safe templates ran, 0 matched", "2026-11-16T06:30:00.000Z", "2026-11-16T06:30:00.000Z")
+	exec(ins, 2, "Passive web scan (ZAP)", "partial", "External scan of 203.0.113.10: ZAP scanned 1 of 2 pages, 4 alerts", "2026-11-16T06:40:00.000Z", "2026-11-16T06:40:00.000Z")
+	exec(ins, 3, "OpenVAS", "done", "External scan of 203.0.113.10: OpenVAS found 3 results", "2026-11-16T07:55:00.000Z", "2026-11-16T07:55:00.000Z")
 	want := map[string]map[string]any{
 		"nuclei":  {"at": "2026-11-16T06:30:00Z", "outcome": "ok", "text": "External scan of 203.0.113.10: safe templates ran, 0 matched"},
 		"zap":     {"at": "2026-11-16T06:40:00Z", "outcome": "partial", "text": "External scan of 203.0.113.10: ZAP scanned 1 of 2 pages, 4 alerts"},
@@ -636,7 +642,7 @@ func (extFakes) Scan(context.Context, exposure.ScanTarget) (exposure.Content, er
 	return exposure.Content{Ports: []exposure.PortRow{{IP: "8.8.8.8", Port: 80, Service: "http"}}}, nil
 }
 func (extFakes) ScanServices(context.Context, exposure.ScanTarget, netip.Addr) (exposure.ServiceScan, error) {
-	return exposure.ServiceScan{Ports: 98, Services: []exposure.ServiceRow{{IP: "8.8.8.8", Port: 80, Name: "http", Product: "Apache httpd", Version: "2.4.49"}}}, nil
+	return exposure.ServiceScan{Ports: 98, Services: []exposure.ServiceRow{{IP: "8.8.8.8", Port: 80, Name: "http", Method: "probed", Product: "Apache httpd", Version: "2.4.49"}}}, nil
 }
 func (extFakes) Match(context.Context, []exposure.ServiceRow) (exposure.Matches, error) {
 	return exposure.Matches{Compared: 1, Listed: 1, Vulns: []exposure.VulnRow{{IP: "8.8.8.8", Port: 80, CVE: "CVE-2021-41773", Name: "Path traversal", Basis: "version", Summary: "In range."}}}, nil
@@ -661,12 +667,20 @@ func TestScanningShowsARealExternalRun(t *testing.T) {
 	s.module("scan", true)
 	s.module("exposure", true)
 	f := extFakes{}
+	runs, err := corerun.New(corerun.Config{DB: s.d.DB})
+	if err != nil {
+		t.Fatal(err)
+	}
 	svc, err := exposure.NewService(exposure.Config{DB: s.d.DB, Audit: s.d.Audit, Log: s.d.Log, Resolver: f, Prober: f, Runner: f,
-		Services: f, Matcher: f, Templates: f, Probes: f, Web: f, Location: time.UTC,
+		Services: f, Matcher: f, Templates: f, Probes: f, Web: f, Location: time.UTC, Runs: runs,
 		TwoStep: func(context.Context, string) (string, error) { return "app", nil }})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := runs.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(runs.Close)
 	exposureMu.Lock()
 	exposureServices[s.d.DB] = svc // the service every exposureService(d) of this stack answers from now on
 	exposureMu.Unlock()

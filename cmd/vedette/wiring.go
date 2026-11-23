@@ -1104,7 +1104,7 @@ func subscribe(d deps) {
 		_, err := d.Inventory.RematchAll(ctx)
 		return err
 	}))
-	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // new_port, the one reader of a new port
+	d.Bus.Subscribe(exposure.EventScanWritten, on("response", exposurePortsOpened(d))) // new_port, the one reader of a new port
 }
 
 // rangesUpdated is the subscriber of feeds.ranges.updated: new affected versions decide findings again. The first fill rematches every

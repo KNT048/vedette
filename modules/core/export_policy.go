@@ -74,13 +74,17 @@ var exportPolicy = map[string]tablePolicy{
 	"core_setting":           {export: "key updated_at updated_by", json: "value"},
 	"core_user":              {export: "id name email role cred_version twofa_method disabled created_at last_login sso_issuer sso_subject", skip: "password_hash temp_password_expires_at"},
 	"core_user_totp":         {skipAll: true, skip: "user_id secret_id confirmed last_step created_at"},
+	"exp_address":            {export: "id host_id target_id ip family class first_seen last_seen"},
 	"exp_attempt":            {export: "id ts"},
-	"exp_engine_run":         {export: "engine run_id target at outcome text"},
+	"exp_consent":            {export: "target_id kind version text by_name user_id method disruptive at"},
+	"exp_host":               {export: "id target_id name source selected child_target_id cname first_seen last_seen"},
 	"exp_ignored":            {export: "value ignored_by ignored_at"},
+	"exp_issue":              {export: "id target_id service_id engine key title severity state resolution resolved_by resolved_at note accepted_until first_seen last_seen last_run_id", json: "cves detail"},
 	"exp_outside":            {export: "target_id ip checked_at checked_by found", json: "answer"},
+	"exp_scan":               {export: "run_id target_id mode", json: "summary"},
+	"exp_service":            {export: "id target_id ip port proto name product version cpe title is_web ident state first_seen last_seen last_run_id", json: "cert"},
 	"exp_setting":            {export: "id last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at greenbone greenbone_by greenbone_at greenbone_sync_at greenbone_sync_ok greenbone_sync_note"},
-	"exp_snapshot":           {export: "id target_id date scanned_at started_at finished_at", json: "hosts ports admin_panels certs counts services checks not_checked web_findings greenbone scripts greenbone_run"},
-	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at commitment_version commitment_sentence commitment_user_id commitment_method created_at last_scan_at terms_version terms_by terms_at terms_text terms_user_id terms_method terms_disruptive typed proof_method scan_every sched_skip sched_skip_at sched_retry_at", json: "last_check", skip: "token ip_token"},
+	"exp_target":             {export: "id parent_id kind value origin scope_mode enabled method verified_at created_at proof_method", json: "last_check", skip: "token ip_token"},
 	"feeds_cve":              {skipAll: true, skip: "cve published modified nvd_status nvd_at record_at title description cwe solution workaround ssvc_exploitation ssvc_automatable ssvc_impact updated_at"}, // Public NVD and CVE Program data, pulled again
 	"feeds_cve_metric":       {skipAll: true, skip: "cve source version score vector"},                                                                                                                        // Public CVSS scores, pulled again
 	"feeds_cve_range":        {skipAll: true, skip: "id cve origin part vendor product cpe start_incl start_excl end_incl end_excl fixed version_type default_status platforms"},                              // Public affected versions, pulled again

@@ -258,7 +258,7 @@ func TestJobs_Registration(t *testing.T) {
 	if len(js) != 4 || js[0].Module != "exposure" || js[0].Name != "auto-detect" || js[0].Every != JobTick || js[0].Run == nil ||
 		js[1].Module != "exposure" || js[1].Name != "ip-proof" || js[1].Every != IPProofTick || js[1].Run == nil ||
 		js[2].Module != "exposure" || js[2].Name != "greenbone-feed" || js[2].Every != GreenboneSyncTick || js[2].Run == nil ||
-		js[3].Module != "exposure" || js[3].Name != "scan-schedule" || js[3].Every != ScheduleTick || js[3].Run == nil {
+		js[3].Module != "exposure" || js[3].Name != "accept-expiry" || js[3].Every != AcceptTick || js[3].Run == nil {
 		t.Fatalf("jobs = %+v", js)
 	}
 	sched := jobs.New(slog.New(slog.DiscardHandler), servertest.NewGate(), nil)

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -10,32 +10,22 @@ import (
 	"github.com/knt048/vedette/modules/exposure"
 )
 
-// A scan day of an exposure target that shows a port the previous scan day did not makes one new_port event in response,
-// through exposure's own Diff. The first scan day is the baseline; a second scan on the same day does not repeat an event; nothing
-// is read while exposure is off, and nothing reaches response while it is off.
-func TestExposureSnapshotOpensNewPorts(t *testing.T) {
+// A scan that opened ports makes one new_port event each in response. The first scan of a target is the baseline; nothing reaches
+// response while exposure or response is off; one scan announces at most maxPortsPerScan.
+func TestExposureScanOpensNewPorts(t *testing.T) {
 	t.Parallel()
 	s := responseOn(t)
 	s.setModule("exposure", true)
 	ctx := t.Context()
-	exec := func(q string, args ...any) {
+	scan := func(at string, first bool, ports ...string) {
 		t.Helper()
-		if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q, args...); return err }); err != nil {
-			t.Fatal(err)
-		}
-	}
-	exec(`INSERT INTO exp_target (id, kind, value, token, created_at) VALUES ('xt-1', 'ip', '203.0.113.10', '', '2026-11-01T00:00:00.000Z')`)
-	day := func(date string, ports ...string) {
-		t.Helper()
-		rows := make([]string, len(ports))
-		for i, p := range ports {
+		ev := exposure.ScanWrittenEvent{TargetID: "xt-1", RunID: "run-" + at, At: at + "T10:00:00.000Z", First: first}
+		for _, p := range ports {
 			ip, port, _ := strings.Cut(p, " ")
-			rows[i] = fmt.Sprintf(`{"ip":%q,"port":%s,"service":"svc-%s"}`, ip, port, port)
+			n, _ := strconv.Atoi(port)
+			ev.Opened = append(ev.Opened, exposure.OpenedService{TargetID: "xt-1", PortRow: exposure.PortRow{IP: ip, Port: n, Service: "svc-" + port}})
 		}
-		exec(`DELETE FROM exp_snapshot WHERE target_id = 'xt-1' AND date = ?`, date)
-		exec(`INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts) VALUES (?, 'xt-1', ?, ?, '[]', ?, '[]', '[]', '{}')`,
-			"sn-"+date, date, date+"T10:00:00.000Z", "["+strings.Join(rows, ",")+"]")
-		if err := s.d.Bus.Publish(ctx, events.Event{Name: exposure.EventSnapshotCreated, Data: exposure.SnapshotCreatedEvent{TargetID: "xt-1", Date: date}}); err != nil {
+		if err := s.d.Bus.Publish(ctx, events.Event{Name: exposure.EventScanWritten, Data: ev}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -63,28 +53,25 @@ func TestExposureSnapshotOpensNewPorts(t *testing.T) {
 		}
 	}
 
-	day("2026-11-10", "203.0.113.10 443")
-	want("the first scan day is the baseline")
-	day("2026-11-11", "203.0.113.10 443", "203.0.113.10 8080", "2a01:4f8::5 22")
+	scan("2026-11-10", true, "203.0.113.10 443")
+	want("the first scan is the baseline")
+	scan("2026-11-11", false, "203.0.113.10 8080", "2a01:4f8::5 22")
 	want("two ports opened", "port:xt-1:2026-11-11:203.0.113.10:8080", "port:xt-1:2026-11-11:2a01:4f8::5:22")
-	// The same day again, one more port; 443 is only spelled differently from the day before, so it is not new.
-	day("2026-11-11", "::ffff:203.0.113.10 443", "203.0.113.10 8080", "2a01:4f8::5 22", "203.0.113.10 3389")
-	want("a second scan of the day", "port:xt-1:2026-11-11:203.0.113.10:3389", "port:xt-1:2026-11-11:203.0.113.10:8080", "port:xt-1:2026-11-11:2a01:4f8::5:22")
 
 	s.setModule("exposure", false)
-	day("2026-11-12", "203.0.113.10 21")
+	scan("2026-11-12", false, "203.0.113.10 21")
 	s.setModule("exposure", true)
 	s.setModule("response", false)
-	day("2026-11-13", "203.0.113.10 23")
+	scan("2026-11-13", false, "203.0.113.10 23")
 	s.setModule("response", true)
-	want("exposure or response off", "port:xt-1:2026-11-11:203.0.113.10:3389", "port:xt-1:2026-11-11:203.0.113.10:8080", "port:xt-1:2026-11-11:2a01:4f8::5:22")
+	want("exposure or response off", "port:xt-1:2026-11-11:203.0.113.10:8080", "port:xt-1:2026-11-11:2a01:4f8::5:22")
 
 	var many []string
 	for p := 1000; p < 1000+maxPortsPerScan+5; p++ {
 		many = append(many, fmt.Sprintf("203.0.113.10 %d", p))
 	}
-	day("2026-11-14", many...)
-	if n := len(stored()) - 3; n != maxPortsPerScan {
+	scan("2026-11-14", false, many...)
+	if n := len(stored()) - 2; n != maxPortsPerScan {
 		t.Fatalf("one scan announced %d new ports, want the cap %d", n, maxPortsPerScan)
 	}
 }

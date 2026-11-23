@@ -103,7 +103,13 @@ func TestContract_PRE4_Roles(t *testing.T) {
 		{"POST", "/exposure/box-ip/verify", "", "admin"},
 		{"PUT", "/exposure/box-ip/settings", `{"auto":true,"interval_min":60}`, "admin"},
 		{"DELETE", "/exposure/box-ip/ignored/" + ipC, "", "admin"},
-		{"PUT", "/exposure/targets/" + d.ID + "/schedule", `{"every":"daily"}`, "admin"},
+		{"GET", "/exposure/tree", "", "viewer"},
+		{"GET", "/exposure/tree/" + d.ID, "", "viewer"},
+		{"PATCH", "/exposure/tree/" + d.ID, `{"enabled":true}`, "admin"},
+		{"POST", "/exposure/tree/" + d.ID + "/verify", "", "operator"},
+		{"PUT", "/exposure/tree/" + d.ID + "/terms", `{"version":"v","disruptive":false}`, "admin"},
+		{"POST", "/exposure/issues/handle", `{"ids":["xi-1"],"resolution":"patched","note":""}`, "operator"},
+		{"POST", "/exposure/issues/reopen", `{"ids":["xi-1"]}`, "operator"},
 		{"DELETE", "/exposure/targets/" + d.ID + "/queue", "", "operator"},
 		{"DELETE", "/exposure/targets/" + d.ID, "", "admin"},
 	}
@@ -191,26 +197,25 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 	// an administrator's first Scan now is the confirmation: needs two-step sign-in and the version of the sentence
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
 	code, b = e.call("POST", "/exposure/targets/"+id+"/scan", "admin", `{"notice_version":"`+NoticeVersion+`"}`)
-	if code != 202 || b["status"] != "running" || b["target_id"] != id || b["by"] != "admin@acme.example" {
+	if code != 202 || (b["status"] != "queued" && b["status"] != "running") || b["target_id"] != id || b["by"] != "admin@acme.example" {
 		t.Fatalf("first scan by an administrator: %d %v", code, b)
 	}
 	e.waitScan()
 	code, b = e.call("GET", "/exposure/scan", "viewer", "")
-	if code != 200 || b["status"] != "done" || b["phase"] != "done" || b["error"] != nil || b["snapshot_id"] == nil {
+	if code != 200 || b["status"] != "done" || b["phase"] != "done" || b["error"] != nil {
 		t.Fatalf("the run after it ended: %d %v", code, b)
 	}
-	snapID := b["snapshot_id"]
-	if code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots/2026-11-09", "viewer", ""); code != 200 || b["id"] != snapID || len(list(b, "hosts")) != 3 || len(list(b, "certs")) != 2 {
-		t.Fatalf("first snapshot: %d %v", code, b)
+	if code, b = e.call("GET", "/exposure/tree/"+id+"/hosts", "viewer", ""); code != 200 || len(list(b, "items")) != 3 {
+		t.Fatalf("names: %d %v", code, b)
 	}
 	code, tb := e.call("GET", "/exposure/targets/"+id, "viewer", "")
 	c, _ := tb["commitment"].(map[string]any)
 	if code != 200 || c["by"] != "admin@acme.example" || c["version"] != NoticeVersion || c["sentence"] != noticeFor("acme.example").Text || tb["commitment_notice"] != nil {
 		t.Fatalf("committed target: %d %v", code, tb)
 	}
-	counts, _ := b["counts"].(map[string]any)
-	if counts["subdomains"] != float64(3) || counts["certs_expiring"] != float64(1) {
-		t.Fatalf("counts = %v", counts)
+	latest, _ := tb["latest"].(map[string]any)
+	if latest["subdomains"] != float64(3) || latest["certs_expiring"] != float64(1) {
+		t.Fatalf("latest = %v", latest)
 	}
 	// the record disappears: 409 txt_missing from the API, the runner is not called again
 	e.dns.put("acme.example")
@@ -225,21 +230,16 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 		t.Fatal(code)
 	}
 	e.waitScan()
-	code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots", "viewer", "")
-	if code != 200 || len(list(b, "items")) != 2 {
+	if code, b = e.call("GET", "/exposure/tree/"+id+"/scans", "viewer", ""); code != 200 || len(list(b, "items")) != 2 {
+		t.Fatalf("scans: %d %v", code, b)
+	}
+	for _, p := range []string{"services", "addresses", "issues"} {
+		if code, b = e.call("GET", "/exposure/tree/"+id+"/"+p, "viewer", ""); code != 200 {
+			t.Fatalf("%s: %d %v", p, code, b)
+		}
+	}
+	if code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots", "viewer", ""); code != 501 || errCode(b) != "not_implemented" {
 		t.Fatalf("snapshots: %d %v", code, b)
-	}
-	if code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots/2026-11-09", "viewer", ""); code != 200 || b["date"] != "2026-11-09" {
-		t.Fatalf("snapshot: %d %v", code, b)
-	}
-	if code, b = e.call("GET", "/exposure/targets/"+id+"/snapshots/2026-01-01", "viewer", ""); code != 404 || errCode(b) != "not_found" {
-		t.Fatalf("missing snapshot: %d %v", code, b)
-	}
-	if code, b = e.call("GET", "/exposure/targets/"+id+"/diff?from=2026-11-09&to=2026-11-10", "viewer", ""); code != 200 || b["from"] != "2026-11-09" || len(list(b, "added")) != 0 {
-		t.Fatalf("diff: %d %v", code, b)
-	}
-	if code, b = e.call("GET", "/exposure/targets/"+id+"/diff?from=2026-11-09&to=2026-11-09", "viewer", ""); code != 400 || errCode(b) != "same_date" {
-		t.Fatalf("same date: %d %v", code, b)
 	}
 
 	// delete is also how an IP leaves the list
@@ -347,16 +347,14 @@ func TestHandlers_AttemptLimitIs429(t *testing.T) {
 	}
 }
 
-// waitScan waits until the run that runs now has ended.
+// waitScan waits until the newest scan has ended.
 func (e *httpEnv) waitScan() {
 	e.t.Helper()
-	e.svc.runMu.Lock()
-	run := e.svc.run
-	e.svc.runMu.Unlock()
+	run := e.svc.CurrentScan(e.ctx())
 	if run == nil {
 		e.t.Fatal("no scan run")
 	}
-	<-run.done
+	e.env.waitScan(run.ID)
 }
 
 // Add target takes a public IP over the API: it is in the list at once, unproved, with where its proof goes; the list row says what it is.
@@ -376,5 +374,16 @@ func TestHandlers_AddTargetTakesAPublicIP(t *testing.T) {
 	}
 	if code, b = e.call("GET", "/exposure/targets", "viewer", ""); code != 200 || len(list(b, "items")) != 1 {
 		t.Fatalf("the list: %d %v", code, b)
+	}
+}
+
+// The rows of a node are served: an unknown node is 404.
+func TestHandlers_RowsOfAnUnknownNodeAre404(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	for _, p := range []string{"scans", "hosts", "addresses", "services", "issues"} {
+		if code, b := e.call("GET", "/exposure/tree/xt-1/"+p, "viewer", ""); code != 404 || errCode(b) != "not_found" {
+			t.Errorf("GET %s of an unknown node: %d %v", p, code, b)
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -17,13 +18,14 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/orgtime"
+	corerun "github.com/knt048/vedette/core/run"
+	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/store"
 )
 
 // Config is what NewService needs. IPFetch, Publisher, Runner, TwoStep, Gateway, Appliances, Services, Templates, Web, Greenbone, DomainFence, Probes, Matcher, Outside, Location and Clock may be nil.
 type Config struct {
 	DB        *store.DB
-	Schedules SchedulePort // keeps the public IP detection's schedule in step with the box-ip form; nil: that form cannot be saved
 	Audit     *audit.Log
 	Resolver  Resolver     // DNS TXT lookups of domain verification
 	Prober    EgressProber // the three public IP services (PublicServiceProber); tests pass a fake
@@ -47,10 +49,12 @@ type Config struct {
 	Matcher Matcher     // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
 	Outside *InternetDB // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
 	Safety  ScanSafety  // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
-	// Window nil: scheduled scans may start at any time; cmd/vedette wires the scan window of the shared safety block (INV-36).
-	Window ScanWindow
-	// Alert sends what a scheduled scan found new to the alert channels (INV-36); nil: nothing is sent. cmd/vedette wires notify's
-	// system notice path.
+	// Runs is the box's run manager (core/run): a scan is a run of kind RunKind in the lane RunLane. nil: scanning answers 501.
+	Runs *corerun.Manager
+	// Schedules is the box's schedule service (core/schedule): each target's scan schedule is ScheduleKey(id). nil: no target is
+	// scanned by itself.
+	Schedules *schedule.Service
+	// Alert sends what a scan found new (a newly open port, a new issue) to the alert channels; nil sends nothing (the page shows it).
 	Alert    func(ctx context.Context, a Alert) error
 	Location *time.Location // the day of a snapshot and the times of messages when Zone gives none (nil: time.Local)
 	// Zone is the organization's time zone, read at every use (a change applies at once); nil, or a nil answer, is Location. The day of
@@ -71,16 +75,14 @@ type Service struct {
 	mu     sync.RWMutex
 	runner Runner
 
-	runMu       sync.Mutex           // guards run, its view, lastScan, lastOutside, off, closed, feedSync and feedSyncAt
-	feedSync    bool                 // Greenbone's weekly feed update holds the box's one scan slot: begin refuses
-	feedSyncAt  time.Time            // when that feed update started (the busy answer says it)
-	off         bool                 // the module is switched off (ModuleSwitched): begin refuses
+	runMu       sync.Mutex           // guards execs, lastOutside, off, closed, feedSync, feedSyncAt and syncDone
+	feedSync    bool                 // OpenVAS's weekly feed update holds the box's one scan slot: a scan that starts waits for it
+	feedSyncAt  time.Time            // when that feed update started
+	syncDone    chan struct{}        // closed when the feed update that runs ends
+	off         bool                 // the module is switched off (ModuleSwitched): no scan is queued
 	closed      bool                 // the box is shutting down (Close)
-	run         *scanRun             // the scan that runs now, or the last one (INV-18); one at a time on the box: a second one is 409 busy; a restart forgets it
-	lastScan    map[string]time.Time // when each target's last scan started (ScanEvery; kept in memory, a restart forgets it)
+	execs       map[string]*scanExec // the scans this process executes now (and the ones ScanNow waits for), by run id
 	lastOutside time.Time            // when the box last asked Shodan (OutsideEvery; kept in memory, a restart forgets it)
-	queue       []*queuedScan        // INV-36: the scans that wait for the one that runs, in order (in memory, a restart forgets it)
-	dispatching bool                 // the checks of the first queued scan run now (startQueued)
 
 	checkMu    sync.Mutex           // guards lastCheck
 	lastCheck  map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)
@@ -96,8 +98,6 @@ type Service struct {
 	bg context.Context // the service's own context for work the registry's module switch starts (it has none)
 
 	appliances applianceCache // the inventory's last answer about the appliance families (INV-33)
-
-	spawn func(func()) // starts the checks of a queued scan in the background (tests run them in place)
 }
 
 // NewService returns the service. DB, Audit, Resolver, Prober and Log are required.
@@ -112,8 +112,14 @@ func NewService(cfg Config) (*Service, error) {
 	if cfg.Location == nil {
 		cfg.Location = time.Local
 	}
-	return &Service{cfg: cfg, now: now, runner: cfg.Runner, lastScan: map[string]time.Time{}, lastCheck: map[string]time.Time{}, live: map[string]liveEntry{}, ipListed: map[string]bool{}, bg: context.Background(),
-		spawn: func(f func()) { go f() }}, nil
+	s := &Service{cfg: cfg, now: now, runner: cfg.Runner, execs: map[string]*scanExec{}, lastCheck: map[string]time.Time{}, live: map[string]liveEntry{}, ipListed: map[string]bool{}, bg: context.Background()}
+	if err := s.registerRuns(); err != nil {
+		return nil, fmt.Errorf("exposure: registering the scan runs: %w", err)
+	}
+	if err := s.registerSchedules(); err != nil {
+		return nil, fmt.Errorf("exposure: registering the scan schedules: %w", err)
+	}
+	return s, nil
 }
 
 // SetRunner registers the scanner (the scan module does it at start-up). Nil removes it.
@@ -257,7 +263,7 @@ func (t Target) blocked(now time.Time) BlockedReason {
 	return ""
 }
 
-func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c checks, now time.Time) TargetView {
+func (s *Service) view(t Target, all []Target, latest map[string]latestResult, live map[string]string, c checks, now time.Time) TargetView {
 	v := TargetView{
 		ID: t.ID, Kind: t.Kind, Value: t.Value, Status: t.status(now), Token: t.Token,
 		LastCheck: t.LastCheck, Commitment: t.Commitment, CreatedAt: store.FormatTS(t.CreatedAt),
@@ -284,7 +290,7 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c
 	v.Terms, v.TermsNotice, v.FullScan = t.Terms, termsOf(t), t.mode().Full
 	v.Proof = proofHint(t, all)
 	v.Origin = "person"
-	if t.Kind == KindIP && !t.Typed {
+	if t.Origin == OriginBox {
 		v.Origin = "box"
 	}
 	v.IPProof = ipProofHintOf(t, all)
@@ -312,22 +318,18 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, c
 		}
 		v.OpenExposures = r.Counts.Ports
 	}
-	v.ScanState = s.scanState(t, v)
+	v.ScanState = s.scanState(live[t.ID], v)
 	return v
 }
 
-// scanState says where a target stands for scanning (TargetView.scan_state): scanning while a scan of it runs, then why it cannot be
-// scanned (unproved: no proof now, expired: its 30 days ran out, paused: the box no longer goes out through the IP, needs_terms: the
-// scan confirmation is missing), else ready.
-func (s *Service) scanState(t Target, v TargetView) string {
-	s.runMu.Lock()
-	running := s.run != nil && s.run.view.TargetID == t.ID && s.run.view.Status == RunRunning
-	queued := s.queuedLocked(t.ID)
-	s.runMu.Unlock()
+// scanState says where a target stands for scanning (TargetView.scan_state): scanning while a scan of it runs, queued while one waits,
+// then why it cannot be scanned (unproved: no proof now, expired: its 30 days ran out, paused: the box no longer goes out through the
+// IP, needs_terms: the scan confirmation is missing), else ready.
+func (s *Service) scanState(st string, v TargetView) string {
 	switch {
-	case running:
+	case st == "running" || st == "stopping":
 		return "scanning"
-	case queued:
+	case st == "queued" || st == "waiting":
 		return "queued"
 	case v.BlockedReason == nil:
 		return "ready"
@@ -343,6 +345,27 @@ func (s *Service) scanState(t Target, v TargetView) string {
 	return "unproved"
 }
 
+// liveStates is the state of the active scan of each target that has one (queued, waiting, running or stopping).
+func liveStates(ctx context.Context, q querier) (map[string]string, error) {
+	rows, err := q.QueryContext(ctx, `SELECT x.target_id, r.status FROM exp_scan x JOIN core_run r ON r.id = x.run_id
+		WHERE r.status IN ('queued', 'waiting', 'running', 'stopping') ORDER BY r.queued_at`)
+	if err != nil {
+		return nil, fmt.Errorf("live scans: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]string{}
+	for rows.Next() {
+		var id, st string
+		if err := rows.Scan(&id, &st); err != nil {
+			return nil, fmt.Errorf("live scans: %w", err)
+		}
+		if out[id] != "running" && out[id] != "stopping" {
+			out[id] = st
+		}
+	}
+	return out, rows.Err()
+}
+
 // Targets returns every target, oldest first (GET /exposure/targets). The scan module reads the
 // scannable ones from here.
 func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
@@ -356,16 +379,17 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 		return nil, fmt.Errorf("exposure: listing targets: %w", err)
 	}
 	s.tieLatest(ctx, latest)
+	live, err := liveStates(ctx, db)
+	if err != nil {
+		return nil, fmt.Errorf("exposure: listing targets: %w", err)
+	}
 	c, err := s.loadChecks(ctx, db)
 	if err != nil {
 		return nil, fmt.Errorf("exposure: listing targets: %w", err)
 	}
 	out := make([]TargetView, 0, len(ts))
 	for _, t := range ts {
-		out = append(out, s.view(t, ts, latest, c, c.now))
-	}
-	if err := s.scheduleViews(ctx, db, ts, out, c); err != nil {
-		return nil, fmt.Errorf("exposure: listing targets: %w", err)
+		out = append(out, s.view(t, ts, latest, live, c, c.now))
 	}
 	return out, nil
 }
@@ -398,6 +422,10 @@ func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetV
 	if r, ok := latest[id]; ok {
 		s.tieAppliances(ctx, r.Ports, nil)
 	}
+	live, err := liveStates(ctx, q)
+	if err != nil {
+		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
+	}
 	c, err := s.loadChecks(ctx, q)
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
@@ -406,11 +434,7 @@ func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetV
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
 	}
-	out := []TargetView{s.view(t, all, latest, c, c.now)}
-	if err := s.scheduleViews(ctx, q, []Target{t}, out, c); err != nil {
-		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
-	}
-	return out[0], nil
+	return s.view(t, all, latest, live, c, c.now), nil
 }
 
 // ---- adding, deleting, committing ----
@@ -481,17 +505,44 @@ func addChecks(ctx context.Context, q querier, value string) error {
 // taken from the value: an IPv4 address is an IP, anything else a domain. A typed IP is accepted into the list at once and is never
 // scanned until it is proved (token file or reverse DNS); the box does not look for the proof here, the person places it first.
 func (s *Service) AddTarget(ctx context.Context, user string, kind Kind, raw string) (TargetView, error) {
+	return s.AddNode(ctx, user, NewNode{Kind: kind, Value: raw})
+}
+
+// NewNode is a target to add (POST /exposure/tree): its kind (empty: taken from the value), the value as typed, and for a domain the
+// scope of its scans (empty: every name found, ScopeAll).
+type NewNode struct {
+	Kind  Kind
+	Value string
+	Scope ScopeMode
+}
+
+// ErrScopeIP refuses a scope for an IP target: only a domain has names under it.
+var ErrScopeIP = apiErr(400, "bad_value", "A public IP has no names under it: the scope applies to domains only.")
+
+// ErrScope refuses a scope that is not one of the three.
+var ErrScope = apiErr(400, "bad_value", "Choose the scope: only this name, every name found under it, or the names you choose.")
+
+// AddNode adds a target (POST /exposure/tree, PRE-4): a domain goes under the nearest domain target it is a name of, and the targets
+// that are names of it move under it in the same write (settleTree).
+func (s *Service) AddNode(ctx context.Context, user string, n NewNode) (TargetView, error) {
+	kind := n.Kind
 	if kind == "" {
 		kind = KindDomain
-		if a, err := netip.ParseAddr(strings.TrimSpace(raw)); err == nil && a.Is4() {
+		if a, err := netip.ParseAddr(strings.TrimSpace(n.Value)); err == nil && a.Is4() {
 			kind = KindIP
 		}
 	}
+	switch {
+	case n.Scope != "" && kind == KindIP:
+		return TargetView{}, ErrScopeIP
+	case n.Scope != "" && !n.Scope.Valid():
+		return TargetView{}, ErrScope
+	}
 	switch kind {
 	case KindDomain:
-		return s.AddDomain(ctx, user, raw)
+		return s.addDomain(ctx, user, n.Value, n.Scope)
 	case KindIP:
-		return s.addIP(ctx, user, raw)
+		return s.addIP(ctx, user, n.Value)
 	}
 	return TargetView{}, ErrKind
 }
@@ -527,6 +578,9 @@ func (s *Service) addIP(ctx context.Context, user, raw string) (TargetView, erro
 		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindIP, Typed: true, Value: value, Token: token, CreatedAt: s.clock()}); err != nil {
 			return err
 		}
+		if err := s.ensureSchedule(ctx, tx, id); err != nil {
+			return err
+		}
 		return s.audit(ctx, tx, user, "exposure.target_add", value, "public IP, typed in; not scanned until proved")
 	})
 	if err != nil {
@@ -538,8 +592,12 @@ func (s *Service) addIP(ctx context.Context, user, raw string) (TargetView, erro
 	return s.Target(ctx, id)
 }
 
-// AddDomain adds a domain to prove (PRE-4); AddTarget is the entry of the API.
+// AddDomain adds a domain to prove (PRE-4) with the scope of every name found; AddNode is the entry of the API.
 func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, error) {
+	return s.addDomain(ctx, user, raw, "")
+}
+
+func (s *Service) addDomain(ctx context.Context, user, raw string, scope ScopeMode) (TargetView, error) {
 	value, err := normalizeDomain(raw)
 	if err != nil {
 		return TargetView{}, err
@@ -560,10 +618,16 @@ func (s *Service) AddDomain(ctx context.Context, user, raw string) (TargetView, 
 			return err
 		}
 		id = store.NewID("xt")
-		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindDomain, Value: value, Token: token, CreatedAt: s.clock()}); err != nil {
+		if err := insertTarget(ctx, tx, Target{ID: id, Kind: KindDomain, Value: value, Token: token, ScopeMode: scope, CreatedAt: s.clock()}); err != nil {
 			return err
 		}
-		return s.audit(ctx, tx, user, "exposure.target_add", value, "")
+		if err := s.ensureSchedule(ctx, tx, id); err != nil {
+			return err
+		}
+		if _, err := settleTree(ctx, tx, ""); err != nil { // under its nearest parent; the targets under it move under it
+			return err
+		}
+		return s.audit(ctx, tx, user, "exposure.target_add", value, "scope "+string(cmp.Or(scope, ScopeAll)))
 	})
 	if err != nil {
 		if fromHost && !dupNow { // a failed add never takes a slot (a target added meanwhile keeps its own)
@@ -595,7 +659,7 @@ func (s *Service) coverAdded(ctx context.Context, user, id, value string) {
 	}
 }
 
-// Delete removes a target with its snapshots and its commitment; the audit log stays (INV-7). For an
+// Delete removes a target with its rows and its consents; the audit log stays (INV-7). For an
 // IP it is how a customer takes it out of the inventory (INV-11); auto-detect adds it again when the box still uses it.
 func (s *Service) Delete(ctx context.Context, user, id string) error {
 	return s.Remove(ctx, user, id, false)
@@ -608,6 +672,11 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 	var kind Kind
 	var value string
 	typed := false
+	if runID, ok := s.activeRun(ctx, id); ok && s.cfg.Runs != nil { // its scan, queued or running, ends with it
+		if err := s.cfg.Runs.Stop(ctx, runID, user, "the target was deleted"); err != nil && !errors.Is(err, corerun.ErrEnded) {
+			s.cfg.Log.WarnContext(ctx, "exposure: stopping the scan of a deleted target", "error", err)
+		}
+	}
 	err := s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
 		t, err := loadTarget(ctx, tx, id)
 		if err != nil {
@@ -624,12 +693,18 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 				return ErrIgnoredFull
 			}
 		}
+		// its children move up to its parent, and the rows of its names go to whoever scans them now, before its own are deleted
+		if _, err := settleTree(ctx, tx, id); err != nil {
+			return err
+		}
 		if err := deleteTarget(ctx, tx, id); err != nil {
 			return err
 		}
-		// INV-30: Settings › Scanning no longer names the target as an engine's last run (#863 r1 L4)
-		if _, err := tx.ExecContext(ctx, `DELETE FROM exp_engine_run WHERE target = ?`, t.Value); err != nil {
-			return fmt.Errorf("exposure: removing the target's engine runs: %w", err)
+		if err := s.dropSchedule(ctx, tx, id); err != nil {
+			return err
+		}
+		if err := s.uncover(ctx, tx, t); err != nil { // what its record proved needs a proof of its own now
+			return err
 		}
 		if err := s.audit(ctx, tx, user, "exposure.target_delete", t.Value, ""); err != nil {
 			return err

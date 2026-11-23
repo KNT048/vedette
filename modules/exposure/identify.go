@@ -383,6 +383,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s.", plural(res.Ports, "TCP port"), read)
 		}
 		if st.Mode.Full { // the script results of the deep scan, kept apart from the services
+			c.ScriptsRan = append(c.ScriptsRan, ip.String())
 			vuln := 0
 			for _, r := range sanitizeScripts(res.Scripts) {
 				if r.IP == ip.String() {
@@ -482,46 +483,50 @@ func plural(n int, noun string) string {
 	return fmt.Sprintf("%d %ss", n, noun)
 }
 
-// withVulns fills the snapshot's exploited CVEs from its services and today's list (INV-20), with the line of what was compared.
-// Nothing identified: nothing to compare, and the stored lines already say why. A matcher that is missing or fails is a
-// "Not checked" line, never "no exploited CVE".
-func (s *Service) withVulns(ctx context.Context, snap *Snapshot) {
-	recountServices(snap) // the step's counts and the comparison's read the same rows the same way
-	snap.Vulns, snap.VersionGaps = []VulnRow{}, []GapRow{}
-	s.withServiceVulns(ctx, snap)
-	s.withWebVersions(ctx, snap)    // The rule list and the versions ZAP read, after the services
-	s.withGreenboneVulns(ctx, snap) // INV-25: after every other row, never changing one
+// vulnSet is a scan's content with the exploited CVEs matched on it (withVulns): the input of the match issues.
+type vulnSet struct {
+	Content
+	ID          string
+	Vulns       []VulnRow
+	VersionGaps []GapRow
 }
 
-func (s *Service) withServiceVulns(ctx context.Context, snap *Snapshot) {
+// withVulns fills the exploited CVEs of a scan's content from its services and today's list (INV-20), with the line of what was
+// compared, and says whether the comparison ran (so a match it no longer finds is gone). Nothing identified: nothing to compare. A
+// matcher that is missing or fails is a "Not checked" line, never "no exploited CVE".
+func (s *Service) withVulns(ctx context.Context, snap *vulnSet) bool {
+	snap.Vulns, snap.VersionGaps = []VulnRow{}, []GapRow{}
+	ran := s.withServiceVulns(ctx, snap)
+	s.withWebVersions(ctx, snap)    // The rule list and the versions ZAP read, after the services
+	s.withGreenboneVulns(ctx, snap) // INV-25: after every other row, never changing one
+	return ran
+}
+
+func (s *Service) withServiceVulns(ctx context.Context, snap *vulnSet) bool {
 	if len(snap.Services) == 0 {
-		return
+		return s.cfg.Matcher != nil
 	}
 	if s.cfg.Matcher == nil {
 		snap.NotChecked = append(snap.NotChecked, NotCheckedRow{Kind: "cve", Text: notMatcher})
-		return
+		return false
 	}
 	m, err := s.cfg.Matcher.Match(ctx, snap.Services)
 	var un *Unavailable
 	switch {
 	case errors.As(err, &un):
 		snap.NotChecked = append(snap.NotChecked, NotCheckedRow{Kind: "cve", Text: "The identified services were not compared with exploited vulnerabilities: " + clipText(un.Reason, 200)})
-		return
+		return false
 	case err != nil:
 		s.cfg.Log.ErrorContext(ctx, "exposure: comparing services with exploited vulnerabilities failed", "snapshot", snap.ID, "error", err)
 		snap.NotChecked = append(snap.NotChecked, NotCheckedRow{Kind: "cve", Text: notMatchFail})
-		return
+		return false
 	}
 	snap.Vulns, snap.VersionGaps = nz(m.Vulns), nz(m.Gaps)
 	markTemplates(snap.Vulns, snap.Templates) // INV-23 first: a confirmed row is not a "maybe patched"
 	backported := markBackports(snap.Vulns, snap.Services)
 	// "N of M services", never "N identified services": the services line counts what was identified, and a service a probe named
-	// without a product the list has entries under is identified but not compared. The rows an earlier scan kept are compared
-	// too; the services line counts only what this scan read, so the kept ones are said apart
+	// without a product the list has entries under is identified but not compared.
 	of := plural(len(snap.Services), "service")
-	if k := len(keptServices(*snap)); k > 0 {
-		of += fmt.Sprintf(" (%d kept from an earlier scan)", k)
-	}
 	text := fmt.Sprintf("%d of %s compared with today's CISA list of exploited vulnerabilities (%d entries) and its NVD version ranges: %s.",
 		m.Compared, of, m.Listed, plural(len(m.Vulns), "exploited CVE")+" matched")
 	if backported > 0 {
@@ -548,6 +553,7 @@ func (s *Service) withServiceVulns(ctx context.Context, snap *Snapshot) {
 		snap.NotChecked = append(snap.NotChecked, NotCheckedRow{Kind: "cve", Text: fmt.Sprintf(
 			"%s: not compared. The list of exploited vulnerabilities has no entry under the product name nmap reports for it, so Vedette cannot tell.", clipText(p, 160))})
 	}
+	return true
 }
 
 // The distributions whose packages keep the upstream version and backport security fixes, as nmap prints them in a version or its
@@ -700,12 +706,4 @@ func sanitizeNotChecked(in []NotCheckedRow) []NotCheckedRow {
 		out = append(out, NotCheckedRow{Kind: r.Kind, Text: text})
 	}
 	return out
-}
-
-// serviceText is how a service reads in a diff: "Apache httpd 2.4.49", or nmap's service name when it named no product.
-func serviceText(r ServiceRow) string {
-	if r.Product == "" {
-		return r.Name
-	}
-	return strings.TrimSpace(r.Product + " " + r.Version)
 }

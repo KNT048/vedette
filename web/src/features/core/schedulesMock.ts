@@ -23,7 +23,7 @@ const base: Rule = { freq: 'daily', every_minutes: null, at_time: null, weekdays
 const OWNERS: Record<string, Owner> = {
   'scan.vuln': { module: 'scan', perSubject: false, limits: { windows: ['global'], reason: 'Scheduled checks run only inside the scan window (Settings, Scanning, Safety).' }, adminOnly: true, defaultOn: true, rule: { freq: 'weekly', at_time: '23:00', weekdays: [7], window: 'global' } },
   'inventory.sweep': { module: 'sensor-active', perSubject: false, limits: {}, adminOnly: true, defaultOn: true, rule: { freq: 'daily', at_time: '22:00', window: 'global' } },
-  'exposure.target': { module: 'exposure', perSubject: true, limits: {}, defaultOn: false, rule: { freq: 'weekly', at_time: '02:30', weekdays: [1], window: 'global' } },
+  'exposure.target': { module: 'exposure', perSubject: true, adminOnly: true, limits: { min_every_minutes: 360, reason: "An external scan can take hours and loads the target's services, so it runs at most every 6 hours." }, defaultOn: true, rule: { freq: 'weekly', at_time: '02:30', weekdays: [1], window: 'global' } },
   'reports.def': { module: 'reports', perSubject: true, limits: { freqs: ['weekly', 'monthly'], reason: 'A report covers a week or a month.' }, defaultOn: false, rule: { freq: 'weekly', at_time: '08:00', weekdays: [1] } },
   'feeds.source': { module: 'feeds', perSubject: true, adminOnly: true, limits: { freqs: ['interval'], min_every_minutes: 60, windows: ['none'], reason: 'Sources ask clients not to poll more often.' }, defaultOn: true, rule: { freq: 'interval', every_minutes: 60 } },
   'exposure.public_ip': { module: 'exposure', perSubject: false, adminOnly: true, limits: { freqs: ['interval'], min_every_minutes: 5, max_every_minutes: 1440, reason: 'The lookup services rate-limit; a change is found at the next check.' }, defaultOn: true, rule: { freq: 'interval', every_minutes: 15 } },
@@ -32,8 +32,20 @@ const OWNERS: Record<string, Owner> = {
 
 interface Saved { enabled: boolean; paused_until: string | null; rule: Rule; last_due_at: string | null; last_run_id: string | null; last_skip_reason: string | null; last_skip_at: string | null; updated_by: string; updated_at: string }
 const store = collection<Record<string, Saved>>('core_schedule', () => ({
-  'exposure.target:tgt-1': { enabled: true, paused_until: null, rule: { ...base, freq: 'interval', every_minutes: 3 * 1440, at_time: '02:30', window: 'custom', window_days: [1, 2, 3, 4, 5], window_from: '00:00', window_to: '00:00' }, last_due_at: null, last_run_id: 'run-m1', last_skip_reason: null, last_skip_at: null, updated_by: 'admin@acme.example', updated_at: nowIso() },
+  'exposure.target:xt-11': { enabled: true, paused_until: null, rule: { ...base, freq: 'interval', every_minutes: 3 * 1440, at_time: '02:30', window: 'custom', window_days: [1, 2, 3, 4, 5], window_from: '00:00', window_to: '00:00' }, last_due_at: null, last_run_id: 'run-m1', last_skip_reason: null, last_skip_at: null, updated_by: 'admin@acme.example', updated_at: nowIso() },
 }), () => ({}))
+
+/**
+ * The subjects of the owners with one schedule per subject, as their own mocks know them (the exposure mock registers its targets): gone
+ * makes the schedule 404 like the box, refuse is the reason the owner's Start gives (409 not_started on Run once now). An owner nobody
+ * registered accepts any subject.
+ */
+export const scheduleSubjects: Record<string, (id: string) => { gone: boolean; refuse?: string }> = {}
+const subjectOf = (key: string) => {
+  const [name, id] = key.split(':', 2) as [string, string | undefined]
+  const check = id === undefined ? undefined : scheduleSubjects[name]
+  return check ? check(id!) : { gone: false }
+}
 
 const KEY_RE = /^[a-z][a-z0-9_-]*(\.[a-z0-9_-]+)+(:[A-Za-z0-9._-]{1,96})?$/
 function ownerOf(key: string): Owner | null {
@@ -213,11 +225,11 @@ export const schedulesHandlers = [
   http.get(`${API}/schedules/:owner_key`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
     const key = keyOf(params); const o = ownerOf(key)
-    return o ? HttpResponse.json(view(key, o)) : notFound()
+    return o && !subjectOf(key).gone ? HttpResponse.json(view(key, o)) : notFound()
   }),
   http.put(`${API}/schedules/:owner_key`, async ({ params, request }) => {
     const denied = guard('operator'); if (denied) return denied
-    const key = keyOf(params); const o = ownerOf(key); if (!o) return notFound()
+    const key = keyOf(params); const o = ownerOf(key); if (!o || subjectOf(key).gone) return notFound()
     const forbidden = editDenied(o); if (forbidden) return forbidden
     const b = await body<{ enabled: boolean; paused_until: string | null; rule: Rule }>(request)
     const r = check(b.rule, o); if (r instanceof Response) return r
@@ -229,8 +241,10 @@ export const schedulesHandlers = [
   }),
   http.post(`${API}/schedules/:owner_key/run`, ({ params }) => {
     const denied = guard('operator'); if (denied) return denied
-    const key = keyOf(params); const o = ownerOf(key); if (!o) return notFound()
+    const key = keyOf(params); const o = ownerOf(key); if (!o || subjectOf(key).gone) return notFound()
     const forbidden = editDenied(o); if (forbidden) return forbidden
+    const refuse = subjectOf(key).refuse
+    if (refuse) return fail(409, 'not_started', refuse)
     const runId = o.module === 'feeds' || key === 'exposure.public_ip' || key === 'agent-intake.wazuh' ? null : 'run-m1'
     if (store.get()[key] && runId) store.update((all) => ({ ...all, [key]: { ...all[key]!, last_run_id: runId } }))
     audit('schedule.run_now', key, runId ?? '')

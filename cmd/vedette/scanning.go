@@ -670,12 +670,12 @@ func (e scanningEngines) nuclei(ctx context.Context) (core.EngineStatus, error) 
 
 // external is the exposure scan running now, if any: its card is the step it is at (the passive web checks: zap; OpenVAS: openvas;
 // anything else: the ports, services and vulnerability checks).
-func (e scanningEngines) external() (core.RunningJob, string, bool) {
+func (e scanningEngines) external(ctx context.Context) (core.RunningJob, string, bool) {
 	if e.d.DB == nil {
 		return core.RunningJob{}, "", false
 	}
-	r := exposureService(e.d).CurrentScan()
-	if r == nil || r.FinishedAt != nil {
+	r := exposureService(e.d).CurrentScan(ctx)
+	if r == nil || r.Status != exposure.RunRunning {
 		return core.RunningJob{}, "", false
 	}
 	engine := "nuclei"
@@ -702,7 +702,7 @@ func (e scanningEngines) zap(ctx context.Context) (core.EngineStatus, error) {
 	if !s.Enabled {
 		return s, nil
 	}
-	j, engine, running := e.external()
+	j, engine, running := e.external(ctx)
 	if running {
 		s.Running = []core.RunningJob{j}
 	}
@@ -751,7 +751,7 @@ func (e scanningEngines) openvas(ctx context.Context) (core.EngineStatus, error)
 	if v.Reason != nil {
 		s.Reason = *v.Reason
 	}
-	if _, engine, ok := e.external(); ok && engine == "openvas" { // listed in running[] by zap's card
+	if _, engine, ok := e.external(ctx); ok && engine == "openvas" { // listed in running[] by zap's card
 		s.State = core.EngineRunning
 	}
 	return s, nil

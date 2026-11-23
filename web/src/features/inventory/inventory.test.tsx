@@ -13,7 +13,7 @@ import { records } from '@/features/findings/modelMocks'
 import kevProducts from '../../../../content/catalog/kev-products.json'
 import { linuxOneLiner, OSQUERY_SCHEDULE, osquerySteps, wazuhReaderSteps, windowsOneLiner } from './agentConfig'
 import { catalogPath, CATALOG_Q_MAX } from './api'
-import { CATALOG, customEntry, findCatalog, searchCatalog } from './catalog'
+import { CATALOG, customEntry, findById, findCatalog, searchCatalog } from './catalog'
 import { sha256Hex } from './kinds'
 import { OSQUERY_VERSION } from './installScripts'
 import { BOX_ID, compareObs, ensureBox, inventorySettingsStore, markCurrent, sensorsStore, type StoredObs } from './mocks'
@@ -1069,7 +1069,7 @@ describe('inventory: device detail (S-INV-1)', () => {
 })
 
 describe('inventory: add-device API (catalog id and free entry)', () => {
-  it('accepts {vendor, product} without catalog_id and matches by vendor', async () => {
+  it('accepts {vendor, product} without catalog_id and matches the product of that name', async () => {
     asAdmin()
     const r = await call('POST', '/devices', { vendor: 'Fortinet', product: 'FortiGate', version: '7.2.5', ip: '192.168.77.1' })
     expect(r.status).toBe(201)
@@ -1120,7 +1120,7 @@ describe('inventory: catalog request', () => {
 
 describe('inventory: catalog', () => {
   it('has hundreds of entries: all CISA KEV pairs plus a curated list', () => {
-    expect(CATALOG.length).toBeGreaterThan(800)
+    expect(CATALOG.length).toBeGreaterThan(600) // a KEV pair a curated product covers is that product's entry, not a second one
     expect(CATALOG.filter((e) => e.curated).length).toBeGreaterThan(50)
     expect(new Set(CATALOG.map((e) => e.id)).size).toBe(CATALOG.length) // ids are unique
   })
@@ -1156,6 +1156,20 @@ describe('inventory: catalog', () => {
     expect(r.items.every((e) => e.curated)).toBe(true)
     expect(r.total).toBe(CATALOG.length)
     expect(searchCatalog('').items.length).toBe(30)
+  })
+
+  it('a KEV pair a curated product covers is one entry: no second DSM, vCenter or ESXi row', () => {
+    for (const q of ['synology diskstation', 'vcenter', 'esxi']) {
+      const items = searchCatalog(q).items
+      expect(items.filter((e) => e.curated && /DSM|vCenter|ESXi/.test(e.display))).toHaveLength(1)
+      expect(items.filter((e) => !e.curated && /diskstation|vcenter|esxi/i.test(e.product))).toEqual([])
+    }
+    expect(findById('kev:vmware:esxi')?.display).toBe('VMware ESXi')
+  })
+
+  it('a product typed by hand is never matched to every product of its vendor', () => {
+    expect(customEntry('Red Hat', 'OpenJDK').kev).toEqual(['red hat|openjdk'])
+    expect(customEntry('Red Hat', 'OpenJDK').kev_count).toBe(0)
   })
 
   it('every KEV vendor/product pair is selectable (exact key)', () => {

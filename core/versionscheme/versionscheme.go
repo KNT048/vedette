@@ -94,6 +94,26 @@ type Scheme struct {
 	installed func(version, build string) (Version, bool)
 	// endInLine reads a range's end written inside the line its start names ("14.1" lessThan "72.61"); nil: no such form.
 	endInLine func(start Version, s string) (Version, bool)
+	// NVDNotation: NVD writes the product's range bounds in the vendor's notation too (DSM's "7.2.1-69057-6"), so NVD's rows are read
+	// in the scheme as well as the CVE record's; false: NVD names releases its own way (ESXi's "8.0:update_3"), read only generically.
+	NVDNotation bool
+	// Described: the vendor's CVE records may give the product without a version and state its fixed releases in the description only
+	// ("DiskStation Manager (DSM) before 7.2.1-69057-10, 7.2.2-72806-7 and 7.3.2-86009-2"); feeds reads that list in the scheme.
+	Described bool
+	// stated writes a version a device, a scan or a person states in the form every reader compares (Stated); nil: as given.
+	stated func(version, display string) (string, string, bool)
+}
+
+// Stated is the version and name of a release as a device, a scan or a person states it, written in the form the scheme and the generic
+// comparison both read: ESXi "8.0 U3" or "8.0.3 build 24022510" is version "8.0.3" named "VMware ESXi 8.0 Update 3 (build 24022510)";
+// DSM "7.2.1-69057 Update 5" is "7.2.1-69057-5". display is "" when the name stays as it was. ok is false when the scheme has no such
+// form or the text does not say a release of it (it is then kept as given, never guessed).
+func (s *Scheme) Stated(version, display string) (string, string, bool) {
+	version, display = strings.TrimSpace(version), strings.TrimSpace(display)
+	if s.stated == nil || version == "" || len(version) > 100 || len(display) > 200 {
+		return "", "", false
+	}
+	return s.stated(version, display)
 }
 
 // Parse reads a version the vendor states, as a range bound or a fixed release ("ESXi80U3d-24585383", "8.0", "14.1-73.37 FIPS").

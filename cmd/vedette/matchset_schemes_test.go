@@ -17,10 +17,10 @@ import (
 )
 
 // seedVendorRow writes one CVE record range of cve as the reader keeps a vendor's own notation (origin cna, no CPE, the product's
-// record key) or, generic, one it can order.
-func seedVendorRow(ctx context.Context, tx *sql.Tx, cve, vendor, product, start, endExcl, versionType string) error {
+// record key, version type "vendor:custom").
+func seedVendorRow(ctx context.Context, tx *sql.Tx, cve, vendor, product, start, endExcl string) error {
 	_, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, version_type, default_status)
-VALUES (?, 'cna', '', ?, ?, '', ?, '', '', ?, ?, 'unaffected')`, cve, vendor, product, start, endExcl, versionType)
+VALUES (?, 'cna', '', ?, ?, '', ?, '', '', ?, 'vendor:custom', 'unaffected')`, cve, vendor, product, start, endExcl)
 	return err
 }
 
@@ -50,7 +50,7 @@ func TestMatchSet_ListedEntryKeepsItsVendorRowsOnEveryPath(t *testing.T) {
 			return err
 		}
 		for _, end := range []string{"ESXi80U3d-24585383", "ESXi80U2d-24585300"} {
-			if err := seedVendorRow(ctx, tx, listed, "vmware", "esxi", "8.0", end, "vendor:custom"); err != nil {
+			if err := seedVendorRow(ctx, tx, listed, "vmware", "esxi", "8.0", end); err != nil {
 				return err
 			}
 		}
@@ -58,7 +58,7 @@ func TestMatchSet_ListedEntryKeepsItsVendorRowsOnEveryPath(t *testing.T) {
 		if err := seedNVD(ctx, tx, other, time.Now().AddDate(0, -1, 0), 0); err != nil {
 			return err
 		}
-		return seedVendorRow(ctx, tx, other, "vmware", "esxi", "8.0", "ESXi80U2e-24789317", "vendor:custom")
+		return seedVendorRow(ctx, tx, other, "vmware", "esxi", "8.0", "ESXi80U2e-24789317")
 	})
 	if err != nil {
 		t.Fatal(err)

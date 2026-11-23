@@ -56,7 +56,9 @@ detail is in its doc comment.
   (a version move is an update with a `version_changed` event). Readings per source are `inv_software_reading`; history is the
   append-only `inv_software_event`. Removal is a state; a removed line is deleted after 400 days.
 - **INV-52** The effective reading is written only by `Resolve` (`resolve.go`), in every write path: a person's entry holds until
-  a reading first seen after it reads a newer release; otherwise the strongest source, newest release among equals. The selfcheck
+  a reading first seen after it, or an agent's report after it, reads a newer release; otherwise the strongest source, newest release
+  among equals. A version is stored as its product's version scheme writes it (`statedRelease`: ESXi "8.0 U3" is "8.0.3" with its
+  build in the name, DSM "7.2.1-69057 Update 5" is "7.2.1-69057-5", Debian's "X+reallyY" is Y). The selfcheck
   `inventory.line_value_is_the_resolvers` recomputes `Resolve` on every line, and `inventory.line_is_the_train_of_its_readings` checks
   that every reading's release is of its line's train (`selfcheck.go`).
 - **INV-58** A line's product and train are what the product catalogue of the running build says of what its sources sent. Each
@@ -119,7 +121,9 @@ detail is in its doc comment.
 
 **Lists and readers**
 - **INV-12** `GET /inventory/catalog` returns at most 30 entries with a total; curated ids are fixed, exploited-list entries are
-  `kev:<vendor>:<product>`.
+  `kev:<vendor>:<product>`. An exploited-list name a curated product covers is that product's entry (its id still finds it). A product
+  typed by hand is the exact exploited-list pair, else the curated or catalogue product of that name, else its own key: never every
+  product of its vendor.
 - **INV-13** CSV import: at most 200 KB and 500 rows; bad rows are reported by number and valid rows still added.
 - **INV-14** `AddManualDevice` runs inside the caller's transaction (feeds); its event waits for `Settle` after the commit.
 - **INV-18, INV-19, INV-21** Readers that other modules use to decide (`DevicesOfKind`, `AssetIDs`, `AddressInUse`, `AddressMap`,

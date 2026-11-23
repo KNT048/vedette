@@ -126,10 +126,26 @@ func NewCatalog(curatedJSON []byte, kev []KEVProduct) (*Catalog, error) {
 		c.add(&catEntry{id: slug(r.Display), display: r.Display, category: r.Category, hint: r.Vendor + " " + r.Product, vendor: r.Vendor, product: r.Product,
 			kind: r.Kind, kev: keys, aliases: aliases, versionHint: r.VersionHint, kevCount: c.sum(keys), curated: true, order: i})
 	}
+	// an exploited-list name a curated product already covers (its kev keys) is that product: one entry, not a second one a person
+	// cannot tell apart ("Synology NAS (DSM)" and "Synology DiskStation Manager (DSM)"); the list's id still finds it (CSV, a saved form)
+	covered := map[string]*catEntry{}
+	for _, e := range c.entries {
+		for _, k := range e.kev {
+			if _, taken := covered[k]; !taken {
+				covered[k] = e
+			}
+		}
+	}
 	auto := map[string]*catEntry{}
 	for i, r := range kev {
 		key := productid.Key(r.Vendor, r.Product)
 		id := "kev:" + slug(r.Vendor) + ":" + slug(r.Product)
+		if owner := covered[key]; owner != nil {
+			if _, ok := c.byID[id]; !ok {
+				c.byID[id] = owner
+			}
+			continue
+		}
 		if dup, ok := auto[id]; ok { // two KEV rows that differ only in odd spacing are one product
 			dup.kev = append(dup.kev, key)
 			dup.kevCount += r.Count
@@ -451,22 +467,25 @@ func (c *Catalog) find(text string) *catEntry {
 	return hits[0]
 }
 
-// custom is a product a person typed (vendor + product): matched to the exact KEV pair when there is one,
-// else to every product of the vendor, else to the plain key.
+// custom is a product a person typed (vendor + product): matched to the exact KEV pair when there is one, else to the curated product
+// of that name and vendor, else to the catalogue's product of that name (its exploited-list keys: "Red Hat" "OpenJDK" is Java), else to the plain key. Never to the vendor's other
+// products: a product nobody listed is not "exploited", and its line keeps the name the person gave (findings compares its version with
+// the ranges that name it).
 func (c *Catalog) custom(vendor, product string) *catEntry {
 	v, p := fold(vendor), fold(product)
-	var exact, byVendor []string
+	var keys []string
 	for _, r := range c.kev {
-		if fold(r.Vendor) == v {
-			byVendor = append(byVendor, productid.Key(r.Vendor, r.Product))
-			if fold(r.Product) == p {
-				exact = append(exact, productid.Key(r.Vendor, r.Product))
-			}
+		if fold(r.Vendor) == v && fold(r.Product) == p {
+			keys = append(keys, productid.Key(r.Vendor, r.Product))
 		}
 	}
-	keys := exact
+	if e := c.find(product); len(keys) == 0 && e != nil && e.curated && e.hVendor == v { // "Fortinet" "FortiGate": the curated FortiGate
+		keys = slices.Clone(e.kev)
+	}
 	if len(keys) == 0 {
-		keys = byVendor
+		if q, ok := productid.ResolveStored(vendor, product, strings.TrimSpace(vendor+" "+product), ""); ok && q.ID != "" {
+			keys = slices.Clone(q.KEV)
+		}
 	}
 	if len(keys) == 0 {
 		keys = []string{productid.Key(vendor, product)}

@@ -30,7 +30,7 @@ func checkIP(w *world, raw string) (netip.Addr, error) {
 		return netip.Addr{}, bad("bad_ip", "The address is not valid. Use the form 192.168.10.240, each number 0 to 255, no leading zeros.")
 	}
 	if !w.lan.IsValid() {
-		return netip.Addr{}, bad("no_lan", "Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the Trap IPs go on.")
+		return netip.Addr{}, bad("no_lan", "Add your LAN range first (Settings › Scanning › Safety), so Vedette knows which network the Trap IPs go on.")
 	}
 	if !usable(w.lan, ip) {
 		return netip.Addr{}, bad("ip_outside_lan", fmt.Sprintf("The Trap IP must be inside the box's network (%s), not the network or broadcast address.", w.lan))

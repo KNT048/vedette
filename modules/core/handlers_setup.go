@@ -181,7 +181,7 @@ func parseLan(in []string) ([]string, *apierr.Error) {
 		}
 	}
 	// The ranges become the inventory's scope (INV-15), so they obey its rule here too, before anything is written: no two overlap
-	// (inventory INV-6; same code and words as Devices -> Scope and sensors).
+	// (inventory INV-6; same code and words as Settings › Scanning › Safety).
 	for i, a := range out {
 		for j, b := range out {
 			if i != j && netip.MustParsePrefix(a).Overlaps(netip.MustParsePrefix(b)) {
@@ -357,7 +357,7 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 		if err := q.UpsertSetting(ctx, coredb.UpsertSettingParams{Key: "setup.scope", Value: string(scope), UpdatedAt: now, UpdatedBy: email}); err != nil {
 			return fmt.Errorf("core: store setup scope: %w", err)
 		}
-		// The ranges and the commitment are the inventory's scope (Devices -> Scope and sensors) from now on, in this same commit (#350).
+		// The ranges and the commitment are the inventory's scope (Settings › Scanning › Safety) from now on, in this same commit (#350).
 		if h.scope != nil {
 			scopeTx = tx
 			if err := h.scope.SetupScope(ctx, tx, email, lan, req.Commitment.Or(false)); err != nil {

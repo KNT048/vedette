@@ -1,5 +1,5 @@
 // Package localnet says which IPv4 addresses can belong to a customer's own network, the networks Vedette may watch and scan
-// (setup, Devices -> Scope, nmap and nuclei targets, the LAN device of a logged connection): the private ranges of RFC 1918
+// (setup, Settings › Scanning › Safety, nmap and nuclei targets, the LAN device of a logged connection): the private ranges of RFC 1918
 // (10/8, 172.16/12, 192.168/16) and the shared address space of RFC 6598 (100.64.0.0/10: carrier-grade NAT inside an ISP or
 // a company network, Tailscale). Only 100.64/10: the rest of 100/8 is public.
 //
@@ -14,7 +14,7 @@ import (
 	"slices"
 )
 
-// Names names the local networks in the words of the error messages that refuse a range outside them (setup, Devices -> Scope;
+// Names names the local networks in the words of the error messages that refuse a range outside them (setup, Settings › Scanning › Safety;
 // the mocks in web/src say the same).
 const Names = "10.x, 172.16-31.x, 192.168.x, 100.64-127.x"
 

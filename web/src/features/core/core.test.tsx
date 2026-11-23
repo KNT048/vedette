@@ -340,7 +340,7 @@ describe('core: initial setup', () => {
     } finally { vi.unstubAllEnvs() }
   })
 
-  it('the LAN range typed in setup is stored where Devices → Scope keeps ranges, and the commitment with it', async () => {
+  it('the LAN range typed in setup is stored where Settings › Scanning › Safety keeps ranges, and the commitment with it', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
     const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.142.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(200)
@@ -364,7 +364,7 @@ describe('core: initial setup', () => {
     expect(st.lan_ranges).toEqual(['100.65.254.0/24'])
   })
 
-  it('setup refuses overlapping LAN ranges like Devices → Scope does, and nothing is set up (#350)', async () => {
+  it('setup refuses overlapping LAN ranges like Settings › Scanning › Safety does, and nothing is set up (#350)', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
     const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.0.0/16', '192.168.142.0/24'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(400)

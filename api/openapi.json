@@ -100801,7 +100801,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "The scope commitment ticked under Devices, Scope and sensors (inventory scope_confirmed_at)"
+                          "description": "The scope commitment ticked under Settings › Scanning › Safety (inventory scope_confirmed_at)"
                         }
                       },
                       "required": [
@@ -101050,7 +101050,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "The scope commitment ticked under Devices, Scope and sensors (inventory scope_confirmed_at)"
+                          "description": "The scope commitment ticked under Settings › Scanning › Safety (inventory scope_confirmed_at)"
                         }
                       },
                       "required": [

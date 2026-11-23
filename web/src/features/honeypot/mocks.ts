@@ -246,7 +246,7 @@ function checkInput(b: Partial<TrapIPInput>, self?: string): Response | { name: 
   const ip = String(b.ip ?? '').trim()
   if (!ip) return fail(400, 'bad_ip', 'Enter an address for the Trap IP, for example 192.168.10.240. Pick an address no device uses.')
   if (!IPV4_RE.test(ip) || /(^|\.)0\d/.test(ip)) return fail(400, 'bad_ip', 'The address is not valid. Use the form 192.168.10.240, each number 0 to 255, no leading zeros.')
-  if (!boxInfo().lan) return fail(400, 'no_lan', 'Add your LAN range first (Devices, Scope and sensors), so Vedette knows which network the Trap IPs go on.')
+  if (!boxInfo().lan) return fail(400, 'no_lan', 'Add your LAN range first (Settings › Scanning › Safety), so Vedette knows which network the Trap IPs go on.')
   if (!inLan(ip) || ip.endsWith('.0') || ip.endsWith('.255')) return fail(400, 'ip_outside_lan', `The Trap IP must be inside the box's network (${boxInfo().lan}), not the network or broadcast address.`)
   if (ip === boxInfo().ip) return fail(400, 'ip_is_box', 'This is the Vedette box\'s own IP. Pick an unused IP.')
   const clash = deviceAt(ip)

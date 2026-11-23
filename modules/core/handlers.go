@@ -129,7 +129,7 @@ type HandlersConfig struct {
 	// files move, and thawed if the purge fails. After a success they stay frozen until the process stops.
 	AlsoFreeze []*store.DB
 	// Scope is the inventory as far as first-run setup needs it (INV-15): the LAN ranges and the scan commitment of the wizard become
-	// the scope of Devices -> Scope and sensors in the setup's own transaction. nil = a build without the inventory: the ranges stay only
+	// the scope of Settings › Scanning › Safety in the setup's own transaction. nil = a build without the inventory: the ranges stay only
 	// in core_setting setup.scope.
 	Scope SetupScope
 	// BoxLAN is the network of the box's management address (the Box network's management card), offered by GET

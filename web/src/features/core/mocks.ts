@@ -99,7 +99,7 @@ const setupHandlers = [
     if (badLan) return fail(400, 'invalid_lan', `The range "${badLan}" is not valid. Write it like 192.168.10.0/24.`)
     const pub = lan.find((x) => !isPrivateCidr(x))
     if (pub) return fail(400, 'public_range', `${pub} is not a private range (${LOCAL_RANGE_NAMES}). Add public addresses later under External exposure.`)
-    // The ranges become the scope of Devices → Scope and sensors (below), so they obey that page's rule too (inventory INV-6, #350).
+    // The ranges become the scope of Settings › Scanning › Safety (below), so they obey that page's rule too (inventory INV-6, #350).
     const uniqueLan = [...new Set(lan.map((r) => cidrRange(r).network))] // host bits cleared first, as the backend does
     const clash = uniqueLan.map((r) => [r, overlapping(r, uniqueLan)] as const).find(([, o]) => o)
     if (clash) return fail(400, 'overlap_range', `Range ${clash[0]} overlaps ${clash[1]}. Keep the larger range and drop the smaller one.`)
@@ -129,7 +129,7 @@ const setupHandlers = [
     usersStore.set([user])
     orgStore.update((o) => ({ ...o, name: org, setup_complete: true }))
     modulesStore.set(all.map((m) => ({ ...m, enabled: m.tier === 'core' || enable.includes(m.id), enabled_at: m.tier === 'core' || enable.includes(m.id) ? nowIso() : null })))
-    // The LAN ranges asked for here are the ranges of Devices → Scope and sensors (and what Scan reads); the commitment ticked here is that page's commitment.
+    // The LAN ranges asked for here are the ranges of Settings › Scanning › Safety (and what Scan reads); the commitment ticked here is that page's commitment.
     inventorySettingsStore.update((st) => ({ ...st, lan_ranges: [...new Set(lan)], scope_confirmed_at: b.commitment ? nowIso() : null, scope_confirmed_by: b.commitment ? email : null }))
     sessionStore.set({ userId: user.id })
     // Same rows, same order as the backend: the administrator, the sign-in, then the setup itself.

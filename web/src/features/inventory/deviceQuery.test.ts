@@ -9,17 +9,20 @@ const obs = (value: string, source: DeviceRow['kind_source'] & string) => ({ val
 function row(p: Partial<DeviceRow> & { id: string }): DeviceRow {
   return {
     site: 's', ip: '192.168.1.1', mac: null, hostname: null, kind: 'unknown', kind_source: null, guess: null, vendor: null, model: null, os: null,
-    software: [], services: [], first_seen: '2026-11-01T00:00:00Z', last_seen: '2026-11-16T09:00:00Z', approved: true, fragile: false, origin: 'discovered',
+    software_count: 0, service_count: 0, product: null, first_seen: '2026-11-01T00:00:00Z', last_seen: '2026-11-16T09:00:00Z', approved: true, fragile: false, origin: 'discovered',
     is_box: false, first_scan_at: null, regular_scan: 'follow', approved_at: null, suspicious: false, findings_count: 0, summary: null, sources: [], ...p,
   } as DeviceRow
 }
 const SW = row({ id: 'sw', hostname: 'SW-CORE', ip: '192.168.1.3', mac: 'F8:7B:20:30:33:03', kind: 'switch', kind_source: 'snmp', vendor: obs('Cisco', 'snmp'), model: obs('CBS350-24P', 'snmp'), sources: ['passive', 'snmp'] })
 const SRV = row({ id: 'srv', hostname: 'SRV-AD', ip: '192.168.1.10', kind: 'server', vendor: obs('Dell', 'passive'), os: obs('Windows Server 2016', 'agent'),
-  software: [{ id: 's1', display: 'Microsoft Office', vendor: 'Microsoft', product: 'Office', version: '2019', kev: [], source: 'agent', confidence: 1, not_installed: false }], findings_count: 2, sources: ['passive', 'osquery'] })
-const CAM = row({ id: 'cam', hostname: 'CAM-GATE', ip: '192.168.2.11', kind: 'camera', fragile: true, vendor: obs('Hikvision', 'passive'), approved_at: '2026-11-16T08:00:00Z', sources: ['passive'] })
+  software_count: 1, findings_count: 2, sources: ['passive', 'osquery'] })
+const CAM = row({ id: 'cam', hostname: 'CAM-GATE', ip: '192.168.2.11', kind: 'camera', fragile: true, service_count: 2, vendor: obs('Hikvision', 'passive'), approved_at: '2026-11-16T08:00:00Z', sources: ['passive'] })
 const MAN = row({ id: 'man', hostname: 'branch-fw', ip: '192.168.3.1', origin: 'manual', kind: 'firewall', kind_source: 'manual', sources: ['manual'] })
 const ALL = [SW, SRV, CAM, MAN]
-const ids = (q: string) => filterDevices(ALL, q, NOW).map((d) => d.id)
+// what GET /inventory/devices?software= answers: the lines of each device that hold the words
+const OFFICE = { id: 's1', display: 'Microsoft Office', vendor: 'Microsoft', product: 'Office', version: '2019', kev: [], source: 'agent' as const, confidence: 1, not_installed: false }
+const MATCHES = new Map([['srv', [OFFICE]]])
+const ids = (q: string) => filterDevices(ALL, q, NOW, undefined, MATCHES).map((d) => d.id)
 
 describe('Devices search (#849)', () => {
   it('free text matches name, IP, MAC (any separators), maker, model and OS; every word must match', () => {
@@ -44,6 +47,10 @@ describe('Devices search (#849)', () => {
     expect(ids('fragile')).toEqual(['cam'])
     expect(ids('has:findings')).toEqual(['srv'])
     expect(ids('software:office')).toEqual(['srv'])
+    expect(ids('software:excel')).toEqual([]) // the server's lines are read again: a stale answer never keeps a row
+    expect(filterDevices(ALL, 'software:office', NOW).map((d) => d.id)).toEqual([]) // no answer yet: no row
+    expect(ids('has:software')).toEqual(['srv'])
+    expect(ids('has:ports')).toEqual(['cam'])
     expect(ids('approved:24h')).toEqual(['cam'])
   })
   it('feedsOfRow is the box\'s own list (#855): osquery and Wazuh are told apart', () => {

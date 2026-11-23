@@ -158035,6 +158035,9 @@ type InventoryGetInventoryDevicesOK struct {
 	// The badges could not be read (the findings module failed): no row has one and a badge filter was not
 	// applied.
 	RiskUnavailable bool `json:"risk_unavailable"`
+	// The 12 software names most of the listed devices run (most devices first, then by name), for the
+	// search's software: suggestions; declared software with no device is left out.
+	TopSoftware InventoryGetInventoryDevicesOKTopSoftware `json:"top_software"`
 }
 
 // GetCounts returns the value of Counts.
@@ -158062,6 +158065,11 @@ func (s *InventoryGetInventoryDevicesOK) GetRiskUnavailable() bool {
 	return s.RiskUnavailable
 }
 
+// GetTopSoftware returns the value of TopSoftware.
+func (s *InventoryGetInventoryDevicesOK) GetTopSoftware() InventoryGetInventoryDevicesOKTopSoftware {
+	return s.TopSoftware
+}
+
 // SetCounts sets the value of Counts.
 func (s *InventoryGetInventoryDevicesOK) SetCounts(val InventoryGetInventoryDevicesOKCounts) {
 	s.Counts = val
@@ -158085,6 +158093,11 @@ func (s *InventoryGetInventoryDevicesOK) SetNotifyNew(val bool) {
 // SetRiskUnavailable sets the value of RiskUnavailable.
 func (s *InventoryGetInventoryDevicesOK) SetRiskUnavailable(val bool) {
 	s.RiskUnavailable = val
+}
+
+// SetTopSoftware sets the value of TopSoftware.
+func (s *InventoryGetInventoryDevicesOK) SetTopSoftware(val InventoryGetInventoryDevicesOKTopSoftware) {
+	s.TopSoftware = val
 }
 
 type InventoryGetInventoryDevicesOKCounts struct {
@@ -158179,7 +158192,10 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	KindSource NilInventoryGetInventoryDevicesOKItemsItemKindSource `json:"kind_source"`
 	LastSeen   time.Time                                            `json:"last_seen"`
 	MAC        NilString                                            `json:"mac"`
-	Model      NilInventoryGetInventoryDevicesOKItemsItemModel      `json:"model"`
+	// Only with the software filter: the device's lines that hold one of its words, by name (the Matched
+	// software column).
+	MatchedSoftware []InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem `json:"matched_software"`
+	Model           NilInventoryGetInventoryDevicesOKItemsItemModel              `json:"model"`
 	// The name a person gave the device in Vedette (PATCH name): it wins over every other name on every
 	// page; null = the default name (the naming rule).
 	Name   NilString                                     `json:"name"`
@@ -158189,6 +158205,10 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	// The MAC is a private (randomised) address the device picks for itself and changes (locally
 	// administered, not a stable virtual prefix such as QEMU/KVM, Docker or VirtualBox).
 	PrivateMAC bool `json:"private_mac"`
+	// A device added by hand: its first software line by name that is installed (the line that names a
+	// device with no host name, and the product Settings › Declared software lists); null for a
+	// discovered device or one with no such line.
+	Product NilInventoryGetInventoryDevicesOKItemsItemProduct `json:"product"`
 	// Not approved, but held out of To review and of the new-device notice: a private-address device with
 	// no open service that has not stayed past a day. It is listed with the approved devices and moves to
 	// To review when it earns a look; false for every approved device.
@@ -158200,14 +158220,17 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	// The box's network scan of this device (discovery's nmap and the vulnerability scans). on: the box's
 	// own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found,
 	// off for one added by hand. Off is answered as regular_scan_never by the scan refusals.
-	ScanSource InventoryGetInventoryDevicesOKItemsItemScanSource     `json:"scan_source"`
-	Services   []InventoryGetInventoryDevicesOKItemsItemServicesItem `json:"services"`
-	Site       string                                                `json:"site"`
+	ScanSource InventoryGetInventoryDevicesOKItemsItemScanSource `json:"scan_source"`
+	// Number of the device's open services (ports); the services themselves are on the device page.
+	ServiceCount int    `json:"service_count"`
+	Site         string `json:"site"`
 	// The box's SNMP reads of this device, as scan_source (default on for a device a sensor found, off for
 	// one added by hand); saving the device's SNMP settings turns it on. Off: no SNMP read goes to it
 	// (Check now answers snmp_off, and the device's SNMP says so in blocked).
-	SnmpSource InventoryGetInventoryDevicesOKItemsItemSnmpSource     `json:"snmp_source"`
-	Software   []InventoryGetInventoryDevicesOKItemsItemSoftwareItem `json:"software"`
+	SnmpSource InventoryGetInventoryDevicesOKItemsItemSnmpSource `json:"snmp_source"`
+	// Number of the device's software lines (a line a person said is not installed counts). The lines
+	// themselves are on the device page (GET /inventory/devices/{id}): the list never carries them.
+	SoftwareCount int `json:"software_count"`
 	// Every source that told Vedette something about the device and is still kept (its details, software
 	// or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source:
 	// filter, #829 sources of the device page).
@@ -158298,6 +158321,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetMAC() NilString {
 	return s.MAC
 }
 
+// GetMatchedSoftware returns the value of MatchedSoftware.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetMatchedSoftware() []InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem {
+	return s.MatchedSoftware
+}
+
 // GetModel returns the value of Model.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetModel() NilInventoryGetInventoryDevicesOKItemsItemModel {
 	return s.Model
@@ -158328,6 +158356,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetPrivateMAC() bool {
 	return s.PrivateMAC
 }
 
+// GetProduct returns the value of Product.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetProduct() NilInventoryGetInventoryDevicesOKItemsItemProduct {
+	return s.Product
+}
+
 // GetQuiet returns the value of Quiet.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetQuiet() bool {
 	return s.Quiet
@@ -158348,9 +158381,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetScanSource() InventoryGetIn
 	return s.ScanSource
 }
 
-// GetServices returns the value of Services.
-func (s *InventoryGetInventoryDevicesOKItemsItem) GetServices() []InventoryGetInventoryDevicesOKItemsItemServicesItem {
-	return s.Services
+// GetServiceCount returns the value of ServiceCount.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetServiceCount() int {
+	return s.ServiceCount
 }
 
 // GetSite returns the value of Site.
@@ -158363,9 +158396,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetSnmpSource() InventoryGetIn
 	return s.SnmpSource
 }
 
-// GetSoftware returns the value of Software.
-func (s *InventoryGetInventoryDevicesOKItemsItem) GetSoftware() []InventoryGetInventoryDevicesOKItemsItemSoftwareItem {
-	return s.Software
+// GetSoftwareCount returns the value of SoftwareCount.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetSoftwareCount() int {
+	return s.SoftwareCount
 }
 
 // GetSources returns the value of Sources.
@@ -158468,6 +158501,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetMAC(val NilString) {
 	s.MAC = val
 }
 
+// SetMatchedSoftware sets the value of MatchedSoftware.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetMatchedSoftware(val []InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) {
+	s.MatchedSoftware = val
+}
+
 // SetModel sets the value of Model.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetModel(val NilInventoryGetInventoryDevicesOKItemsItemModel) {
 	s.Model = val
@@ -158498,6 +158536,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetPrivateMAC(val bool) {
 	s.PrivateMAC = val
 }
 
+// SetProduct sets the value of Product.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetProduct(val NilInventoryGetInventoryDevicesOKItemsItemProduct) {
+	s.Product = val
+}
+
 // SetQuiet sets the value of Quiet.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetQuiet(val bool) {
 	s.Quiet = val
@@ -158518,9 +158561,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetScanSource(val InventoryGet
 	s.ScanSource = val
 }
 
-// SetServices sets the value of Services.
-func (s *InventoryGetInventoryDevicesOKItemsItem) SetServices(val []InventoryGetInventoryDevicesOKItemsItemServicesItem) {
-	s.Services = val
+// SetServiceCount sets the value of ServiceCount.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetServiceCount(val int) {
+	s.ServiceCount = val
 }
 
 // SetSite sets the value of Site.
@@ -158533,9 +158576,9 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetSnmpSource(val InventoryGet
 	s.SnmpSource = val
 }
 
-// SetSoftware sets the value of Software.
-func (s *InventoryGetInventoryDevicesOKItemsItem) SetSoftware(val []InventoryGetInventoryDevicesOKItemsItemSoftwareItem) {
-	s.Software = val
+// SetSoftwareCount sets the value of SoftwareCount.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetSoftwareCount(val int) {
+	s.SoftwareCount = val
 }
 
 // SetSources sets the value of Sources.
@@ -160651,6 +160694,259 @@ func (s *InventoryGetInventoryDevicesOKItemsItemKindSource) UnmarshalText(data [
 	}
 }
 
+// One software line of the device (one row per product, or per release train of a product whose trains
+// install side by side), its value the strongest reading; the same line and value on every page, the
+// export and the assistant.
+type InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem struct {
+	// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
+	Basis      OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis `json:"basis"`
+	Confidence float64                                                            `json:"confidence"`
+	// Commercial name the user recognizes.
+	Display string `json:"display"`
+	ID      string `json:"id"`
+	// KEV match keys: lowercase "vendorproject|product".
+	Kev []string `json:"kev"`
+	// A person said this software is not installed on the device: it matches nothing; what the device runs
+	// (the assistant, MCP) leaves it out and the export marks it.
+	NotInstalled bool                                                             `json:"not_installed"`
+	Product      string                                                           `json:"product"`
+	Source       InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource `json:"source"`
+	Vendor       string                                                           `json:"vendor"`
+	Version      NilString                                                        `json:"version"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) GetBasis() OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis {
+	return s.Basis
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetDisplay returns the value of Display.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) GetDisplay() string {
+	return s.Display
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) GetID() string {
+	return s.ID
+}
+
+// GetKev returns the value of Kev.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) GetKev() []string {
+	return s.Kev
+}
+
+// GetNotInstalled returns the value of NotInstalled.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) GetNotInstalled() bool {
+	return s.NotInstalled
+}
+
+// GetProduct returns the value of Product.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) GetProduct() string {
+	return s.Product
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) GetSource() InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource {
+	return s.Source
+}
+
+// GetVendor returns the value of Vendor.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) GetVendor() string {
+	return s.Vendor
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) SetBasis(val OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) {
+	s.Basis = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetDisplay sets the value of Display.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKev sets the value of Kev.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) SetKev(val []string) {
+	s.Kev = val
+}
+
+// SetNotInstalled sets the value of NotInstalled.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) SetNotInstalled(val bool) {
+	s.NotInstalled = val
+}
+
+// SetProduct sets the value of Product.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) SetSource(val InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource) {
+	s.Source = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
+type InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStated    InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis = "stated"
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStatedWeb InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis = "stated_web"
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStatedSip InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis = "stated_sip"
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisGuess     InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis values.
+func (InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis {
+	return []InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis{
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStated,
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStatedWeb,
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStatedSip,
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStatedSip:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis(data) {
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStated:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStated
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStatedSip:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisStatedSip
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisGuess:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceManual   InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource = "manual"
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceDeclared InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource = "declared"
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceAgent    InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource = "agent"
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceSnmp     InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceNmap     InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource = "nmap"
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourcePassive  InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource = "passive"
+	InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceScan     InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource values.
+func (InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource {
+	return []InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource{
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceManual,
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceDeclared,
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceAgent,
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceSnmp,
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceNmap,
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourcePassive,
+		InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceDeclared:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSource(data) {
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceManual:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceDeclared
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceAgent:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceSnmp:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceNmap:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourcePassive:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceScan:
+		*s = InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesOKItemsItemModel struct {
 	// Stated: the device announced it about itself (the OS in its LLDP description on its own vendor's
 	// network card, and the model of the same frame); guess: nmap's OS fingerprint, shown as a guess and
@@ -161110,6 +161406,259 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOsSource) UnmarshalText(data []b
 	}
 }
 
+// One software line of the device (one row per product, or per release train of a product whose trains
+// install side by side), its value the strongest reading; the same line and value on every page, the
+// export and the assistant.
+type InventoryGetInventoryDevicesOKItemsItemProduct struct {
+	// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
+	Basis      OptInventoryGetInventoryDevicesOKItemsItemProductBasis `json:"basis"`
+	Confidence float64                                                `json:"confidence"`
+	// Commercial name the user recognizes.
+	Display string `json:"display"`
+	ID      string `json:"id"`
+	// KEV match keys: lowercase "vendorproject|product".
+	Kev []string `json:"kev"`
+	// A person said this software is not installed on the device: it matches nothing; what the device runs
+	// (the assistant, MCP) leaves it out and the export marks it.
+	NotInstalled bool                                                 `json:"not_installed"`
+	Product      string                                               `json:"product"`
+	Source       InventoryGetInventoryDevicesOKItemsItemProductSource `json:"source"`
+	Vendor       string                                               `json:"vendor"`
+	Version      NilString                                            `json:"version"`
+}
+
+// GetBasis returns the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) GetBasis() OptInventoryGetInventoryDevicesOKItemsItemProductBasis {
+	return s.Basis
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetDisplay returns the value of Display.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) GetDisplay() string {
+	return s.Display
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) GetID() string {
+	return s.ID
+}
+
+// GetKev returns the value of Kev.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) GetKev() []string {
+	return s.Kev
+}
+
+// GetNotInstalled returns the value of NotInstalled.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) GetNotInstalled() bool {
+	return s.NotInstalled
+}
+
+// GetProduct returns the value of Product.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) GetProduct() string {
+	return s.Product
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) GetSource() InventoryGetInventoryDevicesOKItemsItemProductSource {
+	return s.Source
+}
+
+// GetVendor returns the value of Vendor.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) GetVendor() string {
+	return s.Vendor
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) GetVersion() NilString {
+	return s.Version
+}
+
+// SetBasis sets the value of Basis.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) SetBasis(val OptInventoryGetInventoryDevicesOKItemsItemProductBasis) {
+	s.Basis = val
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetDisplay sets the value of Display.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) SetID(val string) {
+	s.ID = val
+}
+
+// SetKev sets the value of Kev.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) SetKev(val []string) {
+	s.Kev = val
+}
+
+// SetNotInstalled sets the value of NotInstalled.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) SetNotInstalled(val bool) {
+	s.NotInstalled = val
+}
+
+// SetProduct sets the value of Product.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) SetSource(val InventoryGetInventoryDevicesOKItemsItemProductSource) {
+	s.Source = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) SetVendor(val string) {
+	s.Vendor = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventoryDevicesOKItemsItemProduct) SetVersion(val NilString) {
+	s.Version = val
+}
+
+// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
+type InventoryGetInventoryDevicesOKItemsItemProductBasis string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemProductBasisStated    InventoryGetInventoryDevicesOKItemsItemProductBasis = "stated"
+	InventoryGetInventoryDevicesOKItemsItemProductBasisStatedWeb InventoryGetInventoryDevicesOKItemsItemProductBasis = "stated_web"
+	InventoryGetInventoryDevicesOKItemsItemProductBasisStatedSip InventoryGetInventoryDevicesOKItemsItemProductBasis = "stated_sip"
+	InventoryGetInventoryDevicesOKItemsItemProductBasisGuess     InventoryGetInventoryDevicesOKItemsItemProductBasis = "guess"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemProductBasis values.
+func (InventoryGetInventoryDevicesOKItemsItemProductBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemProductBasis {
+	return []InventoryGetInventoryDevicesOKItemsItemProductBasis{
+		InventoryGetInventoryDevicesOKItemsItemProductBasisStated,
+		InventoryGetInventoryDevicesOKItemsItemProductBasisStatedWeb,
+		InventoryGetInventoryDevicesOKItemsItemProductBasisStatedSip,
+		InventoryGetInventoryDevicesOKItemsItemProductBasisGuess,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemProductBasis) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemProductBasisStated:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemProductBasisStatedWeb:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemProductBasisStatedSip:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemProductBasisGuess:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemProductBasis) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemProductBasis(data) {
+	case InventoryGetInventoryDevicesOKItemsItemProductBasisStated:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductBasisStated
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemProductBasisStatedWeb:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductBasisStatedWeb
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemProductBasisStatedSip:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductBasisStatedSip
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemProductBasisGuess:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductBasisGuess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesOKItemsItemProductSource string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemProductSourceManual   InventoryGetInventoryDevicesOKItemsItemProductSource = "manual"
+	InventoryGetInventoryDevicesOKItemsItemProductSourceDeclared InventoryGetInventoryDevicesOKItemsItemProductSource = "declared"
+	InventoryGetInventoryDevicesOKItemsItemProductSourceAgent    InventoryGetInventoryDevicesOKItemsItemProductSource = "agent"
+	InventoryGetInventoryDevicesOKItemsItemProductSourceSnmp     InventoryGetInventoryDevicesOKItemsItemProductSource = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemProductSourceNmap     InventoryGetInventoryDevicesOKItemsItemProductSource = "nmap"
+	InventoryGetInventoryDevicesOKItemsItemProductSourcePassive  InventoryGetInventoryDevicesOKItemsItemProductSource = "passive"
+	InventoryGetInventoryDevicesOKItemsItemProductSourceScan     InventoryGetInventoryDevicesOKItemsItemProductSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemProductSource values.
+func (InventoryGetInventoryDevicesOKItemsItemProductSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemProductSource {
+	return []InventoryGetInventoryDevicesOKItemsItemProductSource{
+		InventoryGetInventoryDevicesOKItemsItemProductSourceManual,
+		InventoryGetInventoryDevicesOKItemsItemProductSourceDeclared,
+		InventoryGetInventoryDevicesOKItemsItemProductSourceAgent,
+		InventoryGetInventoryDevicesOKItemsItemProductSourceSnmp,
+		InventoryGetInventoryDevicesOKItemsItemProductSourceNmap,
+		InventoryGetInventoryDevicesOKItemsItemProductSourcePassive,
+		InventoryGetInventoryDevicesOKItemsItemProductSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemProductSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceDeclared:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemProductSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemProductSource(data) {
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceManual:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductSourceManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceDeclared:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductSourceDeclared
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceAgent:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceSnmp:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceNmap:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourcePassive:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemProductSourceScan:
+		*s = InventoryGetInventoryDevicesOKItemsItemProductSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Per-device override of the type setting for regular scans after the one gentle scan; never = never
 // actively scanned again, for every kind of device.
 type InventoryGetInventoryDevicesOKItemsItemRegularScan string
@@ -161302,216 +161851,6 @@ func (s *InventoryGetInventoryDevicesOKItemsItemScanSource) UnmarshalText(data [
 	}
 }
 
-type InventoryGetInventoryDevicesOKItemsItemServicesItem struct {
-	Confidence float64 `json:"confidence"`
-	// What the service said about the device besides product and version: nmap extra info and device type,
-	// page title, certificate subject. Evidence only, never software.
-	Detail  OptString                                                 `json:"detail"`
-	Name    string                                                    `json:"name"`
-	Port    int                                                       `json:"port"`
-	Product OptString                                                 `json:"product"`
-	Proto   InventoryGetInventoryDevicesOKItemsItemServicesItemProto  `json:"proto"`
-	Source  InventoryGetInventoryDevicesOKItemsItemServicesItemSource `json:"source"`
-	Version OptString                                                 `json:"version"`
-}
-
-// GetConfidence returns the value of Confidence.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetConfidence() float64 {
-	return s.Confidence
-}
-
-// GetDetail returns the value of Detail.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetDetail() OptString {
-	return s.Detail
-}
-
-// GetName returns the value of Name.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetName() string {
-	return s.Name
-}
-
-// GetPort returns the value of Port.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetPort() int {
-	return s.Port
-}
-
-// GetProduct returns the value of Product.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetProduct() OptString {
-	return s.Product
-}
-
-// GetProto returns the value of Proto.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetProto() InventoryGetInventoryDevicesOKItemsItemServicesItemProto {
-	return s.Proto
-}
-
-// GetSource returns the value of Source.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetSource() InventoryGetInventoryDevicesOKItemsItemServicesItemSource {
-	return s.Source
-}
-
-// GetVersion returns the value of Version.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) GetVersion() OptString {
-	return s.Version
-}
-
-// SetConfidence sets the value of Confidence.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) SetConfidence(val float64) {
-	s.Confidence = val
-}
-
-// SetDetail sets the value of Detail.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) SetDetail(val OptString) {
-	s.Detail = val
-}
-
-// SetName sets the value of Name.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) SetName(val string) {
-	s.Name = val
-}
-
-// SetPort sets the value of Port.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) SetPort(val int) {
-	s.Port = val
-}
-
-// SetProduct sets the value of Product.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) SetProduct(val OptString) {
-	s.Product = val
-}
-
-// SetProto sets the value of Proto.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) SetProto(val InventoryGetInventoryDevicesOKItemsItemServicesItemProto) {
-	s.Proto = val
-}
-
-// SetSource sets the value of Source.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) SetSource(val InventoryGetInventoryDevicesOKItemsItemServicesItemSource) {
-	s.Source = val
-}
-
-// SetVersion sets the value of Version.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItem) SetVersion(val OptString) {
-	s.Version = val
-}
-
-type InventoryGetInventoryDevicesOKItemsItemServicesItemProto string
-
-const (
-	InventoryGetInventoryDevicesOKItemsItemServicesItemProtoTCP InventoryGetInventoryDevicesOKItemsItemServicesItemProto = "tcp"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemProtoUDP InventoryGetInventoryDevicesOKItemsItemServicesItemProto = "udp"
-)
-
-// AllValues returns all InventoryGetInventoryDevicesOKItemsItemServicesItemProto values.
-func (InventoryGetInventoryDevicesOKItemsItemServicesItemProto) AllValues() []InventoryGetInventoryDevicesOKItemsItemServicesItemProto {
-	return []InventoryGetInventoryDevicesOKItemsItemServicesItemProto{
-		InventoryGetInventoryDevicesOKItemsItemServicesItemProtoTCP,
-		InventoryGetInventoryDevicesOKItemsItemServicesItemProtoUDP,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s InventoryGetInventoryDevicesOKItemsItemServicesItemProto) MarshalText() ([]byte, error) {
-	switch s {
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemProtoTCP:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemProtoUDP:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItemProto) UnmarshalText(data []byte) error {
-	switch InventoryGetInventoryDevicesOKItemsItemServicesItemProto(data) {
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemProtoTCP:
-		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemProtoTCP
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemProtoUDP:
-		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemProtoUDP
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type InventoryGetInventoryDevicesOKItemsItemServicesItemSource string
-
-const (
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual   InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "manual"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "declared"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent    InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "agent"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceSnmp     InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "snmp"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceNmap     InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "nmap"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourcePassive  InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "passive"
-	InventoryGetInventoryDevicesOKItemsItemServicesItemSourceScan     InventoryGetInventoryDevicesOKItemsItemServicesItemSource = "scan"
-)
-
-// AllValues returns all InventoryGetInventoryDevicesOKItemsItemServicesItemSource values.
-func (InventoryGetInventoryDevicesOKItemsItemServicesItemSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemServicesItemSource {
-	return []InventoryGetInventoryDevicesOKItemsItemServicesItemSource{
-		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual,
-		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared,
-		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent,
-		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceSnmp,
-		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceNmap,
-		InventoryGetInventoryDevicesOKItemsItemServicesItemSourcePassive,
-		InventoryGetInventoryDevicesOKItemsItemServicesItemSourceScan,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s InventoryGetInventoryDevicesOKItemsItemServicesItemSource) MarshalText() ([]byte, error) {
-	switch s {
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceSnmp:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceNmap:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourcePassive:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceScan:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *InventoryGetInventoryDevicesOKItemsItemServicesItemSource) UnmarshalText(data []byte) error {
-	switch InventoryGetInventoryDevicesOKItemsItemServicesItemSource(data) {
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual:
-		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceManual
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared:
-		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceDeclared
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent:
-		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceAgent
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceSnmp:
-		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceSnmp
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceNmap:
-		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceNmap
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourcePassive:
-		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourcePassive
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemServicesItemSourceScan:
-		*s = InventoryGetInventoryDevicesOKItemsItemServicesItemSourceScan
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
 // The box's SNMP reads of this device, as scan_source (default on for a device a sensor found, off for
 // one added by hand); saving the device's SNMP settings turns it on. Off: no SNMP read goes to it
 // (Check now answers snmp_off, and the device's SNMP says so in blocked).
@@ -161550,259 +161889,6 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSnmpSource) UnmarshalText(data [
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemSnmpSourceOff:
 		*s = InventoryGetInventoryDevicesOKItemsItemSnmpSourceOff
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// One software line of the device (one row per product, or per release train of a product whose trains
-// install side by side), its value the strongest reading; the same line and value on every page, the
-// export and the assistant.
-type InventoryGetInventoryDevicesOKItemsItemSoftwareItem struct {
-	// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
-	Basis      OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis `json:"basis"`
-	Confidence float64                                                     `json:"confidence"`
-	// Commercial name the user recognizes.
-	Display string `json:"display"`
-	ID      string `json:"id"`
-	// KEV match keys: lowercase "vendorproject|product".
-	Kev []string `json:"kev"`
-	// A person said this software is not installed on the device: it matches nothing; what the device runs
-	// (the assistant, MCP) leaves it out and the export marks it.
-	NotInstalled bool                                                      `json:"not_installed"`
-	Product      string                                                    `json:"product"`
-	Source       InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource `json:"source"`
-	Vendor       string                                                    `json:"vendor"`
-	Version      NilString                                                 `json:"version"`
-}
-
-// GetBasis returns the value of Basis.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetBasis() OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis {
-	return s.Basis
-}
-
-// GetConfidence returns the value of Confidence.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetConfidence() float64 {
-	return s.Confidence
-}
-
-// GetDisplay returns the value of Display.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetDisplay() string {
-	return s.Display
-}
-
-// GetID returns the value of ID.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetID() string {
-	return s.ID
-}
-
-// GetKev returns the value of Kev.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetKev() []string {
-	return s.Kev
-}
-
-// GetNotInstalled returns the value of NotInstalled.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetNotInstalled() bool {
-	return s.NotInstalled
-}
-
-// GetProduct returns the value of Product.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetProduct() string {
-	return s.Product
-}
-
-// GetSource returns the value of Source.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetSource() InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource {
-	return s.Source
-}
-
-// GetVendor returns the value of Vendor.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetVendor() string {
-	return s.Vendor
-}
-
-// GetVersion returns the value of Version.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) GetVersion() NilString {
-	return s.Version
-}
-
-// SetBasis sets the value of Basis.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetBasis(val OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) {
-	s.Basis = val
-}
-
-// SetConfidence sets the value of Confidence.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetConfidence(val float64) {
-	s.Confidence = val
-}
-
-// SetDisplay sets the value of Display.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetDisplay(val string) {
-	s.Display = val
-}
-
-// SetID sets the value of ID.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetID(val string) {
-	s.ID = val
-}
-
-// SetKev sets the value of Kev.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetKev(val []string) {
-	s.Kev = val
-}
-
-// SetNotInstalled sets the value of NotInstalled.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetNotInstalled(val bool) {
-	s.NotInstalled = val
-}
-
-// SetProduct sets the value of Product.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetProduct(val string) {
-	s.Product = val
-}
-
-// SetSource sets the value of Source.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetSource(val InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) {
-	s.Source = val
-}
-
-// SetVendor sets the value of Vendor.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetVendor(val string) {
-	s.Vendor = val
-}
-
-// SetVersion sets the value of Version.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItem) SetVersion(val NilString) {
-	s.Version = val
-}
-
-// Guess on the row of nmap's OS fingerprint (no version, no match key); absent otherwise.
-type InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis string
-
-const (
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated    InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "stated"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "stated_web"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "stated_sip"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess     InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis = "guess"
-)
-
-// AllValues returns all InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis values.
-func (InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) AllValues() []InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis {
-	return []InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis{
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated,
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb,
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip,
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) MarshalText() ([]byte, error) {
-	switch s {
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) UnmarshalText(data []byte) error {
-	switch InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis(data) {
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStated
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedWeb
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisStatedSip
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasisGuess
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-type InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource string
-
-const (
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual   InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "manual"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "declared"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent    InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "agent"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceSnmp     InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "snmp"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceNmap     InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "nmap"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourcePassive  InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "passive"
-	InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceScan     InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource = "scan"
-)
-
-// AllValues returns all InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource values.
-func (InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) AllValues() []InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource {
-	return []InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource{
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual,
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared,
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent,
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceSnmp,
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceNmap,
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourcePassive,
-		InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceScan,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) MarshalText() ([]byte, error) {
-	switch s {
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceSnmp:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceNmap:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourcePassive:
-		return []byte(s), nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceScan:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) UnmarshalText(data []byte) error {
-	switch InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource(data) {
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceManual
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceDeclared
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceAgent
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceSnmp:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceSnmp
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceNmap:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceNmap
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourcePassive:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourcePassive
-		return nil
-	case InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceScan:
-		*s = InventoryGetInventoryDevicesOKItemsItemSoftwareItemSourceScan
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -162186,6 +162272,87 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendorSource) UnmarshalText(data
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// The 12 software names most of the listed devices run (most devices first, then by name), for the
+// search's software: suggestions; declared software with no device is left out.
+type InventoryGetInventoryDevicesOKTopSoftware struct {
+	// Over the listed devices that are approved or quiet.
+	Devices []InventoryGetInventoryDevicesOKTopSoftwareDevicesItem `json:"devices"`
+	// Over the listed devices that are To review.
+	Review []InventoryGetInventoryDevicesOKTopSoftwareReviewItem `json:"review"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *InventoryGetInventoryDevicesOKTopSoftware) GetDevices() []InventoryGetInventoryDevicesOKTopSoftwareDevicesItem {
+	return s.Devices
+}
+
+// GetReview returns the value of Review.
+func (s *InventoryGetInventoryDevicesOKTopSoftware) GetReview() []InventoryGetInventoryDevicesOKTopSoftwareReviewItem {
+	return s.Review
+}
+
+// SetDevices sets the value of Devices.
+func (s *InventoryGetInventoryDevicesOKTopSoftware) SetDevices(val []InventoryGetInventoryDevicesOKTopSoftwareDevicesItem) {
+	s.Devices = val
+}
+
+// SetReview sets the value of Review.
+func (s *InventoryGetInventoryDevicesOKTopSoftware) SetReview(val []InventoryGetInventoryDevicesOKTopSoftwareReviewItem) {
+	s.Review = val
+}
+
+type InventoryGetInventoryDevicesOKTopSoftwareDevicesItem struct {
+	// Devices with a software line of this name.
+	Count int    `json:"count"`
+	Name  string `json:"name"`
+}
+
+// GetCount returns the value of Count.
+func (s *InventoryGetInventoryDevicesOKTopSoftwareDevicesItem) GetCount() int {
+	return s.Count
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesOKTopSoftwareDevicesItem) GetName() string {
+	return s.Name
+}
+
+// SetCount sets the value of Count.
+func (s *InventoryGetInventoryDevicesOKTopSoftwareDevicesItem) SetCount(val int) {
+	s.Count = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesOKTopSoftwareDevicesItem) SetName(val string) {
+	s.Name = val
+}
+
+type InventoryGetInventoryDevicesOKTopSoftwareReviewItem struct {
+	// Devices with a software line of this name.
+	Count int    `json:"count"`
+	Name  string `json:"name"`
+}
+
+// GetCount returns the value of Count.
+func (s *InventoryGetInventoryDevicesOKTopSoftwareReviewItem) GetCount() int {
+	return s.Count
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesOKTopSoftwareReviewItem) GetName() string {
+	return s.Name
+}
+
+// SetCount sets the value of Count.
+func (s *InventoryGetInventoryDevicesOKTopSoftwareReviewItem) SetCount(val int) {
+	s.Count = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesOKTopSoftwareReviewItem) SetName(val string) {
+	s.Name = val
 }
 
 // True: the Devices list (approved, and quiet private-address devices); false: To review (not
@@ -197396,6 +197563,51 @@ func (o NilInventoryGetInventoryDevicesOKItemsItemOs) Or(d InventoryGetInventory
 	return d
 }
 
+// NewNilInventoryGetInventoryDevicesOKItemsItemProduct returns new NilInventoryGetInventoryDevicesOKItemsItemProduct with value set to v.
+func NewNilInventoryGetInventoryDevicesOKItemsItemProduct(v InventoryGetInventoryDevicesOKItemsItemProduct) NilInventoryGetInventoryDevicesOKItemsItemProduct {
+	return NilInventoryGetInventoryDevicesOKItemsItemProduct{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesOKItemsItemProduct is nullable InventoryGetInventoryDevicesOKItemsItemProduct.
+type NilInventoryGetInventoryDevicesOKItemsItemProduct struct {
+	Value InventoryGetInventoryDevicesOKItemsItemProduct
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesOKItemsItemProduct) SetTo(v InventoryGetInventoryDevicesOKItemsItemProduct) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesOKItemsItemProduct) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesOKItemsItemProduct) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesOKItemsItemProduct
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesOKItemsItemProduct) Get() (v InventoryGetInventoryDevicesOKItemsItemProduct, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesOKItemsItemProduct) Or(d InventoryGetInventoryDevicesOKItemsItemProduct) InventoryGetInventoryDevicesOKItemsItemProduct {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryGetInventoryDevicesOKItemsItemRisk returns new NilInventoryGetInventoryDevicesOKItemsItemRisk with value set to v.
 func NewNilInventoryGetInventoryDevicesOKItemsItemRisk(v InventoryGetInventoryDevicesOKItemsItemRisk) NilInventoryGetInventoryDevicesOKItemsItemRisk {
 	return NilInventoryGetInventoryDevicesOKItemsItemRisk{
@@ -216252,6 +216464,54 @@ func (o OptInventoryGetInventoryDevicesIgnored) Or(d InventoryGetInventoryDevice
 	return d
 }
 
+// NewOptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis returns new OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis(v InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis {
+	return OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis is optional InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis.
+type OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis struct {
+	Value InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) IsSet() bool {
+	return o.Set
+}
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) Reset() {
+	var v InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) SetTo(v InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) Get() (v InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) Or(d InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis) InventoryGetInventoryDevicesOKItemsItemMatchedSoftwareItemBasis {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptInventoryGetInventoryDevicesOKItemsItemModelBasis returns new OptInventoryGetInventoryDevicesOKItemsItemModelBasis with value set to v.
 func NewOptInventoryGetInventoryDevicesOKItemsItemModelBasis(v InventoryGetInventoryDevicesOKItemsItemModelBasis) OptInventoryGetInventoryDevicesOKItemsItemModelBasis {
 	return OptInventoryGetInventoryDevicesOKItemsItemModelBasis{
@@ -216344,38 +216604,38 @@ func (o OptInventoryGetInventoryDevicesOKItemsItemOsBasis) Or(d InventoryGetInve
 	return d
 }
 
-// NewOptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis returns new OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis with value set to v.
-func NewOptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis(v InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis {
-	return OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis{
+// NewOptInventoryGetInventoryDevicesOKItemsItemProductBasis returns new OptInventoryGetInventoryDevicesOKItemsItemProductBasis with value set to v.
+func NewOptInventoryGetInventoryDevicesOKItemsItemProductBasis(v InventoryGetInventoryDevicesOKItemsItemProductBasis) OptInventoryGetInventoryDevicesOKItemsItemProductBasis {
+	return OptInventoryGetInventoryDevicesOKItemsItemProductBasis{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis is optional InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis.
-type OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis struct {
-	Value InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis
+// OptInventoryGetInventoryDevicesOKItemsItemProductBasis is optional InventoryGetInventoryDevicesOKItemsItemProductBasis.
+type OptInventoryGetInventoryDevicesOKItemsItemProductBasis struct {
+	Value InventoryGetInventoryDevicesOKItemsItemProductBasis
 	Set   bool
 }
 
-// IsSet returns true if OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis was set.
-func (o OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) IsSet() bool { return o.Set }
+// IsSet returns true if OptInventoryGetInventoryDevicesOKItemsItemProductBasis was set.
+func (o OptInventoryGetInventoryDevicesOKItemsItemProductBasis) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Reset() {
-	var v InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis
+func (o *OptInventoryGetInventoryDevicesOKItemsItemProductBasis) Reset() {
+	var v InventoryGetInventoryDevicesOKItemsItemProductBasis
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) SetTo(v InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) {
+func (o *OptInventoryGetInventoryDevicesOKItemsItemProductBasis) SetTo(v InventoryGetInventoryDevicesOKItemsItemProductBasis) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Get() (v InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis, ok bool) {
+func (o OptInventoryGetInventoryDevicesOKItemsItemProductBasis) Get() (v InventoryGetInventoryDevicesOKItemsItemProductBasis, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -216383,7 +216643,7 @@ func (o OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Get() (v In
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptInventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) Or(d InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis) InventoryGetInventoryDevicesOKItemsItemSoftwareItemBasis {
+func (o OptInventoryGetInventoryDevicesOKItemsItemProductBasis) Or(d InventoryGetInventoryDevicesOKItemsItemProductBasis) InventoryGetInventoryDevicesOKItemsItemProductBasis {
 	if v, ok := o.Get(); ok {
 		return v
 	}

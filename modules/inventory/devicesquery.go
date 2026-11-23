@@ -33,6 +33,20 @@ type DeviceFilter struct {
 	Sources []string // SourceWords
 	Risks   []string // RiskLevels
 	Q       string   // free text: name, IP, MAC (any notation), vendor, model
+	// Software keeps the devices with a software line whose "name vendor product" holds one of these words (lower case): the
+	// search's software: (SoftwareWords). GET /inventory/devices then lists the matching lines of each row.
+	Software []string
+}
+
+// SoftwareWords reads the software filter: comma-separated words, lower case, each once, at most 80 characters each.
+func SoftwareWords(v string) ([]string, error) {
+	words := listFilter(v)
+	for _, w := range words {
+		if len([]rune(w)) > 80 {
+			return nil, badFilter("Search software for at most 80 characters.")
+		}
+	}
+	return words, nil
 }
 
 func badFilter(msg string) *apierr.Error { return apierr.New(400, "bad_filter", msg) }

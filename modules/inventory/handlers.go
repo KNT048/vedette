@@ -58,11 +58,14 @@ func (h *Handlers) InventoryGetInventoryDevices(ctx context.Context, p oas.Inven
 	if err != nil {
 		return nil, err
 	}
+	if f.Software, err = SoftwareWords(p.Software.Value); err != nil {
+		return nil, err
+	}
 	l, err := h.svc.DevicesPage(ctx, f)
 	if err != nil {
 		return nil, err
 	}
-	return convert[oas.InventoryGetInventoryDevicesOK](l)
+	return convert[oas.InventoryGetInventoryDevicesOK](listPage(l, f.Software))
 }
 
 // InventoryGetInventoryDevicesID implements GET /inventory/devices/{id} (viewer).
@@ -332,6 +335,9 @@ func (h *Handlers) InventoryGetInventoryExportCsv(ctx context.Context, p oas.Inv
 	}
 	f, err := ParseDeviceSearch(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), string(p.Ignored.Value), p.Type.Value, p.Source.Value, p.Risk.Value, p.Q.Value)
 	if err != nil {
+		return oas.InventoryGetInventoryExportCsvOK{}, err
+	}
+	if f.Software, err = SoftwareWords(p.Software.Value); err != nil {
 		return oas.InventoryGetInventoryExportCsvOK{}, err
 	}
 	r, err := h.svc.ExportCSV(ctx, who, f)

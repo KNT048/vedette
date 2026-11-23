@@ -10485,6 +10485,7 @@ type InventoryGetInventoryDevicesParams struct {
 	HasFindings OptInventoryGetInventoryDevicesHasFindings `json:",omitempty,omitzero"`
 	Risk        OptString                                  `json:",omitempty,omitzero"`
 	Q           OptString                                  `json:",omitempty,omitzero"`
+	Software    OptString                                  `json:",omitempty,omitzero"`
 }
 
 func unpackInventoryGetInventoryDevicesParams(packed middleware.Parameters) (params InventoryGetInventoryDevicesParams) {
@@ -10558,6 +10559,15 @@ func unpackInventoryGetInventoryDevicesParams(packed middleware.Parameters) (par
 		}
 		if v, ok := packed[key]; ok {
 			params.Q = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "software",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Software = v.(OptString)
 		}
 	}
 	return params
@@ -11061,6 +11071,74 @@ func decodeInventoryGetInventoryDevicesParams(args [0]string, argsEscaped bool, 
 			Err:  err,
 		}
 	}
+	// Decode query: software.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "software",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSoftwareVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSoftwareVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Software.SetTo(paramsDotSoftwareVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Software.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     400,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "software",
+			In:   "query",
+			Err:  err,
+		}
+	}
 	return params, nil
 }
 
@@ -11204,6 +11282,7 @@ type InventoryGetInventoryExportCsvParams struct {
 	HasFindings OptInventoryGetInventoryExportCsvHasFindings `json:",omitempty,omitzero"`
 	Risk        OptString                                    `json:",omitempty,omitzero"`
 	Q           OptString                                    `json:",omitempty,omitzero"`
+	Software    OptString                                    `json:",omitempty,omitzero"`
 }
 
 func unpackInventoryGetInventoryExportCsvParams(packed middleware.Parameters) (params InventoryGetInventoryExportCsvParams) {
@@ -11277,6 +11356,15 @@ func unpackInventoryGetInventoryExportCsvParams(packed middleware.Parameters) (p
 		}
 		if v, ok := packed[key]; ok {
 			params.Q = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "software",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Software = v.(OptString)
 		}
 	}
 	return params
@@ -11776,6 +11864,74 @@ func decodeInventoryGetInventoryExportCsvParams(args [0]string, argsEscaped bool
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "q",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: software.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "software",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotSoftwareVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotSoftwareVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Software.SetTo(paramsDotSoftwareVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Software.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     400,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "software",
 			In:   "query",
 			Err:  err,
 		}

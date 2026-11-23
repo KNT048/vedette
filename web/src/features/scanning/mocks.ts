@@ -81,6 +81,27 @@ function live(): Run[] {
   return out
 }
 
+/** Queues a run a person asked for (behind the last one going, saying so) with its History rows; returns its id. */
+function queueRun(picked: Array<{ id: string; ip: string; services: Parameters<typeof checkText>[1] }>, ranges: string[]): string {
+  const started = nowIso()
+  const last = runs.get().filter((r) => r.ends_ms > Date.now()).at(-1)
+  const begins = Math.max(Date.parse(started), last?.ends_ms ?? 0)
+  const run: Run & { ends_ms: number; starts_ms?: number; behind?: string } = {
+    engine: 'nmap-discovery', id: newId('sar'), started_at: started, progress: null,
+    label: picked.length === 0 ? `LAN sweep ${ranges.join(', ')}` : picked.length === 1 ? `Check ${picked[0]!.ip}` : `Check ${picked.length} devices`,
+    target_id: picked.length === 1 ? picked[0]!.id : null, ends_ms: begins + RUN_MS * Math.max(1, picked.length),
+    ...(last ? { starts_ms: begins, behind: last.label } : {}),
+  }
+  runs.set([...runs.get(), run])
+  // its jobs as History lists them: one per device checked, or the sweep (the mock ends them at once)
+  const rows: HistoryRow[] = picked.length
+    ? picked.map((a) => ({ id: newId('saj'), kind: 'device' as const, engine: 'nmap-versions' as const, trigger: 'person' as const, label: a.ip, target_id: null, started_at: started, ended_at: started, outcome: 'ok' as const, text: checkText(a.ip, a.services) }))
+    : [{ id: newId('saj'), kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: `LAN sweep of ${ranges.join(', ')}`, target_id: null, started_at: started, ended_at: started, outcome: 'ok', text: `Swept ${ranges.length * 254} addresses: 0 hosts answered, 0 new devices` }]
+  historyStore.set([...rows, ...historyStore.get()])
+  rows.forEach((r) => { if (r.kind === 'device') markReached(r.id, [r.label]) })
+  return run.id
+}
+
 function enabled(d: Def): boolean {
   const st = inventorySettingsStore.get()
   if (d.module === 'sensor-active') return isOn('sensor-active') && st.active.enabled
@@ -534,24 +555,9 @@ export const handlers = [
       if (st.active.exclusions.includes(a.ip)) return fail(400, 'out_of_scope', `${a.ip} is outside the confirmed scope or excluded.`, { target: t })
       picked.push(a)
     }
+    // asked again: the run it already has, nothing new
     const same = picked.length === 1 ? runs.get().find((r) => r.target_id === picked[0]!.id && r.ends_ms > Date.now()) : undefined
-    if (same) return HttpResponse.json(going.find((r) => r.id === same.id) ?? same, { status: 202 }) // asked again: the run it has
-    const started = nowIso()
-    const last = runs.get().filter((r) => r.ends_ms > Date.now()).at(-1)
-    const begins = Math.max(Date.parse(started), last?.ends_ms ?? 0)
-    const run: Run & { ends_ms: number; starts_ms?: number; behind?: string } = {
-      engine: 'nmap-discovery', id: newId('sar'), started_at: started, progress: null,
-      label: picked.length === 0 ? `LAN sweep ${st.lan_ranges.join(', ')}` : picked.length === 1 ? `Check ${picked[0]!.ip}` : `Check ${picked.length} devices`,
-      target_id: picked.length === 1 ? picked[0]!.id : null, ends_ms: begins + RUN_MS * Math.max(1, picked.length),
-      ...(last ? { starts_ms: begins, behind: last.label } : {}),
-    }
-    runs.set([...runs.get(), run])
-    // its jobs as History lists them: one per device checked, or the sweep (the mock ends them at once)
-    const rows: HistoryRow[] = picked.length
-      ? picked.map((a) => ({ id: newId('saj'), kind: 'device' as const, engine: 'nmap-versions' as const, trigger: 'person' as const, label: a.ip, target_id: null, started_at: started, ended_at: started, outcome: 'ok' as const, text: checkText(a.ip, a.services) }))
-      : [{ id: newId('saj'), kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: `LAN sweep of ${st.lan_ranges.join(', ')}`, target_id: null, started_at: started, ended_at: started, outcome: 'ok', text: `Swept ${st.lan_ranges.length * 254} addresses: 0 hosts answered, 0 new devices` }]
-    historyStore.set([...rows, ...historyStore.get()])
-    rows.forEach((r) => { if (r.kind === 'device') markReached(r.id, [r.label]) })
-    return HttpResponse.json(discoveryRuns().find((r) => r.id === run.id), { status: 202 })
+    const id = same?.id ?? queueRun(picked, st.lan_ranges)
+    return HttpResponse.json(discoveryRuns().find((r) => r.id === id), { status: 202 })
   }),
 ]

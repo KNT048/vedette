@@ -28,10 +28,14 @@ const (
 // DefaultSchedule is the schedule a target gets when it is added: weekly, Monday at 02:30, inside the box's scan window.
 func DefaultSchedule() schedule.Rule { return schedule.WeeklyAt("02:30", 1).InWindow() }
 
-// registerSchedules registers the owner of the targets' schedules. Without a schedule service no target is scanned by itself.
+// registerSchedules registers both schedule owners of the module: the targets' scans and the public IP detection. A service built
+// with Schedules always has both. Without a schedule service no target is scanned by itself.
 func (s *Service) registerSchedules() error {
 	if s.cfg.Schedules == nil {
 		return nil
+	}
+	if err := s.cfg.Schedules.Register(s.PublicIPScheduleOwner()); err != nil {
+		return err
 	}
 	return s.cfg.Schedules.Register(schedule.Owner{
 		Module: ModuleID, Key: ScheduleOwner, PerSubject: true, AdminOnly: true, Default: DefaultSchedule(),

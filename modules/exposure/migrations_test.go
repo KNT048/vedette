@@ -82,3 +82,18 @@ func newDB(t *testing.T) *store.DB {
 	}
 	return db
 }
+
+// The public IP detection's interval and switch live in core/schedule: no table of this module keeps a column for them.
+func TestMigrations_ScheduleColumnsAreGone(t *testing.T) {
+	t.Parallel()
+	db := newDB(t)
+	for _, col := range []string{"interval_min", "auto"} {
+		var n int
+		if err := db.Reader().QueryRowContext(t.Context(), `SELECT count(*) FROM pragma_table_info('exp_setting') WHERE name = ?`, col).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		if n != 0 {
+			t.Errorf("exp_setting still has the column %s", col)
+		}
+	}
+}

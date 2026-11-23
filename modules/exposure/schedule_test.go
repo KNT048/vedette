@@ -264,3 +264,17 @@ func TestSchedule_AQueuedScanStopsWhenTheTermsAreWithdrawn(t *testing.T) {
 	default:
 	}
 }
+
+// A service built with Schedules owns both of the module's schedules: registering either owner again is refused as a duplicate.
+func TestNewService_RegistersBothScheduleOwners(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	for name, o := range map[string]schedule.Owner{
+		"public IP detection": e.svc.PublicIPScheduleOwner(),
+		"target scans":        {Module: ModuleID, Key: ScheduleOwner, PerSubject: true, Default: DefaultSchedule(), Start: e.svc.startScheduled},
+	} {
+		if err := e.sched.Register(o); err == nil || !strings.Contains(err.Error(), "registered twice") {
+			t.Errorf("%s: the service did not register its owner: %v", name, err)
+		}
+	}
+}

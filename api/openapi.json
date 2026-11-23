@@ -74771,6 +74771,12 @@
                             }
                           ],
                           "description": "Median days from first seen to handled, of the findings patched or mitigated in the period; null when none"
+                        },
+                        "not_relevant_left_out": {
+                          "description": "Findings closed as not relevant in the period that this report leaves out (\"Include not relevant\" off): why its count is lower than Findings › Handled. Absent when none, and in documents sent before it existed",
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
                         }
                       },
                       "required": [
@@ -76923,6 +76929,12 @@
                                 }
                               ],
                               "description": "Median days from first seen to handled, of the findings patched or mitigated in the period; null when none"
+                            },
+                            "not_relevant_left_out": {
+                              "description": "Findings closed as not relevant in the period that this report leaves out (\"Include not relevant\" off): why its count is lower than Findings › Handled. Absent when none, and in documents sent before it existed",
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
                             }
                           },
                           "required": [

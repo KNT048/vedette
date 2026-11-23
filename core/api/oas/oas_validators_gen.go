@@ -90600,6 +90600,34 @@ func (s *ReportsGetReportsDocumentOKHandled) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.NotRelevantLeftOut.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "not_relevant_left_out",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Totals == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -94625,6 +94653,34 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandled) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "more",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.NotRelevantLeftOut.Get(); ok {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           0,
+					MaxSet:        true,
+					Max:           9007199254740991,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(value)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "not_relevant_left_out",
 			Error: err,
 		})
 	}

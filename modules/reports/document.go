@@ -251,6 +251,7 @@ func buildDocument(in docInput) Document {
 		Period: DocPeriod{Kind: o.Period, From: ts(from), To: ts(to), TZ: clip(in.loc.String(), 64)}, Options: o}
 
 	var open, fresh, handled []row
+	leftOut := 0 // closed as not relevant in the period, left out by the option
 	before := 0
 	for _, f := range in.findings {
 		if !o.IncludeNotAdded && !f.Device.Added {
@@ -262,6 +263,7 @@ func buildDocument(in docInput) Document {
 		// handling.
 		if !o.IncludeNotRelevant && r.h.handled != nil && r.h.handled.Resolution == "not_relevant" {
 			if !r.h.openAtTo {
+				leftOut++
 				continue
 			}
 			r.h.handled = nil
@@ -321,6 +323,7 @@ func buildDocument(in docInput) Document {
 	}
 	if s.Handled {
 		doc.Handled = handledOf(handled)
+		doc.Handled.NotRelevantLeftOut = leftOut
 	}
 	if s.Open {
 		doc.Open = openOf(open, o.Grouping, reasons)

@@ -318194,6 +318194,12 @@ func (s *ReportsGetReportsDocumentOKHandled) encodeFields(e *jx.Encoder) {
 		e.Int(s.More)
 	}
 	{
+		if s.NotRelevantLeftOut.Set {
+			e.FieldStart("not_relevant_left_out")
+			s.NotRelevantLeftOut.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("totals")
 		e.ArrStart()
 		for _, elem := range s.Totals {
@@ -318203,11 +318209,12 @@ func (s *ReportsGetReportsDocumentOKHandled) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKHandled = [4]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKHandled = [5]string{
 	0: "devices",
 	1: "median_days",
 	2: "more",
-	3: "totals",
+	3: "not_relevant_left_out",
+	4: "totals",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKHandled from json.
@@ -318259,8 +318266,18 @@ func (s *ReportsGetReportsDocumentOKHandled) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
+		case "not_relevant_left_out":
+			if err := func() error {
+				s.NotRelevantLeftOut.Reset()
+				if err := s.NotRelevantLeftOut.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"not_relevant_left_out\"")
+			}
 		case "totals":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Totals = make([]ReportsGetReportsDocumentOKHandledTotalsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -318287,7 +318304,7 @@ func (s *ReportsGetReportsDocumentOKHandled) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00010111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -327549,6 +327566,12 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandled) encodeFields(e *jx.Encoder
 		e.Int(s.More)
 	}
 	{
+		if s.NotRelevantLeftOut.Set {
+			e.FieldStart("not_relevant_left_out")
+			s.NotRelevantLeftOut.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("totals")
 		e.ArrStart()
 		for _, elem := range s.Totals {
@@ -327558,11 +327581,12 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandled) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandled = [4]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandled = [5]string{
 	0: "devices",
 	1: "median_days",
 	2: "more",
-	3: "totals",
+	3: "not_relevant_left_out",
+	4: "totals",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentHandled from json.
@@ -327614,8 +327638,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandled) Decode(d *jx.Decoder) erro
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
+		case "not_relevant_left_out":
+			if err := func() error {
+				s.NotRelevantLeftOut.Reset()
+				if err := s.NotRelevantLeftOut.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"not_relevant_left_out\"")
+			}
 		case "totals":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Totals = make([]ReportsGetReportsHistoryIDOKDocumentHandledTotalsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -327642,7 +327676,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandled) Decode(d *jx.Decoder) erro
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00010111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

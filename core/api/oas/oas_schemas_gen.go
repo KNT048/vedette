@@ -106946,8 +106946,10 @@ type FindingsGetFindingsOverviewOK struct {
 	Alerts  NilFindingsGetFindingsOverviewOKAlerts `json:"alerts"`
 	Devices FindingsGetFindingsOverviewOKDevices   `json:"devices"`
 	// Fix first: the most urgent fix blocks across devices, then the most findings.
-	First       []FindingsGetFindingsOverviewOKFirstItem `json:"first"`
-	GeneratedAt time.Time                                `json:"generated_at"`
+	First []FindingsGetFindingsOverviewOKFirstItem `json:"first"`
+	// Null when there is none in the last 7 days, or Notifications is off.
+	FirstRunSummary NilFindingsGetFindingsOverviewOKFirstRunSummary `json:"first_run_summary"`
+	GeneratedAt     time.Time                                       `json:"generated_at"`
 	// Null when Notifications is off.
 	Incidents NilFindingsGetFindingsOverviewOKIncidents `json:"incidents"`
 	// The Needs your input queue length.
@@ -106975,6 +106977,11 @@ func (s *FindingsGetFindingsOverviewOK) GetDevices() FindingsGetFindingsOverview
 // GetFirst returns the value of First.
 func (s *FindingsGetFindingsOverviewOK) GetFirst() []FindingsGetFindingsOverviewOKFirstItem {
 	return s.First
+}
+
+// GetFirstRunSummary returns the value of FirstRunSummary.
+func (s *FindingsGetFindingsOverviewOK) GetFirstRunSummary() NilFindingsGetFindingsOverviewOKFirstRunSummary {
+	return s.FirstRunSummary
 }
 
 // GetGeneratedAt returns the value of GeneratedAt.
@@ -107020,6 +107027,11 @@ func (s *FindingsGetFindingsOverviewOK) SetDevices(val FindingsGetFindingsOvervi
 // SetFirst sets the value of First.
 func (s *FindingsGetFindingsOverviewOK) SetFirst(val []FindingsGetFindingsOverviewOKFirstItem) {
 	s.First = val
+}
+
+// SetFirstRunSummary sets the value of FirstRunSummary.
+func (s *FindingsGetFindingsOverviewOK) SetFirstRunSummary(val NilFindingsGetFindingsOverviewOKFirstRunSummary) {
+	s.FirstRunSummary = val
 }
 
 // SetGeneratedAt sets the value of GeneratedAt.
@@ -109175,6 +109187,281 @@ func (s *FindingsGetFindingsOverviewOKFirstItemDeviceKind) UnmarshalText(data []
 		return nil
 	case FindingsGetFindingsOverviewOKFirstItemDeviceKindUnknown:
 		*s = FindingsGetFindingsOverviewOKFirstItemDeviceKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The first-run summary of the newest load made in the last 7 days.
+type FindingsGetFindingsOverviewOKFirstRunSummary struct {
+	// Sent: the channels that delivered it (telegram, slack, zalo, zalo-personal, email, webhook).
+	Channels []string `json:"channels"`
+	// Waiting: when it goes out.
+	DueAt NilDateTime `json:"due_at"`
+	// The first summary of the load (a notice id).
+	ID string `json:"id"`
+	// Summaries of the same load made after the first ("N more urgent findings ... to patch first").
+	Later int `json:"later"`
+	// The newest of them; null when later is 0.
+	LaterTitle NilString `json:"later_title"`
+	// The findings list of every summary of the load: /findings?tab=device&status=.
+	Link string `json:"link"`
+	// Install: Vedette's own first look at the network (the first 36 hours); catalogue: the first load of
+	// its catalogue of vulnerabilities; source: the first load of a source of exploitation news.
+	Load FindingsGetFindingsOverviewOKFirstRunSummaryLoad `json:"load"`
+	// When the summary was made (the first rating of its load).
+	MadeAt time.Time `json:"made_at"`
+	// Not_sent: why, as the alert history says it.
+	NotSent NilString `json:"not_sent"`
+	// Waiting: only quiet hours hold it.
+	Quiet bool `json:"quiet"`
+	// Not_sent: the reason code of the alert history (no_channel, channels_off, below_min_severity,
+	// failed, ...).
+	Reason NilString `json:"reason"`
+	// Sent: the first delivery.
+	SentAt NilDateTime `json:"sent_at"`
+	// Sent: a channel delivered it; waiting: queued (it waits a few minutes for the rest of its load, for
+	// quiet hours, or for the next deliver run); not_sent: no channel took it or every channel failed.
+	State FindingsGetFindingsOverviewOKFirstRunSummaryState `json:"state"`
+	// The first summary's title as the message said it ("Patch first: 7 urgent findings on 3 devices").
+	Title string `json:"title"`
+}
+
+// GetChannels returns the value of Channels.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetChannels() []string {
+	return s.Channels
+}
+
+// GetDueAt returns the value of DueAt.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetDueAt() NilDateTime {
+	return s.DueAt
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetID() string {
+	return s.ID
+}
+
+// GetLater returns the value of Later.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetLater() int {
+	return s.Later
+}
+
+// GetLaterTitle returns the value of LaterTitle.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetLaterTitle() NilString {
+	return s.LaterTitle
+}
+
+// GetLink returns the value of Link.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetLink() string {
+	return s.Link
+}
+
+// GetLoad returns the value of Load.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetLoad() FindingsGetFindingsOverviewOKFirstRunSummaryLoad {
+	return s.Load
+}
+
+// GetMadeAt returns the value of MadeAt.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetMadeAt() time.Time {
+	return s.MadeAt
+}
+
+// GetNotSent returns the value of NotSent.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetNotSent() NilString {
+	return s.NotSent
+}
+
+// GetQuiet returns the value of Quiet.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetQuiet() bool {
+	return s.Quiet
+}
+
+// GetReason returns the value of Reason.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetReason() NilString {
+	return s.Reason
+}
+
+// GetSentAt returns the value of SentAt.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetSentAt() NilDateTime {
+	return s.SentAt
+}
+
+// GetState returns the value of State.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetState() FindingsGetFindingsOverviewOKFirstRunSummaryState {
+	return s.State
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) GetTitle() string {
+	return s.Title
+}
+
+// SetChannels sets the value of Channels.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetChannels(val []string) {
+	s.Channels = val
+}
+
+// SetDueAt sets the value of DueAt.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetDueAt(val NilDateTime) {
+	s.DueAt = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetID(val string) {
+	s.ID = val
+}
+
+// SetLater sets the value of Later.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetLater(val int) {
+	s.Later = val
+}
+
+// SetLaterTitle sets the value of LaterTitle.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetLaterTitle(val NilString) {
+	s.LaterTitle = val
+}
+
+// SetLink sets the value of Link.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetLink(val string) {
+	s.Link = val
+}
+
+// SetLoad sets the value of Load.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetLoad(val FindingsGetFindingsOverviewOKFirstRunSummaryLoad) {
+	s.Load = val
+}
+
+// SetMadeAt sets the value of MadeAt.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetMadeAt(val time.Time) {
+	s.MadeAt = val
+}
+
+// SetNotSent sets the value of NotSent.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetNotSent(val NilString) {
+	s.NotSent = val
+}
+
+// SetQuiet sets the value of Quiet.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetQuiet(val bool) {
+	s.Quiet = val
+}
+
+// SetReason sets the value of Reason.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetReason(val NilString) {
+	s.Reason = val
+}
+
+// SetSentAt sets the value of SentAt.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetSentAt(val NilDateTime) {
+	s.SentAt = val
+}
+
+// SetState sets the value of State.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetState(val FindingsGetFindingsOverviewOKFirstRunSummaryState) {
+	s.State = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummary) SetTitle(val string) {
+	s.Title = val
+}
+
+// Install: Vedette's own first look at the network (the first 36 hours); catalogue: the first load of
+// its catalogue of vulnerabilities; source: the first load of a source of exploitation news.
+type FindingsGetFindingsOverviewOKFirstRunSummaryLoad string
+
+const (
+	FindingsGetFindingsOverviewOKFirstRunSummaryLoadInstall   FindingsGetFindingsOverviewOKFirstRunSummaryLoad = "install"
+	FindingsGetFindingsOverviewOKFirstRunSummaryLoadCatalogue FindingsGetFindingsOverviewOKFirstRunSummaryLoad = "catalogue"
+	FindingsGetFindingsOverviewOKFirstRunSummaryLoadSource    FindingsGetFindingsOverviewOKFirstRunSummaryLoad = "source"
+)
+
+// AllValues returns all FindingsGetFindingsOverviewOKFirstRunSummaryLoad values.
+func (FindingsGetFindingsOverviewOKFirstRunSummaryLoad) AllValues() []FindingsGetFindingsOverviewOKFirstRunSummaryLoad {
+	return []FindingsGetFindingsOverviewOKFirstRunSummaryLoad{
+		FindingsGetFindingsOverviewOKFirstRunSummaryLoadInstall,
+		FindingsGetFindingsOverviewOKFirstRunSummaryLoadCatalogue,
+		FindingsGetFindingsOverviewOKFirstRunSummaryLoadSource,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOverviewOKFirstRunSummaryLoad) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOverviewOKFirstRunSummaryLoadInstall:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstRunSummaryLoadCatalogue:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstRunSummaryLoadSource:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummaryLoad) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOverviewOKFirstRunSummaryLoad(data) {
+	case FindingsGetFindingsOverviewOKFirstRunSummaryLoadInstall:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryLoadInstall
+		return nil
+	case FindingsGetFindingsOverviewOKFirstRunSummaryLoadCatalogue:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryLoadCatalogue
+		return nil
+	case FindingsGetFindingsOverviewOKFirstRunSummaryLoadSource:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryLoadSource
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Sent: a channel delivered it; waiting: queued (it waits a few minutes for the rest of its load, for
+// quiet hours, or for the next deliver run); not_sent: no channel took it or every channel failed.
+type FindingsGetFindingsOverviewOKFirstRunSummaryState string
+
+const (
+	FindingsGetFindingsOverviewOKFirstRunSummaryStateSent    FindingsGetFindingsOverviewOKFirstRunSummaryState = "sent"
+	FindingsGetFindingsOverviewOKFirstRunSummaryStateWaiting FindingsGetFindingsOverviewOKFirstRunSummaryState = "waiting"
+	FindingsGetFindingsOverviewOKFirstRunSummaryStateNotSent FindingsGetFindingsOverviewOKFirstRunSummaryState = "not_sent"
+)
+
+// AllValues returns all FindingsGetFindingsOverviewOKFirstRunSummaryState values.
+func (FindingsGetFindingsOverviewOKFirstRunSummaryState) AllValues() []FindingsGetFindingsOverviewOKFirstRunSummaryState {
+	return []FindingsGetFindingsOverviewOKFirstRunSummaryState{
+		FindingsGetFindingsOverviewOKFirstRunSummaryStateSent,
+		FindingsGetFindingsOverviewOKFirstRunSummaryStateWaiting,
+		FindingsGetFindingsOverviewOKFirstRunSummaryStateNotSent,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOverviewOKFirstRunSummaryState) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOverviewOKFirstRunSummaryStateSent:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstRunSummaryStateWaiting:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstRunSummaryStateNotSent:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOverviewOKFirstRunSummaryState) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOverviewOKFirstRunSummaryState(data) {
+	case FindingsGetFindingsOverviewOKFirstRunSummaryStateSent:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryStateSent
+		return nil
+	case FindingsGetFindingsOverviewOKFirstRunSummaryStateWaiting:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryStateWaiting
+		return nil
+	case FindingsGetFindingsOverviewOKFirstRunSummaryStateNotSent:
+		*s = FindingsGetFindingsOverviewOKFirstRunSummaryStateNotSent
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -179485,6 +179772,51 @@ func (o NilFindingsGetFindingsOverviewOKFirstItemBlockSoftware) Get() (v Finding
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsOverviewOKFirstItemBlockSoftware) Or(d FindingsGetFindingsOverviewOKFirstItemBlockSoftware) FindingsGetFindingsOverviewOKFirstItemBlockSoftware {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsOverviewOKFirstRunSummary returns new NilFindingsGetFindingsOverviewOKFirstRunSummary with value set to v.
+func NewNilFindingsGetFindingsOverviewOKFirstRunSummary(v FindingsGetFindingsOverviewOKFirstRunSummary) NilFindingsGetFindingsOverviewOKFirstRunSummary {
+	return NilFindingsGetFindingsOverviewOKFirstRunSummary{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsOverviewOKFirstRunSummary is nullable FindingsGetFindingsOverviewOKFirstRunSummary.
+type NilFindingsGetFindingsOverviewOKFirstRunSummary struct {
+	Value FindingsGetFindingsOverviewOKFirstRunSummary
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsOverviewOKFirstRunSummary) SetTo(v FindingsGetFindingsOverviewOKFirstRunSummary) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsOverviewOKFirstRunSummary) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsOverviewOKFirstRunSummary) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsOverviewOKFirstRunSummary
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsOverviewOKFirstRunSummary) Get() (v FindingsGetFindingsOverviewOKFirstRunSummary, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsOverviewOKFirstRunSummary) Or(d FindingsGetFindingsOverviewOKFirstRunSummary) FindingsGetFindingsOverviewOKFirstRunSummary {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -339,8 +339,9 @@ func TestContract_POST2_UpsertSoftwareReplacesBySource(t *testing.T) {
 	if n := len(e.detail(id).Asset.Software); n != 3 { // the manual Windows row stays
 		t.Fatalf("%d software rows", n)
 	}
-	if n := len(e.ev.named(inventory.EventSoftwareChanged)); n != 1 {
-		t.Fatalf("%d software.changed", n)
+	// the device is announced to the matcher by the match events of its new key, no software.changed beside them
+	if n, m := len(e.ev.named(inventory.EventSoftwareChanged)), len(e.ev.named(inventory.EventMatchChanged)); n != 0 || m == 0 {
+		t.Fatalf("%d software.changed, %d match.changed", n, m)
 	}
 	got := map[string]bool{}
 	for _, ev := range e.ev.named(inventory.EventMatchChanged) {

@@ -123,6 +123,11 @@ func (s *Service) settleStaleLines(ctx context.Context) error {
 						return err
 					}
 				}
+				if st.kept != "" {
+					if err := s.auditTx(ctx, tx, systemActor, "inventory.software_correction_kept", deviceName(ctx, tx, asset), st.kept); err != nil {
+						return err
+					}
+				}
 			}
 			return s.announceSoftware(ctx, tx, o, asset, before, true)
 		})

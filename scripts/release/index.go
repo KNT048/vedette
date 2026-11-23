@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/knt048/vedette/internal/release"
@@ -51,6 +50,9 @@ type IndexParams struct {
 	RevokeKeys   []string
 	RevokeReason string
 	BackupKeyID  string
+
+	// Withdraw revokes published releases or image digests (withdraw.go); RevokeReason is the reason of its rows too.
+	Withdraw Withdrawal
 
 	// Advisories are new advisories to publish (ParseAdvisory); the ones of the previous index carry over. A release whose
 	// min_upgrade_from strands the boxes on a release of the previous index needs one (checkStrandedBoxesTold).
@@ -103,7 +105,14 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 		x.Advisories = append(x.Advisories, prev.Advisories...)
 		x.Keys = append(x.Keys, prev.Keys...)
 	}
+	if p.RevokeReason != "" && len(p.RevokeKeys) == 0 && !p.Withdraw.revokes() {
+		return nil, errors.New("a revocation reason without anything to revoke")
+	}
 	if err := addKeyRevocations(&x, p); err != nil {
+		return nil, err
+	}
+	wd, err := addWithdrawals(&x, p.Withdraw, p.RevokeReason, prev != nil, p.ManifestVersion, p.ManifestRaw)
+	if err != nil {
 		return nil, err
 	}
 	if err := addAdvisories(&x, p.Advisories); err != nil {
@@ -159,12 +168,15 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 			Rollout: &release.Rollout{Percent: rollout},
 		}
 	}
+	if err := pointWithdrawnChannels(&x, p.Withdraw, wd, p.Rollout); err != nil {
+		return nil, err
+	}
 	if prev != nil {
 		if err := checkChannelsStable(prev, &x); err != nil {
 			return nil, err
 		}
 	}
-	if err := checkStrandedBoxesTold(prev, &x, p.ManifestVersion, p.ManifestRaw); err != nil {
+	if err := checkStrandedBoxesTold(prev, &x, p.Channel, p.ManifestVersion, p.ManifestRaw); err != nil {
 		return nil, err
 	}
 	if len(x.Channels) == 0 {
@@ -196,13 +208,10 @@ func BuildIndex(prev *release.Index, p IndexParams) ([]IndexFile, error) {
 // addKeyRevocations appends the key revocations of p to x: the rescue index revokes the leaked active key.
 func addKeyRevocations(x *release.Index, p IndexParams) error {
 	if len(p.RevokeKeys) == 0 {
-		if p.RevokeReason != "" {
-			return errors.New("a revocation reason without a key to revoke")
-		}
 		return nil
 	}
-	if p.RevokeReason == "" || len(p.RevokeReason) > 256 || strings.IndexFunc(p.RevokeReason, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
-		return errors.New("a key revocation needs a reason: one line of at most 256 bytes")
+	if err := checkRevokeReason(p.RevokeReason); err != nil {
+		return err
 	}
 	if p.BackupKeyID == "" {
 		return errors.New("revoking a key needs the backup key id, which can never be revoked")

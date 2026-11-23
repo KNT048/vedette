@@ -110,6 +110,7 @@ type buildOpts struct {
 	installModes     []string // default appliance only: "container" needs the container assets, which beforeSign writes
 	beforeSign       func(dir string, in Inputs)
 	advisories       []release.Advisory // new advisories of the index
+	withdraw         Withdrawal         // releases or digests the index withdraws
 }
 
 func (r *rig) build(o buildOpts) (dir string, err error) {
@@ -150,7 +151,8 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 	dir = r.t.TempDir()
 	must(r.t, os.WriteFile(filepath.Join(dir, manifestFile), res.Manifest, 0o600))
 	files, err := BuildIndex(prevIdx, IndexParams{Now: t1, Rollout: -1, Channel: o.channel, ManifestVersion: o.version, ManifestRaw: res.Manifest,
-		RevokeKeys: o.revoke, RevokeReason: reasonIf(o.revoke), BackupKeyID: r.trust.Backup.KeyID(), Advisories: o.advisories})
+		RevokeKeys: o.revoke, RevokeReason: reasonIf(o.revoke, o.withdraw), BackupKeyID: r.trust.Backup.KeyID(), Advisories: o.advisories,
+		Withdraw: o.withdraw})
 	if err != nil {
 		return "", err
 	}
@@ -184,8 +186,8 @@ func (r *rig) build(o buildOpts) (dir string, err error) {
 	return dir, nil
 }
 
-func reasonIf(ids []string) string {
-	if len(ids) == 0 {
+func reasonIf(ids []string, w Withdrawal) string {
+	if len(ids) == 0 && !w.revokes() {
 		return ""
 	}
 	return "the active key leaked"

@@ -579,6 +579,8 @@ type inputsOpts struct {
 	DebDir         string
 	Gates          string // gates.json of `release gates`: the .deb and the images must be the ones it checked
 	Repo           string // the git repository: bundled[] is read from pins.env and the pack index at tag v<version>
+	Notes          string // notes: one line every box shows (checkNotes)
+	ReleaseNotes   string // release_notes: the GitHub release page's text
 }
 
 // bundledOf is bundled[] of the release: the pinned third-party software inside the signed images, as Settings → Updates →
@@ -647,6 +649,9 @@ func BuildInputs(ctx context.Context, run runFunc, doc *ImagesDoc, o inputsOpts)
 	default:
 		return in, fmt.Errorf("say whether a box may roll back across this release: RELEASE_ROLLBACK_SAFE=true or false (got %q); the builder proves true from the migrations", o.RollbackSafe)
 	}
+	if err := checkNotes(o.Notes, o.ReleaseNotes); err != nil {
+		return in, err
+	}
 	for _, v := range []string{o.RollbackMin, o.MinUpgradeFrom} {
 		if v == "" {
 			continue
@@ -681,7 +686,7 @@ func BuildInputs(ctx context.Context, run runFunc, doc *ImagesDoc, o inputsOpts)
 		return in, err
 	}
 	in = Inputs{
-		Version: doc.Version, Channel: o.Channel, MinUpgradeFrom: o.MinUpgradeFrom,
+		Version: doc.Version, Channel: o.Channel, MinUpgradeFrom: o.MinUpgradeFrom, Notes: o.Notes, ReleaseNotes: o.ReleaseNotes,
 		InstallModes: []string{installAppliance, installContainer},
 		Rollback:     release.Rollback{Safe: safe, MinVersion: o.RollbackMin},
 		Content:      []release.Content{}, Bundled: bundled,
@@ -722,12 +727,21 @@ func cmdInputs(ctx context.Context, args []string, stdout io.Writer) error {
 	fs.StringVar(&o.MinUpgradeFrom, "min-upgrade-from", "", "min_upgrade_from (empty: none)")
 	fs.StringVar(&o.DebDir, "deb-dir", "dist", "directory with vedette-host_<version>_<amd64|arm64>.deb")
 	fs.StringVar(&o.Repo, "repo", ".", "repository root: bundled[] is read from deploy/containers/pins.env and the pack index at tag v<version>")
+	fs.StringVar(&o.Notes, "notes", "", "notes: one line every box shows with the release (at most 2048 bytes, no newline)")
+	releaseNotes := fs.String("release-notes-file", "", "Markdown file of the GitHub release page's text (any number of lines; default: the notes)")
 	fs.StringVar(&o.Gates, "gates", "", "the record of release gates (default gates.json next to -images); refused when missing or when a .deb or image is not the one it checked")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if o.Gates == "" {
 		o.Gates = filepath.Join(filepath.Dir(*images), gatesFile)
+	}
+	if *releaseNotes != "" {
+		b, err := readSmall(*releaseNotes, maxReleaseNotes)
+		if err != nil {
+			return err
+		}
+		o.ReleaseNotes = string(b)
 	}
 	if _, err := os.Stat(*out); err == nil {
 		return fmt.Errorf("%s exists: it may hold notes you wrote; remove or rename it first", *out)
@@ -750,6 +764,6 @@ func cmdInputs(ctx context.Context, args []string, stdout io.Writer) error {
 	if err := os.WriteFile(*out, b, 0o644); err != nil { //nolint:gosec // a description, not secret
 		return err
 	}
-	say(stdout, "wrote %s (version %s, channel %s, rollback.safe=%s): add the notes, then release-cosign-plan", *out, in.Version, in.Channel, o.RollbackSafe)
+	say(stdout, "wrote %s (version %s, channel %s, rollback.safe=%s): then release-cosign-plan", *out, in.Version, in.Channel, o.RollbackSafe)
 	return nil
 }

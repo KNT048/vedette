@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -153,15 +154,54 @@ func (g *ghFake) fn(argv []string) ([]byte, error) {
 	return nil, errors.New("unexpected " + a)
 }
 
-// ghcr answers HEAD of a manifest with status (200: public).
-func ghcr(t *testing.T, status int) registryHTTP {
+// ghcr answers HEAD of an image by digest with status (200: public), and GET of the cosign signature tag (sha256-<hex>.sig) of each
+// image of plans with the signature manifest `cosign sign --upload` writes: one simple-signing layer, the payload's digest, the
+// signature in the dev.cosignproject.cosign/signature annotation. sigs, when set, changes that manifest per repository and tag
+// (nil: the tag is not there).
+func ghcr(t *testing.T, status int, plans ...*publishPlan) registryHTTP {
+	return ghcrSigs(t, status, nil, plans...)
+}
+
+func ghcrSigs(t *testing.T, status int, sigs func(repo, tag string, m []byte) []byte, plans ...*publishPlan) registryHTTP {
+	t.Helper()
+	tags := map[string][]byte{}
+	for _, p := range plans {
+		for _, im := range p.Images {
+			repo := "/v2/knt048/vedette-" + im.Service + "/manifests/"
+			tag := strings.Replace(im.Digest, "sha256:", "sha256-", 1) + ".sig"
+			m := cosignSigManifest(t, im.Cosign)
+			if sigs != nil {
+				m = sigs("vedette-"+im.Service, tag, m)
+			}
+			if m != nil {
+				tags[repo+tag] = m
+			}
+		}
+	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/token" {
 			_, _ = w.Write([]byte(`{"token":"anon"}`))
 			return
 		}
-		if r.Method != http.MethodHead || !strings.HasPrefix(r.URL.Path, "/v2/knt048/vedette-") || r.Header.Get("Authorization") != "Bearer anon" ||
-			!strings.Contains(r.Header.Get("Accept"), "application/vnd.oci.image.index.v1+json") {
+		if !strings.HasPrefix(r.URL.Path, "/v2/knt048/vedette-") || r.Header.Get("Authorization") != "Bearer anon" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, ".sig") {
+			switch m, ok := tags[r.URL.Path]; {
+			case r.Method != http.MethodGet || !strings.Contains(r.Header.Get("Accept"), "application/vnd.oci.image.manifest.v1+json"):
+				w.WriteHeader(http.StatusBadRequest)
+			case status != http.StatusOK:
+				w.WriteHeader(status)
+			case !ok:
+				w.WriteHeader(http.StatusNotFound)
+			default:
+				w.Header().Set("Content-Type", "application/vnd.oci.image.manifest.v1+json")
+				_, _ = w.Write(m)
+			}
+			return
+		}
+		if r.Method != http.MethodHead || !strings.Contains(r.Header.Get("Accept"), "application/vnd.oci.image.index.v1+json") {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -169,6 +209,24 @@ func ghcr(t *testing.T, status int) registryHTTP {
 	}))
 	t.Cleanup(srv.Close)
 	return registryHTTP{base: srv.URL, client: srv.Client()}
+}
+
+// cosignSigManifest is the OCI manifest cosign uploads as the <digest>.sig tag for one signature.
+func cosignSigManifest(t *testing.T, c release.CosignSig) []byte {
+	t.Helper()
+	payload, err := base64.StdEncoding.DecodeString(c.Payload)
+	must(t, err)
+	m := map[string]any{
+		"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json",
+		"config": map[string]any{"mediaType": "application/vnd.oci.image.config.v1+json", "size": 233, "digest": digestOf("config")},
+		"layers": []any{map[string]any{
+			"mediaType": "application/vnd.dev.cosign.simplesigning.v1+json", "size": len(payload), "digest": digestBytes(payload),
+			"annotations": map[string]string{"dev.cosignproject.cosign/signature": c.Signature},
+		}},
+	}
+	b, err := json.Marshal(m)
+	must(t, err)
+	return b
 }
 
 func env(g *ghFake, r *rig, reg registryHTTP, prevDir string, first bool) (publishEnv, *fakeRun) {
@@ -224,7 +282,7 @@ func TestPublishRun(t *testing.T) {
 
 	t.Run("first release: draft, upload, check, pull check, publish, then the index last", func(t *testing.T) {
 		g := newGH()
-		e, fr := env(g, r, ghcr(t, http.StatusOK), "", true)
+		e, fr := env(g, r, ghcr(t, http.StatusOK, p), "", true)
 		must(t, Publish(context.Background(), e, p, true))
 		calls := fr.joined()
 		ix := slices.IndexFunc(calls, isIndexUpload)
@@ -239,13 +297,13 @@ func TestPublishRun(t *testing.T) {
 		dir2, s2, in2 := signedRelease(t, r, "0.3.0", dir)
 		p2, err := planPublish(dir2, s2, in2, r.trust)
 		must(t, err)
-		e2, fr2 := env(g, r, ghcr(t, http.StatusOK), dir, false)
+		e2, fr2 := env(g, r, ghcr(t, http.StatusOK, p2), dir, false)
 		must(t, Publish(context.Background(), e2, p2, true))
 		if slices.ContainsFunc(fr2.joined(), func(c string) bool { return strings.Contains(c, " v0.2.0 ") }) {
 			t.Errorf("%v", fr2.joined())
 		}
 		// a run again of 0.3.0 finds its own index live: it checks the assets and uploads nothing
-		e3, fr3 := env(g, r, ghcr(t, http.StatusOK), dir, false)
+		e3, fr3 := env(g, r, ghcr(t, http.StatusOK, p2), dir, false)
 		var out3 bytes.Buffer
 		e3.stdout = &out3
 		must(t, Publish(context.Background(), e3, p2, true))
@@ -258,7 +316,7 @@ func TestPublishRun(t *testing.T) {
 		dirB, sB, inB := signedRelease(t, r, "0.3.0", dir)
 		pB, err := planPublish(dirB, sB, inB, r.trust)
 		must(t, err)
-		eB, frB := env(g, r, ghcr(t, http.StatusOK), dir, false)
+		eB, frB := env(g, r, ghcr(t, http.StatusOK, pB), dir, false)
 		if err := Publish(context.Background(), eB, pB, true); err == nil || !strings.Contains(err.Error(), "differs from -prev-index") {
 			t.Errorf("stale -prev-index: %v", err)
 		}
@@ -276,7 +334,7 @@ func TestPublishRun(t *testing.T) {
 		g.seedIndex(t, dir)                                 // 0.2.0's index and signature ...
 		b, _ := os.ReadFile(filepath.Join(dir2, indexFile)) // ... then only the new index.json went up
 		g.put(indexTag, indexFile, b)
-		e, fr := env(g, r, ghcr(t, http.StatusOK), dir, false)
+		e, fr := env(g, r, ghcr(t, http.StatusOK, p2), dir, false)
 		if err := Publish(context.Background(), e, p2, true); err == nil || !strings.Contains(err.Error(), "download index.json and index.json.minisig") ||
 			!strings.Contains(err.Error(), "upload this run's pair with --clobber and run release-publish again") {
 			t.Fatalf("%v", err)
@@ -288,7 +346,7 @@ func TestPublishRun(t *testing.T) {
 	t.Run("a draft left by a failed run is filled again", func(t *testing.T) {
 		g := newGH()
 		g.rel["v0.2.0"] = &ghRelease{IsDraft: true}
-		e, fr := env(g, r, ghcr(t, http.StatusOK), "", true)
+		e, fr := env(g, r, ghcr(t, http.StatusOK, p), "", true)
 		must(t, Publish(context.Background(), e, p, true))
 		if slices.ContainsFunc(fr.joined(), func(c string) bool { return strings.HasPrefix(c, "gh release create") }) || g.rel["v0.2.0"].IsDraft {
 			t.Errorf("%v", fr.joined())
@@ -297,14 +355,14 @@ func TestPublishRun(t *testing.T) {
 	t.Run("no digest from GitHub: the asset is downloaded and hashed", func(t *testing.T) {
 		g := newGH()
 		g.noDigest = true
-		e, fr := env(g, r, ghcr(t, http.StatusOK), "", true)
+		e, fr := env(g, r, ghcr(t, http.StatusOK, p), "", true)
 		must(t, Publish(context.Background(), e, p, true))
 		if !slices.ContainsFunc(fr.joined(), func(c string) bool { return strings.HasPrefix(c, "gh release download v0.2.0") }) {
 			t.Errorf("%v", fr.joined())
 		}
 		g2 := newGH()
 		g2.noDigest, g2.badDownload = true, "vedette.env"
-		e2, fr2 := env(g2, r, ghcr(t, http.StatusOK), "", true)
+		e2, fr2 := env(g2, r, ghcr(t, http.StatusOK, p), "", true)
 		if err := Publish(context.Background(), e2, p, true); err == nil || !strings.Contains(err.Error(), "the downloaded vedette.env is not the verified file") {
 			t.Fatalf("%v", err)
 		}
@@ -345,7 +403,7 @@ func TestPublishRun(t *testing.T) {
 			if pull == 0 {
 				pull = http.StatusOK
 			}
-			e, fr := env(g, r, ghcr(t, pull), prev, first)
+			e, fr := env(g, r, ghcr(t, pull, p), prev, first)
 			err := Publish(context.Background(), e, p, true)
 			if err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("got %v, want %q", err, c.want)
@@ -364,7 +422,7 @@ func TestPublishRun(t *testing.T) {
 		p, err := planPublish(dir, s, in, r.trust)
 		must(t, err)
 		must(t, os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte("# changed\n"), 0o600))
-		e, fr := env(newGH(), r, ghcr(t, http.StatusOK), "", true)
+		e, fr := env(newGH(), r, ghcr(t, http.StatusOK, p), "", true)
 		if err := Publish(context.Background(), e, p, true); err == nil || !strings.Contains(err.Error(), "changed since it was verified") {
 			t.Fatalf("%v", err)
 		}
@@ -631,4 +689,60 @@ func TestPublishRefreshIsTheIndexOnly(t *testing.T) {
 	if slices.ContainsFunc(calls, func(c string) bool { return strings.HasPrefix(c, "git") || strings.Contains(c, " v0.") }) || calls[len(calls)-2] != "gh release upload index --repo KNT048/vedette --clobber "+strings.Join(p.Index, " ") {
 		t.Errorf("%v", calls)
 	}
+}
+
+// Before the release goes public, every image's cosign signature must be in the registry as the <digest>.sig tag `cosign verify`
+// reads, holding this release's signature: a release once shipped with its signatures only on the maintainer's machine.
+func TestPublishChecksSignaturesInTheRegistry(t *testing.T) {
+	r := newRig(t)
+	dir, s, in := signedRelease(t, r, "0.2.0", "")
+	p, err := planPublish(dir, s, in, r.trust)
+	must(t, err)
+	var sensor release.Image
+	for _, im := range p.Images {
+		if im.Service == "sensor" {
+			sensor = im
+		}
+	}
+	sensorTag := "ghcr.io/knt048/vedette-sensor:" + strings.Replace(sensor.Digest, "sha256:", "sha256-", 1) + ".sig"
+	other := cosignSigManifest(t, release.CosignSig{Payload: sensor.Cosign.Payload, Signature: base64.StdEncoding.EncodeToString([]byte("another signature"))})
+	cases := map[string]struct {
+		sigs func(repo, tag string, m []byte) []byte
+		want string
+	}{
+		"a signature tag is missing": {func(repo, _ string, m []byte) []byte {
+			if repo == "vedette-sensor" {
+				return nil
+			}
+			return m
+		}, sensorTag + " is not in the registry"},
+		"the tag holds another signature": {func(repo, _ string, m []byte) []byte {
+			if repo == "vedette-sensor" {
+				return other
+			}
+			return m
+		}, sensorTag + " does not hold the signature of this release"},
+		"the tag is not a manifest": {func(repo, _ string, m []byte) []byte {
+			if repo == "vedette-sensor" {
+				return []byte("{}")
+			}
+			return m
+		}, sensorTag + " does not hold the signature of this release"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			e, fr := env(newGH(), r, ghcrSigs(t, http.StatusOK, c.sigs, p), "", true)
+			err := Publish(context.Background(), e, p, true)
+			if err == nil || !strings.Contains(err.Error(), c.want) || !strings.Contains(err.Error(), "cosign-plan") {
+				t.Fatalf("got %v, want %q", err, c.want)
+			}
+			if slices.ContainsFunc(fr.joined(), func(c string) bool { return strings.HasPrefix(c, "gh release edit") || isIndexUpload(c) }) {
+				t.Errorf("published without the signature: %v", fr.joined())
+			}
+		})
+	}
+	t.Run("every signature there", func(t *testing.T) {
+		e, _ := env(newGH(), r, ghcr(t, http.StatusOK, p), "", true)
+		must(t, Publish(context.Background(), e, p, true))
+	})
 }

@@ -222,3 +222,73 @@ func TestIndexCommandAdvisory(t *testing.T) {
 		t.Fatalf("%+v", x.Advisories)
 	}
 }
+
+// strandIndex is a previous index with the given channel latests and carried advisories.
+func strandIndex(t *testing.T, channels map[string]string, carried ...release.Advisory) *release.Index {
+	t.Helper()
+	var prev *release.Index
+	for _, name := range []string{"beta", "stable"} {
+		v, ok := channels[name]
+		if !ok {
+			continue
+		}
+		f, err := BuildIndex(prev, IndexParams{Now: t1, Rollout: -1, Channel: name, ManifestVersion: v, ManifestRaw: []byte(`{"version":"` + v + `"}`)})
+		must(t, err)
+		prev = &release.Index{}
+		must(t, json.Unmarshal(f[0].Data, prev))
+	}
+	prev.Advisories = append(prev.Advisories, carried...)
+	return prev
+}
+
+func advisoryFixedIn(id, v string) release.Advisory {
+	a := freshInstall(v)[0]
+	a.ID = id
+	return a
+}
+
+// checkStrandedBoxesTold looks only where a release can strand boxes: the channel it is published on, and every channel only for a
+// release that starts a new schema epoch (min_upgrade_from = its own version). An advisory counts when a box on the stranded release
+// shows it as affected and it names a fix this release brings (fixed_in from min_upgrade_from up to the release itself).
+func TestStrandedBoxesScope(t *testing.T) {
+	cases := []struct {
+		name     string
+		channels map[string]string
+		carried  []release.Advisory
+		channel  string
+		version  string
+		minUp    string
+		adds     []release.Advisory
+		wantErr  string
+	}{
+		{name: "a beta release with min_upgrade_from does not strand the stable boxes", channels: map[string]string{"stable": "0.1.0", "beta": "0.2.0-beta.1"},
+			channel: "beta", version: "0.2.0-beta.2", minUp: "0.2.0-beta.1"},
+		{name: "the target channel is still checked", channels: map[string]string{"stable": "0.1.0", "beta": "0.2.0-beta.1"},
+			channel: "stable", version: "0.3.0", minUp: "0.2.0", wantErr: "latest of channel stable"},
+		{name: "a new epoch checks the other channel too", channels: map[string]string{"stable": "0.1.0"},
+			channel: "beta", version: "0.2.0-beta.1", minUp: "0.2.0-beta.1", wantErr: "latest of channel stable"},
+		{name: "a new epoch told on both channels", channels: map[string]string{"stable": "0.1.0", "beta": "0.1.5-beta.1"},
+			channel: "stable", version: "0.2.0", minUp: "0.2.0", adds: freshInstall("0.2.0")},
+		{name: "a carried advisory fixed after this release does not tell the stranded boxes", channels: map[string]string{"stable": "0.1.0"},
+			carried: []release.Advisory{advisoryFixedIn("VED-2026-009", "0.5.0")}, channel: "stable", version: "0.2.0", minUp: "0.2.0", wantErr: "box on 0.1.0"},
+		{name: "a carried advisory fixed below min_upgrade_from does not tell them either", channels: map[string]string{"stable": "0.1.0"},
+			carried: []release.Advisory{advisoryFixedIn("VED-2026-008", "0.1.5")}, channel: "stable", version: "0.2.0", minUp: "0.2.0", wantErr: "box on 0.1.0"},
+		{name: "a carried advisory fixed in this release tells them", channels: map[string]string{"stable": "0.1.0"},
+			carried: []release.Advisory{advisoryFixedIn("VED-2026-007", "0.2.0")}, channel: "stable", version: "0.2.0", minUp: "0.2.0"},
+		{name: "an intermediate release named as the fix tells them", channels: map[string]string{"stable": "0.1.0"},
+			channel: "stable", version: "0.3.0", minUp: "0.2.0", adds: []release.Advisory{advisoryFixedIn("VED-2026-006", "0.2.0")}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			prev := strandIndex(t, c.channels, c.carried...)
+			man := []byte(`{"version":"` + c.version + `","min_upgrade_from":"` + c.minUp + `"}`)
+			_, err := BuildIndex(prev, IndexParams{Now: t1, Rollout: -1, Channel: c.channel, ManifestVersion: c.version, ManifestRaw: man, Advisories: c.adds})
+			switch {
+			case c.wantErr == "" && err != nil:
+				t.Fatalf("refused: %v", err)
+			case c.wantErr != "" && (err == nil || !strings.Contains(err.Error(), c.wantErr)):
+				t.Fatalf("want an error with %q, got %v", c.wantErr, err)
+			}
+		})
+	}
+}

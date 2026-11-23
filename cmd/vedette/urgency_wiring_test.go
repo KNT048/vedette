@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
@@ -70,6 +71,18 @@ func seedUrgencyCatalogue(t *testing.T, s *stack) {
 	}
 }
 
+// urgencyJob is findings' hourly urgency pass as the module wires it, found by its name.
+func urgencyJob(t *testing.T, s *stack) jobs.Job {
+	t.Helper()
+	for _, j := range findingsJobs(*s.d) {
+		if j.Name == findings.UrgencyJob {
+			return j
+		}
+	}
+	t.Fatalf("no %q job among the findings jobs", findings.UrgencyJob)
+	return jobs.Job{}
+}
+
 // layersOf is the stored urgency of each finding of a device, by CVE.
 func layersOf(t *testing.T, s *stack, id string) map[string]int {
 	t.Helper()
@@ -121,10 +134,7 @@ func TestUrgencyWiring_StoresTheLayersAndTheSelfcheckAgrees(t *testing.T) {
 		t.Fatalf("a pass three hours old: %d mismatches, want 1", n)
 	}
 	started := time.Now().UTC()
-	job := findingsJobs(*s.d)[2]
-	if job.Name != findings.UrgencyJob {
-		t.Fatalf("job %q", job.Name)
-	}
+	job := urgencyJob(t, s)
 	if err := job.Run(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +230,7 @@ func TestUrgencyWiring_ARiseIsOneAlertWithItsReasons(t *testing.T) {
 		store.FormatTS(time.Now().AddDate(0, -2, 0)), store.FormatTS(time.Now().AddDate(0, -1, 0))) // the source's first load, long ago
 	s.exec(`INSERT INTO feeds_signal (cve, kind, source, first_seen, stored_at, last_seen, qualifies) VALUES ('CVE-2026-50002', 'exploited', 'rapid7-blog', ?1, ?1, ?1, 1)`,
 		store.FormatTS(time.Now().Add(-time.Hour)))
-	if err := findingsJobs(*s.d)[2].Run(t.Context()); err != nil {
+	if err := urgencyJob(t, s).Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	got := byID("nt-" + fid + "-urgency_changed-2")
@@ -290,7 +300,7 @@ func TestUrgencyWiring_AJoinIsOneResponseEvent(t *testing.T) {
 		if err := findingsJobs(*s.d)[0].Run(t.Context()); err != nil {
 			t.Fatal(err)
 		}
-		if err := findingsJobs(*s.d)[2].Run(t.Context()); err != nil { // the hourly pass after: nothing more
+		if err := urgencyJob(t, s).Run(t.Context()); err != nil { // the hourly pass after: nothing more
 			t.Fatal(err)
 		}
 		if got := layersOf(t, s, id)["CVE-2026-50003"]; got != findings.UrgencyExploited {

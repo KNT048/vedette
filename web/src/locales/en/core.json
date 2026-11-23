@@ -457,6 +457,7 @@
       "response.ai_resume": "AI response proposals resumed",
       "response.plan": "AI response plan saved",
       "response.plan_refused": "AI response plan refused",
+      "response.plan_retired": "AI response plan retired (the finding moved to another device)",
       "response.allowlist": "Change never-touch list",
       "response.approve": "Approve response action",
       "response.blocklist.token": "Regenerate block list token",

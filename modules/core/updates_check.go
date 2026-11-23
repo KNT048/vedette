@@ -756,7 +756,9 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 		st.Running = h.fetchRunning(ctx, trust, idx)
 	}
 	wctx := context.WithoutCancel(ctx) // what was verified is kept even when the caller left
+	settled := false                   // the channel of the release was stored (no person chose one during the check)
 	err = h.db.Write(wctx, func(tx *sql.Tx) error {
+		settled = false
 		if err := h.putSetting(wctx, tx, keyUpdateRelease, st, by); err != nil {
 			return err
 		}
@@ -766,7 +768,7 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 		}
 		write := false
 		if seeded != "" && cur.FollowRelease { // not chosen by a person meanwhile
-			cur.Channel, cur.FollowRelease, write = seeded, false, true
+			cur.Channel, cur.FollowRelease, write, settled = seeded, false, true, true
 		}
 		if oerr == nil {
 			cur.LastCheck, cur.LastCheckError, write = h.now().UTC(), nil, true
@@ -778,6 +780,9 @@ func (h *OSHandlers) runCheck(ctx context.Context, by string) (string, error) {
 	})
 	if err != nil {
 		return "", err
+	}
+	if !settled {
+		seeded = "" // a person chose the channel during the check: theirs stands, the log and audit do not claim otherwise
 	}
 	if seeded != "" {
 		h.log.InfoContext(ctx, "core: update channel set from the running release", "version", h.upd.version, "channel", seeded)

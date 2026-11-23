@@ -35,6 +35,8 @@ type releaseServer struct {
 	files map[string][]byte
 	hits  map[string]int
 	down  bool // every request answers 503
+	// onGet, when set, runs for each request before it is answered (outside mu): a test acts in the middle of a check.
+	onGet func(path string)
 }
 
 func newReleaseServer(t *testing.T) *releaseServer {
@@ -44,8 +46,11 @@ func newReleaseServer(t *testing.T) *releaseServer {
 		s.mu.Lock()
 		s.hits[r.URL.Path]++
 		b, ok := s.files[r.URL.Path]
-		down := s.down
+		down, onGet := s.down, s.onGet
 		s.mu.Unlock()
+		if onGet != nil {
+			onGet(r.URL.Path)
+		}
 		if down {
 			http.Error(w, "unavailable", http.StatusServiceUnavailable)
 			return
@@ -575,6 +580,35 @@ func TestUpdateCheckKeepsTheChannelABoxHas(t *testing.T) {
 				t.Errorf("a settled channel is stored as following the release")
 			}
 		})
+	}
+}
+
+// A person who chooses a channel while the first check is still downloading wins over the channel of the release, and
+// the check's audit row and log do not claim that the channel came from the release.
+func TestUpdateCheckChannelChosenDuringTheCheckWins(t *testing.T) {
+	t.Parallel()
+	e := newUpdEnv(t, osOpts{noHost: true})
+	e.srv.betaRelease(t, 5)
+	var once sync.Once
+	patched := 0
+	e.srv.mu.Lock()
+	e.srv.onGet = func(path string) {
+		if path == "/v"+runningVersion+"/release-manifest.json" {
+			once.Do(func() { patched = e.admin.patch("/core/updates", map[string]any{"channel": "stable"}).Code })
+		}
+	}
+	e.srv.mu.Unlock()
+
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	if patched != 200 {
+		t.Fatalf("the PATCH during the check = %d, want 200", patched)
+	}
+	if g := e.viewer.get("/core/updates"); g.str("channel") != "stable" {
+		t.Fatalf("channel = %q, want the stable the person chose during the check", g.str("channel"))
+	}
+	if n := e.env.Count(t, "SELECT count(*) FROM core_audit WHERE action = 'update.check' AND detail LIKE '%was published on%'"); n != 0 {
+		t.Errorf("update.check rows saying the channel came from the release = %d, want 0 (the person's choice stands)", n)
 	}
 }
 

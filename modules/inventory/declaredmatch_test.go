@@ -1,13 +1,17 @@
 package inventory_test
 
 import (
+	"database/sql"
 	"net/netip"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/selfcheck"
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -122,5 +126,86 @@ func TestDeclared_VersionsInTheSchemesForm(t *testing.T) {
 		PkgVersion: "1:4.16.0-2+really2.41.3-3ubuntu2.2", PkgSource: "util-linux", Confidence: 0.95})
 	if l := c.line("util-linux"); ver(l) != "2.41.3" {
 		t.Fatalf("util-linux: %q", ver(l))
+	}
+}
+
+// A person who types another ESXi release replaces the release the old name stated: "8.0" after "8.0 U3" is the 8.0 line with no
+// update known (the name no longer says Update 3 and its build), and "8.0 U3e" is Update 3e with its own build.
+func TestDeclared_RetypedESXiReleaseReplacesTheOldBuild(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.addDevice(inventory.AddInput{CatalogID: "vmware-esxi", Version: "8.0 U3", IP: "192.0.2.38"})
+	line := func() inventory.SoftwareLine {
+		t.Helper()
+		for _, s := range e.detail(id).Asset.Software {
+			if s.Product == "ESXi" || strings.Contains(s.Display, "ESXi") {
+				return s
+			}
+		}
+		t.Fatal("no ESXi line")
+		return inventory.SoftwareLine{}
+	}
+	if l := line(); !strings.Contains(l.Display, "Update 3 (build 24022510)") {
+		t.Fatalf("declared 8.0 U3: %q", l.Display)
+	}
+	set := func(v string) {
+		t.Helper()
+		e.tick(time.Minute)
+		if err := e.svc.SetSoftwareVersion(e.ctx(), "it@acme.example", id, line().ID, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	set("8.0")
+	if l := line(); strings.Contains(l.Display, "Update 3") || strings.Contains(l.Display, "24022510") || ver(l) != "8.0" {
+		t.Errorf("re-typed 8.0: %q %q, want the 8.0 line with no update", l.Display, ver(l))
+	}
+	set("8.0 U3e")
+	if l := line(); !strings.Contains(l.Display, "Update 3e") || ver(l) != "8.0.3" {
+		t.Errorf("re-typed 8.0 U3e: %q %q", l.Display, ver(l))
+	}
+}
+
+// A line settled under an earlier rule (a box upgraded from a release where a person's entry always won over the agent's later
+// report) is settled again by the inventory's own pass, not left to the agent's next report: the self-check finds no line whose value
+// is not the resolver's, and the newer agent release is the line.
+func TestDeclared_ALineSettledUnderAnOlderRuleIsSettledAgain(t *testing.T) {
+	t.Parallel()
+	c := &lineCase{t: t, e: newEnv(t), hint: observe.AssetHint{IP: netip.MustParseAddr("192.0.2.73")}}
+	c.send(observe.Osquery, nil, observe.Software{Display: "OpenSSL", Vendor: "OpenSSL", Product: "OpenSSL", Version: "3.5.5", Confidence: 0.95})
+	id := c.line("OpenSSL").ID
+	c.e.tick(time.Minute)
+	older := "3.5.1"
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &older}); err != nil {
+		t.Fatal(err)
+	}
+	// the agent's report under the earlier rule: its reading was seen again, the person's entry stayed the line
+	if err := c.e.db.Write(c.e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(c.e.ctx(), `UPDATE inv_software_reading SET seen_at = ? WHERE software_id = ? AND source = 'osquery'`,
+			store.FormatTS(c.e.now.Add(time.Minute)), id)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	stale := func() int64 {
+		for _, r := range selfcheck.Run(c.e.ctx(), c.e.db.Reader(), selfcheck.Registered()) {
+			if r.Name == "inventory.line_value_is_the_resolvers" {
+				return r.Count
+			}
+		}
+		t.Fatal("no such self-check")
+		return 0
+	}
+	if n := stale(); n != 1 {
+		t.Fatalf("lines settled under the earlier rule before the pass: %d, want 1", n)
+	}
+	c.e.tick(time.Hour)
+	if err := c.e.svc.ReidentifyLines(c.e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if n := stale(); n != 0 {
+		t.Errorf("lines not the resolver's after the pass: %d", n)
+	}
+	if l := c.line("OpenSSL"); ver(l) != "3.5.5" || l.Source != "agent" {
+		t.Errorf("line after the pass: %+v", l)
 	}
 }

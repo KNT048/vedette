@@ -448,23 +448,50 @@ func (c *Catalog) find(text string) *catEntry {
 	}
 	// Several products may share the text ("synology" is two Synology products, "dns" is D-Link and BIND, "php"
 	// belongs to two vendors): the first (most popular) is taken only when they all have the same vendor, so the
-	// make is never a guess. A bare vendor name is taken only when the vendor has one curated product.
-	hits := aliasHits
-	if len(hits) == 0 {
-		hits = productHits
+	// make is never a guess. An alias several makers share is next read as a product name ("openjdk" is the OpenJDK
+	// package), and else taken when every product of it is the same exploited product ("jdk", "jre": every Java build
+	// is matched as Java), so a file's common word still finds its product. A bare vendor name is taken only when the
+	// vendor has one curated product.
+	if e := oneVendor(aliasHits); e != nil {
+		return e
 	}
-	if len(hits) == 0 && len(vendorHits) == 1 {
-		hits = vendorHits
+	if e := oneVendor(productHits); e != nil {
+		return e
+	}
+	if len(aliasHits) > 0 && len(productHits) == 0 && sameKEV(aliasHits) {
+		return aliasHits[0]
+	}
+	if len(aliasHits) == 0 && len(productHits) == 0 && len(vendorHits) == 1 {
+		return vendorHits[0]
+	}
+	return nil
+}
+
+// oneVendor is the first of hits when they all have one vendor, else nil.
+func oneVendor(hits []*catEntry) *catEntry {
+	if len(hits) == 0 {
+		return nil
 	}
 	for _, e := range hits {
 		if e.hVendor != hits[0].hVendor {
 			return nil
 		}
 	}
-	if len(hits) == 0 {
-		return nil
-	}
 	return hits[0]
+}
+
+// sameKEV reports hits that all name the same exploited products (one non-empty key set).
+func sameKEV(hits []*catEntry) bool {
+	first := slices.Sorted(slices.Values(hits[0].kev))
+	if len(first) == 0 {
+		return false
+	}
+	for _, e := range hits[1:] {
+		if !slices.Equal(slices.Sorted(slices.Values(e.kev)), first) {
+			return false
+		}
+	}
+	return true
 }
 
 // custom is a product a person typed (vendor + product): matched to the exact KEV pair when there is one, else to the curated product

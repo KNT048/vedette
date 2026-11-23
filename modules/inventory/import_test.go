@@ -532,3 +532,15 @@ func TestNotFoundComesBeforeBadInput(t *testing.T) {
 	_, err = e.svc.AddSoftware(e.ctx(), "it@acme.example", id, inventory.AddInput{Vendor: "only a vendor"})
 	wantAPIError(t, err, 400, "incomplete_product")
 }
+
+// A CSV cell with the common word for Java ("jdk", "jre") imports: every Java build of the catalogue is matched as the same exploited
+// product, so the word is no guess of the make; "openjdk" is the OpenJDK package. A word several makers use for different products is
+// still refused.
+func TestCSVImport_CommonJavaWords(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	r := e.importCSV("name,ip,product,version\r\napp-1,,jdk,17.0.9\r\napp-2,,JRE,8u401\r\napp-3,,openjdk,21.0.7\r\napp-4,,Dns,\r\n")
+	if r.Created != 3 || len(r.Errors) != 1 || r.Errors[0].Line != 5 {
+		t.Fatalf("result = %+v", r)
+	}
+}

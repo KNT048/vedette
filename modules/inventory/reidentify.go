@@ -78,6 +78,9 @@ const reidentifyPage = 200
 // identified again is logged and skipped: the devices after it still are, and the pass stays open, so the next run walks every
 // device again (a device already done is only read).
 func (s *Service) ReidentifyLines(ctx context.Context) error {
+	if err := s.settleStaleLines(ctx); err != nil {
+		return err
+	}
 	run := &passRun{}
 	for {
 		done, err := s.reidentifyStep(ctx, reidentifyPage, run)
@@ -85,6 +88,49 @@ func (s *Service) ReidentifyLines(ctx context.Context) error {
 			return err
 		}
 	}
+}
+
+// settleStaleLines settles again every line whose stored value is not what the resolver says of its readings now (the self-check
+// inventory.line_value_is_the_resolvers): a line settled by an earlier release under another rule (a person's entry that a later
+// agent report now outgrows) would otherwise keep its old value until its source reports again. Each device's lines are settled in
+// one write, announced as a software change (the findings match it again); most runs find none and write nothing.
+func (s *Service) settleStaleLines(ctx context.Context) error {
+	stale := map[string][]string{}
+	if err := eachStoredLine(ctx, s.db.Reader(), func(l storedLine) {
+		if l.resolveBreak() != "" {
+			stale[l.asset] = append(stale[l.asset], l.id)
+		}
+	}); err != nil {
+		return err
+	}
+	for _, asset := range slices.Sorted(maps.Keys(stale)) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+			before, err := deviceKeys(ctx, tx, asset)
+			if err != nil {
+				return err
+			}
+			now := s.now()
+			for _, id := range stale[asset] {
+				st, err := s.settleLine(ctx, tx, id, now, nil)
+				if err != nil {
+					return err
+				}
+				if st.lapsed != "" {
+					if err := s.auditTx(ctx, tx, systemActor, "inventory.software_correction_lapsed", deviceName(ctx, tx, asset), st.lapsed); err != nil {
+						return err
+					}
+				}
+			}
+			return s.announceSoftware(ctx, tx, o, asset, before, true)
+		})
+		if err != nil {
+			s.log.ErrorContext(ctx, "inventory: a device's software lines could not be settled again", "asset", asset, "error", err)
+		}
+	}
+	return nil
 }
 
 // passRun is what one run of the pass knows besides the stored state: whether it walked every device from the first, and how many

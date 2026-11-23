@@ -1877,6 +1877,66 @@
   {
    "text": "Exchange Server",
    "id": "microsoft-exchange-server"
+  },
+  {
+   "text": "jdk",
+   "id": "oracle-java-jre-jdk"
+  },
+  {
+   "text": "JRE",
+   "id": "oracle-java-jre-jdk"
+  },
+  {
+   "text": "java",
+   "id": null
+  },
+  {
+   "text": "openjdk",
+   "id": "openjdk-linux-package"
+  }
+ ],
+ "custom": [
+  {
+   "vendor": "Red Hat",
+   "product": "OpenJDK",
+   "kev": [
+    "oracle|java runtime environment (jre)",
+    "oracle|java se",
+    "oracle|java se and jrockit",
+    "oracle|java se jdk and jre"
+   ],
+   "kev_count": 13
+  },
+  {
+   "vendor": "Fortinet",
+   "product": "FortiGate",
+   "kev": [
+    "fortinet|fortios",
+    "fortinet|fortios and fortiadc",
+    "fortinet|fortios and fortiproxy",
+    "fortinet|fortios and fortiproxy ssl-vpn",
+    "fortinet|multiple products"
+   ],
+   "kev_count": 22
+  },
+  {
+   "vendor": "Eclipse Adoptium",
+   "product": "Temurin",
+   "kev": [
+    "oracle|java runtime environment (jre)",
+    "oracle|java se",
+    "oracle|java se and jrockit",
+    "oracle|java se jdk and jre"
+   ],
+   "kev_count": 13
+  },
+  {
+   "vendor": "Acme",
+   "product": "Widget Server",
+   "kev": [
+    "acme|widget server"
+   ],
+   "kev_count": 0
   }
  ]
 }

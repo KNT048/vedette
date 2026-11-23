@@ -23,7 +23,7 @@
 ## Modifying: the call to `inventory.RecordObservation`
 - **inventory**: `source=passive` and the `confidence` scale decide the "in use" value. Changing the confidence scale changes `summary` and the display order on every device.
 
-## Modifying: metadata SPAN trên dây (`capture.LinkMetadata`, `Service.Metadata`, `Config.Mirror`, `sensorlink.MetadataItem`)
+## Modifying: SPAN metadata on the wire (`capture.LinkMetadata`, `Service.Metadata`, `Config.Mirror`, `sensorlink.MetadataItem`)
 - **logs** (`MatchMirror`, wired at `cmd/vedette/logsioc.go` `logsMirror`): changing `kind` or the form of `dest` = losing the alert "which machine asked for the name of / opened a flow to a malicious destination" on the mirror port; the `kind` values must stay in line with logs' `mirrorVia` (`TestWiringMirrorMetadataRaisesABadAddressIncidentWithoutASyslogSource`). Adding a field to `MetadataItem` = sending more packet data to `core`: edit `PRIVACY.md` (the mirror port paragraph) and the Privacy screen in the same commit.
 - **core/sensorlink**: the pacing (`MetadataPostsPerFlush`, `MaxMetadataItems`) shares the 10 requests/second budget of the `passive` role with observations and the heartbeat; raising them can make observations fail with `429`.
 

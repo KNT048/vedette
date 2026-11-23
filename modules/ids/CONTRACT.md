@@ -35,7 +35,7 @@
 `ids_alert`, `ids_alert_cve` (main database). Foreign key to `inv_asset` (`ON DELETE SET NULL`).
 
 ## Events
-- **Phát**: `ids.alert.detected` (POST-1).
+- **Emits**: `ids.alert.detected` (POST-1).
 - **Receives**: none (log lines arrive through `logs.Config.Received`).
 
 ## When the module is off (SYS-5)

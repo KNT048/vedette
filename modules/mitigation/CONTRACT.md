@@ -41,7 +41,7 @@ Mitigation is the **"What to do"** part of a finding: the confirmed mitigation p
 `mit_applied`, `mit_ai_output`, `mit_pack` (packs loaded from an update; the content is a signed file, not customer data), `mit_pack_state` (one row: the version of the update that was loaded, to prevent loading an older one again). `mit_applied` and `mit_ai_output` have an FK to `fnd_finding` (cascade).
 
 ## Events
-- **Phát**: không.
+- **Emits**: none.
 - **Receives**: none (packs are reloaded by the `load-packs` job).
 
 ## Behaviour when off

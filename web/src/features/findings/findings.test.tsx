@@ -118,6 +118,18 @@ describe('findings: f-1 has a confirmed Vedette recommendation (S-MIT-1, S-SCAN-
     expect(await screen.findByText('Applied: patch')).toBeInTheDocument()
   })
 
+  // A role query by name matches a part of the name, as a browser test or a voice-control "click Applied" does: every control so
+  // named must be an "Applied" action, so the last one is the firewall guide's and it answers with the confirmation.
+  it('every control named "Applied" is the action; the firewall guide\'s logs with "Logged. Rescan to confirm."', async () => {
+    renderApp('/findings/f-1')
+    await screen.findByRole('heading', { name: 'Evidence' })
+    const all = await screen.findAllByRole('button', { name: /applied/i })
+    expect(all.map((b) => b.textContent)).toEqual(['Applied', 'Applied', 'Applied'])
+    await userEvent.click(all.at(-1)!)
+    expect(await screen.findByText('Logged. Rescan to confirm.')).toBeInTheDocument()
+    expect(await screen.findByText(/Recorded as applied by admin@acme.example/)).toBeInTheDocument()
+  })
+
   it('"Have I been hit?" names the .deadbolt file and the replaced login page', async () => {
     renderApp('/findings/f-1')
     const c = (await screen.findByRole('heading', { name: 'Have I been hit?' })).closest('section')!
@@ -359,7 +371,12 @@ describe('findings: status changes and permissions', () => {
   it('a view-only role can read but not write', async () => {
     renderApp('/findings/f-1', { role: 'viewer' })
     expect(await screen.findByRole('button', { name: 'Mark as handled' })).toBeDisabled()
-    for (const b of screen.getAllByRole('button', { name: 'Applied' })) expect(b).toBeDisabled()
+    const applied = screen.getAllByRole('button', { name: /applied/i })
+    expect(applied).toHaveLength(3)
+    for (const b of applied) {
+      expect(b).toBeDisabled()
+      expect(b).toHaveAttribute('title', 'Requires Operator role')
+    }
     expect(screen.getByRole('button', { name: 'Explain' })).toBeDisabled()
     const res = await fetch(`${location.origin}/api/v1/findings/handle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ['f-1'], resolution: 'patched', note: '' }) })
     expect(res.status).toBe(403)

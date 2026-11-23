@@ -109,7 +109,7 @@ function AddServer({ options }: { options: ScanTarget[] }) {
   if (!options.length) return (
     <div className="flex max-w-2xl flex-wrap items-center gap-x-1 rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm text-muted">
       <span>{t('cred.noHosts')}</span>
-      <InfoTip topic={t('cred.addTitle')}>{t('cred.noHostsInfo')}</InfoTip>
+      <InfoTip>{t('cred.noHostsInfo')}</InfoTip>
       <Link to="/devices" className="text-accent underline underline-offset-4">{t('start.openDevices')}</Link>
     </div>
   )

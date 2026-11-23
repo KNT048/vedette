@@ -250,7 +250,11 @@ export const modelHandlers = [
     const p = query(request)
     const slice = page(p)
     const device = p.get('device')
-    const items = inputItems().filter((i) => !device || i.device.id === device)
+    const q = (p.get('q') ?? '').trim().toLowerCase()
+    // the server's search: the device's name or address, the software's name or the CVE id contains q
+    const has = (v?: string | null) => !!v && v.toLowerCase().includes(q)
+    const items = inputItems().filter((i) => (!device || i.device.id === device)
+      && (!q || has(i.device.name) || has(i.device.ip) || ('software' in i && has(i.software?.name)) || ('cve' in i && has(i.cve))))
     return { items: slice(items), total: items.length } satisfies InputList
   })),
   http.get(`${API}/findings/handled`, ({ request }) => read(() => handledList(query(request)))),

@@ -4,6 +4,8 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { InfoTip } from '@/components/common/InfoTip'
+import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { CveList } from '@/components/common/status'
@@ -43,17 +45,21 @@ export function IgnoredTab() {
   const raw = useListParams('ignored')
   const list = useMemo(() => ({ ...raw, size: raw.size === undefined ? undefined : Math.min(raw.size, PAGE_MAX) }), [raw])
   const size = list.size ?? PAGE_DEFAULT
-  const q = useDeviceCards({ ignored: true }, { offset: list.page * size, limit: size })
+  const q = useDeviceCards({ q: raw.q, ignored: true }, { offset: list.page * size, limit: size })
   const columns: ColumnDef<DeviceCard>[] = [
     { id: 'device', header: t('byDevice.col'), cell: ({ row: { original: c } }) => <IgnoredDevice card={c} /> },
   ]
   return (
     <div className="grid gap-3">
-      <p className="max-w-3xl text-meta text-muted">{t('ignoredTab.intro')}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <ListSearch value={raw.q} onChange={(v) => raw.set({ q: v, page: 0 })} label={t('ignoredTab.search')} />
+        <InfoTip topic={t('ignoredTab.about')}><p>{t('ignoredTab.intro')}</p></InfoTip>
+      </div>
       <QueryState query={q}>
-        {(d) => d.total === 0 ? <EmptyState title={t('ignoredTab.none')} /> : (
+        {(d) => d.total === 0 && !raw.q ? <EmptyState title={t('ignoredTab.none')} /> : (
           <DataTable urlKey="ignored" caption={t('ignoredTab.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-            server={{ total: d.total, list, max: PAGE_MAX }} mobileRow={(c) => <IgnoredDevice card={c} />} />
+            server={{ total: d.total, list, max: PAGE_MAX }} filtered={!!raw.q} onClearFilters={() => raw.set({ q: '', page: 0 })}
+            mobileRow={(c) => <IgnoredDevice card={c} />} />
         )}
       </QueryState>
     </div>

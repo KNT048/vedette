@@ -71,9 +71,9 @@ type InputList struct {
 	Total int           `json:"total"`
 }
 
-// Input reads one page of the queue (of one device when device is set): devices not added yet first, then unconfirmed findings by
-// status, then questions by the CVEs waiting on them.
-func (s *Service) Input(ctx context.Context, device string, p Page) (InputList, error) {
+// Input reads one page of the queue (of one device when device is set, of the items a search q finds when q is set): devices not
+// added yet first, then unconfirmed findings by status, then questions by the CVEs waiting on them.
+func (s *Service) Input(ctx context.Context, device, q string, p Page) (InputList, error) {
 	var items []InputItemJS
 	err := s.readTx(ctx, func(ctx context.Context) error {
 		var err error
@@ -83,8 +83,25 @@ func (s *Service) Input(ctx context.Context, device string, p Page) (InputList, 
 	if err != nil {
 		return InputList{}, err
 	}
+	if q = strings.TrimSpace(q); q != "" {
+		items = slices.DeleteFunc(items, func(it InputItemJS) bool { return !it.matches(q) })
+	}
 	lo, hi := p.cut(len(items))
 	return InputList{Items: append([]InputItemJS{}, items[lo:hi]...), Total: len(items)}, nil
+}
+
+// matches is the search of the queue, the same as the other lists': the device's name or address, the software's name or the CVE id
+// contains q (any case).
+func (it InputItemJS) matches(q string) bool {
+	low := strings.ToLower(q)
+	has := func(v string) bool { return v != "" && strings.Contains(strings.ToLower(v), low) }
+	if has(it.Device.Name) || it.Device.IP != nil && has(*it.Device.IP) {
+		return true
+	}
+	if it.Software != nil && has(it.Software.Name) {
+		return true
+	}
+	return it.CVE != nil && has(*it.CVE)
 }
 
 func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS, error) {

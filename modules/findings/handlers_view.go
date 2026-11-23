@@ -61,7 +61,7 @@ func (h *FindingHandlers) FindingsGetFindingsFixes(ctx context.Context, p oas.Fi
 
 // FindingsGetFindingsInput implements findings_get_findings_input (Needs your input).
 func (h *FindingHandlers) FindingsGetFindingsInput(ctx context.Context, p oas.FindingsGetFindingsInputParams) (*oas.FindingsGetFindingsInputOK, error) {
-	out, err := h.svc.Input(ctx, p.Device.Or(""), ParsePage(p.Offset.Or(""), p.Limit.Or("")))
+	out, err := h.svc.Input(ctx, p.Device.Or(""), p.Q.Or(""), ParsePage(p.Offset.Or(""), p.Limit.Or("")))
 	if err != nil {
 		return nil, ToAPIError(err)
 	}

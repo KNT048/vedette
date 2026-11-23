@@ -29,7 +29,7 @@ const files = ROOTS.flatMap((root) => readdirSync(join(SRC, root), { recursive: 
   .map((f) => ({ file: relative(SRC, join(SRC, root, f)).split('\\').join('/'), text: readFileSync(join(SRC, root, f), 'utf8') })))
 
 /** Known cases outside this change, fixed in their own change; a listed case that is gone fails, so the list only shrinks. */
-const KNOWN = ['features/feeds/AddRangeDialog.tsx: inventory']
+const KNOWN: string[] = []
 
 describe('locale namespaces: no raw key', () => {
   it('a file that reads another namespace with t(\'<ns>:…\') names it in its useTranslation, so the words are there before it renders', () => {

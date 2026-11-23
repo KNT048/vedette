@@ -38,20 +38,20 @@ func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {
 		"no_config_reason": "",
 		"configs": []map[string]any{
 			{"title": "Juniper EX4200-48T (Junos OS)", "lines": []string{"delete system services web-management", "commit"}, "side_effect": "J-Web stops working.", "based_on": "the vendor advisory"},
-			{"title": "FortiGate", "lines": []string{"config firewall policy", "    edit 0", "        set dstaddr \"192.168.18.47/32\"", "        set srcaddr \"192.168.18.0/24\"", "    next", "end"}, "side_effect": "Blocks HTTP to the switch.", "based_on": "general practice, no source in the data names it"},
+			{"title": "FortiGate", "lines": []string{"config firewall policy", "    edit 0", "        set dstaddr \"192.168.142.47/32\"", "        set srcaddr \"192.168.142.0/24\"", "    next", "end"}, "side_effect": "Blocks HTTP to the switch.", "based_on": "general practice, no source in the data names it"},
 			// r1 M2: two commands in one string would become one command once a mask rewrites the answer: the block is left out
 			{"title": "Two in one", "lines": []string{"config firewall policy\nend"}, "side_effect": "", "based_on": ""},
 			// r2: an address the box does not know is kept and named for checking, never a reason to leave the block out; a netmask and a
 			// wildcard are not addresses
-			{"title": "Elsewhere", "lines": []string{"set address 203.0.113.9", "set subnet 192.168.18.47 255.255.255.255", "access-list 101 deny tcp any 192.168.18.0 0.0.0.255 eq 443"}, "side_effect": "", "based_on": ""},
+			{"title": "Elsewhere", "lines": []string{"set address 203.0.113.9", "set subnet 192.168.142.47 255.255.255.255", "access-list 101 deny tcp any 192.168.142.0 0.0.0.255 eq 443"}, "side_effect": "", "based_on": ""},
 			// r2 M4: invisible characters go, so the line shown is the line pasted
-			{"title": "nftables", "lines": []string{"nft add rule inet filter forward ip daddr 192.168.18.47 tcp dport 443\u2028 drop\u200b\u202e"}, "side_effect": "Drops HTTPS.", "based_on": "general practice, no source in the data names it"},
+			{"title": "nftables", "lines": []string{"nft add rule inet filter forward ip daddr 192.168.142.47 tcp dport 443\u2028 drop\u200b\u202e"}, "side_effect": "Drops HTTPS.", "based_on": "general practice, no source in the data names it"},
 			{"title": "Too long", "lines": []string{strings.Repeat("x", 500)}, "side_effect": "", "based_on": ""},
 			{"title": "Empty", "lines": []string{"  ", ""}, "side_effect": "", "based_on": ""},
 		},
 	})
 	a.fake.setAnswer(string(answer))
-	trusted := []netip.Addr{netip.MustParseAddr("192.168.18.47")}
+	trusted := []netip.Addr{netip.MustParseAddr("192.168.142.47")}
 	refs := []ai.BriefRef{{Title: "Vendor advisory", URL: "https://supportportal.juniper.net/JSA72300"}, {Title: "NVD", URL: "https://nvd.nist.gov/vuln/detail/CVE-2023-36845"}}
 	out, err := a.svc.Brief(a.ctx(), ai.BriefRequest{Job: ai.JobMitigationConfig, Actor: "it@acme.example", Target: "CVE-2023-36845", Question: "Write the config.", Refs: refs, Trusted: trusted})
 	if err != nil {
@@ -80,7 +80,7 @@ func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {
 	if c := out.Configs[0]; c.Code != "delete system services web-management\ncommit" || c.SideEffect != "J-Web stops working." || c.BasedOn != "the vendor advisory" {
 		t.Fatalf("junos block = %+v", c)
 	}
-	if c := out.Configs[1].Code; c != "config firewall policy\n    edit 0\n        set dstaddr \"192.168.18.47/32\"\n        set srcaddr \"192.168.18.0/24\"\n    next\nend" {
+	if c := out.Configs[1].Code; c != "config firewall policy\n    edit 0\n        set dstaddr \"192.168.142.47/32\"\n        set srcaddr \"192.168.142.0/24\"\n    next\nend" {
 		t.Fatalf("fortigate block lost its lines or indentation: %q", c)
 	}
 	if c := out.Configs[1]; len(c.Check) != 0 {
@@ -89,7 +89,7 @@ func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {
 	if c := out.Configs[2]; c.Title != "Elsewhere" || !slices.Equal(c.Check, []string{"203.0.113.9"}) {
 		t.Fatalf("elsewhere block = %+v", c)
 	}
-	if c := out.Configs[3]; c.Code != "nft add rule inet filter forward ip daddr 192.168.18.47 tcp dport 443 drop" {
+	if c := out.Configs[3]; c.Code != "nft add rule inet filter forward ip daddr 192.168.142.47 tcp dport 443 drop" {
 		t.Fatalf("invisible characters kept: %q", c.Code)
 	}
 	req := a.fake.reqs[len(a.fake.reqs)-1]

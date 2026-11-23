@@ -46,7 +46,7 @@ func (f *fakeSafety) SaveSafety(_ context.Context, _ string, in core.SafetyInput
 	f.saved = append(f.saved, in)
 	f.st.LANRanges, f.st.Days, f.st.From, f.st.To = in.LANRanges, in.Days, in.From, in.To
 	f.st.PacketsPerS, f.st.RequestsPerS, f.st.Exclusions = in.PacketsPerS, in.RequestsPerS, in.Exclusions
-	return f.st, []core.Adjustment{{From: "192.168.18.5/24", To: "192.168.18.0/24"}}, nil
+	return f.st, []core.Adjustment{{From: "192.168.142.5/24", To: "192.168.142.0/24"}}, nil
 }
 
 type rangeAdd struct {
@@ -104,7 +104,7 @@ func (f *fakeRunner) Run(ctx context.Context, _ string, targets []string, record
 	}
 	c := core.RunConsent{ID: "sar-1", Until: time.Date(2026, 11, 16, 4, 0, 0, 0, time.UTC)}
 	if len(targets) == 0 {
-		c.Ranges = []string{"192.168.18.0/24"}
+		c.Ranges = []string{"192.168.142.0/24"}
 	}
 	for _, t := range targets {
 		c.Devices = append(c.Devices, t+" (a-1)")
@@ -113,7 +113,7 @@ func (f *fakeRunner) Run(ctx context.Context, _ string, targets []string, record
 		return core.RunningJob{}, err
 	}
 	f.started++
-	return core.RunningJob{Engine: "nmap-discovery", ID: "sar-1", Label: "Check 192.168.18.20", TargetID: "a-1", StartedAt: time.Date(2026, 11, 16, 3, 0, 0, 0, time.UTC),
+	return core.RunningJob{Engine: "nmap-discovery", ID: "sar-1", Label: "Check 192.168.142.20", TargetID: "a-1", StartedAt: time.Date(2026, 11, 16, 3, 0, 0, 0, time.UTC),
 		Progress: &progress.View{Phase: progress.PhaseDiscovery, StartedAt: "2026-11-16T03:00:00.000Z", PhaseStartedAt: "2026-11-16T03:00:00.000Z", UpdatedAt: "2026-11-16T03:00:00.000Z"}}, nil
 }
 
@@ -142,8 +142,8 @@ func newScanningStack(t *testing.T) *scanningStack {
 		t.Fatal(err)
 	}
 	s := &scanningStack{stack: &stack{t: t, db: db, reg: reg}, runner: &fakeRunner{db: db}, safety: &fakeSafety{st: core.Safety{
-		LANRanges: []string{"192.168.18.0/24"}, ConfirmedAt: ptr("2026-11-01T00:00:00.000Z"), ConfirmedBy: ptr("admin@acme.example"),
-		Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "22:00", To: "05:00", PacketsPerS: 50, RequestsPerS: 5, Exclusions: []string{"192.168.18.9"},
+		LANRanges: []string{"192.168.142.0/24"}, ConfirmedAt: ptr("2026-11-01T00:00:00.000Z"), ConfirmedBy: ptr("admin@acme.example"),
+		Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "22:00", To: "05:00", PacketsPerS: 50, RequestsPerS: 5, Exclusions: []string{"192.168.142.9"},
 		FragileKinds: []string{"printer"}, RegularScanKinds: []string{}, FragileDevices: 3, Version: "v1",
 	}}}
 	moduleCard := func(module string, last *core.LastRun) func(context.Context) (core.EngineStatus, error) {
@@ -183,7 +183,7 @@ func newScanningStack(t *testing.T) *scanningStack {
 			Status: func(context.Context) (core.EngineStatus, error) {
 				st := core.EngineStatus{Enabled: reg.Enabled("sensor-active") && discoveryOn, State: core.EngineOff}
 				if st.Enabled {
-					st.State, st.Running = core.EngineRunning, []core.RunningJob{{Engine: "nmap-discovery", ID: "saj-1", Label: "LAN sweep 192.168.18.0/24", StartedAt: time.Date(2026, 11, 16, 2, 0, 0, 0, time.UTC)}}
+					st.State, st.Running = core.EngineRunning, []core.RunningJob{{Engine: "nmap-discovery", ID: "saj-1", Label: "LAN sweep 192.168.142.0/24", StartedAt: time.Date(2026, 11, 16, 2, 0, 0, 0, time.UTC)}}
 				}
 				return st, nil
 			}},
@@ -374,8 +374,8 @@ func TestContract_INV40_EngineSwitches(t *testing.T) {
 func TestContract_INV40_SafetyPut(t *testing.T) {
 	t.Parallel()
 	s := newScanningStack(t)
-	in := `{"scope":{"lan_ranges":["192.168.18.5/24"],"confirmed":true},"window":{"days":[1,2,3],"from":"21:00","to":"04:00"},
-		"speed":{"packets_per_s":80,"requests_per_s":8},"exclusions":["192.168.18.9","192.168.18.64/28"],"fragile":{"kinds":["printer","camera"],"regular_scan_kinds":["camera"]},"version":"v1"}`
+	in := `{"scope":{"lan_ranges":["192.168.142.5/24"],"confirmed":true},"window":{"days":[1,2,3],"from":"21:00","to":"04:00"},
+		"speed":{"packets_per_s":80,"requests_per_s":8},"exclusions":["192.168.142.9","192.168.142.64/28"],"fragile":{"kinds":["printer","camera"],"regular_scan_kinds":["camera"]},"version":"v1"}`
 	for _, who := range []string{"viewer", "operator"} {
 		if code, _ := s.call("PUT", "/scanning/safety", who, in); code != http.StatusForbidden {
 			t.Fatalf("%s saved the safety settings: %d", who, code)
@@ -386,12 +386,12 @@ func TestContract_INV40_SafetyPut(t *testing.T) {
 		t.Fatalf("PUT = %d %v", code, out)
 	}
 	got := s.safety.saved[0]
-	if !got.Confirmed || !slices.Equal(got.LANRanges, []string{"192.168.18.5/24"}) || !slices.Equal(got.Days, []int{1, 2, 3}) || got.From != "21:00" || got.To != "04:00" ||
-		got.PacketsPerS != 80 || got.RequestsPerS != 8 || !slices.Equal(got.Exclusions, []string{"192.168.18.9", "192.168.18.64/28"}) ||
+	if !got.Confirmed || !slices.Equal(got.LANRanges, []string{"192.168.142.5/24"}) || !slices.Equal(got.Days, []int{1, 2, 3}) || got.From != "21:00" || got.To != "04:00" ||
+		got.PacketsPerS != 80 || got.RequestsPerS != 8 || !slices.Equal(got.Exclusions, []string{"192.168.142.9", "192.168.142.64/28"}) ||
 		!slices.Equal(got.FragileKinds, []string{"printer", "camera"}) || !slices.Equal(got.RegularScanKinds, []string{"camera"}) {
 		t.Fatalf("stored %+v", got)
 	}
-	if adj := out["adjusted"].([]any); len(adj) != 1 || adj[0].(map[string]any)["to"] != "192.168.18.0/24" {
+	if adj := out["adjusted"].([]any); len(adj) != 1 || adj[0].(map[string]any)["to"] != "192.168.142.0/24" {
 		t.Fatalf("adjusted = %v", out["adjusted"])
 	}
 	if sp := out["speed"].(map[string]any); sp["requests_per_s"] != 8.0 || out["version"] != "v1+" {
@@ -432,20 +432,20 @@ func TestContract_INV40_RunNow(t *testing.T) {
 	if len(s.runner.targets) != 0 {
 		t.Fatal("a refused caller reached the runner")
 	}
-	code, run := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{"targets":["192.168.18.20"," 192.168.18.20 "]}`)
+	code, run := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{"targets":["192.168.142.20"," 192.168.142.20 "]}`)
 	if code != http.StatusAccepted || run["id"] != "sar-1" || run["engine"] != "nmap-discovery" || run["target_id"] != "a-1" || run["progress"].(map[string]any)["phase"] != "discovery" {
 		t.Fatalf("run = %d %v", code, run)
 	}
-	if !slices.Equal(s.runner.targets[0], []string{"192.168.18.20"}) {
+	if !slices.Equal(s.runner.targets[0], []string{"192.168.142.20"}) {
 		t.Fatalf("targets = %v", s.runner.targets)
 	}
-	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND user = 'admin@acme.example' AND target = 'sar-1' AND detail = 'check 192.168.18.20 (a-1) now, whatever the window'`); n != 1 {
+	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND user = 'admin@acme.example' AND target = 'sar-1' AND detail = 'check 192.168.142.20 (a-1) now, whatever the window'`); n != 1 {
 		t.Fatalf("scanning.run rows = %d", n)
 	}
 	if code, _ := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{}`); code != http.StatusAccepted || len(s.runner.targets[1]) != 0 {
 		t.Fatalf("Scan the LAN now: %d, targets %v", code, s.runner.targets)
 	}
-	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND target = 'sar-1' AND detail LIKE 'sweep of 192.168.18.0/24 and the scans of the devices it finds now, whatever the window, until %'`); n != 1 {
+	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND target = 'sar-1' AND detail LIKE 'sweep of 192.168.142.0/24 and the scans of the devices it finds now, whatever the window, until %'`); n != 1 {
 		t.Fatalf("whole scope rows = %d", n)
 	}
 	if code, body := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{"targets":[" "]}`); code != http.StatusBadRequest || errCode(body) != "invalid" {
@@ -463,12 +463,12 @@ func TestContract_INV40_RunNow(t *testing.T) {
 		{core.ErrNmapBusy, 409, "busy"},
 		{&core.RunTooSoon{RetryAfter: 7*time.Minute + 10*time.Second}, 409, "too_soon"},
 		{core.ErrNmapUnavailable, 503, "scanner_unavailable"},
-		{&core.RunRefusal{Target: "192.168.18.77", Code: "unknown_device", Detail: "no_device"}, 400, "unknown_device"},
+		{&core.RunRefusal{Target: "192.168.142.77", Code: "unknown_device", Detail: "no_device"}, 400, "unknown_device"},
 		{&core.RunRefusal{Target: "10.0.0.1", Code: "out_of_scope", Detail: "out_of_scope"}, 400, "out_of_scope"},
 		{&core.RunRefusal{Target: "a-2", Code: "not_scannable", Detail: "regular_scan_never"}, 400, "not_scannable"},
 	} {
 		s.runner.err = c.err
-		code, body := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{"targets":["192.168.18.77"]}`)
+		code, body := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{"targets":["192.168.142.77"]}`)
 		if code != c.status || errCode(body) != c.code {
 			t.Errorf("%v: %d %v, want %d %s", c.err, code, body, c.status, c.code)
 		}
@@ -503,22 +503,22 @@ func TestContract_INV40_SafetyInlineAdds(t *testing.T) {
 	t.Parallel()
 	s := newScanningStack(t)
 	for _, who := range []string{"viewer", "operator"} {
-		if code, _ := s.call("POST", "/scanning/safety/ranges", who, `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.18.0/24"],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`); code != http.StatusForbidden {
+		if code, _ := s.call("POST", "/scanning/safety/ranges", who, `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.142.0/24"],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`); code != http.StatusForbidden {
 			t.Fatalf("%s added a range: %d", who, code)
 		}
-		if code, _ := s.call("POST", "/scanning/safety/exclusions", who, `{"entry":"192.168.18.20"}`); code != http.StatusForbidden {
+		if code, _ := s.call("POST", "/scanning/safety/exclusions", who, `{"entry":"192.168.142.20"}`); code != http.StatusForbidden {
 			t.Fatalf("%s added an exclusion: %d", who, code)
 		}
 	}
 	if len(s.safety.ranges) != 0 || len(s.safety.excl) != 0 {
 		t.Fatal("a refused caller reached the store")
 	}
-	for _, body := range []string{`{"range":"192.168.20.5/24","shown_ranges":[]` + `,"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`, `{"range":"192.168.20.5/24","confirm":true` + `,"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`, `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.18.0/24"]}`} {
+	for _, body := range []string{`{"range":"192.168.20.5/24","shown_ranges":[]` + `,"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`, `{"range":"192.168.20.5/24","confirm":true` + `,"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`, `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.142.0/24"]}`} {
 		if code, out := s.call("POST", "/scanning/safety/ranges", "admin", body); code != http.StatusBadRequest {
 			t.Fatalf("%s: %d %v", body, code, out)
 		}
 	}
-	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":false,"shown_ranges":["192.168.18.0/24"],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`); code != http.StatusBadRequest || errCode(body) != "scope_not_confirmed" {
+	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":false,"shown_ranges":["192.168.142.0/24"],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`); code != http.StatusBadRequest || errCode(body) != "scope_not_confirmed" {
 		t.Fatalf("confirm false: %d %v", code, body)
 	}
 	// review #860 H1: a dialog that showed another list is 409 scope_changed with the current block
@@ -530,11 +530,11 @@ func TestContract_INV40_SafetyInlineAdds(t *testing.T) {
 		t.Fatalf("the refusal does not carry the current block: %v", cur)
 	}
 	// review #860 r2 M1: a dialog that showed the scope unconfirmed reaches the store as such (null), and is refused here
-	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.18.0/24"],"shown_confirmed_at":null}`); code != http.StatusConflict || errCode(body) != "scope_changed" || s.safety.ranges[2].shown != "192.168.18.0/24 null" {
+	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.142.0/24"],"shown_confirmed_at":null}`); code != http.StatusConflict || errCode(body) != "scope_changed" || s.safety.ranges[2].shown != "192.168.142.0/24 null" {
 		t.Fatalf("shown unconfirmed: %d %v %+v", code, body, s.safety.ranges)
 	}
-	code, out := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.18.0/24"],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`)
-	if code != http.StatusOK || s.safety.ranges[3] != (rangeAdd{"admin@acme.example", "192.168.20.5/24", "192.168.18.0/24 2026-11-01T00:00:00.000Z", true}) || out["version"] != "v1+" {
+	code, out := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.142.0/24"],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`)
+	if code != http.StatusOK || s.safety.ranges[3] != (rangeAdd{"admin@acme.example", "192.168.20.5/24", "192.168.142.0/24 2026-11-01T00:00:00.000Z", true}) || out["version"] != "v1+" {
 		t.Fatalf("add range = %d %v, store got %+v", code, out, s.safety.ranges)
 	}
 	if r := out["scope"].(map[string]any)["lan_ranges"].([]any); len(r) != 2 || r[1] != "192.168.20.0/24" {
@@ -546,11 +546,11 @@ func TestContract_INV40_SafetyInlineAdds(t *testing.T) {
 	if out["window"].(map[string]any)["time_zone"] != "Asia/Ho_Chi_Minh" || out["fragile"].(map[string]any)["devices"] != 3.0 {
 		t.Fatalf("not the whole block: %v", out)
 	}
-	code, out = s.call("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.18.20"}`)
-	if code != http.StatusOK || !slices.Equal(s.safety.excl, []string{"admin@acme.example 192.168.18.20"}) {
+	code, out = s.call("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.142.20"}`)
+	if code != http.StatusOK || !slices.Equal(s.safety.excl, []string{"admin@acme.example 192.168.142.20"}) {
 		t.Fatalf("add exclusion = %d %v", code, out)
 	}
-	if x := out["exclusions"].([]any); len(x) != 2 || x[1] != "192.168.18.20" {
+	if x := out["exclusions"].([]any); len(x) != 2 || x[1] != "192.168.142.20" {
 		t.Fatalf("exclusions = %v", x)
 	}
 	if _, has := out["adjusted"]; has || out["speed"] == nil || out["version"] != "v1++" {
@@ -560,10 +560,10 @@ func TestContract_INV40_SafetyInlineAdds(t *testing.T) {
 		t.Fatalf("a 65-character entry: %d", code)
 	}
 	s.safety.err = apierr.New(http.StatusBadRequest, "too_many_exclusions", "The exclusion list can have at most 200 lines.")
-	if code, body := s.call("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.18.21"}`); code != http.StatusBadRequest || errCode(body) != "too_many_exclusions" {
+	if code, body := s.call("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.142.21"}`); code != http.StatusBadRequest || errCode(body) != "too_many_exclusions" {
 		t.Fatalf("a refusal of the store: %d %v", code, body)
 	}
-	s.safety.err = apierr.New(http.StatusBadRequest, "overlap_range", "Range 192.168.0.0/16 overlaps 192.168.18.0/24.")
+	s.safety.err = apierr.New(http.StatusBadRequest, "overlap_range", "Range 192.168.0.0/16 overlaps 192.168.142.0/24.")
 	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.0.0/16","confirm":true,"shown_ranges":[],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`); code != http.StatusBadRequest || errCode(body) != "overlap_range" {
 		t.Fatalf("a refusal of the store: %d %v", code, body)
 	}

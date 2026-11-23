@@ -210,7 +210,6 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 		return err
 	}}
 	// a 304 keeps the stored rows: only when they were kept for every package needed now (a removed package needs nothing)
-	// (and never when new code reads the feed again, INV-32)
 	if src.Status == "ok" && (len(keep) == 0 || kept != nil && covers(kept, keep)) {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}

@@ -24,7 +24,7 @@ import { useOsMutations, useOsRun, useOsState } from './api'
 import { Band, errMsg, useGate } from './parts'
 import type { MaintenanceWindow, OsPackage, OsRun, OsState } from './types'
 
-/** Hết hạn hỗ trợ: đã qua, sắp tới (trong 12 tháng) hay còn dài. Debian có thêm giai đoạn LTS. */
+/** End of support: already past, coming (within 12 months) or still far. Debian has an extra LTS phase. */
 function support(os: NonNullable<OsState['os']>, now = Date.now()): 'ok' | 'soon' | 'extended' | 'ended' {
   const std = new Date(`${os.support_end}T23:59:59`).getTime()
   if (now > std) return os.extended_end && now < new Date(`${os.extended_end}T23:59:59`).getTime() ? 'extended' : 'ended'
@@ -109,7 +109,7 @@ function RunPanel({ run }: { run: OsRun }) {
   const seen = useRef<string | null>(null)
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight }, [run.lines.length])
   useEffect(() => {
-    // Lần chạy vừa xong: làm mới danh sách chờ và trạng thái khởi động lại; báo một lần.
+    // A run just finished: refresh the pending list and the reboot state; tell the person once.
     if (run.status === 'running') { seen.current = `${run.id}:running`; return }
     void qc.invalidateQueries({ queryKey: ['core', 'os'] })
     void qc.invalidateQueries({ queryKey: ['core', 'updates'] })
@@ -277,7 +277,7 @@ function Body({ s }: { s: CheckedOs }) {
   )
 }
 
-/** Khối a của Settings → Updates: hệ điều hành của chính hộp (S-CORE-7). */
+/** Block a of Settings → Updates: the operating system of the box itself (S-CORE-7). */
 /** The box has not looked for updates yet (os null; issue #231): say so and offer Check now, which is what the sentence says to do. */
 function NoCheckYet() {
   const { t } = useTranslation('core')

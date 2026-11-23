@@ -46,7 +46,7 @@ func withRisk(r inventory.RiskSource) opt { return func(c *inventory.Config) { c
 func riskDevices(e *env) (exploited, update, clean string) {
 	e.t.Helper()
 	for i, mac := range []string{macA, macB, "aa:bb:cc:00:00:03"} {
-		e.record(obs(netip.AddrFrom4([4]byte{192, 168, 18, byte(10 + i)}), mac, observe.Kind, "server", observe.Nmap, 0.9))
+		e.record(obs(netip.AddrFrom4([4]byte{192, 168, 142, byte(10 + i)}), mac, observe.Kind, "server", observe.Nmap, 0.9))
 	}
 	return e.idByMAC(macA), e.idByMAC(macB), e.idByMAC("aa:bb:cc:00:00:03")
 }
@@ -232,7 +232,7 @@ func TestContract_TheCSVHasTheRisk(t *testing.T) {
 	if !strings.HasSuffix(lines[0], ",risk") {
 		t.Fatalf("header = %q", lines[0])
 	}
-	want := map[string]string{"192.168.18.10": ",2 exploited", "192.168.18.11": ",Update recommended", "192.168.18.12": ","}
+	want := map[string]string{"192.168.142.10": ",2 exploited", "192.168.142.11": ",Update recommended", "192.168.142.12": ","}
 	for _, l := range lines[1:] {
 		for ip, end := range want {
 			if strings.Contains(l, ","+ip+",") && !strings.HasSuffix(l, end) {
@@ -248,7 +248,7 @@ func TestContract_TheBoxIsNeverMarked(t *testing.T) {
 	t.Parallel()
 	src := fakeRisk{}
 	e := newEnv(t, withRisk(src))
-	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "boxanna", IP: "192.168.18.2"})
+	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "boxanna", IP: "192.168.142.2"})
 	if err != nil {
 		t.Fatal(err)
 	}

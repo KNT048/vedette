@@ -1,4 +1,4 @@
-// Hợp đồng API module inventory. Kiểu UI suy ra từ schema ở đây (types.ts), nên UI ↔ mock ↔ OpenAPI không lệch.
+// API contract of the inventory module. The UI types are derived from the schema here (types.ts), so UI ↔ mock ↔ OpenAPI cannot drift.
 import { z } from 'zod'
 import { DEVICE_STATUSES } from '@/lib/statusCodes'
 import { defineEndpoints } from '@/lib/contract'
@@ -49,12 +49,12 @@ export const Asset = z.object({
   quiet: z.boolean().describe('Not approved, but held out of To review and of the new-device notice: a private-address device with no open service that has not stayed past a day. It is listed with the approved devices and moves to To review when it earns a look; false for every approved device'),
 })
 
-/** Một lần quan sát một trường. Không bao giờ bị ghi đè: giá trị mới thêm vào, "đang dùng" chọn theo khai tay > tin cậy cao > mới hơn (ARCHITECTURE §4). */
+/** One observation of one field. Never overwritten: a new value is added, and the "in use" value is chosen by manual > high confidence > newer (ARCHITECTURE §4). */
 export const Observation = z.object({ id: z.string(), field: ObsField, value: z.string(), source: ObsSource, confidence, seen_at: dt, current: z.boolean(),
   contradicts_type: z.boolean().optional().describe('An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS; absent otherwise'),
   basis: basis.describe('On an OS or model observation, as Observed.basis') })
 
-/** Chỉ osquery dùng token (Vedette là máy chủ TLS của osquery). Wazuh là kết nối kéo qua API (WazuhConnection), không có token. Không hỗ trợ Trivy. */
+/** Only osquery uses a token (Vedette is osquery's TLS server). Wazuh is a pull connection over its API (WazuhConnection), with no token. Trivy is not supported. */
 export const AgentKind = z.enum(['osquery'])
 export const AgentToken = z.object({
   id: z.string(), name: z.string(), kind: AgentKind, last4: z.string(), created_at: dt, created_by: z.string().nullable().describe('Who made it (null for a token made before this was kept)'), last_received: dt.nullable(), hosts: z.number().int(),
@@ -303,11 +303,11 @@ export const SettingsInput = InventorySettings.extend({
   version: z.string().max(64).optional().describe('The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (#860). Left out: no check, so a range or exclusion added since the page loaded is replaced; this page is being replaced by Settings › Scanning (#850)'),
 })
 export const SettingsSaved = InventorySettings.extend({
-  adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24'),
+  adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24'),
 })
 
 export const SensorStatus = z.enum(['online', 'offline', 'never_connected', 'starting']).describe('online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever; starting: not online while the box is still starting the sensor container (an appliance after setup or after the module is turned on: the start is being retried, for up to 10 minutes, or was confirmed less than 3 minutes ago). A container-only install never says starting: the customer starts it')
-/** Chỉ cảm biến của chính hộp này (chưa hỗ trợ nhiều site). */
+/** Only the sensor of this box itself (multiple sites are not supported yet). */
 export const Sensor = z.object({
   id: z.string(), name: z.string(), interface: z.string().nullable().describe('The port the sensor listens on: the card chosen (the SPAN port when SPAN is on), else the default card, the management port; null: none. Set in Settings → Box network; on a container-only install with PATCH /inventory/sensors/{id}'), interfaces: z.array(z.string()).describe('The cards the sensor reported in its last heartbeat'), span: z.boolean(),
   chosen: z.boolean().describe('true: interface is a stored choice (the SPAN port of Settings → Box network, or the card chosen with PATCH on a container-only install); false: interface is the default card or null'),

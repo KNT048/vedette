@@ -1,4 +1,4 @@
-// Kiểu API module inventory — suy ra từ hợp đồng Zod (contract.ts), không khai tay.
+// API types of the inventory module — derived from the Zod contract (contract.ts), not declared by hand.
 import type { z } from 'zod'
 import * as C from './contract'
 

@@ -74,9 +74,9 @@ func manyUpdates(n int, what string) []UpdateRow {
 // no named update, then the exploited ones), says the totals and where the next page starts; a page has one list, without the status
 // words and the device's details (they came with the first call), and pages read to the end.
 func TestDeviceUpdates_FirstCallKeepsEachListAndPagesAreLean(t *testing.T) {
-	b := updatesBox{assets: []AssetRow{{ID: "a-pc", Name: "PC-134", IP: "192.168.18.134"}},
+	b := updatesBox{assets: []AssetRow{{ID: "a-pc", Name: "PC-134", IP: "192.168.142.134"}},
 		updates: map[string]DeviceUpdates{"a-pc": {Open: 200, Exploited: manyUpdates(60, "exploited"), NoUpdate: manyUpdates(10, "unnamed"), Planned: manyUpdates(20, "recommended")}}}
-	ans, err := callUpdates(t, b, `{"device":"192.168.18.134"}`)
+	ans, err := callUpdates(t, b, `{"device":"192.168.142.134"}`)
 	if err != nil || !ans.Found || ans.Total != 60 || ans.RecTotal != 20 || ans.StatusWords == "" || ans.Device["name"] != "PC-134" {
 		t.Fatalf("%+v %v", ans, err)
 	}

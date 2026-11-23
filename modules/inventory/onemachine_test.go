@@ -126,7 +126,7 @@ func TestContract_WhatANameAloneDoesNotJoin(t *testing.T) {
 		{"model name", dhcp(privMac1, "10.0.18.10", "Galaxy-A52"), dhcp(privMac2, "10.0.18.11", "Galaxy-A52"), nil},
 		{"Windows default name", dhcp(privMac1, "10.0.18.10", "DESKTOP-7GH2K1L"), dhcp(privMac2, "10.0.18.11", "DESKTOP-7GH2K1L"), nil},
 		{"localhost", dhcp(privMac1, "10.0.18.10", "localhost"), dhcp(privMac2, "10.0.18.11", "localhost.localdomain"), nil},
-		{"name from the address", dhcp(privMac1, "10.0.18.10", "dhcp-192-168-18-10"), dhcp(privMac2, "10.0.18.11", "dhcp-192-168-18-10"), nil},
+		{"name from the address", dhcp(privMac1, "10.0.18.10", "dhcp-192-168-142-10"), dhcp(privMac2, "10.0.18.11", "dhcp-192-168-142-10"), nil},
 		{"two rows known only by address", byAddress("10.20.0.5", "erp01"), byAddress("10.20.0.6", "erp01"), nil},
 		{"three rows of one name", dhcp(privMac1, "10.0.18.10", "lab-tablet"), dhcp(privMac2, "10.0.18.11", "lab-tablet"), dhcp(privMac3, "10.0.18.12", "lab-tablet")},
 	}

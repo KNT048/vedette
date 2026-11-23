@@ -134,7 +134,7 @@ func junosSwitch(t *testing.T) (s *stack, cves []string, lldp func()) {
 			t.Fatal(err)
 		}
 	}
-	const base, mgmt, ip = "3c:8a:b0:9c:85:80", "3c:8a:b0:9c:85:ff", "192.168.18.47"
+	const base, mgmt, ip = "3c:8a:b0:9c:85:80", "3c:8a:b0:9c:85:ff", "192.168.142.47"
 	lldp = func() {
 		t.Helper()
 		var batch []observe.Observation
@@ -154,7 +154,7 @@ func TestWiringJoinedSwitchKeepsItsFindings(t *testing.T) {
 	t.Parallel()
 	s, cves, lldp := junosSwitch(t)
 	ctx := t.Context()
-	const mgmt, ip = "3c:8a:b0:9c:85:ff", "192.168.18.47"
+	const mgmt, ip = "3c:8a:b0:9c:85:ff", "192.168.142.47"
 	lldp()
 	recs, err := s.d.Findings.List(ctx, "")
 	if err != nil || len(recs) != len(cves) {
@@ -212,7 +212,7 @@ func TestWiringAFailedMoveKeepsTheFindings(t *testing.T) {
 		t.Fatalf("findings of the LLDP row: %d (%v)", len(recs), err)
 	}
 	lldpID := recs[0].AssetID
-	h := observe.AssetHint{MAC: "3c:8a:b0:9c:85:ff", IP: netip.MustParseAddr("192.168.18.47")}
+	h := observe.AssetHint{MAC: "3c:8a:b0:9c:85:ff", IP: netip.MustParseAddr("192.168.142.47")}
 	var batch []observe.Observation
 	for f, v := range map[observe.Field]string{observe.MAC: h.MAC, observe.Model: "EX4200-48T", observe.OS: "JUNOS 15.1R7.9"} {
 		batch = append(batch, observe.Observation{AssetHint: h, Field: f, Value: v, Source: observe.SNMP, Confidence: 0.9})

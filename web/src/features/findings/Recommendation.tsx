@@ -66,7 +66,7 @@ function ApplyButton({ finding, item }: { finding: FindingDetail; item: ApplyIte
   )
 }
 
-/** Phiên bản vá cho đúng thiết bị này, từ khoảng phiên bản NVD hoặc bản ghi CVE.org: chỉ nói điều dữ liệu cho, luôn ghi đúng nguồn (`fixed_in.source`). */
+/** The fixed version for exactly this device, from an NVD version range or a CVE.org record: says only what the data gives, always names the source (`fixed_in.source`). */
 export function FixedInNote({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const f = finding.fixed_in
@@ -168,7 +168,7 @@ function Checklist({ items }: { items: string[] }) {
   )
 }
 
-/** Khuyến nghị Vedette đã xác nhận: luôn nói rõ ai xác nhận, ngày nào, và "soạn với AI". */
+/** A confirmed Vedette recommendation: always says who confirmed it, on what date, and "drafted with AI". */
 export function PackView({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const p = finding.pack!
@@ -242,7 +242,7 @@ export function AiAnswers({ answers }: { answers: AiAnswer[] }) {
   )
 }
 
-/** Kết quả AI của khách: luôn trong AiBlock origin="customer", không bao giờ giống khuyến nghị của dự án. */
+/** The customer's AI result: always inside AiBlock origin="customer", never made to look like the project's recommendation. */
 export function AiOutput({ r }: { r: AiResult }) {
   const { t } = useTranslation('findings')
   return (
@@ -332,9 +332,9 @@ export function NowSteps({ finding, kev, updatable, manual, today, agentGone = f
 }
 
 /**
- * Chưa có gói đã xác nhận (S-MIT-1): nói hết điều hộp đang biết, không tự bịa biện pháp: yêu cầu và hạn của CISA,
- * khuyến cáo của hãng và NVD từ ghi chú KEV, các bước kiểm tra phiên bản, rồi "Hỏi AI của tôi". Hộp chưa có dữ liệu phiên bản
- * đã vá (cần feed mới), nên trang nói thẳng chỗ lấy nó.
+ * No confirmed pack yet (S-MIT-1): say everything the box knows and invent no measure: CISA's requirement and due date,
+ * the vendor advisory and the NVD text from the KEV note, the steps to check the version, then "Ask my AI". The box has no data on the
+ * fixed version yet (it needs a new feed), so the page says plainly where to get it.
  */
 export function NoPack({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')

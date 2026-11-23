@@ -238,7 +238,7 @@ func TestAlpineFixReachesFindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ip := netip.MustParseAddr("192.168.18.1")
+	ip := netip.MustParseAddr("192.168.142.1")
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.Hostname, Value: "gw-alpine", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestAlpineNotLoadedKeepsTheQuestionAndWakesThePull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ip := netip.MustParseAddr("192.168.18.1")
+	ip := netip.MustParseAddr("192.168.142.1")
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.Hostname, Value: "gw-alpine", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
 		t.Fatal(err)
 	}

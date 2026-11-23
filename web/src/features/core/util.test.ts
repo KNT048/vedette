@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { deviceLabel, guessablePassword, isBareIp, isPrivateCidr, normaliseCidr } from './util'
 
 describe('normaliseCidr (the network range step of initial setup)', () => {
-  it('a bare address without a prefix is refused, /24 is not guessed', () => { expect(normaliseCidr('192.168.18.0')).toBeNull(); expect(isBareIp('192.168.18.0')).toBe(true) })
-  it('keeps the prefix the user typed, /25 included', () => { expect(normaliseCidr('192.168.18.128/25')).toEqual({ value: '192.168.18.128/25', note: null }) })
-  it('host bits go back to the network address and report network', () => { expect(normaliseCidr('192.168.18.77/24')).toEqual({ value: '192.168.18.0/24', note: 'network' }) })
+  it('a bare address without a prefix is refused, /24 is not guessed', () => { expect(normaliseCidr('192.168.142.0')).toBeNull(); expect(isBareIp('192.168.142.0')).toBe(true) })
+  it('keeps the prefix the user typed, /25 included', () => { expect(normaliseCidr('192.168.142.128/25')).toEqual({ value: '192.168.142.128/25', note: null }) })
+  it('host bits go back to the network address and report network', () => { expect(normaliseCidr('192.168.142.77/24')).toEqual({ value: '192.168.142.0/24', note: 'network' }) })
   it('already correct stays as is, no note', () => { expect(normaliseCidr(' 10.20.0.0/16 ')).toEqual({ value: '10.20.0.0/16', note: null }) })
   it.each(['', 'abc', '192.168.1.0/33', '300.1.1.1/24', '192.168.1/24', '1.2.3.4/'])('refuses "%s"', (x) => { expect(normaliseCidr(x)).toBeNull() })
 })

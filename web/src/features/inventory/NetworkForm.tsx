@@ -84,7 +84,7 @@ function ListEditor({ id, label, listLabel, hint, info, items, onChange, validat
 }
 
 /**
- * Scan network ranges: typing "192.168.18.0" becomes 192.168.18.0/24 by itself and says plainly that it was changed; every saved range can be edited/deleted;
+ * Scan network ranges: typing "192.168.142.0" becomes 192.168.142.0/24 by itself and says plainly that it was changed; every saved range can be edited/deleted;
  * a wrongly saved range (from an older version or typed by hand) shows an error right on its row, without blocking adding/editing/deleting other ranges.
  * Add and edit open in a dialog over the list.
  */

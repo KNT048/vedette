@@ -19,14 +19,14 @@ const MIKROTIK_RULE = '/ip firewall filter add chain=forward action=drop in-inte
 
 describe('findings: danh sách (S-MIT-1)', () => {
 
-  it('lỗi API hiện thông báo và nút thử lại', async () => {
+  it('an API error shows a message and a retry button', async () => {
     server.use(http.get('*/api/v1/findings/devices', () => HttpResponse.json({ error: { code: 'x', message: 'The findings store is busy.' } }, { status: 503 })))
     renderApp('/findings')
     expect(await screen.findByText('The findings store is busy.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
-  it('module findings tắt thì hiện ModuleOff', async () => {
+  it('shows ModuleOff when the findings module is off', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'findings' ? { ...m, enabled: false } : m)))
     renderApp('/findings?tab=open')
     expect(await screen.findByText('Findings module is off')).toBeInTheDocument()
@@ -38,7 +38,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 
-  it('module mitigation tắt: phát hiện vẫn còn, chỉ phần "What to do" báo module tắt', async () => {
+  it('mitigation module off: findings remain, only the "What to do" part says the module is off', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'mitigation' ? { ...m, enabled: false } : m)))
     renderApp('/findings/f-1')
     expect(await screen.findByRole('heading', { level: 1, name: /NAS-PHOTOS has a confirmed vulnerability/ })).toBeInTheDocument()
@@ -46,7 +46,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()
   })
 
-  it('mô đun: findings phụ thuộc inventory và feeds; mitigation phụ thuộc findings; reports phụ thuộc notify', () => {
+  it('modules: findings depends on inventory and feeds; mitigation depends on findings; reports depends on notify', () => {
     const dep = (id: string) => modulesStore.get().find((m) => m.id === id)?.depends
     expect(dep('findings')).toEqual(expect.arrayContaining(['inventory', 'feeds']))
     expect(dep('mitigation')).toEqual(['findings'])
@@ -54,8 +54,8 @@ describe('findings: danh sách (S-MIT-1)', () => {
   })
 })
 
-describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (S-MIT-1, S-SCAN-3)', () => {
-  it('hiện Vedette đã xác nhận, người, ngày, soạn với AI, link khuyến cáo QNAP; không lỗi a11y', async () => {
+describe('findings: f-1 has a confirmed Vedette recommendation (S-MIT-1, S-SCAN-3)', () => {
+  it('shows the Vedette-confirmed label, who, the date, drafted with AI and the QNAP advisory link; no a11y violations', async () => {
     renderApp('/findings/f-1')
     expect(await screen.findByRole('heading', { level: 1, name: /NAS-PHOTOS has a confirmed vulnerability \(CVE-2022-27593\)/ })).toBeInTheDocument()
     expect(screen.getByText('Confirmed by Vedette maintainers')).toBeInTheDocument()
@@ -68,7 +68,7 @@ describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (S-MIT-1, S
     await expectNoA11yViolations()
   })
 
-  it('bằng chứng: tóm tắt, mẫu, request/response, cách tự kiểm tra lại và nút quét lại', async () => {
+  it('evidence: summary, sample, request/response, how to re-check by hand and the rescan button', async () => {
     renderApp('/findings/f-1')
     const ev = (await screen.findByRole('heading', { name: 'Evidence' })).closest('section')!
     expect(within(ev).getByText(/The nuclei-templates safe scan template/)).toBeInTheDocument()
@@ -78,7 +78,7 @@ describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (S-MIT-1, S
     expect(within(ev).getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/devices/a-nas02') // #850: the device page, with its scan buttons
   })
 
-  it('FortiGate được chọn sẵn; mỗi bước một khung, dùng IP thật của NAS, có tác dụng phụ và kiểm tra', async () => {
+  it('FortiGate is preselected; one box per step, using the real IP of the NAS, with side effects and a check', async () => {
     renderApp('/findings/f-1')
     const fw = (await screen.findByRole('heading', { name: '3. Firewall configuration to cut off access' })).closest('section')!
     expect(within(fw).getByRole('button', { name: 'FortiGate (FortiOS) (declared)' })).toHaveAttribute('aria-pressed', 'true')
@@ -94,7 +94,7 @@ describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (S-MIT-1, S
     expect(within(fw).getByText('Undo')).toBeInTheDocument()
   })
 
-  it('chuyển sang MikroTik: lệnh đúng cú pháp, giải thích danh sách WAN', async () => {
+  it('switching to MikroTik: correct command syntax, an explanation of the WAN list', async () => {
     renderApp('/findings/f-1')
     const fw = (await screen.findByRole('heading', { name: '3. Firewall configuration to cut off access' })).closest('section')!
     await userEvent.click(within(fw).getByRole('button', { name: 'MikroTik (RouterOS) (declared)' }))
@@ -106,7 +106,7 @@ describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (S-MIT-1, S
     expect(within(fw).getByText(/Find the port forwarding section/)).toBeInTheDocument()
   })
 
-  it('"Đã áp dụng" ghi nhật ký (lịch sử + kiểm toán), không tự đổi trạng thái', async () => {
+  it('"Applied" writes a log entry (history + audit) and does not change the status by itself', async () => {
     renderApp('/findings/f-1')
     const patch = (await screen.findByRole('heading', { name: '1. Install the patch' })).closest('section')!
     await userEvent.click(within(patch).getByRole('button', { name: 'Applied' }))
@@ -118,7 +118,7 @@ describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (S-MIT-1, S
     expect(await screen.findByText('Applied: patch')).toBeInTheDocument()
   })
 
-  it('"Tôi đã bị chưa?" nêu tệp .deadbolt và trang đăng nhập bị thay', async () => {
+  it('"Have I been hit?" names the .deadbolt file and the replaced login page', async () => {
     renderApp('/findings/f-1')
     const c = (await screen.findByRole('heading', { name: 'Have I been hit?' })).closest('section')!
     expect(within(c).getAllByText(/Deadbolt/).length).toBeGreaterThan(0)
@@ -130,8 +130,8 @@ describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (S-MIT-1, S
   })
 })
 
-describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận', () => {
-  it('hiện "Chưa có khuyến nghị đã xác nhận", yêu cầu của CISA và link hãng, không có nhãn xác nhận', async () => {
+describe('findings: f-2, f-3 have no confirmed recommendation yet', () => {
+  it('shows "no confirmed recommendation yet", the CISA requirement and the vendor link, and no confirmed label', async () => {
     renderApp('/findings/f-2')
     expect(await screen.findByText('No confirmed recommendation yet')).toBeInTheDocument()
     expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()
@@ -143,7 +143,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận', () => 
     await expectNoA11yViolations()
   })
 
-  it('"What to do" nói phiên bản vá cho đúng thiết bị, đúng nhánh, và không bịa khi NVD không cho', () => {
+  it('"What to do" names the fixed version for exactly this device and branch, and invents nothing when NVD gives none', () => {
     const note = (fixed_in: FindingDetail['fixed_in']) => render(<FixedInNote finding={{ asset: { name: 'FortiGate-60F' }, fixed_in } as FindingDetail} />)
     const src = { source: 'NVD affected versions', more: 0, no_fix: 0, distro: '', branches: [], distro_fixed: '', distro_release: '', distro_pro: false }
     const a = note({ ...src, kind: 'fixed', version: '7.4.1', fixed: '7.4.3' })
@@ -224,13 +224,13 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận', () => 
     expect(screen.queryByText(/^Vedette shortened/)).not.toBeInTheDocument()
   })
 
-  it('f-3 cũng vậy, với link MSRC', async () => {
+  it('f-3 is the same, with the MSRC link', async () => {
     renderApp('/findings/f-3')
     expect(await screen.findByText('No confirmed recommendation yet')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Vendor advisory (msrc.microsoft.com)' })).toHaveAttribute('href', 'https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2026-96951')
   })
 
-  it('"Hỏi AI của tôi" trả lời trong AiBlock của khách, ghi lượt chạy, còn sau khi tải lại', async () => {
+  it('"Ask my AI" answers inside the customer AiBlock, records the run and survives a reload', async () => {
     const view = renderApp('/findings/f-2')
     await userEvent.click(await screen.findByRole('button', { name: 'Ask my AI' }))
     const label = await screen.findByText('Your AI')
@@ -289,7 +289,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận', () => 
     expect(screen.queryByText(/No AI profile is assigned to this job/)).toBeNull()
   })
 
-  it('AI chưa cấu hình: nút tắt, nói rõ phải làm gì, có link tới cài đặt', async () => {
+  it('AI not configured: the button is disabled, says what to do and links to the settings', async () => {
     aiConfigStore.update((c) => ({ ...c, configured: false }))
     renderApp('/findings/f-2')
     expect(await screen.findByRole('button', { name: 'Ask my AI' })).toBeDisabled()
@@ -300,23 +300,23 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận', () => 
     expect(res.status).toBe(409)
   })
 
-  it('"Giải thích" (S-AI-2) hiện trong AiBlock với token và nguồn', async () => {
+  it('"Explain" (S-AI-2) shows in an AiBlock with tokens and sources', async () => {
     renderApp('/findings/f-1')
     await userEvent.click(await screen.findByRole('button', { name: 'Explain' }))
-    // f-1 là Critical nên trang còn có khối kế hoạch phản ứng (module response); lấy đúng khối "Explain"
+    // f-1 is Critical, so the page also has a response-plan block (response module); pick the "Explain" block
     const block = (await screen.findByText(/ransomware groups have used it/)).closest('[data-ai="true"]') as HTMLElement
     expect(within(block).getByText(/tokens in/)).toBeInTheDocument()
     expect(within(block).getByText(/Model claude-sonnet-5-5 \(Claude Sonnet\)/)).toBeInTheDocument()
     expect(within(block).getByText('Sources:')).toBeInTheDocument()
     expect(within(block).getByText(/ransomware groups have used it/)).toBeInTheDocument()
     expect(aiRunsStore.get()[0]!.skill).toBe('explain-finding')
-    // khuyến nghị của dự án vẫn tách riêng, không bị trộn với khối AI của khách
+    // the project's recommendation stays separate, not mixed into the customer's AI block
     expect(screen.getAllByText('Drafted by Vedette with AI')).toHaveLength(1)
   })
 })
 
-describe('findings: đổi trạng thái và quyền', () => {
-  it('đánh dấu đã vá kèm ghi chú: lưu trạng thái, lịch sử, kiểm toán, còn sau khi tải lại', async () => {
+describe('findings: status changes and permissions', () => {
+  it('marking as patched with a note: stores the status, history and audit, and survives a reload', async () => {
     // The inventory mock adds the box, and its finding, on its first read ("I updated", reads the device); this test counts the seed only.
     server.use(http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ asset: { software: [] } })))
     renderApp('/findings/f-1')
@@ -335,7 +335,7 @@ describe('findings: đổi trạng thái và quyền', () => {
     expect(screen.getAllByText('Đã lên Photo Station 6.1.2')).toHaveLength(2)
   })
 
-  it('báo nhầm bắt buộc có ghi chú, lỗi nói rõ phải sửa gì', async () => {
+  it('a false-positive report requires a note, and the error says what to fix', async () => {
     renderApp('/findings/f-2')
     await userEvent.click(await screen.findByRole('button', { name: 'Mark as handled' }))
     const dlg = await screen.findByRole('dialog')
@@ -348,7 +348,7 @@ describe('findings: đổi trạng thái và quyền', () => {
     await waitFor(() => expect(findingsStore.get().find((x) => x.id === 'f-2')!.status).toBe('false_positive'))
   })
 
-  it('phát hiện đã xử lý có nút mở lại', async () => {
+  it('a handled finding has a reopen button', async () => {
     findingsStore.update((l) => l.map((f) => (f.id === 'f-1' ? { ...f, status: 'mitigated' as const } : f)))
     renderApp('/findings/f-1')
     await userEvent.click(await screen.findByRole('button', { name: 'Reopen finding' }))
@@ -356,7 +356,7 @@ describe('findings: đổi trạng thái và quyền', () => {
     expect(findingsStore.get().find((x) => x.id === 'f-1')!.resolved_by).toBeNull()
   })
 
-  it('vai chỉ xem đọc được nhưng không ghi được', async () => {
+  it('a view-only role can read but not write', async () => {
     renderApp('/findings/f-1', { role: 'viewer' })
     expect(await screen.findByRole('button', { name: 'Mark as handled' })).toBeDisabled()
     for (const b of screen.getAllByRole('button', { name: 'Applied' })) expect(b).toBeDisabled()
@@ -365,7 +365,7 @@ describe('findings: đổi trạng thái và quyền', () => {
     expect(res.status).toBe(403)
   })
 
-  it('API kiểm tra ở biên: hành động lạ, ghi chú quá dài, mở lại phát hiện đang mở', async () => {
+  it('the API validates at the edge: unknown action, a note that is too long, reopening a finding that is open', async () => {
     renderApp('/findings/f-1')
     await screen.findByRole('heading', { name: 'Evidence' })
     const post = (path: string, b: unknown) => fetch(`${location.origin}/api/v1/findings/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
@@ -377,7 +377,7 @@ describe('findings: đổi trạng thái và quyền', () => {
     expect((await post('f-1/applied', { item: 'rm -rf' })).status).toBe(400)
   })
 
-  it('trang không có phát hiện này nói rõ', async () => {
+  it('the page says so when the finding does not exist', async () => {
     renderApp('/findings/f-404')
     expect(await screen.findByText(/No such finding/)).toBeInTheDocument()
   })

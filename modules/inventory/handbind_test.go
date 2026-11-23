@@ -32,17 +32,17 @@ func TestContract_829_OnlyTheFirstMACAtAHandAddedAddressBinds(t *testing.T) {
 	}
 	for _, tc := range cases {
 		e := newEnv(t)
-		id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
+		id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.142.201", Name: "nas"})
 		if tc.first == burnt1 {
-			e.record(dhcp(burnt1, "192.168.18.150", "laptop")...)
+			e.record(dhcp(burnt1, "192.168.142.150", "laptop")...)
 		}
 		if tc.first != "" {
 			e.tick(time.Minute)
-			e.record(dhcp(tc.first, "192.168.18.201", "")...)
+			e.record(dhcp(tc.first, "192.168.142.201", "")...)
 		}
 		e.ev.reset()
 		e.tick(time.Hour)
-		e.record(arp(xenMAC3, "192.168.18.201")...)
+		e.record(arp(xenMAC3, "192.168.142.201")...)
 		d := e.device(id)
 		bound := d.MAC != nil && *d.MAC == xenMAC3
 		announced := len(e.ev.named(inventory.EventAssetDiscovered))
@@ -52,7 +52,7 @@ func TestContract_829_OnlyTheFirstMACAtAHandAddedAddressBinds(t *testing.T) {
 		if bound {
 			continue
 		}
-		if d.IP != "192.168.18.201" || d.MAC != nil || !d.Approved {
+		if d.IP != "192.168.142.201" || d.MAC != nil || !d.Approved {
 			t.Errorf("%s: the hand-added device: ip %s mac %v approved %v; want .201, no MAC, approved", tc.name, d.IP, d.MAC, d.Approved)
 		}
 		newcomer := e.idByMAC(xenMAC3)
@@ -60,7 +60,7 @@ func TestContract_829_OnlyTheFirstMACAtAHandAddedAddressBinds(t *testing.T) {
 			t.Errorf("%s: the newcomer is approved %v origin %s", tc.name, nd.Approved, nd.Origin)
 		}
 		offered := e.sameAs(id)
-		if !offersWith(offered, newcomer, "00:16:3e:5b:01:01 was seen at 192.168.18.201, the address nas was added with") {
+		if !offersWith(offered, newcomer, "00:16:3e:5b:01:01 was seen at 192.168.142.201, the address nas was added with") {
 			t.Errorf("%s: the hand-added device offers %+v; want the newcomer, seen at its address", tc.name, offered)
 		}
 		if !offersWith(e.sameAs(newcomer), id, "the address nas was added with") {
@@ -70,7 +70,7 @@ func TestContract_829_OnlyTheFirstMACAtAHandAddedAddressBinds(t *testing.T) {
 		if err := e.svc.Merge(e.ctx(), admin, id, newcomer); err != nil {
 			t.Fatalf("%s: merge: %v", tc.name, err)
 		}
-		if d := e.device(id); d.MAC == nil || *d.MAC != xenMAC3 || d.IP != "192.168.18.201" || !d.Approved {
+		if d := e.device(id); d.MAC == nil || *d.MAC != xenMAC3 || d.IP != "192.168.142.201" || !d.Approved {
 			t.Errorf("%s: after the merge: mac %v ip %s approved %v", tc.name, d.MAC, d.IP, d.Approved)
 		}
 	}
@@ -90,25 +90,25 @@ func offersWith(list []inventory.PossibleSame, id, why string) bool {
 // announced device; the hand-added device stays the first machine, approved, notes and software kept.
 func TestContract_829_TheRecordedSessionKeepsTheHandAddedDevice(t *testing.T) {
 	e := newEnv(t)
-	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "ipchg-c1"})
+	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.142.201", Name: "ipchg-c1"})
 	notes := "C1"
 	if err := e.svc.PatchDevice(e.ctx(), admin, id, inventory.Patch{Notes: &notes}); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(34 * time.Second)
-	e.record(arp(xenMAC, "192.168.18.201")...)
+	e.record(arp(xenMAC, "192.168.142.201")...)
 	e.tick(30 * time.Minute)
-	e.record(dhcp(xenMAC, "192.168.18.202", "")...)
+	e.record(dhcp(xenMAC, "192.168.142.202", "")...)
 	e.ev.reset()
 	e.tick(time.Hour + 28*time.Minute)
-	e.record(arp(xenMAC2, "192.168.18.201")...)
+	e.record(arp(xenMAC2, "192.168.142.201")...)
 	d := e.device(id)
-	if d.MAC == nil || *d.MAC != xenMAC || d.IP != "192.168.18.202" || !d.Approved || d.Notes == nil || *d.Notes != notes || len(d.Software) != 1 {
+	if d.MAC == nil || *d.MAC != xenMAC || d.IP != "192.168.142.202" || !d.Approved || d.Notes == nil || *d.Notes != notes || len(d.Software) != 1 {
 		t.Errorf("the hand-added device: mac %v ip %s approved %v notes %v software %d; want %s at .202, approved, notes and software kept",
 			d.MAC, d.IP, d.Approved, d.Notes, len(d.Software), xenMAC)
 	}
 	newcomer := e.idByMAC(xenMAC2)
-	if newcomer == id || e.devices() != 2 || len(e.ev.named(inventory.EventAssetDiscovered)) != 1 || e.idOf("192.168.18.201") != newcomer {
+	if newcomer == id || e.devices() != 2 || len(e.ev.named(inventory.EventAssetDiscovered)) != 1 || e.idOf("192.168.142.201") != newcomer {
 		t.Errorf("the second machine: id %s, %d devices, %d announced; want a new announced device at .201", newcomer, e.devices(), len(e.ev.named(inventory.EventAssetDiscovered)))
 	}
 }
@@ -117,25 +117,25 @@ func TestContract_829_TheRecordedSessionKeepsTheHandAddedDevice(t *testing.T) {
 // moved to .202): the second machine at .201 within 72 h does not bind, is announced, and is offered with the hand-added device.
 func TestContract_829_TheRecordedDataDoesNotBindTheSecondMachine(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(xenMAC, "192.168.18.150", "")...) // the first machine, already known
-	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "ipchg-c1"})
+	e.record(dhcp(xenMAC, "192.168.142.150", "")...) // the first machine, already known
+	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.142.201", Name: "ipchg-c1"})
 	first := e.idByMAC(xenMAC)
 	e.tick(34 * time.Second)
-	e.record(arp(xenMAC, "192.168.18.201")...) // the hand-added device keeps .201; the first machine is not it
+	e.record(arp(xenMAC, "192.168.142.201")...) // the hand-added device keeps .201; the first machine is not it
 	e.tick(30 * time.Minute)
-	e.record(dhcp(xenMAC, "192.168.18.202", "")...)
+	e.record(dhcp(xenMAC, "192.168.142.202", "")...)
 	e.ev.reset()
 	e.tick(time.Hour + 28*time.Minute)
-	e.record(arp(xenMAC2, "192.168.18.201")...)
+	e.record(arp(xenMAC2, "192.168.142.201")...)
 	d := e.device(id)
-	if d.MAC != nil || d.IP != "192.168.18.201" || !d.Approved {
+	if d.MAC != nil || d.IP != "192.168.142.201" || !d.Approved {
 		t.Errorf("the hand-added device bound %v (ip %s approved %v); want no MAC, at .201, approved", d.MAC, d.IP, d.Approved)
 	}
 	second := e.idByMAC(xenMAC2)
 	if second == id || e.devices() != 3 || len(e.ev.named(inventory.EventAssetDiscovered)) != 1 {
 		t.Errorf("%d devices, %d announced; want 3 and the second machine announced", e.devices(), len(e.ev.named(inventory.EventAssetDiscovered)))
 	}
-	if e.device(first).IP != "192.168.18.202" {
+	if e.device(first).IP != "192.168.142.202" {
 		t.Errorf("the first machine is at %s", e.device(first).IP)
 	}
 	got := e.sameAs(id)
@@ -155,11 +155,11 @@ func TestContract_829_TheRecordedDataDoesNotBindTheSecondMachine(t *testing.T) {
 // device only when no other MAC was seen at its address since it was added.
 func TestContract_829_AWaitingDuplicateIsNotFoldedAfterAnotherMAC(t *testing.T) {
 	e := newEnv(t)
-	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
-	e.record(dhcp(privMac1, "192.168.18.201", "")...) // a guest phone first
-	e.record(arp(xenMAC, "192.168.18.201")[:1]...)    // the vendor alone, in a batch of its own: a waiting duplicate
+	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.142.201", Name: "nas"})
+	e.record(dhcp(privMac1, "192.168.142.201", "")...) // a guest phone first
+	e.record(arp(xenMAC, "192.168.142.201")[:1]...)    // the vendor alone, in a batch of its own: a waiting duplicate
 	e.tick(time.Minute)
-	e.record(dhcp(xenMAC, "192.168.18.201", "")...)
+	e.record(dhcp(xenMAC, "192.168.142.201", "")...)
 	if d := e.device(id); d.MAC != nil || e.devices() != 3 {
 		t.Errorf("the hand-added device bound %v; %d devices, want 3", d.MAC, e.devices())
 	}
@@ -171,7 +171,7 @@ func TestContract_829_AWaitingDuplicateIsNotFoldedAfterAnotherMAC(t *testing.T) 
 // (C1).
 func TestContract_829_AnAgentAtASharedHandAddedAddressIsItsOwnDevice(t *testing.T) {
 	sw := []observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.95}}
-	at := netip.MustParseAddr("192.168.18.201")
+	at := netip.MustParseAddr("192.168.142.201")
 	wazuh := func(mac string) []observe.Observation {
 		h := observe.AssetHint{IP: at}
 		return []observe.Observation{{AssetHint: h, Field: observe.Hostname, Value: "wz-host", Source: observe.Agent, Confidence: 0.9},
@@ -191,11 +191,11 @@ func TestContract_829_AnAgentAtASharedHandAddedAddressIsItsOwnDevice(t *testing.
 	}
 	for _, tc := range cases {
 		e := newEnv(t)
-		id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
+		id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.142.201", Name: "nas"})
 		e.ev.reset()
 		for _, m := range tc.before {
 			e.tick(time.Minute)
-			e.record(dhcp(m, "192.168.18.201", "")...)
+			e.record(dhcp(m, "192.168.142.201", "")...)
 		}
 		e.tick(time.Minute)
 		if tc.wazuh {
@@ -204,7 +204,7 @@ func TestContract_829_AnAgentAtASharedHandAddedAddressIsItsOwnDevice(t *testing.
 				t.Fatal(err)
 			}
 		} else {
-			e.record(osq("192.168.18.201")...)
+			e.record(osq("192.168.142.201")...)
 			if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: at, Agent: "osquery:node-a"}, observe.Osquery, nil, sw); err != nil {
 				t.Fatal(err)
 			}
@@ -233,9 +233,9 @@ func TestContract_829_AnAgentAtASharedHandAddedAddressIsItsOwnDevice(t *testing.
 // Two MACs at a freshly added address in one batch: neither is known to be the person's machine, so neither binds (review r1 L2).
 func TestContract_829_TwoMACsInOneBatchBindNothing(t *testing.T) {
 	e := newEnv(t)
-	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
-	e.record(append(dhcp(xenMAC, "192.168.18.201", ""), dhcp(xenMAC2, "192.168.18.201", "")...)...)
-	if d := e.device(id); d.MAC != nil || d.IP != "192.168.18.201" || e.devices() != 3 {
+	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.142.201", Name: "nas"})
+	e.record(append(dhcp(xenMAC, "192.168.142.201", ""), dhcp(xenMAC2, "192.168.142.201", "")...)...)
+	if d := e.device(id); d.MAC != nil || d.IP != "192.168.142.201" || e.devices() != 3 {
 		t.Errorf("the hand-added device: mac %v ip %s; %d devices, want no MAC, .201, 3", d.MAC, d.IP, e.devices())
 	}
 }
@@ -245,7 +245,7 @@ func TestContract_829_TwoMACsInOneBatchBindNothing(t *testing.T) {
 // to it, and moves nothing; it is a device of its own. With no card at all (a tun interface) the same holds, and the enrolment does
 // not approve or type the hand-added device by its address (M-new-1); a Wazuh report with neither a key nor a card is held.
 func TestContract_829_AClaimedCardAtASharedHandAddedAddressIsNoKey(t *testing.T) {
-	at := netip.MustParseAddr("192.168.18.201")
+	at := netip.MustParseAddr("192.168.142.201")
 	report := func(agent, card string) []observe.Observation {
 		h := observe.AssetHint{IP: at, Agent: agent}
 		out := []observe.Observation{{AssetHint: h, Field: observe.Hostname, Value: "evil", Source: observe.Agent, Confidence: 0.9},
@@ -262,14 +262,14 @@ func TestContract_829_AClaimedCardAtASharedHandAddedAddressIsNoKey(t *testing.T)
 		{"wazuh with no card: held", "", ""},
 	} {
 		e := newEnv(t)
-		e.record(dhcp(burnt2, "192.168.18.50", "dc01")...)
+		e.record(dhcp(burnt2, "192.168.142.50", "dc01")...)
 		dc := e.idByMAC(burnt2)
 		if err := e.svc.Approve(e.ctx(), admin, dc); err != nil {
 			t.Fatal(err)
 		}
-		id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
+		id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.142.201", Name: "nas"})
 		e.tick(time.Minute)
-		e.record(dhcp(privMac1, "192.168.18.201", "")...)
+		e.record(dhcp(privMac1, "192.168.142.201", "")...)
 		e.tick(time.Minute)
 		e.ev.reset()
 		e.record(report(tc.agent, tc.card)...)
@@ -286,11 +286,11 @@ func TestContract_829_AClaimedCardAtASharedHandAddedAddressIsNoKey(t *testing.T)
 		e.record(report(tc.agent, again)...)
 		e.tick(time.Minute)
 		if tc.agent != "" {
-			h := observe.AssetHint{IP: netip.MustParseAddr("192.168.18.77"), Agent: tc.agent}
+			h := observe.AssetHint{IP: netip.MustParseAddr("192.168.142.77"), Agent: tc.agent}
 			e.record(observe.Observation{AssetHint: h, Field: observe.MAC, Value: "aa:00:00:00:00:77", Source: observe.Agent, Confidence: 0.9})
 		}
 		d := e.device(dc)
-		if d.IP != "192.168.18.50" || d.MAC == nil || *d.MAC != burnt2 || d.Hostname == nil || *d.Hostname != "dc01" || d.OS != nil ||
+		if d.IP != "192.168.142.50" || d.MAC == nil || *d.MAC != burnt2 || d.Hostname == nil || *d.Hostname != "dc01" || d.OS != nil ||
 			e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key IS NOT NULL`, dc) != 0 {
 			t.Errorf("%s: dc01 changed: ip %s mac %v host %v os %v", tc.name, d.IP, d.MAC, d.Hostname, d.OS)
 		}
@@ -312,20 +312,20 @@ func TestContract_829_AClaimedCardAtASharedHandAddedAddressIsNoKey(t *testing.T)
 // A binding keyHit dropped as a spoof stays dropped when the node then reports from a shared hand-added address (review r2 H-new-1).
 func TestContract_829_ADroppedBindingStaysDroppedAtASharedHandAddedAddress(t *testing.T) {
 	e := newEnv(t)
-	e.record(dhcp(burnt1, "192.168.18.20", "")...)
-	x := e.idOf("192.168.18.20")
+	e.record(dhcp(burnt1, "192.168.142.20", "")...)
+	x := e.idOf("192.168.142.20")
 	e.tick(time.Minute)
-	e.record(osq("192.168.18.20")...)
+	e.record(osq("192.168.142.20")...)
 	e.tick(time.Minute)
-	e.record(osq("192.168.18.30")...)
+	e.record(osq("192.168.142.30")...)
 	e.tick(time.Minute)
-	e.record(dhcp(burnt1, "192.168.18.20", "")...)
-	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
+	e.record(dhcp(burnt1, "192.168.142.20", "")...)
+	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.142.201", Name: "nas"})
 	e.tick(time.Minute)
-	e.record(dhcp(privMac1, "192.168.18.201", "")...)
+	e.record(dhcp(privMac1, "192.168.142.201", "")...)
 	e.tick(time.Minute)
-	e.record(osq("192.168.18.201")...)
-	if e.count(`SELECT count(*) FROM inv_asset WHERE id IN (?, ?) AND agent_key IS NOT NULL`, x, id) != 0 || e.device(x).IP != "192.168.18.20" {
+	e.record(osq("192.168.142.201")...)
+	if e.count(`SELECT count(*) FROM inv_asset WHERE id IN (?, ?) AND agent_key IS NOT NULL`, x, id) != 0 || e.device(x).IP != "192.168.142.20" {
 		t.Errorf("the dropped binding came back, or the hand-added device took the node: x at %s", e.device(x).IP)
 	}
 }

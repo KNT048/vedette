@@ -2,9 +2,8 @@ package notify
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/server"
@@ -25,17 +24,7 @@ type NotifyHandlers struct{ svc *Service }
 func NewNotifyHandlers(svc *Service) *NotifyHandlers { return &NotifyHandlers{svc: svc} }
 
 // convert re-reads v, through its JSON form, as T.
-func convert[T any](v any) (*T, error) {
-	raw, err := json.Marshal(v)
-	if err != nil {
-		return nil, fmt.Errorf("notify: encode: %w", err)
-	}
-	out := new(T)
-	if err := json.Unmarshal(raw, out); err != nil {
-		return nil, fmt.Errorf("notify: decode: %w", err)
-	}
-	return out, nil
-}
+func convert[T any](v any) (*T, error) { return apijson.Into[T](v) }
 
 // actor is the signed-in user's email; the route table guarantees a principal on these routes.
 func actor(ctx context.Context) (string, error) {

@@ -15,8 +15,6 @@ import (
 // keep its slices non-nil by itself until it moves to Into. Request decoding is not a response.
 var otherConverters = []string{
 	"modules/core/handlers_schedules.go: decode", // a request into the service's input, not a response
-	"modules/inventory/handlers.go: convert",     // to move to Into with its module
-	"modules/notify/handlers.go: convert",        // to move to Into with its module
 	"modules/reports/handlers.go: body",          // a request into the module's types, not a response
 	"core/api/apijson/apijson.go: Into",          // Into itself
 }

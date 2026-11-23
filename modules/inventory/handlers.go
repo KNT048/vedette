@@ -2,11 +2,10 @@ package inventory
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
@@ -24,17 +23,7 @@ type Handlers struct{ svc *Service }
 func NewHandlers(svc *Service) *Handlers { return &Handlers{svc: svc} }
 
 // convert re-reads v, through its JSON form, as the generated type T.
-func convert[T any](v any) (*T, error) {
-	raw, err := json.Marshal(v)
-	if err != nil {
-		return nil, fmt.Errorf("inventory: encode response: %w", err)
-	}
-	out := new(T)
-	if err := json.Unmarshal(raw, out); err != nil {
-		return nil, fmt.Errorf("inventory: build response: %w", err)
-	}
-	return out, nil
-}
+func convert[T any](v any) (*T, error) { return apijson.Into[T](v) }
 
 // actor is the signed-in user's email; the route table guarantees a principal on these routes.
 func actor(ctx context.Context) (string, error) {

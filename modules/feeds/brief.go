@@ -599,7 +599,7 @@ type briefDTO struct {
 	EPSS           *epssDTO        `json:"epss"`
 	NVDURL         string          `json:"nvd_url"`
 	RecordURL      string          `json:"record_url"`
-	Matched        *[]MatchedAsset `json:"matched"`
+	Matched        *[]MatchedAsset `json:"matched" nullable:"true"`
 	NotAffected    int             `json:"not_affected"`
 }
 

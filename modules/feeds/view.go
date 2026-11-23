@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/apierr"
 )
 
@@ -14,13 +15,7 @@ import (
 // JSON-tagged value per shape in api/openapi.json and convert it with convert/into: encoding/json on both
 // sides, and ogen's decoder checks every enum and format of what the module built.
 
-func convert[T any](src any) (*T, error) {
-	var dst T
-	if err := into(src, &dst); err != nil {
-		return nil, err
-	}
-	return &dst, nil
-}
+func convert[T any](src any) (*T, error) { return apijson.Into[T](src) }
 
 func into(src, dst any) error {
 	b, err := json.Marshal(src)

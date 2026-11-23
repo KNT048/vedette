@@ -61,6 +61,7 @@ function FixCardView({ card, loading, onHandle }: { card: FixCard; loading: Want
   const title = useFixTitle()(card.fix)
   const [open, setOpen] = useState(false)
   const panel = `fix-${card.fix.key.replace(/[^\w-]/g, '_')}`
+  const devices = t('byDevice.devices', { count: card.devices }) // "1 device", "3 devices"
   return (
     <article aria-label={title} className="grid gap-2 py-1">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -69,7 +70,7 @@ function FixCardView({ card, loading, onHandle }: { card: FixCard; loading: Want
           className="-ml-2 h-auto min-h-8 justify-start gap-1.5 whitespace-normal py-1 text-left">
           <ChevronDown aria-hidden className={open ? 'rotate-180' : ''} />
           <span className="text-sm font-semibold [overflow-wrap:anywhere]">{title}</span>
-          <span className="font-normal text-muted">{t('byFix.counts', { count: card.findings, devices: card.devices })}</span>
+          <span className="font-normal text-muted">{t('byFix.counts', { count: card.findings, devices })}</span>
         </Button>
         <StatusBadge code={card.status} />
         {card.findings > 1 ? <span className="text-meta text-muted">{t('byDevice.cause', { cve: card.cause })}</span> : null}
@@ -109,7 +110,7 @@ export function ByFix({ status }: { status: string }) {
       <QueryState query={q}>
         {(d) => d.total === 0 && !filtered ? <EmptyState art="no-findings" title={t('byDevice.empty')}>{t('byDevice.emptyBody')}</EmptyState> : (
           <>
-            <p role="status" className="text-sm" data-count="fix">{t('byFix.summary', { count: d.findings, fixes: d.total })}</p>
+            <p role="status" className="text-sm" data-count="fix">{t('byFix.summary', { count: d.findings, fixes: t('byFix.fixes', { count: d.total }) })}</p>
             <DataTable urlKey="by-fix" caption={t('byFix.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
               server={{ total: d.total, list }} filtered={filtered} onClearFilters={() => raw.set({ q: '', page: 0 })} resetPageOn={status}
               mobileRow={(c) => <FixCardView card={c} loading={want} onHandle={setWant} />} />

@@ -107,7 +107,7 @@ export function ByDevice({ status, device, onDevice }: { status: string; device:
           </EmptyState>
         ) : (
           <>
-            <p role="status" className="text-sm" data-count="device">{t('byDevice.summary', { count: d.findings, devices: d.total })}</p>
+            <p role="status" className="text-sm" data-count="device">{t('byDevice.summary', { count: d.findings, devices: t('byDevice.devices', { count: d.total }) })}</p>
             <DataTable urlKey="by-device" caption={t('byDevice.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
               server={{ total: d.total, list }} filtered={filtered} onClearFilters={clear} resetPageOn={`${status}|${device}`}
               mobileRow={(c) => <DeviceCardView card={c} narrowed={narrowed} onHandle={setHandling} />} />

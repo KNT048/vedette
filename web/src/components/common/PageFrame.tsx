@@ -73,7 +73,9 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
           the focus ring is drawn inside the tab (-outline-offset-2), the scrollbar is hidden (a clipped tab edge shows there are more tabs; the left/right arrows scroll to the tab by themselves). ui-guard: the inset rule under the row. */}
       <TabsList ref={list} aria-label={label} className="flex-nowrap overflow-x-auto overscroll-x-contain border-b-0 shadow-[inset_0_-1px_0_var(--color-rule)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((x) => (
-          <TabsTrigger key={x.id} value={x.id} className="mb-0 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap focus-visible:-outline-offset-2">
+          // relative: the badge's screen-reader text is absolutely positioned; inside a positioned tab it is clipped with the row,
+          // else it sits where the tab would be and widens the page on a phone when the tab is scrolled out of view.
+          <TabsTrigger key={x.id} value={x.id} className="relative mb-0 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap focus-visible:-outline-offset-2">
             {x.label}{' '}
             {x.badge ? <Counter count={x.badge.count} label={x.badge.label} tone={x.badge.tone ?? 'danger'} /> : null}
           </TabsTrigger>

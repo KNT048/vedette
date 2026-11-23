@@ -37,7 +37,8 @@ export function StatusFilter({ counts: own }: { counts?: Record<OpenFindingStatu
         return (
           <button key={s} type="button" aria-pressed={pressed} onClick={() => toggle(s)}
             className={cn('inline-flex items-center gap-1.5 rounded-md border px-1.5 py-1 text-meta tabular-nums hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-              pressed ? 'border-accent bg-accent-soft' : 'border-transparent', n === 0 && !pressed && 'opacity-60')}>
+              pressed ? 'border-accent bg-accent-soft' : 'border-transparent')}>
+            {/* a status with nothing in it stays readable (a faded badge fails colour contrast); its 0 says it is empty */}
             <StatusBadge code={s} />
             {n !== undefined ? <span className="text-muted">{n}</span> : null}
           </button>

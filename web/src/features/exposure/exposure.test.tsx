@@ -6,6 +6,7 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { auditStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
+import { setDataMode } from '@/mocks/db'
 import { scanPoll } from './api'
 import { checkPause } from './useCooldown'
 import { NOTICE_VERSION } from './contract'
@@ -114,6 +115,33 @@ describe('exposure: public IP = only an IP this box uses to reach the Internet',
     expect(b.json.items[0].id).toBe(a.json.items[0].id)
     expect(auditStore.get().some((x) => x.action === 'exposure.verify_ok' && x.target === '198.51.100.7')).toBe(true)
     expect(auditStore.get().some((x) => x.action === 'exposure.verify_renew' && x.target === '198.51.100.7')).toBe(true)
+  })
+
+  it('Detect now puts every IP the box uses in the target list as this box\'s IP, renews it there, and an ignored one stays out', async () => {
+    type Node = { id: string; kind: string; value: string; origin: string; blocked: string | null; proof: { state: string; method: string | null } }
+    const boxNodes = async () => ((await call('GET', '/exposure/tree')).json.items as Node[]).filter((n) => n.kind === 'ip' && n.origin === 'box')
+    setEgress('198.51.100.7,198.51.100.8')
+    expect((await call('POST', '/exposure/box-ip/verify')).status).toBe(200)
+    const found = await boxNodes()
+    const seven = found.find((n) => n.value === '198.51.100.7')!
+    expect(found.map((n) => n.value)).toEqual(expect.arrayContaining(['198.51.100.7', '198.51.100.8']))
+    expect(seven).toMatchObject({ proof: { state: 'proven', method: 'box_egress' }, blocked: 'no_commitment' })
+    expect((await call('POST', '/exposure/box-ip/verify')).status).toBe(200)
+    expect((await boxNodes()).filter((n) => n.value === '198.51.100.7').map((n) => n.id)).toEqual([seven.id]) // renewed, not added twice
+    expect((await call('DELETE', `/exposure/tree/${seven.id}?ignore=true`)).status).toBe(204)
+    expect((await call('POST', '/exposure/box-ip/verify')).json.message).toMatch(/Not added, on your Ignored list: 198\.51\.100\.7\./)
+    expect((await boxNodes()).map((n) => n.value)).not.toContain('198.51.100.7')
+    expect((await call('DELETE', `/exposure/tree/${found.find((n) => n.value === '198.51.100.8')!.id}`)).status).toBe(204)
+    await call('POST', '/exposure/box-ip/verify')
+    expect((await boxNodes()).map((n) => n.value)).toContain('198.51.100.8') // removed without the Ignored list: found again
+  })
+
+  it('on a clean install the first read of the target list runs the first check: the box\'s IPs are there without a click', async () => {
+    setDataMode('clean')
+    usersStore.set([{ id: USER.admin, name: 'admin', email: 'admin@x.example', role: 'admin', password: 'x', twofa: false, created_at: new Date().toISOString(), last_login: null }])
+    const items = (await call('GET', '/exposure/tree')).json.items as { kind: string; value: string; origin: string }[]
+    expect(items.filter((n) => n.origin === 'box').map((n) => n.value).sort()).toEqual(['203.0.113.10', '203.0.113.11'])
+    expect(auditStore.get().some((x) => x.action === 'exposure.auto_detect' && x.user === 'system')).toBe(true)
   })
 
   it.each(['10.1.2.3', '192.168.0.9', '172.20.0.4', '100.64.12.5', '127.0.0.1', '169.254.1.1'])('refuses private, reserved and CGNAT result %s', async (ip) => {

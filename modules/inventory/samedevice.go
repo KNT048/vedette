@@ -65,6 +65,7 @@ const (
 	ReasonRotatingName     = "rotating_name"       // one name, a private Wi-Fi address, never online at once
 	ReasonRotatingModel    = "rotating_model"      // one stated model, a private Wi-Fi address, never online at once
 	ReasonMACAtAddedDevice = "mac_at_added_device" // a MAC seen at the address of a device added by hand
+	ReasonSameOS           = "same_os"             // a device added by hand without an address runs the OS a found device runs, at the same release
 )
 
 // SamePairs is GET /inventory/possible-same.
@@ -77,9 +78,10 @@ type SamePairs struct {
 type sameRow struct {
 	id, origin, host, model, first, last, agent, ip string
 	approved, box                                   bool
-	burned, private                                 []string // sorted
-	atAddr                                          []string // a hand-added row known by its address only: the MACs seen there since (inv_hand_seen, #829)
-	lastWire                                        string   // when a sensor last saw any of its MACs on the wire; last when none
+	burned, private                                 []string          // sorted
+	atAddr                                          []string          // a hand-added row known by its address only: the MACs seen there since (inv_hand_seen, #829)
+	lastWire                                        string            // when a sensor last saw any of its MACs on the wire; last when none
+	osNames                                         map[string]string // machine keys of its OS and firmware lines (machineKeys) -> the line's name
 }
 
 // lastOnline is when the row was last seen online: a sensor's MAC sighting, else any sighting. A late scan result, software list or
@@ -177,6 +179,15 @@ func loadSameRows(ctx context.Context, q querier, ids []string) (map[string]*sam
 			r.atAddr = append(r.atAddr, p[1])
 		}
 	}
+	lines, err := osLines(ctx, q, ids)
+	if err != nil {
+		return nil, err
+	}
+	for id, keys := range lines {
+		if r := out[id]; r != nil {
+			r.osNames = keys
+		}
+	}
 	for _, r := range out {
 		slices.Sort(r.burned)
 		slices.Sort(r.private)
@@ -230,6 +241,23 @@ func sameCandidates(ctx context.Context, q *sql.Tx, only string) ([]string, erro
 		for _, id := range byMAC {
 			if !slices.Contains(ids, id) {
 				ids = append(ids, id)
+			}
+		}
+	}
+	if len(r.osNames) > 0 { // the rows that run the same OS at the same release (byOS)
+		all, err := osLines(ctx, q, nil)
+		if err != nil {
+			return nil, err
+		}
+		for id, keys := range all {
+			if id == only || slices.Contains(ids, id) {
+				continue
+			}
+			for k := range keys {
+				if _, ok := r.osNames[k]; ok {
+					ids = append(ids, id)
+					break
+				}
 			}
 		}
 	}
@@ -292,6 +320,7 @@ const (
 	byModel
 	byAddress // a MAC seen at the address of a hand-added row known by that address only (#829, n71), and a row carrying that MAC
 	byBlock   // burned-in MACs from one block of a maker (the first five bytes): the interfaces of one router or firewall (INV-57)
+	byOS      // a hand-added row with no address and a found device that run one OS at one release (sameos.go)
 )
 
 // samePairs lists the pairs of rows that may be one machine, only the pairs of device only when it is not "". A pair shares
@@ -328,7 +357,7 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 	for _, p := range sep {
 		separate[p] = true
 	}
-	groups := [5]map[string][]*sameRow{{}, {}, {}, {}, {}}
+	groups := [6]map[string][]*sameRow{{}, {}, {}, {}, {}, {}}
 	ids := make([]string, 0, len(rows))
 	for id := range rows {
 		ids = append(ids, id)
@@ -354,6 +383,9 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 			if b := m[:14]; !slices.Contains(groups[byBlock][b], r) {
 				groups[byBlock][b] = append(groups[byBlock][b], r)
 			}
+		}
+		for k := range r.osNames {
+			groups[byOS][k] = append(groups[byOS][k], r)
 		}
 	}
 	for m, g := range groups[byAddress] { // with the rows that carry the MAC
@@ -385,7 +417,7 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 					key := [2]string{min(x.id, y.id), max(x.id, y.id)}
 					// a pair another signal tried may still share a hand-added address or a MAC block: those have rules of their own
 					// (addressWhy, cardsWhy)
-					if tried[key] && (signal(sig) != byAddress && signal(sig) != byBlock || offered[key]) || separate[key] || only != "" && x.id != only && y.id != only || !recent(x) && !recent(y) {
+					if tried[key] && (signal(sig) != byAddress && signal(sig) != byBlock && signal(sig) != byOS || offered[key]) || separate[key] || only != "" && x.id != only && y.id != only || !recent(x) && !recent(y) {
 						continue
 					}
 					tried[key] = true
@@ -440,6 +472,10 @@ func pairWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, sig signal, value s
 	}
 	if strongConflict(x, y) != "" {
 		return "", "", nil
+	}
+	if sig == byOS {
+		why, err := osWhy(ctx, tx, x, y, value)
+		return why, ReasonSameOS, err
 	}
 	if sig == byAddress {
 		why, err := addressWhy(ctx, tx, x, y, value)

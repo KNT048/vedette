@@ -135701,7 +135701,8 @@ func (s *InventoryGetInventoryDevicesHasFindings) UnmarshalText(data []byte) err
 }
 
 type InventoryGetInventoryDevicesIDMergePreviewOK struct {
-	// Only the fields the devices state differently; empty when they agree.
+	// Only the fields the devices state differently (for type and OS also one device's value against
+	// none); empty when they agree.
 	Differs []InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem `json:"differs"`
 	// The devices that go into it, in the order given.
 	From []InventoryGetInventoryDevicesIDMergePreviewOKFromItem `json:"from"`
@@ -135767,8 +135768,12 @@ type InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem struct {
 	Choosable bool                                                         `json:"choosable"`
 	Field     InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField `json:"field"`
 	// What the kept device has after the merge unless the person picks another: the kept device's own name
-	// in Vedette (else the first that has one), the strongest source's reading for the other fields.
+	// in Vedette (else the first that has one), the strongest source's reading for the other fields; for
+	// kind "unknown" when no source states a type (a guess is never the type).
 	Kept string `json:"kept"`
+	// Kind and os: the devices without a value (a type or OS only one device states is a row too, so the
+	// person sees what the merged device ends with); empty for the other fields.
+	Missing []string `json:"missing"`
 	// Each device's value, the kept device first; a device without a value is left out.
 	Values []InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem `json:"values"`
 }
@@ -135786,6 +135791,11 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) GetField() Inv
 // GetKept returns the value of Kept.
 func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) GetKept() string {
 	return s.Kept
+}
+
+// GetMissing returns the value of Missing.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) GetMissing() []string {
+	return s.Missing
 }
 
 // GetValues returns the value of Values.
@@ -135806,6 +135816,11 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) SetField(val I
 // SetKept sets the value of Kept.
 func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) SetKept(val string) {
 	s.Kept = val
+}
+
+// SetMissing sets the value of Missing.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItem) SetMissing(val []string) {
+	s.Missing = val
 }
 
 // SetValues sets the value of Values.
@@ -135884,12 +135899,20 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemField) Unmarshal
 
 type InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem struct {
 	Device string `json:"device"`
-	Value  string `json:"value"`
+	// Kind only: the type the identification rules guess for a device whose type is unknown (Asset guess);
+	// it may be picked for the merged device.
+	Guess OptBool `json:"guess"`
+	Value string  `json:"value"`
 }
 
 // GetDevice returns the value of Device.
 func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) GetDevice() string {
 	return s.Device
+}
+
+// GetGuess returns the value of Guess.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) GetGuess() OptBool {
+	return s.Guess
 }
 
 // GetValue returns the value of Value.
@@ -135900,6 +135923,11 @@ func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) GetV
 // SetDevice sets the value of Device.
 func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) SetDevice(val string) {
 	s.Device = val
+}
+
+// SetGuess sets the value of Guess.
+func (s *InventoryGetInventoryDevicesIDMergePreviewOKDiffersItemValuesItem) SetGuess(val OptBool) {
+	s.Guess = val
 }
 
 // SetValue sets the value of Value.
@@ -136705,7 +136733,8 @@ type InventoryGetInventoryDevicesIDOK struct {
 	Observations []InventoryGetInventoryDevicesIDOKObservationsItem `json:"observations"`
 	// Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box
 	// and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one
-	// uses a private Wi-Fi address; never when a person kept them separate, two agents or two different
+	// uses a private Wi-Fi address, or a device added by hand without an address runs the OS a found
+	// device runs at the same release; never when a person kept them separate, two agents or two different
 	// burned-in MACs say two machines, they state another name, model or OS, or one was seen while the
 	// other was. Two network cards of one machine are offered too: one host name on two burned-in MACs, or
 	// burned-in MACs from one block of a maker on network gear (reason).
@@ -142707,7 +142736,8 @@ type InventoryGetInventoryDevicesIDOKPossibleSameItem struct {
 	// maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on
 	// two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated
 	// model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the
-	// address of a device added by hand.
+	// address of a device added by hand; same_os: a device added by hand without any address runs the
+	// operating system or firmware a found device runs, at the same version or build.
 	Reason InventoryGetInventoryDevicesIDOKPossibleSameItemReason `json:"reason"`
 	// What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same
 	// time, and a private Wi-Fi address (phones and laptops change it).
@@ -142788,7 +142818,8 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetWhy(val string) {
 // maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on
 // two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated
 // model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the
-// address of a device added by hand.
+// address of a device added by hand; same_os: a device added by hand without any address runs the
+// operating system or firmware a found device runs, at the same version or build.
 type InventoryGetInventoryDevicesIDOKPossibleSameItemReason string
 
 const (
@@ -142798,6 +142829,7 @@ const (
 	InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingName     InventoryGetInventoryDevicesIDOKPossibleSameItemReason = "rotating_name"
 	InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingModel    InventoryGetInventoryDevicesIDOKPossibleSameItemReason = "rotating_model"
 	InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice InventoryGetInventoryDevicesIDOKPossibleSameItemReason = "mac_at_added_device"
+	InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameOs           InventoryGetInventoryDevicesIDOKPossibleSameItemReason = "same_os"
 )
 
 // AllValues returns all InventoryGetInventoryDevicesIDOKPossibleSameItemReason values.
@@ -142809,6 +142841,7 @@ func (InventoryGetInventoryDevicesIDOKPossibleSameItemReason) AllValues() []Inve
 		InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingName,
 		InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingModel,
 		InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice,
+		InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameOs,
 	}
 }
 
@@ -142826,6 +142859,8 @@ func (s InventoryGetInventoryDevicesIDOKPossibleSameItemReason) MarshalText() ([
 	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonRotatingModel:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameOs:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -142852,6 +142887,9 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItemReason) UnmarshalText(d
 		return nil
 	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice:
 		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonMACAtAddedDevice
+		return nil
+	case InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameOs:
+		*s = InventoryGetInventoryDevicesIDOKPossibleSameItemReasonSameOs
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -148346,7 +148384,8 @@ type InventoryGetInventoryPossibleSameOKItemsItem struct {
 	// maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on
 	// two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated
 	// model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the
-	// address of a device added by hand.
+	// address of a device added by hand; same_os: a device added by hand without any address runs the
+	// operating system or firmware a found device runs, at the same version or build.
 	Reason InventoryGetInventoryPossibleSameOKItemsItemReason `json:"reason"`
 	// What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same
 	// time, and a private Wi-Fi address (phones and laptops change it).
@@ -148494,7 +148533,8 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetName(val string) {
 // maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on
 // two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated
 // model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the
-// address of a device added by hand.
+// address of a device added by hand; same_os: a device added by hand without any address runs the
+// operating system or firmware a found device runs, at the same version or build.
 type InventoryGetInventoryPossibleSameOKItemsItemReason string
 
 const (
@@ -148504,6 +148544,7 @@ const (
 	InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingName     InventoryGetInventoryPossibleSameOKItemsItemReason = "rotating_name"
 	InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingModel    InventoryGetInventoryPossibleSameOKItemsItemReason = "rotating_model"
 	InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice InventoryGetInventoryPossibleSameOKItemsItemReason = "mac_at_added_device"
+	InventoryGetInventoryPossibleSameOKItemsItemReasonSameOs           InventoryGetInventoryPossibleSameOKItemsItemReason = "same_os"
 )
 
 // AllValues returns all InventoryGetInventoryPossibleSameOKItemsItemReason values.
@@ -148515,6 +148556,7 @@ func (InventoryGetInventoryPossibleSameOKItemsItemReason) AllValues() []Inventor
 		InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingName,
 		InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingModel,
 		InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice,
+		InventoryGetInventoryPossibleSameOKItemsItemReasonSameOs,
 	}
 }
 
@@ -148532,6 +148574,8 @@ func (s InventoryGetInventoryPossibleSameOKItemsItemReason) MarshalText() ([]byt
 	case InventoryGetInventoryPossibleSameOKItemsItemReasonRotatingModel:
 		return []byte(s), nil
 	case InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice:
+		return []byte(s), nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonSameOs:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -148558,6 +148602,9 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemReason) UnmarshalText(data 
 		return nil
 	case InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice:
 		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonMACAtAddedDevice
+		return nil
+	case InventoryGetInventoryPossibleSameOKItemsItemReasonSameOs:
+		*s = InventoryGetInventoryPossibleSameOKItemsItemReasonSameOs
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

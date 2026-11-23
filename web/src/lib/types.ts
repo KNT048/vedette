@@ -26,7 +26,7 @@ export interface Software {
   not_installed?: boolean
 }
 
-export interface Service { port: number; proto: 'tcp' | 'udp'; name: string; product?: string; version?: string; detail?: string; source: ObsSource; confidence: number }
+export interface Service { port: number; proto: 'tcp' | 'udp'; name: string; product?: string; version?: string; detail?: string; source: ObsSource; confidence: number; /** the other address of the device a scan found the port on; absent for the main one */ address?: string }
 
 export interface Asset {
   id: string

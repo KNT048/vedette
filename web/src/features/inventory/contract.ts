@@ -194,8 +194,8 @@ export const DetectedChoice = z.object({ detected: z.string().min(1).max(253).de
 /** When the inventory cannot be sure two rows are one machine (a phone or laptop with a new private Wi-Fi address and a
  * generic name, an older MAC two rows share), a person decides: "Possibly the same device as X" with Merge and Keep separate. */
 /** What two devices share when they are offered as possibly one machine, strongest first. */
-export const SameReason = z.enum(['same_mac', 'mac_block', 'same_name_cards', 'rotating_name', 'rotating_model', 'mac_at_added_device'])
-  .describe('same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the address of a device added by hand')
+export const SameReason = z.enum(['same_mac', 'mac_block', 'same_name_cards', 'rotating_name', 'rotating_model', 'mac_at_added_device', 'same_os'])
+  .describe('same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated model and a private Wi-Fi address, never online at once; mac_at_added_device: a MAC seen at the address of a device added by hand; same_os: a device added by hand without any address runs the operating system or firmware a found device runs, at the same version or build')
 export const PossibleSame = z.object({
   id: z.string(), name: z.string().describe('The other device, named as every page names it'),
   why: z.string().describe('What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same time, and a private Wi-Fi address (phones and laptops change it).'),
@@ -225,7 +225,7 @@ export const DeviceDetail = z.object({
   detected_differs: z.array(DetectedDiffers).describe('INV-47: fields where a trusted source reads another value than the one a person entered, which still wins. The page offers Use detected / Keep mine next to each; empty when none or when the person kept their value for the value now detected'),
   manual_at: dt.nullable().describe('INV-46: when a person last entered or changed something on the device: a value typed when it was added or set later (type, OS), a software row added or edited, a correction or "not installed"; the time it was added for a device added by hand with nothing newer; null when no person entered anything. The Manual source shows it ("last changed 2 hours ago")'),
   kinds: z.array(AssetKind),
-  possible_same: z.array(PossibleSame).describe('Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was. Two network cards of one machine are offered too: one host name on two burned-in MACs, or burned-in MACs from one block of a maker on network gear (reason)'),
+  possible_same: z.array(PossibleSame).describe('Devices that may be this same machine, the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address, or a device added by hand without an address runs the OS a found device runs at the same release; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was. Two network cards of one machine are offered too: one host name on two burned-in MACs, or burned-in MACs from one block of a maker on network gear (reason)'),
   addresses: z.array(DeviceAddress).describe('Every address of the device, the main one first, then the others, the one seen last first: the device is found by any of them. Split off = POST /inventory/devices/{id}/split'),
 })
 export const SamePairs = z.object({
@@ -241,12 +241,16 @@ export const MergeInput = z.object({
   from: z.array(z.string().min(1).max(96)).min(1).max(8).describe('The devices that go into the device of the path, 1 to 8 (the interfaces of one firewall in one step)'),
   fields: MergeChoice.optional().describe('Values a person chose where the devices differ; left out: the merge\'s own result (MergePreview differs kept)'),
 })
-export const MergeValue = z.object({ device: z.string(), value: z.string() })
+export const MergeValue = z.object({
+  device: z.string(), value: z.string(),
+  guess: z.boolean().optional().describe('kind only: the type the identification rules guess for a device whose type is unknown (Asset guess); it may be picked for the merged device'),
+})
 export const MergeField = z.object({
   field: z.enum(['name', 'kind', 'os', 'vendor', 'model', 'hostname']),
   values: z.array(MergeValue).describe('Each device\'s value, the kept device first; a device without a value is left out'),
-  kept: z.string().describe('What the kept device has after the merge unless the person picks another: the kept device\'s own name in Vedette (else the first that has one), the strongest source\'s reading for the other fields'),
+  kept: z.string().describe('What the kept device has after the merge unless the person picks another: the kept device\'s own name in Vedette (else the first that has one), the strongest source\'s reading for the other fields; for kind "unknown" when no source states a type (a guess is never the type)'),
   choosable: z.boolean().describe('name, kind and os: the merge takes a choice (fields); the others follow the sources'),
+  missing: z.array(z.string()).describe('kind and os: the devices without a value (a type or OS only one device states is a row too, so the person sees what the merged device ends with); empty for the other fields'),
 })
 export const MergeSide = z.object({
   id: z.string(), name: z.string(), approved: z.boolean(), ignored: z.boolean(), agent: z.boolean().describe('An agent reports from it'),
@@ -264,7 +268,7 @@ export const MergePreview = z.object({
     findings: z.number().int().describe('Findings that move, with their history and decisions; one CVE of one software line becomes one finding'),
     exploited: z.number().int().describe('Exploited CVEs the devices taken are marked with'),
   }),
-  differs: z.array(MergeField).describe('Only the fields the devices state differently; empty when they agree'),
+  differs: z.array(MergeField).describe('Only the fields the devices state differently (for type and OS also one device\'s value against none); empty when they agree'),
   refusal: z.object({ code: z.enum(['box_device', 'not_same_device']), message: z.string() }).nullable().describe('Why the merge would be refused (409 with this code); null when it may go ahead'),
 })
 export const MergePreviewQuery = z.object({ from: z.string().min(1).max(800).describe('Comma-separated ids of the devices that would go into the device of the path, 1 to 8') })

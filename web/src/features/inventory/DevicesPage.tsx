@@ -348,23 +348,25 @@ function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; 
           )
         }} />
       {/* the list keeps its page, search and sort underneath; the devices that went leave the selection */}
-      {merging ? <MergeFlow start={merging} onClose={() => setMerging(null)} onMerged={(_kept, gone) => ops.remove(gone)} /> : null}
+      {merging ? <MergeFlow start={merging} onClose={() => setMerging(null)} onMerged={(kept, gone) => ops.remove([kept, ...gone])} /> : null}
     </section>
   )
 }
 
-/** "Merge (n)" over the selection (admin), when 2 or more devices are selected: the box is left out (it is always its own device),
- *  and more than one merge takes is said instead of offered. */
+/** "Merge (n)" over the selection (admin): the box is left out (it is always its own device); one device alone, or more than one merge
+ *  takes, keeps the button there but off, with the reason next to it. */
 function MergeSelected({ rows, sel, onMerge }: { rows: DeviceRow[]; sel: ReadonlySet<string>; onMerge: (s: MergeStart) => void }) {
   const { t } = useTranslation('inventory')
   const picked = rows.filter((d) => sel.has(d.id))
   const ids = picked.filter((d) => !d.is_box).map((d) => d.id)
   const box = picked.some((d) => d.is_box)
-  if (ids.length < 2) return box && sel.size > 1 ? <p className="text-meta text-muted" role="status">{t('merge.bulkBoxLeftOut')}</p> : null
+  if (!ids.length) return box && sel.size > 1 ? <p className="text-meta text-muted" role="status">{t('merge.bulkBoxLeftOut')}</p> : null
   const tooMany = ids.length > MERGE_MAX_FROM + 1
+  const one = ids.length < 2
   return (
     <div className="grid gap-1">
-      <Button size="sm" variant="primary" disabled={tooMany} aria-label={t('merge.bulkLabel', { count: ids.length })} onClick={() => onMerge({ ids })}><GitMerge />{t('merge.bulk', { count: ids.length })}</Button>
+      <Button size="sm" variant="primary" disabled={tooMany || one} aria-label={t('merge.bulkLabel', { count: ids.length })} aria-describedby={one ? 'merge-bulk-one' : undefined} onClick={() => onMerge({ ids })}><GitMerge />{t('merge.bulk', { count: ids.length })}</Button>
+      {one ? <p id="merge-bulk-one" className="text-meta text-muted" role="status">{t('merge.bulkOne')}</p> : null}
       {tooMany ? <p className="text-meta text-muted" role="status">{t('merge.bulkTooMany', { max: MERGE_MAX_FROM + 1, from: MERGE_MAX_FROM })}</p> : null}
       {box ? <p className="text-meta text-muted" role="status">{t('merge.bulkBoxLeftOut')}</p> : null}
     </div>
@@ -385,7 +387,7 @@ function RowMenu({ d, suggested, onMerge }: { d: DeviceRow; suggested: (Suggesti
           {suggested.map((s) => (
             <DropdownMenuItem key={s.id} onSelect={() => onMerge({ ids: [d.id, s.id] })}><GitMerge />{t('merge.withSuggested', { name: s.name })}</DropdownMenuItem>
           ))}
-          <DropdownMenuItem onSelect={() => onMerge({ pickFor: { id: d.id, label: name, name: d.name, hostname: d.hostname, vendor: d.vendor, model: d.model, ips: d.ip && d.ip !== '—' ? [d.ip] : [] }, suggested })}>
+          <DropdownMenuItem onSelect={() => onMerge({ pickFor: { id: d.id, label: name, name: d.name, hostname: d.hostname, vendor: d.vendor, model: d.model, macs: d.mac ? [d.mac] : [] }, suggested })}>
             <GitMerge />{t('merge.withMenu')}
           </DropdownMenuItem>
         </DropdownMenuContent>

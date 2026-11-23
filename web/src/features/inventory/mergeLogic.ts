@@ -28,10 +28,12 @@ export function defaultKeep(sides: MergeSide[], named: (id: string) => number = 
 }
 
 /** A merge field as the dialog shows it: each distinct value once, with the devices that state it, the kept device's first. */
-export type FieldOption = { value: string; devices: string[] }
-export type ShownField = { field: MergeField['field']; choosable: boolean; kept: string; options: FieldOption[] }
+export type FieldOption = { value: string; devices: string[]; guess?: boolean }
+export type ShownField = { field: MergeField['field']; choosable: boolean; kept: string; options: FieldOption[]; missing: string[] }
 
-/** Only the fields the devices state differently (two values or more); the server already leaves out the ones they agree on. */
+/** Only the fields the devices state differently: two values or more, or (type and OS) one device's value against none, so the type
+ *  and OS a person picks are always there to see. A type the box only guesses is offered marked as a guess; when no device states a
+ *  type the merged device keeps "unknown", offered as the first choice so the radio group always shows what the merge does. */
 export function shownDiffers(differs: MergeField[]): ShownField[] {
   const out: ShownField[] = []
   for (const f of differs) {
@@ -39,10 +41,12 @@ export function shownDiffers(differs: MergeField[]): ShownField[] {
     for (const v of f.values) {
       const o = options.find((x) => x.value === v.value)
       if (o) o.devices.push(v.device)
-      else options.push({ value: v.value, devices: [v.device] })
+      else options.push({ value: v.value, devices: [v.device], ...(v.guess ? { guess: true } : {}) })
     }
-    if (options.length < 2) continue
-    out.push({ field: f.field, choosable: f.choosable, kept: f.kept, options })
+    const missing = f.missing ?? []
+    if (options.length < 2 && !(options.length === 1 && missing.length)) continue
+    if (f.field === 'kind' && f.kept === 'unknown' && !options.some((o) => o.value === 'unknown')) options.unshift({ value: 'unknown', devices: [] })
+    out.push({ field: f.field, choosable: f.choosable, kept: f.kept, options, missing })
   }
   return out
 }
@@ -90,7 +94,7 @@ export function splitBlock(a: Pick<DeviceAddress, 'agent'>, all: readonly unknow
 // ---- The picker: which devices to offer first for "Merge with…". ----
 
 /** A candidate row and why it is offered where it is: a suggestion of the box (its reason), a row that looks like the same machine
- *  (same maker, model or name), one at a nearby address, or any other device. */
+ *  (same maker, model or name), one whose MAC sits next to one of this device's (the next card of one machine), or any other device. */
 export type Candidate = {
   row: DeviceRow
   group: 'suggested' | 'similar' | 'nearby' | 'other'
@@ -99,7 +103,7 @@ export type Candidate = {
   similar?: { what: 'model' | 'name' | 'maker'; value: string }
   near?: string
 }
-export type PickerMe = Pick<DeviceRow, 'id' | 'hostname' | 'name' | 'vendor' | 'model'> & { ips: string[] }
+export type PickerMe = Pick<DeviceRow, 'id' | 'hostname' | 'name' | 'vendor' | 'model'> & { macs: string[] }
 export type Suggestion = { id: string; reason: SameReason; why: string }
 
 const MAKER_SUFFIX = new Set(['inc', 'incorporated', 'corp', 'corporation', 'co', 'company', 'ltd', 'limited', 'llc', 'gmbh', 'sa', 'ag', 'plc', 'bv', 'pte', 'networks', 'network', 'technologies', 'technology', 'systems', 'communications'])
@@ -111,20 +115,21 @@ export function makerKey(v: string | null | undefined): string {
 }
 /** A host name's first label, lowercased ("FW-HQ.corp.example" → "fw-hq"). */
 const nameKey = (h: string | null | undefined) => (h ?? '').split('.')[0]!.trim().toLowerCase()
-const ipNum = (ip: string) => {
-  const p = ip.split('.').map(Number)
-  return p.length === 4 && p.every((n) => Number.isInteger(n) && n >= 0 && n <= 255) ? ((p[0]! * 256 + p[1]!) * 256 + p[2]!) * 256 + p[3]! : null
-}
-/** The nearest of `mine` in the same /24 as `ip`, with the distance; null when none is. */
-function nearest(ip: string, mine: string[]): { ip: string; d: number } | null {
-  const n = ipNum(ip)
-  if (n === null) return null
-  let best: { ip: string; d: number } | null = null
-  for (const m of mine) {
-    const x = ipNum(m)
-    if (x === null || Math.floor(x / 256) !== Math.floor(n / 256)) continue
-    const d = Math.abs(x - n)
-    if (!best || d < best.d) best = { ip: m, d }
+/** How far apart two MACs of one maker's block may be and still be the cards of one machine (a server's or a router's ports, the
+ *  virtual cards of one VM host): the same first five bytes, the last at most this far apart. A whole subnet of addresses says nothing
+ *  about one machine; numbering by one maker in a row does. */
+export const MAC_NEIGHBOUR = 8
+const macByte = (m: string) => parseInt(m.slice(15, 17), 16)
+/** The MAC of `mine` that `mac` sits next to (MAC_NEIGHBOUR), with the distance; null when none does. */
+export function nextMAC(mac: string | null | undefined, mine: string[]): { mac: string; d: number } | null {
+  const m = (mac ?? '').toLowerCase()
+  if (!/^[0-9a-f]{2}(:[0-9a-f]{2}){5}$/.test(m)) return null
+  let best: { mac: string; d: number } | null = null
+  for (const x0 of mine) {
+    const x = x0.toLowerCase()
+    if (x.length !== 17 || x === m || x.slice(0, 14) !== m.slice(0, 14)) continue
+    const d = Math.abs(macByte(x) - macByte(m))
+    if (d <= MAC_NEIGHBOUR && (!best || d < best.d)) best = { mac: x, d }
   }
   return best
 }
@@ -141,8 +146,8 @@ export function matchesQuery(row: DeviceRow, display: string, q: string): boolea
 
 /**
  * The devices "Merge with…" offers for `me`, ranked: the box's suggestions first (their order), then rows of the same model, name
- * or maker, then rows at a nearby address (same /24, nearest first), then every other device by name. The box itself and `me`
- * are never offered.
+ * or maker, then rows whose MAC sits next to one of `me`'s (nextMAC, nearest first), then every other device by name. The box itself
+ * and `me` are never offered.
  */
 export function rankCandidates(me: PickerMe, rows: DeviceRow[], suggested: Suggestion[], display: (r: DeviceRow) => string): Candidate[] {
   const out: Candidate[] = []
@@ -171,8 +176,8 @@ export function rankCandidates(me: PickerMe, rows: DeviceRow[], suggested: Sugge
   for (const r of rest) {
     const s = similar(r)
     if (s) { sims.push({ row: r, group: 'similar', similar: s }); continue }
-    const n = nearest(r.ip, me.ips)
-    if (n) { near.push({ row: r, group: 'nearby', near: n.ip, d: n.d }); continue }
+    const n = nextMAC(r.mac, me.macs)
+    if (n) { near.push({ row: r, group: 'nearby', near: n.mac, d: n.d }); continue }
     other.push({ row: r, group: 'other' })
   }
   const byName = (a: Candidate, b: Candidate) => display(a.row).localeCompare(display(b.row))

@@ -269,8 +269,11 @@ const Services = memo(function Services({ list, by, asset }: { list: Service[]; 
     }[by]
     return <EmptyState title={t('services.empty')} info={info}>{body}</EmptyState>
   }
+  // A device with several addresses (a merge, two cards) lists one port open on two of them twice: the address column tells them apart.
+  const where = list.some((sv) => sv.address) ? (sv: Service) => sv.address ?? asset.ip : null
   const columns: ColumnDef<Service>[] = [
     { id: 'port', header: t('services.port'), accessorFn: (s) => s.port, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.port}/{row.original.proto}</span> },
+    ...(where ? [{ id: 'address', header: t('services.address'), accessorFn: where, cell: ({ row }) => <span className="tabular-nums">{where(row.original)}</span> } satisfies ColumnDef<Service>] : []),
     { id: 'name', header: t('services.name'), accessorFn: (s) => s.name },
     { id: 'product', header: t('services.product'), accessorFn: (s) => s.product ?? '', cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
     { id: 'version', header: t('services.version'), accessorFn: (s) => s.version ?? '', cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
@@ -281,7 +284,7 @@ const Services = memo(function Services({ list, by, asset }: { list: Service[]; 
     <DataTable urlKey="services" caption={t('services.caption')} data={list} columns={columns}
       mobileRow={(sv) => (
         <div className="grid gap-1">
-          <span className="text-sm font-medium">{sv.port}/{sv.proto} {sv.name}</span>
+          <span className="text-sm font-medium">{sv.port}/{sv.proto} {sv.name}{where ? <span className="ml-2 font-normal tabular-nums text-muted">{where(sv)}</span> : null}</span>
           {sv.product || sv.version ? <span className="text-meta [overflow-wrap:anywhere]">{[sv.product, sv.version].filter(Boolean).join(' ')}</span> : null}
           {sv.detail ? <span className="text-meta text-muted [overflow-wrap:anywhere]">{sv.detail}</span> : null}
           <span className="text-caption text-muted">{source(sv)}</span>
@@ -577,7 +580,7 @@ function Body() {
       ) : null}
       <AddDeviceDialog open={adding} onOpenChange={setAdding} deviceId={a.id} />
       {merging && admin && !a.is_box ? (
-        <MergeFlow start={{ pickFor: { id: a.id, label: name, name: a.name, hostname: a.hostname, vendor: a.vendor, model: a.model, ips: (d.addresses ?? []).map((x) => x.ip).filter((x): x is string => !!x) },
+        <MergeFlow start={{ pickFor: { id: a.id, label: name, name: a.name, hostname: a.hostname, vendor: a.vendor, model: a.model, macs: (d.addresses ?? []).map((x) => x.mac).filter((x): x is string => !!x) },
           suggested: (d.possible_same ?? []).map((p) => ({ id: p.id, reason: p.reason, why: p.why })) }} onClose={() => setMerging(false)} onMerged={onMerged} />
       ) : null}
       <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}

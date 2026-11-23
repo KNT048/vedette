@@ -52,13 +52,23 @@ describe('merge logic', () => {
 
   it('shows only the fields with two values or more, each value once with its devices, and sends only what the person changed', () => {
     const differs: MergeField[] = [
-      { field: 'name', values: [{ device: 'a', value: 'fw-edge' }, { device: 'b', value: 'Fortinet, Inc.' }], kept: 'fw-edge', choosable: true },
-      { field: 'kind', values: [{ device: 'a', value: 'firewall' }, { device: 'b', value: 'firewall' }], kept: 'firewall', choosable: true },
-      { field: 'vendor', values: [{ device: 'a', value: 'Fortinet' }, { device: 'b', value: 'Fortinet, Inc.' }, { device: 'c', value: 'Fortinet' }], kept: 'Fortinet', choosable: false },
+      { field: 'name', values: [{ device: 'a', value: 'fw-edge' }, { device: 'b', value: 'Fortinet, Inc.' }], kept: 'fw-edge', choosable: true, missing: [] },
+      { field: 'kind', values: [{ device: 'a', value: 'firewall' }, { device: 'b', value: 'firewall' }], kept: 'firewall', choosable: true, missing: [] },
+      { field: 'vendor', values: [{ device: 'a', value: 'Fortinet' }, { device: 'b', value: 'Fortinet, Inc.' }, { device: 'c', value: 'Fortinet' }], kept: 'Fortinet', choosable: false, missing: [] },
     ]
     const shown = shownDiffers(differs)
     expect(shown.map((f) => f.field)).toEqual(['name', 'vendor'])
     expect(shown[1]!.options).toEqual([{ value: 'Fortinet', devices: ['a', 'c'] }, { value: 'Fortinet, Inc.', devices: ['b'] }])
+    // a type or OS only one device states is a row too; a guessed type says so, and "unknown" is what the merge keeps without one
+    const only = shownDiffers([
+      { field: 'kind', values: [{ device: 'b', value: 'hypervisor', guess: true }], kept: 'unknown', choosable: true, missing: ['a'] },
+      { field: 'os', values: [{ device: 'b', value: 'VMware ESXi 8.0 Update 3' }], kept: 'VMware ESXi 8.0 Update 3', choosable: true, missing: ['a'] },
+      { field: 'model', values: [{ device: 'b', value: 'ProLiant' }], kept: 'ProLiant', choosable: false, missing: [] },
+    ])
+    expect(only.map((f) => f.field)).toEqual(['kind', 'os'])
+    expect(only[0]!.options).toEqual([{ value: 'unknown', devices: [] }, { value: 'hypervisor', devices: ['b'], guess: true }])
+    expect(only[1]!.missing).toEqual(['a'])
+    expect(choiceFields(only, { kind: 'hypervisor' })).toEqual({ kind: 'hypervisor' })
     expect(choiceFields(shown, {})).toBeUndefined()
     expect(choiceFields(shown, { name: 'fw-edge' })).toBeUndefined() // the merge's own result is not sent
     expect(choiceFields(shown, { name: 'Fortinet, Inc.', vendor: 'Fortinet, Inc.' })).toEqual({ name: 'Fortinet, Inc.' }) // the maker follows the sources
@@ -90,19 +100,22 @@ describe('merge logic', () => {
     expect(watchAfterMergeAll({ ignored: false }, [{ ignored: false, approved: true }])).toBe('')
   })
 
-  it('ranks the picker: suggestions, then the same model, name or maker, then nearby addresses, then the rest; never itself or the box', () => {
+  it('ranks the picker: suggestions, then the same model, name or maker, then the next MAC of the same block, then the rest; never itself or the box', () => {
     const row = (p: Partial<DeviceRow> & { id: string }) => ({ ip: '198.51.100.9', hostname: null, name: null, vendor: null, model: null, is_box: false, mac: null, ...p }) as DeviceRow
     const rows = [
       row({ id: 'me', ip: '192.0.2.1' }), row({ id: 'box', is_box: true, ip: '192.0.2.2' }),
-      row({ id: 'far', hostname: 'printer' }), row({ id: 'near5', ip: '192.0.2.5' }), row({ id: 'near3', ip: '192.0.2.3' }),
+      row({ id: 'far', hostname: 'printer' }), row({ id: 'near5', ip: '192.0.2.5', mac: '52:54:00:76:6d:07' }), row({ id: 'near3', ip: '192.0.2.3', mac: '52:54:00:76:6d:03' }),
+      row({ id: 'sameNet', ip: '192.0.2.4' }), row({ id: 'farMac', ip: '192.0.2.6', mac: '52:54:00:76:6d:40' }),
       row({ id: 'maker', vendor: { value: 'Fortinet, Inc.', source: 'passive', confidence: 0.5, seen_at: ago(0) } }),
       row({ id: 'model', model: { value: 'FortiGate 60F', source: 'snmp', confidence: 0.9, seen_at: ago(0) } }),
       row({ id: 'sug', ip: '10.0.0.1' }),
     ]
-    const me = { id: 'me', name: null, hostname: 'fw-edge', vendor: { value: 'Fortinet', source: 'snmp' as const, confidence: 0.9, seen_at: ago(0) }, model: { value: 'FortiGate 60F', source: 'snmp' as const, confidence: 0.9, seen_at: ago(0) }, ips: ['192.0.2.1'] }
+    const me = { id: 'me', name: null, hostname: 'fw-edge', vendor: { value: 'Fortinet', source: 'snmp' as const, confidence: 0.9, seen_at: ago(0) }, model: { value: 'FortiGate 60F', source: 'snmp' as const, confidence: 0.9, seen_at: ago(0) }, macs: ['52:54:00:76:6d:02'] }
     const out = rankCandidates(me, rows, [{ id: 'sug', reason: 'mac_block', why: 'Burned-in MACs of one block' }], (r) => r.hostname ?? r.id)
-    expect(out.map((c) => c.row.id)).toEqual(['sug', 'model', 'maker', 'near3', 'near5', 'far'])
-    expect(out.map((c) => c.group)).toEqual(['suggested', 'similar', 'similar', 'nearby', 'nearby', 'other'])
+    // an address in the same subnet alone is no reason: only a MAC next to one of the device's (the same block, a few apart)
+    expect(out.map((c) => c.row.id)).toEqual(['sug', 'model', 'maker', 'near3', 'near5', 'farMac', 'far', 'sameNet'])
+    expect(out.map((c) => c.group)).toEqual(['suggested', 'similar', 'similar', 'nearby', 'nearby', 'other', 'other', 'other'])
+    expect(out.find((c) => c.row.id === 'near3')!.near).toBe('52:54:00:76:6d:02')
     expect(matchesQuery(row({ id: 'm', mac: '00:09:0f:00:00:02' }), 'x', '0009.0f00.0002')).toBe(true)
     expect(matchesQuery(row({ id: 'm', mac: '00:09:0f:00:00:02' }), 'x', '00:09:0f:00:00:03')).toBe(false)
   })
@@ -113,7 +126,9 @@ describe('Devices list: select rows and merge them', () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=devices&q=192.0.2', { role: 'admin' })
     await user.click(await screen.findByRole('checkbox', { name: 'Select fw-edge' }, T))
-    expect(screen.queryByRole('button', { name: /^Merge the/ })).toBeNull() // one row is not a merge
+    // one row is not a merge: the button is there, off, and says why
+    expect(screen.getByRole('button', { name: 'Merge the 1 selected devices' })).toBeDisabled()
+    expect(screen.getByText(/Select two or more devices to merge them/)).toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: 'Select Fortinet, Inc.' }))
     await user.click(screen.getByRole('button', { name: 'Merge the 2 selected devices' }))
 
@@ -124,7 +139,9 @@ describe('Devices list: select rows and merge them', () => {
     expect(await within(dialog).findByText('Where they differ', undefined, T)).toBeInTheDocument()
     expect(within(dialog).getByRole('radiogroup', { name: 'Name' })).toBeInTheDocument()
     expect(within(dialog).getByText('Keeps Fortinet')).toBeInTheDocument() // the maker follows the sources: no choice
-    expect(within(dialog).queryByText('Type')).toBeNull() // both say nothing different: not shown
+    // only fw-edge states a type: the type row says so, with the device that has none
+    expect(within(dialog).getByRole('radiogroup', { name: 'Type' })).toBeInTheDocument()
+    expect(within(dialog).getByText('None on Fortinet, Inc.')).toBeInTheDocument()
     expect(within(dialog).queryByText('Model')).toBeNull()
     expect(within(dialog).getByTestId('merge-moves')).toHaveTextContent('1 open port')
     expect(within(dialog).getByTestId('merge-moves')).toHaveTextContent('address 192.0.2.254')
@@ -178,6 +195,13 @@ describe('Device page: Merge with… and the Addresses section', () => {
 
     await user.type(within(dialog).getByRole('searchbox', { name: 'Search by name, IP or MAC' }), '00:09:0f:00:00:02')
     expect(within(dialog).getAllByRole('checkbox')).toHaveLength(1)
+    // the device itself is never offered: searching for it says why rather than "no device matches"
+    const search = within(dialog).getByRole('searchbox', { name: 'Search by name, IP or MAC' })
+    await user.clear(search)
+    await user.type(search, 'fw-edge')
+    expect(within(dialog).getByText('fw-edge is the device you are merging into: pick the other device.')).toBeInTheDocument()
+    await user.clear(search)
+    await user.type(search, '00:09:0f:00:00:02')
     const next = within(dialog).getByRole('button', { name: 'Continue' })
     expect(next).toBeDisabled()
     await user.click(within(dialog).getByRole('checkbox', { name: /Fortinet, Inc\./ }))
@@ -217,5 +241,31 @@ describe('Device page: Merge with… and the Addresses section', () => {
     expect(await screen.findByText('192.0.2.254 is now a device of its own.', undefined, T)).toBeInTheDocument()
     await waitFor(() => expect(within(section).queryByText('192.0.2.254')).toBeNull(), T)
     expect(assetsStore.get().some((a) => a.ip === '192.0.2.254' && a.id !== 'a-dm-srv')).toBe(true)
+  })
+
+  it('the box keeps Split off and Merge with… on its page, off, each with its reason', async () => {
+    renderApp('/devices/a-box', { role: 'admin' })
+    const section = await screen.findByRole('region', { name: 'Addresses' }, T)
+    const split = within(section).getAllByRole('button', { name: /^Split .* off$/ })
+    expect(split.length).toBeGreaterThan(0)
+    for (const b of split) {
+      expect(b).toBeDisabled()
+      expect(b).toHaveAccessibleDescription("The Vedette box's own address: the box is always its own device.")
+    }
+    const merge = within(section).getByRole('button', { name: 'Merge with…' })
+    expect(merge).toBeDisabled()
+    expect(merge).toHaveAttribute('title', 'The Vedette box is always its own device: it cannot be merged with another.')
+  })
+
+  it('a port open on two addresses of one device is two rows told apart by an Address column', async () => {
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-dm-fw' ? { ...a, services: [
+      { port: 22, proto: 'tcp' as const, name: 'ssh', source: 'nmap' as const, confidence: 0.8 },
+      { port: 22, proto: 'tcp' as const, name: 'ssh', source: 'nmap' as const, confidence: 0.8, address: '192.0.2.254' },
+    ] } : a)))
+    renderApp('/devices/a-dm-fw?tab=services', { role: 'admin' })
+    const table = await screen.findByRole('table', { name: 'Services open on the device' }, T)
+    expect(within(table).getByRole('columnheader', { name: /Address/ })).toBeInTheDocument()
+    expect(within(table).getByRole('cell', { name: '192.0.2.1' })).toBeInTheDocument()
+    expect(within(table).getByRole('cell', { name: '192.0.2.254' })).toBeInTheDocument()
   })
 })

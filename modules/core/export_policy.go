@@ -124,10 +124,11 @@ var exportPolicy = map[string]tablePolicy{
 	"inv_catalogue_pass":     {export: "id revision target after updated_at"},                                                      // the product catalogue the stored lines were identified under
 	"inv_software_event":     {export: "id asset_id software_id product_key display ts kind from_version to_version source actor"}, // the history of a software line
 	"inv_source":             {export: "source first_seen"},
-	"inv_detected_keep":      {export: "asset_id field detected kept_at kept_by"},        // detected values a person chose not to switch to
-	"inv_separate":           {export: "a b decided_by decided_at"},                      // pairs a person kept separate
-	"inv_hand_seen":          {export: "asset_id mac first_seen last_seen"},              // #829: MACs seen at a hand-added device's address
-	"inv_asset_address":      {export: "id asset_id ip mac source first_seen last_seen"}, // a device's addresses besides its main one
+	"inv_detected_keep":      {export: "asset_id field detected kept_at kept_by"},                    // detected values a person chose not to switch to
+	"inv_separate":           {export: "a b decided_by decided_at"},                                  // pairs a person kept separate
+	"inv_hand_seen":          {export: "asset_id mac first_seen last_seen"},                          // #829: MACs seen at a hand-added device's address
+	"inv_asset_address":      {export: "id asset_id ip mac source first_seen last_seen"},             // a device's addresses besides its main one
+	"inv_merged_from":        {export: "asset_id from_id ip mac user_name merged_at", json: "facts"}, // what a person's merge took in, for Split off
 	"mit_ai_output":          {export: "finding_id skill model profile created_at activity_id", json: "payload"},
 	"mit_applied":            {export: "finding_id item ts user"},
 	"mit_pack":               {export: "cve confirmed_by confirmed_at drafted_with pack_version", json: "body compromise"},

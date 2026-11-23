@@ -39,7 +39,7 @@ func TestDSMRanges(t *testing.T) {
 			t.Errorf("described row %+v", r)
 		}
 	}
-	if want := []string{"7.2.1 < 7.2.1-69057-10", "7.2.2 < 7.2.2-72806-7", "7.3.2 < 7.3.2-86009-2"}; !slices.Equal(got, want) {
+	if want := []string{" < 7.2.1-69057-10", "7.2.2 < 7.2.2-72806-7", "7.3.2 < 7.3.2-86009-2"}; !slices.Equal(got, want) {
 		t.Fatalf("described rows %v, want %v", got, want)
 	}
 	var spans []versionscheme.Span
@@ -52,6 +52,24 @@ func TestDSMRanges(t *testing.T) {
 	}
 	if v := versionscheme.Judge(installed, spans); v.State != versionscheme.Affected || v.Fix == nil || v.Fix.Label != "7.2.1-69057 Update 10" {
 		t.Fatalf("7.2.1-69057-5 against the description: %+v", v)
+	}
+	// a line older than every line the description names is affected, fixed by the earliest release named, whatever the order of the
+	// list; a line between two named ones is not read from it
+	later := "An incorrect authorization vulnerability in Synology DiskStation Manager (DSM) before 7.4.1-90080-1 and 7.3.2-86009-5 allows remote attackers to read specific files."
+	rows = describedRows(silent, later)
+	spans = nil
+	for _, r := range rows {
+		_, sp, _, ok := RangeScheme(r)
+		if !ok {
+			t.Fatalf("described row %+v does not read", r)
+		}
+		spans = append(spans, sp)
+	}
+	if v := versionscheme.Judge(installed, spans); v.State != versionscheme.Affected || v.Fix == nil || v.Fix.Label != "7.3.2-86009 Update 5" {
+		t.Fatalf("7.2.1-69057-5 against a list of later lines only: %+v", v)
+	}
+	if fixed, ok := versionscheme.SynologyDSM.Installed("7.3.2-86009-5", ""); !ok || versionscheme.Judge(fixed, spans).State != versionscheme.NotAffected {
+		t.Fatalf("7.3.2-86009-5 against its own fix: %v", ok)
 	}
 	// the list ends at the first word that is no release; another product's "before" is not this one's
 	rows = describedRows(silent, "Synology BeeStation OS (BSM) before 1.1-65374 and Synology DiskStation Manager (DSM) before 7.2.1-69057-2 and 7.2.2-72806 and Synology Unified Controller (DSMUC) before 3.1.4-23079 allows remote attackers to execute arbitrary code.")

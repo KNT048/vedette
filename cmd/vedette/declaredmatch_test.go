@@ -47,6 +47,19 @@ func TestDeclaredDevices_GetTheirCVEsFindings(t *testing.T) {
 VALUES ('CVE-2026-4036', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '', '', '', '', 'affected')`)
 				return err
 			},
+			// DSM: a record whose description names only later lines than the device's: an older line is affected, fixed by the
+			// earliest release named
+			func() error { return seedNVD(ctx, tx, "CVE-2026-124993", recent, 0) },
+			func() error {
+				_, err := tx.ExecContext(ctx, `UPDATE feeds_cve SET nvd_status = 'Received', description = ? WHERE cve = 'CVE-2026-124993'`,
+					"An incorrect authorization vulnerability in the Security Advisor in Synology DiskStation Manager (DSM) before 7.3.2-86009-5 and 7.4.1-90080-1 allows remote attackers to read specific files.")
+				return err
+			},
+			func() error {
+				_, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, default_status)
+VALUES ('CVE-2026-124993', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '', '', '', '', 'affected')`)
+				return err
+			},
 			// DSM: a record row in Synology's notation, before NVD analyses the CVE
 			func() error { return seedNVD(ctx, tx, "CVE-2025-13392", recent, 0) },
 			func() error {
@@ -114,7 +127,7 @@ VALUES ('CVE-2026-4036', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '',
 		has    []string
 		hasNot []string
 	}{
-		{nas, []string{"CVE-2024-10441", "CVE-2026-4036", "CVE-2025-13392"}, nil},
+		{nas, []string{"CVE-2024-10441", "CVE-2026-4036", "CVE-2025-13392", "CVE-2026-124993"}, nil},
 		{nasPicked, []string{"CVE-2026-4036"}, []string{"CVE-2024-10441"}}, // Update 6 is CVE-2024-10441's fix, not CVE-2026-4036's (Update 10)
 		{web, []string{"CVE-2026-123007"}, nil},
 		{temurin, []string{"CVE-2026-114938"}, nil},
@@ -134,7 +147,7 @@ VALUES ('CVE-2026-4036', 'cna', '', 'synology', 'diskstationmanagerdsm', '', '',
 				t.Errorf("%s: open findings %v, must not have %s", c.device, got, cve)
 			}
 		}
-		if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve IN ('CVE-2024-10441', 'CVE-2026-4036', 'CVE-2026-123007', 'CVE-2026-114938', 'CVE-2025-22225')`, c.device); q != 0 {
+		if q := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve IN ('CVE-2024-10441', 'CVE-2026-4036', 'CVE-2026-124993', 'CVE-2026-123007', 'CVE-2026-114938', 'CVE-2025-22225')`, c.device); q != 0 {
 			t.Errorf("%s: %d questions about CVEs whose record has versions", c.device, q)
 		}
 	}

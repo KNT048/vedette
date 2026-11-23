@@ -65,6 +65,10 @@ func order(a, b Version) (int, bool) {
 	return cmpNums(a.Build, b.Build), true
 }
 
+// Compare compares two versions of one scheme in release order (line, train, place inside the train): -1, 0 or 1. ok is false for
+// two variants, which never compare.
+func Compare(a, b Version) (int, bool) { return order(a, b) }
+
 // cmpNums compares two lists of numbers, a missing number being 0.
 func cmpNums(a, b []int) int {
 	for i := range max(len(a), len(b)) {

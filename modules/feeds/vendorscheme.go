@@ -63,8 +63,12 @@ type BriefFix struct {
 // fixed releases there (versionscheme Described: Synology's records name "DiskStation Manager (DSM)" with no version, and say "Synology
 // DiskStation Manager (DSM) before 7.2.1-69057-10, 7.2.2-72806-7 and 7.3.2-86009-2 allows …"). Each release of the list that the
 // product's scheme reads is the fixed release of its line: one row from the start of that line to it (origin and product of r, kept in
-// the vendor's notation, unaffected from the fix on). Nothing when the description does not name the product right before "before",
-// or names no release the scheme reads; the list ends at the first word that is no release ("and Synology Unified Controller").
+// the vendor's notation, unaffected from the fix on). The earliest release of the list has no lower bound: "before 7.3.2-86009-5" says
+// every earlier release is affected, an older line too (7.2.1 when the list names only 7.3.2 and 7.4.1, as the vendor stops naming
+// lines past their support), and that line's fix is the earliest release named (the way Tenable's checks read "prior to"). A line
+// between two named ones, or after the last, is left to what the other rows say. Nothing when the description does not name the
+// product right before "before", or names no release the scheme reads; the list ends at the first word that is no release ("and
+// Synology Unified Controller").
 func describedRows(r Range, description string) []Range {
 	p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
 	if !ok || p.Scheme == "" || len(description) > 4000 {
@@ -87,12 +91,16 @@ func describedRows(r Range, description string) []Range {
 		return nil
 	}
 	var out []Range
+	earliest, low := -1, versionscheme.Version{}
 	rest := description[at:]
 	for {
 		tok := describedRelease.FindString(rest)
 		v, ok := s.Parse(strings.TrimRight(tok, ".,"))
 		if tok == "" || !ok || v.LineStart {
 			break
+		}
+		if c, ok := versionscheme.Compare(v, low); earliest < 0 || ok && c < 0 {
+			earliest, low = len(out), v
 		}
 		fixed := strings.TrimRight(tok, ".,")
 		out = append(out, Range{CVE: r.CVE, Origin: r.Origin, Part: r.Part, Vendor: r.Vendor, Product: r.Product, CPE: r.CPE, StartIncl: v.Train,
@@ -103,6 +111,9 @@ func describedRows(r Range, description string) []Range {
 			break
 		}
 		rest = rest[len(sep):]
+	}
+	if earliest >= 0 {
+		out[earliest].StartIncl = "" // every release before the earliest fix, of its line or an older one
 	}
 	return out
 }

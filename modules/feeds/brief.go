@@ -175,6 +175,7 @@ ssvc_exploitation, ssvc_automatable, ssvc_impact FROM feeds_cve WHERE cve = ?`, 
 	case err != nil:
 		return Brief{}, false, fmt.Errorf("feeds: brief %s: %w", cve, err)
 	}
+	b.Workaround = statedWorkaround(b.Workaround)
 	b.Published, b.Modified, b.NVDAt, b.RecordAt = optTime(pub), optTime(mod), optTime(nvdAt), optTime(recordAt)
 	b.NVDStatus, b.SSVC = status.String, SSVC{Exploitation: ssvcE.String, Automatable: ssvcA.String, Impact: ssvcI.String}
 	var ids []string
@@ -404,14 +405,16 @@ func briefFixes(rows []BriefRange) []BriefFix {
 	return out
 }
 
-// catalogueProduct names the CVE by the product of the product catalogue (core/productid) that most of the counted rows name: the
-// product a device would be matched as ("nginx" for F5's nginx_open_source rows, "Java" for Oracle's jdk, jre and openjdk rows), never
-// the first name in alphabetical order (F5's "dos" module of NGINX, Amazon's Corretto build). "" when no counted row names one.
+// catalogueProduct names the CVE by the product of the product catalogue (core/productid) that most of the rows the matcher reads name:
+// the counted rows and the rows a product's version scheme reads (Train set: VMware's "ESX" rows in its own build notation), so the
+// product a device would be matched as ("nginx" for F5's nginx_open_source rows, "Java" for Oracle's jdk, jre and openjdk rows, "VMware
+// ESXi" for three ESX rows beside one Workstation row), never the first name in alphabetical order (F5's "dos" module of NGINX, Amazon's
+// Corretto build). "" when no such row names one.
 func catalogueProduct(rs []BriefRange) string {
 	count := map[string]int{}
 	var order []string
 	for _, r := range rs {
-		if !r.Counts {
+		if !r.Counts && r.Train == "" {
 			continue
 		}
 		p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
@@ -818,3 +821,43 @@ func toBriefDTO(b Brief) briefDTO {
 	}
 	return out
 }
+
+// statedWorkaround is a record's workaround text, "" when all it says is that there is none ("None", "No workarounds known.", "There is
+// no known mitigation."): the page then says so in its own words instead of printing "None" as if it were the workaround.
+func statedWorkaround(text string) string {
+	for _, line := range strings.Split(text, "\n") {
+		if l := strings.TrimSpace(line); l != "" && !noneStated(l) {
+			return text
+		}
+	}
+	return ""
+}
+
+// noneStated says a short line only states that no workaround or mitigation exists: "None", or a sentence that starts with "No" or
+// "There" and has no other words than those of saying so. "No workaround is needed when the service is off" says more, and is kept.
+func noneStated(line string) bool {
+	l := strings.ToLower(strings.TrimRight(strings.TrimSpace(line), ".!"))
+	switch l {
+	case "none", "n/a", "na", "not applicable", "nothing", "-":
+		return true
+	}
+	words := strings.Fields(strings.NewReplacer(",", " ", ";", " ").Replace(l))
+	if len(l) > 80 || len(words) < 2 || words[0] != "no" && words[0] != "there" {
+		return false
+	}
+	said := false // the line names a workaround or a mitigation
+	for _, w := range words {
+		switch {
+		case strings.HasPrefix(w, "workaround") || strings.HasPrefix(w, "mitigation"):
+			said = true
+		case !noneFiller[w]:
+			return false
+		}
+	}
+	return said
+}
+
+// noneFiller are the other words of a line that says no workaround exists ("There is no known mitigation available for this issue").
+var noneFiller = map[string]bool{"no": true, "there": true, "is": true, "are": true, "known": true, "available": true, "currently": true, "exists": true,
+	"exist": true, "for": true, "this": true, "these": true, "issue": true, "issues": true, "vulnerability": true, "solution": true,
+	"at": true, "the": true, "time": true, "moment": true, "yet": true, "or": true, "and": true, "any": true, "solutions": true}

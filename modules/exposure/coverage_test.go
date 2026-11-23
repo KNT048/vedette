@@ -8,12 +8,10 @@ import (
 )
 
 // topThousand is a stand-in for the ports the default scan's nmap says it probed (its own most common ports): 1 to 1000.
-func topThousand(without ...int) []int {
+func topThousand() []int {
 	out := make([]int, 0, 1000)
 	for p := 1; p <= 1000; p++ {
-		if !slices.Contains(without, p) {
-			out = append(out, p)
-		}
+		out = append(out, p)
 	}
 	return out
 }
@@ -90,29 +88,8 @@ func TestCoverage_ScanThatDidNotProbeThePortIsNotAMiss(t *testing.T) {
 // scans probe it and miss it, it is closed. A scan whose service step failed probes only the fixed list.
 func TestCoverage_UnfinishedBatchNeverClosesAService(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t)
-	ips := e.detect(ipA)
-	if _, err := e.commit(ips[0].ID); err != nil {
-		t.Fatal(err)
-	}
-	scan := func(services ServiceScan, err error) ScanResult {
-		t.Helper()
-		e.svc.cfg.Services = &fakeServices{scan: services, err: err}
-		e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{IP: ipA, Port: 80, Service: "http", Ident: IdentProbed}}}})
-		r, scanErr := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID)
-		if scanErr != nil {
-			t.Fatal(scanErr)
-		}
-		e.advance(ScanEvery + time.Minute)
-		return r
-	}
-	state := func() string {
-		var st string
-		if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT state FROM exp_service WHERE ip = ? AND port = 666`, ipA).Scan(&st); err != nil {
-			t.Fatal(err)
-		}
-		return st
-	}
+	scan, state666 := defaultScans(t)
+	state := func() string { return state666(666) }
 	open := ServiceScan{Ports: 1000, Probed: topThousand(), Services: []ServiceRow{{IP: ipA, Port: 666, Name: "http", Product: "nginx", Version: "1.27.0"}}}
 	scan(open, nil)
 	if state() != ServiceOpen {
@@ -139,5 +116,67 @@ func TestCoverage_UnfinishedBatchNeverClosesAService(t *testing.T) {
 	scan(ServiceScan{Ports: 1000, Probed: topThousand()}, nil)
 	if state() != ServiceClosed {
 		t.Fatalf("two scans that probed 666 and missed it left it %s", state())
+	}
+}
+
+// defaultScans verifies ipA and records its commitment; scan runs one default scan with the runner reporting port 80 and the service
+// step answering services (or err), then moves the clock past ScanEvery; state is the state of the service on a port of ipA.
+func defaultScans(t *testing.T) (scan func(ServiceScan, error) ScanResult, state func(int) string) {
+	t.Helper()
+	e := newEnv(t)
+	ips := e.detect(ipA)
+	if _, err := e.commit(ips[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	scan = func(services ServiceScan, err error) ScanResult {
+		t.Helper()
+		e.svc.cfg.Services = &fakeServices{scan: services, err: err}
+		e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{IP: ipA, Port: 80, Service: "http", Ident: IdentProbed}}}})
+		r, scanErr := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID)
+		if scanErr != nil {
+			t.Fatal(scanErr)
+		}
+		e.advance(ScanEvery + time.Minute)
+		return r
+	}
+	state = func(port int) string {
+		t.Helper()
+		var st string
+		if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT state FROM exp_service WHERE ip = ? AND port = ?`, ipA, port).Scan(&st); err != nil {
+			t.Fatal(err)
+		}
+		return st
+	}
+	return scan, state
+}
+
+// When the address answers on almost every port, the scanner drops the ports where -sV named no service, though they stay in its
+// Probed: such a port is not counted as checked, so a real service nmap cannot name (8444) found by a normal scan stays open through
+// any number of those scans. A port whose service named itself is still checked there: 8443, kept by the first such scan, is closed
+// once two of them probe it and miss it.
+func TestCoverage_AnswersEverywhereDoesNotCheckDroppedPorts(t *testing.T) {
+	t.Parallel()
+	scan, state := defaultScans(t)
+	probed := append(topThousand(), 8443, 8444)
+	scan(ServiceScan{Ports: len(probed), Probed: probed, Services: []ServiceRow{{IP: ipA, Port: 8444, Name: "unknown"}}}, nil)
+	if state(8444) != ServiceOpen {
+		t.Fatalf("8444 found open: %s", state(8444))
+	}
+	named := ServiceRow{IP: ipA, Port: 8443, Name: "https", Product: "nginx", Version: "1.27.0"}
+	r := scan(ServiceScan{Ports: len(probed), Probed: probed, AnswersEverywhere: true, Services: []ServiceRow{named}}, nil)
+	if !slices.Contains(notChecked(r), notAnswersEverywhereKept) {
+		t.Fatalf("not checked = %q", notChecked(r))
+	}
+	if _, in := slices.BinarySearch(r.Probed[ipA], 8444); in {
+		t.Fatalf("8444, dropped by the scanner, counts as checked")
+	}
+	for i := range 3 {
+		scan(ServiceScan{Ports: len(probed), Probed: probed, AnswersEverywhere: true}, nil)
+		if state(8444) != ServiceOpen {
+			t.Fatalf("answers-everywhere scan %d closed 8444", i+2)
+		}
+		if i == 1 && state(8443) != ServiceClosed {
+			t.Fatalf("8443, named once and then missed by two scans that probed it, is %s", state(8443))
+		}
 	}
 }

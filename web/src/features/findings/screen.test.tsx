@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { expectNoA11yViolations, mainNavLink, renderApp } from '@/test/render'
 import { server } from '@/test/server'
 import { auditStore } from '@/mocks/stores'
+import { metaStore } from '@/features/inventory/mocks'
 import { records } from './modelMocks'
 
 const T = { timeout: 5000 }
@@ -169,6 +170,21 @@ describe('Findings: Needs your input', () => {
     expect(within(table).queryByRole('button', { name: /^Confirm vulnerability: CVE-2026-123159/ })).toBeNull()
   })
 
+  it('searches on the server and keeps the search in the address: only the matching items, the pager counts them', async () => {
+    // a shared link with a search opens with it
+    renderApp('/findings?tab=input&input.q=CVE-2026-123890')
+    const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
+    const box = screen.getByRole('searchbox', { name: 'Search devices, software or CVEs' })
+    expect(box).toHaveValue('CVE-2026-123890')
+    expect(await within(table).findByRole('button', { name: 'Confirm vulnerability: CVE-2026-123890 on BN340' }, T)).toBeInTheDocument()
+    expect(within(table).queryByRole('button', { name: 'Run the safe check for CVE-2024-4577 on WEB01' })).toBeNull()
+    // typing searches the whole queue on the server, not the page in view
+    await userEvent.clear(box)
+    await userEvent.type(box, 'web01')
+    expect(await within(table).findByRole('button', { name: 'Run the safe check for CVE-2024-4577 on WEB01' }, T)).toBeInTheDocument()
+    await waitFor(() => expect(within(table).queryByRole('button', { name: 'Confirm vulnerability: CVE-2026-123890 on BN340' })).toBeNull(), T)
+  })
+
   it('an operator may say Not affected but not confirm', async () => {
     renderApp('/findings?tab=input', { role: 'operator' })
     const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
@@ -187,6 +203,19 @@ describe('Findings: Handled, Ignored devices and the old links', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Risk accepted' }))
     await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2), T)
     expect(within(table).getByText(/^Risk accepted until /, { selector: '[data-status]' })).toBeInTheDocument()
+  })
+
+  it('Ignored devices: the explanation sits behind the info icon, and the list searches on the server', async () => {
+    metaStore.update((m) => ({ ...m, 'a-fw01': { ...m['a-fw01'], ignored_at: new Date().toISOString() }, 'a-bn340': { ...m['a-bn340'], ignored_at: new Date().toISOString() } }))
+    renderApp('/findings?tab=ignored')
+    const table = await screen.findByRole('table', { name: 'Ignored devices with findings' }, T)
+    expect(screen.getByText(/They are hidden from the other lists/)).not.toBeVisible() // only the info icon's description
+    expect(screen.getByRole('button', { name: 'About Ignored devices' })).toHaveAccessibleDescription(/They are hidden from the other lists/)
+    expect(await within(table).findByRole('article', { name: 'FW-HQ' }, T)).toBeInTheDocument()
+    expect(within(table).getByRole('article', { name: 'BN340' })).toBeInTheDocument()
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search ignored devices, software or CVEs' }), 'BN340')
+    await waitFor(() => expect(within(table).queryByRole('article', { name: 'FW-HQ' })).toBeNull(), T)
+    expect(within(table).getByRole('article', { name: 'BN340' })).toBeInTheDocument()
   })
 
   it('no Plan menu; /plan opens the update-recommended findings by device', async () => {

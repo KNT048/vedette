@@ -357,3 +357,37 @@ func TestModelAPI_HandleOneLineOfTwoSharingAFixKey(t *testing.T) {
 		t.Errorf("without the line: handled %d, want 0 (no block on no line)", out.Handled)
 	}
 }
+
+// The queue searches on the server like every other list: the device's name or address, the software's name, the CVE id; the
+// total counts what the search finds, so the pager pages the matches.
+func TestModelAPI_NeedsYourInputSearch(t *testing.T) {
+	e := modelEnv(t)
+	for _, c := range []struct{ q, want string }{
+		{"printer", "device:a-new,f-p1"},    // the device's name: its not-added item and its finding
+		{"192.0.2.77", "device:a-new,f-p1"}, // its address
+		{"cups", "f-p1"},                    // the software's name (any case)
+		{"cve-2026-2001", "f-f2,f-f3"},      // the CVE id
+		{"nothing-here", ""},                // no match: an empty page, not the whole queue
+		{"lab-box", ""},                     // an ignored device stays out
+	} {
+		in := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q="+url.QueryEscape(c.q), "viewer", "")
+		var ids []string
+		for _, it := range in.Items {
+			switch it.Type {
+			case "device_not_added":
+				ids = append(ids, it.FindingsGetFindingsInput1DeviceNotAdded.ID)
+			case "unconfirmed":
+				ids = append(ids, it.FindingsGetFindingsInput1Unconfirmed.ID)
+			default:
+				ids = append(ids, string(it.Type))
+			}
+		}
+		if got := strings.Join(ids, ","); got != c.want || in.Total != len(in.Items) {
+			t.Errorf("q=%q: %q (total %d), want %q", c.q, got, in.Total, c.want)
+		}
+	}
+	in := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q=fw01&limit=1&offset=1", "viewer", "")
+	if in.Total != 3 || len(in.Items) != 1 || in.Items[0].FindingsGetFindingsInput1Unconfirmed.ID != "f-f2" {
+		t.Errorf("q=fw01 page 2 of 1: total %d, items %+v", in.Total, in.Items)
+	}
+}

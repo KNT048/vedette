@@ -9,6 +9,7 @@ import { api } from '@/lib/api'
 import { briefOfVuln } from './briefSamples'
 import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { records as modelRecords } from '@/features/findings/modelMocks'
+import { inventorySettingsStore } from '@/features/inventory/mocks'
 
 describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
   // The first-run card remembers per user in this browser (#825): each test starts as a new visitor.
@@ -162,6 +163,8 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     await userEvent.click(within(step).getByRole('button', { name: 'Add a range' }))
     const dlg = await screen.findByRole('dialog', { name: 'Set the network range' })
     const input = await within(dlg).findByLabelText('Network range')
+    // the whole scope has one editor: the dialog links to it
+    expect(within(dlg).getByRole('link', { name: 'Edit every range, the scan window and exclusions' })).toHaveAttribute('href', '/settings/scanning?tab=safety#scope')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add range' }))
     expect(await within(dlg).findByText('Write the range, for example 192.168.1.0/24.')).toBeInTheDocument()
     await userEvent.type(input, '192.168.77.9/24')
@@ -183,6 +186,17 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     expect(await within(card).findByText(/^Scanning .*192\.168\.77\.0\/24 now\. Devices appear here as they are found\.$/)).toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: 'Scan the LAN now' })).toBeNull()
     server.events.removeAllListeners()
+  })
+
+  it('first run: ranges not confirmed yet lead straight to the one scope editor, Settings › Scanning › Safety', async () => {
+    modelRecords.set([])
+    assetsStore.set([])
+    inventorySettingsStore.update((st) => ({ ...st, scope_confirmed_at: null }))
+    renderApp('/')
+    const card = await screen.findByRole('region', { name: 'Get started' })
+    const link = await within(card).findByRole('link', { name: 'Confirm the scope' }, { timeout: 5000 })
+    expect(link).toHaveAttribute('href', '/settings/scanning?tab=safety#scope-confirm')
+    expect(link.closest('p')).toHaveTextContent(/^In Settings, Scanning: Confirm the scope$/)
   })
 
   it('first run: a public range is refused at the field, nothing added (#825, #860)', async () => {

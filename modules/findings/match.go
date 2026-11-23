@@ -331,6 +331,9 @@ type Match struct {
 	answer string
 	// pkgFixed: a proof from the distribution's fixed package release, not from another platform.
 	pkgFixed bool
+	// each: on the proof NotAffected carries for a CVE, the proof of every software line of the product, this one included (a device
+	// with two lines of the product has two sentences: each closed finding takes its own line's, never the other line's).
+	each []Match
 	// provedOn: for a proof from a version, the version or package release the matcher compared ("" when none: another platform, a
 	// distribution's blanket word); stored on the finding it closes (Finding.ProvedVersion).
 	provedOn string
@@ -617,6 +620,7 @@ type entryRead struct {
 	unnamed                                        []string    // the rows NVD's list leaves out, for the retired-entry sentence
 	unchecked                                      []Unchecked // #910: rows of the product that could not be checked
 	matched                                        []Match     // every row the entry matches: each software line is its own finding (Match.Lines)
+	provedEach                                     []Match     // the proof of every row proved not affected, in row order
 	needRows                                       []int       // the rows that need a version, in row order
 }
 
@@ -704,6 +708,7 @@ func (d *devMatch) read(vi int) *entryRead {
 			if e.proved == nil {
 				e.proved = keep(m)
 			}
+			e.provedEach = append(e.provedEach, m)
 			if m.why != "" && e.platform == nil {
 				e.platform = keep(m)
 			}
@@ -802,7 +807,9 @@ func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
 			switch {
 			case !have[v.CVE]:
 			case proved != nil && !unproved: // Only a proof for every software of the product
-				res.NotAffected = append(res.NotAffected, *proved)
+				p := *proved
+				p.each = slices.Clip(e.provedEach)
+				res.NotAffected = append(res.NotAffected, p)
 			case unlisted != nil:
 				res.Unlisted = append(res.Unlisted, *unlisted)
 				if e.othersOnly && isMultiProduct(v.Product) && settled(v, now) { // the retire rule is about "Multiple Products" only (not a series)

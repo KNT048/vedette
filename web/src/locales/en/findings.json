@@ -387,6 +387,8 @@
     "ignored": "Ignored {{name}}. Its findings are under Ignored."
   },
   "ignoredTab": {
+    "search": "Search ignored devices, software or CVEs",
+    "about": "Ignored devices",
     "intro": "Findings of devices you ignored. They are hidden from the other lists and never come back, even when the device is seen on the network again. Restore a device to watch it again: it goes back to To review and its findings show again.",
     "none": "No ignored device has findings.",
     "restore": "Restore",
@@ -585,6 +587,7 @@
     "tooShort_other": "Write at least {{count}} characters."
   },
   "queue": {
+    "search": "Search devices, software or CVEs",
     "col": "What needs you",
     "caption": "What needs your input",
     "empty": "Nothing needs your input",

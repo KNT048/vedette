@@ -203,10 +203,10 @@ function useSteps(s: Overview, onAdd: () => void, onRange: () => void): Step[] |
       action = more
     } else if (!discovery.enabled) {
       line = t('start.devices.discoveryOff', { ranges })
-      action = <><DependencyLink reason={t('start.devices.scopeWhere')} to="/devices/setup?tab=scope#active-enabled" label={t('start.devices.turnOn')} />{more}</>
+      action = <><DependencyLink reason={t('start.devices.scopeWhere')} to="/settings/scanning?tab=engines#engine-nmap-discovery" label={t('start.devices.turnOn')} />{more}</>
     } else if (discovery.state === 'needs_setup') {
       line = [t('start.devices.rangeSetNoNext', { ranges }), discovery.reason].filter(Boolean).join(' ')
-      action = <><DependencyLink reason={t('start.devices.scopeWhere')} to="/devices/setup?tab=scope#scope-confirm" label={t('start.devices.confirm')} />{more}</>
+      action = <><DependencyLink reason={t('start.devices.scopeWhere')} to="/settings/scanning?tab=safety#scope-confirm" label={t('start.devices.confirm')} />{more}</>
     } else {
       line = discovery.next_run_at ? t('start.devices.rangeSet', { ranges, when: fmtDateTime(discovery.next_run_at) }) : t('start.devices.rangeSetNoNext', { ranges })
       action = <><Button size="sm" variant="primary" busy={scan.isPending} busyLabel={t('common:busy.starting')} onClick={() => scan.mutate()}>{t('start.devices.scanNow')}</Button>{more}</>

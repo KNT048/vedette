@@ -39,7 +39,6 @@ const LONG_WORDS = 30
 const HOLDS_TEXT = new Set(['InfoTip', 'DialogContent', 'details', 'Notice', 'EmptyState', 'Field', 'AiBlock', 'Dialog'])
 /** Long paragraphs in the page that predate this rule: each moves behind an info icon in its own change; a fixed one must leave. */
 const LONG_KNOWN: string[] = [
-  'features/findings/IgnoredTab.tsx long: ignoredTab.intro',
   'features/reports/PdplDocument.tsx long: doc.pdpl.regimeNote', // a printed document: its text is the content
 ]
 const LOCALES = join(SRC, 'locales/en')

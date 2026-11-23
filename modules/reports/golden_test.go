@@ -270,3 +270,13 @@ func TestHandledSaysWhatNotRelevantLeftOut(t *testing.T) {
 		t.Fatalf("option on: %+v", doc.Handled)
 	}
 }
+
+// A document with no section the mail can sum up says where the whole report is in words that hold with and without the link
+// (notify leaves the link out when the box has no web address), never "the page linked below".
+func TestDigestClaimsNoLink(t *testing.T) {
+	t.Parallel()
+	m := digest(Document{Title: "Security report", Period: DocPeriod{From: "2026-11-01T00:00:00.000Z", To: "2026-11-08T00:00:00.000Z", TZ: "UTC"}}, "rep-1")
+	if m.What != "The whole report is in Vedette, under Reports, History." || strings.Contains(strings.ToLower(m.What), "link") || m.Path != "/reports/sent/rep-1" {
+		t.Errorf("what = %q, path = %q", m.What, m.Path)
+	}
+}

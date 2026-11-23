@@ -112,8 +112,8 @@ func firstLine(f FirstThing) string {
 	return fmt.Sprintf("%s: %s in %s%s%s", statusLabels[f.Status], f.CVE, f.Product, where, fix)
 }
 
-// digest is the email of a document: what to do first, what was handled with who and how, and the figures, with a link to the
-// sent document. Names come from the network; buildDocument cleaned them and notify cleans them again.
+// digest is the email of a document: what to do first, what was handled with who and how, and the figures, with the path of the
+// sent document (notify makes it a link when the box has a web address, and leaves it out otherwise: no line says "linked"). Names come from the network; buildDocument cleaned them and notify cleans them again.
 func digest(d Document, sentID string) Mail {
 	m := Mail{Path: "/reports/sent/" + sentID}
 	from, to, loc := parseTS(d.Period.From), parseTS(d.Period.To), zoneOf(d)
@@ -163,7 +163,8 @@ func digest(d Document, sentID string) Mail {
 		what = append(what, fmt.Sprintf("Detections: %s.", plural(n, "incident", "incidents")))
 	}
 	if len(what) == 0 {
-		what = append(what, "The report is on the page linked below.")
+		// true with or without the link: notify leaves the link out when the box has no web address
+		what = append(what, "The whole report is in Vedette, under Reports, History.")
 	}
 	m.What, m.Items = strings.Join(what, "\n"), items
 	return m

@@ -440,7 +440,8 @@ func TestSoftwareLines_PersonsOSLapsesOnce(t *testing.T) {
 	}
 }
 
-// The software history is append-only; the one change allowed (the device and line ids, on a merge) is made by join.go alone.
+// The software history is append-only; the one change allowed (the device and line ids, on a merge, and on the split that gives a
+// merged device its lines back) is made by join.go and mergedfrom.go alone.
 func TestSoftwareLines_OnlyTheMergeRewritesHistory(t *testing.T) {
 	t.Parallel()
 	re := regexp.MustCompile(`(?i)\bupdate\s+inv_software_event\b`)
@@ -449,7 +450,7 @@ func TestSoftwareLines_OnlyTheMergeRewritesHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range files {
-		if strings.HasSuffix(f, "_test.go") || f == "join.go" {
+		if strings.HasSuffix(f, "_test.go") || f == "join.go" || f == "mergedfrom.go" {
 			continue
 		}
 		b, err := os.ReadFile(f) //nolint:gosec // the package's own source files
@@ -457,7 +458,7 @@ func TestSoftwareLines_OnlyTheMergeRewritesHistory(t *testing.T) {
 			t.Fatal(err)
 		}
 		if re.Match(b) {
-			t.Errorf("%s updates inv_software_event: only the merge (join.go) may", f)
+			t.Errorf("%s updates inv_software_event: only the merge and its split (join.go, mergedfrom.go) may", f)
 		}
 	}
 }

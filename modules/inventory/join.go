@@ -269,6 +269,9 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	if err != nil {
 		return "", err
 	}
+	if err := shareMergedReadings(ctx, tx, from, into); err != nil {
+		return "", err
+	}
 	software, err := foldSoftware(ctx, tx, s, from, into)
 	if err != nil {
 		return "", err
@@ -290,10 +293,11 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 		o.after = append(o.after, func(ctx context.Context) []Event { s.lifecycle.MergeCommitted(ctx, m); return nil })
 	}
 	for _, q := range []string{
-		`UPDATE inv_asset SET agent_key = NULL, agent_ip = NULL WHERE id = ?2`,   // the key is unique: free it before into takes it
-		`UPDATE OR IGNORE inv_merged_from SET asset_id = ?1 WHERE asset_id = ?2`, // what earlier merges into from kept follows it
-		`UPDATE inv_software SET asset_id = ?1 WHERE asset_id = ?2`,              // the rows both held are folded already
-		`UPDATE inv_software_event SET asset_id = ?1 WHERE asset_id = ?2`,        // the software history follows the device
+		`UPDATE inv_asset SET agent_key = NULL, agent_ip = NULL WHERE id = ?2`, // the key is unique: free it before into takes it
+		// what earlier merges into from kept follows it (their readings with them); what from was before them is not into's to get back
+		`UPDATE OR IGNORE inv_merged_from SET asset_id = ?1, facts = json_remove(facts, '$.kept', '$.took_name') WHERE asset_id = ?2`,
+		`UPDATE inv_software SET asset_id = ?1 WHERE asset_id = ?2`,       // the rows both held are folded already
+		`UPDATE inv_software_event SET asset_id = ?1 WHERE asset_id = ?2`, // the software history follows the device
 		`UPDATE inv_service SET asset_id = ?1 WHERE asset_id = ?2`,
 		// a notice a person dismissed stays dismissed (INV-47); one both dismissed is the same decision, into's row stays
 		`UPDATE OR IGNORE inv_detected_keep SET asset_id = ?1 WHERE asset_id = ?2`,

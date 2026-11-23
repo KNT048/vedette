@@ -48,6 +48,10 @@ var readingsDecls = map[string]bool{
 	"modules/inventory/addresses.go:unbindAddress":  true,
 	"modules/inventory/mergesplit.go:moveInterface": true,
 	"modules/inventory/mergesplit.go:MergePreview":  true, // counts the readings a merge moves, no version
+	// a person's merge keeps which readings the merged device brought, and the split that undoes it gives them back
+	"modules/inventory/mergedfrom.go:rememberMerged":      true,
+	"modules/inventory/mergedfrom.go:giveBackSoftware":    true,
+	"modules/inventory/mergedfrom.go:shareMergedReadings": true,
 	// a catalogue update: every reading is identified again from what its source sent and moves to its line (a write path)
 	"modules/inventory/reidentify.go:deviceSoftware":  true,
 	"modules/inventory/reidentify.go:applyIdentities": true,

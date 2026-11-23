@@ -101,15 +101,24 @@ func (s *Service) MergeMany(ctx context.Context, actor, into string, from []stri
 		if err := s.choiceAmong(ctx, tx, ids, choice); err != nil {
 			return err
 		}
+		before, err := keptStateOf(ctx, tx, into)
+		if err != nil {
+			return err
+		}
 		for _, f := range from {
 			if err := s.mergeOne(ctx, tx, o, actor, into, f); err != nil {
 				return err
 			}
 		}
-		if p, err = choiceChanges(ctx, tx, into, p); err != nil || p == (Patch{}) {
+		if p, err = choiceChanges(ctx, tx, into, p); err != nil {
 			return err
 		}
-		return s.patchTx(ctx, tx, o, actor, into, p)
+		if p != (Patch{}) {
+			if err := s.patchTx(ctx, tx, o, actor, into, p); err != nil {
+				return err
+			}
+		}
+		return noteKept(ctx, tx, into, from, before) // what into was before the merge, for a split that undoes it
 	})
 }
 
@@ -656,9 +665,13 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 		if moved.ip.Valid {
 			confirmed = last
 		}
+		// a device a merge took comes back as it came: one a person added stays added by hand (it is not scanned like a found one)
 		if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, ip, mac, ip_confirmed_at, kind, origin, approved, approved_at, fragile, first_seen, last_seen)
-			VALUES (?, ?, ?, ?, 'unknown', 'discovered', ?, ?, 0, ?, ?)`, newID, moved.ip, moved.mac, confirmed, approved, at, first, max(first, last)); err != nil {
+			VALUES (?, ?, ?, ?, 'unknown', ?, ?, ?, 0, ?, ?)`, newID, moved.ip, moved.mac, confirmed, gone.origin(), approved, at, first, max(first, last)); err != nil {
 			return fmt.Errorf("inventory: split an address: %w", err)
+		}
+		if err := s.giveBackSoftware(ctx, tx, id, newID, moved.id, gone); err != nil {
+			return err
 		}
 		if err := s.moveInterface(ctx, tx, id, newID, moved.id, moved.mac); err != nil {
 			return err

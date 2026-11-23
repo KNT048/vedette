@@ -237,5 +237,8 @@ func slackFormat(s string) string {
 	return b.String()
 }
 
+// MaxItemRunes is the most runes of one detail line; a longer one is cut at the end.
+const MaxItemRunes = maxItem
+
 // MaxItems is how many detail lines a message shows; beyond it the adapters write "…and more".
 const MaxItems = maxItems

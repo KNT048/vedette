@@ -241,7 +241,6 @@ func TestContract_POST4_StatusEndpoint(t *testing.T) {
 	}
 }
 
-
 func TestModuleOffMeansNoRoutes(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
@@ -363,4 +362,3 @@ func TestContract_ListDoesNotGuessSoftwareOrProof(t *testing.T) {
 		t.Fatalf("list with the device unreadable: %d", code)
 	}
 }
-

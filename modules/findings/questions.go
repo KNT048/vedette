@@ -294,7 +294,6 @@ func (h *FindingHandlers) unchecked(ctx context.Context, assetID string) ([]Unch
 	return UncheckedItems(rows, kev, assets, distro), nil
 }
 
-
 // UncheckedCVE is contract.ts UncheckedCve.
 type UncheckedCVE struct {
 	CVE        string  `json:"cve"`

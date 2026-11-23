@@ -91,7 +91,8 @@ func TestSameDevice_AHandAddedRowWithoutAnAddressAndAFoundDeviceOfOneOS(t *testi
 	ids := []string{}
 	for _, p := range got {
 		ids = append(ids, p.ID)
-		if p.Reason != inventory.ReasonSameOS || p.Why == "" {
+		// the release is named once, as the banner states it, not again as the version the line was filed under
+		if want := "Both run " + esxiBanner + ", and esxi-01 was added by hand without an address: it may be this device."; p.Reason != inventory.ReasonSameOS || p.Why != want {
 			t.Errorf("offer %+v", p)
 		}
 	}

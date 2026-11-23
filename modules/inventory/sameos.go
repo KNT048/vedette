@@ -104,9 +104,10 @@ func osLines(ctx context.Context, q querier, ids []string) (map[string]map[strin
 	return out, nil
 }
 
-// versionNotIn is version unless the name already says it.
+// versionNotIn is version unless the name already says it, in those words or by its build number ("VMware ESXi 8.0 Update 3 (build
+// 24022510)" filed under 8.0.3).
 func versionNotIn(version, display string) string {
-	if version == "" || strings.Contains(strings.ToLower(display), strings.ToLower(version)) {
+	if version == "" || strings.Contains(strings.ToLower(display), strings.ToLower(version)) || buildRE.MatchString(display) {
 		return ""
 	}
 	return version

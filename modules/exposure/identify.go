@@ -98,7 +98,8 @@ type ServiceScan struct {
 	// DiscoveryCut: nmap's search of its most common ports did not finish, so Probed is only the fixed list's finished -sV batches.
 	DiscoveryCut bool
 	// AnswersEverywhere: the address answers on almost every port (a router or SYN proxy); Services holds only the ports of the fixed
-	// list where -sV named a real service.
+	// list and the reviewed admin ports where -sV named a real service. The other ports of those lists stay in Probed, but exposure
+	// does not count them as checked (answeredPorts).
 	AnswersEverywhere bool
 	// Unfinished are the ports whose -sV batch timed out, printed nothing usable or was not started this run: not in Probed (this
 	// run never calls them closed), and the scanner reads them first next time.
@@ -188,11 +189,11 @@ const (
 	notOtherPortsProbed = "TCP ports other than the %s this scan probed: nmap's 1000 most common ports and the fixed list of commonly exposed ports."
 	notOtherPortsCut    = "TCP ports outside the fixed list of commonly exposed ports: nmap's search of its 1000 most common ports did not finish this time."
 	// notAnswersEverywhereKept is the line of a default scan of an address that answers on almost every port: service
-	// identification still read the fixed list, and only the ports where a service named itself were kept ("40":
+	// identification still read the fixed list and the reviewed admin ports, and only the ports where a service named itself were kept ("40":
 	// commonports.MaxBelievableOpen).
 	// notServicesUnfinished is the line of a default scan some of whose -sV batches did not finish (%s: "25 ports").
 	notServicesUnfinished    = "Service identification of %s did not finish this time (nmap's time limit for each batch of ports, or too little time left); the next scan reads them first."
-	notAnswersEverywhereKept = "More than 40 ports answered, more than a normal box exposes: a router or firewall that answers for every port looks like this. Only the ports of the fixed list where a service named itself were kept; the other ports may be the firewall answering."
+	notAnswersEverywhereKept = "More than 40 ports answered, more than a normal box exposes: a router or firewall that answers for every port looks like this. Only the ports of the fixed list and of the admin ports list where a service named itself were kept; the other ports may be the firewall answering."
 	notOtherPortsDom         = "Other ports of the names under this domain: names get web checks by name only; ports are scanned only on the box's own verified public IP."
 	notNonExploited          = "Vulnerabilities that are not known to be exploited: only the CISA list of exploited vulnerabilities (KEV) is compared."
 	notServicesDom           = "Service identification (nmap -sV): it runs on the box's own verified public IP only, not on the names of a domain."
@@ -348,11 +349,17 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		if !st.Mode.Full && (res.AnswersEverywhere || surfaceEverywhere) {
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notAnswersEverywhereKept})
 		}
-		if probed := sanitizeProbed(res.Probed); !st.Mode.Full && len(probed) > 0 { // INV-22: the ports this scan checked on ip
-			if c.Probed == nil {
-				c.Probed = map[string][]int{}
+		// INV-22: the ports this scan checked on ip. A port whose -sV batch did not finish is never among them, whatever the scanner
+		// said: it got no service identification, so this scan cannot have missed a service there.
+		unfinished := sanitizeProbed(res.Unfinished)
+		probed := slices.DeleteFunc(sanitizeProbed(res.Probed), func(p int) bool { _, in := slices.BinarySearch(unfinished, p); return in })
+		if !st.Mode.Full && len(probed) > 0 {
+			if covered := answeredPorts(probed, got, res.AnswersEverywhere || surfaceEverywhere); len(covered) > 0 {
+				if c.Probed == nil {
+					c.Probed = map[string][]int{}
+				}
+				c.Probed[ip.String()] = covered
 			}
-			c.Probed[ip.String()] = probed
 			line := fmt.Sprintf(notOtherPortsProbed, plural(len(probed), "port"))
 			if res.DiscoveryCut {
 				line = notOtherPortsCut
@@ -363,15 +370,15 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 				}
 			}
 		}
-		if n := len(sanitizeProbed(res.Unfinished)); n > 0 && !st.Mode.Full {
+		if n := len(unfinished); n > 0 && !st.Mode.Full {
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: fmt.Sprintf(notServicesUnfinished, plural(n, "port"))})
 		}
 		// Only what a probe named counts as identified; the guesses and the unknown ones are said apart
 		read := servicesRead(got)
 		text := fmt.Sprintf("Service identification (nmap -sV): %s.", read)
 		switch {
-		case !st.Mode.Full && len(res.Probed) > 0: // the default scan: -sV read only the open ones of the ports it probed
-			text = fmt.Sprintf("Port scan (nmap) of %s, then service identification (nmap -sV) of the open ones: %s.", plural(len(sanitizeProbed(res.Probed)), "TCP port"), read)
+		case !st.Mode.Full && len(probed) > 0: // the default scan: -sV read only the open ones of the ports it probed
+			text = fmt.Sprintf("Port scan (nmap) of %s, then service identification (nmap -sV) of the open ones: %s.", plural(len(probed), "TCP port"), read)
 		case res.Ports > 0:
 			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s.", plural(res.Ports, "TCP port"), read)
 		}
@@ -408,6 +415,18 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		notDeep()
 	}
 	return s.runTemplates(ctx, st, ip, c) // INV-23: safe templates for the exploited CVEs the services match
+}
+
+// answeredPorts is what of probed counts as checked for INV-22. Normally all of it. When the address answers on almost every port, the
+// scanner drops each port where -sV named no service (it may be the firewall answering), so such a port says nothing about a real
+// service there: only the fixed list (the runner TCP-connects it and reports what is open) and the ports whose service was kept count.
+func answeredPorts(probed []int, kept []ServiceRow, everywhere bool) []int {
+	if !everywhere {
+		return probed
+	}
+	return slices.DeleteFunc(slices.Clone(probed), func(p int) bool {
+		return !slices.Contains(commonports.Numbers(), p) && !slices.ContainsFunc(kept, func(r ServiceRow) bool { return r.Port == p })
+	})
 }
 
 // sanitizeProbed keeps the ports of a scanner's Probed that are TCP ports, ascending and distinct; nil when there is none.

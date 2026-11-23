@@ -79,3 +79,28 @@ func TestIntoFitsAnEmptyListToTheSchema(t *testing.T) {
 		t.Fatalf("%+v, %v", out, err)
 	}
 }
+
+type innerView struct {
+	Items []string          `json:"items"`
+	ByKey map[string]string `json:"by_key"`
+}
+
+// A view that adds a field to another by embedding it (encoding/json writes the embedded fields inline, also when the embedded
+// type is not exported): its nil lists are written empty too.
+func TestNilListsOfAnEmbeddedViewAreWrittenEmpty(t *testing.T) {
+	t.Parallel()
+	in := struct {
+		innerView
+		Applied int `json:"applied"`
+	}{}
+	b, err := json.Marshal(apijson.Filled(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"items":[],"by_key":{},"applied":0}`; string(b) != want {
+		t.Fatalf("got  %s\nwant %s", b, want)
+	}
+	if in.Items != nil {
+		t.Fatal("the value given was changed")
+	}
+}

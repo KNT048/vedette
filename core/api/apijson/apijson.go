@@ -87,26 +87,7 @@ func fill(v reflect.Value, depth int) reflect.Value {
 		}
 		out := reflect.New(t).Elem()
 		out.Set(v)
-		for i := range t.NumField() {
-			f := t.Field(i)
-			if !f.IsExported() || f.Tag.Get("json") == "-" {
-				continue
-			}
-			fv := out.Field(i)
-			switch {
-			case (fv.Kind() == reflect.Slice || fv.Kind() == reflect.Map) && fv.IsNil():
-				if f.Tag.Get("nullable") == "true" || omitEmpty(f) || isBytes(fv.Type()) {
-					continue
-				}
-				if fv.Kind() == reflect.Slice {
-					fv.Set(reflect.MakeSlice(fv.Type(), 0, 0))
-				} else {
-					fv.Set(reflect.MakeMap(fv.Type()))
-				}
-			default:
-				fv.Set(fill(fv, depth+1))
-			}
-		}
+		fillFields(out, depth)
 		return out
 	case reflect.Slice:
 		if v.IsNil() || own(t) || isBytes(t) {
@@ -138,6 +119,38 @@ func fill(v reflect.Value, depth int) reflect.Value {
 		return out
 	}
 	return v
+}
+
+// fillFields fills the fields of the struct sv in place (sv is addressable). The fields of an embedded struct whose type is not
+// exported are filled where they are: encoding/json writes them inline, and they can be set although the struct itself cannot.
+func fillFields(sv reflect.Value, depth int) {
+	t := sv.Type()
+	for i := range t.NumField() {
+		f := t.Field(i)
+		if f.Tag.Get("json") == "-" {
+			continue
+		}
+		fv := sv.Field(i)
+		if !f.IsExported() {
+			if f.Anonymous && f.Type.Kind() == reflect.Struct && !own(f.Type) && depth < maxDepth {
+				fillFields(fv, depth+1)
+			}
+			continue
+		}
+		switch {
+		case (fv.Kind() == reflect.Slice || fv.Kind() == reflect.Map) && fv.IsNil():
+			if f.Tag.Get("nullable") == "true" || omitEmpty(f) || isBytes(fv.Type()) {
+				continue
+			}
+			if fv.Kind() == reflect.Slice {
+				fv.Set(reflect.MakeSlice(fv.Type(), 0, 0))
+			} else {
+				fv.Set(reflect.MakeMap(fv.Type()))
+			}
+		default:
+			fv.Set(fill(fv, depth+1))
+		}
+	}
 }
 
 // fillElem is fill of an element of a list or a map: a nil slice or map there is written empty too.

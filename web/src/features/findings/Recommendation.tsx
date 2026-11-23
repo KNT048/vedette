@@ -61,7 +61,7 @@ function ApplyButton({ finding, item }: { finding: FindingDetail; item: ApplyIte
         onClick={() => apply.mutate(item, { onSuccess: () => toast.success(t('rec.appliedToast')), onError: (e) => toast.error(errMsg(e)) })}>
         {t('rec.applied')}
       </Button>
-      <span className="inline-flex items-center gap-1 text-caption text-muted">{t('rec.appliedHint')}<InfoTip topic={t('rec.applied')}>{t('rec.appliedHintInfo')}</InfoTip></span>
+      <span className="inline-flex items-center gap-1 text-caption text-muted">{t('rec.appliedHint')}<InfoTip>{t('rec.appliedHintInfo')}</InfoTip></span>
     </div>
   )
 }
@@ -282,7 +282,7 @@ export function AskAi({ finding, skill, result, label, hint }: { finding: Findin
             ? <>{t('ai.unavailable')} <Link to={aiOn ? '/settings/ai#ai-profiles' : '/settings/modules'} className="text-accent underline underline-offset-4">{t(aiOn ? 'ai.openSettings' : 'ai.openModules')}</Link></>
             : !can ? t('common:needRole', { role: t('common:role.operator') }) : (hint ?? t('ai.privacy'))}
         </p>
-        {ready && can && !hint ? <InfoTip topic={label}>{t('ai.privacyInfo')}</InfoTip> : null}
+        {ready && can && !hint ? <InfoTip>{t('ai.privacyInfo')}</InfoTip> : null}
       </div>
       {/* An AI answer takes 10–60 s; say so while it runs */}
       <BusyNote id={`ai-wait-${skill}`} busy={ask.isPending}>{t('ai.waiting')}</BusyNote>

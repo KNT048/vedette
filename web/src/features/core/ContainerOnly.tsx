@@ -46,8 +46,10 @@ type Image = { service: string; digest: string }
 /** Only a known service with a well-formed digest goes into a command line (the manifest was verified, this is the page's own guard). */
 const DIGEST = /^sha256:[0-9a-f]{64}$/
 const usableImage = (i: Image) => CONTAINER_SERVICES.includes(i.service) && DIGEST.test(i.digest)
-/** One `cosign verify` per image of the release this install runs, by the digest of its signed manifest. */
-const verifyCmd = (images: readonly Image[]) => images.map((i) => `cosign verify --key cosign.pub ${REGISTRY}${i.service}@${i.digest}`).join('\n')
+/** One `cosign verify` per image of the release this install runs, by the digest of its signed manifest. The release signs with
+ *  the published key and records nothing in the Rekor transparency log (scripts/release CosignArgv), hence --insecure-ignore-tlog. */
+const verifyCmd = (images: readonly Image[]) =>
+  images.map((i) => `cosign verify --key cosign.pub --insecure-ignore-tlog=true ${REGISTRY}${i.service}@${i.digest}`).join('\n')
 /** The image lines of the downloaded vedette.env must name those same digests: it prints how many lines do (one per image). */
 const matchCmd = (images: readonly Image[]) => `grep -cF ${images.map((i) => `-e '${REGISTRY}${i.service}@${i.digest}'`).join(' ')} vedette.env`
 const SAFE_VERSION = /^[A-Za-z0-9][A-Za-z0-9.+-]{0,63}$/

@@ -55,8 +55,10 @@ Then download the release into the same folder and check it. Put the version you
 u=https://github.com/KNT048/vedette/releases/download/v0.9.4
 for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done
 for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do [ "$(minisign -VQm "$f" -p vedette.pub)" = "file:$f version:0.9.4" ] && echo "$f ok" || { echo "$f FAILED: stop"; break; }; done
-cosign verify --key cosign.pub ghcr.io/knt048/vedette-core@sha256:<the digest in vedette.env>    # and -sensor, -scan
+cosign verify --key cosign.pub --insecure-ignore-tlog=true ghcr.io/knt048/vedette-core@sha256:<the digest in vedette.env>    # and -sensor, -scan
 ```
+
+`cosign verify` must print `The signatures were verified against the specified public key` for each image (use cosign 2.x or later). Vedette signs its images with the key above and does not record the signatures in the public Sigstore transparency log (Rekor), so the command needs `--insecure-ignore-tlog=true` and cosign prints a warning about skipping the log; the key check is still made (the signature on ghcr must verify with `cosign.pub` for that exact digest); what you give up is a public record of everything the key has signed, which would reveal signatures made with a stolen key. Without the flag cosign reports `signature not found in transparency log`.
 
 The verifier of the appliance does the same checks for you (`docs/DEPLOYMENT.md` section 5).
 
@@ -152,7 +154,7 @@ u=https://github.com/KNT048/vedette/releases/download/v0.9.4
 for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done
 for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do [ "$(minisign -VQm "$f" -p vedette.pub)" = "file:$f version:0.9.4" ] && echo "$f ok" || { echo "$f FAILED: stop"; break; }; done
 # 3. the images, and that vedette.env names those same digests
-cosign verify --key cosign.pub ghcr.io/knt048/vedette-core@sha256:<digest>            # and -sensor, -scan
+cosign verify --key cosign.pub --insecure-ignore-tlog=true ghcr.io/knt048/vedette-core@sha256:<digest>            # and -sensor, -scan
 grep -cF -e 'ghcr.io/knt048/vedette-core@sha256:<digest>' -e ... vedette.env         # prints 3, or do not go on
 # 4. copy your VEDETTE_BIND_IP and VEDETTE_HOSTS lines from vedette-0.9.3/vedette.env into vedette.env (a release leaves them empty);
 #    with the sensors or syslog, add -f compose.yaml -f compose.sensors.yaml -f compose.syslog.yaml after --env-file vedette.env (leave out the add-on you do not run)

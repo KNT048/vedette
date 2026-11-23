@@ -2,7 +2,7 @@
 # Runs a command (the printed cosign plan) with podman's registry login as cosign's login (WP-08k step 7).
 # Why: cosign reads registry credentials the way Docker does, from $DOCKER_CONFIG/config.json or ~/.docker/config.json, and falls back
 # to podman's auth.json only when neither exists. A ~/.docker/config.json without ghcr.io (Docker Desktop, podman's Docker compatibility)
-# hides the `podman login ghcr.io` of the release, and the attest uploads are refused (seen releasing v0.1.0-beta.1). This points
+# hides the `podman login ghcr.io` of the release, and the signature and attestation uploads are refused (seen releasing v0.1.0-beta.1). This points
 # DOCKER_CONFIG at a private temporary folder whose config.json is a symlink to podman's auth file (same JSON format), runs the command
 # and removes the folder. The credentials are never copied, printed or put in argv.
 #   COSIGN_PASSWORD=… scripts/release/cosign-auth.sh sh -eu dist/cosign-plan.sh

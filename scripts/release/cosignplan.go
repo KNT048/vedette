@@ -14,8 +14,9 @@ import (
 
 // The cosign plan (WP-08k step 6): the exact cosign commands the maintainer runs with the release key, printed and never run
 // here. One `cosign sign` per image (the index digest of release.in.json, written to <out>/<service>.{payload.json,sig}, which
-// `release manifest` reads), then one `cosign attest --type cyclonedx` per platform of each image, attaching the SBOM `make sbom`
-// wrote for that platform (dist/sbom/<local image>-<arch>.cdx.json) to the platform digest `release push` recorded in images.json.
+// `release manifest` reads, and uploaded to the registry as the <digest>.sig tag that `cosign verify` reads), then one
+// `cosign attest --type cyclonedx` per platform of each image, attaching the SBOM `make sbom` wrote for that platform
+// (dist/sbom/<local image>-<arch>.cdx.json) to the platform digest `release push` recorded in images.json.
 
 // maxSBOM bounds the SBOM read; trivy's SBOM of the largest image is a few MiB.
 const maxSBOM = 64 << 20
@@ -112,9 +113,9 @@ func CosignPlan(in Inputs, images *ImagesDoc, o CosignPlanOpts) ([][]string, err
 }
 
 // AttestArgv is the exact argv that attaches one platform's SBOM to its image as a CycloneDX attestation, in the same legacy
-// format and with the same offline choices as CosignArgv (no bundle, no signing config, nothing to Rekor); unlike sign,
-// the attestation is uploaded to the registry next to the image (the .att tag). --replace drops an earlier attestation of the same
-// predicate type on that digest (a re-run after a failure; not yet measured against ghcr). Flags read from `cosign attest --help`
+// format and with the same offline choices as CosignArgv (no bundle, no signing config, nothing to Rekor); like the
+// signature, the attestation is uploaded to the registry next to the image (the .att tag). --replace drops an earlier attestation
+// of the same predicate type on that digest (a re-run after a failure; not yet measured against ghcr). Flags read from `cosign attest --help`
 // of the pinned v2.6.5; the same argv with --no-upload and a throwaway key gave an in-toto statement of predicate type
 // https://cyclonedx.org/bom on the repository + digest, offline, without a prompt.
 func AttestArgv(cosignBin, keyPath, service, digest, sbomPath string) ([]string, error) {

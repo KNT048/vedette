@@ -112,7 +112,9 @@ const maxHashedFile = 1 << 30
 var serviceDigestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 // BuildManifest builds release-manifest.json (unsigned). It refuses, with the reason:
-//   - a version that is not above the channel's latest in the published index, or a min_upgrade_from above that latest;
+//   - a version that is not above the channel's latest in the published index, a min_upgrade_from above this version, or one
+//     above that latest (allowed for a release that starts a new schema epoch, which no box of the earlier epoch can update to in
+//     place);
 //   - migrations that do not continue the history of an earlier release of the same schema epoch (one removed, edited or numbered
 //     below, CheckHistory), whatever rollback.safe says, and a schema epoch below an earlier release's (HistoryError);
 //   - rollback.safe=true for a release whose schema epoch is above the newest earlier release's (a new migration history);
@@ -138,6 +140,7 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 	if err := checkInstallModes(in.InstallModes); err != nil {
 		return res, err
 	}
+	latest := "" // the channel's latest in the published index, if any
 	if env.PrevIndex != nil {
 		if ch, ok := env.PrevIndex.Channels[in.Channel]; ok {
 			c, err := release.CompareVersions(in.Version, ch.Latest)
@@ -147,11 +150,7 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 			if c <= 0 {
 				return res, fmt.Errorf("version %s is not above %s, the latest of channel %s in the published index", in.Version, ch.Latest, in.Channel)
 			}
-			if in.MinUpgradeFrom != "" {
-				if c, err := release.CompareVersions(in.MinUpgradeFrom, ch.Latest); err != nil || c > 0 {
-					return res, fmt.Errorf("min_upgrade_from %s is above %s, the latest published: no box could upgrade", in.MinUpgradeFrom, ch.Latest)
-				}
-			}
+			latest = ch.Latest
 		}
 	}
 	released := env.Now.UTC().Truncate(time.Second)
@@ -185,6 +184,30 @@ func BuildManifest(in Inputs, env Env) (Result, error) {
 		if in.Rollback.Safe {
 			return res, fmt.Errorf("rollback.safe=true refused: this release starts schema epoch %d after release %s (epoch %d), a new migration history that no box can roll back across with its database; say safe=false (the host then restores the database on rollback)",
 				res.Epoch.To, res.Epoch.Since, res.Epoch.From)
+		}
+	}
+
+	// A min_upgrade_from above the channel's latest leaves no published release a box can upgrade from. That is refused, except
+	// for a release that starts a new schema epoch: no box of an earlier epoch can update to it in place anyway (its core refuses
+	// the database, the health gate fails and the host puts the previous release back), and a min_upgrade_from of this version
+	// makes such a box say "needs an intermediate release first" at the check instead of downloading the release and failing.
+	// Above this release itself it is never right: the verifier of every box refuses such a manifest (internal/release).
+	if in.MinUpgradeFrom != "" {
+		c, err := release.CompareVersions(in.MinUpgradeFrom, in.Version)
+		if err != nil {
+			return res, fmt.Errorf("min_upgrade_from %q: %w", in.MinUpgradeFrom, err)
+		}
+		if c > 0 {
+			return res, fmt.Errorf("min_upgrade_from %s is above %s, this release", in.MinUpgradeFrom, in.Version)
+		}
+	}
+	if latest != "" && in.MinUpgradeFrom != "" {
+		c, err := release.CompareVersions(in.MinUpgradeFrom, latest)
+		if err != nil {
+			return res, fmt.Errorf("min_upgrade_from %q: %w", in.MinUpgradeFrom, err)
+		}
+		if c > 0 && res.Epoch == nil {
+			return res, fmt.Errorf("min_upgrade_from %s is above %s, the latest published: no box could upgrade", in.MinUpgradeFrom, latest)
 		}
 	}
 
@@ -434,12 +457,14 @@ func readSmall(p string, limit int64) ([]byte, error) {
 	return b, nil
 }
 
-// CosignArgv is the exact argv that signs one image (legacy format, signature kept next to the payload, nothing
-// uploaded here, identity = the repository without tag or digest), the flags of internal/release/testdata/README.md plus
-// --tlog-upload=false (verification is offline, so nothing goes to Rekor). Read in the cosign docs on 2026-11-11:
-// these flags exist in cosign v2.6.1 and are gone from `cosign sign` in v3.1.4 (which has --bundle and --signing-config), so the
-// cosign WP-08k pins must be a v2 release; whether v2 still contacts the registry with --upload=false is for 08k to measure.
-// The key file's password comes from COSIGN_PASSWORD in the environment of the maintainer's shell, never from argv.
+// CosignArgv is the exact argv that signs one image (legacy format, identity = the repository without tag or digest), the flags
+// of internal/release/testdata/README.md plus --tlog-upload=false (verification is offline, so nothing goes to Rekor). One run
+// does both jobs: it writes the payload and the signature into outDir for the release manifest (the box verifies those offline)
+// and uploads the same signature to the registry as the <digest>.sig tag, so `cosign verify --key cosign.pub
+// --insecure-ignore-tlog=true <image>@<digest>` (docs/INSTALL-CONTAINER.md) works for anyone. Measured with the pinned v2.6.5
+// against a local registry: both files are written while uploading, the uploaded layer is byte for byte the written payload and
+// its signature annotation equals the written signature. These flags are gone from `cosign sign` in v3, so the pin is a v2
+// release. The key file's password comes from COSIGN_PASSWORD in the environment of the maintainer's shell, never from argv.
 func CosignArgv(cosignBin, keyPath, outDir, service, digest string) ([]string, error) {
 	if _, err := release.PullRef(service, digest); err != nil || !serviceDigestRE.MatchString(digest) {
 		return nil, fmt.Errorf("image %q: unknown service or malformed digest", service)
@@ -449,7 +474,7 @@ func CosignArgv(cosignBin, keyPath, outDir, service, digest string) ([]string, e
 	}
 	return []string{
 		cosignBin, "sign", "--key", keyPath,
-		"--new-bundle-format=false", "--use-signing-config=false", "--upload=false", "--tlog-upload=false",
+		"--new-bundle-format=false", "--use-signing-config=false", "--upload=true", "--tlog-upload=false",
 		"--output-payload", filepath.Join(outDir, service+".payload.json"),
 		"--output-signature", filepath.Join(outDir, service+".sig"),
 		release.RegistryPrefix + service + "@" + digest,

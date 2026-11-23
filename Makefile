@@ -507,7 +507,7 @@ RELEASE_KEYS_ARG = $(if $(RELEASE_KEYS),-keys-dir $(RELEASE_KEYS))
 # WP-08k step 6: one cosign sign per image (index digest of RELEASE_IN, the files release-manifest reads), then one
 # cosign attest --type cyclonedx per platform SBOM of `make sbom RELEASE=1 IMAGE_TAG=<version>` onto that platform's digest in images.json
 # (each SBOM's trivy ImageID must be the config digest images.json records for that platform: the image that was pushed). Printed with
-# the pinned cosign (COSIGN_BIN: an absolute path), never run; the first line is `cd` to the repo. The attest lines upload to ghcr with
+# the pinned cosign (COSIGN_BIN: an absolute path), never run; the first line is `cd` to the repo. The sign and attest lines upload to ghcr with
 # podman's ghcr login: run the plan as `scripts/release/cosign-auth.sh sh -eu <plan>` (cosign reads only the Docker config when one exists).
 release-cosign-plan:
 	@test -n "$$COSIGN_KEY" || { echo "release-cosign-plan: set COSIGN_KEY to the path of the cosign private key" >&2; exit 1; }
@@ -538,8 +538,9 @@ release-verify:
 #                     by digest, the version tag pushed too and checked; a version already there is reused only with the same images), then
 #                     dist/release/images.json. Each platform image must carry the version label VERSION and be the one dist/release/gates.json
 #                     of release-gates names (config digest), all four checked before anything is pushed. The real registry needs a clean tree at
-#                     the release tag v<VERSION> and no -test. version; REGISTRY=127.0.0.1:<port> is a rehearsal (no TLS, no git check; Linux only:
-#                     podman machine on macOS cannot reach the Mac's 127.0.0.1); a rehearsal needs a gates.json too.
+#                     the release tag v<VERSION> and no -test. version; REGISTRY=127.0.0.1:<port> is a rehearsal (no TLS, no git check; on macOS
+#                     run the registry as a container of the podman machine, published on 127.0.0.1:<port>, so both the machine and the Mac reach
+#                     it); a rehearsal needs a gates.json too.
 #   release-in        release.in.json from images.json and the two dist/vedette-host_<VERSION>_<arch>.deb; RELEASE_CHANNEL (stable|beta) and
 #                     RELEASE_ROLLBACK_SAFE (true|false) are required, RELEASE_ROLLBACK_MIN / RELEASE_MIN_UPGRADE_FROM optional; add the notes by hand.
 #                     Each .deb (sha256), each image of images.json and of the local lists (config digest) must be what gates.json names

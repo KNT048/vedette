@@ -396,6 +396,50 @@ func TestHistoryGuard(t *testing.T) {
 	}
 }
 
+// min_upgrade_from above the channel's latest is refused (no box could upgrade), except for a release that starts a new schema
+// epoch: no box of the earlier epoch can update to it in place, and min_upgrade_from makes such a box refuse at its check.
+func TestMinUpgradeFromAboveLatest(t *testing.T) {
+	r := newRig(t)
+	epoch1 := Tree{"modules/a/migrations/sqlite/0001_old.sql": up("CREATE TABLE old (id INT);")}
+	beta := []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epoch1}}
+	prev, err := r.build(buildOpts{version: "0.1.0-beta.1", cur: epoch1})
+	must(t, err)
+	v2 := epochTree("2", addOnlyTree)
+	cases := []struct {
+		name    string
+		o       buildOpts
+		wantErr string
+	}{
+		{"same epoch, min_upgrade_from above the latest", buildOpts{version: "0.1.1", minUpgrade: "0.1.1", cur: epochTree("1", epoch1), earlier: []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epochTree("1", epoch1)}}}, "is above 0.1.0-beta.1, the latest published"},
+		{"same epoch, min_upgrade_from at the latest", buildOpts{version: "0.1.1", minUpgrade: "0.1.0-beta.1", cur: epochTree("1", epoch1), earlier: []ReleaseTree{{Version: "0.1.0-beta.1", Tree: epochTree("1", epoch1)}}}, ""},
+		{"new epoch, min_upgrade_from is this release", buildOpts{version: "0.1.1", minUpgrade: "0.1.1", cur: v2, earlier: beta}, ""},
+		{"new epoch, no min_upgrade_from", buildOpts{version: "0.1.1", cur: v2, earlier: beta}, ""},
+		{"new epoch, min_upgrade_from not SemVer", buildOpts{version: "0.1.1", minUpgrade: "v0.1", cur: v2, earlier: beta}, "min_upgrade_from"},
+		{"new epoch, min_upgrade_from above this release", buildOpts{version: "0.1.1", minUpgrade: "0.2.0", cur: v2, earlier: beta}, "is above 0.1.1, this release"},
+	}
+	for _, c := range cases {
+		c.o.channel, c.o.prevDir = "beta", prev
+		dir, err := r.build(c.o)
+		switch {
+		case c.wantErr != "":
+			if err == nil || !strings.Contains(err.Error(), c.wantErr) {
+				t.Errorf("%s: want error %q, got %v", c.name, c.wantErr, err)
+			}
+		case err != nil:
+			t.Errorf("%s: %v", c.name, err)
+		default:
+			// what the box reads: a box on the beta is told it needs another release first, before it downloads anything
+			raw, rerr := os.ReadFile(filepath.Join(dir, manifestFile))
+			must(t, rerr)
+			var m release.Manifest
+			must(t, json.Unmarshal(raw, &m))
+			if c.o.minUpgrade == "0.1.1" && !errors.Is(release.CheckUpgrade(&m, "0.1.0-beta.1"), release.ErrUpgradePath) {
+				t.Errorf("%s: a box on 0.1.0-beta.1 is not told it needs an intermediate release", c.name)
+			}
+		}
+	}
+}
+
 func epochTree(n string, t Tree) Tree {
 	out := Tree{EpochPath: []byte(n + "\n")}
 	for k, v := range t {
@@ -748,7 +792,7 @@ func TestCosignPlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"cosign", "sign", "--key", "/keys/cosign.key", "--new-bundle-format=false", "--use-signing-config=false", "--upload=false", "--tlog-upload=false",
+	want := []string{"cosign", "sign", "--key", "/keys/cosign.key", "--new-bundle-format=false", "--use-signing-config=false", "--upload=true", "--tlog-upload=false",
 		"--output-payload", "dist/release/cosign/core.payload.json", "--output-signature", "dist/release/cosign/core.sig", "ghcr.io/knt048/vedette-core@" + d}
 	if strings.Join(argv, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("%q", argv)

@@ -320,7 +320,8 @@ func Push(ctx context.Context, run runFunc, o pushOpts, stdout io.Writer) (*Imag
 		return nil, err
 	}
 	if rehearsal {
-		// Linux only: podman on macOS runs in a VM (podman machine), whose 127.0.0.1 is not the Mac's.
+		// podman on macOS runs in a VM (podman machine), whose 127.0.0.1 is not the Mac's: there the registry runs as a container of
+		// the machine published on 127.0.0.1:<port>, which both podman (in the VM) and this process (on the Mac) reach.
 		say(stdout, "rehearsal: %s is on this machine; TLS verification and the git checks are off", o.Registry)
 	} else if err := checkReleaseTree(ctx, run, o.Repo, o.Version); err != nil {
 		return nil, err

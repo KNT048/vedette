@@ -387,6 +387,7 @@
       "findings.created": "Finding created",
       "findings.status": "Change finding status",
       "findings.confirm": "Confirmed a finding",
+      "findings.question_answered": "Answered a question about a finding",
       "findings.device_backfill": "Findings confirmed by the version their device reports",
       "findings.patched_backfill": "Earlier closures after an update relabelled as patched",
       "findings.plan_done": "Marked a recommended update as done",

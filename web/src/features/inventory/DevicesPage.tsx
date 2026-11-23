@@ -205,12 +205,37 @@ function CountLine({ q, shown, total, bar }: { q: string; shown: number; total: 
   return <span role="status" aria-live="polite" className="text-meta text-muted tabular-nums">{text}</span>
 }
 
-/** The server's answer for the search's `software:` words (the list carries no software lines); undefined while there are none or
- *  before the first answer. */
-function useMatches(swWanted: string[]): SoftwareMatches | undefined {
-  const r = useSoftwareMatches(swWanted)
+/** How long the search's `software:` words must stay the same before the server is asked: each answer reads every device's lines. */
+const SOFTWARE_SETTLE_MS = 300
+
+/** `v` once it has stayed the same for `ms` (the first value at once, so a link with software: in it asks at once). */
+function useSettled(v: string, ms: number): string {
+  const [settled, setSettled] = useState(v)
+  useEffect(() => {
+    const id = setTimeout(() => setSettled(v), ms)
+    return () => clearTimeout(id)
+  }, [v, ms])
+  return settled
+}
+
+/** The server's answer for the search's `software:` words (the list carries no software lines): `matches` is undefined while there
+ *  are none or before the first answer; `waiting` while the answer for the words typed now is not in yet (an empty list then means
+ *  "not known yet", not "no device runs it"); `error` when that answer failed. */
+function useMatches(swWanted: string[]): { matches: SoftwareMatches | undefined; waiting: boolean; error: unknown } {
+  const key = swWanted.join(',')
+  const settled = useSettled(key, SOFTWARE_SETTLE_MS)
+  const r = useSoftwareMatches(useMemo(() => (settled ? settled.split(',') : []), [settled]))
   const on = swWanted.length > 0
-  return useMemo(() => (on && r.data ? softwareMatches(r.data.items) : undefined), [on, r.data])
+  const matches = useMemo(() => (on && r.data ? softwareMatches(r.data.items) : undefined), [on, r.data])
+  const error = on && settled === key && r.isError ? r.error : null
+  return { matches, waiting: on && !error && (settled !== key || r.isPlaceholderData || !r.data), error }
+}
+
+/** What an empty list says while the `software:` answer is not in, or when it failed; undefined: the usual "no match". */
+function SoftwareNote({ waiting, error }: { waiting: boolean; error: unknown }) {
+  const { t } = useTranslation('inventory')
+  if (error) return <span role="alert">{errMsg(error)}</span>
+  return waiting ? <span>{t('search.softwareWaiting')}</span> : null
 }
 
 /** Devices: the approved list (#849). */
@@ -220,7 +245,8 @@ function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; 
   const { q, clear } = query
   const deferred = useDeferredValue(q)
   const swWanted = useMemo(() => softwareValues(deferred), [deferred])
-  const matches = useMatches(swWanted)
+  const sw = useMatches(swWanted)
+  const { matches } = sw
   const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids, matches), [rows, deferred, now, same.ids, matches])
   const selecting = slotComponents(DEVICES_ACTIONS_SLOT).length > 0
   const [sel, ops] = useRowSelection()
@@ -279,6 +305,7 @@ function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; 
         search={false} urlKey="devices" resetPageOn={deferred}
         onRowClick={(d) => void navigate(`/devices/${d.id}`)}
         empty={t('table.emptyApproved')} filtered={!!q} onClearFilters={clear}
+        emptyFiltered={sw.waiting || sw.error ? <SoftwareNote {...sw} /> : undefined}
         mobileRow={(d) => {
           const hw = [d.vendor?.value, d.model?.value].filter(Boolean).join(' ')
           return (
@@ -315,12 +342,14 @@ function ReviewList({ rows, top, now, notifyNew, notifyAvailable, query, same, b
   const { q, clear } = query
   const deferred = useDeferredValue(q)
   const swWanted = useMemo(() => softwareValues(deferred), [deferred])
-  const matches = useMatches(swWanted)
+  const sw = useMatches(swWanted)
+  const { matches } = sw
   const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids, matches), [rows, deferred, now, same.ids, matches])
   return (
     <section className="grid min-w-0 gap-3">
       <PendingPanel items={shown} total={rows.length} notifyNew={notifyNew} notifyAvailable={notifyAvailable} sameAs={same.others}
-        search={<><DeviceSearch rows={rows} top={top} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} /></>} filtered={!!q} onClear={clear} />
+        search={<><DeviceSearch rows={rows} top={top} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} /></>} filtered={!!q} onClear={clear}
+        none={sw.waiting || sw.error ? <SoftwareNote {...sw} /> : undefined} />
     </section>
   )
 }

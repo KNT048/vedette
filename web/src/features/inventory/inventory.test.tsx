@@ -323,7 +323,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await user.clear(box)
     await user.type(box, 'software:photo ')
     await waitFor(() => expect(within(table).getByRole('columnheader', { name: /Matched software/ })).toBeInTheDocument(), T)
-    const row = within(table).getByRole('link', { name: 'NAS-PHOTOS' }).closest('tr')!
+    // the server answers software: once the typing pauses
+    const row = (await within(table).findByRole('link', { name: 'NAS-PHOTOS' }, T)).closest('tr')!
     expect(row).toHaveTextContent('QNAP Photo Station')
   })
 

@@ -207,6 +207,7 @@ const (
 	UnsentFailed       NotSentReason = "failed"             // a channel tried and failed (INV-6)
 	UnsentDroppedStale NotSentReason = "dropped_stale"      // it waited while the module was off and was too old when it came back on
 	UnsentFirstRun     NotSentReason = "first_run_summary"  // held by the first-run window (INV-23), told in the hourly summary
+	UnsentLineLeftOut  NotSentReason = "line_left_out"      // a vulnerability notice queued and sent, but its line was past what the message could hold
 	UnsentUnknown      NotSentReason = "unknown"            // opened before the reason was kept, and today's channels would take it
 )
 

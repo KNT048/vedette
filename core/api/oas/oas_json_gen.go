@@ -303491,6 +303491,8 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentReason) Decode(d *jx.Decoder)
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonDroppedStale
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonLineLeftOut:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonLineLeftOut
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown
 	default:
@@ -304518,6 +304520,8 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Decode(d *jx.Decoder
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown
 	default:
@@ -305925,6 +305929,8 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Decode(d *jx.Deco
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonDroppedStale
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFirstRunSummary:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFirstRunSummary
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonLineLeftOut:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonLineLeftOut
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown
 	default:
@@ -308677,6 +308683,8 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Decode(d *jx.Decod
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonDroppedStale
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown
 	default:
@@ -311122,6 +311130,423 @@ func (s NotifyPostNotifyIncidentsStatusReqStatus) MarshalJSON() ([]byte, error) 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NotifyPostNotifyIncidentsStatusReqStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NotifyPostNotifyNoticesIDSendOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyPostNotifyNoticesIDSendOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("at")
+		json.EncodeDateTime(e, s.At)
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("link")
+		e.Str(s.Link)
+	}
+	{
+		e.FieldStart("not_sent")
+		s.NotSent.Encode(e)
+	}
+	{
+		e.FieldStart("what")
+		e.Str(s.What)
+	}
+}
+
+var jsonFieldsNameOfNotifyPostNotifyNoticesIDSendOK = [5]string{
+	0: "at",
+	1: "id",
+	2: "link",
+	3: "not_sent",
+	4: "what",
+}
+
+// Decode decodes NotifyPostNotifyNoticesIDSendOK from json.
+func (s *NotifyPostNotifyNoticesIDSendOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyNoticesIDSendOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.At = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "link":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Link = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"link\"")
+			}
+		case "not_sent":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.NotSent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"not_sent\"")
+			}
+		case "what":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.What = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"what\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyPostNotifyNoticesIDSendOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyPostNotifyNoticesIDSendOK) {
+					name = jsonFieldsNameOfNotifyPostNotifyNoticesIDSendOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyPostNotifyNoticesIDSendOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyNoticesIDSendOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *NotifyPostNotifyNoticesIDSendOKNotSent) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *NotifyPostNotifyNoticesIDSendOKNotSent) encodeFields(e *jx.Encoder) {
+	{
+		if s.Channel.Set {
+			e.FieldStart("channel")
+			s.Channel.Encode(e)
+		}
+	}
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("text")
+		e.Str(s.Text)
+	}
+	{
+		if s.Until.Set {
+			e.FieldStart("until")
+			s.Until.Encode(e, json.EncodeDateTime)
+		}
+	}
+}
+
+var jsonFieldsNameOfNotifyPostNotifyNoticesIDSendOKNotSent = [4]string{
+	0: "channel",
+	1: "reason",
+	2: "text",
+	3: "until",
+}
+
+// Decode decodes NotifyPostNotifyNoticesIDSendOKNotSent from json.
+func (s *NotifyPostNotifyNoticesIDSendOKNotSent) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyNoticesIDSendOKNotSent to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channel":
+			if err := func() error {
+				s.Channel.Reset()
+				if err := s.Channel.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "text":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Text = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"text\"")
+			}
+		case "until":
+			if err := func() error {
+				s.Until.Reset()
+				if err := s.Until.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"until\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode NotifyPostNotifyNoticesIDSendOKNotSent")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000110,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfNotifyPostNotifyNoticesIDSendOKNotSent) {
+					name = jsonFieldsNameOfNotifyPostNotifyNoticesIDSendOKNotSent[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *NotifyPostNotifyNoticesIDSendOKNotSent) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyNoticesIDSendOKNotSent) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyNoticesIDSendOKNotSentChannel as json.
+func (s NotifyPostNotifyNoticesIDSendOKNotSentChannel) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyPostNotifyNoticesIDSendOKNotSentChannel from json.
+func (s *NotifyPostNotifyNoticesIDSendOKNotSentChannel) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyNoticesIDSendOKNotSentChannel to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyPostNotifyNoticesIDSendOKNotSentChannel(v) {
+	case NotifyPostNotifyNoticesIDSendOKNotSentChannelTelegram:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentChannelTelegram
+	case NotifyPostNotifyNoticesIDSendOKNotSentChannelSlack:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentChannelSlack
+	case NotifyPostNotifyNoticesIDSendOKNotSentChannelZalo:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentChannelZalo
+	case NotifyPostNotifyNoticesIDSendOKNotSentChannelZaloPersonal:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentChannelZaloPersonal
+	case NotifyPostNotifyNoticesIDSendOKNotSentChannelEmail:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentChannelEmail
+	case NotifyPostNotifyNoticesIDSendOKNotSentChannelWebhook:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentChannelWebhook
+	default:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentChannel(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyPostNotifyNoticesIDSendOKNotSentChannel) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyNoticesIDSendOKNotSentChannel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyNoticesIDSendOKNotSentReason as json.
+func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes NotifyPostNotifyNoticesIDSendOKNotSentReason from json.
+func (s *NotifyPostNotifyNoticesIDSendOKNotSentReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode NotifyPostNotifyNoticesIDSendOKNotSentReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch NotifyPostNotifyNoticesIDSendOKNotSentReason(v) {
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonQueued:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonQueued
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonQuietHours:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonQuietHours
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonGrouped:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonGrouped
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonNoChannel:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonNoChannel
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelsOff:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelsOff
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelOff:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelOff
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelRemoved:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonChannelRemoved
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonBelowMinSeverity:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonBelowMinSeverity
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonFailed:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonFailed
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonDroppedStale:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonDroppedStale
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonFirstRunSummary:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonFirstRunSummary
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonLineLeftOut:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonLineLeftOut
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown
+	default:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NotifyPostNotifyNoticesIDSendOKNotSentReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -317690,6 +318115,39 @@ func (s OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) MarshalJSON() (
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptNotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes NotifyPostNotifyNoticesIDSendOKNotSentChannel as json.
+func (o OptNotifyPostNotifyNoticesIDSendOKNotSentChannel) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes NotifyPostNotifyNoticesIDSendOKNotSentChannel from json.
+func (o *OptNotifyPostNotifyNoticesIDSendOKNotSentChannel) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNotifyPostNotifyNoticesIDSendOKNotSentChannel to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNotifyPostNotifyNoticesIDSendOKNotSentChannel) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNotifyPostNotifyNoticesIDSendOKNotSentChannel) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

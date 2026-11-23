@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { useHistory, useResend } from './api'
+import { useHistory, useResend, useSendNow } from './api'
 import { NotSentFix, waitingReason } from './shared'
 import type { HistoryItem, UnsentNotice } from './types'
 
@@ -19,11 +19,22 @@ import type { HistoryItem, UnsentNotice } from './types'
 function NotSentNotices({ rows, days }: { rows: UnsentNotice[]; days: number }) {
   const { t } = useTranslation('notify')
   const admin = useCan('admin')
+  const can = useCan('operator')
+  const send = useSendNow()
+  // One that will not go out by itself can be sent now, to every channel that is on (the box refuses when its findings are handled since).
+  const now = (r: UnsentNotice) => (waitingReason(r.not_sent) ? null : (
+    <Button size="sm" disabled={!can || send.isPending} busy={send.isPending && send.variables === r.id} busyLabel={t('common:busy.sending')}
+      title={can ? t('history.notSent.sendNowInfo') : t('common:needRole', { role: t('common:role.operator') })} aria-label={t('history.notSent.sendNowFor', { what: r.what })}
+      onClick={() => send.mutate(r.id, { onSuccess: () => toast.success(t('history.notSent.sendNowOk')), onError: (e) => toast.error(e instanceof ApiError ? e.message : String(e)) })}>
+      {t('history.notSent.sendNow')}
+    </Button>
+  ))
   const why = (r: UnsentNotice) => (
     <div className="grid justify-items-start gap-1">
       <Chip tone={waitingReason(r.not_sent) ? 'accent' : 'warn'}>{t(waitingReason(r.not_sent) ? 'history.notSent.waiting' : 'history.notSent.notSent')}</Chip>
       <span className="min-w-[10rem] max-w-[48ch] text-meta">{r.not_sent.text}</span>
       <NotSentFix notSent={r.not_sent} admin={admin} />
+      {now(r)}
     </div>
   )
   const what = (r: UnsentNotice) => <Link to={r.link} className="text-accent underline-offset-4 hover:underline">{r.what}</Link>

@@ -87462,6 +87462,8 @@ func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) Validate() error {
 		return nil
 	case "first_run_summary":
 		return nil
+	case "line_left_out":
+		return nil
 	case "unknown":
 		return nil
 	default:
@@ -87792,6 +87794,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "dropped_stale":
 		return nil
 	case "first_run_summary":
+		return nil
+	case "line_left_out":
 		return nil
 	case "unknown":
 		return nil
@@ -88172,6 +88176,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) Validate() error {
 	case "dropped_stale":
 		return nil
 	case "first_run_summary":
+		return nil
+	case "line_left_out":
 		return nil
 	case "unknown":
 		return nil
@@ -88906,6 +88912,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) Validate() error {
 	case "dropped_stale":
 		return nil
 	case "first_run_summary":
+		return nil
+	case "line_left_out":
 		return nil
 	case "unknown":
 		return nil
@@ -89662,6 +89670,122 @@ func (s NotifyPostNotifyIncidentsStatusReqStatus) Validate() error {
 	case "acknowledged":
 		return nil
 	case "resolved":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *NotifyPostNotifyNoticesIDSendOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.NotSent.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "not_sent",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *NotifyPostNotifyNoticesIDSendOKNotSent) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.Channel.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "channel",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s NotifyPostNotifyNoticesIDSendOKNotSentChannel) Validate() error {
+	switch s {
+	case "telegram":
+		return nil
+	case "slack":
+		return nil
+	case "zalo":
+		return nil
+	case "zalo-personal":
+		return nil
+	case "email":
+		return nil
+	case "webhook":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) Validate() error {
+	switch s {
+	case "queued":
+		return nil
+	case "quiet_hours":
+		return nil
+	case "grouped":
+		return nil
+	case "no_channel":
+		return nil
+	case "channels_off":
+		return nil
+	case "channel_off":
+		return nil
+	case "channel_removed":
+		return nil
+	case "below_min_severity":
+		return nil
+	case "failed":
+		return nil
+	case "dropped_stale":
+		return nil
+	case "first_run_summary":
+		return nil
+	case "line_left_out":
+		return nil
+	case "unknown":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

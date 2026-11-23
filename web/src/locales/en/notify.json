@@ -634,7 +634,11 @@
       "caption": "Vulnerability alerts not sent",
       "none": "Every vulnerability alert of the last {{days}} days was delivered.",
       "waiting": "Waiting",
-      "notSent": "Not sent"
+      "notSent": "Not sent",
+      "sendNow": "Send now",
+      "sendNowFor": "Send now: {{what}}",
+      "sendNowOk": "Queued on your alert channels: it goes out within a minute.",
+      "sendNowInfo": "Sends it to every channel that is on, whatever their minimum severity, with the finding as it is now."
     },
     "delayed": "Delayed"
   },

@@ -266,6 +266,8 @@ func notSent(why NotSentReason, sev, floor Severity, ch channel.Type, detail str
 		} else if detail == "pending" {
 			n.Text = "Not sent on its own: it is in the first-run summary, which no channel has delivered yet."
 		}
+	case UnsentLineLeftOut:
+		n.Text = "Not named in the message that went out: its line was past what the message could hold."
 	default:
 		n.Reason = UnsentUnknown
 		n.Text = "Not sent. It was opened before this version of Vedette kept the reason."
@@ -289,7 +291,7 @@ func noticeNotSent(why NotSentReason, sev, floor Severity, ch channel.Type, deta
 	case UnsentQueued:
 		n.Text = "Waiting to be sent: it goes out within a minute."
 	case UnsentUnknown:
-		n.Text = "Not named in any message that arrived. It was found before this version of Vedette kept the reason, or its line did not fit the message."
+		n.Text = "Not sent when it was found. The version of Vedette that found it did not keep the reason."
 	}
 	return n
 }
@@ -403,7 +405,9 @@ func (s *Service) notSentNotices(ctx context.Context, q dbtx, since time.Time) (
 			ns = noticeNotSent(UnsentFailed, sev, "", f.Channel, f.Error, loc)
 		case r.why != "" && r.why != string(UnsentQueued) && r.why != string(UnsentQuietHours):
 			ns = noticeNotSent(NotSentReason(r.why), sev, Severity(r.floor), channel.Type(r.ch), "", loc)
-		default: // queued and gone without a delivered line, or written by an earlier build
+		case r.why != "": // queued, and the message that went out left its line out ("and N more", a chat app's length limit)
+			ns = noticeNotSent(UnsentLineLeftOut, sev, "", "", "", loc)
+		default: // written by a build that kept no reason
 			ns = noticeNotSent(UnsentUnknown, sev, "", "", "", loc)
 		}
 		out = append(out, UnsentNotice{ID: r.id, At: r.at, What: noticeWhat(r.title, r.event, r.product, r.cves), Link: noticeLink(r.event, r.finding), NotSent: ns})
@@ -429,9 +433,12 @@ func noticeWhat(title, event, product, cves string) string {
 	return strings.TrimSuffix(strings.TrimSpace(what), ":")
 }
 
-// noticeLink is where a notice of the History opens: its finding, or the findings list for a summary.
+// noticeLink is where a notice of the History opens: its finding, or the urgent findings for a summary.
 func noticeLink(event string, finding sql.NullString) string {
-	if NoticeEvent(event) == NoticeFirstRun || !finding.Valid {
+	if NoticeEvent(event) == NoticeFirstRun {
+		return findingsListOf([]int{1, 2, 3, 4})
+	}
+	if !finding.Valid {
 		return findingsList
 	}
 	return "/findings/" + finding.String

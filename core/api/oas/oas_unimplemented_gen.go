@@ -3101,6 +3101,18 @@ func (UnimplementedHandler) NotifyPostNotifyIncidentsStatus(ctx context.Context,
 	return r, ht.ErrNotImplemented
 }
 
+// NotifyPostNotifyNoticesIDSend implements notify_post_notify_notices_id_send operation.
+//
+// Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its
+// findings as they are now, queued on every channel that is on whatever its minimum severity, quiet
+// hours or grouping; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent)
+// or channel_not_ready.
+//
+// POST /notify/notices/{id}/send
+func (UnimplementedHandler) NotifyPostNotifyNoticesIDSend(ctx context.Context, params NotifyPostNotifyNoticesIDSendParams) (r *NotifyPostNotifyNoticesIDSendOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // NotifyPostNotifyTelegramApproversUserIDCode implements notify_post_notify_telegram_approvers_user_id_code operation.
 //
 // Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately

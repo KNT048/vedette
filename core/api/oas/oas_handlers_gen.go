@@ -41895,6 +41895,150 @@ func (s *Server) handleNotifyPostNotifyIncidentsStatusRequest(args [0]string, ar
 	}
 }
 
+// handleNotifyPostNotifyNoticesIDSendRequest handles notify_post_notify_notices_id_send operation.
+//
+// Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its
+// findings as they are now, queued on every channel that is on whatever its minimum severity, quiet
+// hours or grouping; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent)
+// or channel_not_ready.
+//
+// POST /notify/notices/{id}/send
+func (s *Server) handleNotifyPostNotifyNoticesIDSendRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: NotifyPostNotifyNoticesIDSendOperation,
+			ID:   "notify_post_notify_notices_id_send",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, NotifyPostNotifyNoticesIDSendOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeNotifyPostNotifyNoticesIDSendParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *NotifyPostNotifyNoticesIDSendOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    NotifyPostNotifyNoticesIDSendOperation,
+			OperationSummary: "Send now a vulnerability alert that no channel delivered (History, Not sent): written again from its findings as they are now, queued on every channel that is on whatever its minimum severity, quiet hours or grouping; 409 already_sent, nothing_to_send (its findings are handled or no longer urgent) or channel_not_ready",
+			OperationID:      "notify_post_notify_notices_id_send",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = NotifyPostNotifyNoticesIDSendParams
+			Response = *NotifyPostNotifyNoticesIDSendOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackNotifyPostNotifyNoticesIDSendParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.NotifyPostNotifyNoticesIDSend(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.NotifyPostNotifyNoticesIDSend(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeNotifyPostNotifyNoticesIDSendResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleNotifyPostNotifyTelegramApproversUserIDCodeRequest handles notify_post_notify_telegram_approvers_user_id_code operation.
 //
 // Send an approver a new confirm link by the Telegram bot (the old one stops working): only privately

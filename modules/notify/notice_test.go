@@ -467,7 +467,7 @@ func TestLastFour(t *testing.T) {
 }
 
 // A digest says "exploited" only when every vulnerability in it is one attackers use; a public exploit or a flaw nobody exploits yet is
-// worded for what it is, and notify_kev (exploited vulnerabilities that matched nothing) never takes such a notice.
+// worded for what it is, and the count of exploited vulnerabilities that matched nothing never takes such a notice.
 func TestDigestWordingFollowsTheUrgencyLayer(t *testing.T) {
 	t.Parallel()
 	layered := func(id, product, cve string, layer int) Notice {

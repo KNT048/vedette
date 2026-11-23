@@ -25,20 +25,16 @@ import (
 const (
 	EventFindingCreated       = "findings.finding.created"
 	EventFindingStatusChanged = "findings.finding.status_changed"
-	EventFindingRaised        = "findings.finding.severity_raised"
-	// EventUrgencyRaised: an open finding rose into a more urgent layer of 1–4 {finding_id, cve, severity, from, to, at}: one notice per rise.
+	// EventUrgencyRaised: an open finding rose into a more urgent layer of 1–4 {finding_id, cve, severity, from, to, at}: one notice per
+	// escalation (a finding is told again only at a more urgent layer than any it was told at).
 	EventUrgencyRaised = "findings.finding.urgency_raised"
 	// EventFirstRun: the rises of a first-run window in one pass {key, at, findings, devices, layer, finding_ids, cve_list}: one summary
 	// notice each, the later ones of a window saying "N more".
-	EventFirstRun = "findings.urgency.first_run"
-	// EventDeviceBackfill: one summary of the open findings the first match pass after the device-version rule arrived confirmed
-	// {findings, devices, cves, severity, finding_ids, cve_list}; each of them sent no notice of its own.
-	EventDeviceBackfill  = "findings.device_version.backfilled"
+	EventFirstRun        = "findings.urgency.first_run"
 	EventAssetDiscovered = "inventory.asset.discovered"
 	EventAssetApproved   = "inventory.asset.approved" // B9: {asset_id, actor}
 	EventAssetIgnored    = "inventory.asset.ignored"  // {asset_id, actor}: a person said the device needs no watching
 	EventAssetUpdated    = "inventory.asset.updated"  // {asset_id}: also what a person's Approve publishes today
-	EventNewKEV          = "feeds.vuln.new_kev"
 	EventHoneypotHit     = "honeypot.hit.created"
 	EventLogAnomaly      = "logs.anomaly.detected"
 	EventLogBadAddress   = "logs.bad_address.detected"
@@ -71,13 +67,10 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 			return fn(ctx, e.Data)
 		}))
 	}
-	on(EventFindingCreated, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, false) })
-	on(EventFindingStatusChanged, func(ctx context.Context, d any) error { return s.findingEvent(ctx, d, true) })
-	on(EventFindingRaised, s.findingRaised)
+	on(EventFindingCreated, s.findingCreated)
+	on(EventFindingStatusChanged, s.findingStatus)
 	on(EventUrgencyRaised, s.urgencyRaised)
 	on(EventFirstRun, s.urgencyFirstRun)
-	on(EventDeviceBackfill, s.deviceBackfill)
-	on(EventNewKEV, s.kevEvent)
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventAssetApproved, s.assetApproved)
 	on(EventAssetIgnored, s.assetIgnored)
@@ -94,30 +87,43 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	}
 }
 
-// kevEvent remembers an exploited vulnerability the box has just heard of (feeds.vuln.new_kev). Until a finding
-// matches it to a device (findings.finding.created) it counts as one that matched nothing: HistoryView.suppressed.
-func (s *Service) kevEvent(ctx context.Context, data any) error {
-	var e struct {
-		CVE string `json:"cve"`
-	}
-	if err := decode(data, &e); err != nil {
-		return err
-	}
-	if kevKey(e.CVE) == "" {
-		return nil
-	}
-	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markKEV(ctx, tx, []string{e.CVE}, s.now(), false) })
-}
+// The finding events a vulnerability notice tells (Notice.Event, notify_notice.event): the kinds of the findings module's own history that
+// a person has to know, and the summary of a first load. An open vocabulary.
+const (
+	NoticeCreated           = "created"
+	NoticeUrgencyChanged    = "urgency_changed"
+	NoticeReopened          = "reopened"
+	NoticeAcceptanceExpired = "acceptance_expired"
+	NoticeFirstRun          = "first_run"
+)
 
-// findingEvent turns findings.finding.created, and a finding that a scan or the version the device itself reports has confirmed
-// (status_changed to "confirmed"), into a vulnerability notice. A notice for a finding that matched
-// no device is counted, not sent (INV-2).
-func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool) error {
+// findingCreated turns findings.finding.created (a new finding at an urgency of 1–4) into a notice.
+func (s *Service) findingCreated(ctx context.Context, data any) error {
 	var e struct {
 		FindingID string `json:"finding_id"`
 		CVE       string `json:"cve"`
 		Severity  string `json:"severity"`
-		To        string `json:"to"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	if e.FindingID == "" {
+		return nil
+	}
+	if IsBaseline(ctx) { // the re-match after the first CISA pull: nothing is queued, so nothing can leak later
+		s.cfg.Log.DebugContext(ctx, "finding event ignored: it belongs to the first CISA pull", "finding", e.FindingID)
+		return nil
+	}
+	return s.findingNotice(ctx, e.FindingID, e.CVE, Severity(e.Severity), NoticeCreated, nil)
+}
+
+// findingStatus turns the two status changes that a person has to know into notices: a finding Vedette reopened because the device
+// matches it again (reopened), and a risk acceptance that ran out (acceptance_expired). Every other change of a status is only history.
+func (s *Service) findingStatus(ctx context.Context, data any) error {
+	var e struct {
+		FindingID string `json:"finding_id"`
+		CVE       string `json:"cve"`
+		Severity  string `json:"severity"`
 		Reason    string `json:"reason"`
 		// acceptance_expired only: who accepted the risk and its last day (YYYY-MM-DD)
 		AcceptedBy    string `json:"accepted_by"`
@@ -126,167 +132,124 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 	if err := decode(data, &e); err != nil {
 		return err
 	}
-	if e.FindingID == "" {
+	if e.FindingID == "" || IsBaseline(ctx) {
 		return nil
 	}
-	if statusChange && (e.Reason == "device_ignored" || e.Reason == "device_watched") { // A person ignored the device or watches it again
-		return nil
-	}
-	if statusChange && e.Reason == "matches_again" { // Vedette reopened a finding it had closed as not affected
-		if IsBaseline(ctx) {
-			return nil
-		}
-		return s.findingChange(ctx, e.FindingID, e.CVE, "", func(f FindingInfo, cve string, n *Notice) {
-			n.ID += "-reopened-" + n.At.UTC().Format("20060102") // one notice per UTC day: a version that flaps between scans does not send one each time
+	switch e.Reason {
+	case "matches_again": // Vedette had closed the finding as not affected, and the device matches the entry again
+		return s.findingNotice(ctx, e.FindingID, e.CVE, Severity(e.Severity), NoticeReopened, func(f FindingInfo, cve string, n *Notice) {
+			n.ID += "-" + n.At.UTC().Format("20060102") // one notice per UTC day: a version that flaps between scans does not send one each time
 			n.Change = "reopened, it matches again"
 			n.Title = "Vedette reopened " + about(cve, f) + ": it matches again"
-			n.What = "Vedette had closed this finding by itself, and the device matches the entry again. " + f.What
+			n.What = "Vedette had closed this finding by itself, and the device matches the entry again. " + n.What
 		})
-	}
-	if statusChange && e.Reason == "acceptance_expired" { // a risk a person accepted until a day is open again (INV-21)
-		if IsBaseline(ctx) {
-			return nil
-		}
-		return s.findingChange(ctx, e.FindingID, e.CVE, "", func(f FindingInfo, cve string, n *Notice) {
-			n.ID += "-expired-" + n.At.UTC().Format("20060102") // its own id: a matches_again reopen the same day is a different notice
+	case "acceptance_expired": // a risk a person accepted until a day is open again (INV-21)
+		return s.findingNotice(ctx, e.FindingID, e.CVE, Severity(e.Severity), NoticeAcceptanceExpired, func(f FindingInfo, cve string, n *Notice) {
+			n.ID += "-" + n.At.UTC().Format("20060102")
 			n.Change = "risk acceptance ended, open again"
 			n.Title = "Risk acceptance ended: " + about(cve, f) + " is open again"
-			n.What = acceptedText(e.AcceptedBy, e.AcceptedUntil) + "; that date has passed. " + f.What
+			n.What = acceptedText(e.AcceptedBy, e.AcceptedUntil) + "; that date has passed. " + n.What
 		})
 	}
-	if !statusChange && kevKey(e.CVE) != "" && s.onExploitedList(ctx, e.FindingID) { // a finding exists: a device matched this CVE, so it is no longer one that matched nothing
-		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markKEV(ctx, tx, []string{e.CVE}, s.now(), true) }); err != nil {
-			return err
-		}
-	}
-	if statusChange && e.To != "confirmed" {
-		return nil
-	}
-	if !statusChange && IsBaseline(ctx) { // the re-match after the first CISA pull: nothing is queued, so nothing can leak later
-		s.cfg.Log.DebugContext(ctx, "finding event ignored: it belongs to the first CISA pull", "finding", e.FindingID)
-		return nil
-	}
-	if s.cfg.Findings == nil {
-		s.cfg.Log.WarnContext(ctx, "finding event skipped: no finding directory is wired")
-		return nil
-	}
-	f, ok, err := s.cfg.Findings.Finding(ctx, e.FindingID)
-	if err != nil || !ok {
-		return err
-	}
-	sev := f.Severity
-	if !sev.Valid() {
-		sev = Severity(e.Severity)
-	}
-	cve := f.CVE
-	if cve == "" {
-		cve = e.CVE
-	}
-	n := Notice{ID: "nt-" + e.FindingID, Kind: KindVuln, Severity: sev, Product: f.Product, FindingIDs: []string{e.FindingID}, Devices: f.Devices,
-		Title: f.Title, What: f.What, Action: f.Action, Layer: f.Layer, Link: s.link("/findings/" + e.FindingID), At: s.now()}
-	if cve != "" {
-		n.CVEs = []string{cve}
-	}
-	if statusChange {
-		n.ID += "-confirmed"
-		n.What = "A scan confirmed that this flaw is present. " + n.What
-		if e.Reason == "device_version" { // the device itself states a version inside the affected range (its SNMP answer or its agent)
-			n.What = "The version the device itself reports confirms that this flaw is present. " + f.What
-		}
-	}
-	return s.Publish(ctx, n)
+	return nil
 }
-
-// onExploitedList says whether the finding is one of an exploited vulnerability (under attack here or exploited in the wild), the
-// only kind notify_kev tracks. A finding the directory does not know reads as one, as before urgency layers existed.
-func (s *Service) onExploitedList(ctx context.Context, id string) bool {
-	if s.cfg.Findings == nil {
-		return true
-	}
-	f, ok, err := s.cfg.Findings.Finding(ctx, id)
-	return err != nil || !ok || exploitedLayer(f.Layer)
-}
-
-// findingRaised turns findings.finding.severity_raised (a re-match found the finding more serious: the installed version is
-// in the affected range, or ransomware / a high EPSS made it critical) into a notice, as for a new finding. The id carries the
-// new severity, so the same raise is sent once and a later raise to a higher level is told again. The text is derived from the
-// event only: the two severities and the basis.
-func (s *Service) findingRaised(ctx context.Context, data any) error {
-	var e struct {
-		FindingID    string `json:"finding_id"`
-		CVE          string `json:"cve"`
-		FromSeverity string `json:"from_severity"`
-		ToSeverity   string `json:"to_severity"`
-		Basis        string `json:"basis"`
-	}
-	if err := decode(data, &e); err != nil {
-		return err
-	}
-	to := Severity(e.ToSeverity)
-	if e.FindingID == "" || !to.Valid() {
-		return nil
-	}
-	if IsBaseline(ctx) {
-		return nil
-	}
-	return s.findingChange(ctx, e.FindingID, e.CVE, to, func(f FindingInfo, cve string, n *Notice) {
-		n.ID += "-raised-" + string(to)
-		was := ""
-		if Severity(e.FromSeverity).Valid() {
-			was = " (was " + e.FromSeverity + ")"
-		}
-		n.Change = "now " + string(to) + was
-		n.Title = about(cve, f) + " is now " + string(to) + was
-		why := "Vedette checked again and found stronger evidence that this device is affected."
-		if e.Basis == "version" {
-			why = "The installed version is in the range that the vendor lists as affected."
-		}
-		n.What = why + " " + f.What
-	})
-}
-
-// layerChange names a more urgent layer in a notice's change line.
-var layerChange = map[int]string{1: "now under attack here", 2: "now exploited in the wild", 3: "now has a public exploit", 4: "now critical on an edge device"}
 
 // urgencyRaised turns findings.finding.urgency_raised (an open finding rose into a more urgent layer of 1–4) into a notice with the
-// finding's texts for its new layer. The id carries the layer and the rise's time, so every rise is told once, also a finding that
-// dropped and rose again. Old news (the Backlog mark) is only counted. A rise to exploited marks the CVE as one that matched a device.
+// status the finding page shows now. The notice is told once per layer: Publish does not send a finding again at the layer it was told at
+// or at a less urgent one. Old news (the Backlog mark) is only counted, never sent.
 func (s *Service) urgencyRaised(ctx context.Context, data any) error {
 	var e struct {
 		FindingID string `json:"finding_id"`
 		CVE       string `json:"cve"`
 		Severity  string `json:"severity"`
 		To        int    `json:"to"`
-		At        string `json:"at"`
 	}
 	if err := decode(data, &e); err != nil {
 		return err
 	}
-	if e.FindingID == "" || e.To < 1 || e.To > 4 {
+	if e.FindingID == "" || e.To < 1 || e.To >= layerUpdate || IsBaseline(ctx) {
 		return nil
 	}
-	if exploitedLayer(e.To) && kevKey(e.CVE) != "" {
-		if err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return markKEV(ctx, tx, []string{e.CVE}, s.now(), true) }); err != nil {
-			return err
-		}
-	}
-	if IsBaseline(ctx) {
-		return nil
-	}
-	at, err := time.Parse(time.RFC3339Nano, e.At)
-	if err != nil {
-		at = s.now()
-	}
-	return s.findingChange(ctx, e.FindingID, e.CVE, Severity(e.Severity), func(_ FindingInfo, _ string, n *Notice) {
-		n.ID += fmt.Sprintf("-urgency-%d-%s", e.To, at.UTC().Format("20060102T150405.000"))
-		n.Change = layerChange[e.To]
-		n.Layer = e.To
+	return s.findingNotice(ctx, e.FindingID, e.CVE, Severity(e.Severity), NoticeUrgencyChanged, func(f FindingInfo, cve string, n *Notice) {
+		n.ID += fmt.Sprintf("-%d", f.Layer) // its own notice for each layer it rises to
+		n.Title = titleOf(f, cve, "now ")
+		n.Change = "now " + lowerFirst(f.Status)
 	})
+}
+
+// findingNotice builds the vulnerability notice of one finding event from the finding as the directory reads it now, and publishes it.
+// Only an open finding at an urgency of 1–4 is told (layer 5 never alerts); a finding that was handled or dropped since the event is not.
+// The id is the finding's and the event's; frame changes the default texts and the id for the kinds that need it. The default texts are
+// the status name, its meaning and the reasons, all from findings.
+func (s *Service) findingNotice(ctx context.Context, id, eventCVE string, eventSeverity Severity, event string, frame func(f FindingInfo, cve string, n *Notice)) error {
+	if s.cfg.Findings == nil {
+		s.cfg.Log.WarnContext(ctx, "finding event skipped: no finding directory is wired")
+		return nil
+	}
+	f, ok, err := s.cfg.Findings.Finding(ctx, id)
+	if err != nil || !ok {
+		return err
+	}
+	if !f.Open || f.Layer < 1 || f.Layer >= layerUpdate {
+		return nil
+	}
+	sev := f.Severity
+	if !sev.Valid() {
+		sev = eventSeverity
+	}
+	if !sev.Valid() {
+		return nil
+	}
+	cve := cmp.Or(f.CVE, eventCVE)
+	n := Notice{ID: "nt-" + id + "-" + event, Event: event, Kind: KindVuln, Severity: sev, Product: f.Product, FindingIDs: []string{id}, Devices: f.Devices,
+		Title: titleOf(f, cve, ""), What: whatOf(f), Action: f.Action, Layer: f.Layer, Link: s.link("/findings/" + id), At: s.now()}
+	if cve != "" {
+		n.CVEs = []string{cve}
+	}
+	if frame != nil {
+		frame(f, cve, &n)
+	}
+	return s.Publish(ctx, n)
+}
+
+// titleOf is the title of a finding's notice: "FortiOS on fw01: public exploit available (CVE-2026-1)", lead being "now " for a rise.
+func titleOf(f FindingInfo, cve, lead string) string {
+	out := cmp.Or(f.Product, "A finding")
+	if len(f.Devices) > 0 {
+		out += " on " + strings.Join(f.Devices, ", ")
+	}
+	out += ": " + lead + lowerFirst(f.Status)
+	if cve != "" {
+		out += " (" + cve + ")"
+	}
+	return out
+}
+
+// whatOf is the body of a finding's notice: what its status asks of a person, the note about its device, and why it has that status.
+func whatOf(f FindingInfo) string {
+	out := f.Meaning
+	if f.Note != "" {
+		out += " " + f.Note
+	}
+	if f.Reasons != "" {
+		out += " Why: " + f.Reasons + "."
+	}
+	return out
+}
+
+// lowerFirst starts a status name in lower case, to continue a sentence ("Public exploit available" -> "public exploit available").
+func lowerFirst(s string) string {
+	r, n := utf8.DecodeRuneInString(s)
+	if n == 0 {
+		return s
+	}
+	return string(unicode.ToLower(r)) + s[n:]
 }
 
 // urgencyFirstRun turns findings.urgency.first_run into one notice: what a first load (of the box itself, a signal source or the
 // catalogue) rated urgent on the devices, instead of one alert per finding. Each pass's summary is its own notice (the id carries the
-// window and the pass's time); a later one of the same window says "N more", so nothing that load brought is dropped.
+// window and the pass's time); a later one of the same window says "N more", so nothing that load brought is dropped. Each finding it
+// lists is recorded at its layer, so a later rise of it is told only when it is to a more urgent one.
 func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 	var e struct {
 		Key        string   `json:"key"`
@@ -335,7 +298,7 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 		what = fmt.Sprintf("Vedette is still working through what its first load brought: since its last summary it rated %s on %s as exploited, with a public exploit or critical on an edge device.",
 			plural(e.Findings, "more finding", "more findings"), plural(e.Devices, "device", "devices"))
 	}
-	n := Notice{ID: prefix + at.UTC().Format("20060102T150405.000"), Kind: KindVuln, Severity: sev, Layer: e.Layer,
+	n := Notice{ID: prefix + at.UTC().Format("20060102T150405.000"), Kind: KindVuln, Event: NoticeFirstRun, Severity: sev, Layer: e.Layer,
 		Link: s.link("/findings?tab=open"), At: s.now(), Title: title, What: what,
 		Action: "Open Findings, sorted by urgency, and patch the ones at the top first."}
 	seen := map[string]bool{}
@@ -347,10 +310,16 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 		if err != nil {
 			return err
 		}
-		if !ok {
+		if !ok || !f.Open || f.Layer < 1 || f.Layer >= layerUpdate { // handled since, or dropped to "update recommended": layer 5 never alerts
+			continue
+		}
+		if told, err := s.toldAt(ctx, s.cfg.DB.Reader(), id); err != nil {
+			return err
+		} else if told != 0 && told <= f.Layer { // already told at this layer or a more urgent one
 			continue
 		}
 		n.FindingIDs = append(n.FindingIDs, id)
+		n.FindingLayers = append(n.FindingLayers, f.Layer)
 		for _, d := range f.Devices {
 			if d = strings.TrimSpace(d); d != "" && !seen[d] && len(n.Devices) < maxNoticeItems {
 				seen[d] = true
@@ -365,66 +334,6 @@ func (s *Service) urgencyFirstRun(ctx context.Context, data any) error {
 	}
 	if len(n.FindingIDs) == 0 {
 		return nil
-	}
-	return s.Publish(ctx, n)
-}
-
-// deviceBackfill turns the one summary of the findings the first pass after the device-version rule confirmed into one notice
-// ("3 findings are now confirmed by the version their device reports"), sent once (fixed id). The device names come from the
-// findings it lists (FindingDirectory), so a notice that names no device is not sent (INV-2). Silent in the baseline.
-func (s *Service) deviceBackfill(ctx context.Context, data any) error {
-	var e struct {
-		Findings   int      `json:"findings"`
-		Devices    int      `json:"devices"`
-		CVEs       int      `json:"cves"`
-		Severity   string   `json:"severity"`
-		FindingIDs []string `json:"finding_ids"`
-		CVEList    []string `json:"cve_list"`
-	}
-	if err := decode(data, &e); err != nil {
-		return err
-	}
-	if e.Findings <= 0 || IsBaseline(ctx) {
-		return nil
-	}
-	if s.cfg.Findings == nil {
-		s.cfg.Log.WarnContext(ctx, "finding summary skipped: no finding directory is wired")
-		return nil
-	}
-	sev := Severity(e.Severity)
-	if !sev.Valid() {
-		sev = High
-	}
-	n := Notice{ID: "nt-device-version-confirmed", Kind: KindVuln, Severity: sev, Link: s.link("/findings?tab=open"), At: s.now(),
-		Title: plural(e.Findings, "finding is", "findings are") + " now confirmed by the version their device reports",
-		What: fmt.Sprintf("Vedette now counts a version a device states itself (its SNMP answer or its own agent) inside an affected range as confirmed. "+
-			"That confirmed %s on %s (%s) that were already open; nothing new was found, and each finding's history says so.",
-			plural(e.Findings, "open finding", "open findings"), plural(e.Devices, "device", "devices"), plural(e.CVEs, "CVE", "CVEs")),
-		Action: "Fix the confirmed findings first: open Findings and filter on Confirmed."}
-	seen := map[string]bool{}
-	for _, id := range e.FindingIDs {
-		if len(n.FindingIDs) == maxNoticeItems {
-			break
-		}
-		f, ok, err := s.cfg.Findings.Finding(ctx, id)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			continue
-		}
-		n.FindingIDs = append(n.FindingIDs, id)
-		for _, d := range f.Devices {
-			if d = strings.TrimSpace(d); d != "" && !seen[d] && len(n.Devices) < maxNoticeItems {
-				seen[d] = true
-				n.Devices = append(n.Devices, d)
-			}
-		}
-	}
-	for _, c := range e.CVEList {
-		if len(n.CVEs) < maxNoticeItems {
-			n.CVEs = append(n.CVEs, c)
-		}
 	}
 	return s.Publish(ctx, n)
 }
@@ -452,37 +361,6 @@ func about(cve string, f FindingInfo) string {
 		out += " on " + strings.Join(f.Devices, ", ")
 	}
 	return out
-}
-
-// findingChange builds the notice of a finding that changed (raised, reopened) the way findingEvent builds a new one: same
-// directory lookup, device names, severity (override when not empty), link and path through Publish; shape sets the id suffix and text.
-func (s *Service) findingChange(ctx context.Context, id, eventCVE string, override Severity, shape func(f FindingInfo, cve string, n *Notice)) error {
-	if s.cfg.Findings == nil {
-		s.cfg.Log.WarnContext(ctx, "finding event skipped: no finding directory is wired")
-		return nil
-	}
-	f, ok, err := s.cfg.Findings.Finding(ctx, id)
-	if err != nil || !ok {
-		return err
-	}
-	sev := override
-	if !sev.Valid() {
-		sev = f.Severity
-	}
-	if !sev.Valid() {
-		return nil
-	}
-	cve := f.CVE
-	if cve == "" {
-		cve = eventCVE
-	}
-	n := Notice{ID: "nt-" + id, Kind: KindVuln, Severity: sev, Product: f.Product, FindingIDs: []string{id}, Devices: f.Devices,
-		Title: f.Title, What: f.What, Action: f.Action, Layer: f.Layer, Link: s.link("/findings/" + id), At: s.now()}
-	if cve != "" {
-		n.CVEs = []string{cve}
-	}
-	shape(f, cve, &n)
-	return s.Publish(ctx, n)
 }
 
 // assetEvent opens an unknown_device incident for a newly discovered device when the notify_new setting

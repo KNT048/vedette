@@ -162,9 +162,9 @@
 ## Modifying: đọc finding (`Service.List`, `Get`, `Finding`, `Findings`, `Events`)
 - **mitigation** (gói theo finding), **notify** (`vuln` tin + panel `GET /notify/findings/{id}/notices`), **response** (đề xuất cho Critical), **reports**, **ai** (explain), **mcp-server** (`get_finding`), SPA Devices (`device.panels`). Đổi `FindingRow` phải sửa `findings/contract.ts` (nguồn OpenAPI).
 
-## Modifying: sự kiện `findings.finding.created|status_changed|urgency_raised`, `findings.urgency.first_run`, `findings.unchecked.added`
+## Modifying: sự kiện `findings.finding.created|status_changed|urgency_raised`, `findings.urgency.first_run`
 - **notify** (tin lỗ hổng, `min_severity`; `urgencyFirstRun`), **response** (trigger finding: `created`, `status_changed`, `urgency_raised`), **logs** (SIEM: `created`, `status_changed`, `urgency_raised`), **inventory** qua `cmd/vedette/wiring.go` (`EarnReview` khi `created`/`urgency_raised`). Đổi tên/trường = người nhận im lặng, không lỗi biên dịch.
-- `findings.finding.severity_raised` và `findings.device_version.backfilled` không còn được phát (hằng `EventSeverityRaised`, `EventDeviceBackfill` còn trong `ports.go`); notify (`EventFindingRaised`, `EventDeviceBackfill`) và logs (`siemEventFindingRaised`) vẫn đăng ký chúng mà không bao giờ nhận gì.
+- `findings.finding.severity_raised`, `findings.device_version.backfilled` và `findings.unchecked.added` không còn được phát (hằng và kiểu của chúng đã bỏ; notify và logs không còn đăng ký chúng; câu hỏi mới của một thiết bị là việc của "Needs your input", không phải tin). `RescanClear` (không ai gọi) đã bỏ: kết quả quét trống không đóng finding nào.
 
 ## Disabling this module
 - Mất trang Findings và panel finding ở Devices; không finding mới; `notify` mất tin lỗ hổng; `scan` không nối được `finding_id`; `response` không có phát hiện Critical để đề xuất; `reports` thiếu mục lỗ hổng; `mitigation` mất đầu vào.

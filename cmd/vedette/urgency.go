@@ -6,13 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
-	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/selfcheck"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/feeds"
@@ -99,87 +96,6 @@ func urgencyOnAlerts(d *deps) events.Handler {
 		}()
 		return nil
 	}
-}
-
-// layerNames name the layers in a reasons line.
-var layerNames = map[int]string{findings.UrgencyUnderAttack: "Under attack here", findings.UrgencyExploited: "Exploited in the wild",
-	findings.UrgencyPublicExploit: "Public exploit", findings.UrgencyCriticalEdge: "Critical on an edge device"}
-
-// urgencyReasons is the reasons line of a finding as the box holds it now: every layer that applies, each with its sources (the feeds'
-// own names) and the earliest date ("Exploited in the wild: Rapid7 blog (19 Nov 2026), not yet on CISA's list · Public exploit:
-// Metasploit (18 Nov 2026)"). "" when nothing applies or nothing can be read.
-func urgencyReasons(ctx context.Context, d *deps, f findings.Finding) string {
-	if d.DB == nil {
-		return ""
-	}
-	q := d.DB.Reader()
-	facts, err := urgencyFacts(ctx, feeds.NewUrgencyReader(q), []string{f.CVE})
-	if err != nil {
-		return ""
-	}
-	now := clockOf(d)
-	var attacks []findings.Attack
-	if d.Reg == nil || d.Reg.Enabled(idsmodule.ModuleID) {
-		if as, err := urgencyAttacks(ctx, q, now.Add(-findings.AttackWindow)); err == nil {
-			attacks = findings.AttacksByCVE(as)[f.CVE]
-		}
-	}
-	r := findings.Urgency(f.CVE, facts[f.CVE], findings.TargetOf(f, findings.Device{}), attacks, now)
-	names, err := feeds.ReadSourceNames(ctx, q)
-	if err != nil {
-		return ""
-	}
-	loc := orgtime.At(ctx, orgTimeZone(d))
-	type part struct {
-		sources []string
-		since   time.Time
-	}
-	parts := map[int]*part{}
-	var order []int
-	listed := false
-	for _, x := range r.Reasons {
-		if x.Layer < f.Urgency {
-			continue // more urgent than the stored layer: the pass has not rated it yet, the badge does not say it
-		}
-		var name string
-		switch x.Layer {
-		case findings.UrgencyUnderAttack:
-			name = "an intrusion alert"
-		case findings.UrgencyCriticalEdge:
-			name = "CVSS " + strconv.FormatFloat(facts[f.CVE].CVSS.Score, 'f', 1, 64) + ", " + strings.ReplaceAll(x.Source, "_", " ")
-		default:
-			if name = names[x.Source]; name == "" {
-				continue // a source the box no longer has: never shown by its id
-			}
-		}
-		p := parts[x.Layer]
-		if p == nil {
-			p = &part{since: x.Since}
-			parts[x.Layer] = p
-			order = append(order, x.Layer)
-		}
-		listed = listed || x.Source == "cisa-kev"
-		if !slices.Contains(p.sources, name) {
-			p.sources = append(p.sources, name)
-		}
-	}
-	var out []string
-	for _, l := range order {
-		p := parts[l]
-		day := orgtime.CalendarDay(p.since)
-		if l == findings.UrgencyUnderAttack {
-			day = orgtime.Day(p.since, loc)
-		}
-		text := layerNames[l] + ": " + plainText(strings.Join(p.sources, ", "), 160)
-		if !p.since.IsZero() {
-			text += " (" + day + ")"
-		}
-		if l == findings.UrgencyExploited && !listed {
-			text += ", not yet on CISA's list"
-		}
-		out = append(out, text)
-	}
-	return strings.Join(out, " · ")
 }
 
 // urgencyFacts converts feeds' urgency facts of the CVEs into findings' (findings.CVEFacts).

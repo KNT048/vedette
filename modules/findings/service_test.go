@@ -546,32 +546,6 @@ func TestConfirmFromScanRefusals(t *testing.T) {
 	}
 }
 
-func TestContract_POST2_RescanClearPatchesWhatTheScanProved(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	id := e.seed()
-	if err := e.svc.RescanClear(t.Context(), "a-1", "CVE-2022-27593"); err != nil { // a version match is not the scan's to close
-		t.Fatal(err)
-	}
-	if r, _ := e.svc.Get(t.Context(), id); r.Status != StatusSuspected {
-		t.Fatalf("a clear scan closed a version match: %+v", r)
-	}
-	if _, err := e.svc.ConfirmFromScan(t.Context(), "a-1", "CVE-2022-27593", scanEv("t1")); err != nil {
-		t.Fatal(err)
-	}
-	e.pub.take()
-	if err := e.svc.RescanClear(t.Context(), "a-1", "CVE-2022-27593"); err != nil {
-		t.Fatal(err)
-	}
-	r, _ := e.svc.Get(t.Context(), id)
-	if r.Status != StatusPatched || r.Row.Via != ViaScanClear || r.ResolvedBy != SystemUser {
-		t.Fatalf("finding = %+v", r.Row)
-	}
-	if ev := e.pub.take(); len(ev) != 1 || ev[0].Payload.(StatusChangedEvent).Reason != ReasonFixedByUpdate {
-		t.Fatalf("events = %+v", ev)
-	}
-}
-
 func TestContract_INV7_DeviceDeletedRemovesFindingsAndHistory(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

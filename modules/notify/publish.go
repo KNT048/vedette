@@ -40,8 +40,7 @@ const (
 	// staleClaim is how long a claimed or sending row may wait for its run before Flush treats the run as dead.
 	staleClaim  = 15 * time.Minute
 	pruneEvery  = time.Hour
-	kevKeepDays = 30 // notify_kev keeps this many days
-	historyDays = 7  // HistoryView.Suppressed counts this many days
+	historyDays = 7 // HistoryView.Suppressed counts this many days
 	// maxBatchesPerRun is the most messages one channel sends in one run: a flood on one channel cannot hold
 	// a run for ever, and what is left waits for the next run (critical first, so a critical notice is never
 	// behind a long backlog).
@@ -95,27 +94,37 @@ func (s *Service) Publish(ctx context.Context, n Notice) error {
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.enqueue(ctx, tx, n) })
 }
 
-// kevKey is the key of a CVE in notify_kev: upper case, so the same CVE spelled two ways is one row.
-func kevKey(cve string) string {
-	return clip(strings.ToUpper(strings.TrimSpace(cve)), 128)
+// tellsUrgency says whether a notice of this finding event tells the urgency of its findings: the ones a finding is told only once at.
+// A reopening and an ended risk acceptance are told whenever they happen (their ids carry the day).
+func tellsUrgency(event string) bool {
+	return event == NoticeCreated || event == NoticeUrgencyChanged || event == NoticeFirstRun
 }
 
-// markKEV records exploited vulnerabilities in notify_kev. matched=false only adds a CVE that is not known yet;
-// matched=true also marks a known one as matched by a device, which takes it out of the suppressed count.
-func markKEV(ctx context.Context, tx *sql.Tx, keys []string, at time.Time, matched bool) error {
-	for _, k := range keys {
-		if k = kevKey(k); k == "" {
-			continue
-		}
-		q := `INSERT INTO notify_kev (cve, seen_at, matched) VALUES (?, ?, ?) ON CONFLICT (cve) DO NOTHING`
-		if matched {
-			q = `INSERT INTO notify_kev (cve, seen_at, matched) VALUES (?, ?, ?) ON CONFLICT (cve) DO UPDATE SET matched = 1`
-		}
-		if _, err := tx.ExecContext(ctx, q, k, store.FormatTS(at), boolInt(matched)); err != nil {
-			return fmt.Errorf("notify: record exploited vulnerability: %w", err)
+// findingLayers is the layer each finding of the notice is told at.
+func (n Notice) findingLayers() []int {
+	out := make([]int, len(n.FindingIDs))
+	for i := range out {
+		out[i] = n.Layer
+		if i < len(n.FindingLayers) {
+			out[i] = n.FindingLayers[i]
 		}
 	}
-	return nil
+	return out
+}
+
+// querier is what a read of the notice history needs: a database or a transaction.
+type querier interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+// toldAt is the most urgent layer a finding was told at (1 most urgent .. 4), 0 when it never was. A notice of an escalation records it
+// (notify_notice_finding.layer), so the history of notices is the memory of what was told.
+func (s *Service) toldAt(ctx context.Context, q querier, findingID string) (int, error) {
+	var layer sql.NullInt64
+	if err := q.QueryRowContext(ctx, `SELECT min(nf.layer) FROM notify_notice_finding nf WHERE nf.finding_id = ? AND nf.layer > 0`, findingID).Scan(&layer); err != nil {
+		return 0, fmt.Errorf("notify: read what a finding was told at: %w", err)
+	}
+	return int(layer.Int64), nil
 }
 
 func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
@@ -129,36 +138,48 @@ func (s *Service) enqueue(ctx context.Context, tx *sql.Tx, n Notice) error {
 	if n.At.IsZero() {
 		n.At = now
 	}
-	if !n.Sendable() {
-		keys := slices.Clone(n.CVEs)
-		if len(keys) == 0 {
-			keys = []string{"notice:" + n.ID} // a notice that names no CVE still counts once
-		}
-		if n.Kind == KindVuln && !n.exploited() {
-			return nil // notify_kev counts exploited vulnerabilities only
-		}
-		return markKEV(ctx, tx, keys, now, false)
-	}
 	if n.Kind == KindVuln {
-		if n.exploited() {
-			if err := markKEV(ctx, tx, n.CVEs, now, true); err != nil {
-				return err
+		// Layer 5 (update recommended) never alerts, and a notice that names no device is never sent (INV-2): the News of the History page
+		// counts the exploited CVEs that matched no device from the signals themselves.
+		if n.Layer >= layerUpdate || !n.Sendable() {
+			return nil
+		}
+		layers := n.findingLayers()
+		if tellsUrgency(n.Event) {
+			// One alert per escalation: a finding already told at this layer or a more urgent one is not told again. A notice that tells
+			// nothing new is not recorded either.
+			fresh := false
+			for i, id := range n.FindingIDs {
+				told, err := s.toldAt(ctx, tx, id)
+				if err != nil {
+					return err
+				}
+				if told == 0 || told > layers[i] {
+					fresh = true
+				}
+			}
+			if !fresh && len(n.FindingIDs) > 0 {
+				return nil
 			}
 		}
 		cves, err := json.Marshal(n.CVEs)
 		if err != nil {
 			return fmt.Errorf("notify: encode CVEs: %w", err)
 		}
-		r, err := tx.ExecContext(ctx, `INSERT INTO notify_notice (id, created_at, product, cves) VALUES (?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`,
-			n.ID, store.FormatTS(n.At), n.Product, string(cves))
+		r, err := tx.ExecContext(ctx, `INSERT INTO notify_notice (id, event, created_at, product, cves) VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING`,
+			n.ID, n.Event, store.FormatTS(n.At), n.Product, string(cves))
 		if err != nil {
 			return fmt.Errorf("notify: save notice: %w", err)
 		}
 		if c, _ := r.RowsAffected(); c == 0 {
 			return nil // the same notice again (an event delivered twice): already queued or sent
 		}
-		for _, f := range n.FindingIDs {
-			if _, err := tx.ExecContext(ctx, `INSERT INTO notify_notice_finding (notice_id, finding_id) VALUES (?, ?) ON CONFLICT DO NOTHING`, n.ID, f); err != nil {
+		for i, f := range n.FindingIDs {
+			layer := 0
+			if tellsUrgency(n.Event) {
+				layer = layers[i]
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO notify_notice_finding (notice_id, finding_id, layer) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, n.ID, f, layer); err != nil {
 				return fmt.Errorf("notify: save notice findings: %w", err)
 			}
 		}
@@ -772,11 +793,7 @@ func (s *Service) prune(ctx context.Context, now time.Time) error {
 	if !due {
 		return nil
 	}
-	cut := store.FormatTS(now.AddDate(0, 0, -kevKeepDays))
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM notify_kev WHERE seen_at < ?`, cut); err != nil {
-			return fmt.Errorf("notify: prune exploited vulnerabilities: %w", err)
-		}
 		if err := pruneSlackButtons(ctx, tx, now); err != nil {
 			return err
 		}

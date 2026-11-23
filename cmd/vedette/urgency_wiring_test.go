@@ -212,7 +212,7 @@ func TestUrgencyWiring_ARiseIsOneAlertWithItsReasons(t *testing.T) {
 			fid = f.ID
 		}
 	}
-	if got := byID("nt-" + fid + "-urgency-3-"); len(got) != 1 || !strings.Contains(got[0].What, "Why: Public exploit: Metasploit") ||
+	if got := byID("nt-" + fid + "-urgency_changed-3"); len(got) != 1 || !strings.Contains(got[0].What, "Why: Public exploit available: Metasploit") ||
 		strings.Contains(got[0].Title+got[0].What, "exploited in") {
 		t.Fatalf("the public-exploit rise: %+v", got)
 	}
@@ -223,7 +223,7 @@ func TestUrgencyWiring_ARiseIsOneAlertWithItsReasons(t *testing.T) {
 	if err := findingsJobs(*s.d)[2].Run(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	got := byID("nt-" + fid + "-urgency-2-")
+	got := byID("nt-" + fid + "-urgency_changed-2")
 	if len(got) != 1 || !strings.Contains(got[0].What, "Why: Exploited in the wild: Rapid7") || !strings.Contains(got[0].What, "not yet on CISA's list") ||
 		strings.Contains(got[0].What, "rapid7-blog") {
 		t.Fatalf("the exploited rise: %+v", got)
@@ -242,7 +242,7 @@ func TestUrgencyWiring_TheFirstRunIsOneSummaryNotice(t *testing.T) {
 		switch {
 		case strings.HasPrefix(n.ID, "nt-first-run-install-"):
 			sums = append(sums, n)
-		case strings.Contains(n.ID, "-urgency-"):
+		case n.Event == notify.NoticeUrgencyChanged:
 			alerts = append(alerts, n)
 		}
 	}

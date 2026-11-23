@@ -29,7 +29,6 @@ const (
 //     that covers them.
 //
 // notify_pending (the queue of what is not sent yet) is never touched: it is not history, and the stale rule owns it.
-// notify_kev has its own, shorter, clean-up.
 func (s *Service) RunRetention(ctx context.Context) error {
 	cut := store.FormatTS(s.now().Add(-retention))
 	var sends, incidents, notices int64

@@ -10,14 +10,17 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/exec"
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/scan/commonports"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// Service identification on the box's own verified public IP, for exposure (exposure INV-19):
-// nmap -sV in the scan container over the fixed TCP list of the surface scan (nmapargv.External). The consent is exposure's
+// Service identification on the box's own verified public IP, for exposure (exposure INV-19): nmap in the scan container, in two
+// runs of the external shape (nmapargv.External): port discovery over nmap's own most common TCP ports, then -sV over the fixed list
+// (the surface scan's ports and the reviewed admin ports) and the open ports the discovery found outside it. The consent is exposure's
 // (a verified, committed, current IP target), not the LAN scope's: the LAN settings, window and scope do not apply, and nothing
 // is written to the inventory. What holds: one nmap at a time on the box (runMu), the own-IP fence right before the job is handed
 // out (and again in the worker), the probe row before the job (INV-9, LEGAL §3), the XML limits (INV-7) and a tighter port bound.
@@ -32,7 +35,8 @@ const KindExternal = "external"
 // address) or ErrEgressUnverified (the worker could not reach the public IP services to check). ErrHostTimedOut: nmap ran and
 // gave up on the host at its --host-timeout, so it printed no port table and nothing can be said of the services.
 // ErrAnswersEverywhere: nmap saw more than commonports.MaxBelievableOpen ports open, the shape of a router or firewall that
-// answers for every port: its -sV rows describe that device, not services, so they are discarded.
+// answers for every port: its rows describe that device, not services, so they are discarded. Only the full shapes return it: the
+// External shape still reads the fixed list with -sV and keeps the ports that named a service (External.AnswersEverywhere).
 var (
 	ErrBusy              = errors.New("sensoractive: the scan container's nmap is busy with another scan")
 	ErrNoTime            = errors.New("sensoractive: too little time was left for service identification")
@@ -107,29 +111,43 @@ type ScriptFinding struct {
 	CVEs  []string
 }
 
-// External is the result of ScanExternal: the open ports with what -sV read, how many TCP ports were probed, and the script
-// results of a full run (nil for the External shape).
+// External is the result of ScanExternal: the open ports with what -sV read, how many TCP ports were probed, which ones, and
+// the script results of a full run (nil for the External shape). Probed are the TCP ports the run probed, ascending: for the External
+// shape the ports nmap's discovery says it probed (its <scaninfo>, nmap's own top ports) and those of the -sV run; nil for a full
+// shape, which probed every port 1..65535. Ports is their count (65535 for a full shape). DiscoveryCut: the External shape's
+// discovery hit its host timeout or its output was not usable, so only the -sV run's fixed list was probed (Probed is that list).
+// AnswersEverywhere: the address answers on almost every port (a router or SYN proxy), so the -sV run read the fixed list only
+// and Services keeps only the ports where -sV named a real service.
 type External struct {
-	Services []ExternalService
-	Ports    int
-	Scripts  []ExternalScript
+	Services          []ExternalService
+	Ports             int
+	Probed            []int
+	Scripts           []ExternalScript
+	DiscoveryCut      bool
+	AnswersEverywhere bool
 }
 
-// externalRun bounds an external run whose context has no deadline (exposure gives it 5 minutes, ServicesTimeout there); fullRun
+// externalRun bounds an external run whose context has no deadline (exposure gives it ServicesTimeout there, 8 minutes); fullRun
 // that of a full run (exposure gives it FullServicesTimeout, the host timeout plus 10 minutes).
 const (
-	externalRun = 5 * time.Minute
+	externalRun = 8 * time.Minute
 	fullRun     = nmapargv.FullHostTimeout + 10*time.Minute
 )
 
-// externalNeed is the least time an external run needs once it has the nmap slot and core's fence said yes (#723 review L5): the
-// worker's fence (at most 5 rounds of 5 s), nmap's --host-timeout of 3 minutes, and the pickup and the result (15 s). With less
-// left of the caller's deadline the run is skipped (ErrNoTime) rather than cut by it halfway; the wait for the slot is shortened
-// to leave it, plus coreFenceTime for core's own check. fullNeed is the same with the full shapes' host timeout.
+// externalStep is what one nmap job of an external shape needs on top of nmap's own --host-timeout once it has the nmap slot and
+// core's fence said yes (#723 review L5): the worker's fence (at most 5 rounds of 5 s) and the pickup and the result (15 s).
+// externalNeed is the least time an External run needs: its two jobs (the discovery and the -sV run); versionsNeed what the -sV
+// run alone needs, checked again before it is sent. With less left of the caller's deadline the run is skipped (ErrNoTime) rather
+// than cut by it halfway; the wait for the slot is shortened to leave it, plus coreFenceTime for core's own check. fullNeed is the
+// same with the full shapes' host timeout. externalNeed also holds core's own-IP check between the two jobs (coreFenceTime), so a
+// run whose discovery took its whole host timeout is never cut before its -sV job. Worst case of an External run: 2 + 3 minutes
+// of nmap, 6 min 50 s with the steps.
 const (
-	externalNeed  = 25*time.Second + 3*time.Minute + 15*time.Second
-	fullNeed      = 25*time.Second + nmapargv.FullHostTimeout + 15*time.Second
 	coreFenceTime = 30 * time.Second
+	externalStep  = 25*time.Second + 15*time.Second
+	versionsNeed  = externalStep + nmapargv.ExternalVersionsTimeout
+	externalNeed  = externalStep + nmapargv.ExternalDiscoveryTimeout + coreFenceTime + versionsNeed
+	fullNeed      = externalStep + nmapargv.FullHostTimeout
 )
 
 // boundsOf is the time a run of kind needs and its bound without a deadline.
@@ -147,9 +165,6 @@ func left(ctx context.Context, def time.Duration) time.Duration {
 	}
 	return def
 }
-
-// externalPorts are the port numbers the external shape names (-p); a port outside them in the XML fails the run (INV-7).
-var externalPorts = commonports.Numbers()
 
 // ScanExternal identifies the services on the open TCP ports of ip, the box's own verified public IP, for exposure, with
 // the shape kind: External, or one of the full shapes of a target whose testing terms are accepted.
@@ -306,26 +321,129 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 	if left(ctx, run) < need {
 		return External{}, ErrNoTime
 	}
-	targets := []netip.Addr{ip}
-	rate := nmapargv.ExternalRateOf(kind)
-	args, err := nmapargv.Build(kind, rate, targets)
-	if err != nil {
-		return External{}, fmt.Errorf("sensoractive: %w", err)
+	if kind == nmapargv.External {
+		return s.probeDefault(ctx, jobID, ip, own)
 	}
-	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets, note)
+	var ext External
+	err := s.externalJob(ctx, jobID, ip, kind, nil, note, dom, run, func(hosts []host) (string, error) {
+		var err error
+		if ext, err = externalOf(hosts, ip, kind); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("ok: %d open ports, %d script results", len(ext.Services), len(ext.Scripts)), nil
+	})
 	if err != nil {
 		return External{}, err
 	}
+	return ext, nil
+}
+
+// probeDefault is the External shape on the box's own public IP, two nmap jobs under the one job row, each with its probe row
+// (INV-9): the discovery (SYN only, nmap's own top ports), core's own-IP fence again, then the -sV run. The fixed list always gets
+// its -sV run, whatever the discovery said:
+//   - discovery ok, at most commonports.MaxBelievableOpen open: -sV over ExternalVersionPorts(open), Probed is both runs' ports;
+//   - more open than that (a router or SYN proxy answering for every port): -sV over the fixed list only, and only the ports where
+//     -sV named a real service are kept (AnswersEverywhere);
+//   - the discovery hit its host timeout or its output was not usable (nmap failed, a wrong <scaninfo>): -sV over the fixed list,
+//     Probed is that list only (DiscoveryCut).
+//
+// A refusal of either fence, a stop, a missing worker or an older worker ends the run as before: nothing more is sent.
+func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr, own OwnEgress) (External, error) {
+	var scanned, open []int
+	everywhere := false
+	err := s.externalJob(ctx, jobID, ip, nmapargv.External, nil, probeNote{}, nil, externalRun, func(hosts []host) (string, error) {
+		var err error
+		scanned, open, err = discoveryOf(hosts, ip)
+		if errors.Is(err, ErrAnswersEverywhere) {
+			everywhere = true
+			return fmt.Sprintf("ok: more than %d ports open, the address answers on almost every port; -sV reads the fixed list next", commonports.MaxBelievableOpen), nil
+		}
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("ok: %d of %d ports open", len(open), len(scanned)), nil
+	})
+	cut := false
+	switch {
+	case err == nil:
+	case discoveryUnusable(err): // nmap ran but said nothing usable about the top ports: the fixed list still gets -sV
+		cut = true
+	default:
+		return External{}, err
+	}
+	if cut || everywhere {
+		scanned, open = nil, nil
+	}
+	ports, err := nmapargv.ExternalVersionPorts(open)
+	if err != nil { // never reached: discoveryOf bounds open
+		return External{}, fmt.Errorf("sensoractive: %w", err)
+	}
+	ok, err := own.OwnEgress(ctx, ip) // the discovery took up to its host timeout: ask again before the next job leaves
+	switch {
+	case ctx.Err() != nil:
+		return External{}, ErrStopped
+	case err != nil:
+		return External{}, fmt.Errorf("sensoractive: checking that %s is the box's own public IP: %w", ip, err)
+	case !ok:
+		s.log.WarnContext(ctx, "sensoractive: external scan stopped after its port discovery, the address is not the box's own public IP now; no -sV sent", "ip", ip.String())
+		return External{}, ErrNotOwnIP
+	}
+	if left(ctx, externalRun) < versionsNeed {
+		return External{}, ErrNoTime
+	}
+	var ext External
+	err = s.externalJob(ctx, jobID, ip, nmapargv.External, ports, probeNote{}, nil, externalRun, func(hosts []host) (string, error) {
+		var err error
+		if ext, err = versionsOf(hosts, ip, ports, everywhere); err != nil {
+			return "", err
+		}
+		if ext.AnswersEverywhere {
+			return fmt.Sprintf("ok: %d open ports named a service; the address answers on almost every port, the others were dropped", len(ext.Services)), nil
+		}
+		return fmt.Sprintf("ok: %d open ports", len(ext.Services)), nil
+	})
+	if err != nil {
+		return External{}, err
+	}
+	ext.Probed = unionPorts(scanned, ports)
+	ext.Ports = len(ext.Probed)
+	ext.DiscoveryCut = cut
+	return ext, nil
+}
+
+// discoveryUnusable says the discovery's nmap ran and its output says nothing usable about the top ports: it gave up at its host
+// timeout, exited with an error, printed too much or something not believed (a wrong <scaninfo>, a port outside it). The -sV run of
+// the fixed list still follows. An older worker's earlier line (errOlderShape) is not one: its -sV job would be refused too.
+func discoveryUnusable(err error) bool {
+	var ee *exec.ExitError
+	return !errors.Is(err, errOlderShape) &&
+		(errors.Is(err, ErrHostTimedOut) || errors.Is(err, errXMLInvalid) || errors.Is(err, errXMLTooBig) || errors.As(err, &ee))
+}
+
+// externalJob runs one nmap job of an external shape (ports: the -sV run of the External shape, nil otherwise) with its probe row,
+// bounded by what is left of run: read turns the hosts of its XML into the row's "ok" text, or an error the row names.
+func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, ports []int, note probeNote, dom *DomainIP, run time.Duration,
+	read func([]host) (string, error)) error {
+	targets := []netip.Addr{ip}
+	rate := nmapargv.ExternalRateOf(kind)
+	args, err := nmapargv.BuildFor(kind, rate, ports, targets)
+	if err != nil {
+		return fmt.Errorf("sensoractive: %w", err)
+	}
+	probeID, err := s.insertProbe(ctx, jobID, kind, rate, targets, note, ports...)
+	if err != nil {
+		return err
+	}
 	if ctx.Err() != nil {
 		s.finishProbe(ctx, probeID, note.with(stoppedText))
-		return External{}, ErrStopped
+		return ErrStopped
 	}
 	rctx, cancel := context.WithTimeout(ctx, min(left(ctx, run), run))
 	defer cancel()
 	var out Output
 	var runErr error
 	if dom != nil {
-		out, runErr = s.prober.(DomainProber).ProbeDomain(rctx, args, dom.Scope) //nolint:forcetypeassert // checked above
+		out, runErr = s.prober.(DomainProber).ProbeDomain(rctx, args, dom.Scope) //nolint:forcetypeassert // checked by probeExternal
 	} else {
 		out, runErr = s.prober.Probe(rctx, args)
 	}
@@ -336,23 +454,22 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 			result = note.with("stopped by the scan container's domain fence (" + refused.Reason + "), results discarded")
 		}
 		s.finishProbe(ctx, probeID, result)
-		return External{}, runErr
+		return runErr
 	}
 	hosts, result, err := runOutcome(ctx, rctx, out, runErr)
-	var ext External
 	if err == nil {
-		if ext, err = externalOf(hosts, ip, kind); err != nil {
+		if result, err = read(hosts); err != nil {
 			result = "failed: output not valid, discarded"
+			var count *topPortsError
 			switch {
+			case errors.As(err, &count):
+				result = fmt.Sprintf("failed: nmap probed %d ports, not its top %d; output discarded", count.n, nmapargv.ExternalTopPorts)
+			case errors.Is(err, errOlderShape):
+				result = "failed: the scan worker is older and ran the earlier fixed-list line; output discarded"
 			case errors.Is(err, ErrHostTimedOut):
 				result = "failed: nmap gave up on the address at its host timeout"
 			case errors.Is(err, ErrAnswersEverywhere):
 				result = "failed: the address answers on almost every port; the service results were discarded"
-			}
-		} else {
-			result = fmt.Sprintf("ok: %d open ports", len(ext.Services))
-			if kind.IsFull() {
-				result += fmt.Sprintf(", %d script results", len(ext.Scripts))
 			}
 		}
 	}
@@ -360,39 +477,126 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 	if errors.Is(err, errDeadline) {
 		err = ErrStopped
 	}
-	if err != nil {
-		return External{}, err
-	}
-	return ext, nil
+	return err
 }
 
-// externalOf reads the services of an external run from every host nmap reported up. Beyond the limits of parseNmapXML (INV-7)
-// it fails closed on anything but exactly one host, the asked address (-Pn reports it up; none means nmap printed nothing usable
-// for it, never "no open port", #723 review L3), a port that is not TCP or not in the probed list, and a port twice: an answer
-// outside what was asked is not believed in part. More than commonports.MaxBelievableOpen open ports is
-// ErrAnswersEverywhere. A full shape probed every TCP port (-p-): any port 1..65535 is in the list, and its script
-// results (of an open port of the list, or of the host) are kept.
-func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind) (External, error) {
-	probed := func(p int) bool { return slices.Contains(externalPorts, p) }
-	ext := External{Services: []ExternalService{}, Ports: len(externalPorts)}
-	if kind.IsFull() {
-		probed = func(p int) bool { return p >= 1 && p <= 65535 }
-		ext.Ports, ext.Scripts = 65535, []ExternalScript{}
-	}
+// unionPorts is the ascending union of two port lists.
+func unionPorts(a, b []int) []int {
+	out := slices.Concat(a, b)
+	slices.Sort(out)
+	return slices.Compact(out)
+}
+
+// externalHost is the one host of an external run's XML: exactly one host, the asked address (-Pn reports it up; none means nmap
+// printed nothing usable for it, never "no open port", #723 review L3), not given up on at its host timeout, and its open ports
+// TCP, probed (probed) and each once: an answer outside what was asked is not believed in part (INV-7).
+func externalHost(hosts []host, ip netip.Addr, probed func(int) bool) (host, error) {
 	switch {
 	case len(hosts) != 1:
-		return External{}, fmt.Errorf("%w: %d hosts for one address", errXMLInvalid, len(hosts))
+		return host{}, fmt.Errorf("%w: %d hosts for one address", errXMLInvalid, len(hosts))
 	case hosts[0].addr != ip:
-		return External{}, fmt.Errorf("%w: a host that was not asked about", errXMLInvalid)
+		return host{}, fmt.Errorf("%w: a host that was not asked about", errXMLInvalid)
 	case hosts[0].timedOut:
-		return External{}, ErrHostTimedOut
+		return host{}, ErrHostTimedOut
 	}
 	seen := map[int]bool{}
 	for _, p := range hosts[0].ports {
 		if p.proto != "tcp" || !probed(p.number) || seen[p.number] {
-			return External{}, fmt.Errorf("%w: port %s/%d was not probed", errXMLInvalid, p.proto, p.number)
+			return host{}, fmt.Errorf("%w: port %s/%d was not probed", errXMLInvalid, p.proto, p.number)
 		}
 		seen[p.number] = true
+	}
+	return hosts[0], nil
+}
+
+// topPortsError is a discovery whose <scaninfo> did not list nmapargv.ExternalTopPorts ports (a changed nmap, a broken
+// nmap-services): the run is not believed, and the probe row says how many it listed.
+type topPortsError struct{ n int }
+
+func (e *topPortsError) Error() string {
+	return fmt.Sprintf("%v: the run probed %d ports, not nmap's top %d", errXMLInvalid, e.n, nmapargv.ExternalTopPorts)
+}
+
+func (e *topPortsError) Unwrap() error { return errXMLInvalid }
+
+// errOlderShape: the discovery job reached a worker of an earlier release, which ran that release's external line (-sV over exactly
+// the fixed surface list) instead of the discovery. Its output is not believed; the caller says the worker may be older.
+var errOlderShape = fmt.Errorf("%w: the worker ran the earlier fixed-list line", ErrWorkerRefused)
+
+// discoveryOf reads the External shape's discovery: the TCP ports nmap says it probed (its <scaninfo services>, which must be
+// exactly nmapargv.ExternalTopPorts ports, as --top-ports asked: anything else is not the run that was asked for) and the open ones
+// among them, ascending. More than commonports.MaxBelievableOpen open is ErrAnswersEverywhere: the -sV run then reads the fixed list alone.
+func discoveryOf(hosts []host, ip netip.Addr) (scanned, open []int, err error) {
+	if len(hosts) == 1 {
+		scanned = expandRanges(hosts[0].scanned, 65535)
+	}
+	if len(scanned) != nmapargv.ExternalTopPorts && (len(hosts) != 1 || !hosts[0].timedOut) {
+		if slices.Equal(scanned, commonports.Numbers()) {
+			return nil, nil, errOlderShape
+		}
+		return nil, nil, &topPortsError{n: len(scanned)}
+	}
+	h, err := externalHost(hosts, ip, func(p int) bool { _, ok := slices.BinarySearch(scanned, p); return ok })
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, p := range h.ports {
+		open = append(open, p.number)
+	}
+	slices.Sort(open)
+	if len(open) > commonports.MaxBelievableOpen { // A router or SYN proxy answering for every port
+		return nil, nil, ErrAnswersEverywhere
+	}
+	return scanned, open, nil
+}
+
+// expandRanges is the ascending distinct ports of ranges; nil when they hold more than limit ports.
+func expandRanges(rs []observe.PortRange, limit int) []int {
+	var out []int
+	for _, r := range rs {
+		if len(out)+r.To-r.From+1 > limit {
+			return nil
+		}
+		for p := r.From; p <= r.To; p++ {
+			out = append(out, p)
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
+}
+
+// versionsOf reads the services of the External shape's -sV run, which probed exactly ports. With everywhere (the discovery saw
+// the address answer on almost every port), or with more than commonports.MaxBelievableOpen open ports here, the address is a router
+// or SYN proxy answering for every port: only the ports where -sV named a real service (identifiedService) are kept, and
+// AnswersEverywhere says the others were dropped.
+func versionsOf(hosts []host, ip netip.Addr, ports []int, everywhere bool) (External, error) {
+	h, err := externalHost(hosts, ip, func(p int) bool { _, ok := slices.BinarySearch(ports, p); return ok })
+	if err != nil {
+		return External{}, err
+	}
+	ext := External{Services: externalServicesOf(h)}
+	if everywhere || len(ext.Services) > commonports.MaxBelievableOpen {
+		ext.Services = slices.DeleteFunc(ext.Services, func(x ExternalService) bool { return !identifiedService(x) })
+		ext.AnswersEverywhere = true
+	}
+	return ext, nil
+}
+
+// identifiedService says -sV named a real service on the port: a product or a version, or a service name a probe matched that is
+// not "tcpwrapped" (the port accepted the connection and closed it, what a SYN proxy does on every port) nor "unknown". A name taken
+// only from the port number (method "table") is not one.
+func identifiedService(x ExternalService) bool {
+	if x.Product != "" || x.Version != "" {
+		return true
+	}
+	name := strings.TrimPrefix(x.Name, "ssl/")
+	return name != "" && name != "tcpwrapped" && name != "unknown" && x.Method != "table"
+}
+
+// externalServicesOf is what -sV read on each open port of h.
+func externalServicesOf(h host) []ExternalService {
+	out := []ExternalService{}
+	for _, p := range h.ports {
 		cpe := ""
 		for _, c := range p.cpes {
 			if strings.HasPrefix(c, "cpe:/a:") {
@@ -400,22 +604,39 @@ func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind) (External, erro
 				break
 			}
 		}
-		ext.Services = append(ext.Services, ExternalService{Port: p.number, Name: p.name, Product: p.product, Version: p.version, CPE: cpe, Extra: p.info, Method: p.method, Conf: p.conf})
+		out = append(out, ExternalService{Port: p.number, Name: p.name, Product: p.product, Version: p.version, CPE: cpe, Extra: p.info, Method: p.method, Conf: p.conf})
 	}
+	return out
+}
+
+// externalOf reads the result of a full run (every TCP port, -p-): the services of its open ports (more than
+// commonports.MaxBelievableOpen is ErrAnswersEverywhere) and its script results (of an open port, or of the host). The External
+// shape's two runs are read by discoveryOf and versionsOf.
+func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind) (External, error) {
+	if !kind.IsFull() {
+		return External{}, fmt.Errorf("sensoractive: %s is not a full shape", kind.Name())
+	}
+	h, err := externalHost(hosts, ip, func(p int) bool { return p >= 1 && p <= 65535 })
+	if err != nil {
+		return External{}, err
+	}
+	ext := External{Services: externalServicesOf(h), Ports: 65535, Scripts: []ExternalScript{}}
 	if len(ext.Services) > commonports.MaxBelievableOpen { // A router or SYN proxy answering for every port
 		return External{}, ErrAnswersEverywhere
 	}
-	if kind.IsFull() {
-		for _, sc := range hosts[0].scripts {
-			if sc.port != 0 && !seen[sc.port] { // parseNmapXML keeps only scripts of open ports: never reached
-				return External{}, fmt.Errorf("%w: a script of port %d, which is not open", errXMLInvalid, sc.port)
-			}
-			row := ExternalScript{Port: sc.port, ID: sc.id, Output: sc.output}
-			for _, f := range sc.findings {
-				row.Findings = append(row.Findings, ScriptFinding{State: f.state, Title: f.title, CVEs: slices.Clone(f.cves)})
-			}
-			ext.Scripts = append(ext.Scripts, row)
+	seen := map[int]bool{}
+	for _, p := range h.ports {
+		seen[p.number] = true
+	}
+	for _, sc := range h.scripts {
+		if sc.port != 0 && !seen[sc.port] { // parseNmapXML keeps only scripts of open ports: never reached
+			return External{}, fmt.Errorf("%w: a script of port %d, which is not open", errXMLInvalid, sc.port)
 		}
+		row := ExternalScript{Port: sc.port, ID: sc.id, Output: sc.output}
+		for _, f := range sc.findings {
+			row.Findings = append(row.Findings, ScriptFinding{State: f.state, Title: f.title, CVEs: slices.Clone(f.cves)})
+		}
+		ext.Scripts = append(ext.Scripts, row)
 	}
 	return ext, nil
 }

@@ -449,9 +449,28 @@ func sanitize(c Content) Content {
 			out.Unresolved = append(out.Unresolved, n)
 		}
 	}
+	var probed map[string][]int
+	for ip, ports := range c.Probed {
+		if a, err := netip.ParseAddr(ip); err == nil && len(probed) < maxContentRows {
+			if probed == nil {
+				probed = map[string][]int{}
+			}
+			probed[a.Unmap().String()] = sanitizeProbed(ports)
+		}
+	}
 	return Content{Hosts: nz(out.Hosts), Ports: nz(out.Ports), AdminPanels: nz(out.AdminPanels), Certs: nz(out.Certs), Unresolved: out.Unresolved,
 		Services: sanitizeServices(c.Services), Templates: sanitizeTemplates(c.Templates, sanitizeServices(c.Services)), Checks: sanitizeChecks(c.Checks), NotChecked: sanitizeNotChecked(c.NotChecked), WebFindings: sanitizeWeb(c.WebFindings),
-		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts)}
+		Greenbone: sanitizeGreenbone(c.Greenbone), Scripts: sanitizeScripts(c.Scripts), Probed: probed}
+}
+
+// probedOn says this scan probed port on the address ip (canonical spelling): a port of the runner's fixed list (commonports), or
+// one the service step said it probed there (Content.Probed: nmap's most common ports of the default scan).
+func probedOn(c Content, ip string, port int) bool {
+	if slices.Contains(commonports.Numbers(), port) {
+		return true
+	}
+	_, ok := slices.BinarySearch(c.Probed[ip], port)
+	return ok
 }
 
 // scope says what the scan did with an address whose ports the previous observation listed (INV-22).
@@ -564,8 +583,8 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 	}
 	kept := map[key]bool{}
 	// A scan that says it did not probe every TCP port (not deep, the terms withdrawn or asked again, a deep nmap
-	// that did not finish) did not check a port outside the runner's fixed list, so such a port an earlier deep scan found is kept as
-	// it was, never "missed" or closed.
+	// that did not finish) did not check a port outside what it probed (the runner's fixed list, and the ports the default scan's nmap
+	// said it probed: probedOn), so such a port an earlier scan found is kept as it was, never "missed" or closed.
 	// Per address: one whose deep nmap finished this run (DeepScanned) was probed on every port, whatever another
 	// address of the domain did.
 	partial := slices.ContainsFunc(c.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "ports" })
@@ -592,7 +611,7 @@ func carryNotSeen(c Content, prev Snapshot, how map[string]scope) Content {
 				sc = scopeChecked
 			}
 		}
-		if sc == scopeChecked && partial && !deepNow[k.ip] && !slices.Contains(commonports.Numbers(), p.Port) {
+		if sc == scopeChecked && partial && !deepNow[k.ip] && !probedOn(c, k.ip, p.Port) {
 			sc = scopeKept
 		}
 		switch sc {

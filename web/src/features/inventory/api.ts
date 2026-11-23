@@ -5,7 +5,7 @@ import { api, ApiError } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentReport, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse, DeviceSourcesView,
-  ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SourcesInput, SourcesState, SnmpResponse,
+  ImportResult, InventorySettings, KeepSeparateInput, MergeChoice, MergeInput, MergePreview, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SourcesInput, SourcesState, SnmpResponse, SplitInput,
   DeviceSnmp, DeviceSnmpInput, DetectedField, SnmpCheckResult,
   WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
@@ -125,23 +125,39 @@ export function useDeviceSources(id: string) {
 }
 /** #829: every pair of devices that may be one machine; one cached read for the To review hints and the `possible:same` filter. */
 export const usePossibleSame = () => useQuery({ queryKey: ['inventory', 'possible-same'], queryFn: () => api.get<SamePairs>('/inventory/possible-same'), retry: false })
-/** #829: Merge (`from` joins `into` and is gone) and Keep separate, admin only. After a merge the device that went is not
- *  read again (its page would answer 404 while it navigates away); every other inventory, feeds and findings query is. */
+/** What merging `from` into `into` would do (admin): both sides, what moves, the fields that differ and the refusal; nothing
+ *  changes. Read again whenever the kept device or the devices change. */
+export const useMergePreview = (into: string, from: string[], enabled = true) => useQuery({
+  queryKey: ['inventory', 'merge-preview', into, from.join(',')], retry: false, enabled: enabled && !!into && from.length > 0,
+  // the last answer stays while the next is read (another device kept), so the dialog does not empty under the person's choice
+  placeholderData: (prev) => prev,
+  queryFn: () => api.get<MergePreview>(`/inventory/devices/${encodeURIComponent(into)}/merge-preview?from=${encodeURIComponent(from.join(','))}`),
+})
+/** #829: Merge (every device of `from` joins `into` and is gone, in one step) and Keep separate, admin only. After a merge the
+ *  devices that went are not read again (their page would answer 404 while it navigates away); every other inventory, feeds and
+ *  findings query is. */
 export function useSameDevice() {
   const qc = useQueryClient()
-  const refresh = (gone?: string) => Promise.all([
-    qc.invalidateQueries({ queryKey: ['inventory'], predicate: (q) => !(gone && q.queryKey[1] === 'device' && q.queryKey[2] === gone) }),
+  const refresh = (gone: string[] = []) => Promise.all([
+    // not the devices that went (their page would answer 404) nor the merge preview (the dialog closes)
+    qc.invalidateQueries({ queryKey: ['inventory'], predicate: (q) => q.queryKey[1] !== 'merge-preview' && !(q.queryKey[1] === 'device' && gone.includes(String(q.queryKey[2]))) }),
     qc.invalidateQueries({ queryKey: ['feeds'] }), qc.invalidateQueries({ queryKey: ['findings'] }),
   ])
   return {
     merge: useMutation({
-      mutationFn: ({ into, from }: { into: string; from: string }) => api.post<{ id: string }>(`/inventory/devices/${encodeURIComponent(into)}/merge`, { from: [from] } satisfies MergeInput),
-      onSuccess: (_r, v) => { qc.removeQueries({ queryKey: ['inventory', 'device', v.from], exact: true, type: 'inactive' }); return refresh(v.from) },
-      // #876 r1: a device gone meanwhile (404) or a pair the box now tells apart (409): read both devices and the pairs again, so the
-      // notice stops offering what no longer exists (the dialog keeps the words; it lives outside the notice).
+      mutationFn: ({ into, from, fields }: { into: string; from: string[]; fields?: MergeChoice }) =>
+        api.post<{ id: string }>(`/inventory/devices/${encodeURIComponent(into)}/merge`, (fields ? { from, fields } : { from }) satisfies MergeInput),
+      onSuccess: (_r, v) => {
+        for (const f of v.from) qc.removeQueries({ queryKey: ['inventory', 'device', f], exact: true, type: 'inactive' })
+        return refresh(v.from)
+      },
+      // #876 r1: a device gone meanwhile (404) or devices the box now tells apart (409): read the devices, the preview and the pairs
+      // again, so nothing offers what no longer exists (the dialog keeps the words).
       onError: (e, v) => {
         if (!(e instanceof ApiError) || (e.status !== 404 && e.status !== 409)) return
-        for (const id of [v.into, v.from]) void qc.invalidateQueries({ queryKey: ['inventory', 'device', id], exact: true })
+        for (const id of [v.into, ...v.from]) void qc.invalidateQueries({ queryKey: ['inventory', 'device', id], exact: true })
+        void qc.invalidateQueries({ queryKey: ['inventory', 'merge-preview'] })
+        void qc.invalidateQueries({ queryKey: ['inventory', 'devices'], exact: true })
         void qc.invalidateQueries({ queryKey: ['inventory', 'possible-same'], exact: true })
       },
     }),
@@ -150,6 +166,17 @@ export function useSameDevice() {
       onSuccess: () => refresh(),
     }),
   }
+}
+/** Split one address off a device (admin): that interface becomes a device of its own; the answer is the new device. */
+export function useSplitAddress(id: string) {
+  const inv = useInvalidate()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (address: string) => api.post<{ id: string }>(`/inventory/devices/${encodeURIComponent(id)}/split`, { address } satisfies SplitInput),
+    onSuccess: inv,
+    // an address gone meanwhile (404) or one that may no longer be split (409): read the device again, so the list is the box's
+    onError: (e) => { if (e instanceof ApiError && (e.status === 404 || e.status === 409)) void qc.invalidateQueries({ queryKey: ['inventory', 'device', id], exact: true }) },
+  })
 }
 export function useNotifyNew() {
   const inv = useInvalidate()

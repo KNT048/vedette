@@ -37,8 +37,9 @@ async function listSeen(name: string) {
   renderApp('/devices')
   const table = await screen.findByRole('table', { name: 'Device list' }, T)
   const row = (await within(table).findByText(name, undefined, T)).closest('tr') as HTMLElement
-  const cells = within(row).getAllByRole('cell')
-  return cells[cells.length - 1]!
+  // by its column: an admin's list also has the selection and row menu columns
+  const col = within(table).getAllByRole('columnheader').findIndex((h) => /Last seen/.test(h.textContent ?? ''))
+  return within(row).getAllByRole('cell')[col]!
 }
 
 describe('neverSeen', () => {

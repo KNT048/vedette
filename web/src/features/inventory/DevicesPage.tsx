@@ -2,7 +2,7 @@ import { createElement, useDeferredValue, useEffect, useMemo, useRef, useState }
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Download, Plus, Settings2 } from 'lucide-react'
+import { Download, GitMerge, MoreHorizontal, Plus, Settings2 } from 'lucide-react'
 import { slotComponents } from '@/app/feature'
 import { PageHeader } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
@@ -17,6 +17,7 @@ import { hasToken, TokenSearch, type TokenChip } from '@/components/common/Token
 import { DownloadButton } from '@/components/common/DownloadButton'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,8 @@ import { RiskMarker, riskRank } from './RiskMarker'
 import { PendingPanel } from './PendingPanel'
 import { IgnoredPanel } from './IgnoreDevice'
 import { SameChip } from './SameDevice'
+import { MergeFlow, type MergeStart } from './MergeDialog'
+import { MERGE_MAX_FROM, type Suggestion } from './mergeLogic'
 import { SnmpNotices } from './SnmpCard'
 import type { DeviceRow, ListSoftware, SoftwareName } from './types'
 
@@ -248,9 +251,13 @@ function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; 
   const sw = useMatches(swWanted)
   const { matches } = sw
   const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids, matches), [rows, deferred, now, same.ids, matches])
-  const selecting = slotComponents(DEVICES_ACTIONS_SLOT).length > 0
+  const admin = useCan('admin')
+  // the selection serves the scan buttons (slot) and, for an admin, Merge
+  const selecting = slotComponents(DEVICES_ACTIONS_SLOT).length > 0 || admin
   const [sel, ops] = useRowSelection()
+  const [merging, setMerging] = useState<MergeStart | null>(null)
   const shownIds = shown.map((d) => d.id)
+  const rowMenu = (d: DeviceRow) => (admin && !d.is_box ? <RowMenu d={d} suggested={same.suggested.get(d.id) ?? []} onMerge={setMerging} /> : null)
   const dash = <span className="text-muted">–</span>
   const nameLink = (d: DeviceRow, cls = '') => <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className={cn('font-medium text-accent underline-offset-4 hover:underline', cls)}>{nameOf(d, kindLabel(d.kind))}</Link>
   const columns: ColumnDef<DeviceRow>[] = [
@@ -296,11 +303,17 @@ function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; 
     { id: 'source', header: t('col.sources'), accessorFn: (d) => FEED_ORDER.filter((f) => feedsOfRow(d).has(f)).join(' '), cell: ({ row }) => <SourcesCell d={row.original} compact /> },
     // a hand-added device no report has seen sorts as the oldest and reads Never, its added time in the tooltip
     { id: 'seen', header: t('col.lastSeen'), accessorFn: (d) => (neverSeen(d) ? 0 : new Date(d.last_seen).getTime()), cell: ({ row }) => <LastSeen d={row.original} now={now} /> },
+    ...(admin ? [{ id: 'actions', enableSorting: false, header: () => <span className="sr-only">{t('software.actions')}</span>, cell: ({ row }: { row: { original: DeviceRow } }) => rowMenu(row.original) } satisfies ColumnDef<DeviceRow>] : []),
   ]
   return (
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">
       <DeviceSearch rows={rows} top={top} now={now} query={query} same={same.ids} bar={bar} shown={shown.length} />
-      {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], selected: rows.filter((d) => sel.has(d.id)), clearSelection: ops.clear }} /></div> : null}
+      {selecting ? (
+        <div className="flex flex-wrap items-start gap-2">
+          {admin ? <MergeSelected rows={rows} sel={sel} onMerge={setMerging} /> : null}
+          <Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], selected: rows.filter((d) => sel.has(d.id)), clearSelection: ops.clear }} />
+        </div>
+      ) : null}
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]} fillColumn="name"
         search={false} urlKey="devices" resetPageOn={deferred}
         onRowClick={(d) => void navigate(`/devices/${d.id}`)}
@@ -315,6 +328,7 @@ function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; 
                 {nameLink(d, 'min-w-0 [overflow-wrap:anywhere]')}
                 <RiskMarker id={d.id} risk={d.risk} />
                 <NameChips d={d} />
+                <span className="ml-auto">{rowMenu(d)}</span>
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted">
                 <TypeCell d={d} />
@@ -333,7 +347,50 @@ function DevicesList({ rows, top, now, query, same, bar }: { rows: DeviceRow[]; 
             </div>
           )
         }} />
+      {/* the list keeps its page, search and sort underneath; the devices that went leave the selection */}
+      {merging ? <MergeFlow start={merging} onClose={() => setMerging(null)} onMerged={(_kept, gone) => ops.remove(gone)} /> : null}
     </section>
+  )
+}
+
+/** "Merge (n)" over the selection (admin), when 2 or more devices are selected: the box is left out (it is always its own device),
+ *  and more than one merge takes is said instead of offered. */
+function MergeSelected({ rows, sel, onMerge }: { rows: DeviceRow[]; sel: ReadonlySet<string>; onMerge: (s: MergeStart) => void }) {
+  const { t } = useTranslation('inventory')
+  const picked = rows.filter((d) => sel.has(d.id))
+  const ids = picked.filter((d) => !d.is_box).map((d) => d.id)
+  const box = picked.some((d) => d.is_box)
+  if (ids.length < 2) return box && sel.size > 1 ? <p className="text-meta text-muted" role="status">{t('merge.bulkBoxLeftOut')}</p> : null
+  const tooMany = ids.length > MERGE_MAX_FROM + 1
+  return (
+    <div className="grid gap-1">
+      <Button size="sm" variant="primary" disabled={tooMany} aria-label={t('merge.bulkLabel', { count: ids.length })} onClick={() => onMerge({ ids })}><GitMerge />{t('merge.bulk', { count: ids.length })}</Button>
+      {tooMany ? <p className="text-meta text-muted" role="status">{t('merge.bulkTooMany', { max: MERGE_MAX_FROM + 1, from: MERGE_MAX_FROM })}</p> : null}
+      {box ? <p className="text-meta text-muted" role="status">{t('merge.bulkBoxLeftOut')}</p> : null}
+    </div>
+  )
+}
+
+/** A row's menu (admin): "Merge with…" (pick the twins), and "Merge with X" for each device the box suggests as the same one. */
+function RowMenu({ d, suggested, onMerge }: { d: DeviceRow; suggested: (Suggestion & { name: string })[]; onMerge: (s: MergeStart) => void }) {
+  const { t } = useTranslation('inventory')
+  const name = nameOf(d, kindLabel(d.kind))
+  return (
+    <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="icon" variant="ghost" aria-label={t('merge.rowMenu', { name })} title={t('merge.rowMenu', { name })}><MoreHorizontal /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {suggested.map((s) => (
+            <DropdownMenuItem key={s.id} onSelect={() => onMerge({ ids: [d.id, s.id] })}><GitMerge />{t('merge.withSuggested', { name: s.name })}</DropdownMenuItem>
+          ))}
+          <DropdownMenuItem onSelect={() => onMerge({ pickFor: { id: d.id, label: name, name: d.name, hostname: d.hostname, vendor: d.vendor, model: d.model, ips: d.ip && d.ip !== '—' ? [d.ip] : [] }, suggested })}>
+            <GitMerge />{t('merge.withMenu')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </span>
   )
 }
 
@@ -355,16 +412,19 @@ function ReviewList({ rows, top, now, notifyNew, notifyAvailable, query, same, b
 }
 
 /** #829: the pairs of GET /inventory/possible-same by device: the names of the others, and every id in a pair. One cached read. */
-type SamePairsBy = { ids: SameIds; others: ReadonlyMap<string, string[]> }
+type SamePairsBy = { ids: SameIds; others: ReadonlyMap<string, string[]>; suggested: ReadonlyMap<string, (Suggestion & { name: string })[]> }
 function usePairsByDevice(): SamePairsBy {
   const q = usePossibleSame()
   return useMemo(() => {
     const others = new Map<string, string[]>()
+    const suggested = new Map<string, (Suggestion & { name: string })[]>()
     for (const p of q.data?.items ?? []) {
       others.set(p.a.id, [...(others.get(p.a.id) ?? []), p.b.name])
       others.set(p.b.id, [...(others.get(p.b.id) ?? []), p.a.name])
+      suggested.set(p.a.id, [...(suggested.get(p.a.id) ?? []), { id: p.b.id, name: p.b.name, reason: p.reason, why: p.why }])
+      suggested.set(p.b.id, [...(suggested.get(p.b.id) ?? []), { id: p.a.id, name: p.a.name, reason: p.reason, why: p.why }])
     }
-    return { ids: new Set(others.keys()), others }
+    return { ids: new Set(others.keys()), others, suggested }
   }, [q.data])
 }
 

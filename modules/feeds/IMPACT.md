@@ -34,7 +34,7 @@
 
 ## Modifying: danh mục lỗ hổng (`feeds_cve`, `feeds_cve_metric`, `feeds_cve_range`, `feeds_kev`, `feeds_signal`, `feeds_epss_hist`, `feeds_nvd_cursor`, `ParseNVD`, `PickCVSS`, `retention`)
 - **findings** (qua `cmd/vedette` `findingsFeeds`): `Vulns` (`KevVulns`, `KevAffected`, `RangesFromCVEOrg`, `KevPublished`), `KevInfo`, `CVSS`, `TierVulns`/`TierDistro` đọc các bảng này; đổi luật chọn CVSS, luật giữ hay thứ tự nguồn khoảng làm đổi finding: chạy golden test của findings và `cmd/vedette` (`TestReachability_910_Fixture`, các test wiring dùng `catalogue_seed_test.go`).
-- **inventory** (`feedsKEV`: `KevProducts`, `KevIndex`) đọc mục chủ của `feeds_kev`.
+- **inventory** (`feedsKEV`: `KevProducts`, `KevIndex`) reads the owner entries of `feeds_kev`.
 - `Store.KevIndex` is kept under `kevStamp` (last pull time and rev of `cisa-kev` and `vulncheck-kev`, count and newest `updated_at` of their entries): a write to `feeds_kev` that moves none of these leaves inventory matching against the old index (`TestKevIndex_KeptUntilTheListsChange`).
 - **core** `export_policy.go`: mọi cột được phân loại (`TestExport_PolicyClassifiesEveryColumn`, danh sách bảng bỏ qua trong `data_test.go`); `docs/SCHEMA.sql` bằng `make schema`.
 - **PRIVACY.md** luồng 1 và `locales/en/core.json` `privacy.flow.1`: các yêu cầu NVD (cửa sổ, đi qua toàn bộ danh sách, `cveId`).
@@ -76,7 +76,7 @@
 
 ## Modifying: `vulncheck.go`, feed `vulncheck-kev`, `isKEVSource`, the `source_id IN ('cisa-kev', 'vulncheck-kev')` reads
 
-- **findings / inventory** (qua `cmd/vedette` `findingsFeeds`, `wiring`): `KevVulns`/`KevVulnsByCVE`/`KevIndex`/`KevCVEsByKeys`/`KevProducts`/`KevPairs` trả cả mục VulnCheck: finding mới của CVE nguồn `vulncheck-kev`, `required_action` mang câu nguồn. Bỏ nguồn thứ hai khỏi các truy vấn ⇒ finding của CVE chỉ VulnCheck có sẽ không còn khớp.
+- **findings / inventory** (through `cmd/vedette` `findingsFeeds`, `wiring`): `KevVulns`/`KevVulnsByCVE`/`KevIndex`/`KevCVEsByKeys`/`KevProducts`/`KevPairs` return the VulnCheck entries too: a new finding for a CVE of the `vulncheck-kev` source, its `required_action` carrying the source sentence. Dropping the second source from these queries ⇒ findings of CVEs that only VulnCheck lists no longer match.
 - **cve-org**: `recordDue` (qua `publicListedSQL`) và `kevRecordView` đọc cả hai nguồn để chọn CVE hỏi theo ID và CVE findings thấy.
 - **reports** (`cmd/vedette/reports.go` `reportsKEV.Entries`): bỏ hàng không phải `cisa-kev` (không phân phối lại dữ liệu VulnCheck). Home/weekly/announced/EPSS chỉ đọc `cisa-kev`.
 - **handlers_sources.go** `PUT /feeds/sources/{id}`: `api_key` chỉ cho feed BYOK, `isBYOK`, `saveFeedKey`; `toFeedDTO` hiện `auth.secret_last4` của feed BYOK. Contract: `FeedPatch.api_key` (contract.ts, `api/openapi.json`, `core/api/oas`).

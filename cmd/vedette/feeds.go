@@ -105,13 +105,13 @@ func feedsHandlers(d deps) *feeds.FeedHandlers {
 
 // learnWindowsReleases hands the Windows releases the feed windows-releases stored to core/winrel at start, so a device on a
 // release newer than core/winrel's table is read by its build from the first agent report and match, not only after the first pull
-// job. A failure is logged: the feeds module reads them again when it starts pulling.
+// job. A failure is logged (not when ctx ended: a stop during start is no failure): the feeds module reads them again when it starts pulling.
 func learnWindowsReleases(ctx context.Context, d deps) {
 	s, err := feedsService(d)
 	if err == nil {
 		err = s.LearnWindowsReleases(ctx)
 	}
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
 		d.Log.ErrorContext(ctx, "feeds: reading the Windows releases failed", "error", err)
 	}
 }

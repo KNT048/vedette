@@ -70,7 +70,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 		if r.ID == recentFeedID && r.Enabled { // An unfinished fill or walk goes on now, not a day after the last success
 			owed, err := s.st.recentOwed(ctx, r.URL)
 			if err != nil { // the plain schedule this tick, as the re-read above falls back
-				s.Log.ErrorContext(ctx, "reading where the NVD pull of the catalogue stands failed", "error", err)
+				s.Log.Log(ctx, failLevel(ctx), "reading where the NVD pull of the catalogue stands failed", "error", err)
 			} else if owed {
 				st := r.state()
 				st.LastSuccess = time.Time{} // only the back-off after failures holds it back
@@ -79,7 +79,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 		}
 		if r.ID == cveOrgFeedID && r.Enabled && r.Failures == 0 { // The whole list is loading: it goes on at the next check
 			if owed, err := s.st.recordsOwed(ctx, r.URL); err != nil {
-				s.Log.ErrorContext(ctx, "reading where the CVE records stand failed", "error", err)
+				s.Log.Log(ctx, failLevel(ctx), "reading where the CVE records stand failed", "error", err)
 			} else if owed {
 				due = true
 			}
@@ -198,7 +198,7 @@ func (s *Service) authFor(ctx context.Context, src sourceRow) (Auth, error) {
 	}
 	plain, err := s.Secrets.Open(ctx, s.DB.Reader(), *src.SecretID, secretPurpose)
 	if err != nil {
-		s.Log.ErrorContext(ctx, "opening a feed secret failed", "feed", src.ID, "error", err)
+		s.Log.Log(ctx, failLevel(ctx), "opening a feed secret failed", "feed", src.ID, "error", err)
 		return Auth{}, fail(ErrInvalidAuth, "The saved secret could not be read. Edit the feed and enter it again.")
 	}
 	sec, err := NewSecret(string(plain))
@@ -653,9 +653,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		}
 	}
 	if p.hasWinRel && p.out.OK && !stale { // every good pull, before the event: findings reads the new releases (review r1 L1 of #951)
-		if err := s.LearnWindowsReleases(ctx); err != nil {
-			s.Log.ErrorContext(ctx, "reading the Windows releases failed", "error", err)
-		}
+		s.learnWindowsReleases(ctx)
 	}
 	if p.vendorMem != nil && p.out.OK && !stale {
 		s.keepAdvisories(src.ID, p.vendorMem)

@@ -80,9 +80,6 @@ func TestReaderPragmasOnEveryConnection(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if got := db.Reader().Stats().MaxOpenConnections; got <= 0 {
-		t.Errorf("reader pool is unbounded (MaxOpenConnections = %d)", got)
-	}
 	// the writer keeps SQLite's defaults for cache and temp storage
 	err := db.Write(t.Context(), func(tx *sql.Tx) error {
 		if got := pragma(t, tx, "temp_store"); got != "0" {

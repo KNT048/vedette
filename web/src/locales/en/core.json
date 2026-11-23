@@ -600,6 +600,7 @@
       "inventory.keep_entered": "Keep an entered value against a detected one",
       "inventory.correct_software": "Correct software a scan or agent reported",
       "inventory.software_correction_lapsed": "A newer version was read, so a corrected version no longer applies",
+      "inventory.software_correction_kept": "A version was read that is not newer, so a corrected version stays",
       "inventory.os_correction_lapsed": "A newer OS version was read, so a corrected OS no longer applies",
       "inventory.clear_software_correction": "Clear a software correction",
       "inventory.mark_not_installed": "Say software a scan or agent reported is not installed",

@@ -331,7 +331,7 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 	if err := s.earnReview(ctx, tx, o, assetID, false); err != nil { // the sync moved last_seen (INV-49)
 		return err
 	}
-	var lapsed []string
+	var lapsed, keptEntries []string
 	for _, id := range slices.Sorted(maps.Keys(touched)) {
 		st, err := s.settleLine(ctx, tx, id, seenAt, names[id])
 		if err != nil {
@@ -340,6 +340,9 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 		if st.lapsed != "" {
 			lapsed = append(lapsed, st.lapsed)
 		}
+		if st.kept != "" {
+			keptEntries = append(keptEntries, st.kept)
+		}
 		changed = changed || st.changed
 	}
 	for _, d := range lapsed {
@@ -347,10 +350,23 @@ func (s *Service) replaceSoftwareTx(ctx context.Context, tx *sql.Tx, o *outbox, 
 			return err
 		}
 	}
+	for _, d := range keptEntries {
+		if err := s.auditTx(ctx, tx, systemActor, "inventory.software_correction_kept", deviceName(ctx, tx, assetID), d); err != nil {
+			return err
+		}
+	}
 	if !changed && !released {
 		return nil
 	}
-	if err := s.auditTx(ctx, tx, systemActor, "inventory.software_sync", deviceName(ctx, tx, assetID), fmt.Sprintf("%s: %d items", source, len(items))); err != nil {
+	lines := map[string]bool{} // two items of one product and train are one line of the Software tab
+	for k := range kept {
+		lines[k[0]] = true
+	}
+	detail := fmt.Sprintf("%s: %d items", source, len(items))
+	if len(lines) != len(items) {
+		detail = fmt.Sprintf("%s: %d items, %d software lines", source, len(items), len(lines))
+	}
+	if err := s.auditTx(ctx, tx, systemActor, "inventory.software_sync", deviceName(ctx, tx, assetID), detail); err != nil {
 		return err
 	}
 	moved, err := s.RecomputeAsset(ctx, tx, assetID) // a source that outranks a declared OS row may have come or gone

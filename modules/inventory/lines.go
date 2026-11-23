@@ -300,6 +300,7 @@ func softwareEvent(ctx context.Context, tx *sql.Tx, assetID, lineID, productKey,
 type settled struct {
 	changed bool   // the effective value or the state moved
 	lapsed  string // the audit detail of a lapsed entry ("" when none)
+	kept    string // the audit detail of an entry a later, other reading did not replace ("" when none)
 }
 
 // settleLine runs the resolver on one line and stores its answer, with the history of what moved. names, when set, gives the
@@ -357,6 +358,11 @@ func (s *Service) settleLine(ctx context.Context, tx *sql.Tx, lineID, now string
 		out.changed = true
 	}
 	e := res.Effective
+	if kept, err := keptEntry(ctx, tx, l, lineID, e, readings, now); err != nil {
+		return out, err
+	} else if kept != "" {
+		out.kept = kept
+	}
 	if l.state != stateRemoved && (e.Version != l.version || e.PkgVersion != l.pkgVersion) {
 		if err := softwareEvent(ctx, tx, l.assetID, lineID, l.productKey, e.Display, now, "version_changed", releaseText(l.version, l.pkgVersion), releaseText(e.Version, e.PkgVersion), e.Source, e.SetBy); err != nil {
 			return out, err
@@ -384,6 +390,43 @@ func (s *Service) settleLine(ctx context.Context, tx *sql.Tx, lineID, now string
 		return out, fmt.Errorf("inventory: store software line: %w", err)
 	}
 	return out, nil
+}
+
+// keptEntry records, once per reading, that a source read the line after a person's entry and the entry stays (the reading is not newer,
+// INV-52): the history line "entry_kept" (from the reading's release to the entry's, by that source) and the audit detail it returns
+// ("chrony 4.9 kept: agent read 4.8"). Nothing when the effective value is no entry, when no other source read the line since the entry
+// was set, when that reading says what the entry says, or when the same source's same release was already recorded as kept since then.
+func keptEntry(ctx context.Context, tx *sql.Tx, l lineRow, lineID string, e Reading, readings []Reading, now string) (string, error) {
+	if !e.entry() || l.state == stateRemoved {
+		return "", nil
+	}
+	var later *Reading // the newest other reading made after the entry
+	for i := range readings {
+		r := &readings[i]
+		if r.entry() || r.guess() || r.SeenAt <= e.SeenAt || r.Version == "" || r.Version == e.Version && r.PkgVersion == e.PkgVersion {
+			continue
+		}
+		if later == nil || r.SeenAt > later.SeenAt {
+			later = r
+		}
+	}
+	if later == nil {
+		return "", nil
+	}
+	from := releaseText(later.Version, later.PkgVersion)
+	var n int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM inv_software_event WHERE software_id = ? AND kind = 'entry_kept' AND source = ? AND from_version = ? AND ts >= ?`,
+		lineID, later.Source, from, e.SeenAt).Scan(&n); err != nil {
+		return "", fmt.Errorf("inventory: read software history: %w", err)
+	}
+	if n > 0 {
+		return "", nil
+	}
+	if err := softwareEvent(ctx, tx, l.assetID, lineID, l.productKey, e.Display, now, "entry_kept", from, releaseText(e.Version, e.PkgVersion), later.Source, ""); err != nil {
+		return "", err
+	}
+	return swText(e.Display, e.Version, e.PkgVersion) + " kept: " + sourceClass(later.Source) + " read " + swText(later.Display, later.Version, later.PkgVersion) +
+		", not newer than the version a person entered", nil
 }
 
 func cmpOr(a, b string) string {

@@ -252,9 +252,8 @@ func TestReidentify_StoredLinesFollowTheCatalogueAfterAnUpdate(t *testing.T) {
 		t.Errorf("an install alone on its train needs no release in its instance: %d of 2 readings without", n)
 	}
 	want := []string{
-		EventMatchChanged + " " + st.server + " CVE-2024-38475", // the key the scan's line gained
+		EventMatchChanged + " " + st.server + " CVE-2024-38475", // the key the scan's line gained: the device is matched again on it alone
 		EventSoftwareChanged + " " + st.desk,
-		EventSoftwareChanged + " " + st.server,
 	}
 	slices.Sort(want)
 	if got := b.taken(); !slices.Equal(got, want) {

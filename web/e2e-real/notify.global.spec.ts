@@ -147,7 +147,8 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       await page.goto('/settings/channels')
       await chanRow(page, { type: 'telegram', configured: false }).getByRole('button', { name: 'Set up Telegram', exact: true }).click()
       const d = page.getByRole('dialog', { name: 'Channel Telegram' })
-      await expect(d.getByText('Message @BotFather, send /newbot and paste the token you get (like 123456789:AAH…). The token is the bot\'s password: share it with nobody. To send to a group, add the bot to the group first.')).toBeVisible()
+      await expect(d.getByText('From @BotFather, like 123456789:AAH…')).toBeVisible()
+      await expect(d.getByRole('button', { name: 'About Bot token' })).toHaveAccessibleDescription("Message @BotFather, send /newbot and paste the token you get (like 123456789:AAH…). The token is the bot's password: share it with nobody. To send to a group, add the bot to the group first.")
       await expectAccessible(page, 'telegram dialog')
       await sw(d).click() // never turned on: no test of this file may send to the internet
       await expect(sw(d)).not.toBeChecked()
@@ -315,7 +316,8 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     const server = watch5xx(page)
     const c = await as('admin')
     const BAD = 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.'
-    const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.'
+    const BLOCKED = 'The webhook cannot point at a link-local or multicast address, a cloud metadata service, or an unspecified address.'
+    const OWN = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
     try {
       const before = await auditIds(c)
       await page.goto('/settings/channels')
@@ -335,14 +337,14 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       await key.fill('abcdefghijklmnop')
       for (const bad of ['http://127.0.0.1:8444/hook', 'http://169.254.169.254/latest', 'https://100.100.100.200/x', 'https://metadata.google.internal/x']) {
         await url.fill(bad)
-        await formRefused(page, d, 'webhook', { 'Webhook URL': BLOCKED })
+        await formRefused(page, d, 'webhook', { 'Webhook URL': bad.includes('127.0.0.1') ? OWN : BLOCKED })
       }
       // the box refuses them too, whatever the form does (INV-8). This first webhook check of the run also starts the box's read of
       // its own addresses, which a webhook save waits for (#157)
       for (const bad of ['http://127.0.0.1:8444/hook', 'http://169.254.169.254/latest', 'https://100.100.100.200/x', 'https://[fd00:ec2::254]/x', 'https://metadata.google.internal/x']) {
         const r = await api(c, 'PUT', '/notify/channels/webhook', { enabled: false, fields: { url: bad }, secret: 'abcdefghijklmnop', min_severity: 'medium' })
         expect(r.status, `PUT webhook ${bad}`).toBe(400)
-        expect(r.body, bad).toMatchObject({ error: { code: 'bad_url', message: BLOCKED } })
+        expect(r.body, bad).toMatchObject({ error: { code: 'bad_url', message: bad.includes('127.0.0.1') ? OWN : BLOCKED } })
       }
       await url.fill('https://hooks.e2e.invalid/vedette')
       await d.getByRole('button', { name: 'Generate random', exact: true }).click()
@@ -361,7 +363,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       const e = dialog(page)
       await expect(e.getByLabel('Signing key', { exact: true }), 'the saved key is not put back in the form').toHaveValue('')
       await e.getByLabel('Webhook URL', { exact: true }).fill('https://localhost/hook')
-      await formRefused(page, e, 'webhook', { 'Webhook URL': BLOCKED })
+      await formRefused(page, e, 'webhook', { 'Webhook URL': OWN })
       expect(await channel('webhook')).toEqual(saved)
       await page.keyboard.press('Escape')
 
@@ -429,7 +431,7 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     await expect(chanRow(page, saved)).toContainText('OA 1234567890, recipient 2468013579')
     await noEcho(page, ZALO_TOKEN)
     await chanRow(page, saved).getByRole('button', { name: 'Edit Zalo OA', exact: true }).click()
-    await expect(dialog(page).getByLabel('Access token', { exact: true }), 'the saved token is not put back in the form').toHaveValue('')
+    await expect(dialog(page).getByLabel('Access token (optional)', { exact: true }), 'the saved token is not put back in the form').toHaveValue('')
     await page.keyboard.press('Escape')
     expect(server).toEqual([])
     noErrors(errors, /status of 400/)
@@ -440,8 +442,8 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     await page.goto('/settings/channels')
     await chanRow(page, { type: 'zalo-personal', configured: false }).getByRole('button', { name: 'Set up Zalo personal', exact: true }).click()
     const d = page.getByRole('dialog', { name: 'Channel Zalo personal' })
-    await expect(d.getByRole('note')).toHaveText('Unofficial channel: Zalo may lock the account it signs in with, so use a separate Zalo account, not your own.')
-    await expect(d.getByText('Not signed in yet.')).toBeVisible()
+    await expect(d.getByRole('note')).toHaveText('Unofficial channel: Zalo may lock this account. Use a separate account, not yours.')
+    await expect(d.getByText('Not signed in. Sign in with the Zalo account that sends alerts.')).toBeVisible()
     await expect(d.getByRole('button', { name: 'I scanned it' })).toHaveCount(0)
     await sw(d).click()
     await saveRefused(page, d, 'zalo-personal', 'bad_user_id', 'The recipient is the numeric Zalo ID of a user or a group (6 to 25 digits).')
@@ -471,7 +473,8 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
 
 test.describe('the box refuses forbidden webhook addresses, and keeps the rest (INV-8)', () => {
   const BAD = 'The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.'
-  const BLOCKED = 'The webhook cannot point at this machine, a link-local or multicast address, a cloud metadata service, or an unspecified address.'
+  const BLOCKED = 'The webhook cannot point at a link-local or multicast address, a cloud metadata service, or an unspecified address.'
+  const OWN = "That address is Vedette itself: loopback, Vedette's own container, or one of its ports (8443, 8444, 8765, 514, 6514) on the machine that runs it. For another program on that machine, enter the machine's LAN address and that program's port."
   const INSECURE = 'Plain http:// is only allowed for hosts on your internal network. Use https:// for this address.'
   const body = (url: string) => ({ enabled: false, fields: { url }, secret: WEBHOOK_KEY, min_severity: 'medium' })
 
@@ -480,9 +483,9 @@ test.describe('the box refuses forbidden webhook addresses, and keeps the rest (
     try {
       const before = await auditIds(c)
       const cases: [string, string][] = [
-        ['http://127.0.0.1:9/x', BLOCKED], ['https://127.0.0.1/x', BLOCKED], ['http://localhost/x', BLOCKED], ['https://hooks.localhost/x', BLOCKED],
-        ['https://[::1]/x', BLOCKED], ['https://169.254.169.254/latest/meta-data', BLOCKED], ['https://[fe80::1]/x', BLOCKED], ['https://0.0.0.0/x', BLOCKED], ['https://224.0.0.1/x', BLOCKED],
-        ['https://[::ffff:127.0.0.1]/x', BLOCKED], ['https://LOCALHOST/x', BLOCKED], ['https://127.1/x', BAD], ['https://0177.0.0.1/x', BAD], ['https://2130706433/x', BAD], ['https://0x7f.1/x', BAD], ['https://user:pw@hooks.e2e.invalid/x', BAD], ['ftp://hooks.e2e.invalid/x', BAD], ['', BAD],
+        ['http://127.0.0.1:9/x', OWN], ['https://127.0.0.1/x', OWN], ['http://localhost/x', OWN], ['https://hooks.localhost/x', OWN],
+        ['https://[::1]/x', OWN], ['https://169.254.169.254/latest/meta-data', BLOCKED], ['https://[fe80::1]/x', BLOCKED], ['https://0.0.0.0/x', BLOCKED], ['https://224.0.0.1/x', BLOCKED],
+        ['https://[::ffff:127.0.0.1]/x', OWN], ['https://LOCALHOST/x', OWN], ['https://127.1/x', BAD], ['https://0177.0.0.1/x', BAD], ['https://2130706433/x', BAD], ['https://0x7f.1/x', BAD], ['https://user:pw@hooks.e2e.invalid/x', BAD], ['ftp://hooks.e2e.invalid/x', BAD], ['', BAD],
         ['http://hooks.e2e.invalid/x', INSECURE],
       ]
       for (const [url, message] of cases) {
@@ -505,8 +508,8 @@ test.describe('the box refuses forbidden webhook addresses, and keeps the rest (
     else test.skip(!own, 'this machine has no network address besides loopback')
     const c = await as('admin')
     try {
-      expect(await call(c, 'PUT', '/notify/channels/webhook', body(`https://${own}/hook`)), `PUT webhook ${own}`).toMatchObject(refused(400, 'bad_url', BLOCKED))
-      expect(await call(c, 'PUT', '/notify/channels/webhook', body(`https://${own}:8444/hook`)), `PUT webhook ${own}:8444`).toMatchObject(refused(400, 'bad_url', BLOCKED))
+      expect(await call(c, 'PUT', '/notify/channels/webhook', body(`https://${own}/hook`)), `PUT webhook ${own}`).toMatchObject(refused(400, 'bad_url', OWN))
+      expect(await call(c, 'PUT', '/notify/channels/webhook', body(`https://${own}:8444/hook`)), `PUT webhook ${own}:8444`).toMatchObject(refused(400, 'bad_url', OWN))
       expect((await getChannels(c)).channels.find((x) => x.type === 'webhook')!.configured).toBe(false)
     } finally { await c.dispose() }
   })
@@ -740,7 +743,7 @@ test.describe('a real send that fails: the record in History, the finding and th
       const notices = await call(viewer, 'GET', `/notify/findings/${s.findingId}/notices`)
       expect(notices).toEqual({ status: 200, body: { sends: [{ id: row.id, channel: 'email', to: 'it@e2e.test', at: row.at, ok: false, delayed: false, error: ERR_UNREACHABLE }] } })
       await page.goto(`/findings/${s.findingId}`)
-      await expect(page.locator('#notified')).toContainText(`Notified: Email (failed: ${ERR_UNREACHABLE})`)
+      await expect(page.locator('#notified')).toContainText(`Not delivered: Email (failed: ${ERR_UNREACHABLE})`)
 
       // an operator sends it again: the channel is on, so it is tried and fails the same way, as a new row; a viewer may not
       expect(await call(viewer, 'POST', `/notify/history/${row.id}/resend`)).toMatchObject({ status: 403, body: { error: { code: 'forbidden' } } })
@@ -751,7 +754,7 @@ test.describe('a real send that fails: the record in History, the finding and th
 
       // History in the page: both rows, the reason, the kind; Send again from the page adds a third and shows the reason
       await page.goto('/settings/channels')
-      const meta = page.getByText(/^Vedette only alerts for products you own\./)
+      const meta = page.getByText(/^(No new vulnerability was skipped in the last|\d+ new vulnerabilit)/)
       await expect.poll(async () => (await meta.innerText()) === historyMeta((await getHistory(c)).suppressed), { message: 'the line over History says what the API says now' }).toBe(true)
       const table = page.getByRole('table', { name: 'Sent messages' })
       const rows = table.getByRole('row').filter({ hasText: row.what })

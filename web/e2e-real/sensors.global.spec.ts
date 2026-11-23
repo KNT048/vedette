@@ -56,13 +56,15 @@ const SWEEP = '--privileged -sn -PE -PP -PS21,22,23,80,135,139,443,445,554,3389,
 const NORMAL = '--privileged -sS -sV -O --script rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version -n --max-rate 50 --max-retries 3 --top-ports 1000 --host-timeout 30m -oX - '
 
 test.beforeAll(async () => {
+  test.setTimeout(5 * 60_000)
   const c = await as('admin')
   try {
     await expectNoSensorDevices(c)
     base = (await devices(c)).items
     expect(base.filter((d) => !d.approved).map((d) => d.ip), 'this file needs a box with no device waiting for approval').toEqual([])
+    // Just after the box came up it says "starting" while the host brings the sensor container up (up to 3 minutes); this file starts the sensors itself, so it waits for that to end
+    await expect.poll(async () => (await sensor(c)).map((s) => s.status), { message: 'one sensor, the one on this box, and nothing started yet (not "starting" any more)', timeout: 4 * 60_000, intervals: [2_000] }).toEqual(['never_connected'])
     const list = await sensor(c)
-    expect(list.map((s) => s.status), 'one sensor, the one on this box, and nothing started yet').toEqual(['never_connected'])
     expect(list[0]).toMatchObject({ last_seen: null, version: null })
     original = await settings(c)
     tz = (await api<{ timezone: string }>(c, 'GET', '/core/general')).body.timezone
@@ -110,7 +112,8 @@ test('with the module off nothing is recorded and the sensors route is gone; on 
     await wait(20_000)
     expect(made(await devices(c)), 'nothing is recorded while the module is off').toEqual([])
     await page.goto('/devices/setup')
-    await expect(page.getByText('The passive sensor is off, so Vedette does not discover new devices by itself. Devices you add by hand still work.')).toBeVisible()
+    await page.getByRole('tab', { name: 'Sensor', exact: true }).click() // the sensor is one of the tabs of the setup page
+    await expect(page.getByText('The passive sensor is off, so Vedette does not discover new devices by itself. Devices you add manually still work.')).toBeVisible()
     await shot(page, 'real', 'sensor-passive-off')
     expect((await api(c, 'PATCH', '/modules/sensor-passive', { enabled: true })).status).toBe(200)
     off = false

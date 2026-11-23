@@ -19,7 +19,7 @@ interface Cfg {
   config: { window: { days: number[]; from: string; to: string }; rate: number; exclusions: string[]; stop_on_unresponsive: boolean; unresponsive_after: number; auto_rescan: boolean; schedule: { enabled: boolean; frequency: string; weekday: number; at: string } }
   next_run: string | null; scope: { networks: string[]; commitment: { by: string; confirmed_at: string } | null }; can_scan: boolean; block_reason: string | null; dangerous_checks: false
 }
-interface Target { id: string; label: string; ip: string; kind: string; device_kind: string; fragile: boolean; pick_only: boolean; selectable: boolean; reason: string | null; findings: number }
+interface Target { id: string; label: string; ip: string; kind: string; device_kind: string; fragile: boolean; pick_only: boolean; box: boolean; selectable: boolean; reason: string | null; findings: number }
 interface Err { error: { code: string; message: string; field?: string } }
 const UNAVAILABLE = "The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again."
 
@@ -63,7 +63,7 @@ test.afterEach(async () => {
   } finally { await c.dispose() }
 })
 
-test('no scan container: the settings say so with the reason, the box itself is never a target, the page agrees (INV-1, INV-2)', async ({ page }) => {
+test('no scan container: the settings say so with the reason, the box itself is listed and not selectable, the page agrees (INV-1, INV-2)', async ({ page }) => {
   const errors = collectErrors(page)
   const server: string[] = []
   page.on('response', (r) => { if (r.url().includes('/api/') && r.status() >= 500) server.push(`${r.request().method()} ${new URL(r.url()).pathname} ${r.status()}`) })
@@ -74,8 +74,9 @@ test('no scan container: the settings say so with the reason, the box itself is 
     expect(s.scope.commitment, 'the setup run ticked the scan commitment').toMatchObject({ by: 'admin@e2e.test' })
     expect(s.scope.networks.length).toBeGreaterThan(0)
     expect(s.config).toMatchObject({ rate: 5, stop_on_unresponsive: true, unresponsive_after: 3, auto_rescan: true, window: { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00' } })
-    const box0 = (await targets(c)).find((t) => t.reason === 'box')
-    expect(box0, 'the box is listed, and never selectable').toMatchObject({ selectable: false, pick_only: false })
+    // the box is listed (a person may scan it by ticking it when it is inside the confirmed range); on this box its address is outside the range, so it is not selectable
+    const box0 = (await targets(c)).find((t) => t.box)
+    expect(box0, 'the box is listed, and not selectable here').toMatchObject({ box: true, selectable: false, pick_only: false, reason: 'out_of_scope' })
     expect((await api(c, 'GET', '/scans/runs')).body).toEqual({ items: [], engine_busy: false })
     expect((await api(c, 'GET', '/scans/probes')).body).toEqual({ items: [], retention_days: 90 })
     expect((await api(c, 'GET', '/scans/events')).body).toEqual({ items: [], auto_rescan: true })
@@ -89,8 +90,8 @@ test('no scan container: the settings say so with the reason, the box itself is 
     await page.goto('/settings/scanning?tab=engines#nuclei')
     await expect(page.getByText(/nothing runs while the vulnerability scanner is not available/)).toBeVisible()
     await expect(page.getByText(/until the scan scope commitment is ticked/)).toHaveCount(0)
-    // the box itself is never part of a scan, whoever asks
-    const boxRun = await api<Err>(c, 'POST', '/scanning/engines/nmap-discovery/run', { targets: [box0!.id] })
+    // the box outside the confirmed range is refused like any other device outside it
+    const boxRun = await api<Err>(c, 'POST', '/scans/runs', { targets: [box0!.id] })
     expect([boxRun.status, boxRun.body.error?.code], 'the box is refused').toEqual([400, 'out_of_scope'])
     await expectAccessible(page, 'scanning')
     await noVietnamese(page, 'scanning')
@@ -116,7 +117,7 @@ test('a device declared by hand is pick-only; excluded and deleted devices leave
       ['no targets', { targets: [] }, 400, 'invalid'],
       ['no body field', {}, 400, 'invalid'],
       ['an id the list does not have', { targets: ['a-does-not-exist'] }, 400, 'unknown_target'],
-      ['the box itself', { targets: [list.find((t) => t.reason === 'box')!.id] }, 400, 'out_of_scope'],
+      ['the box itself (outside the confirmed range)', { targets: [list.find((t) => t.box)!.id] }, 400, 'out_of_scope'],
       ['a device that is on the list, with no scanner', { targets: [d.id] }, 503, 'scanner_unavailable'],
       ['the same device twice', { targets: [d.id, d.id] }, 503, 'scanner_unavailable'],
     ]

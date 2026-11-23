@@ -80,6 +80,9 @@ type AssetEvent struct {
 	// Actor is the person who approved (inventory.asset.approved), ignored (inventory.asset.ignored) or deleted
 	// (inventory.asset.deleted) the device; "" for the system.
 	Actor string `json:"actor,omitempty"`
+	// NoAddress is set on inventory.asset.discovered when the device has no IPv4 address when the write commits (a switch an LLDP
+	// frame named, a device added by hand without one): nothing can be sent to it, so no check of it is queued until it gets one.
+	NoAddress bool `json:"no_address,omitempty"`
 }
 
 // MatchEvent is the data of inventory.match.changed: the asset now matches an exploited CVE by product.

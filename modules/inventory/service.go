@@ -393,7 +393,12 @@ func (o *outbox) readdressedEvents() []Event {
 // write runs fn in one write transaction and announces its events after the commit.
 func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, o *outbox) error) error {
 	var o outbox
-	if err := s.db.Write(ctx, func(tx *sql.Tx) error { return fn(tx, &o) }); err != nil {
+	if err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		if err := fn(tx, &o); err != nil {
+			return err
+		}
+		return markAddressless(ctx, tx, o.events)
+	}); err != nil {
 		return err
 	}
 	s.publish(ctx, o.readdressedEvents()) // first, before the post-commit reads (review r2 L1 of #881): a job holding the old address stops now
@@ -402,6 +407,28 @@ func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, o *outbox) erro
 		events = append(events, f(ctx)...)
 	}
 	s.publish(ctx, events)
+	return nil
+}
+
+// markAddressless sets NoAddress on every inventory.asset.discovered of the write whose device has no IPv4 address as the write
+// ends (a device the same write deleted again is left as it is).
+func markAddressless(ctx context.Context, tx *sql.Tx, events []Event) error {
+	for i, e := range events {
+		a, ok := e.Data.(AssetEvent)
+		if !ok || e.Name != EventAssetDiscovered {
+			continue
+		}
+		var none bool
+		err := tx.QueryRowContext(ctx, `SELECT ip IS NULL FROM inv_asset WHERE id = ?`, a.AssetID).Scan(&none)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
+		}
+		a.NoAddress = none
+		events[i].Data = a
+	}
 	return nil
 }
 

@@ -85,7 +85,7 @@ func TestTruthAPersonsCheckStoppedByTheDevicesRulesSaysWhy(t *testing.T) {
 	e.sweptBefore()
 	calls := 0
 	var mu sync.Mutex
-	e.withProber(probeFunc(func(ctx context.Context, argv []string) (sa.Output, error) {
+	e.withProber(probeFunc(func(ctx context.Context, _ []string) (sa.Output, error) {
 		mu.Lock()
 		calls++
 		mu.Unlock()
@@ -204,7 +204,11 @@ func (w *reportingWorker) report(noNmap bool) {
 
 func (w *reportingWorker) OnReport(fn func()) { w.mu.Lock(); w.hook = fn; w.mu.Unlock() }
 
-func (w *reportingWorker) NmapMissing() bool { w.mu.Lock(); defer w.mu.Unlock(); return w.reported && w.noNmap }
+func (w *reportingWorker) NmapMissing() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.reported && w.noNmap
+}
 
 func (w *reportingWorker) WorkerAbsent() bool { w.mu.Lock(); defer w.mu.Unlock(); return !w.reported }
 

@@ -435,6 +435,10 @@ func (s *Service) upsertPart(ctx context.Context, a Asset, vulns []Vuln, judged 
 				a = fresh // its entries stay the ones read for the older reading: a product it did not run waits for the next pass
 			}
 		}
+		// findings on a line inventory gave to another device go with it, before the device's findings are read (followline.go)
+		if err := s.followLines(ctx, tx, a); err != nil {
+			return err
+		}
 		existing, err := findingsOf(ctx, tx, a.ID)
 		if err != nil {
 			return err

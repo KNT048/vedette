@@ -74,14 +74,24 @@ var catalogueRevision = sync.OnceValue(func() string {
 const reidentifyPage = 200
 
 // ReidentifyLines brings the stored software lines to the product catalogue of this build, when they were identified under another
-// one (INV-58). The job runs it at start and every day after; with the lines up to date it reads one row.
+// one (INV-58). The job runs it at start and every day after; with the lines up to date it reads one row. A device that cannot be
+// identified again is logged and skipped: the devices after it still are, and the pass stays open, so the next run walks every
+// device again (a device already done is only read).
 func (s *Service) ReidentifyLines(ctx context.Context) error {
+	run := &passRun{}
 	for {
-		done, err := s.reidentifyStep(ctx, reidentifyPage)
+		done, err := s.reidentifyStep(ctx, reidentifyPage, run)
 		if err != nil || done {
 			return err
 		}
 	}
+}
+
+// passRun is what one run of the pass knows besides the stored state: whether it walked every device from the first, and how many
+// devices failed. The revision is stored only after a walk from the first device with no failure.
+type passRun struct {
+	started, fromStart bool
+	failed             int
 }
 
 // passState is the row of inv_catalogue_pass.
@@ -111,8 +121,9 @@ func (s *Service) savePass(ctx context.Context, tx *sql.Tx, p passState) error {
 	return nil
 }
 
-// reidentifyStep identifies the lines of the next page of at most page devices; done when every device is up to date.
-func (s *Service) reidentifyStep(ctx context.Context, page int) (done bool, err error) {
+// reidentifyStep identifies the lines of the next page of at most page devices; done when every device is up to date, or when the
+// run reached the last device after a failure (the next run tries again).
+func (s *Service) reidentifyStep(ctx context.Context, page int, run *passRun) (done bool, err error) {
 	st, err := readPass(ctx, s.db.Reader())
 	if err != nil || st.found && st.revision == s.catRev {
 		return err == nil, err
@@ -124,11 +135,26 @@ func (s *Service) reidentifyStep(ctx context.Context, page int) (done bool, err 
 		}
 		s.log.InfoContext(ctx, "inventory: the product catalogue changed; identifying the stored software lines again", "from", st.revision, "to", s.catRev)
 	}
+	if !run.started {
+		run.started, run.fromStart = true, st.after == ""
+	}
 	ids, err := devicesWithSoftware(ctx, s.db.Reader(), st.after, page)
 	if err != nil {
 		return false, err
 	}
 	if len(ids) == 0 {
+		if run.failed > 0 || !run.fromStart { // walk every device again: now from the first (a resumed run), or at the next run
+			st.after = ""
+			if err := s.db.Write(ctx, func(tx *sql.Tx) error { return s.savePass(ctx, tx, st) }); err != nil {
+				return false, err
+			}
+			if run.failed > 0 {
+				s.log.WarnContext(ctx, "inventory: some devices' software lines could not be identified again; the next run tries again", "failed", run.failed)
+				return true, nil
+			}
+			run.fromStart = true
+			return false, nil
+		}
 		st.revision, st.target, st.after = s.catRev, "", ""
 		return true, s.db.Write(ctx, func(tx *sql.Tx) error { return s.savePass(ctx, tx, st) })
 	}
@@ -136,25 +162,34 @@ func (s *Service) reidentifyStep(ctx context.Context, page int) (done bool, err 
 		if err := ctx.Err(); err != nil {
 			return false, err
 		}
-		sw, err := deviceSoftware(ctx, s.db.Reader(), id)
-		if err != nil {
-			return false, err
-		}
-		if !s.planIdentities(sw).changes() { // most devices: read, nothing to write
-			continue
-		}
-		st.after = id
-		if err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
-			if err := s.reidentifyDeviceTx(ctx, tx, o, id); err != nil {
-				return err
+		if err := s.reidentifyDevice(ctx, id, st); err != nil {
+			if ctx.Err() != nil {
+				return false, ctx.Err()
 			}
-			return s.savePass(ctx, tx, st)
-		}); err != nil {
-			return false, err
+			run.failed++
+			s.log.ErrorContext(ctx, "inventory: a device's software lines could not be identified again", "asset", id, "error", err)
 		}
 	}
 	st.after = ids[len(ids)-1]
 	return false, s.db.Write(ctx, func(tx *sql.Tx) error { return s.savePass(ctx, tx, st) })
+}
+
+// reidentifyDevice identifies one device's lines again when something of it moves, and stores the pass as done up to it.
+func (s *Service) reidentifyDevice(ctx context.Context, id string, st passState) error {
+	sw, err := deviceSoftware(ctx, s.db.Reader(), id)
+	if err != nil {
+		return err
+	}
+	if !s.planIdentities(sw).changes() { // most devices: read, nothing to write
+		return nil
+	}
+	st.after = id
+	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		if err := s.reidentifyDeviceTx(ctx, tx, o, id); err != nil {
+			return err
+		}
+		return s.savePass(ctx, tx, st)
+	})
 }
 
 // devicesWithSoftware lists, in id order, at most n devices after id after that hold a software line.

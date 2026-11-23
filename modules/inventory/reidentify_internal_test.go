@@ -300,7 +300,7 @@ func TestReidentify_AStoppedPassGoesOnWhereItWas(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if done, err := svc.reidentifyStep(t.Context(), 1); err != nil || done { // one device, then the box stops
+	if done, err := svc.reidentifyStep(t.Context(), 1, &passRun{}); err != nil || done { // one device, then the box stops
 		t.Fatalf("first step: done %v, %v", done, err)
 	}
 	var rev, target, after string
@@ -433,4 +433,50 @@ func TestReidentify_ALineTakesTheIdentityAnotherLeaves(t *testing.T) {
 		t.Errorf("%d lines, want the 12 there were", n)
 	}
 	b.checks()
+}
+
+// A device that cannot be identified again does not stop the pass: it is logged and skipped, the devices after it are identified
+// again, the revision is not stored, and the next run identifies the failed device.
+func TestReidentify_AFailingDeviceIsSkippedAndTriedAgain(t *testing.T) {
+	t.Parallel()
+	b := newBoxStart(t)
+	st := storeUnderOld(t, b, b.start(true))
+	failing := min(st.server, st.desk) // the first device of the pass
+	exec := func(q string) {
+		t.Helper()
+		if err := b.db.Write(t.Context(), func(tx *sql.Tx) error { _, err := tx.ExecContext(t.Context(), q); return err }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exec(`CREATE TRIGGER planted_failure BEFORE INSERT ON inv_software_event WHEN NEW.asset_id = '` + failing + `' BEGIN SELECT RAISE(ABORT, 'planted'); END`)
+
+	b.start(false)
+	if got := b.line(st.node); got != "node.js|node.js/20 20.11.1 present" && st.desk != failing {
+		t.Errorf("the device after the failing one: %s", got)
+	}
+	if got := b.line(st.apache); got != "apache|http server/ 2.4.62 present" && st.server != failing {
+		t.Errorf("the device after the failing one: %s", got)
+	}
+	if n := b.count(`SELECT count(*) FROM inv_software WHERE asset_id = ? AND product_key IN ('apache|httpd', 'node.js|node.js') AND line = ''`, failing); n != 1 {
+		t.Errorf("the failing device changed: %d of its old lines left", n)
+	}
+	var rev, target, after string
+	if err := b.db.Reader().QueryRowContext(t.Context(), `SELECT revision, target, after FROM inv_catalogue_pass`).Scan(&rev, &target, &after); err != nil ||
+		rev != "older-catalogue" || target != catalogueRevision() || after != "" {
+		t.Fatalf("after a failure: revision %q target %q after %q (%v), want the pass open from the first device", rev, target, after, err)
+	}
+
+	exec(`DROP TRIGGER planted_failure`)
+	b.start(false) // the next run
+	if got := b.line(st.node); got != "node.js|node.js/20 20.11.1 present" {
+		t.Errorf("the person's entry: %s", got)
+	}
+	if got := b.line(st.apache); got != "apache|http server/ 2.4.62 present" {
+		t.Errorf("the scan's line: %s", got)
+	}
+	b.checks()
+	if err := b.db.Reader().QueryRowContext(t.Context(), `SELECT revision, target, after FROM inv_catalogue_pass`).Scan(&rev, &target, &after); err != nil ||
+		rev != catalogueRevision() || target != "" || after != "" {
+		t.Fatalf("pass state %q %q %q %v", rev, target, after, err)
+	}
 }

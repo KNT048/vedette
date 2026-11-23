@@ -65,7 +65,7 @@ type nvdWrite struct {
 // writeNVDRecords writes the NVD records the retention rule keeps into the catalogue, each record whole: its row (dates, NVD's status,
 // description), its scores and its NVD ranges replace what the catalogue had (the CVE record's own rows stay; reads prefer NVD's when
 // there are any). NVD's weaknesses replace the CVE's when NVD lists any (they carry the CNA's and CISA's too); NVD's references replace
-// the CVE's, for a CVE whose references are kept (ret.keep), once NVD has tagged them (nvdRefs). A record NVD rejected keeps only its
+// the CVE's, for every CVE it stores, once NVD has tagged them (nvdRefs). A record NVD rejected keeps only its
 // status, so the retention rule drops it unless a list, a signal or a finding holds it. A record older than the stored one (NVD's lastModified) is skipped: a pull that collected its pages over several checks
 // never puts back what a later pull already replaced.
 func writeNVDRecords(ctx context.Context, tx *sql.Tx, recs []NVDRecord, ret retention, now time.Time) (nvdWrite, error) {
@@ -186,7 +186,7 @@ VALUES (?, 'nvd', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 				return out, fmt.Errorf("feeds: catalogue %s: %w", r.CVE, err)
 			}
 		}
-		if (ret.all || ret.keep[r.CVE]) && r.Tagged() {
+		if r.Tagged() {
 			if err := nvdRefs(ctx, delRef, insRef, r); err != nil {
 				return out, err
 			}

@@ -8,9 +8,9 @@ import kevProducts from '../../../../content/catalog/kev-products.json'
 import { customEntry, findCatalog, fragmentMatch, searchCatalog } from './catalog'
 
 const QUERIES = ['', 'forti', 'fortigate 60f', 'synology', 'windows server 2019', 'tuong lua', 'cisco asa', 'wordpress', 'office', 'qnap', 'zzzzqq', 'microsoft', 'apache', 'hikvision', 'camera', 'nas', 'vpn', 'ivanti', 'sophos', 'tường lửa', 'ms exchange', '  FortiGate  ', 'a', 'juniper ex']
-const FINDS = ['FortiGate', 'Synology NAS (DSM)', 'wordpress', 'Microsoft Office', 'kev:fortinet:fortios', 'nothing like this', '', 'apache http server', 'Dns', 'Synology', 'php', 'Exchange Server', 'jdk', 'JRE', 'java', 'openjdk']
+const FINDS = ['FortiGate', 'Synology NAS (DSM)', 'wordpress', 'Microsoft Office', 'kev:fortinet:fortios', 'nothing like this', '', 'apache http server', 'Dns', 'Synology', 'php', 'Exchange Server', 'jdk', 'JRE', 'java', 'openjdk', 'iOS', 'NAS', 'USG', 'Backup', 'Web Server']
 // A product a person typed (maker, product): the exploited products it is matched by, as the server's custom entry gives them.
-const CUSTOM: [string, string][] = [['Red Hat', 'OpenJDK'], ['Fortinet', 'FortiGate'], ['Eclipse Adoptium', 'Temurin'], ['Acme', 'Widget Server']]
+const CUSTOM: [string, string][] = [['Red Hat', 'OpenJDK'], ['Fortinet', 'FortiGate'], ['Eclipse Adoptium', 'Temurin'], ['Acme', 'Widget Server'], ['Acme', 'FortiOS'], ['Cisco', 'PAN-OS']]
 
 function compute() {
   return {

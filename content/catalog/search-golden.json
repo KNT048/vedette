@@ -1893,6 +1893,26 @@
   {
    "text": "openjdk",
    "id": "openjdk-linux-package"
+  },
+  {
+   "text": "iOS",
+   "id": null
+  },
+  {
+   "text": "NAS",
+   "id": null
+  },
+  {
+   "text": "USG",
+   "id": null
+  },
+  {
+   "text": "Backup",
+   "id": null
+  },
+  {
+   "text": "Web Server",
+   "id": null
   }
  ],
  "custom": [
@@ -1935,6 +1955,22 @@
    "product": "Widget Server",
    "kev": [
     "acme|widget server"
+   ],
+   "kev_count": 0
+  },
+  {
+   "vendor": "Acme",
+   "product": "FortiOS",
+   "kev": [
+    "acme|fortios"
+   ],
+   "kev_count": 0
+  },
+  {
+   "vendor": "Cisco",
+   "product": "PAN-OS",
+   "kev": [
+    "cisco|pan-os"
    ],
    "kev_count": 0
   }

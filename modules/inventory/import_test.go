@@ -544,3 +544,15 @@ func TestCSVImport_CommonJavaWords(t *testing.T) {
 		t.Fatalf("result = %+v", r)
 	}
 }
+
+// A word several makers use for different products stays refused even when one catalogue product is named exactly that: "iOS" is
+// Cisco's network OS as well as Apple's, "NAS" and "USG" are several makers' devices, so a file's cell is not the one product of that
+// name. Only an alias whose products are all the same exploited product ("openjdk") is read further.
+func TestCSVImport_AWordOfSeveralMakersIsNotTheProductOfThatName(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	r := e.importCSV("name,ip,product,version\r\nsw-1,,IOS,15.2\r\nnas-1,,NAS,\r\nfw-1,,USG,\r\nbk-1,,Backup,\r\nhv-1,,Hypervisor,\r\nweb-1,,Web Server,\r\n")
+	if r.Created != 0 || len(r.Errors) != 6 {
+		t.Fatalf("result = %+v", r)
+	}
+}

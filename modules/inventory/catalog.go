@@ -448,20 +448,27 @@ func (c *Catalog) find(text string) *catEntry {
 	}
 	// Several products may share the text ("synology" is two Synology products, "dns" is D-Link and BIND, "php"
 	// belongs to two vendors): the first (most popular) is taken only when they all have the same vendor, so the
-	// make is never a guess. An alias several makers share is next read as a product name ("openjdk" is the OpenJDK
-	// package), and else taken when every product of it is the same exploited product ("jdk", "jre": every Java build
-	// is matched as Java), so a file's common word still finds its product. A bare vendor name is taken only when the
-	// vendor has one curated product.
+	// make is never a guess. An alias several makers share is taken only when every product of it is the same exploited
+	// product ("jdk", "jre": every Java build is matched as Java), so a file's common word still finds its product; it is
+	// then read as a product name first ("openjdk" is the OpenJDK package). A word several makers use for different
+	// products ("iOS" is Apple's and Cisco's, "NAS" many makers' devices) is refused even when one product has that
+	// name. A bare vendor name is taken only when the vendor has one curated product.
 	if e := oneVendor(aliasHits); e != nil {
 		return e
+	}
+	if len(aliasHits) > 0 {
+		if !sameKEV(aliasHits) {
+			return nil
+		}
+		if e := oneVendor(productHits); e != nil {
+			return e
+		}
+		return aliasHits[0]
 	}
 	if e := oneVendor(productHits); e != nil {
 		return e
 	}
-	if len(aliasHits) > 0 && len(productHits) == 0 && sameKEV(aliasHits) {
-		return aliasHits[0]
-	}
-	if len(aliasHits) == 0 && len(productHits) == 0 && len(vendorHits) == 1 {
+	if len(productHits) == 0 && len(vendorHits) == 1 {
 		return vendorHits[0]
 	}
 	return nil

@@ -41,6 +41,9 @@ type InputItemJS struct {
 
 	nullables []string // the keys of this kind that are null when unset (encoded explicitly)
 	rank      [3]int
+	// terms are what a search also finds the item by beyond its own fields: for a device not added yet, the CVE ids and the
+	// software names of its open findings (the card names neither, yet "OpenSSH" or a CVE must find the device that has it)
+	terms []string
 }
 
 // MarshalJSON writes the item with the null fields its kind has.
@@ -101,7 +104,10 @@ func (it InputItemJS) matches(q string) bool {
 	if it.Software != nil && has(it.Software.Name) {
 		return true
 	}
-	return it.CVE != nil && has(*it.CVE)
+	if it.CVE != nil && has(*it.CVE) {
+		return true
+	}
+	return slices.ContainsFunc(it.terms, has)
 }
 
 func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS, error) {
@@ -110,20 +116,23 @@ func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS,
 		return nil, err
 	}
 	q := s.rd(ctx)
-	// devices not added yet with open findings
+	// devices not added yet with open findings: how many, and the CVEs and software lines a search finds them by
 	counts := map[string]int{}
-	r, err := q.QueryContext(ctx, `SELECT asset_id, count(*) FROM fnd_finding WHERE `+rows+` GROUP BY asset_id`, args...)
+	type found struct{ cve, line string }
+	open := map[string][]found{}
+	r, err := q.QueryContext(ctx, `SELECT asset_id, cve, ifnull(software_id, '') FROM fnd_finding WHERE `+rows, args...)
 	if err != nil {
 		return nil, fmt.Errorf("findings: needs your input: %w", err)
 	}
 	for r.Next() {
 		var id string
-		var n int
-		if err := r.Scan(&id, &n); err != nil {
+		var x found
+		if err := r.Scan(&id, &x.cve, &x.line); err != nil {
 			_ = r.Close()
 			return nil, fmt.Errorf("findings: needs your input: %w", err)
 		}
-		counts[id] = n
+		counts[id]++
+		open[id] = append(open[id], x)
 	}
 	if err := errors.Join(r.Err(), r.Close()); err != nil {
 		return nil, fmt.Errorf("findings: needs your input: %w", err)
@@ -157,14 +166,40 @@ func (s *Service) inputItems(ctx context.Context, device string) ([]InputItemJS,
 			notAdded = append(notAdded, id)
 		}
 	}
+	// the software lines of the devices not added yet, named for the search (one read of inventory for them all)
+	var notAddedLines []string
+	for _, id := range notAdded {
+		for _, x := range open[id] {
+			if x.line != "" {
+				notAddedLines = append(notAddedLines, x.line)
+			}
+		}
+	}
+	lineNames := map[string]string{}
+	if len(notAddedLines) > 0 {
+		ls, err := s.cfg.Inventory.Lines(ctx, notAddedLines)
+		if err != nil {
+			return nil, fmt.Errorf("findings: needs your input: reading software lines: %w", err)
+		}
+		for id, l := range ls {
+			lineNames[id] = l.Display
+		}
+	}
 	statuses, err := s.deviceStatuses(ctx, notAdded)
 	if err != nil {
 		return nil, err
 	}
 	for _, id := range notAdded {
 		st := statuses[id]
+		var terms []string
+		for _, x := range open[id] {
+			terms = append(terms, x.cve)
+			if n := lineNames[x.line]; n != "" {
+				terms = append(terms, n)
+			}
+		}
 		out = append(out, InputItemJS{Kind: "device_not_added", ID: "device:" + id, Device: deviceRef(ref.device(id)), Status: st, Findings: counts[id],
-			nullables: []string{"status"}, rank: [3]int{0, statusRank(st), -counts[id]}})
+			nullables: []string{"status"}, rank: [3]int{0, statusRank(st), -counts[id]}, terms: terms})
 	}
 	vs, err := s.views(ctx, unconfirmed)
 	if err != nil {

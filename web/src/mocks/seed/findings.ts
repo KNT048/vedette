@@ -64,7 +64,7 @@ export interface FindingRecord {
   internet: string | null
   first_seen: string
   last_seen: string
-  reopened: { why: 'still_detected' | 'detected_again' | 'acceptance_expired'; at: string } | null
+  reopened: { why: 'still_detected' | 'detected_again' | 'acceptance_expired'; at: string; by?: string | null } | null
   events: FindingEvent[]
 }
 
@@ -164,7 +164,7 @@ export function seedFindingRecords(): FindingRecord[] {
       reasons: [{ layer: 2, source: 'msrc', name: 'Microsoft', date: day(200), url: 'https://msrc.example.com/update-guide/vulnerability/CVE-2025-29824', detail: null, due: null }, kev(200, 179)] }, 40),
     { ...open({ id: 'fv-srvad-win-2', asset_id: 'a-srvad', cve: 'CVE-2026-21589', software: winSrv16, verified: 'device', basis: 'device_version',
       fix: fixOf('microsoft:windows_server_2016', 'Windows Server 2016', 'os_update', '14393.7969', 'KB5055521', 'https://msrc.example.com/update-guide'), layer: 5, reasons: [] }, 40),
-      reopened: { why: 'still_detected', at: D(0, 5) },
+      reopened: { why: 'still_detected', at: D(0, 5), by: null },
       events: [ev(40, 'created'), ev(3, 'handled', { actor: 'it@acme.example', resolution: 'patched', via: 'person', note: 'Updated over the weekend' }), ev(0, 'reopened', { note: 'Still detected after it was marked patched' })] },
     // NAS-PHOTOS: an exploited flaw a safe check confirmed.
     open({ id: 'fv-nas02-ps-1', asset_id: 'a-nas02', cve: 'CVE-2022-27593', software: { id: 's-nas02-ps', name: 'QNAP Photo Station', version: '6.0.20' }, verified: 'scan', basis: 'scan',

@@ -365,7 +365,7 @@ func TestModelAPI_NeedsYourInputSearch(t *testing.T) {
 	for _, c := range []struct{ q, want string }{
 		{"printer", "device:a-new,f-p1"},    // the device's name: its not-added item and its finding
 		{"192.0.2.77", "device:a-new,f-p1"}, // its address
-		{"cups", "f-p1"},                    // the software's name (any case)
+		{"cups", "device:a-new,f-p1"},       // the software's name (any case): the finding, and the device not added that has it
 		{"cve-2026-2001", "f-f2,f-f3"},      // the CVE id
 		{"nothing-here", ""},                // no match: an empty page, not the whole queue
 		{"lab-box", ""},                     // an ignored device stays out
@@ -389,5 +389,41 @@ func TestModelAPI_NeedsYourInputSearch(t *testing.T) {
 	in := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q=fw01&limit=1&offset=1", "viewer", "")
 	if in.Total != 3 || len(in.Items) != 1 || in.Items[0].FindingsGetFindingsInput1Unconfirmed.ID != "f-f2" {
 		t.Errorf("q=fw01 page 2 of 1: total %d, items %+v", in.Total, in.Items)
+	}
+}
+
+// A device nobody added is one item of the queue that names neither a CVE nor a software line, yet a search by the CVE id or the
+// software of any of its open findings finds it, as the device's name does: a person looking for "cups" or a CVE sees the device to
+// add even when none of its findings is an item of its own (an update-recommended finding asks nothing).
+func TestModelAPI_NeedsYourInputSearchFindsADeviceNotAddedByItsFindings(t *testing.T) {
+	e := modelEnv(t)
+	if err := e.db.Write(t.Context(), func(tx *sql.Tx) error {
+		f := Finding{ID: "f-p2", AssetID: "a-new", CVE: "CVE-2026-3002", SoftwareID: "s-cups", Fix: Fix{Kind: FixUnknown}, Urgency: 5,
+			Basis: DetectBannerVersion, Verified: VerifiedNo, FirstSeen: t0.Add(-48 * time.Hour)}
+		f.FixKey = FixKey(e.inv.lines["s-cups"].ProductKey, f.Fix)
+		return writeTestFinding(t.Context(), tx, f)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ q, want string }{
+		{"cve-2026-3002", "device:a-new"}, // the CVE of its update-recommended finding: only the device item has it
+		{"CUPS", "device:a-new,f-p1"},     // the software of its findings, any case
+		{"cve-2026-1002", "f-f1"},         // another device's CVE does not find it
+	} {
+		in := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q="+url.QueryEscape(c.q), "viewer", "")
+		var ids []string
+		for _, it := range in.Items {
+			switch it.Type {
+			case "device_not_added":
+				ids = append(ids, it.FindingsGetFindingsInput1DeviceNotAdded.ID)
+			case "unconfirmed":
+				ids = append(ids, it.FindingsGetFindingsInput1Unconfirmed.ID)
+			default:
+				ids = append(ids, string(it.Type))
+			}
+		}
+		if got := strings.Join(ids, ","); got != c.want {
+			t.Errorf("q=%q: %q, want %q", c.q, got, c.want)
+		}
 	}
 }

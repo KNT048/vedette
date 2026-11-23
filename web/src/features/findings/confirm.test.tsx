@@ -71,6 +71,13 @@ describe('a person confirms a suspected finding', () => {
 
 })
 
+describe('a finding open again after a handling', () => {
+  it('says on its page why it is open again', async () => {
+    renderApp('/findings/fv-srvad-win-2')
+    expect(await screen.findByTestId('reopened-line', undefined, T)).toHaveTextContent(/^Reopened: a reading newer than the patched mark still shows the affected version \(/)
+  })
+})
+
 describe('a version the device itself reports', () => {
   it('reads as confirmed by it; a banner or a typed version stays "By version"', () => {
     const at = '2026-11-18T00:00:00Z'

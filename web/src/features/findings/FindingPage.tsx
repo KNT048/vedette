@@ -25,7 +25,7 @@ import { errMsg } from './errors'
 import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, ConfirmWays, UndoButton } from './Confirm'
 import { AskAi, NoPack, PackView } from './Recommendation'
 import { GeneralChecks } from './Hardening'
-import { FindingStatusLines, SeverityBadge } from '@/components/common/status'
+import { FindingStatusLines, ReopenedLine, SeverityBadge } from '@/components/common/status'
 import type { FindingDetail } from './types'
 import { IUpdatedFinding } from './Updated'
 import { NotAdded } from './NotAdded'
@@ -193,6 +193,8 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
             {/* the status lines every list says for this finding (its View); the older row's badge only until the view has loaded */}
             {view.data ? <FindingStatusLines value={{ status: view.data.status, urgency: view.data.urgency, verification: view.data.verification }} /> : <FindingStatus f={f} />}
+            {/* open again after a handling: why, and who when a person's version change did it */}
+            {view.data?.reopened ? <ReopenedLine reopened={view.data.reopened} version={view.data.software?.version} /> : null}
             <SeverityBadge severity={legacySeverity(f)} detail />
             {unverified(f) ? <span className="inline-flex items-center gap-1 text-muted">{t('risk.unverifiedLine')}<InfoTip topic={t('risk.unverifiedLine')}>{t('risk.unverifiedLineInfo')}</InfoTip></span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}

@@ -189,3 +189,66 @@ func TestCredit_TwoLinesOfOneCVEAreTwoFindings(t *testing.T) {
 		t.Fatal("handling one line touched the other")
 	}
 }
+
+// A person who changes the version of a line that is only their own entry updated the device and said so: the finding is patched
+// (version_moved, credit) and handled by that person, never "by Vedette". Setting the version back opens it again, and the reopen line
+// names the person who set it back.
+func TestCredit_APersonsOwnEntryMovedIsTheirs(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	const who = "qa@example.com"
+	sw := Software{ID: "s-1", Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.30.5", Source: "manual", SetBy: who, SeenAt: t0}
+	a := Asset{ID: "a-1", Name: "web-01", Software: []Software{sw}}
+	e.matchPass(t, a, MatchResult{New: []Match{versionMatch(sw)}})
+	e.advance(time.Hour)
+	a.Software[0].Version = "1.30.6"
+	e.matchPass(t, a, MatchResult{})
+	fs, _ := e.svc.Findings(t.Context(), "a-1")
+	if len(fs) != 1 {
+		t.Fatalf("%+v", fs)
+	}
+	f := fs[0]
+	if f.Resolution != ResolutionPatched || f.Via != ViaVersionMoved || f.ResolvedBy != who || f.FromVersion != "1.30.5" || f.ToVersion != "1.30.6" {
+		t.Fatalf("handled %s/%s by %q (%s → %s), want patched/version_moved by %s", f.Resolution, f.Via, f.ResolvedBy, f.FromVersion, f.ToVersion, who)
+	}
+	if got := handledSentence(f); got != "Patched by qa@example.com: version changed 1.30.5 → 1.30.6." {
+		t.Errorf("closing sentence %q", got)
+	}
+	e.advance(time.Hour)
+	a.Software[0].Version = "1.30.5"
+	e.matchPass(t, a, MatchResult{Existing: []Match{versionMatch(a.Software[0])}})
+	v, err := e.svc.View(t.Context(), f.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := v.JSON()
+	if js.Status != "update_recommended" || js.Reopened == nil || js.Reopened.Why != WhyDetectedAgain || js.Reopened.By == nil || *js.Reopened.By != who {
+		t.Fatalf("after the version was set back: status %s, reopened %+v; want open with the person who set it back", js.Status, js.Reopened)
+	}
+}
+
+// A source's reading that moves past the range is still Vedette's patch credit, and the reopen line of a source's reading names nobody.
+func TestCredit_ASourcesMoveIsVedettes(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	sw := Software{ID: "s-1", Display: "nginx", Vendor: "F5", Product: "nginx", Version: "1.30.5", Source: "agent", SeenAt: t0}
+	a := Asset{ID: "a-1", Name: "web-01", Software: []Software{sw}}
+	e.matchPass(t, a, MatchResult{New: []Match{versionMatch(sw)}})
+	e.advance(time.Hour)
+	a.Software[0].Version, a.Software[0].SeenAt = "1.30.6", t0.Add(time.Hour)
+	e.matchPass(t, a, MatchResult{})
+	fs, _ := e.svc.Findings(t.Context(), "a-1")
+	if len(fs) != 1 || fs[0].ResolvedBy != SystemUser || fs[0].Via != ViaVersionMoved {
+		t.Fatalf("%+v", fs)
+	}
+	e.advance(time.Hour)
+	a.Software[0].Version, a.Software[0].SeenAt = "1.30.5", t0.Add(2*time.Hour)
+	e.matchPass(t, a, MatchResult{Existing: []Match{versionMatch(a.Software[0])}})
+	v, err := e.svc.View(t.Context(), fs[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := v.JSON().Reopened; r == nil || r.Why != WhyDetectedAgain || r.By != nil {
+		t.Fatalf("reopened %+v, want detected_again by nobody", r)
+	}
+}

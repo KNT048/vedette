@@ -286,6 +286,9 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 		return findings.Asset{}, false, err
 	}
 	out := findingsAsset(d)
+	if err := a.enteredBy(ctx, assetID, out.Software); err != nil {
+		return findings.Asset{}, false, err
+	}
 	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id
 		names, err := a.inv.Names(ctx)
 		if err != nil {
@@ -296,6 +299,34 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 		}
 	}
 	return out, true, nil
+}
+
+// enteredBy fills Software.SetBy, who entered the version of each line that is a person's entry, from inventory's software lines
+// (MatchSoftware does not carry it): a finding a person's change of their own entry closes is handled by them, and one it opens
+// again names them. Read only for a device with such a line.
+func (a findingsInventory) enteredBy(ctx context.Context, assetID string, sw []findings.Software) error {
+	if !slices.ContainsFunc(sw, func(s findings.Software) bool { return s.Source == "manual" }) {
+		return nil
+	}
+	lines, err := a.inv.SoftwareLines(ctx, assetID)
+	if errors.Is(err, inventory.ErrNotFound) {
+		return nil // deleted since its match input was read: the next event settles it
+	}
+	if err != nil {
+		return err
+	}
+	by := make(map[string]string, len(lines))
+	for _, l := range lines {
+		if l.Source == "manual" && l.SetBy != "" {
+			by[l.ID] = l.SetBy
+		}
+	}
+	for i := range sw {
+		if sw[i].Source == "manual" {
+			sw[i].SetBy = by[sw[i].ID]
+		}
+	}
+	return nil
 }
 
 // findingsAsset is a device as the matcher reads it. The device page asks the matcher which OS a person's declared row gives it

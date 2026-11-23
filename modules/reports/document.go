@@ -405,7 +405,13 @@ func handledOf(rows []row) *ReportHandled {
 	var days []float64
 	for _, r := range rows {
 		h := r.h.handled
-		totals[key{h.Resolution, h.Via}]++
+		via := h.Via
+		if h.By != "" && h.By != "system" {
+			// a person's handling, whatever it moved: a version a person changed (via version_moved, by them) is not something Vedette
+			// saw by itself, so it is counted with the people's marks, never as "Vedette saw it itself"
+			via = "person"
+		}
+		totals[key{h.Resolution, via}]++
 		if h.Resolution == "patched" || h.Resolution == "mitigated" {
 			if at := parseTS(h.At); !at.IsZero() && !at.Before(r.f.FirstSeen) {
 				days = append(days, at.Sub(r.f.FirstSeen).Hours()/24)

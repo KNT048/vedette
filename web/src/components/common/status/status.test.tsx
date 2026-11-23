@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router'
 import type { ReactNode } from 'react'
 import '@/lib/i18n'
 import { FINDING_STATUSES } from '@/lib/statusCodes'
-import { CveList, FindingStatusLines, HandledLine, ReasonsLine, SeverityBadge, StatusBadge, VerificationLine, bandOf, type CveItem } from '.'
+import { CveList, FindingStatusLines, HandledLine, ReasonsLine, ReopenedLine, SeverityBadge, StatusBadge, VerificationLine, bandOf, type CveItem } from '.'
 
 const inRouter = (ui: ReactNode) => render(<MemoryRouter>{ui}</MemoryRouter>)
 
@@ -87,6 +87,21 @@ describe('HandledLine', () => {
     expect(screen.getByText('Patched by Vedette: WinRAR was removed (18 Nov 2026)')).toBeInTheDocument()
     expect(screen.getByText('Mitigated by ana (18 Nov 2026): firewall rule on port 443')).toBeInTheDocument()
     expect(screen.getByText(/^Risk accepted until .*2027 by ana \(18 Nov 2026\)$/)).toBeInTheDocument()
+  })
+})
+
+describe('a version a person changed', () => {
+  it('is handled by that person, never "by Vedette"; setting it back reopens with a line that names them', () => {
+    render(<>
+      <HandledLine handled={{ by: 'qa@example.com', at: '2026-11-24T03:51:00Z', note: null, accepted_until: null, resolution: 'patched', via: 'version_moved', from_version: '1.30.5', to_version: '1.30.6' }} />
+      <ReopenedLine reopened={{ why: 'detected_again', at: '2026-11-24T04:08:00Z', by: 'qa@example.com' }} version="1.30.5" />
+      <ReopenedLine reopened={{ why: 'detected_again', at: '2026-11-24T04:08:00Z', by: null }} />
+      <ReopenedLine reopened={{ why: 'acceptance_expired', at: '2026-11-24T04:08:00Z', by: null }} />
+    </>)
+    expect(screen.getByText('Patched by qa@example.com: version changed 1.30.5 → 1.30.6 (24 Nov 2026)')).toBeInTheDocument()
+    expect(screen.getByText('Reopened: the version was set back to 1.30.5 by qa@example.com (24 Nov 2026)')).toBeInTheDocument()
+    expect(screen.getByText('Reopened: Vedette detects it again (24 Nov 2026)')).toBeInTheDocument()
+    expect(screen.getByText('Reopened: the accepted risk ended (24 Nov 2026)')).toBeInTheDocument()
   })
 })
 

@@ -94614,7 +94614,8 @@ type FindingsGetFindingsHandledOKItemsItemHandled struct {
 	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
 	AcceptedUntil NilDate   `json:"accepted_until"`
 	At            time.Time `json:"at"`
-	// "system" when Vedette handled it; else the person.
+	// "system" when Vedette handled it; else the person (via version_moved too: a person changed the
+	// version they had entered).
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
 	FromVersion NilString `json:"from_version"`
@@ -100779,7 +100780,8 @@ type FindingsGetFindingsIDViewOKHandled struct {
 	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
 	AcceptedUntil NilDate   `json:"accepted_until"`
 	At            time.Time `json:"at"`
-	// "system" when Vedette handled it; else the person.
+	// "system" when Vedette handled it; else the person (via version_moved too: a person changed the
+	// version they had entered).
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
 	FromVersion NilString `json:"from_version"`
@@ -101028,6 +101030,9 @@ func (s *FindingsGetFindingsIDViewOKHandledVia) UnmarshalText(data []byte) error
 type FindingsGetFindingsIDViewOKReopened struct {
 	// Still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened.
 	At time.Time `json:"at"`
+	// Detected_again: the person whose version entry made it detected again (they set the version back);
+	// null when a source's reading did, and for the other reasons.
+	By NilString `json:"by"`
 	// Still_detected = a person marked it patched and a newer reading still shows the affected version;
 	// detected_again = it came back after Vedette closed it; acceptance_expired = the accepted risk
 	// reached its last day.
@@ -101039,6 +101044,11 @@ func (s *FindingsGetFindingsIDViewOKReopened) GetAt() time.Time {
 	return s.At
 }
 
+// GetBy returns the value of By.
+func (s *FindingsGetFindingsIDViewOKReopened) GetBy() NilString {
+	return s.By
+}
+
 // GetWhy returns the value of Why.
 func (s *FindingsGetFindingsIDViewOKReopened) GetWhy() FindingsGetFindingsIDViewOKReopenedWhy {
 	return s.Why
@@ -101047,6 +101057,11 @@ func (s *FindingsGetFindingsIDViewOKReopened) GetWhy() FindingsGetFindingsIDView
 // SetAt sets the value of At.
 func (s *FindingsGetFindingsIDViewOKReopened) SetAt(val time.Time) {
 	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsGetFindingsIDViewOKReopened) SetBy(val NilString) {
+	s.By = val
 }
 
 // SetWhy sets the value of Why.
@@ -119498,7 +119513,8 @@ type FindingsPostFindingsIDReopenOKHandled struct {
 	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
 	AcceptedUntil NilDate   `json:"accepted_until"`
 	At            time.Time `json:"at"`
-	// "system" when Vedette handled it; else the person.
+	// "system" when Vedette handled it; else the person (via version_moved too: a person changed the
+	// version they had entered).
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
 	FromVersion NilString `json:"from_version"`
@@ -119747,6 +119763,9 @@ func (s *FindingsPostFindingsIDReopenOKHandledVia) UnmarshalText(data []byte) er
 type FindingsPostFindingsIDReopenOKReopened struct {
 	// Still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened.
 	At time.Time `json:"at"`
+	// Detected_again: the person whose version entry made it detected again (they set the version back);
+	// null when a source's reading did, and for the other reasons.
+	By NilString `json:"by"`
 	// Still_detected = a person marked it patched and a newer reading still shows the affected version;
 	// detected_again = it came back after Vedette closed it; acceptance_expired = the accepted risk
 	// reached its last day.
@@ -119758,6 +119777,11 @@ func (s *FindingsPostFindingsIDReopenOKReopened) GetAt() time.Time {
 	return s.At
 }
 
+// GetBy returns the value of By.
+func (s *FindingsPostFindingsIDReopenOKReopened) GetBy() NilString {
+	return s.By
+}
+
 // GetWhy returns the value of Why.
 func (s *FindingsPostFindingsIDReopenOKReopened) GetWhy() FindingsPostFindingsIDReopenOKReopenedWhy {
 	return s.Why
@@ -119766,6 +119790,11 @@ func (s *FindingsPostFindingsIDReopenOKReopened) GetWhy() FindingsPostFindingsID
 // SetAt sets the value of At.
 func (s *FindingsPostFindingsIDReopenOKReopened) SetAt(val time.Time) {
 	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsPostFindingsIDReopenOKReopened) SetBy(val NilString) {
+	s.By = val
 }
 
 // SetWhy sets the value of Why.
@@ -122049,7 +122078,8 @@ type FindingsPostFindingsIDUnverifyOKHandled struct {
 	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
 	AcceptedUntil NilDate   `json:"accepted_until"`
 	At            time.Time `json:"at"`
-	// "system" when Vedette handled it; else the person.
+	// "system" when Vedette handled it; else the person (via version_moved too: a person changed the
+	// version they had entered).
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
 	FromVersion NilString `json:"from_version"`
@@ -122298,6 +122328,9 @@ func (s *FindingsPostFindingsIDUnverifyOKHandledVia) UnmarshalText(data []byte) 
 type FindingsPostFindingsIDUnverifyOKReopened struct {
 	// Still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened.
 	At time.Time `json:"at"`
+	// Detected_again: the person whose version entry made it detected again (they set the version back);
+	// null when a source's reading did, and for the other reasons.
+	By NilString `json:"by"`
 	// Still_detected = a person marked it patched and a newer reading still shows the affected version;
 	// detected_again = it came back after Vedette closed it; acceptance_expired = the accepted risk
 	// reached its last day.
@@ -122309,6 +122342,11 @@ func (s *FindingsPostFindingsIDUnverifyOKReopened) GetAt() time.Time {
 	return s.At
 }
 
+// GetBy returns the value of By.
+func (s *FindingsPostFindingsIDUnverifyOKReopened) GetBy() NilString {
+	return s.By
+}
+
 // GetWhy returns the value of Why.
 func (s *FindingsPostFindingsIDUnverifyOKReopened) GetWhy() FindingsPostFindingsIDUnverifyOKReopenedWhy {
 	return s.Why
@@ -122317,6 +122355,11 @@ func (s *FindingsPostFindingsIDUnverifyOKReopened) GetWhy() FindingsPostFindings
 // SetAt sets the value of At.
 func (s *FindingsPostFindingsIDUnverifyOKReopened) SetAt(val time.Time) {
 	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsPostFindingsIDUnverifyOKReopened) SetBy(val NilString) {
+	s.By = val
 }
 
 // SetWhy sets the value of Why.
@@ -124586,7 +124629,8 @@ type FindingsPostFindingsIDVerifyOKHandled struct {
 	// Accepted: the last day; the finding reopens by itself after it. null otherwise.
 	AcceptedUntil NilDate   `json:"accepted_until"`
 	At            time.Time `json:"at"`
-	// "system" when Vedette handled it; else the person.
+	// "system" when Vedette handled it; else the person (via version_moved too: a person changed the
+	// version they had entered).
 	By string `json:"by"`
 	// Via version_moved: the version that was affected.
 	FromVersion NilString `json:"from_version"`
@@ -124835,6 +124879,9 @@ func (s *FindingsPostFindingsIDVerifyOKHandledVia) UnmarshalText(data []byte) er
 type FindingsPostFindingsIDVerifyOKReopened struct {
 	// Still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened.
 	At time.Time `json:"at"`
+	// Detected_again: the person whose version entry made it detected again (they set the version back);
+	// null when a source's reading did, and for the other reasons.
+	By NilString `json:"by"`
 	// Still_detected = a person marked it patched and a newer reading still shows the affected version;
 	// detected_again = it came back after Vedette closed it; acceptance_expired = the accepted risk
 	// reached its last day.
@@ -124846,6 +124893,11 @@ func (s *FindingsPostFindingsIDVerifyOKReopened) GetAt() time.Time {
 	return s.At
 }
 
+// GetBy returns the value of By.
+func (s *FindingsPostFindingsIDVerifyOKReopened) GetBy() NilString {
+	return s.By
+}
+
 // GetWhy returns the value of Why.
 func (s *FindingsPostFindingsIDVerifyOKReopened) GetWhy() FindingsPostFindingsIDVerifyOKReopenedWhy {
 	return s.Why
@@ -124854,6 +124906,11 @@ func (s *FindingsPostFindingsIDVerifyOKReopened) GetWhy() FindingsPostFindingsID
 // SetAt sets the value of At.
 func (s *FindingsPostFindingsIDVerifyOKReopened) SetAt(val time.Time) {
 	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *FindingsPostFindingsIDVerifyOKReopened) SetBy(val NilString) {
+	s.By = val
 }
 
 // SetWhy sets the value of Why.

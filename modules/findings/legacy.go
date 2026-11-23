@@ -122,6 +122,9 @@ func record(f Finding, evs []Event, band Severity) Record {
 func handledSentence(f Finding) string {
 	switch f.Via {
 	case ViaVersionMoved:
+		if f.ResolvedBy != "" && f.ResolvedBy != SystemUser { // a person changed the version they had entered
+			return "Patched by " + f.ResolvedBy + ": version changed " + f.FromVersion + " → " + f.ToVersion + "."
+		}
 		return "Patched by Vedette: version moved " + f.FromVersion + " → " + f.ToVersion + "."
 	case ViaSoftwareRemoved:
 		return "Patched by Vedette: the software was removed."
@@ -158,6 +161,9 @@ func historyEntry(e Event) HistoryEntry {
 		}
 		if e.Detail.Why == WhyStillDetected {
 			h.Note = "Still detected after it was marked patched (reading of " + e.Detail.ReadingAt + ")."
+		}
+		if e.Detail.Why == WhyDetectedAgain && e.Detail.By != "" {
+			h.Note = "The version was set back by " + e.Detail.By + "."
 		}
 	case EvAcceptanceExpire:
 		h.Action = "reopened"

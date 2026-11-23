@@ -48246,7 +48246,7 @@
                             },
                             "by": {
                               "type": "string",
-                              "description": "\"system\" when Vedette handled it; else the person"
+                              "description": "\"system\" when Vedette handled it; else the person (via version_moved too: a person changed the version they had entered)"
                             },
                             "at": {
                               "type": "string",
@@ -48325,11 +48325,19 @@
                               "format": "date-time",
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                               "description": "still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened"
+                            },
+                            "by": {
+                              "description": "detected_again: the person whose version entry made it detected again (they set the version back); null when a source's reading did, and for the other reasons",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             }
                           },
                           "required": [
                             "why",
-                            "at"
+                            "at",
+                            "by"
                           ],
                           "additionalProperties": false,
                           "description": "An open finding that was handled before: the line that says why it is open again"
@@ -49085,7 +49093,7 @@
                             },
                             "by": {
                               "type": "string",
-                              "description": "\"system\" when Vedette handled it; else the person"
+                              "description": "\"system\" when Vedette handled it; else the person (via version_moved too: a person changed the version they had entered)"
                             },
                             "at": {
                               "type": "string",
@@ -49164,11 +49172,19 @@
                               "format": "date-time",
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                               "description": "still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened"
+                            },
+                            "by": {
+                              "description": "detected_again: the person whose version entry made it detected again (they set the version back); null when a source's reading did, and for the other reasons",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             }
                           },
                           "required": [
                             "why",
-                            "at"
+                            "at",
+                            "by"
                           ],
                           "additionalProperties": false,
                           "description": "An open finding that was handled before: the line that says why it is open again"
@@ -49945,7 +49961,7 @@
                             },
                             "by": {
                               "type": "string",
-                              "description": "\"system\" when Vedette handled it; else the person"
+                              "description": "\"system\" when Vedette handled it; else the person (via version_moved too: a person changed the version they had entered)"
                             },
                             "at": {
                               "type": "string",
@@ -50024,11 +50040,19 @@
                               "format": "date-time",
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                               "description": "still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened"
+                            },
+                            "by": {
+                              "description": "detected_again: the person whose version entry made it detected again (they set the version back); null when a source's reading did, and for the other reasons",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             }
                           },
                           "required": [
                             "why",
-                            "at"
+                            "at",
+                            "by"
                           ],
                           "additionalProperties": false,
                           "description": "An open finding that was handled before: the line that says why it is open again"
@@ -50785,7 +50809,7 @@
                             },
                             "by": {
                               "type": "string",
-                              "description": "\"system\" when Vedette handled it; else the person"
+                              "description": "\"system\" when Vedette handled it; else the person (via version_moved too: a person changed the version they had entered)"
                             },
                             "at": {
                               "type": "string",
@@ -50864,11 +50888,19 @@
                               "format": "date-time",
                               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
                               "description": "still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened"
+                            },
+                            "by": {
+                              "description": "detected_again: the person whose version entry made it detected again (they set the version back); null when a source's reading did, and for the other reasons",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             }
                           },
                           "required": [
                             "why",
-                            "at"
+                            "at",
+                            "by"
                           ],
                           "additionalProperties": false,
                           "description": "An open finding that was handled before: the line that says why it is open again"
@@ -53265,7 +53297,7 @@
                               },
                               "by": {
                                 "type": "string",
-                                "description": "\"system\" when Vedette handled it; else the person"
+                                "description": "\"system\" when Vedette handled it; else the person (via version_moved too: a person changed the version they had entered)"
                               },
                               "at": {
                                 "type": "string",

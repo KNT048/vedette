@@ -259,7 +259,7 @@ export const Verification = z.object({
 export const Handled = z.object({
   resolution: Resolution,
   via: Via,
-  by: z.string().describe('"system" when Vedette handled it; else the person'),
+  by: z.string().describe('"system" when Vedette handled it; else the person (via version_moved too: a person changed the version they had entered)'),
   at: iso,
   note: z.string().nullable(),
   accepted_until: z.iso.date().nullable().describe('accepted: the last day; the finding reopens by itself after it. null otherwise'),
@@ -269,6 +269,7 @@ export const Handled = z.object({
 export const Reopened = z.object({
   why: z.enum(['still_detected', 'detected_again', 'acceptance_expired']).describe('still_detected = a person marked it patched and a newer reading still shows the affected version; detected_again = it came back after Vedette closed it; acceptance_expired = the accepted risk reached its last day'),
   at: iso.describe('still_detected, detected_again: the time of the reading; acceptance_expired: when it reopened'),
+  by: z.string().nullable().describe('detected_again: the person whose version entry made it detected again (they set the version back); null when a source\'s reading did, and for the other reasons'),
 }).describe('An open finding that was handled before: the line that says why it is open again')
 export const Fix = z.object({
   key: z.string().min(1).max(400).describe('The "By fix" group (the same key on every device the same fix applies to); opaque'),

@@ -280,3 +280,27 @@ func TestDigestClaimsNoLink(t *testing.T) {
 		t.Errorf("what = %q, path = %q", m.What, m.Path)
 	}
 }
+
+// A version a person changed (the line was their own entry, so findings closes it as version_moved by that person) is theirs in the
+// report: the handled line names them, and the totals count it with the people's handlings, never as something Vedette saw by itself.
+func TestHandledAPersonsVersionChangeIsTheirs(t *testing.T) {
+	t.Parallel()
+	from, to := "1.30.5", "1.30.6"
+	at := "2026-11-24T03:51:00.000Z"
+	person := Handled{Resolution: "patched", Via: "version_moved", By: "qa@example.com", At: at, FromVersion: &from, ToVersion: &to}
+	vedette := Handled{Resolution: "patched", Via: "version_moved", By: "system", At: at, FromVersion: &from, ToVersion: &to}
+	if line := HandledLine(person, "nginx", time.UTC); line != "Patched by qa@example.com: version changed 1.30.5 → 1.30.6 (24 Nov 2026)" {
+		t.Errorf("person's line = %q", line)
+	}
+	if line := HandledLine(vedette, "nginx", time.UTC); line != "Patched by Vedette: version moved 1.30.5 → 1.30.6 (24 Nov 2026)" {
+		t.Errorf("Vedette's line = %q", line)
+	}
+	out := handledOf([]row{{h: history{handled: &person}}, {h: history{handled: &person}}, {h: history{handled: &vedette}}})
+	got := map[string]int{}
+	for _, x := range out.Totals {
+		got[x.Resolution+"/"+x.Via] = x.N
+	}
+	if got["patched/person"] != 2 || got["patched/version_moved"] != 1 || len(got) != 2 {
+		t.Errorf("totals = %v, want the person's two with the people's handlings and Vedette's one as version_moved", got)
+	}
+}

@@ -59,6 +59,9 @@ func HandledLine(h Handled, software string, loc *time.Location) string {
 	case "person":
 	case "version_moved":
 		how = fmt.Sprintf("version moved %s → %s", deref(h.FromVersion, "?"), deref(h.ToVersion, "?"))
+		if h.By != "system" { // a person changed the version they had entered: theirs, in the words the pages use
+			how = fmt.Sprintf("version changed %s → %s", deref(h.FromVersion, "?"), deref(h.ToVersion, "?"))
+		}
 	case "software_removed":
 		how = "the software was removed"
 		if software != "" {

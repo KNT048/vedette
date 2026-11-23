@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -12,14 +13,16 @@ import (
 )
 
 // planter writes rows into any table of the real schema without knowing its columns: every column it is not given holds a value
-// of its declared type (a number, "plant", a byte), and every foreign key is made to hold by writing the row it references first,
+// of its declared type (a number, "plant-<row>", a byte; "plant" in a column a foreign key references), and every foreign key is made to hold by writing the row it references first,
 // with the referenced value (the planted default when the referencing column was not given). CHECK constraints are ignored for
 // the planted rows (they need not look like real rows), so a test can put data in every table, or one row that breaks one rule.
 type planter struct {
 	t      *testing.T
 	tables map[string][][2]string // table -> columns (name, declared type)
 	refs   map[string]map[string]plantRef
-	pks    map[string]string // table -> its single primary key column
+	pks    map[string]string          // table -> its single primary key column
+	keyed  map[string]map[string]bool // table -> the columns a foreign key references: they hold the planted default
+	n      int                        // rows written: a column nothing references holds a value of this row only, so unique indexes hold
 }
 
 type plantRef struct{ table, column string }
@@ -27,7 +30,7 @@ type plantRef struct{ table, column string }
 func newPlanter(t *testing.T, db *store.DB) *planter {
 	t.Helper()
 	ctx := t.Context()
-	p := &planter{t: t, tables: tableColumns(t, db), refs: map[string]map[string]plantRef{}, pks: map[string]string{}}
+	p := &planter{t: t, tables: tableColumns(t, db), refs: map[string]map[string]plantRef{}, pks: map[string]string{}, keyed: map[string]map[string]bool{}}
 	for tbl := range p.tables {
 		rows, err := db.Reader().QueryContext(ctx, `SELECT name FROM pragma_table_info(?) WHERE pk > 0`, tbl)
 		if err != nil {
@@ -66,6 +69,10 @@ func newPlanter(t *testing.T, db *store.DB) *planter {
 				p.refs[tbl] = map[string]plantRef{}
 			}
 			p.refs[tbl][from] = r
+			if p.keyed[r.table] == nil {
+				p.keyed[r.table] = map[string]bool{}
+			}
+			p.keyed[r.table][r.column] = true
 		}
 		if err := rows.Close(); err != nil {
 			t.Fatal(err)
@@ -117,6 +124,12 @@ func (p *planter) end(ctx context.Context, tx *sql.Tx) error {
 	return err
 }
 
+// insert writes one row of tbl: the columns of set as given (nil is NULL), every other column its planted default, after the rows its
+// foreign keys reference.
+func (p *planter) insert(ctx context.Context, tx *sql.Tx, tbl string, set map[string]any) error {
+	return p.write(ctx, tx, tbl, set, "INSERT", 0)
+}
+
 // write writes one row of tbl with verb (INSERT, INSERT OR IGNORE): the columns of set as given (nil is NULL), every other column
 // its planted default. The rows its foreign keys reference are written first when they are not there.
 func (p *planter) write(ctx context.Context, tx *sql.Tx, tbl string, set map[string]any, verb string, depth int) error {
@@ -146,10 +159,19 @@ func (p *planter) write(ctx context.Context, tx *sql.Tx, tbl string, set map[str
 	vals := map[string]any{}
 	var cols, marks []string
 	var args []any
+	p.n++
 	for _, c := range names {
 		v, given := set[c]
 		if !given {
 			v = p.value(tbl, c)
+			if _, ref := p.refs[tbl][c]; !ref && !p.keyed[tbl][c] { // nothing points at it: a value of this row only
+				switch x := v.(type) {
+				case string:
+					v = x + "-" + strconv.Itoa(p.n)
+				case int64:
+					v = x + int64(p.n)
+				}
+			}
 		}
 		vals[c] = v
 		cols, marks, args = append(cols, `"`+c+`"`), append(marks, "?"), append(args, v)

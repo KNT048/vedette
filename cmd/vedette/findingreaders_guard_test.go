@@ -8,7 +8,8 @@ import (
 	"testing"
 )
 
-// Guard: the readers that talk about a finding (the assistant, the MCP tools, the response triggers, the mitigation module) read the view
+// Guard: the readers that talk about a finding (the assistant, the MCP tools, the response triggers, the mitigation module, the reports,
+// the alerts) read the view
 // of the finding (findings.View) and the brief of its CVE (feeds.Brief), never the older read model or the older fix readers. This lists,
 // per file, the older names that may still appear, and why; any other use fails. A name leaves the list when its file moves to the view.
 func TestGuard_FindingReadersReadTheViewNotTheOlderModel(t *testing.T) {
@@ -25,8 +26,9 @@ func TestGuard_FindingReadersReadTheViewNotTheOlderModel(t *testing.T) {
 		"modules/mitigation/handlers.go":  {"findings.Record", "finding.Get("},
 	}
 	root := filepath.Join("..", "..")
-	checked := []string{"cmd/vedette/ai.go", "cmd/vedette/ai_plan.go", "cmd/vedette/mcpserver.go", "cmd/vedette/response.go", "cmd/vedette/findingcase.go"}
-	for _, dir := range []string{"modules/ai", "modules/mitigation", "modules/mcp-server"} {
+	checked := []string{"cmd/vedette/ai.go", "cmd/vedette/ai_plan.go", "cmd/vedette/mcpserver.go", "cmd/vedette/response.go", "cmd/vedette/findingcase.go",
+		"cmd/vedette/reports.go", "cmd/vedette/notifyfindings.go"}
+	for _, dir := range []string{"modules/ai", "modules/mitigation", "modules/mcp-server", "modules/reports", "modules/notify"} {
 		m, _ := filepath.Glob(filepath.Join(root, dir, "*.go"))
 		for _, f := range m {
 			if !strings.HasSuffix(f, "_test.go") {

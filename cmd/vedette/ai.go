@@ -466,11 +466,10 @@ func aiFindingData(req mitigation.AIRequest, fc findingCase, dev *inventory.Devi
 	return append(blocks, ai.DataBlock{Kind: "inventory", Source: "the firewalls of the network", Text: aiNetworkBlock(walls)}), links
 }
 
-// aiMatched is the software row the finding is about, with its version: the row the matcher matched it on (findings stores its id,
-// Row.SoftwareID, findings INV-27), else, for a finding no match has reached since, the row whose "<name> <version>" the Evidence
-// states (the matcher writes it so), else the row whose product is the exploited entry's product. Only that row goes, not the
-// device's whole software list (#897); a short name that happens to be inside the Evidence ("Go", "R") does not count. d holds one
-// row per software line (inventory's one line), so a weaker source's reading of the same software ("OpenSSH 10.2" from a banner) is never it.
+// aiMatched is the software row the finding is about, with its version: the row the matcher matched it on (the finding's software
+// line), else, for a finding whose line is gone, the row whose product is the exploited entry's product. Only that row goes, not the
+// device's whole software list (#897), and the finding's evidence sentence is never parsed for a name. d holds one row per software
+// line (inventory's one line), so a weaker source's reading of the same software ("OpenSSH 10.2" from a banner) is never it.
 func aiMatched(row aiSubject, d inventory.Device) string {
 	if row.SoftwareID != "" {
 		for _, s := range d.Software {
@@ -485,10 +484,7 @@ func aiMatched(row aiSubject, d inventory.Device) string {
 			continue
 		}
 		v := aiStr(s.Version)
-		hit := v != "" && s.Display != "" && row.Evidence != "" && strings.Contains(strings.ToLower(row.Evidence), strings.ToLower(s.Display+" "+v))
-		if !hit && row.Product != "" && s.Product != "" {
-			hit = strings.EqualFold(strings.ReplaceAll(s.Product, "_", " "), row.Product)
-		}
+		hit := row.Product != "" && s.Product != "" && strings.EqualFold(strings.ReplaceAll(s.Product, "_", " "), row.Product)
 		if hit && len(out) < 3 {
 			out = append(out, strings.TrimSpace(aiVal(s.Display, 100)+" "+aiVal(v, 60)))
 		}

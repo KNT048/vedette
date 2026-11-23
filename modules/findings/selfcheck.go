@@ -23,11 +23,11 @@ var invariants = []selfcheck.Invariant{
 		Query: `SELECT count(*) FROM fnd_finding WHERE via = 'version_moved'
 			AND (ifnull(from_version, '') = '' OR ifnull(to_version, '') = '' OR from_version = to_version)`,
 	},
-	{ // open findings total = the sum over devices = the sum over fixes
-		Name: "findings.open_sums_agree",
-		Query: `SELECT abs(t.n - (SELECT ifnull(sum(n), 0) FROM (SELECT count(*) AS n FROM fnd_finding WHERE state = 'open' GROUP BY asset_id)))
-			+ abs(t.n - (SELECT ifnull(sum(n), 0) FROM (SELECT count(*) AS n FROM fnd_finding WHERE state = 'open' GROUP BY fix_key)))
-			FROM (SELECT count(*) AS n FROM fnd_finding WHERE state = 'open') t`,
+	{ // the "By fix" group of a finding names its stored fix: fix_key is FixKey of the line's product and the stored fix kind and
+		// version (a key clipped at its 400-byte limit is left out)
+		Name: "findings.fix_key_names_stored_fix",
+		Query: `SELECT count(*) FROM fnd_finding WHERE length(CAST(fix_key AS BLOB)) < 400
+			AND substr(fix_key, -length('|' || fix_kind || '|' || ifnull(fix_version, ''))) <> '|' || fix_kind || '|' || ifnull(fix_version, '')`,
 	},
 	{ // every stored value of an open vocabulary is one the Go type knows
 		Name: "findings.vocabulary",

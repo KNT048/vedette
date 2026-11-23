@@ -27,6 +27,141 @@ func TestSoftwareLine_Fixture_SameVersionOnEverySurface(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	ctx := t.Context()
+	devices, host := replaySoftwareLines(t, s)
+
+	type runs map[string]bool // "<name> <version>" a surface says the device runs
+	text := func(display string, version any) string {
+		v, _ := version.(string)
+		return strings.TrimSpace(display + " " + v)
+	}
+	// installed says whether a software row of the API is one the device runs: not a line a person said is not installed.
+	installed := func(sw any) bool {
+		if at(sw, "not_installed") == true {
+			return false
+		}
+		return at(sw, "correction", "not_installed") != true
+	}
+	surfaces := map[string]map[string]runs{"page": {}, "export": {}, "assistant": {}}
+	add := func(surface, device, s string) {
+		if surfaces[surface][device] == nil {
+			surfaces[surface][device] = runs{}
+		}
+		surfaces[surface][device][s] = true
+	}
+
+	code, list := s.do("GET", "/inventory/devices", "viewer", "")
+	if code != 200 {
+		t.Fatalf("list: %d %v", code, list)
+	}
+	// the list carries no lines, only how many the device has: the page's count
+	listCount := map[string]int{}
+	for _, d := range at(list, "items").([]any) {
+		id, _ := at(d, "id").(string)
+		listCount[id] = int(at(d, "software_count").(float64))
+	}
+	pageCount := map[string]int{}
+	// the device page's source rows come from the server, through the real wiring
+	if code, v := s.do("GET", "/inventory/devices/"+devices[0]+"/sources", "viewer", ""); code != 200 || len(at(v, "rows").([]any)) != 3 {
+		t.Fatalf("sources: %d %v", code, v)
+	}
+	for _, id := range devices {
+		code, page := s.do("GET", "/inventory/devices/"+id, "viewer", "")
+		if code != 200 {
+			t.Fatalf("page %s: %d %v", id, code, page)
+		}
+		pageCount[id] = len(at(page, "asset", "software").([]any))
+		for _, sw := range at(page, "asset", "software").([]any) {
+			if installed(sw) {
+				add("page", id, text(at(sw, "display").(string), at(sw, "version")))
+			}
+		}
+	}
+	r := httptest.NewRequestWithContext(ctx, http.MethodGet, server.Prefix+"/inventory/export.csv", nil)
+	r.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: "viewer", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode})
+	w := httptest.NewRecorder()
+	s.h.ServeHTTP(w, r)
+	if w.Code != 200 {
+		t.Fatalf("export: %d %s", w.Code, w.Body)
+	}
+	rows, err := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(w.Body.Bytes(), []byte("\xef\xbb\xbf")))).ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	byHost := map[string]string{}
+	for id, h := range host {
+		byHost[h] = id
+	}
+	col := slices.Index(rows[0], "software")
+	cells := map[string]string{}
+	for _, r := range rows[1:] {
+		cells[byHost[r[0]]] = r[col]
+	}
+	// A software name may hold "; " itself (an nmap OS guess: "J2320 or MX5-T router; or EX2200 ... switch"), so the cell is not split:
+	// each line the page shows is taken out of it; what is left is what the export adds. A line a person said is not installed is
+	// marked so in the export and is not something the device runs.
+	for id, cell := range cells {
+		rest := "; " + cell + "; "
+		for s := range surfaces["page"][id] {
+			if strings.Contains(rest, "; "+s+"; ") {
+				add("export", id, s)
+				rest = strings.Replace(rest, "; "+s+"; ", "; ", 1)
+			}
+		}
+		for _, sw := range strings.Split(rest, "; ") {
+			if sw != "" && !strings.HasSuffix(sw, inventory.NotInstalledMark) {
+				add("export", id, sw)
+			}
+		}
+	}
+	assets, err := aiAsk{inv: s.d.Inventory}.Assets(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range assets {
+		for _, sw := range a.Software {
+			add("assistant", a.ID, sw)
+		}
+	}
+
+	differ, lines := 0, 0
+	for _, id := range devices {
+		want := surfaces["page"][id]
+		lines += len(want)
+		var bad []string
+		if listCount[id] != pageCount[id] {
+			bad = append(bad, fmt.Sprintf("list counts %d lines, the page shows %d", listCount[id], pageCount[id]))
+		}
+		for _, name := range []string{"export", "assistant"} {
+			got := surfaces[name][id]
+			for s := range want {
+				if !got[s] {
+					bad = append(bad, name+" lacks "+s)
+				}
+			}
+			for s := range got {
+				if !want[s] {
+					bad = append(bad, name+" adds "+s)
+				}
+			}
+		}
+		if len(bad) > 0 {
+			differ++
+			slices.Sort(bad)
+			t.Logf("%s: %s", id, strings.Join(bad[:min(len(bad), 6)], "; "))
+		}
+	}
+	t.Logf("devices whose software or version differs between the list, the page, the export and the assistant's data: %d of %d (%d lines on the page)", differ, len(devices), lines)
+	if differ != 0 || lines < 1000 {
+		t.Fatalf("%d devices differ (want 0); %d lines (want the fixture's lines)", differ, lines)
+	}
+}
+
+// replaySoftwareLines replays the anonymised test-network inventory (modules/inventory/testdata/software_lines.json, the file the
+// inventory's own line tests replay) through the write paths of the stack: each device, every source's software list, then the
+// people's corrections. It returns the devices in the fixture's order and the host name each was given.
+func replaySoftwareLines(t *testing.T, s *stack) ([]string, map[string]string) {
+	t.Helper()
+	ctx := t.Context()
 	raw, err := os.ReadFile("../../modules/inventory/testdata/software_lines.json")
 	if err != nil {
 		t.Fatal(err)
@@ -99,129 +234,9 @@ func TestSoftwareLine_Fixture_SameVersionOnEverySurface(t *testing.T) {
 		}
 	}
 
-	type runs map[string]bool // "<name> <version>" a surface says the device runs
-	text := func(display string, version any) string {
-		v, _ := version.(string)
-		return strings.TrimSpace(display + " " + v)
+	devices := make([]string, len(f.Devices))
+	for i, d := range f.Devices {
+		devices[i] = d.ID
 	}
-	// installed says whether a software row of the API is one the device runs: not a line a person said is not installed.
-	installed := func(sw any) bool {
-		if at(sw, "not_installed") == true {
-			return false
-		}
-		return at(sw, "correction", "not_installed") != true
-	}
-	surfaces := map[string]map[string]runs{"page": {}, "export": {}, "assistant": {}}
-	add := func(surface, device, s string) {
-		if surfaces[surface][device] == nil {
-			surfaces[surface][device] = runs{}
-		}
-		surfaces[surface][device][s] = true
-	}
-
-	code, list := s.do("GET", "/inventory/devices", "viewer", "")
-	if code != 200 {
-		t.Fatalf("list: %d %v", code, list)
-	}
-	// the list carries no lines, only how many the device has: the page's count
-	listCount := map[string]int{}
-	for _, d := range at(list, "items").([]any) {
-		id, _ := at(d, "id").(string)
-		listCount[id] = int(at(d, "software_count").(float64))
-	}
-	pageCount := map[string]int{}
-	// the device page's source rows come from the server, through the real wiring
-	if code, v := s.do("GET", "/inventory/devices/"+f.Devices[0].ID+"/sources", "viewer", ""); code != 200 || len(at(v, "rows").([]any)) != 3 {
-		t.Fatalf("sources: %d %v", code, v)
-	}
-	for _, d := range f.Devices {
-		code, page := s.do("GET", "/inventory/devices/"+d.ID, "viewer", "")
-		if code != 200 {
-			t.Fatalf("page %s: %d %v", d.ID, code, page)
-		}
-		pageCount[d.ID] = len(at(page, "asset", "software").([]any))
-		for _, sw := range at(page, "asset", "software").([]any) {
-			if installed(sw) {
-				add("page", d.ID, text(at(sw, "display").(string), at(sw, "version")))
-			}
-		}
-	}
-	r := httptest.NewRequestWithContext(ctx, http.MethodGet, server.Prefix+"/inventory/export.csv", nil)
-	r.AddCookie(&http.Cookie{Name: servertest.CookieName, Value: "viewer", Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode})
-	w := httptest.NewRecorder()
-	s.h.ServeHTTP(w, r)
-	if w.Code != 200 {
-		t.Fatalf("export: %d %s", w.Code, w.Body)
-	}
-	rows, err := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(w.Body.Bytes(), []byte("\xef\xbb\xbf")))).ReadAll()
-	if err != nil {
-		t.Fatal(err)
-	}
-	byHost := map[string]string{}
-	for id, h := range host {
-		byHost[h] = id
-	}
-	col := slices.Index(rows[0], "software")
-	cells := map[string]string{}
-	for _, r := range rows[1:] {
-		cells[byHost[r[0]]] = r[col]
-	}
-	// A software name may hold "; " itself (an nmap OS guess: "J2320 or MX5-T router; or EX2200 ... switch"), so the cell is not split:
-	// each line the page shows is taken out of it; what is left is what the export adds. A line a person said is not installed is
-	// marked so in the export and is not something the device runs.
-	for id, cell := range cells {
-		rest := "; " + cell + "; "
-		for s := range surfaces["page"][id] {
-			if strings.Contains(rest, "; "+s+"; ") {
-				add("export", id, s)
-				rest = strings.Replace(rest, "; "+s+"; ", "; ", 1)
-			}
-		}
-		for _, sw := range strings.Split(rest, "; ") {
-			if sw != "" && !strings.HasSuffix(sw, inventory.NotInstalledMark) {
-				add("export", id, sw)
-			}
-		}
-	}
-	assets, err := aiAsk{inv: s.d.Inventory}.Assets(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, a := range assets {
-		for _, sw := range a.Software {
-			add("assistant", a.ID, sw)
-		}
-	}
-
-	differ, lines := 0, 0
-	for _, d := range f.Devices {
-		want := surfaces["page"][d.ID]
-		lines += len(want)
-		var bad []string
-		if listCount[d.ID] != pageCount[d.ID] {
-			bad = append(bad, fmt.Sprintf("list counts %d lines, the page shows %d", listCount[d.ID], pageCount[d.ID]))
-		}
-		for _, name := range []string{"export", "assistant"} {
-			got := surfaces[name][d.ID]
-			for s := range want {
-				if !got[s] {
-					bad = append(bad, name+" lacks "+s)
-				}
-			}
-			for s := range got {
-				if !want[s] {
-					bad = append(bad, name+" adds "+s)
-				}
-			}
-		}
-		if len(bad) > 0 {
-			differ++
-			slices.Sort(bad)
-			t.Logf("%s: %s", d.ID, strings.Join(bad[:min(len(bad), 6)], "; "))
-		}
-	}
-	t.Logf("devices whose software or version differs between the list, the page, the export and the assistant's data: %d of %d (%d lines on the page)", differ, len(f.Devices), lines)
-	if differ != 0 || lines < 1000 {
-		t.Fatalf("%d devices differ (want 0); %d lines (want the fixture's lines)", differ, lines)
-	}
+	return devices, host
 }

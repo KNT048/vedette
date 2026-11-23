@@ -39,7 +39,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   (`not_installed`). A safe check's or a person's confirmation is undone only by a newer reading of the device, never by range data.
 - **M-4 Invariants.** Held by database CHECKs, `Finding.Validate` and `vedette selfcheck`: open exactly when there is no
   resolution, `via`, `resolved_by` or `resolved_at`; accepted exactly with a last day; `version_moved` exactly with two different
-  versions; every open vocabulary value is one the Go type lists; open total = sum by device = sum by `fix_key`.
+  versions; every open vocabulary value is one the Go type lists; every open finding's `fix_key` names its stored fix (`findings.fix_key_names_stored_fix`).
+  Open total = sum by device = sum by `fix_key`: every open row is in exactly one group of each, so the API test
+  `TestModelAPI_OpenEqualsSumByDeviceEqualsSumByFix` proves it, not a selfcheck query.
 - **M-5 Patch credit by structure.** How a finding went away depends on what changed on the device, never on which source read the
   version. A person's correction of what a source reads is not an update (`data_corrected`, no credit).
 - **M-6 Device lifecycle.** Findings take part in inventory's merge and delete inside inventory's transaction (`lifecycle.go`): a

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/knt048/vedette/core/api/apijson"
 	"github.com/knt048/vedette/core/api/oas"
 )
 
@@ -24,15 +25,11 @@ func into[T any, P interface {
 	*T
 	json.Unmarshaler
 }](v any) (*T, error) {
-	b, err := json.Marshal(v)
+	out, err := apijson.Into[T](v)
 	if err != nil {
-		return nil, fmt.Errorf("ids: encoding response: %w", err)
+		return nil, fmt.Errorf("ids: %w", err)
 	}
-	var out T
-	if err := P(&out).UnmarshalJSON(b); err != nil {
-		return nil, fmt.Errorf("ids: response does not fit the API schema: %w", err)
-	}
-	return &out, nil
+	return out, nil
 }
 
 // DetectionGetDetectionAlerts implements detection_get_detection_alerts (viewer).

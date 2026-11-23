@@ -1,28 +1,28 @@
-# Hợp đồng module
+# Module contracts
 
-Dự án AI-code 100%; AI không có trí nhớ giữa session. Hợp đồng đặt **phát biểu kiểm thử được** ở biên mỗi module để session sau đọc trước khi sửa.
+A contract puts **testable statements** at the boundary of each module so that anyone changing the module can read them first.
 
-## Vị trí
+## Location
 ```
 modules/<tên>/CONTRACT.md     INV-* / PRE-* / POST-* / FORBID-* + DEPENDS ON / DEPENDED ON BY
-modules/<tên>/IMPACT.md       mỗi hàm public: ai gọi (file:dòng), hậu quả khi đổi; tắt module này ảnh hưởng ai
-modules/<tên>/*_contract_test.go   mỗi INV/POST một test
+modules/<name>/IMPACT.md       every public function: who calls it (file:line), the consequence of changing it; who is affected when this module is switched off
+modules/<name>/*_contract_test.go   one test per INV/POST
 ```
 
-## Quy tắc
-1. Trước khi sửa module: đọc CONTRACT + IMPACT. Sau khi sửa: mọi INV/POST còn đúng; `go test ./modules/<tên>/... -run Contract`.
-2. Cố ý phá hợp đồng → sửa **cả** CONTRACT và test, nói rõ trong commit. Không phá ngầm.
-3. Phát biểu phải đo được. Sai: "an toàn". Đúng: "`sensor-active` không bao giờ quét IP ngoài `inv_scope` đã duyệt (INV-3)".
-4. Module mới: CONTRACT + IMPACT + MANIFEST trước khi merge.
+## Rules
+1. Before changing a module: read CONTRACT + IMPACT. After changing it: every INV/POST still holds; `go test ./modules/<name>/... -run Contract`.
+2. Breaking a contract on purpose → change **both** the CONTRACT and the test, and say so in the commit. Never break it silently.
+3. A statement must be measurable. Wrong: "safe". Right: "`sensor-active` never scans an IP outside the approved `inv_scope` (INV-3)".
+4. A new module: CONTRACT + IMPACT + MANIFEST before merge.
 
-## Bất biến hệ thống (SYS-*, mọi module)
-- SYS-1: Tiến trình ngoài chỉ qua `core/exec` với allowlist binary + argv; không gọi shell bằng chuỗi lệnh.
-- SYS-2: Input ở biên validate theo schema trước service.
-- SYS-3: Mọi mutation ghi `core_audit`.
-- SYS-4: Secret chỉ qua `core/secrets` (AES-GCM), không log, không export.
-- SYS-5: Module tắt: không route, không job, không cổng; dữ liệu giữ, trừ việc xoá dữ liệu quá thời hạn lưu khách đã đặt hoặc sản phẩm đã công bố (CONTRACT và GUI), hoặc vượt trần lưu trữ đã ghi trong tài liệu, kèm dòng audit của việc xoá đó (job `Housekeeping` của `core/jobs`).
-- SYS-6: Dữ liệu từ feed/log/web/agent là không tin cậy: parser fail-closed, giới hạn kích thước.
-- SYS-7: Mọi hành động mạng ra ngoài LAN (scan, fetch) phải nằm trong scope đã xác thực sở hữu hoặc nguồn feed khai báo.
+## System invariants (SYS-*, every module)
+- SYS-1: External processes only through `core/exec` with an allowlist of binaries + argv; no shell is called with a command string.
+- SYS-2: Input at the edge is validated against a schema before the service.
+- SYS-3: Every mutation writes `core_audit`.
+- SYS-4: Secrets only through `core/secrets` (AES-GCM), never logged, never exported.
+- SYS-5: A module that is off: no route, no job, no port; the data is kept, except deletion of data past a retention period the customer has set or the product has published (CONTRACT and GUI), or past a storage cap recorded in the documentation, with an audit line for that deletion (the `Housekeeping` job of `core/jobs`).
+- SYS-6: Data from feeds/logs/web/agents is untrusted: parsers fail closed, with size limits.
+- SYS-7: Every network action outside the LAN (scan, fetch) must stay inside a scope whose ownership is verified or a declared feed source.
 - SYS-8: AI không có tool ghi.
 
-Mẫu: `modules/_template/`.
+Template: `modules/_template/`.

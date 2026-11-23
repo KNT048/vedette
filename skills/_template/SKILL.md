@@ -1,11 +1,11 @@
 ---
 name: example-skill
 version: 0.1.0
-description: Một câu nói skill làm việc gì, kích hoạt khi nào (nút/sự kiện), cho story nào.
+description: One sentence saying what the skill does, when it is triggered (button/event), for which story.
 stories: [S-AI-2]
 trigger: manual            # manual | event:<tên> | schedule:<cron>
-tier_budget: { min: 0, med: 4000, max: 20000 }   # token vào ước lượng mỗi lần
-tools_allowed: []          # chỉ tool chỉ-đọc: search_assets, events_around, lookup_ioc, lookup_cve
+tier_budget: { min: 0, med: 4000, max: 20000 }   # estimated input tokens per call
+tools_allowed: []          # read-only tools only: search_assets, events_around, lookup_ioc, lookup_cve
 inputs_schema: ./input.schema.json
 output_schema: ./output.schema.json
 language: vi
@@ -15,7 +15,7 @@ language: vi
 
 ## Làm gì
 ## Không làm gì
-## Input hộp chuẩn bị (AI không tự tìm)
-## Output (schema cứng; có `citations[]`)
+## Input the box prepares (the AI does not look for it)
+## Output (a strict schema; has `citations[]`)
 ## Fixtures
-`fixtures/*.json` — input + output kỳ vọng; chạy trong CI với model rẻ khi có key.
+`fixtures/*.json`: input + expected output; run in CI with a cheap model when a key is available.

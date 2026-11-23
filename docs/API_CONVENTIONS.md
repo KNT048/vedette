@@ -112,6 +112,8 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `bad_client_id` | 400 | The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789. | `PUT /notify/channels/email` (Microsoft 365) |
 | `bad_config` | 400 | Parser configuration is not valid (for example, JSONPath must start with $). | `POST /feeds/parse-test` |
 | `bad_cursor` | 400 | That search position is not valid. Search again from the start. | `GET /logs/events` (module logs): `cursor` not in the form of a `next_cursor`, or sent without `q`; GUI searches again from the start |
+| `bad_address` | 400 | Give one IPv4 address or MAC address of this device. | `POST /inventory/devices/{id}/split` |
+| `bad_choice` | 400 | Pick the name of one of the devices being merged. (the field's words: name, type, operating system) | `POST /inventory/devices/{id}/merge` (`fields`) |
 | `bad_days` | 400 | Scan days must be Monday to Sunday. | `PUT /inventory/settings`; `PUT /logs/retention` |
 | `bad_events` | 400 | Choose at least one event type to forward. | module logs (shared validator) |
 | `bad_exclusion` | 400 | Exclusion "${x.slice(0, 30)}" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28). | `PUT /inventory/settings` |
@@ -391,6 +393,7 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `no_update` | 404 | There is no new version of this component. Click "Check now". | `POST /core/updates/apply` |
 | `not_found` | 404 | This ${what} no longer exists. | 52 endpoint (/ai, /core, /exposure, /feeds, /findings, /honeypot, /inventory, /logs, /modules, /notify, /reports, /response) |
 | `not_in_data` | 404 | The vulnerability data on this box does not hold this CVE. | `GET /feeds/cve/{id}` (and, with its own sentence, `GET /feeds/cve/{id}/tier`) |
+| `address_not_found` | 404 | This address is not one of this device's addresses. Reload the device page. | `POST /inventory/devices/{id}/split` |
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
@@ -441,7 +444,8 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `no_devices` | 409 | No device in the inventory matches (agent sample data). | `POST /inventory/agents/tokens/{id}/sample-data`; `POST /inventory/agents/wazuh/sample-data` |
 | `no_source` | 409 | This incident names no single address Vedette can act on. Nothing was requested. | `POST /response/incidents/{id}/request`: not a trap incident, a test hit, or the hit is gone |
 | `incident_resolved` | 409 | This incident is resolved, so nothing is offered. Reopen it in Incidents to act on it. | `POST /response/incidents/{id}/request` |
-| `not_same_device` | 409 | These are two machines: an agent reports from each of them. / These are two machines: each has its own hardware MAC address (aa:… and bb:…). Keep them separate; delete a device only when its machine is gone. | `POST /inventory/devices/{id}/merge` |
+| `not_same_device` | 409 | These are two machines: an agent reports from each of them. Keep them separate; delete a device only when its machine is gone. | `POST /inventory/devices/{id}/merge`; `refusal` of `GET /inventory/devices/{id}/merge-preview` |
+| `only_address` | 409 | This is the device's only address, so there is nothing to split off. Delete the device when it is not there. | `POST /inventory/devices/{id}/split` |
 | `not_toggleable` | 409 | This engine has no switch of its own: it follows nmap-discovery / it runs as a step of another scan. | `PATCH /scanning/engines/{id}` (nmap-versions, snmp, zap) |
 | `source_unconfirmed` | 409 | The source of a scan or of a UDP request can be forged: it completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it. | `POST /response/incidents/{id}/request` (honeypot): a scan hit, or a UDP trap hit (TFTP, NTP, SIP), whose source has no TCP service hit within the hour around it |
 | `no_pending` | 409 | No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one. | `POST /core/account/2fa/confirm` |

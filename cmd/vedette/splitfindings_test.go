@@ -77,9 +77,20 @@ func TestWiringSplitMovesTheFindingWithItsLine(t *testing.T) {
 	if err := s.d.Inventory.Merge(ctx, "it@acme.example", vm, fw); err != nil {
 		t.Fatal(err)
 	}
+	// a request about the finding still waiting for a decision, and one already carried out, while the finding is on the kept device
+	for _, r := range [][2]string{{"r-pending", "pending"}, {"r-executed", "executed"}} {
+		s.exec(`INSERT INTO resp_actions (id, source, proposal_id, finding_id, cve, asset_id, asset_name, title, risk, status, requested_at, expires_at, requires_approvals, items)
+			VALUES (?, 'ai', 'p', ?, 'CVE-2026-1001', ?, 'fw', 'Block', 'low', ?, '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z', 1, '[]')`, r[0], id, vm, r[1])
+	}
 	back, err := s.d.Inventory.Split(ctx, "it@acme.example", vm, "10.0.10.1")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if n := s.count(`SELECT count(*) FROM resp_actions WHERE id = 'r-pending' AND asset_id = ?`, back); n != 1 {
+		t.Error("the request still waiting for a decision did not follow the finding to the restored device")
+	}
+	if n := s.count(`SELECT count(*) FROM resp_actions WHERE id = 'r-executed' AND asset_id = ?`, vm); n != 1 {
+		t.Error("the request already carried out left the device it acted on")
 	}
 	f, err := s.d.Findings.Finding(ctx, id)
 	if err != nil {

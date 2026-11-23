@@ -149,7 +149,7 @@ func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notif
 			o.Devices.ByStatus.NeedsInput++
 		}
 	}
-	items, err := s.inputItems(ctx, "")
+	items, err := s.inputItems(ctx, "", false)
 	if err != nil {
 		return nil, err
 	}

@@ -134,11 +134,11 @@ func (s *Service) step(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, t
 		return g, evs, err
 	}
 	for _, e := range evs {
-		action, detail := auditOf(g, e)
+		user, action, detail := auditOf(g, e)
 		if action == "" {
 			continue
 		}
-		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: e.Actor, Action: action, Target: g.ID, Detail: detail}); err != nil {
+		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: action, Target: g.ID, Detail: detail}); err != nil {
 			return f, nil, err
 		}
 	}
@@ -151,9 +151,20 @@ func (s *Service) step(ctx context.Context, tx *sql.Tx, f Finding, isNew bool, t
 	return g, evs, nil
 }
 
-// auditOf is the audit row of one event: what a person did, and what Vedette decided by itself about the handling. "" for the
-// rest (urgency, fix, detection edges: the finding's own history holds them).
-func auditOf(f Finding, e Event) (action, detail string) {
+// auditOf is the audit row of one event: who, what a person did, and what Vedette decided by itself about the handling. "" for the
+// rest (urgency, fix, detection edges: the finding's own history holds them). The row is the event's actor's, except a reopening that
+// a person's version entry caused (they set the version back): that row is the person's and names them, as the handled row of their
+// version change is theirs.
+func auditOf(f Finding, e Event) (user, action, detail string) {
+	action, detail = auditAction(f, e)
+	user = e.Actor
+	if e.Kind == EvReopened && e.Detail.By != "" {
+		user, detail = e.Detail.By, detail+": the version was set back by "+e.Detail.By
+	}
+	return user, action, detail
+}
+
+func auditAction(f Finding, e Event) (action, detail string) {
 	d := e.Detail
 	switch e.Kind {
 	case EvCreated:

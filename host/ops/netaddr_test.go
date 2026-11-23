@@ -38,10 +38,10 @@ func TestDynamicAddrsReadsTheLeaseFlag(t *testing.T) {
 	perm, lease := uint32(ifaFPermanent), uint32(0x100) // IFA_F_NOPREFIXROUTE alone: not permanent
 	dump := slices.Concat(
 		nlAddr(2, "192.168.142.141/24", 0, nil),                // DHCP: no IFA_F_PERMANENT
-		nlAddr(2, "fe80::1/64", ifaFPermanent, nil),           // link-local: permanent
+		nlAddr(2, "fe80::1/64", ifaFPermanent, nil),            // link-local: permanent
 		nlAddr(3, "192.168.142.140/24", ifaFPermanent, &lease), // IFA_FLAGS wins over the 8-bit field
-		nlAddr(4, "192.168.50.2/24", 0, &perm),                // static, said by IFA_FLAGS only
-		nlAddr(5, "2001:db8::5/64", 0, nil),                   // SLAAC
+		nlAddr(4, "192.168.50.2/24", 0, &perm),                 // static, said by IFA_FLAGS only
+		nlAddr(5, "2001:db8::5/64", 0, nil),                    // SLAAC
 		nlMsg(nlmsgDone, make([]byte, 4)),
 		nlAddr(6, "192.168.60.2/24", 0, nil), // after the end of the dump: not read
 	)

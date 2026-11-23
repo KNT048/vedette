@@ -1,5 +1,5 @@
 // Mock API module inventory (S-INV-1..4). Tài sản nằm ở assetsStore dùng chung; bảng riêng của module tiền tố inv_.
-// Observation không bao giờ bị ghi đè (ARCHITECTURE §4): sửa tay chỉ thêm một observation nguồn "khai tay".
+// An observation is never overwritten (ARCHITECTURE §4): a manual edit only adds one observation with the source "manual".
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
@@ -26,7 +26,7 @@ import { deviceRisk } from '@/features/findings/mocks'
 import { DEVICE_STATUSES } from '@/lib/statusCodes'
 import { actsAs, lookupType, TYPE_IDS } from '@/lib/deviceTypes'
 
-// Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
+// The box address Vedette puts into the agent configuration: Vedette serves both the UI and the API on https://<box IP>:8443 (TLS). When the IP is unknown, leave a clearly empty placeholder, never invent one.
 const serverUrl = () => `https://${boxAddress() ?? NO_BOX_ADDRESS}:8443` // The Box address
 const noBoxAddress = () => fail(404, 'no_box_address', "This box knows no address that other machines can reach, so an install script would point nowhere. Open Vedette at its network address; on a container-only install first set VEDETTE_BIND_IP to this machine's LAN address and VEDETTE_HOSTS to that address or a name for it. Then copy the command again.")
 const FIELD_ORDER: ObsField[] = ['kind', 'hostname', 'mac', 'vendor', 'model', 'os']
@@ -34,7 +34,7 @@ const FIELD_ORDER: ObsField[] = ['kind', 'hostname', 'mac', 'vendor', 'model', '
 const kevVulns = (kev as { vulns: { cve: string; vendor: string; product: string }[] }).vulns
 const cvesFor = (keys: string[]) => kevVulns.filter((v) => keys.includes(`${v.vendor}|${v.product}`.toLowerCase())).map((v) => v.cve)
 
-// ---- bảng riêng ----
+// ---- module tables ----
 interface Meta { suspicious?: boolean; fragile_manual?: boolean; regular_scan?: RegularScan; approved_at?: string; scan_source?: 'on' | 'off'; snmp_source?: 'on' | 'off'; agent_source?: 'on' | 'off'; ignored_at?: string }
 /** A device's network scan and SNMP reads, the default resolved (on for a device a sensor found, off for one added by hand). */
 const sourceOf = (a: Asset, which: 'scan_source' | 'snmp_source'): 'on' | 'off' => {
@@ -57,18 +57,18 @@ const settingsStore = collection<StoredSettings>('inv_settings', () => ({
   fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
   scope_confirmed_at: daysAgo(36), scope_confirmed_by: 'admin@acme.example',
 }), () => ({
-  // Cài sạch: chưa có dải mạng nào, chưa xác nhận phạm vi nên chưa quét chủ động. Người quản trị khai ở trang Phạm vi quét.
+  // Fresh install: no network range yet, the scope is not confirmed so there is no active scan. The administrator declares it on the Scan scope page.
   lan_ranges: [],
   active: { enabled: false, days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00', rate: 50, exclusions: [] },
   fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
   scope_confirmed_at: null, scope_confirmed_by: null,
 }))
-// Chỉ cảm biến của chính hộp này (đa site chưa hỗ trợ — chủ dự án).
+// Only the sensor of this box itself (multiple sites are not supported yet).
 type StoredSensor = Omit<Sensor, 'interface' | 'interfaces' | 'span' | 'chosen' | 'span_status' | 'capture_error'>
 export const sensorsStore = collection<StoredSensor[]>('sp_sensor', () => [
   { id: 'sn-local', name: 'vedette-hq', status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 30 },
 ], () => [
-  // Cài sạch: cảm biến của chính hộp, chưa thấy thiết bị nào.
+  // Fresh install: the box's own sensor, no device seen yet.
   { id: 'sn-local', name: boxInfo().hostname, status: 'online', last_seen: nowIso(), version: '0.1.0', devices_seen: 0 },
 ])
 /** Container-only install: the cards the sensor container reported in its heartbeat and the card the admin
@@ -103,7 +103,7 @@ const agentsStore = collection<AgentToken[]>('intake_agent_tokens', () => [
   { id: 'tk-old-unused', name: 'osquery install (never run)', kind: 'osquery', last4: 'u9Zx', created_at: daysAgo(3), created_by: 'admin@example.test', last_received: null, hosts: 0, expires_at: new Date(Date.now() - 2 * 864e5).toISOString(), device_id: null },
 ], () => [])
 type StoredWazuh = WazuhConnection & { password: string }
-// Chứng chỉ CA của hộp (mock: giá trị giả, nhúng trong script như bản thật sẽ nhúng CA tự ký của hộp).
+// The box's CA certificate (mock: a fake value, embedded in the script the way the real one embeds the box's self-signed CA).
 const MOCK_CA = '-----BEGIN CERTIFICATE-----\nMIIBmockVedetteBoxCA0000000000000000000000000000000000000000000000\n(mock certificate: the real box embeds its own CA here)\n-----END CERTIFICATE-----'
 /** The five packages the real box serves, with the sizes and SHA-256 of deploy/osquery/PINS; the mock has no file to send. */
 const V = OSQUERY_VERSION
@@ -128,7 +128,7 @@ const installers = async () => {
 const expired = (t: AgentToken) => t.expires_at !== null && new Date(t.expires_at).getTime() < Date.now()
 const wazuhStore = collection<StoredWazuh | null>('intake_wazuh', () => null, () => null)
 
-// ---- tiện ích ----
+// ---- helpers ----
 const rand = (n: number, alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => {
   const b = crypto.getRandomValues(new Uint8Array(n))
   return Array.from(b, (x) => alphabet[x % alphabet.length]).join('')
@@ -137,7 +137,7 @@ const rand = (n: number, alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => {
 const LABEL_RE = /^[^<>\u0000-\u001f]{1,64}$/
 const VERSION_RE = /^[\w.\-+() ]{1,40}$/u
 const hasIp = (a: Asset) => a.ip !== '' && a.ip !== '—'
-/** Đọc cài đặt; dải lưu với bit máy ("192.168.18.5/24") được đưa về địa chỉ mạng. Dải thiếu /prefix giữ nguyên để UI báo lỗi trên dòng đó, không kẹt các thao tác khác. */
+/** Reads the settings; a range stored with host bits ("192.168.18.5/24") is reduced to the network address. A range without /prefix is kept as is so the UI shows the error on that row and does not block other actions. */
 /** A short hash of a string (FNV-1a), for the mock's versions. */
 export function hashOf(s: string): string {
   let h = 0x811c9dc5
@@ -162,10 +162,10 @@ function loadSettings(): StoredSettings {
 }
 const policyFragile = (kind: AssetKind) => (settingsStore.get().fragile_kinds as string[]).includes(actsAs(kind)) // a type acts as one of the 13 kinds
 
-// ---- Chính hộp là thiết bị đầu tiên (S-INV-5) ----
+// ---- The box itself is the first device (S-INV-5) ----
 export const BOX_ID = 'a-box'
 const boxSoftware = (key: string, display: string, vendor: string, product: string, version: string, kev: string[]): Software => ({ id: `s-box-${key}`, display, vendor, product, version, kev, source: 'agent', confidence: 1 })
-/** Gói trên hộp (dpkg), nguồn "this box" (tác nhân của chính hộp), độ tin cậy 1.0. Phiên bản khớp trạng thái hệ điều hành mẫu ở Settings, Updates. */
+/** Packages on the box (dpkg), source "this box" (the box's own agent), confidence 1.0. The versions match the sample operating-system state in Settings, Updates. */
 const BOX_SOFTWARE: Software[] = [
   boxSoftware('openssh', 'OpenSSH server', 'OpenBSD', 'OpenSSH', '9.6p1', ['openbsd|openssh']),
   boxSoftware('openssl', 'OpenSSL', 'OpenSSL', 'OpenSSL', '3.0.13', ['openssl|openssl']),
@@ -175,7 +175,7 @@ const BOX_SOFTWARE: Software[] = [
   boxSoftware('caddy', 'Caddy web server (Vedette web interface)', 'Caddy', 'Caddy', '2.6.2', ['caddyserver|caddy']),
   boxSoftware('python3', 'Python 3 (OpenCanary)', 'Python', 'Python', '3.12.3', ['python|python']),
 ]
-/** Đảm bảo hộp có trong kho, cả dữ liệu mẫu lẫn cài sạch; tên và IP lấy từ boxInfo() mỗi lần (chỉ đọc). Gọi trước mọi đọc/ghi tài sản của module. */
+/** Makes sure the box is in the store, in sample data and in a fresh install alike; name and IP are taken from boxInfo() every time (read only). Call before every asset read/write of the module. */
 export function ensureBox() {
   const info = boxInfo()
   const ip = info.ip ?? '—'
@@ -200,7 +200,7 @@ export function ensureBox() {
   matchAssetToKev(BOX_ID)
 }
 function allAssets(): Asset[] { ensureBox(); return assetsStore.get() }
-// Hộp có mặt ngay khi mock khởi động, để trang chủ và Findings thấy phát hiện trên hộp mà không cần mở Devices trước. Test tự gọi ensureBox.
+// The box exists as soon as the mock starts, so the home page and Findings see findings on the box without opening Devices first. Tests call ensureBox themselves.
 if (import.meta.env.MODE !== 'test') ensureBox()
 
 function derive(a: Asset): StoredObs[] {
@@ -215,7 +215,7 @@ function derive(a: Asset): StoredObs[] {
     const o = a[f]
     if (!o) continue
     push(f, o.value, o.source, o.confidence, o.seen_at)
-    // Lần thấy trước đó yếu hơn: chứng minh giá trị cũ không bị xoá khi có giá trị mới (dữ liệu mẫu).
+    // An earlier sighting was weaker: proves the old value is not deleted when a new value arrives (sample data).
     if (f === 'os' && o.source !== 'passive' && o.source !== 'manual') push('os', 'Unknown OS (guessed from packet TTL)', 'passive', 0.2, new Date(new Date(o.seen_at).getTime() - 7 * 864e5).toISOString())
   }
   push('kind', a.kind, src, conf, a.first_seen)
@@ -318,7 +318,7 @@ const scanInfo = (a: Asset) => ({
   snmp_source: sourceOf(a, 'snmp_source'),
   ignored_at: metaStore.get()[a.id]?.ignored_at ?? null, // A person ignored it (known, not watched)
 })
-// Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
+// The box is always "just seen": it is the machine running Vedette.
 /** INV-49: a private (randomised) Wi-Fi address: the locally administered bit is set and the prefix is not a stable virtual one (QEMU/KVM, Docker, VirtualBox). */
 export const isPrivateMac = (mac: string | null) => !!mac && mac.length === 17 && (parseInt(mac.slice(0, 2), 16) & 2) !== 0 && !['52:54:00', '02:42', '0a:00:27'].some((p) => mac.toLowerCase().startsWith(p))
 /** INV-49: not approved but held out of To review: a private-address device with no open service that has not stayed past a day. */
@@ -572,7 +572,7 @@ const softwareOf = (e: CatalogEntry, version?: string): Software => ({ id: newId
 
 const bad = (status: number, code: string, message: string) => ({ status, code, message })
 type AddCheck = { err: ReturnType<typeof bad> } | { err?: undefined; entry: CatalogEntry | undefined; version: string; name: string; ip: string }
-/** Sản phẩm: chọn trong danh mục (catalog_id) hoặc tự nhập hãng + sản phẩm ("không thấy sản phẩm?"). */
+/** Product: pick from the catalog (catalog_id) or type vendor + product by hand ("can't find the product?"). */
 function resolveProduct(b: Partial<AddDeviceInput>): { entry?: CatalogEntry; err?: ReturnType<typeof bad> } {
   if (b.catalog_id) { const e = findById(b.catalog_id); return e ? { entry: e } : { err: bad(400, 'unknown_product', 'That product is not in the list. Pick one from the suggestions, or enter the vendor and product yourself.') } }
   const vendor = typeof b.vendor === 'string' ? b.vendor.trim() : ''
@@ -599,16 +599,16 @@ function validateAdd(_request: Request, b: Partial<AddDeviceInput>, requireProdu
 // ---- CSV ----
 function csvCell(v: string | number | boolean | null | undefined): string {
   let s = v === null || v === undefined ? '' : String(v)
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}` // chống CSV injection khi mở bằng Excel
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}` // guards against CSV injection when opened in Excel
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
-/** Excel tiếng Việt thường lưu CSV phân cách bằng dấu chấm phẩy (hoặc tab): đoán theo dòng tiêu đề. */
+/** Vietnamese Excel often saves CSV separated by semicolons (or tabs): guess from the header row. */
 function detectDelimiter(text: string): string {
   const first = text.split(/\r\n|\n|\r/).find((l) => l.trim()) ?? ''
   const count = (d: string) => first.split(d).length - 1
   return [';', '\t'].reduce((best, d) => (count(d) > count(best) ? d : best), ',')
 }
-/** Như bản Go: dấu nháy lạc / không đóng không dừng việc đọc, chỉ đánh dấu dòng (chỉ số dòng → lý do) để báo lỗi theo số dòng. */
+/** As in the Go version: a stray / unclosed quote does not stop the read, it only marks the row (row index → reason) so the error is reported by row number. */
 function parseCsv(text: string): { rows: string[][]; problems: Map<number, string> } {
   const delim = detectDelimiter(text)
   const rows: string[][] = []
@@ -632,15 +632,15 @@ function parseCsv(text: string): { rows: string[][]; problems: Map<number, strin
   if (cell !== '' || row.length) { row.push(cell); rows.push(row) }
   return { rows, problems }
 }
-/** Hạ chữ thường, mọi ký tự lạ thành "_": "IP Address" → ip_address. */
+/** Lowercase, every unusual character becomes "_": "IP Address" → ip_address. */
 const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 const HEADER_ALIAS: Record<string, string> = {
   device: 'name', device_name: 'name', hostname: 'name', host_name: 'name', ip_address: 'ip', address: 'ip', software: 'product', application: 'product',
   product_name: 'product', ver: 'version', type: 'kind', device_type: 'kind',
 }
-// Loại như người gõ: id, nhãn giao diện ("Wi-Fi (AP)", "IP phone") hay bí danh (camera_recorder, notebook), như devicetypes.Lookup của Go.
+// The type as a person types it: id, UI label ("Wi-Fi (AP)", "IP phone") or alias (camera_recorder, notebook), like devicetypes.Lookup in Go.
 const parseKind = (text: string): AssetKind | undefined => lookupType(text)
-/** Như rowShapeProblem của Go: nhiều ô có chữ hơn số cột, hoặc một ô duy nhất chứa cả dòng ngăn cách bằng ký tự khác tiêu đề; dòng ngắn thì chấp nhận. */
+/** As rowShapeProblem in Go: more cells with text than columns, or a single cell holding the whole row separated by a character other than the header's; a short row is accepted. */
 function rowShapeProblem(cells: string[], columns: number, delim: string): string {
   let n = cells.length
   while (n > 0 && !cells[n - 1]!.trim()) n--
@@ -650,7 +650,7 @@ function rowShapeProblem(cells: string[], columns: number, delim: string): strin
   }
   return ''
 }
-/** Như ipNote của Go: IP công cộng hoặc ngoài các dải đã lưu vẫn được thêm nhưng kèm ghi chú (Vedette không quét nó). */
+/** As ipNote in Go: a public IP or one outside the saved ranges is still added but with a note (Vedette does not scan it). */
 function ipNote(ip: string, ranges: string[]): string {
   const [a, b] = ip.split('.').map(Number) as [number, number]
   const priv = isPrivateCidr(`${ip}/32`) || (a === 169 && b === 254) || a === 127 // local networks incl. 100.64/10, link-local, loopback
@@ -671,11 +671,11 @@ function applyFragilePolicy() {
 
 const publicWazuh = ({ password: _p, ...rest }: StoredWazuh): WazuhConnection => rest
 const wazuhAgentCount = () => Math.max(allAssets().filter((a) => a.kind === 'server' || a.kind === 'pc').length, 1)
-/** Kiểm tra form Wazuh như máy chủ thật sẽ làm; mô phỏng các lỗi hay gặp: sai địa chỉ, không tới được, sai mật khẩu. */
+/** Validates the Wazuh form the way the real server would; simulates the common errors: wrong address, unreachable, wrong password. */
 function checkWazuhInput(b: Partial<WazuhInput>, prev: StoredWazuh | null): { status: number; code: string; message: string } | null {
   const url = typeof b.url === 'string' ? b.url.trim() : ''
   let u: URL | null = null
-  try { u = new URL(url) } catch { /* không phải URL */ }
+  try { u = new URL(url) } catch { /* not a URL */ }
   if (!u || u.protocol !== 'https:' || !u.hostname || u.username || u.password) return { status: 400, code: 'bad_url', message: 'Enter the Wazuh server API address starting with https://, for example https://wazuh-manager:55000. Do not put the user name or password in it.' }
   const user = typeof b.username === 'string' ? b.username.trim() : ''
   if (!/^[\w.@-]{1,64}$/.test(user)) return { status: 400, code: 'bad_username', message: 'Enter the read-only API user name (letters, digits, dot, dash, underscore; up to 64 characters).' }
@@ -686,7 +686,7 @@ function checkWazuhInput(b: Partial<WazuhInput>, prev: StoredWazuh | null): { st
   if (b.password === 'wrong') return { status: 422, code: 'wazuh_auth', message: 'Wazuh refused the user name or password. Check the read-only API user you created.' }
   return null
 }
-/** Mô phỏng một lần agent/Wazuh báo về: tới 3 máy chủ hoặc máy tính nhận phần mềm nguồn "agent" (tin cậy cao) và một quan sát hệ điều hành. */
+/** Simulates one agent/Wazuh report: up to 3 servers or computers receive software with the source "agent" (high confidence) and one operating-system observation. */
 /** #849: which agents report each device, as the box tells them apart: osquery by its node bound to the device (agent_key), Wazuh by
  * the addresses its pull delivered to (intake_wazuh_agent). A device both report says both. Agent data of the sample fixtures with no
  * mark is osquery's. */
@@ -949,7 +949,7 @@ function sourceRowsOf(a: Asset): DeviceSourcesView {
 }
 
 export const handlers = [
-  // ---- Danh sách thiết bị ----
+  // ---- Device list ----
   http.get(`${API}/inventory/devices`, ({ request }) => {
     const denied = guard('viewer'); if (denied) return denied
     const keep = deviceFilter(request.url)
@@ -984,7 +984,7 @@ export const handlers = [
     })
   }),
 
-  // S-INV-2: ≤3 bấm — Khai thiết bị, chọn gợi ý, Thêm.
+  // S-INV-2: at most 3 clicks — Declare a device, pick a suggestion, Add.
   http.post(`${API}/inventory/devices`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
     const v = validateAdd(request, await body<AddDeviceInput>(request), true)
@@ -1209,7 +1209,7 @@ export const handlers = [
     assetsStore.update((l) => l.filter((x) => x.id !== a.id))
     metaStore.update((m) => { const { [a.id]: _gone, ...rest } = m; return rest })
     obsStore.update((m) => { const { [a.id]: _gone, ...rest } = m; return rest })
-    // Phát hiện gắn thiết bị đã xoá không còn nghĩa: gỡ cùng lúc để không còn phát hiện mồ côi.
+    // A finding tied to a deleted device makes no sense: remove them together so no orphan finding remains.
     const orphaned = findingsStore.get().filter((f) => f.asset_id === a.id).length
     if (orphaned) findingsStore.update((l) => l.filter((f) => f.asset_id !== a.id))
     audit('inventory.delete', nameOf(a, a.kind), orphaned ? `${a.id}; removed ${orphaned} findings of the device` : a.id)
@@ -1394,7 +1394,7 @@ export const handlers = [
     const csvText = b.text.replace(/^\uFEFF/, '')
     const delim = detectDelimiter(csvText)
     const { rows: table, problems } = parseCsv(csvText)
-    const hi = table.findIndex((r) => r.some((c) => c.trim())) // bỏ dòng trống đầu file
+    const hi = table.findIndex((r) => r.some((c) => c.trim())) // skip the empty lines at the top of the file
     if (problems.has(hi)) return fail(400, 'bad_header', problems.get(hi)!)
     const header = (table[hi] ?? []).map((h) => { const k = fold(h); return HEADER_ALIAS[k] ?? k })
     if (!header.includes('name') && !header.includes('name_in_vedette') && !header.includes('product')) return fail(400, 'bad_header', 'The first row must be column headers with at least a name or product column. Download the template to see the format.')
@@ -1409,7 +1409,7 @@ export const handlers = [
     data.forEach((cells, i) => {
       const line = hi + i + 2
       if (!problems.has(hi + 1 + i) && cells.every((c) => !c.trim())) return
-      // Excel tắt công thức bằng dấu ' đứng trước (xem csvCell khi xuất): bỏ lại khi nhập.
+      // Excel turns off formulas with a leading ' (see csvCell on export): drop it again on import.
       const err = (message: string) => { res.errors.push({ line, message }); res.skipped++ }
       if (problems.has(hi + 1 + i)) return err(problems.get(hi + 1 + i)!)
       const shape = rowShapeProblem(cells, header.length, delim)
@@ -1428,7 +1428,7 @@ export const handlers = [
       if (v.err) return err(v.err.message)
       if (v.ip) { if (seenIps.has(v.ip)) return err(`IP ${v.ip} appears twice in the file.`); seenIps.add(v.ip) }
       else if (v.name) {
-        // Nhập lại file vừa xuất: thiết bị chưa có IP không được nhân đôi.
+        // Importing a file that was just exported: a device without an IP must not be duplicated.
         const key = v.name.toLowerCase()
         if (noIpNames.has(key) || seenNames.has(key)) return err(`A device named "${v.name.slice(0, 40)}" (no IP yet) is already in the list. Add an IP to this row if it is a different device.`)
         seenNames.add(key)
@@ -1442,7 +1442,7 @@ export const handlers = [
     return HttpResponse.json(res)
   }),
 
-  // ---- Phạm vi và cảm biến (admin) ----
+  // ---- Scope and sensor (admin) ----
   http.get(`${API}/inventory/settings`, () => {
     const denied = guard('admin'); if (denied) return denied
     return HttpResponse.json({ ...loadSettings(), version: safetyVersion() })
@@ -1453,7 +1453,7 @@ export const handlers = [
     const b = await body<SettingsInput>(request)
     if (b.version && b.version !== safetyVersion()) return fail(409, 'safety_changed', SAFETY_CHANGED)
     const adjusted: { from: string; to: string }[] = []
-    // "192.168.18.5/24" được đưa về "192.168.18.0/24" (phản hồi nói rõ đã đổi gì); địa chỉ không có /prefix bị từ chối bên dưới, không đoán.
+    // "192.168.18.5/24" is reduced to "192.168.18.0/24" (the response says what was changed); an address without /prefix is rejected below, not guessed.
     const ranges = Array.isArray(b.lan_ranges) ? [...new Set(b.lan_ranges.map((x) => { const raw = String(x).trim(); const n = normalizeRange(raw); if (n.value !== raw) adjusted.push({ from: raw, to: n.value }); return n.value }))] : null
     if (!ranges) return fail(400, 'bad_ranges', 'The list of network ranges is missing.')
     if (ranges.length > 16) return fail(400, 'too_many_ranges', 'At most 16 network ranges.')
@@ -1534,12 +1534,12 @@ export const handlers = [
     return HttpResponse.json({ install: await installers(), tokens: agentsStore.get(), nodes: agentNodes(), server_url: serverUrl(), wazuh: w ? publicWazuh(w) : null })
   }),
 
-  // Công khai (không bí mật): script do hộp phục vụ; SHA-256 hiện trong giao diện tính đúng trên nội dung này.
+  // Public (not secret): the script is served by the box; the SHA-256 shown in the UI is computed over exactly this content.
   // No script pinned to the placeholder address: it would pass its SHA-256 check and then fail on every server.
   http.get(`${API}/install/osquery.sh`, () => serverUrl().includes(NO_BOX_ADDRESS) ? noBoxAddress() : new HttpResponse(linuxInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/x-shellscript; charset=utf-8' } })),
   http.get(`${API}/install/osquery.ps1`, () => serverUrl().includes(NO_BOX_ADDRESS) ? noBoxAddress() : new HttpResponse(windowsInstallScript(serverUrl(), MOCK_CA), { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })),
 
-  // Script cài hỏi trạng thái bằng token trong header (không bao giờ trong URL). Token chỉ cho phép việc này và đăng ký osquery.
+  // The install script asks for status with a token in a header (never in the URL). The token allows only this and osquery enrolment.
   http.post(`${API}/intake/osquery/status`, async ({ request }) => {
     const m = /^Bearer (vdt_osquery_[a-z0-9]{32})$/.exec(request.headers.get('authorization') ?? '')
     const t = m ? agentsStore.get().find((x) => x.last4 === m[1]!.slice(-4)) : undefined
@@ -1647,7 +1647,7 @@ export const handlers = [
     return HttpResponse.json(agentReport(id))
   }),
 
-  // CHỈ BẢN XEM THỬ: bản thật có agent báo về. Ở đây giả lập một lần báo về để người dùng thấy tác dụng.
+  // PREVIEW ONLY: the real build gets reports from agents. Here one report is simulated so the person can see the effect.
   http.post(`${API}/inventory/agents/tokens/:id/sample-data`, ({ params }) => {
     const denied = guard('admin'); if (denied) return denied
     const t = agentsStore.get().find((x) => x.id === params.id)
@@ -1845,5 +1845,5 @@ function similarCandidates(src: Asset): SnmpSimilarResponse['devices'] {
 
 function sameSet(a: string[], b: string[]) { return a.length === b.length && a.every((x) => b.includes(x)) }
 
-// Dùng chung trong lớp mock: module scan đọc dải mạng và xác nhận phạm vi từ đây.
+// Shared inside the mock layer: the scan module reads the network ranges and scope confirmation from here.
 export { settingsStore as inventorySettingsStore }

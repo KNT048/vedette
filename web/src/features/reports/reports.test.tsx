@@ -295,7 +295,7 @@ describe('reports: data protection assessment under Vietnam\'s Law 91/2025/QH15 
     expect(within(doc).getByText('Person or unit in charge of personal data protection').parentElement).toHaveTextContent('Contact recorded')
     expect(within(doc).getAllByText('Assessment support, not legal advice')).toHaveLength(2)
     expect(await within(doc).findByRole('table', { name: '4. Unresolved exploited vulnerabilities' })).toBeInTheDocument()
-    // nội dung pháp lý đã đối chiếu văn bản gốc
+    // legal content checked against the original text
     const text = doc.textContent ?? ''
     for (const must of ['91/2025/QH15', 'Decree 356/2025/ND-CP', '72 hours', '60 days', 'Article 23', 'Articles 21, 22', 'Article 20', 'Form 09']) expect(text).toContain(must)
     expect(text).not.toMatch(DIACRITICS)

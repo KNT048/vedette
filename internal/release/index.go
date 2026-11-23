@@ -177,14 +177,8 @@ func (x *Index) validate() error {
 		}
 	}
 	for _, a := range x.Advisories {
-		if !shortText(a.ID, 64) || a.ID == "" || !shortText(a.Title, 256) || !shortText(a.Affects, 128) ||
-			(a.FixedIn != "" && !validVersion(a.FixedIn)) || !httpsURL(a.URL) {
-			return bad("advisory")
-		}
-		switch a.Severity {
-		case "critical", "high", "medium", "low":
-		default:
-			return bad("advisory severity")
+		if err := a.Validate(); err != nil {
+			return err
 		}
 	}
 	for _, k := range x.Keys {
@@ -194,6 +188,21 @@ func (x *Index) validate() error {
 		if (k.Kind != "minisign" && k.Kind != "cosign") || (k.Status != "active" && k.Status != "retired") {
 			return bad("key entry")
 		}
+	}
+	return nil
+}
+
+// Validate applies the rules every box applies to an advisory of the index: one bad advisory makes the box refuse the whole
+// index. The release builder checks a new advisory with it before it signs anything.
+func (a Advisory) Validate() error {
+	if !shortText(a.ID, 64) || a.ID == "" || !shortText(a.Title, 256) || !shortText(a.Affects, 128) ||
+		(a.FixedIn != "" && !validVersion(a.FixedIn)) || !httpsURL(a.URL) {
+		return bad("advisory")
+	}
+	switch a.Severity {
+	case "critical", "high", "medium", "low":
+	default:
+		return bad("advisory severity")
 	}
 	return nil
 }

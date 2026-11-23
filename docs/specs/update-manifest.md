@@ -41,7 +41,7 @@ Two JSON documents, both with a detached minisign signature (`<file>.minisig`).
 | `generated_at`, `expires_at` | datetime | `expires_at` ≤ `generated_at` + 14 days; once expired → "update info is stale" (a warning; it does not yet block updating by bundle) |
 | `channels` | object | `stable`, `beta` → `{ "latest": "<version>", "manifest": "<url>", "manifest_sha256": "<hex>", "rollout": { "percent": 0–100 } }` |
 | `revoked` | object[] | xem §8 |
-| `advisories` | object[] | `{ "id", "severity", "title", "affects": "<semver range>", "fixed_in": "<version>"?, "url" }`: channel 4 of UPDATES, shown as a banner (`UpdatesState.advisories`) |
+| `advisories` | object[] | `{ "id", "severity", "title", "affects": "<semver range>", "fixed_in": "<version>"?, "url" }`: channel 4 of UPDATES, shown as a banner (`UpdatesState.advisories`). A box refuses the whole index for one bad advisory: `id` 1-64 bytes and `title` at most 256 (one line each), `severity` `critical`\|`high`\|`medium`\|`low` (the page shows `low` as `medium`), `affects` at most 128 bytes, `fixed_in` SemVer, `url` https. The page lists an advisory only with `fixed_in` (`affected` when the running version is below it, else `fixed`), shows the title as heading and text, and does not show `url` or `affects`. The builder (`release index -advisory`) also requires `fixed_in` and an `affects` of comparators (`< 1.2.0`, `>= 1.0.0, < 1.2.0`) that excludes `fixed_in`; advisories carry over to every later index |
 | `keys` | object[] | `{ "key_id", "kind": "minisign"\|"cosign", "status": "active"\|"retired", "not_after" }`: so the box knows which key is in use; it is **not** a root of trust (the root is in the binary) |
 
 ### 4.2 `release-manifest.json`: one release (immutable, signed)
@@ -216,7 +216,14 @@ The host is a small root process; updating it is the most sensitive task. The ma
   `rollback.safe` says. A release whose epoch is above the previous release's starts a new migration history: the builder refuses
   `rollback.safe=true` for it, so a rollback across it always restores the `pre_update` backup. The epoch is not a manifest field
   (a box of schema 1 refuses unknown fields); core refuses a database of another epoch at start, so an update from a release of an
-  earlier epoch fails its health check and the host puts the previous release and its database back.
+  earlier epoch would fail its health check and the host would put the previous release and its database back. So a release that
+  starts a new epoch **must** set `min_upgrade_from` to its own version (the builder refuses it otherwise): a box of the earlier
+  epoch then refuses the release at its update check ("needs an intermediate release first") and downloads nothing. That check
+  alone leaves such a box saying it is up to date, so the same publish adds an index advisory for it
+  (`release index -advisory FILE`, `RELEASE_ADVISORY` of `make release-manifest`; the index step refuses a release whose
+  `min_upgrade_from` is above the latest of a channel of the previous index unless an advisory has `fixed_in` above that latest):
+  `fixed_in` the new release, `affects` `< <new release>`, a title that says to back up, uninstall and install the new release
+  fresh, `url` its release page. Every box lists it on its Updates page, `affected` while it runs a version below `fixed_in`.
 - `rollback.min_version` is the lowest version that can be rolled back to: a lower `previous` → `rollback_not_allowed`. Lowering the version with `container.start` is always refused (`downgrade_not_allowed`, SemVer order); only a rollback to the verified `previous` may lower it.
 - Rollback does not go through the cohort/rollout check, but it **still** must: the target version has been verified on this host before, is not revoked per the stored index (`previous_revoked`), the anti-downgrade `sequence` does not apply to a user-initiated rollback to the installed N−1 (allowed), and it writes `core_audit` + the history `action: rollback`.
 - A failed start after an update: the host **itself** restores the old unit (and the DB when `rollback.safe=false`) in the very run of `container.start` (`reverted`, `unit_failed`). A failed rollback (rare) → the host restores the running version; if that step itself fails, `vedette-host` keeps the last state and reports it for the admin to handle by hand (`rollback_revert_failed`): no automatic loop. The host never rolls back by itself because of a revocation (§8: `core` decides).

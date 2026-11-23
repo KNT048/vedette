@@ -64,7 +64,7 @@ help:
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL"
 	@echo "make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>   step 3 of the release job, after make images and both host-deb: vuln-scan + sbom (kept in dist/sbom, dist/vuln), notices-check, check-binaries -release inside each .deb, the version label of every image platform and core's floor label, each .deb rebuilt with the floor and compared byte for byte; then dist/release/gates.json, the record release-push, release-in and release-manifest refuse to differ from; MIN_SEQUENCE=0 instead of RELEASE_PREV_INDEX for the very first release only"
 	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h); install-check runs install.sh end to end in systemd containers (opt-in)"
-	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f): print the cosign commands, build release-manifest.json + index.json (refuses migrations that remove, edit or insert below a migration of any earlier release tag of the same schema epoch; refuses rollback.safe=true for a release that starts a new schema epoch, or unless rollback.min_version is set and every migration since that release, read from git, is add-only); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index), sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
+	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f): print the cosign commands, build release-manifest.json + index.json (refuses migrations that remove, edit or insert below a migration of any earlier release tag of the same schema epoch; refuses rollback.safe=true, or a min_upgrade_from other than its own version, for a release that starts a new schema epoch, and rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index); RELEASE_ADVISORY=<file.json> adds an advisory every box shows on its Updates page; sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-container-assets   after release-manifest: the container-only files (compose.yaml, compose.sensors.yaml, compose.syslog.yaml, vedette.env with the three image digests) read from git at the tag into dist/release; release-sign signs them, release-verify requires them when install_modes lists container"
 	@echo "make release-push VERSION=<v> / release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false / release-publish [PUBLISH=1]   the release job's network steps (WP-08k): images by digest to ghcr (images.json), release.in.json, then the gh release assets with the index last"
 	@echo "make release-deb-name VERSION=<v> / release-bake-install   part A of the release job: SemVer names of prerelease .deb before release-in; install.sh with its three lines baked and signed (MINISIGN_KEY) into dist/release"
@@ -489,6 +489,10 @@ install-check:
 #                  migrations are read from git, and a modified or untracked migration file refuses the build
 #   release-refresh  the weekly index refresh: no manifest; builds a new index from RELEASE_PREV_INDEX into dist/release (use a clean
 #                  dist), then run release-sign and release-verify on it
+#   RELEASE_ADVISORY  space-separated paths of JSON files, one new advisory each ({id, severity, title, affects, fixed_in, url}), for the
+#                  index of release-manifest or release-refresh; every box shows it on its Updates page, "affected" below fixed_in, and
+#                  later indexes carry it over. A release that starts a new schema epoch (min_upgrade_from = its own version) needs one
+#                  for the boxes of the earlier epoch: they must install it fresh
 #   RELEASE_KEYS   directory with minisign.pub, minisign-backup.pub, cosign.pub
 #   COSIGN_KEY / MINISIGN_KEY  paths of the private key files (outside the repo, mode 600); passphrases are never arguments:
 #                  cosign reads COSIGN_PASSWORD from your shell, minisign asks on the terminal (PASSPHRASE_STDIN=1 reads one line of stdin)
@@ -503,6 +507,8 @@ RELEASE_KEYS ?=
 RELEASE_SLOT ?= active
 RELEASE_GO = go run ./scripts/release
 RELEASE_KEYS_ARG = $(if $(RELEASE_KEYS),-keys-dir $(RELEASE_KEYS))
+RELEASE_ADVISORY ?=
+RELEASE_ADVISORY_ARGS = $(foreach a,$(RELEASE_ADVISORY),-advisory $(a))
 
 # WP-08k step 6: one cosign sign per image (index digest of RELEASE_IN, the files release-manifest reads), then one
 # cosign attest --type cyclonedx per platform SBOM of `make sbom RELEASE=1 IMAGE_TAG=<version>` onto that platform's digest in images.json
@@ -515,14 +521,14 @@ release-cosign-plan:
 
 release-manifest: check-min-sequence
 	$(RELEASE_GO) manifest -in $(RELEASE_IN) -cosign-dir $(RELEASE_OUT)/cosign -out $(RELEASE_OUT) -gates $(RELEASE_OUT)/gates.json $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(if $(RELEASE_REF),-ref $(RELEASE_REF)) $(if $(RELEASE_BASELINE_REF),-baseline-ref $(RELEASE_BASELINE_REF)) $(RELEASE_KEYS_ARG)
-	$(RELEASE_GO) index -out $(RELEASE_OUT) -manifest $(RELEASE_OUT)/release-manifest.json $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX) -min-sequence $(MIN_SEQUENCE)) $(RELEASE_KEYS_ARG)
+	$(RELEASE_GO) index -out $(RELEASE_OUT) -manifest $(RELEASE_OUT)/release-manifest.json $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX) -min-sequence $(MIN_SEQUENCE)) $(RELEASE_ADVISORY_ARGS) $(RELEASE_KEYS_ARG)
 
 # Read from git at the release tag (RELEASE_REF, default v<version>), like the migrations of release-manifest.
 release-container-assets:
 	$(RELEASE_GO) container-assets -in $(RELEASE_IN) -out $(RELEASE_OUT) $(if $(RELEASE_REF),-ref $(RELEASE_REF))
 
 release-refresh:
-	$(RELEASE_GO) index -out $(RELEASE_OUT) -prev-index "$(RELEASE_PREV_INDEX)" $(RELEASE_KEYS_ARG)
+	$(RELEASE_GO) index -out $(RELEASE_OUT) -prev-index "$(RELEASE_PREV_INDEX)" $(RELEASE_ADVISORY_ARGS) $(RELEASE_KEYS_ARG)
 
 release-sign:
 	@test -n "$$MINISIGN_KEY" || { echo "release-sign: set MINISIGN_KEY to the path of the minisign secret key (outside the repo)" >&2; exit 1; }

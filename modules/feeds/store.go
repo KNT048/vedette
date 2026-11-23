@@ -43,7 +43,10 @@ const defaultConfidence = 0.5
 
 // Store is the module's database access. Reads use the read-only pool; every write goes through
 // DB.Write. A pull is one transaction, except an indicator list: that goes in chunks (applyIOCs).
-type Store struct{ db *store.DB }
+type Store struct {
+	db     *store.DB
+	kevIdx kevIndexCache // KevIndex under its stamp
+}
 
 // NewStore wraps a migrated database.
 func NewStore(db *store.DB) *Store { return &Store{db: db} }

@@ -115,10 +115,14 @@ type KEVProduct struct {
 type KEV interface {
 	// Products lists every vendor/product pair ever in KEV; Version changes when the list does.
 	Products(ctx context.Context) (version string, list []KEVProduct, err error)
-	// CVEs returns the CVE ids exploited for any of the keys ("vendorproject|product", lower-case).
-	// A "multiple products" entry of a vendor matches every key of that vendor.
-	CVEs(ctx context.Context, keys []string) ([]string, error)
+	// CVEIndex reads the exploited lists once and returns their CVE ids by match key. A caller reads it once per request (a device
+	// page, an agent report, a rematch) and looks up every software line in it.
+	CVEIndex(ctx context.Context) (KEVIndex, error)
 }
+
+// KEVIndex returns the CVE ids exploited for any of the keys ("vendorproject|product", lower-case); a "multiple products" entry of a
+// vendor matches every key of that vendor. It only reads memory and is safe for concurrent use.
+type KEVIndex func(keys []string) []string
 
 // BoxPackages lists the packages installed on the box itself (dpkg, confidence 1.0). cmd/vedette implements it
 // with vedette-host's GET /v1/state/packages on an appliance; a container-only install has none. A nil list means "no list

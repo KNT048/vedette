@@ -209,7 +209,7 @@ func (s *Service) settled(ctx context.Context, tx *sql.Tx, o *outbox, assetID st
 		return err
 	}
 	o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID}) // findings matches the device again on it (#910)
-	o.after = append(o.after, s.matchEvents(assetID, before, after), s.rematchEvent(assetID, after))
+	o.after = append(o.after, s.matchAfter(assetID, before, after, true))
 	return nil
 }
 

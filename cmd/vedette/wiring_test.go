@@ -409,8 +409,8 @@ func TestWiringInventoryUsesTheFeedsKEV(t *testing.T) {
 	if err != nil || v1 == v0 || len(list1) != 1 || list1[0] != (inventory.KEVProduct{Vendor: "Acme", Product: "Gateway", Count: 1}) {
 		t.Fatalf("after a pull: %q %v %v", v1, list1, err)
 	}
-	if cves, err := kev.CVEs(ctx, []string{"acme|gateway", "acme|other"}); err != nil || len(cves) != 1 || cves[0] != "CVE-2026-5001" {
-		t.Errorf("CVEs: %v %v", cves, err)
+	if idx, err := kev.CVEIndex(ctx); err != nil || !slices.Equal(idx([]string{"acme|gateway", "acme|other"}), []string{"CVE-2026-5001"}) {
+		t.Errorf("CVEIndex: %v", err)
 	}
 	// the catalog now offers the pulled product
 	res, err := s.d.Inventory.SearchCatalog(ctx, "gateway")
@@ -425,8 +425,8 @@ func TestWiringInventoryUsesTheFeedsKEV(t *testing.T) {
 	if v, _, _ := kev.Products(ctx); v != "embedded" {
 		t.Errorf("feeds off: version %q", v)
 	}
-	if cves, _ := kev.CVEs(ctx, []string{"acme|gateway"}); len(cves) != 0 {
-		t.Errorf("feeds off: %v", cves)
+	if idx, err := kev.CVEIndex(ctx); err != nil || len(idx([]string{"acme|gateway"})) != 0 {
+		t.Errorf("feeds off: CVEs listed or %v", err)
 	}
 }
 

@@ -166,21 +166,29 @@ export function findCatalog(text: string): CatalogEntry | undefined {
   const exact = CATALOG.find((e) => e.id === text.trim() || HAY.get(e.id)!.name === n || fold(`${e.vendor} ${e.product}`) === n)
   if (exact) return exact
   // Several products with the same alias/vendor name: take the first (the most common) only when they are the same vendor ("synology"); different vendors ("dns": D-Link, BIND) are not guessed.
-  let hits = CATALOG.filter((e) => HAY.get(e.id)!.al.includes(n))
-  if (!hits.length) hits = CATALOG.filter((e) => HAY.get(e.id)!.product === n)
-  if (!hits.length) { const v = CATALOG.filter((e) => e.curated && HAY.get(e.id)!.vendor === n); if (v.length === 1) hits = v } // a bare vendor name: only when the vendor has one curated product
-  return hits.every((e) => HAY.get(e.id)!.vendor === HAY.get(hits[0]!.id)!.vendor) ? hits[0] : undefined
+  // An alias several makers share is next read as a product name ("openjdk" is the OpenJDK package), and else taken when every product
+  // of it is the same exploited product ("jdk", "jre": every Java build is matched as Java). As the Go catalog's find.
+  const oneVendor = (hits: CatalogEntry[]) => (hits.length && hits.every((e) => HAY.get(e.id)!.vendor === HAY.get(hits[0]!.id)!.vendor) ? hits[0] : undefined)
+  const keys = (e: CatalogEntry) => [...e.kev].sort().join('\n')
+  const aliasHits = CATALOG.filter((e) => HAY.get(e.id)!.al.includes(n))
+  const productHits = CATALOG.filter((e) => HAY.get(e.id)!.product === n)
+  const hit = oneVendor(aliasHits) ?? oneVendor(productHits)
+  if (hit) return hit
+  if (aliasHits.length && !productHits.length && aliasHits[0]!.kev.length && aliasHits.every((e) => keys(e) === keys(aliasHits[0]!))) return aliasHits[0]
+  if (!aliasHits.length && !productHits.length) { const v = CATALOG.filter((e) => e.curated && HAY.get(e.id)!.vendor === n); if (v.length === 1) return v[0] } // a bare vendor name: only when the vendor has one curated product
+  return undefined
 }
 
-/** A product the user typed (vendor + product): matches the exact pair in KEV if there is one, else the curated product of that name, else
- * its own key. Never every product of the vendor: a product nobody listed is not "exploited". */
+/** A product the user typed (vendor + product): matches the exact pair in KEV if there is one, else the curated product of that name and
+ * vendor, else the catalogue's product of that name whatever its maker ("Red Hat" "OpenJDK" is Java, as the server says), else its own key.
+ * Never every product of the vendor: a product nobody listed is not "exploited". */
 export function customEntry(vendor: string, product: string): CatalogEntry {
   const v = fold(vendor)
   const p = fold(product)
   const exact = KEV.filter((r) => fold(r.vendor) === v && fold(r.product) === p).map(kevKey)
   const byName = findCatalog(product)
   const named = curated.find((e) => fold(e.vendor) === v && fold(e.product) === p) ?? (byName?.curated && fold(byName.vendor) === v ? byName : undefined)
-  const kev = exact.length ? exact : named ? [...named.kev] : [`${vendor}|${product}`.toLowerCase()]
+  const kev = exact.length ? exact : named ? [...named.kev] : byName?.curated && byName.kev.length ? [...byName.kev] : [`${vendor}|${product}`.toLowerCase()]
   return {
     id: '', display: `${vendor} ${product}`.trim(), category: OTHER, hint: `${vendor}, ${product}`, vendor, product, kind: 'unknown', kev, aliases: [],
     version_hint: '', kev_count: sumKev(kev), curated: false, order: 9999,

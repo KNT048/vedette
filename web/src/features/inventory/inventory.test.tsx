@@ -1167,9 +1167,13 @@ describe('inventory: catalog', () => {
     expect(findById('kev:vmware:esxi')?.display).toBe('VMware ESXi')
   })
 
-  it('a product typed by hand is never matched to every product of its vendor', () => {
-    expect(customEntry('Red Hat', 'OpenJDK').kev).toEqual(['red hat|openjdk'])
-    expect(customEntry('Red Hat', 'OpenJDK').kev_count).toBe(0)
+  it('a product typed by hand is never matched to every product of its vendor, but is the catalogue product of that name', () => {
+    // "Red Hat" "OpenJDK" is Java, as the server says, never Red Hat's other products
+    const jdk = customEntry('Red Hat', 'OpenJDK')
+    expect(jdk.kev.length).toBeGreaterThan(0)
+    expect(jdk.kev.every((k) => k.startsWith('oracle|java'))).toBe(true)
+    expect(customEntry('Red Hat', 'Some Future Tool').kev).toEqual(['red hat|some future tool'])
+    expect(customEntry('Red Hat', 'Some Future Tool').kev_count).toBe(0)
   })
 
   it('every KEV vendor/product pair is selectable (exact key)', () => {

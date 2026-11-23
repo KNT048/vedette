@@ -63,13 +63,47 @@ const maxFixedBranches = 5
 // (the upstream number only as a reference). Of several software rows of the product,
 // the one with the most definite answer wins. When the matcher matches the entry on a row only NVD's list ties to it (viaNVD,
 // #910: a Chrome row for CISA's "Chromium V8"), the fix is that row's, the one the finding is about.
-func FixedInFor(a Asset, v Vuln) *FixedIn {
-	if id, ok := nvdRows(a, []Vuln{v})[v.CVE]; ok {
-		for _, s := range deviceSoftware(a) {
+func FixedInFor(a Asset, v Vuln) *FixedIn { return newDevRows(a).fixedInFor(v) }
+
+// devRows is a device's software as the fix readers read it, built once per device: deviceSoftware's rows, each row's swInfo (with
+// the device's OS) and, when a reader needs them, each row's vendors (rowVendors). RowFixes, FixedInForAll and FixedInFor answer from it
+// instead of rebuilding the rows (and the Windows coverage filter) for every finding of the device.
+type devRows struct {
+	a       Asset
+	sws     []Software
+	infos   []swInfo
+	keys    [][]string // rowKeys of each row
+	vendors [][]string // rowVendors of each row; nil until nvdRows needs them
+}
+
+func newDevRows(a Asset) *devRows {
+	sws := deviceSoftware(a)
+	infos, keys := make([]swInfo, len(sws)), make([][]string, len(sws))
+	for i, s := range sws {
+		infos[i], keys[i] = newSWInfo(s, a.OS), rowKeys(s)
+	}
+	return &devRows{a: a, sws: sws, infos: infos, keys: keys}
+}
+
+// rowVendors is rowVendors of every row, computed once.
+func (d *devRows) rowVendors() [][]string {
+	if d.vendors == nil {
+		d.vendors = make([][]string, len(d.sws))
+		for i, s := range d.sws {
+			d.vendors[i] = rowVendors(s)
+		}
+	}
+	return d.vendors
+}
+
+// fixedInFor is FixedInFor on the device's rows read once.
+func (d *devRows) fixedInFor(v Vuln) *FixedIn {
+	if id, ok := d.nvdRows([]Vuln{v})[v.CVE]; ok {
+		for i, s := range d.sws {
 			if s.ID != id {
 				continue
 			}
-			in := newSWInfo(s, a.OS)
+			in := d.infos[i]
 			if f, ok := windowsFixedIn(in, v); ok {
 				return f
 			}
@@ -97,11 +131,12 @@ func FixedInFor(a Asset, v Vuln) *FixedIn {
 		}
 		return 1
 	}
-	for _, s := range deviceSoftware(a) {
-		if !keyedTo(s, v) {
+	vk := keyOf(v)
+	for i := range d.sws {
+		if !keyedBy(d.keys[i], vk) {
 			continue
 		}
-		in := newSWInfo(s, a.OS)
+		in := d.infos[i]
 		if f, ok := windowsFixedIn(in, v); ok {
 			if rank(f) > rank(best) {
 				best = f
@@ -394,26 +429,26 @@ type GroupFix struct {
 
 // nvdRows is, by CVE, the software row the matcher matches an entry of vulns on when no KEV key of that row reaches it (viaNVD,
 // #910): only that row's fix is the finding's.
-func nvdRows(a Asset, vulns []Vuln) map[string]string {
+func (d *devRows) nvdRows(vulns []Vuln) map[string]string {
 	have := make(map[string]bool, len(vulns))
 	byCVE := make(map[string]Vuln, len(vulns))
 	for _, v := range vulns {
 		have[v.CVE], byCVE[v.CVE] = true, v
 	}
-	sws := deviceSoftware(a)
+	sws := d.sws
 	need := false // a row the matcher may match through NVD's list; else no need to run it
-	for i, named := range nvdCandidates(sws, vulns) {
+	for i, named := range nvdCandidatesOf(d.rowVendors(), vulns) {
 		for vi := range named {
-			need = need || !keyedTo(sws[i], vulns[vi])
+			need = need || !keyedBy(d.keys[i], keyOf(vulns[vi]))
 		}
 	}
 	if !need {
 		return nil
 	}
 	out := map[string]string{}
-	for _, m := range MatchAsset(a, vulns, have, time.Time{}).Existing {
+	for _, m := range MatchAsset(d.a, vulns, have, time.Time{}).Existing {
 		i := slices.IndexFunc(sws, func(s Software) bool { return s.ID == m.SoftwareID })
-		if i >= 0 && !keyedTo(sws[i], byCVE[m.CVE]) {
+		if i >= 0 && !keyedBy(d.keys[i], keyOf(byCVE[m.CVE])) {
 			out[m.CVE] = m.SoftwareID
 		}
 	}
@@ -429,18 +464,27 @@ func nvdRows(a Asset, vulns []Vuln) map[string]string {
 // CVE; a CVE the device is not affected by through a range with an end is not in it. A CVE that matches several software rows takes the
 // group that closes the most.
 func FixedInForAll(a Asset, vulns []Vuln) map[string]*GroupFix {
+	return newDevRows(a).fixedInForAll(vulns)
+}
+
+// fixedInForAll is FixedInForAll on the device's rows read once.
+func (d *devRows) fixedInForAll(vulns []Vuln) map[string]*GroupFix {
 	out := map[string]*GroupFix{}
-	byNVD := nvdRows(a, vulns)
-	for _, s := range deviceSoftware(a) {
-		in := newSWInfo(s, a.OS)
+	byNVD := d.nvdRows(vulns)
+	vks := make([]entryKey, len(vulns))
+	for i, v := range vulns {
+		vks[i] = keyOf(v)
+	}
+	for i, s := range d.sws {
+		in := d.infos[i]
 		if !in.given || !versionKnown(in.ver) {
 			continue
 		}
 		var mine []Vuln
 		nvd := map[string]bool{} // the CVEs only NVD's list ties to the row, which the matcher matches on it (#910)
-		for _, v := range vulns {
+		for vi, v := range vulns {
 			switch {
-			case keyedTo(s, v):
+			case keyedBy(d.keys[i], vks[vi]):
 				mine = append(mine, v)
 			case byNVD[v.CVE] == s.ID:
 				mine = append(mine, v)
@@ -552,13 +596,14 @@ type RowFix struct {
 // RowFixes is FixedInForAll as FindingRow.fix, by CVE, for the vulnerabilities of a device's open findings (vulns: only those, as the
 // report does, so a release is named against what the device has).
 func RowFixes(a Asset, vulns []Vuln) map[string]*RowFix {
-	groups := FixedInForAll(a, vulns)
+	d := newDevRows(a)
+	groups := d.fixedInForAll(vulns)
 	if len(groups) == 0 {
 		return nil
 	}
-	sws := map[string]Software{}
-	for _, s := range deviceSoftware(a) {
-		sws[s.ID] = s
+	row := map[string]int{} // software id -> its row (the last of an id, as a map of the rows keeps it)
+	for i, s := range d.sws {
+		row[s.ID] = i
 	}
 	byCVE := make(map[string]Vuln, len(vulns))
 	for _, v := range vulns {
@@ -578,11 +623,17 @@ func RowFixes(a Asset, vulns []Vuln) map[string]*RowFix {
 		if !g.Ranged[cve] {
 			continue
 		}
-		s := sws[g.Software]
-		_, win := winDevice(newSWInfo(s, a.OS))
+		var s Software
+		var in swInfo
+		if i, ok := row[g.Software]; ok {
+			s, in = d.sws[i], d.infos[i]
+		} else {
+			in = newSWInfo(s, a.OS)
+		}
+		_, win := winDevice(in)
 		group := a.ID + "/" + g.Software
 		if g.Kind == "distro" {
-			if f := FixedInFor(a, byCVE[cve]); f != nil && f.DistroPro {
+			if f := d.fixedInFor(byCVE[cve]); f != nil && f.DistroPro {
 				pro[group] = true
 			}
 		}

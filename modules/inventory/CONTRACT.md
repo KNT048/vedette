@@ -115,7 +115,9 @@ detail is in its doc comment.
   new-device notice; once it shows a reason, its review is sticky (`review_earned_at`).
 - **INV-25** An osquery machine's first report approves the device it enrolled for (`ApproveEnrolled`, called by agent-intake).
 - **INV-26** `approved_at` is set by a person's approval or an agent's first report. One naming rule gives every device its shown
-  name.
+  name (`DisplayName`): a maker that only a network scan or the passive sensor reports is the network card's (MAC prefix), so
+  without a model it gives way to the OS or firmware the device states, then reads "<maker> device". The box is just seen on
+  every read.
 - **INV-36** The name a person gives (`user_name`) is separate from the host name the network reports.
 - **INV-38** An ignored device is known, not watched: every scan and SNMP policy reads its sources as off, and its findings are
   listed apart. Ignoring changes no stored setting, so un-ignoring restores them.

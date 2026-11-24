@@ -74,7 +74,8 @@ func (h *FindingHandlers) FindingsGetFindingsHandled(ctx context.Context, p oas.
 	if err != nil {
 		return nil, ToAPIError(err)
 	}
-	f := HandledFilter{Q: p.Q.Or(""), Resolutions: rs, Device: p.Device.Or(""), From: p.From.Or(time.Time{}), To: p.To.Or(time.Time{})}
+	f := HandledFilter{Q: p.Q.Or(""), Resolutions: rs, Device: p.Device.Or(""), From: p.From.Or(time.Time{}), To: p.To.Or(time.Time{}),
+		Corrections: p.Corrections.Or("") == "true"}
 	out, err := h.svc.Handled(ctx, f, ParsePage(p.Offset.Or(""), p.Limit.Or("")))
 	if err != nil {
 		return nil, ToAPIError(err)

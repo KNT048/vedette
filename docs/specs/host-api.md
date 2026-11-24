@@ -1,6 +1,6 @@
 # Host API: the internal socket of `vedette-host`
 
-Status: draft (docs-first), 2026-11-09; the framework is implemented, and so are the OS, backup and log export commands (the host does not open the `core` DB); what was settled during implementation is in §15 and §16; `net.*`, `decoy_ip.*` and `container.*` were settled on paper on 2026-11-10 (§18). Field names, commands, messages and paths are in English.
+Status: implemented in `host/` (written 2026-11-09 before the code); what was settled during implementation is in §15 and §16, and `net.*`, `decoy_ip.*` and `container.*` in §18. Where this spec and the code or `modules/host/CONTRACT.md` differ, those win. Field names, commands, messages and paths are in English.
 Traceability: design requirements (OS updates, one run at a time, DB backup first, health check afterwards, live progress, audit; appliance container, `vedette-host` replaces `vedette-updater`, Podman + Quadlet, internal socket with a **fixed command list**; network configuration, SPAN, secondary IPs for decoys, NTP; decoys on secondary IPs; log export; tar+gzip, no `backup.delete`, unattended-upgrades on apt's timer, `core_data` lock; netplan + networkd; `/run` overlay for the confirmation window; root only sends/reads ARP frames; `vedette-hp` namespace; minisign and cosign verified in code; pull/start/rollback/revocation; Quadlet units are code; chrony; test seams), `update-manifest.md`; SYS-1…8 (`MODULE_CONTRACTS.md`); stories S-CORE-2, S-CORE-7, S-CORE-6, S-CORE-8, S-HP-1, S-HP-2.
 
 ## 1. Purpose

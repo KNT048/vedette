@@ -1076,6 +1076,8 @@ const stamp = () => new Date().toISOString().slice(0, 10)
 export const AGE_MAGIC = 'age-encryption.org/v1\n'
 /** Uploads of a password-protected file: they carried the decryption key, so step 2 needs no key file. */
 const uploadsWithKey = new Set<string>()
+/** Files uploaded on Settings -> Data, by upload id: when the backup was made and whether it carried the key. */
+const fileUploads = new Map<string, { created_at: string; key: boolean }>()
 const sha256Hex = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), (x) => x.toString(16).padStart(2, '0')).join('')
 /** Mock only: a "protected" backup is the age header line, a stanza holding the SHA-256 of the password (the box uses scrypt and
  *  really encrypts) and the archive. The mock upload compares the hash, so a wrong password is refused as on the box. */
@@ -1168,6 +1170,53 @@ const dataHandlers = [
     const run: RestoreRun = { id: newId('restore'), backup_id: src.id, backup_created_at: src.created_at, status: 'done', started_at: at, finished_at: at, user: currentUser()!.email, pre_restore_backup_id: pre.id, error: null }
     restoreRunStore.set({ run })
     audit('data.restore', src.created_at)
+    return HttpResponse.json(run, { status: 202 })
+  }),
+  // Restore from a file on a set-up box. Mock: as the first-run upload (any gzip file is a backup of the sample organization, a
+  // password-protected one carries the key); a plain file is of another box, so its secrets need the key file or the confirmation.
+  http.post(`${API}/core/data/restore/upload`, async ({ request }) => {
+    const denied = guard('admin')
+    if (denied) return denied
+    if (restoreRunStore.get().run?.status === 'running') return fail(409, 'busy', 'An update or a restore is running. Wait for it to finish, then restore.')
+    const b = new Uint8Array(await request.arrayBuffer())
+    const text = new TextDecoder().decode(b.slice(0, 200))
+    const sealed = text.startsWith(AGE_MAGIC)
+    if (sealed) {
+      const sent = request.headers.get('X-Backup-Password') ?? ''
+      if (!sent) return fail(409, 'backup_password_required', 'This backup is protected with a password. Enter the password that was set when it was downloaded.')
+      let password = ''
+      try { password = new TextDecoder().decode(Uint8Array.from(atob(sent), (c) => c.charCodeAt(0))) } catch { /* not base64: wrong */ }
+      if (text.split('\n')[2] !== await sha256Hex(password)) return fail(400, 'wrong_backup_password', 'The backup password is wrong. Enter the password that was set when the backup was downloaded.')
+    } else if (b[0] !== 0x1f || b[1] !== 0x8b) return fail(400, 'not_a_backup', 'This file is not a Vedette backup, or it is damaged or cut short. Choose the .tar.gz file that Download backup saved.')
+    const id = hex(16)
+    const created_at = daysAgo(2)
+    fileUploads.set(id, { created_at, key: sealed })
+    audit('data.restore_upload', `backup of ${created_at}`)
+    return HttpResponse.json({ id, created_at, org: 'Acme Manufacturing', users: 4, twofa_users: 1, admins_without_key: 1, secrets: 6, key_included: sealed, box_key: false })
+  }),
+  http.post(`${API}/core/data/restore/file`, async ({ request }) => {
+    const denied = guard('admin')
+    if (denied) return denied
+    const b = await body<{ upload_id?: string; confirm_data_loss?: boolean; password?: string; code?: string; key?: string; confirm_without_key?: boolean }>(request)
+    if (b.confirm_data_loss !== true) return fail(409, 'confirm_required', 'Restoring replaces everything written since the backup. Confirm to go on.')
+    const up = fileUploads.get(String(b.upload_id ?? ''))
+    if (!up) return fail(404, 'upload_unknown', 'The uploaded backup is no longer on the box (an upload is kept for an hour). Upload it again.')
+    if (b.key) {
+      let n = 0
+      try { n = atob(b.key).length } catch { /* not base64 */ }
+      if (n !== 32) return fail(400, 'invalid_key', 'This is not a Vedette decryption key file: the key file is the 32-byte file that Download decryption key saved.')
+    } else if (!up.key && b.confirm_without_key !== true) return fail(409, 'confirm_required', 'Without the decryption key the saved secrets are lost and users with two-step sign-in cannot sign in. Add the key file, or confirm to restore without it.')
+    if (restoreRunStore.get().run?.status === 'running') return fail(409, 'busy', 'An update or a restore is running. Wait for it to finish, then restore.')
+    const stepped = await stepUp(b, 'restore a backup')
+    if (stepped) return stepped
+    fileUploads.delete(String(b.upload_id))
+    const at = nowIso()
+    const imported: BoxBackup = { id: crypto.randomUUID().replace(/-/g, ''), kind: 'manual', created_at: up.created_at, size: 2_400_000, includes_key: up.key || !!b.key }
+    const pre: BoxBackup = { id: crypto.randomUUID().replace(/-/g, ''), kind: 'pre_restore', created_at: at, size: 2_400_000, includes_key: true }
+    boxBackupsStore.update((l) => [pre, imported, ...l])
+    const run: RestoreRun = { id: newId('restore'), backup_id: imported.id, backup_created_at: up.created_at, status: 'done', started_at: at, finished_at: at, user: currentUser()!.email, pre_restore_backup_id: pre.id, error: null }
+    restoreRunStore.set({ run })
+    audit('data.restore', up.created_at)
     return HttpResponse.json(run, { status: 202 })
   }),
   http.post(`${API}/core/data/key`, async ({ request }) => {

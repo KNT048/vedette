@@ -68,6 +68,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   every line the list names gets no row (a question, never a finding, never "not affected"): a fix the vendor ships on that line for
   another CVE does not say this one leaves it unaffected.
   NVD's rows of a product NVD writes in the vendor's notation (DSM) are read in the scheme too (`SchemeRangesOf`).
+  A record's open-ended row ("from 1.25.0, every later version") of a product whose bounded rows above its start name fixed
+  releases is read as ending where the lowest of those rows starts (`CutCatchAll`, when the match set and the exploited-list view
+  read the rows; the stored rows are as the record states them): the vendor's evaluated trains keep their own fixes, versions below
+  them stay affected with no fix named. F5's NGINX records list each train with its fix next to such a row for the trains it no
+  longer evaluates; read literally, no release would ever fix the flaw. `TestCount_RecordFixesCalledAffectedByACatchAllRow`.
   VMware's records that state ESXi's versions in words ("8.0 prior to ESXi80a-20842819", "7.0 before ESXi70U1c-17325551") give one
   row per clause from the line's start to the fixed build (`esxiTextRows`, version_type `vendor:record-text`); a line any clause states
   in another form (a patch bulletin with no build, "fix pending") gets no such row, and words inside ESXi's list that are no clause

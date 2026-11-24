@@ -46,6 +46,7 @@ export type BoxBackup = z.infer<typeof C.BoxBackup>
 export type BoxBackups = z.infer<typeof C.BoxBackups>
 export type RestoreRun = z.infer<typeof C.RestoreRun>
 export type BackupUpload = z.infer<typeof C.BackupUpload>
+export type DataBackupUpload = z.infer<typeof C.DataBackupUpload>
 export type SetupRestoreRun = z.infer<typeof C.SetupRestoreRun>
 export type OsRebootBody = z.infer<typeof C.OsRebootBody>
 export type UpdatesState = z.infer<typeof C.UpdatesState>

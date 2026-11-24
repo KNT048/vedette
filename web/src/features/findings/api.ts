@@ -91,8 +91,8 @@ export const useAnswered = (f: { device?: string }, page: Page, enabled = true) 
   const path = `/findings/answered${qs({ device: f.device, offset: page.offset, limit: page.limit })}`
   return useQuery({ queryKey: model('answered', path), queryFn: () => api.get<AnsweredList>(path), enabled, placeholderData: keepPreviousData })
 }
-export const useHandledList = (f: { q?: string; resolution?: string; device?: string; from?: string }, page: Page, enabled = true) => {
-  const path = `/findings/handled${qs({ q: f.q, resolution: f.resolution, device: f.device, from: f.from, offset: page.offset, limit: page.limit })}`
+export const useHandledList = (f: { q?: string; resolution?: string; device?: string; from?: string; corrections?: boolean }, page: Page, enabled = true) => {
+  const path = `/findings/handled${qs({ q: f.q, resolution: f.resolution, device: f.device, from: f.from, corrections: f.corrections ? 'true' : undefined, offset: page.offset, limit: page.limit })}`
   return useQuery({ queryKey: model('handled', path), queryFn: () => api.get<HandledList>(path), enabled, placeholderData: keepPreviousData })
 }
 /** The open findings of one CVE on every device, each with its device and the fix block it is in: By device filtered by the CVE,

@@ -48,15 +48,22 @@ The plan starts with a `cd` to the repo root, then `cosign sign` for each image 
 
 The backup key is taken out only when the revocation index must be signed (`RELEASE_SLOT=backup`) or for a rescue release.
 
-## What the maintainer must do (once, **now**)
+## Key custody
 
-1. Copy `~/.vedette-release-keys/` (three encrypted `.key` files and three `.pub`) to **two different offline places**, for example two USB sticks stored in two places.
-2. Copy the **three passwords** from Keychain (Keychain Access → search `vedette-release` → Show password, or `security find-generic-password -s vedette-release-<name> -a "$USER" -w` in your own terminal) onto **paper**, stored apart from the USB sticks. An encrypted key without its password is useless; a password without the key file is useless too; with the two kept apart, losing one place does not expose the key.
-3. **The backup key leaves the Mac at once** after the two offline copies exist: delete `minisign-backup.key` and the Keychain entry `vedette-release-minisign-backup` (`security delete-generic-password -s vedette-release-minisign-backup -a "$USER"`). The point of the backup key is that an attacker who takes over the machine does not have it; and since it alone can sign the index and manifest that a box accepts, leaving it on the Mac puts both keys in one place. The key in use and the cosign key may stay on the Mac for releasing; optionally delete them too and plug in the USB stick only when releasing.
-4. Re-check one copy by signing a test file from the USB stick (`minisign -S -s <usb>/minisign.key -m <file>` then `minisign -Vm <file> -p <usb>/minisign.pub`).
-5. **Time Machine**: it backs up both `~/.vedette-release-keys` and `login.keychain-db`, so whoever has the backup disk needs only the maintainer's login password in addition. Either exclude the key folder from Time Machine (`tmutil addexclusion ~/.vedette-release-keys`; the two USB sticks are already copies), or use only an encrypted Time Machine disk.
-
-The key folder sits in the home folder, outside iCloud Drive.
+1. `~/.vedette-release-keys/` (three encrypted `.key` files and three `.pub`) is copied to **two different offline places**, for example
+   two USB sticks stored apart.
+2. The **three passwords** (Keychain Access, search `vedette-release`, or `security find-generic-password -s vedette-release-<name> -a "$USER" -w`
+   in the maintainer's own terminal) are kept on **paper**, apart from the USB sticks. An encrypted key without its password is useless,
+   and so is a password without the key file; kept apart, losing one place exposes neither.
+3. **The backup key does not stay on the release machine**: once the two offline copies exist, `minisign-backup.key` and the Keychain
+   entry `vedette-release-minisign-backup` are deleted (`security delete-generic-password -s vedette-release-minisign-backup -a "$USER"`).
+   The backup key alone can sign an index and a manifest that a box accepts, so an attacker who takes over the release machine must not
+   find it there. The key in use and the cosign key may stay on the machine for releasing, or come from the USB stick only when needed.
+4. Each copy is checked by signing a test file from the USB stick (`minisign -S -s <usb>/minisign.key -m <file>`, then
+   `minisign -Vm <file> -p <usb>/minisign.pub`).
+5. **Time Machine** backs up both `~/.vedette-release-keys` and `login.keychain-db`, so whoever has the backup disk needs only the login
+   password in addition: exclude the key folder (`tmutil addexclusion ~/.vedette-release-keys`; the USB sticks are the copies) or use
+   only an encrypted backup disk. The key folder stays outside iCloud Drive.
 
 ## Key rotation and revocation
 

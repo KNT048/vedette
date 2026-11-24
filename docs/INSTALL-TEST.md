@@ -1,12 +1,21 @@
-# Install test on a real box (WP-08h)
+# Test install from an unreleased build
 
-The plan for installing Vedette on the test box **192.168.142.141** the way a customer would: root, over SSH, one script, then the GUI. It uses the **test channel**: the release keys and the published images do not exist yet (WP-08k), so the install runs from a folder built on the dev box and signed with throwaway keys. The installer prints `TEST INSTALL - NOT FOR CUSTOMERS` at the start and at the end. The customer path (GitHub release plus `ghcr.io`) is the default of `install.sh` and stops with "not tied to a release" until the first release exists. The two channels never mix: a test host and a release host are different builds with different trusted keys, `install.sh` refuses to install over the other channel (run `--uninstall --yes` first), and a release `install.sh` refuses `--test-artifacts`.
+How to install a build of your own branch on a real machine the way a customer installs a release (root, over SSH, one script, then
+the web interface), and how to test the in-place update and rollback. It uses the **test channel**: `make install-artifacts` builds a
+folder signed with throwaway keys, and `install.sh --test-artifacts <folder>` installs from it. Customers never use this channel.
 
-**192.168.142.141 is a team member's development box (user `byn2`), not a lab machine.** Nobody but the tester installs on it, and only as written here: no network hand-over, no Box network Apply, and decoy IPs only after asking her (below). Do not SSH there from anywhere else.
+- The installer prints `TEST INSTALL - NOT FOR CUSTOMERS` at the start and at the end.
+- The two channels never mix. A test install and a release install are different builds that trust different keys; `install.sh`
+  refuses to install over the other channel (run `--uninstall --yes` first), and a release `install.sh` refuses `--test-artifacts`.
+- The `install.sh` in the repository is not tied to a release and stops with "not tied to a release" on the customer path. Customers
+  take `install.sh` from a release page.
 
-## Safe install on this test box
+The examples use `192.0.2.10` for the test machine. Use a lab or spare machine: the install adds packages, users and containers, and
+the uninstall removes them again (below).
 
-**What the install changes on the host, and how `--uninstall --yes` reverts each change.** Nothing else is changed.
+## What the install changes, and how `--uninstall --yes` reverts it
+
+Nothing else is changed.
 
 | Change | Uninstall |
 |---|---|
@@ -20,24 +29,28 @@ The plan for installing Vedette on the test box **192.168.142.141** the way a cu
 | Folders and users: `/etc/vedette`, `/var/lib/vedette` (database and key), `/var/lib/vedette-host`, `/var/lib/vedette-honeypot`, `/var/lib/vedette-install` (installer state), `/var/log/vedette-host`, `/run/vedette`, network namespace `vedette-hp` (honeypot decoy links live in it) | removed (`--keep-data` keeps the data and the users) |
 | The installed `vedette-host` package is kept at `/var/lib/vedette-host/selfupdate/packages/vedette-host_<version>_<arch>.deb` (0600 root, its folders 0700 root; the SemVer name of the release asset, never Debian's `~`), written on every install, repair and upgrade before apt installs it (temporary name, synced, renamed; taken out again when apt fails; a reinstall of the same version restarts a running vedette-host that has not recorded it); the installer refuses to start while a self-update is under way (`selfupdate/journal.json`, `vedette-host-upgrade.service`); vedette-host records it in `selfupdate/versions.json` when it starts and goes back to it when a later self-update fails | removed with `/var/lib/vedette-host` (`--keep-data` keeps it with the rest of `/var/lib/vedette-host`) |
 | TCP 8443 (interface, API) and 8444 (sensor link, on 127.0.0.1) | closed when the containers are removed |
-| During the install only: `/etc/containers/registries.conf.d/vedette-test-mirror.conf` and the unit `vedette-testregistry.service` (a loopback registry on 127.0.0.1:5077). The mirror is system-wide, so it also redirects pulls of `ghcr.io/knt048/*` by **byn2's rootless podman** for the minutes of the install; nothing else. | removed when the install ends, also when it fails or the SSH session drops (the next run of either channel removes a leftover one) |
+| During the install only: `/etc/containers/registries.conf.d/vedette-test-mirror.conf` and the unit `vedette-testregistry.service` (a loopback registry on 127.0.0.1:5077). The mirror is system-wide, so it also redirects pulls of `ghcr.io/knt048/*` by any rootless podman on the machine for the minutes of the install; nothing else. | removed when the install ends, also when it fails or the SSH session drops (the next run of either channel removes a leftover one) |
 
-**What it must never touch** (it cannot: the default is no network hand-over; do not add `--network-handover`):
+**What it never touches** (the default is no network hand-over; do not add `--network-handover` on a machine you reach over SSH):
 
-- `/etc/netplan/*`, NetworkManager and the LAN connection of the box. **No `--network-handover`, and no Box network Apply or confirm in the GUI on this box**: losing its address loses the box. Looking at the Box network screen is fine; pressing Apply is not. (The decoy IPs of the honeypot do not change the address of the box; they are separate macvlan links inside `vedette-hp`.)
-- the home directory of `byn2` (`~byn2/vedette*`, the owner's worktrees and caches), the tmux sessions and the processes of `byn2`, `sshd` and its config, the apt sources. Everything is done as root outside `/home`: keep the test folder and the snapshots under `/root/vedette-test`.
-- no reboot (only with the box owner's OK).
-- no scan of anything outside the box: this plan runs no scan; active scanning stays off.
+- `/etc/netplan/*`, NetworkManager and the machine's LAN connection. Do not press Apply in Settings → Box network on a machine you
+  reach only over the network: losing its address loses the machine. The honeypot's decoy addresses do not change the machine's
+  address; they are separate macvlan links inside the `vedette-hp` network namespace.
+- Home directories, other users' processes, `sshd` and its configuration, the apt sources. Keep the test folder and the snapshots
+  under `/root/vedette-test`.
+- No reboot, and no scan of anything outside the machine: this procedure runs no scan; leave active scanning off.
 
-If the preflight refuses (for example port 8443 or 8444 is in use by the owner's own dev run), that is the answer: do not stop her processes, report it to the box owner.
+If the preflight refuses (for example port 8443 or 8444 is already in use), that is the answer: the refusal changes nothing.
 
-**Before and after.** Take the snapshot first and compare after the uninstall; the two must be identical except for the noise listed below:
+## Before and after snapshot
+
+Take a snapshot before the install and compare it after the uninstall; the two must be identical apart from the noise listed below.
 
 ```sh
 snap() { d=$1; mkdir -p "$d"
   getent passwd | sort >"$d/passwd"; getent group | sort >"$d/group"
   systemctl list-unit-files --no-legend --no-pager | awk '{print $1,$2}' | sort >"$d/units"
-  # sockets: the dev processes of byn2 listen on ports of their own; only these are compared
+  # sockets: other programs on the machine may listen on ports of their own; only these are compared
   ss -H -ltnu | awk '{print $1,$5}' | grep -E ':(8443|8444|5077)$' | sort >"$d/sockets"
   ip -o link | awk '{print $2}' | sort >"$d/links"; ls /run/netns 2>/dev/null | sort >"$d/netns"
   ip -4 -o addr | awk '{print $2,$4}' | sort >"$d/addr"; ip -4 route | sort >"$d/routes"
@@ -53,52 +66,122 @@ mkdir -p /root/vedette-test; snap /root/vedette-test/before
 snap /root/vedette-test/after; diff -ru /root/vedette-test/before /root/vedette-test/after && echo IDENTICAL
 ```
 
-Known noise that is not an installer fault: the apt lists and the apt/dpkg/journal logs (excluded above), `ip -o link` entries of **byn2's own** containers or VMs that come and go, and the unit list if byn2 or the OS changed a unit meanwhile. In the packages file, only these lines may legitimately differ: a **dependency that apt upgraded** because a new package needed a newer version (the line has a new version, the package is still there; report which), packages that **apt or unattended-upgrades upgraded on their own** in that window, and the base layers of the `scan` image build in podman's storage (not a package line, but `/var/lib/containers` content; with podman added by the installer and purged by the uninstall the folder is removed). When podman was already installed but had never run as root, its rootful storage is created by the install and **stays** after the uninstall (`/var/lib/containers/storage`: `db.sql`, `libpod/`, `overlay*/`, `volumes/`, lock files): the installer never deletes a container storage it did not create the folder for, since other rootful containers may use it (seen on 192.168.142.141, #298). A package that is **missing** after the uninstall, or one that is **new** and not in the installer's `asked-packages` or its dependencies, is a bug. `addr`, `routes`, `chrony` and `netplan` prove the LAN connection and the time configuration were not touched. Any other difference is a bug of the installer: report it, do not clean up by hand.
+Known noise that is not an installer fault: the apt lists and the apt, dpkg and journal logs (excluded above), `ip -o link` entries
+of other containers or virtual machines that come and go, and the unit list if something else changed a unit meanwhile. In the
+packages file only these lines may differ: a **dependency that apt upgraded** because a new package needed a newer version (the
+package is still there, with a new version), packages that **apt or unattended-upgrades upgraded on their own** in that window, and
+the base layers of the `scan` image build in podman's storage (with podman added by the installer and purged by the uninstall, the
+folder is removed). When podman was already installed but had never run as root, its rootful storage is created by the install and
+**stays** after the uninstall (`/var/lib/containers/storage`): the installer never deletes a container storage it did not create,
+since other rootful containers may use it (#298). A package that is **missing** after the uninstall, or one that is **new** and not
+in the installer's `asked-packages` or their dependencies, is a bug. `addr`, `routes`, `chrony` and `netplan` prove that the LAN
+connection and the time configuration were not touched. Any other difference is an installer bug: report it with the diff instead of
+cleaning up by hand.
 
-## What to run (as root, `ssh root@192.168.142.141`)
+## Install, check, uninstall
 
-0. **Build the artifacts on a Linux dev box with podman** (not on the test box, and **not on the Mac**: the build needs podman and bash 4 or later, and macOS has neither by default, issue #298): `make install-artifacts` (full: core with the real interface, sensor and scan; add the honeypot image of WP-08e built with the same tag if it is on `main`: `make install-artifacts` includes it when `localhost/vedette-honeypot:$TEST_VERSION` exists). The test box is amd64 and the default follows the machine you build on: on an arm64 box use `make install-artifacts ARCH=amd64`. The result is `dist/install/` on that box. Copy it to the Mac (`rsync -a <build box>:<repo>/dist/install/ <local folder>/`), then from the Mac: `rsync -a <local folder>/ root@192.168.142.141:/root/vedette-test/art/` and make root own it: `ssh root@192.168.142.141 'chown -R root:root /root/vedette-test/art && chmod -R go-w /root/vedette-test/art'` (the rsync of macOS has no `--chown`), then `ssh root@192.168.142.141 'cd /root/vedette-test/art && sha256sum -c SHA256SUMS'`. The installer refuses a folder that is not root's or is writable by group or others, and copies what it uses into its own closed folder before it checks anything.
-1. **Snapshot** the box (above).
-2. **Install**: `sh /root/vedette-test/art/install.sh --test-artifacts /root/vedette-test/art`. Expect: the warning, `preflight ... ok`, packages, `vedette-host`, `bootstrap` (several minutes; the scan image is built on the box and needs `deb.debian.org`), then `Vedette is running`, an address `https://192.168.142.141:8443` and a setup code. A refusal in the preflight changes nothing. If a step fails, run the same command again: it repairs what stopped (the installer's own marker is written before its first change); only `--uninstall --yes` removes.
-3. **Effects, from the box**: `systemctl is-active vedette-host`; `podman ps` (vedette-core healthy); `curl -ks https://127.0.0.1:8443/api/v1/setup` answers 200 and so does `https://192.168.142.141:8443/api/v1/setup` from the Mac (`curl -k`); `ss -ltn` shows 8443 and 127.0.0.1:8444 (netavark's port forward does open a listener); `cat /etc/vedette/host.conf` matches `getent passwd vedette vedette-sensor`; `cat /etc/containers/systemd/vedette-int.network` (a `172.30.x.0/24` that clashes with nothing in `ip route`); `chronyc sources` (chrony's own configuration, unchanged: `sha256sum /etc/chrony/chrony.conf` equals the snapshot); `ls /etc/netplan` and `ip -4 addr` unchanged from the snapshot; `ls /etc/containers/registries.conf.d/vedette-test-mirror.conf` does not exist; `cat /proc/sys/net/ipv4/ip_forward` is probably 1 now (it is restored at uninstall).
-4. **GUI**: open `https://192.168.142.141:8443`, accept the certificate, enter the setup code, finish the wizard (administrator with 2FA, LAN range, scan consent, modules, notifications).
-5. **Modules**: turn on `sensor-passive` (the sensor container starts and a heartbeat shows), and `honeypot` (the container starts). **Decoy IPs: only after asking the box owner**: pick an address outside her DHCP range, check it is free with `arping -D -I <nic> <ip>` (no reply means free), add it in the honeypot screen; on this wired LAN macvlan is expected to work: the decoy answers ARP and a connection to a decoy port is a hit in the GUI; from the Mac, one `nc -vz <decoy ip> 22` is the whole test. Remove the decoy afterwards. Leave `sensor-active` off. **SPAN** (a second NIC in promiscuous mode) only if the box has one: `ip -o link` shows a second wired card without an address; otherwise write "SPAN skipped: no second NIC". Do not press Apply in Box network (see above).
-6. **Re-run**: `sh /root/vedette-test/art/install.sh --test-artifacts /root/vedette-test/art` again. Expect `host.conf is already right` and `already bootstrapped`, and core not restarted (`podman inspect --format '{{.State.StartedAt}}' vedette-core` unchanged).
-6b. **Keep-data reinstall**: `sh /root/vedette-test/art/install.sh --uninstall --yes --keep-data`, then the install command of step 2 again (the same artifacts, or a newer test build made with the same `KEYS=<dir>`, #469: other keys do not verify against the kept release index). Expect `the kept data last ran with release …` (a warning when the build is newer: core moves the data forward and there is no way back but a backup), `none of its containers: installing release … over it`, no `already bootstrapped`, `first-run setup was completed already`; the administrator of step 4 signs in and the data is there. A build older than the one that last ran is refused before any change (`keeps the data of Vedette …`). Then the repair path with vedette-host running: `systemctl stop vedette-core && rm /etc/containers/systemd/vedette-core.container && systemctl daemon-reload`, run step 2 again: expect `stopping vedette-host for the bootstrap`, no `daemon_running`, core healthy. `make install-check` runs both in containers.
-7. **Uninstall**: `sh /root/vedette-test/art/install.sh --uninstall` (only says what it would do), then `sh /root/vedette-test/art/install.sh --uninstall --yes`. This deletes the test box's Vedette database and key.
-8. **After**: snapshot and the `diff` above must say IDENTICAL (apart from the noise listed); `ss -ltn` has no 8443/8444; `ip -o link` has no leftover macvlan or decoy link; `ls /run/netns` has no `vedette-hp`; `cat /proc/sys/net/ipv4/ip_forward` is the value of the snapshot; `nft list tables` is as in the snapshot.
+0. **Build the folder** on a Linux machine with podman and bash 4 or later (macOS has neither by default, #298):
+   `make install-artifacts`. It builds core with the real interface, sensor and scan, and includes the honeypot image when
+   `localhost/vedette-honeypot:$TEST_VERSION` exists. The architecture follows the build machine; for an amd64 test machine on an
+   arm64 build machine use `make install-artifacts ARCH=amd64`. The result is `dist/install/`. Copy it to the test machine
+   (`rsync -a dist/install/ root@192.0.2.10:/root/vedette-test/art/`), make root own it
+   (`ssh root@192.0.2.10 'chown -R root:root /root/vedette-test/art && chmod -R go-w /root/vedette-test/art'`; the rsync of macOS has
+   no `--chown`), and check it: `ssh root@192.0.2.10 'cd /root/vedette-test/art && sha256sum -c SHA256SUMS'`. The installer refuses a
+   folder that is not root's or that group or others can write, and copies what it uses into a closed folder of its own before it
+   checks anything.
+1. **Snapshot** the machine (above).
+2. **Install**: `sh /root/vedette-test/art/install.sh --test-artifacts /root/vedette-test/art`. Expect the warning,
+   `preflight ... ok`, the packages, `vedette-host`, the bootstrap (several minutes: the `scan` image is built on the machine and needs
+   `deb.debian.org`), then `Vedette is running.`, the address `https://192.0.2.10:8443` and a setup code. A refusal in the preflight
+   changes nothing. If a step fails, run the same command again: it repairs what stopped; only `--uninstall --yes` removes.
+3. **Effects, on the machine**: `systemctl is-active vedette-host`; `podman ps` (vedette-core healthy);
+   `curl -ks https://127.0.0.1:8443/api/v1/setup` answers 200, and so does `curl -k https://192.0.2.10:8443/api/v1/setup` from your
+   own computer; `ss -ltn` shows 8443 and `127.0.0.1:8444`; `cat /etc/vedette/host.conf` matches
+   `getent passwd vedette vedette-sensor`; `cat /etc/containers/systemd/vedette-int.network` (a `172.30.x.0/24` that clashes with
+   nothing in `ip route`); `chronyc sources`, with `sha256sum /etc/chrony/chrony.conf` equal to the snapshot; `ls /etc/netplan` and
+   `ip -4 addr` unchanged; `/etc/containers/registries.conf.d/vedette-test-mirror.conf` no longer exists;
+   `/proc/sys/net/ipv4/ip_forward` is probably 1 now (the uninstall restores it).
+4. **Web interface**: open `https://192.0.2.10:8443`, accept the certificate, enter the setup code and finish the wizard
+   (administrator with two-step sign-in, LAN range, scan commitment, modules, notifications).
+5. **Modules**: turn on `sensor-passive` (the sensor container starts and its heartbeat shows) and `honeypot` (its container starts).
+   For a decoy address, pick one outside the network's DHCP range, check that it is free with `arping -D -I <nic> <ip>` (no reply means
+   free) and add it on the honeypot page; on a wired LAN the decoy answers ARP, and one `nc -vz <decoy ip> 22` from another machine
+   shows a hit in the interface. Remove the decoy afterwards. Leave `sensor-active` off. Test SPAN capture only when the machine has a
+   second wired card without an address (`ip -o link`); otherwise note "SPAN skipped: no second card".
+6. **Run it again**: the install command of step 2 again. Expect `host.conf is already right` and
+   `the release is already bootstrapped`, and core not restarted (`podman inspect --format '{{.State.StartedAt}}' vedette-core`
+   unchanged).
+7. **Reinstall keeping the data**: `sh /root/vedette-test/art/install.sh --uninstall --yes --keep-data`, then the install command of
+   step 2 (the same folder, or a newer test build made with the same `KEYS=<dir>`: other keys do not verify against the kept release
+   index, #469). Expect `the kept data last ran with release …` (a warning when the build is newer: core moves the data forward and
+   only a backup goes back), `none of its containers: installing release … over it`, no `already bootstrapped`, and
+   `first-run setup was completed already`; the administrator of step 4 signs in and the data is there. A build older than the one that
+   last ran is refused before any change. Then the repair path with vedette-host running:
+   `systemctl stop vedette-core && rm /etc/containers/systemd/vedette-core.container && systemctl daemon-reload`, and step 2 again:
+   expect `stopping vedette-host for the bootstrap` and core healthy. `make install-check` runs both paths in systemd containers.
+8. **Uninstall**: `sh /root/vedette-test/art/install.sh --uninstall` only says what it would do;
+   `sh /root/vedette-test/art/install.sh --uninstall --yes` does it and deletes the test database and key.
+9. **After**: the snapshot `diff` says IDENTICAL (apart from the noise above); `ss -ltn` has no 8443 or 8444; `ip -o link` has no
+   leftover macvlan or decoy link; `ls /run/netns` has no `vedette-hp`; `ip_forward` and `nft list tables` are as in the snapshot.
 
-## Upgrade test: install test.1, update to test.2 from the GUI, roll back
+## Update and rollback: install test.1, update to test.2 from the interface, roll back
 
-Tests the real software update of the test channel: the host package (`host.self_update`, host-self-update plan slice 6) and the core image (#432), signed with the same throwaway keys. Nothing here exists on a customer box: the release source below is read only by a build whose version has a `-test.` prerelease, and the documents are still verified with the keys compiled into that build. Not a customer data flow (a test machine on the tester's own LAN), so PRIVACY.md is unchanged.
+This tests the real software update over the test channel: the host package (`host.self_update`) and the container images (#432),
+signed with the same throwaway keys. A build reads the test update source below only when its version has a `-test.` prerelease, and
+it still verifies every document with the keys compiled into it. The source runs on the tester's own LAN, so it is not a customer data
+flow.
 
-**On the build box (Linux, podman), the SAME keys folder for both builds**, outside the repository and outside `dist/` (the folder keeps the private test keys, 0600, test-only, never commit or reuse them for a release):
+**On the build machine, with the same keys folder for both builds** (outside the repository and outside `dist/`; it holds the private
+test keys, 0600, never to be committed or reused for a release):
 
-1. `make install-artifacts TEST_VERSION=0.0.1-test.1 KEYS=$HOME/vedette-testkeys OUT=$HOME/vedette-art/test.1` (the first run makes the keys; the output says "making test keys").
-2. `make install-artifacts TEST_VERSION=0.0.1-test.2 KEYS=$HOME/vedette-testkeys OUT=$HOME/vedette-art/test.2` (the output says "reusing the test keys"). Give test.2 something visible (a commit on the build box's branch) or just the version, which the GUI shows.
-3. Copy both folders to the box as in step 0 above (`/root/vedette-test/art-1`, `/root/vedette-test/art-2`; root-owned, no group/other write). `sha256sum -c SHA256SUMS` in each.
+1. `make install-artifacts TEST_VERSION=0.0.1-test.1 KEYS=$HOME/vedette-testkeys OUT=$HOME/vedette-art/test.1` (the first run says
+   "making test keys").
+2. `make install-artifacts TEST_VERSION=0.0.1-test.2 KEYS=$HOME/vedette-testkeys OUT=$HOME/vedette-art/test.2` ("reusing the test
+   keys").
+3. Copy both folders to the test machine as in step 0 (`/root/vedette-test/art-1`, `/root/vedette-test/art-2`; root-owned, no group or
+   other write) and run `sha256sum -c SHA256SUMS` in each.
 
-**On the box, as root:**
+**On the test machine, as root:**
 
-4. Install test.1 as steps 1-4 above: `sh /root/vedette-test/art-1/install.sh --test-artifacts /root/vedette-test/art-1`. Finish the wizard. Settings → Updates shows `0.0.1-test.1` and no update.
-5. If the box has a firewall (ufw, firewalld), allow `vedette0` to reach `$BR:5078` (core and podman connect from the bridge). The install removed its registry and mirror at the end. Start the update source from test.2 on the bridge of the containers (core runs in a container and cannot reach the box's loopback). `BR=$(ip -4 -o addr show vedette0 | awk '{print $4}' | cut -d/ -f1)` (172.30.x.1), then
-   (a transient unit: it does not survive a reboot of the box; start it again after one) `systemd-run --unit=vedette-testupdate /root/vedette-test/art-2/vedette-testchannel serve -dir /root/vedette-test/art-2/registry -releases /root/vedette-test/art-2 -listen $BR:5078`,
-   `curl -fs http://$BR:5078/release/index/index.json | head -c 100`, and
-   `curl -fs http://$BR:5078/v2/` (`{}`).
-6. Tell core where the source is, and let podman pull test.2's images from it (the same mirror file the installer uses, removed in step 10):
-   `echo "http://$BR:5078/release" > /var/lib/vedette/test-release-base` (core_data of `host.conf`; core reads it on each check, no restart),
+4. Install test.1 as in steps 1 to 4 above: `sh /root/vedette-test/art-1/install.sh --test-artifacts /root/vedette-test/art-1`.
+   Settings → Updates shows `0.0.1-test.1` and no update.
+5. Serve test.2 on the bridge of the containers (core runs in a container and cannot reach the machine's loopback). If the machine has
+   a firewall (ufw, firewalld), allow `vedette0` to reach port 5078 first.
+   `BR=$(ip -4 -o addr show vedette0 | awk '{print $4}' | cut -d/ -f1)` (172.30.x.1), then
+   `systemd-run --unit=vedette-testupdate /root/vedette-test/art-2/vedette-testchannel serve -dir /root/vedette-test/art-2/registry -releases /root/vedette-test/art-2 -listen $BR:5078`
+   (a transient unit: start it again after a reboot). Check it with
+   `curl -fs http://$BR:5078/release/index/index.json | head -c 100` and `curl -fs http://$BR:5078/v2/` (`{}`).
+6. Point core and podman at it:
+   `echo "http://$BR:5078/release" > /var/lib/vedette/test-release-base` (core reads it on each check, no restart), and
    `printf '[[registry]]\nprefix = "ghcr.io/knt048"\nlocation = "ghcr.io/knt048"\n[[registry.mirror]]\nlocation = "%s:5078"\ninsecure = true\n' "$BR" > /etc/containers/registries.conf.d/vedette-test-mirror.conf`.
-7. **GUI**: Settings → Updates → Channel: **Beta** (the test channel signs only a `beta` channel; a new box takes the channel of its own release only when that release's manifest is at the source, and this source serves only test.2's documents, so test.1 stays on stable until you choose), then Check. Expect `0.0.1-test.2` offered (the sequence of the index is above test.1's). Nothing offered, or "source unreachable": `journalctl -u vedette-testupdate`, `podman logs vedette-core | grep -i 'release\|test-release-base'` (a bad address in the file is ignored with one warning, and core then asks GitHub).
-8. **Update** (host first, then core, then the other images). Before: `dpkg-query -W -f '${Version}\n' vedette-host`, `systemctl show -p MainPID vedette-host`, `podman ps --format '{{.Names}} {{.Image}}'`, and note something in the database (a user, a setting). During: `systemctl status vedette-host-upgrade` and `/proc/<pid>/cgroup` of the applier (its own cgroup). After: the run is `succeeded` in the GUI; `dpkg-query` shows `0.0.1~test.2`; a new MainPID; `ls /var/lib/vedette-host/selfupdate/packages` holds both; images are the test.2 digests (`podman ps`); the GUI reconnects and shows `0.0.1-test.2`; the data from before is there; the honeypot, if on, came back.
-9. **Roll back** (Settings → Updates → History → Roll back, when the GUI offers it for a component; core image rollback #432). Expect it to ask you to confirm data loss (the test channel signs `rollback.safe=false`, `scripts/testchannel`); confirm. After: the version is test.1 again, the data is there, `podman ps` shows the test.1 digests. The host package has no manual rollback (plan: only the automatic one after a failed start).
-10. **Clean up**: `systemctl stop vedette-testupdate; rm -f /etc/containers/registries.conf.d/vedette-test-mirror.conf /var/lib/vedette/test-release-base`, then step 7 of the plan above (uninstall) and the `diff`.
+7. **In the interface**: Settings → Updates → Software channel → **Beta** (the test channel signs only a `beta` channel), then Check.
+   Expect `0.0.1-test.2` offered. If nothing is offered or the source is unreachable: `journalctl -u vedette-testupdate` and
+   `podman logs vedette-core | grep -i 'release\|test-release-base'` (a bad address in the file is ignored with one warning, and core
+   then asks GitHub).
+8. **Update** (host first, then core, then the other images). Before: `dpkg-query -W -f '${Version}\n' vedette-host`,
+   `systemctl show -p MainPID vedette-host`, `podman ps --format '{{.Names}} {{.Image}}'`, and note something in the database
+   (a user, a setting). During: `systemctl status vedette-host-upgrade`. After: the run is `succeeded` in the interface; `dpkg-query`
+   shows `0.0.1~test.2`; vedette-host has a new MainPID; `/var/lib/vedette-host/selfupdate/packages` holds both packages; the images
+   are the test.2 digests; the interface reconnects and shows `0.0.1-test.2`; the data from before is there; the honeypot, if on, came
+   back.
+9. **Roll back** (Settings → Updates → History → Roll back, where offered). The test channel signs `rollback.safe=false`, so it asks
+   you to confirm the data loss. After: the version is test.1 again, the data is there, and `podman ps` shows the test.1 digests. The
+   host package has no manual rollback, only the automatic one after a failed start.
+10. **Clean up**: `systemctl stop vedette-testupdate; rm -f /etc/containers/registries.conf.d/vedette-test-mirror.conf /var/lib/vedette/test-release-base`,
+    then uninstall (step 8 of the procedure above) and compare the snapshots.
 
-Negative checks (cheap): build a third version with a DIFFERENT keys folder (omit `KEYS`) and serve it the same way: Check must refuse it (signature), never offer it. `echo http://8.8.8.8/x > /var/lib/vedette/test-release-base` is ignored (public address).
+Negative checks: build a third version with a different keys folder (leave out `KEYS`) and serve it the same way: Check must refuse
+it (signature) and never offer it. A public address in `test-release-base` (for example `http://8.8.8.8/x`) is ignored.
 
-## Not failures
+## What this procedure cannot show
 
-The container run (`make install-check`) cannot show, and this plan checks on the box instead: macvlan decoys on a real wire, a second NIC and SPAN (**skipped for v1**: SPAN is hidden in the GUI), `netplan` and the network hand-over (not exercised on this box on purpose), a reboot (the units come back after boot: only with the box owner's OK). If the box has no second NIC, SPAN is skipped, not failed. The scan image build needs `deb.debian.org`; a box that cannot reach it installs without active scanning (the installer says so and goes on).
+`make install-check` runs the installer in systemd containers and cannot show macvlan decoys on a real wire, a second card for SPAN,
+netplan and the network hand-over, or a reboot; this procedure checks the decoys (and SPAN, with a second card) on the machine and
+leaves the network hand-over and the reboot out on purpose.
+The `scan` image build needs `deb.debian.org`: a machine that cannot reach it installs without active scanning (the installer says so
+and goes on).
 
-## Report
+## Reporting a problem
 
-Report: the install output (setup code removed), the result of step 3, the module and decoy checks of step 5, the second-run result, and the `diff` of step 8. Any difference, any step that did not behave as described: stop there and report; do not repair by hand.
+Attach the install output (with the setup code removed), the result of step 3, the module checks of step 5, the second-run result
+and the snapshot `diff`. When a step does not behave as described, stop there and report it rather than repairing by hand.

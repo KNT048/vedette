@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"time"
 
@@ -22,13 +25,13 @@ import (
 // writes a snapshot of its data WITH the key, which the host keeps as the pre_restore backup and puts back by
 // itself when the restored data does not start (status reverted). A successful restore stops core and swaps its
 // database: whatever core wrote about the run is gone with the old file. So the host's run is the record: core
-// keeps only a copy in core_setting data.restore, and the first read of the run in a process (the Data page
-// polls it, and reconnects to it after the restart) asks the host for the latest backup.restore and settles it
-// into whichever database core now runs on: one audit row data.restore_done per run, the copy, and the removal
-// of the snapshot. The one start-up pass is after a first-run restore, which leaves a marker file (see
-// settleFirstRunRestore). ponytail: no start-up pass otherwise (it would spend a host request on every start); a box
-// restored from Settings -> Data and never opened again keeps its end unaudited and its snapshot until the start-up
-// sweep (1 hour), upgrade: a start-up pass once the host's rate limit has room for it.
+// keeps only a copy in core_setting data.restore and settles the end into whichever database core now runs on: one
+// audit row data.restore_done per run, the copy, and the removal of the snapshot. The host marks the run ended only
+// once core is healthy on the restored data, so the process that records the end is the one started on it: every
+// restore leaves a marker next to the database (restore-pending.json, outside the file the restore replaces), and the
+// start-up pass that finds it follows the run to its end and settles it there (settleRestoreAtStart). A read of the run
+// (the Data page polls it) settles it too; until the host has said how the newest run ended, a read never answers
+// from the copy, which in a restored database is an older restore's.
 const (
 	keyRestore     = "data.restore"
 	restoreTimeout = 35 * time.Minute // backup.restore's own limit is 30 minutes
@@ -244,6 +247,10 @@ func (h *OSHandlers) startRestore(ctx context.Context, c caller, admin bool, b a
 		return nil, err
 	}
 	rec := &restoreRec{RunID: run.RunID, BackupID: b.BackupID, BackupCreatedAt: b.CreatedAt, User: c.Email, StartedAt: run.StartedAt, Snapshot: snap.ID}
+	if err := h.writePendingRestore(pendingRestore{RunID: run.RunID, StartedAt: run.StartedAt.UTC()}); err != nil {
+		// The page's next read still settles it; only the record without a reader waits for it
+		h.log.ErrorContext(ctx, "core: could not leave the pending-restore marker", "run", run.RunID, "error", err)
+	}
 	h.dropRestoreRuns()
 	if err := h.storeStarted(context.WithoutCancel(ctx), rec); err != nil {
 		h.log.ErrorContext(ctx, "core: could not store the restore run", "run", run.RunID, "error", err) // the host holds the record
@@ -313,7 +320,6 @@ func (h *OSHandlers) restoreLatest(ctx context.Context) (*restoreRec, error) {
 	if err != nil {
 		return nil, hostErr(ctx, h.log, err)
 	}
-	h.restoreSynced.Store(true)
 	if rec != nil && rec.Status == "" && h.now().Sub(rec.StartedAt) > restoreTimeout && !slices.ContainsFunc(runs, func(r api.Run) bool { return r.RunID == rec.RunID }) {
 		// core's copy says running, the run's own limit is long past and the host's recent runs do not have it: settle it
 		// as lost, never a 409 busy for ever. (Not sooner: a list read just before the host took the run must not end it.)
@@ -331,6 +337,7 @@ func (h *OSHandlers) restoreLatest(ctx context.Context) (*restoreRec, error) {
 	}
 	i := slices.IndexFunc(runs, func(r api.Run) bool { return r.Command == api.CmdBackupRestore && !refusedElsewhere(r, mine) }) // newest first
 	if i < 0 || (rec != nil && rec.RunID != runs[i].RunID && rec.StartedAt.After(runs[i].StartedAt)) {
+		h.restoreSynced.Store(true)
 		return rec, nil
 	}
 	run := runs[i]
@@ -338,8 +345,11 @@ func (h *OSHandlers) restoreLatest(ctx context.Context) (*restoreRec, error) {
 		if err := h.settleRestore(ctx, run); err != nil {
 			return nil, err
 		}
+		h.restoreSynced.Store(true)
 		return h.loadRestore(ctx)
 	}
+	// The newest run is still going (core may already run on the restored data while the host checks its health): the
+	// copy is not the answer until the host says how it ended, so restoreSynced stays as it is.
 	if rec == nil || rec.RunID != run.RunID {
 		rec = &restoreRec{RunID: run.RunID, User: run.Actor, StartedAt: run.StartedAt}
 	}
@@ -447,6 +457,7 @@ func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
 		return err
 	}
 	if rec != nil && rec.RunID == run.RunID && rec.Status != "" {
+		h.dropPendingRestore(run.RunID)
 		return nil
 	}
 	if rec == nil || rec.RunID != run.RunID { // a restored database, or a restore started by an earlier process
@@ -499,6 +510,8 @@ func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
 	if err != nil {
 		return fmt.Errorf("core: settle restore: %w", err)
 	}
+	h.dropPendingRestore(run.RunID)
+	h.dropRestoreRuns() // a shared list read before the end would show the run still going
 	switch {
 	case h.snaps == nil:
 	case rec.Snapshot != "":
@@ -516,4 +529,102 @@ func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
 		h.snaps.removeBefore(h.started, keep...)
 	}
 	return nil
+}
+
+// ---- the restore that core recorded as started, outside the database it replaces ----
+
+const (
+	pendingRestoreFile = "restore-pending.json"
+	// pendingRestoreMaxAge: a marker older than this belongs to a restore that never came back (the host ends it within
+	// restoreTimeout); it is dropped at start-up, not followed.
+	pendingRestoreMaxAge = 2 * time.Hour
+)
+
+// pendingRestore is restore-pending.json: the run core started. It lives next to the database, not in it, because the
+// restore replaces the database; the process that starts on the restored one finds it and records the end there.
+type pendingRestore struct {
+	RunID     string    `json:"run_id"`
+	StartedAt time.Time `json:"started_at"`
+}
+
+// runIDRE is the shape of a host run id core accepts from the marker (validated at the edge: the file sits on disk).
+var runIDRE = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+func (h *OSHandlers) writePendingRestore(p pendingRestore) error {
+	if h.pendingMarker == "" {
+		return nil
+	}
+	b, err := json.Marshal(p)
+	if err != nil {
+		return fmt.Errorf("core: encode the pending-restore marker: %w", err)
+	}
+	tmp := h.pendingMarker + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return fmt.Errorf("core: write the pending-restore marker: %w", err)
+	}
+	if err := os.Rename(tmp, h.pendingMarker); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("core: write the pending-restore marker: %w", err)
+	}
+	return nil
+}
+
+// readPendingRestore is the marker, ok false when there is none or it cannot be trusted (over 4 KiB, a run id of
+// another shape, a start that is not within the last pendingRestoreMaxAge).
+func (h *OSHandlers) readPendingRestore() (pendingRestore, bool) {
+	var p pendingRestore
+	if h.pendingMarker == "" {
+		return p, false
+	}
+	b, err := os.ReadFile(h.pendingMarker)
+	if err != nil || len(b) > 4096 || json.Unmarshal(b, &p) != nil || !runIDRE.MatchString(p.RunID) {
+		return pendingRestore{}, false
+	}
+	if now := h.now(); p.StartedAt.IsZero() || p.StartedAt.After(now.Add(time.Minute)) || now.Sub(p.StartedAt) > pendingRestoreMaxAge {
+		return pendingRestore{}, false
+	}
+	return p, true
+}
+
+// dropPendingRestore removes the marker when it names runID (now settled), or any marker when runID is "" or the
+// marker cannot be trusted.
+func (h *OSHandlers) dropPendingRestore(runID string) {
+	if h.pendingMarker == "" {
+		return
+	}
+	if p, ok := h.readPendingRestore(); ok && runID != "" && p.RunID != runID {
+		return // a newer restore's: it stays for its own end
+	}
+	if err := os.Remove(h.pendingMarker); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		h.log.Warn("core: could not remove the pending-restore marker", "error", err)
+	}
+}
+
+// settleRestoreAtStart runs once at start-up, only when a restore left its marker (restore-pending.json, or the terms
+// marker of a first-run restore): it settles the run into the database core now runs on (the restored one, or the one put
+// back), so the end is in the audit log and on the Data page right after the restart whoever opens which page. A run the
+// host still checks (the host ends it only once core is healthy, so this is the usual case) is followed to its end. One
+// host read, bounded; an error leaves the marker for the next start or the next read of Settings -> Data, never a retry per
+// request.
+func (h *OSHandlers) settleRestoreAtStart() {
+	_, pending := h.readPendingRestore()
+	if !pending {
+		h.dropPendingRestore("") // none, or one too old or not ours to follow
+	}
+	if !h.firstRunRestorePending() && !pending {
+		return
+	}
+	ctx, cancel := context.WithTimeout(h.ctx, 10*time.Second)
+	defer cancel()
+	rec, err := h.restoreLatest(ctx)
+	if err != nil {
+		h.log.Warn("core: could not settle the restore at start", "error", err)
+		return
+	}
+	if rec != nil && rec.Status == "" {
+		h.wg.Add(1)
+		go h.followRestore(api.Run{RunID: rec.RunID, Command: api.CmdBackupRestore, Status: api.StatusRunning, StartedAt: rec.StartedAt, Actor: rec.User})
+		return
+	}
+	h.dropPendingRestore("") // the run is settled here, or the host no longer has it: nothing to follow
 }

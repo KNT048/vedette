@@ -128,6 +128,8 @@ var Operations = map[string]Operation{
 	"core_post_core_data_key":                                {Method: "POST", Path: "/core/data/key", MinRole: Admin, Tag: "core"},
 	"core_post_core_data_purge":                              {Method: "POST", Path: "/core/data/purge", MinRole: Admin, Tag: "core"},
 	"core_post_core_data_restore":                            {Method: "POST", Path: "/core/data/restore", MinRole: Admin, Tag: "core"},
+	"core_post_core_data_restore_file":                       {Method: "POST", Path: "/core/data/restore/file", MinRole: Admin, Tag: "core"},
+	"core_post_core_data_restore_upload":                     {Method: "POST", Path: "/core/data/restore/upload", MinRole: Admin, Tag: "core"},
 	"core_post_core_mcp_tokens":                              {Method: "POST", Path: "/core/mcp/tokens", MinRole: Admin, Tag: "core"},
 	"core_post_core_network_box_address_forget":              {Method: "POST", Path: "/core/network/box-address/forget", MinRole: Admin, Tag: "core"},
 	"core_post_core_network_management_confirm":              {Method: "POST", Path: "/core/network/management/confirm", MinRole: Admin, Tag: "core"},

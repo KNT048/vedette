@@ -270,7 +270,8 @@ function Open({ open, n }: { open: ReportOpen; n: number }) {
                           {g.items[0] ? <><span className="text-muted">{g.items[0].product}</span><SeverityBadge severity={g.items[0].severity} compact /></> : null}
                         </span>
                       )}
-                      <span className="ml-2 text-meta text-muted">{t('sr.groupCount', { count: g.items.length })}</span>
+                      {/* the group's own total: a report lists 100 rows at most, so a device's header never passes the listed rows off as its total */}
+                      <span className="ml-2 text-meta text-muted">{g.total && g.total > g.items.length ? t('sr.groupShown', { count: g.total, shown: g.items.length }) : t('sr.groupCount', { count: g.total ?? g.items.length })}</span>
                     </th>
                   </tr>
                   {g.items.map((f) => (
@@ -300,10 +301,12 @@ function Open({ open, n }: { open: ReportOpen; n: number }) {
 
 function New({ fresh, n }: { fresh: ReportNew; n: number }) {
   const { t } = useTranslation('reports')
-  const still = fresh.items.filter((f) => (OPEN_FINDING_STATUSES as readonly string[]).includes(f.status)).length
+  // still open of all the new findings, not of the rows listed (a report sent before the count was kept counts the listed rows)
+  const still = fresh.open ?? fresh.items.filter((f) => (OPEN_FINDING_STATUSES as readonly string[]).includes(f.status)).length
+  const listed = fresh.items.length < fresh.total ? ` · ${t('sr.listed', { count: fresh.items.length })}` : ''
   return (
     <section aria-labelledby="sr-new">
-      <Heading id="sr-new" n={n} aside={fresh.total ? `${t('sr.groupCount', { count: fresh.total })} · ${t('sr.newStill', { count: still })}` : undefined}>{t('sr.section.new')}</Heading>
+      <Heading id="sr-new" n={n} aside={fresh.total ? `${t('sr.groupCount', { count: fresh.total })} · ${t('sr.newOpen', { count: still })}${listed}` : undefined}>{t('sr.section.new')}</Heading>
       {fresh.total === 0 ? <p className="text-muted">{t('sr.newNone')}</p> : (
         <div className="grid gap-2">
           <Scroll>

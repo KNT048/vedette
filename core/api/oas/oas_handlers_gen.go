@@ -13884,6 +13884,321 @@ func (s *Server) handleCorePostCoreDataRestoreRequest(args [0]string, argsEscape
 	}
 }
 
+// handleCorePostCoreDataRestoreFileRequest handles core_post_core_data_restore_file operation.
+//
+// Restore from a file, step 2: restore the uploaded backup as this box's data. As a restore of a kept
+// backup: 409 confirm_required without confirm_data_loss: true, then the current password (400
+// wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a
+// fresh code (400 code_required / invalid_code); core first takes a copy of the current data, kept as
+// a pre_restore backup and put back by the helper when the restored data does not start. The saved
+// secrets come back with the key inside a protected file (key_included), with this box's own key when
+// it opens them (box_key), or with key (the key file of the box the backup comes from, base64: 400
+// invalid_key when not 32 bytes, 400 wrong_key when it opens none of them); otherwise
+// confirm_without_key: true is required (409 confirm_required). Everything is checked before anything
+// changes. 404 upload_unknown when the upload is gone (older than an hour); 409 busy, low_disk,
+// schema_newer, not_appliance as for a restore.
+//
+// POST /core/data/restore/file
+func (s *Server) handleCorePostCoreDataRestoreFileRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CorePostCoreDataRestoreFileOperation,
+			ID:   "core_post_core_data_restore_file",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, CorePostCoreDataRestoreFileOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePostCoreDataRestoreFileRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *CorePostCoreDataRestoreFileAccepted
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePostCoreDataRestoreFileOperation,
+			OperationSummary: "Restore from a file, step 2: restore the uploaded backup as this box's data. As a restore of a kept backup: 409 confirm_required without confirm_data_loss: true, then the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code); core first takes a copy of the current data, kept as a pre_restore backup and put back by the helper when the restored data does not start. The saved secrets come back with the key inside a protected file (key_included), with this box's own key when it opens them (box_key), or with key (the key file of the box the backup comes from, base64: 400 invalid_key when not 32 bytes, 400 wrong_key when it opens none of them); otherwise confirm_without_key: true is required (409 confirm_required). Everything is checked before anything changes. 404 upload_unknown when the upload is gone (older than an hour); 409 busy, low_disk, schema_newer, not_appliance as for a restore",
+			OperationID:      "core_post_core_data_restore_file",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *CorePostCoreDataRestoreFileReq
+			Params   = struct{}
+			Response = *CorePostCoreDataRestoreFileAccepted
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePostCoreDataRestoreFile(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePostCoreDataRestoreFile(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePostCoreDataRestoreFileResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleCorePostCoreDataRestoreUploadRequest handles core_post_core_data_restore_upload operation.
+//
+// Restore from a file, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz, or the
+// password-protected .tar.gz.age with X-Backup-Password, as the body). The box checks the file as the
+// first-run upload does (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up;
+// 409 schema_newer: made by a newer Vedette), keeps it for an hour (one upload at a time: a new one
+// replaces it) and says what it holds and whether the saved secrets come back (key_included: the key
+// inside the protected file opens them; box_key: this box's own key opens them). Nothing on the box
+// changes. A wrong password is 400 wrong_backup_password, counted like a wrong setup code (429
+// rate_limited); a protected file without one 409 backup_password_required. 409 busy while another
+// upload is checked or a restore or update runs, 409 low_disk, 409 not_appliance, 413 over 4 GiB.
+//
+// POST /core/data/restore/upload
+func (s *Server) handleCorePostCoreDataRestoreUploadRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CorePostCoreDataRestoreUploadOperation,
+			ID:   "core_post_core_data_restore_upload",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, CorePostCoreDataRestoreUploadOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeCorePostCoreDataRestoreUploadParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePostCoreDataRestoreUploadRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *CorePostCoreDataRestoreUploadOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePostCoreDataRestoreUploadOperation,
+			OperationSummary: "Restore from a file, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz, or the password-protected .tar.gz.age with X-Backup-Password, as the body). The box checks the file as the first-run upload does (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour (one upload at a time: a new one replaces it) and says what it holds and whether the saved secrets come back (key_included: the key inside the protected file opens them; box_key: this box's own key opens them). Nothing on the box changes. A wrong password is 400 wrong_backup_password, counted like a wrong setup code (429 rate_limited); a protected file without one 409 backup_password_required. 409 busy while another upload is checked or a restore or update runs, 409 low_disk, 409 not_appliance, 413 over 4 GiB",
+			OperationID:      "core_post_core_data_restore_upload",
+			Body:             request,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "X-Backup-Password",
+					In:   "header",
+				}: params.XBackupPassword,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = CorePostCoreDataRestoreUploadReq
+			Params   = CorePostCoreDataRestoreUploadParams
+			Response = *CorePostCoreDataRestoreUploadOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackCorePostCoreDataRestoreUploadParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePostCoreDataRestoreUpload(ctx, request, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePostCoreDataRestoreUpload(ctx, request, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePostCoreDataRestoreUploadResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCorePostCoreMcpTokensRequest handles core_post_core_mcp_tokens operation.
 //
 // Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many).
@@ -26475,6 +26790,10 @@ func (s *Server) handleFindingsGetFindingsHandledRequest(args [0]string, argsEsc
 					Name: "to",
 					In:   "query",
 				}: params.To,
+				{
+					Name: "corrections",
+					In:   "query",
+				}: params.Corrections,
 				{
 					Name: "offset",
 					In:   "query",

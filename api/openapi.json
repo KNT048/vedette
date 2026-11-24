@@ -9720,6 +9720,148 @@
         }
       }
     },
+    "/core/data/restore/file": {
+      "post": {
+        "operationId": "core_post_core_data_restore_file",
+        "summary": "Restore from a file, step 2: restore the uploaded backup as this box's data. As a restore of a kept backup: 409 confirm_required without confirm_data_loss: true, then the current password (400 wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a fresh code (400 code_required / invalid_code); core first takes a copy of the current data, kept as a pre_restore backup and put back by the helper when the restored data does not start. The saved secrets come back with the key inside a protected file (key_included), with this box's own key when it opens them (box_key), or with key (the key file of the box the backup comes from, base64: 400 invalid_key when not 32 bytes, 400 wrong_key when it opens none of them); otherwise confirm_without_key: true is required (409 confirm_required). Everything is checked before anything changes. 404 upload_unknown when the upload is gone (older than an hour); 409 busy, low_disk, schema_newer, not_appliance as for a restore",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "upload_id": {
+                    "type": "string"
+                  },
+                  "confirm_data_loss": {
+                    "description": "Required (true): everything written since the backup is replaced",
+                    "type": "boolean"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "description": "The decryption key file, base64",
+                    "type": "string"
+                  },
+                  "confirm_without_key": {
+                    "description": "Required (true) when the backup holds secrets that neither its own key nor this box's key opens: they are lost and two-step users cannot sign in",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "upload_id",
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "backup_id": {
+                      "type": "string"
+                    },
+                    "backup_created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "running",
+                        "done",
+                        "reverted",
+                        "failed"
+                      ],
+                      "description": "reverted = the restored data did not start, so the box put back the data from before the restore"
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "finished_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "user": {
+                      "type": "string"
+                    },
+                    "pre_restore_backup_id": {
+                      "description": "The copy of the data from before the restore, kept in the list as pre_restore",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "error": {
+                      "description": "Only when not done: why, in words",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "backup_id",
+                    "backup_created_at",
+                    "status",
+                    "started_at",
+                    "finished_at",
+                    "user",
+                    "pre_restore_backup_id",
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/core/data/restore/run": {
       "get": {
         "operationId": "core_get_core_data_restore_run",
@@ -9814,6 +9956,123 @@
                       "type": "null"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/core/data/restore/upload": {
+      "post": {
+        "operationId": "core_post_core_data_restore_upload",
+        "summary": "Restore from a file, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz, or the password-protected .tar.gz.age with X-Backup-Password, as the body). The box checks the file as the first-run upload does (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour (one upload at a time: a new one replaces it) and says what it holds and whether the saved secrets come back (key_included: the key inside the protected file opens them; box_key: this box's own key opens them). Nothing on the box changes. A wrong password is 400 wrong_backup_password, counted like a wrong setup code (429 rate_limited); a protected file without one 409 backup_password_required. 409 busy while another upload is checked or a restore or update runs, 409 low_disk, 409 not_appliance, 413 over 4 GiB",
+        "tags": [
+          "core"
+        ],
+        "x-stories": [
+          "S-CORE-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "X-Backup-Password",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "description": "The password of a backup downloaded with one, as base64 of its UTF-8 bytes",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The uploaded backup, kept on the box for an hour; POST /core/data/restore/file names it"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                      "description": "When the backup was made (its manifest)"
+                    },
+                    "org": {
+                      "type": "string",
+                      "description": "The organization the backup holds"
+                    },
+                    "users": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Active accounts"
+                    },
+                    "twofa_users": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Active accounts that sign in with two-step: without the decryption key they cannot sign in"
+                    },
+                    "admins_without_key": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Active administrators who can still sign in when the restore has no decryption key (password sign-in, no two-step); 0 = nobody could run the box without the key"
+                    },
+                    "secrets": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Saved secrets (AI and feed keys, channel passwords, tokens, two-step keys): without the key they must be entered again"
+                    },
+                    "key_included": {
+                      "type": "boolean",
+                      "description": "The password-protected file carried the decryption key and it opens the saved secrets: the restore keeps them and two-step sign-in, and needs no key file. false for a plain file, or when the backup holds no secret"
+                    },
+                    "box_key": {
+                      "type": "boolean",
+                      "description": "The saved secrets of the backup open with this box's own decryption key (a backup of this box): the restore keeps them and two-step sign-in without a key file. false when key_included, or when the backup holds no secret"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "created_at",
+                    "org",
+                    "users",
+                    "twofa_users",
+                    "admins_without_key",
+                    "secrets",
+                    "key_included",
+                    "box_key"
+                  ],
+                  "additionalProperties": false
                 }
               }
             }
@@ -53330,6 +53589,19 @@
             }
           },
           {
+            "name": "corrections",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "true: also list the findings Vedette closed because it corrected its own match (never a flaw that was handled); default false: leave them out, as the report does",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -53694,11 +53966,18 @@
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 9007199254740991
+                    },
+                    "corrections": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Findings Vedette closed itself because it corrected its own match (via data_corrected, by Vedette) that the same filters select: left out unless corrections=true, counted here either way"
                     }
                   },
                   "required": [
                     "items",
-                    "total"
+                    "total",
+                    "corrections"
                   ],
                   "additionalProperties": false
                 }
@@ -77322,6 +77601,12 @@
                                   ],
                                   "additionalProperties": false
                                 }
+                              },
+                              "total": {
+                                "description": "Every open finding of the group, listed or not (items stops at the 100 rows a report lists); absent in reports sent before it was counted",
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
                               }
                             },
                             "required": [
@@ -77357,6 +77642,12 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
                           "description": "Findings first seen in the period, open or handled since; equals summary.new"
+                        },
+                        "open": {
+                          "description": "Of total, the findings still open at the end of the period, listed or not; absent in reports sent before it was counted",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
                         },
                         "items": {
                           "type": "array",
@@ -79501,6 +79792,12 @@
                                       ],
                                       "additionalProperties": false
                                     }
+                                  },
+                                  "total": {
+                                    "description": "Every open finding of the group, listed or not (items stops at the 100 rows a report lists); absent in reports sent before it was counted",
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
                                   }
                                 },
                                 "required": [
@@ -79536,6 +79833,12 @@
                               "minimum": -9007199254740991,
                               "maximum": 9007199254740991,
                               "description": "Findings first seen in the period, open or handled since; equals summary.new"
+                            },
+                            "open": {
+                              "description": "Of total, the findings still open at the end of the period, listed or not; absent in reports sent before it was counted",
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
                             },
                             "items": {
                               "type": "array",

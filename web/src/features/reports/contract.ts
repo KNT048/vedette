@@ -184,10 +184,12 @@ export const ReportOpen = z.object({
   groups: z.array(z.object({
     key: z.string().describe('The device id or the CVE'), label: z.string().max(200), status: OpenStatus.describe('The most urgent status in the group'),
     items: z.array(ReportFinding),
+    total: z.number().int().optional().describe('Every open finding of the group, listed or not (items stops at the 100 rows a report lists); absent in reports sent before it was counted'),
   })).describe('Most urgent first'),
   more: z.number().int().describe('Open findings not listed (a report lists 100 at most)'),
 })
-export const ReportNew = z.object({ total: z.number().int().describe('Findings first seen in the period, open or handled since; equals summary.new'), items: z.array(ReportFinding).describe('Found in the period, with their status now (open or how it was handled)'), more: z.number().int() })
+export const ReportNew = z.object({ total: z.number().int().describe('Findings first seen in the period, open or handled since; equals summary.new'),
+  open: z.number().int().optional().describe('Of total, the findings still open at the end of the period, listed or not; absent in reports sent before it was counted'), items: z.array(ReportFinding).describe('Found in the period, with their status now (open or how it was handled)'), more: z.number().int() })
 export const ExposureService = z.object({
   ip: z.string(), port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']),
   name: z.string().max(80).nullable(), product: z.string().max(200).nullable(), version: z.string().max(80).nullable(),

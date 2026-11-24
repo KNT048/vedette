@@ -1314,6 +1314,32 @@ func encodeCorePostCoreDataRestoreResponse(response *CorePostCoreDataRestoreAcce
 	return nil
 }
 
+func encodeCorePostCoreDataRestoreFileResponse(response *CorePostCoreDataRestoreFileAccepted, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(202)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeCorePostCoreDataRestoreUploadResponse(response *CorePostCoreDataRestoreUploadOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeCorePostCoreMcpTokensResponse(response *CorePostCoreMcpTokensCreated, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(201)

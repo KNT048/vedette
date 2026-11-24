@@ -1,6 +1,6 @@
 # Sensor protocol: `sensor`/`scan` ↔ `core` (appliance profile)
 
-Status: **settled on paper** (2026-11-10); the first code (`core/pki`, `core/sensorlink`; not yet wired to modules) clarified a few points, marked "Clarified in code" below; replaces the earlier draft (2026-11-09). Field names, error codes and paths are in English.
+Status: implemented (`core/pki`, `core/sensorlink`, `sensor-passive`, `sensor-active`); points that the code settled are marked "Clarified in code" below. Where this spec and the code or a module's `CONTRACT.md` differ, those win. Field names, error codes and paths are in English.
 Traceability: `ARCHITECTURE.md` §2, §6, TB-9; `DEPLOYMENT.md` §2.2, §2.4, §6.1; stories S-INV-1, S-INV-3, S-SCAN-4.
 
 ## 1. Purpose and scope

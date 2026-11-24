@@ -106,11 +106,34 @@ var releasedConstrainedColumns = map[string]bool{
 }
 
 var (
-	lineComment  = regexp.MustCompile(`--[^\n]*`)
-	blockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	// sqlToken is a quoted string or name (kept whole), a comment (dropped) or a semicolon (ends a statement).
+	sqlToken     = regexp.MustCompile("'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"|`(?:[^`]|``)*`|\\[[^\\]]*\\]|--[^\n]*|(?s:/\\*.*?\\*/)|;")
 	alterAdd     = regexp.MustCompile(`(?is)^\s*ALTER\s+TABLE\s+\S+\s+ADD\b`)
 	constraintKW = regexp.MustCompile(`(?i)\b(CHECK|REFERENCES)\b`)
 )
+
+// statements cuts SQL text at the semicolons outside quotes and drops its comments (a space stays), so a semicolon or "--"
+// inside a string does not hide the rest of a statement.
+func statements(sql string) []string {
+	var out []string
+	var cur strings.Builder
+	last := 0
+	for _, m := range sqlToken.FindAllStringIndex(sql, -1) {
+		cur.WriteString(sql[last:m[0]])
+		switch tok := sql[m[0]:m[1]]; {
+		case tok == ";":
+			out = append(out, cur.String())
+			cur.Reset()
+		case strings.HasPrefix(tok, "--"), strings.HasPrefix(tok, "/*"):
+			cur.WriteByte(' ')
+		default:
+			cur.WriteString(tok)
+		}
+		last = m[1]
+	}
+	cur.WriteString(sql[last:])
+	return append(out, cur.String())
+}
 
 // head is the start of a statement on one line, for a failure message.
 func head(stmt string) string {
@@ -141,8 +164,7 @@ func AssertAddedColumnsUnconstrained(t testing.TB, module string, fsys fs.FS) {
 		if err != nil {
 			t.Fatalf("storetest: read %s/%s: %v", module, name, err)
 		}
-		text := lineComment.ReplaceAllString(blockComment.ReplaceAllString(string(b), " "), "")
-		for stmt := range strings.SplitSeq(text, ";") {
+		for _, stmt := range statements(string(b)) {
 			if !alterAdd.MatchString(stmt) {
 				continue
 			}

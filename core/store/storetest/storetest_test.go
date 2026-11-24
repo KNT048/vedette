@@ -141,6 +141,8 @@ func TestAssertAddedColumnsUnconstrained(t *testing.T) {
 		{"check on an added column", "ALTER TABLE feeds_a ADD COLUMN y TEXT CHECK (y IN ('a', 'b'));", "adds a column with CHECK"},
 		{"reference on an added column", "ALTER TABLE feeds_a ADD y TEXT REFERENCES feeds_b(x);", "adds a column with REFERENCES"},
 		{"lower case", "alter table feeds_a add column y integer check (y > 0);", "validate its values in Go"},
+		{"semicolon in a default", "ALTER TABLE feeds_a ADD COLUMN y TEXT NOT NULL DEFAULT 'a;b' CHECK (y <> '');", "adds a column with CHECK"},
+		{"dashes in a default", "ALTER TABLE feeds_a ADD COLUMN y TEXT NOT NULL DEFAULT '--' REFERENCES feeds_b(x);", "adds a column with REFERENCES"},
 	}
 	for _, tc := range tests {
 		f := &fakeTB{TB: t}

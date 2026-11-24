@@ -32,7 +32,9 @@ import (
 //     that have no NVD ranges and were not read for recordRecheck (a new CISA entry has its vendor's versions at once);
 //   - by ID, every pull once the whole list is read: the records still missing of the CVEs every box keeps (recordKeep.askable: named
 //     by a public list or signal, or published inside the window) that entered the catalogue after the archives that would have
-//     brought them (recordsBacklog), within recordIDBudget asks a pull.
+//     brought them (recordsBacklog), within recordIDBudget asks a pull;
+//   - the whole list again, at most every recordOwnAgain, when a CVE only this box's own lists or signals keep has no record
+//     (recordsOwn): such a CVE is never asked for by ID.
 //
 // Asking by ID would be about 110,000 requests for the catalogue and 2,000 to 7,000 a day for the changes: the archives are one
 // request each. Nothing of the customer is in any request: the archives are the same for every box, and an ID is asked only when a
@@ -62,6 +64,12 @@ const (
 	// older CVEs), the whole list is read again, at most every recordRescanAgain; fewer are asked for by ID.
 	recordRescanUnread = 300
 	recordRescanAgain  = 7 * 24 * time.Hour
+	// recordOwnAgain: a CVE only this box's own lists or signals keep (a custom list, a box-built signal) is never asked for by ID, as
+	// the ask would tell the source what this box watches; when one has no record, the whole list is read again early (recordsOwn),
+	// at most this often. selectorRecordOwn is the row of feeds_nvd_cursor whose win_from is when the last such read started, so the
+	// bound holds across restarts.
+	recordOwnAgain    = 24 * time.Hour
+	selectorRecordOwn = "cve_record_own"
 	// recordArchiveMax bounds the daily archive (669 MB in 2026); recordLogMax the change log (31.7 MB uncompressed in 2026).
 	recordArchiveMax = 3 << 30
 	recordLogMax     = 256 << 20
@@ -477,8 +485,8 @@ func (s *Store) recordsOwed(ctx context.Context, feedURL string) (bool, error) {
 }
 
 // recordsBulk loads the whole list when the box has none, its data is older than the change log reaches, its address changed, an older
-// reader read the stored records (recordReader), or many listed CVEs have no record; otherwise it reads the changes, at most every
-// recordDeltaEvery. The read after a reader change replaces every stored record and goes back to the archive's midnight, so the
+// reader read the stored records (recordReader), many listed CVEs have no record, or a CVE only this box's own lists keep has none
+// (recordsOwn); otherwise it reads the changes, at most every recordDeltaEvery. The read after a reader change replaces every stored record and goes back to the archive's midnight, so the
 // changes since are read again through the change log; it is resumable like any read of the whole list.
 func (s *Service) recordsBulk(ctx context.Context, run *recordRun, now time.Time) error {
 	cur, err := s.st.nvdCursor(ctx, selectorRecord)
@@ -516,10 +524,44 @@ func (s *Service) recordsBulk(ctx context.Context, run *recordRun, now time.Time
 		day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
 		run.notes = append(run.notes, fmt.Sprintf("%s listed CVEs had no record: reading the whole list again.", grouped(unread)))
 		return s.recordsWhole(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeFill, From: day, To: day, Until: cur.Until}, now)
-	case now.Sub(cur.To) >= recordDeltaEvery:
+	}
+	if started, err := s.recordsOwn(ctx, run, *cur, now); started || err != nil {
+		return err
+	}
+	if now.Sub(cur.To) >= recordDeltaEvery {
 		return s.recordsChanges(ctx, run, *cur, now)
 	}
 	return nil
+}
+
+// recordsOwn starts a read of the whole list when a CVE only this box's own lists or signals keep has no record (Store.recordOwnUnread):
+// such a CVE is never asked for by its ID, and without this its record would come only with the next read of the whole list for
+// another reason, up to a week later or never. It starts only when the whole list is read (cur is done with the current reader: an
+// unfinished read goes on as it is), when the archive it would read is newer than the one last read, and at most every recordOwnAgain
+// (selectorRecordOwn, kept in the database). The read is the same as any other (recordsWhole: the archive's rate, the fetch log, the
+// feed's back-off) and stamps afterwards the CVEs the list does not hold (stampNotInList), so a CVE the CVE Program never published
+// starts no second one. started: this pull is that read.
+func (s *Service) recordsOwn(ctx context.Context, run *recordRun, cur recentCursor, now time.Time) (started bool, err error) {
+	day := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
+	if cur.Mode != modeDone || cur.URL != recordCursorURL(run.src.URL) || !cur.From.Before(day) {
+		return false, nil
+	}
+	last, err := s.st.nvdCursor(ctx, selectorRecordOwn)
+	if err != nil {
+		return false, err
+	}
+	if last != nil && !now.Before(last.From) && now.Sub(last.From) < recordOwnAgain {
+		return false, nil
+	}
+	own, err := s.st.recordOwnUnread(ctx, now.AddDate(0, 0, -windowDays))
+	if err != nil || own == 0 {
+		return false, err
+	}
+	if err := s.saveRecordCursorAt(ctx, run, selectorRecordOwn, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeDone, From: now, To: now, Until: now}); err != nil {
+		return false, err
+	}
+	run.notes = append(run.notes, fmt.Sprintf("%s CVEs kept only by this box's own lists or signals have no record: reading the whole list again (they are never asked for by their ID).", grouped(own)))
+	return true, s.recordsWhole(ctx, run, recentCursor{URL: recordCursorURL(run.src.URL), Mode: modeFill, From: day, To: day, Until: cur.Until}, now)
 }
 
 // recordWorkDir is where the daily archive is kept while it downloads.
@@ -624,6 +666,11 @@ func (s *Service) stampNotInList(ctx context.Context, run *recordRun, now time.T
 // feeds_nvd_cursor, the table of where each paged pull stands: fill (next_index of total bytes of the archive downloaded), done (until =
 // the data is complete up to, win_to = the change log's last read, win_from = the day of the last whole list).
 func (s *Service) saveRecordCursor(ctx context.Context, run *recordRun, c recentCursor) error {
+	return s.saveRecordCursorAt(ctx, run, selectorRecord, c)
+}
+
+// saveRecordCursorAt writes the selector's row of feeds_nvd_cursor, unless the feed was edited or turned off meanwhile.
+func (s *Service) saveRecordCursorAt(ctx context.Context, run *recordRun, selector string, c recentCursor) error {
 	stale := false
 	err := s.DB.Write(ctx, func(tx *sql.Tx) error {
 		row, err := sourceTx(ctx, tx, run.src.ID)
@@ -634,7 +681,7 @@ func (s *Service) saveRecordCursor(ctx context.Context, run *recordRun, c recent
 			stale = true
 			return nil
 		}
-		return saveNVDCursor(ctx, tx, selectorRecord, c)
+		return saveNVDCursor(ctx, tx, selector, c)
 	})
 	if err == nil && stale {
 		return ErrFeedDisabled

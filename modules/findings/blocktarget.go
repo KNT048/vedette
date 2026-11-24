@@ -117,7 +117,7 @@ func planReleases(gs []lineGroup, is []int, product string, j *releaseJudge) {
 				break
 			}
 		}
-		key := FixKey(product, fx)
+		key := blockKey(product, fx)
 		for _, i := range set {
 			gs[i].Block, gs[i].BlockFix = key, fx
 		}

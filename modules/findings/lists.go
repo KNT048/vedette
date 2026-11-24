@@ -249,7 +249,7 @@ func combine(gs []lineGroup, j *releaseJudge) {
 	}
 	idx := map[bucket][]int{}
 	for i := range gs {
-		gs[i].Block, gs[i].BlockFix = gs[i].Key, gs[i].Fix
+		gs[i].Block, gs[i].BlockFix = blockKey(gs[i].Product, gs[i].Fix), gs[i].Fix
 		if gs[i].Fix.Version == "" {
 			continue
 		}
@@ -280,11 +280,21 @@ func combine(gs []lineGroup, j *releaseJudge) {
 			continue
 		}
 		fx := gs[top].Fix
-		key := FixKey(b.product, fx)
+		key := blockKey(b.product, fx)
 		for _, i := range is {
 			gs[i].Block, gs[i].BlockFix = key, fx
 		}
 	}
+}
+
+// blockKey is the key a block of product's fix is listed under: the fix key of the catalogue's product, so lines that name one product
+// in two ways (Oracle's Java SE and Eclipse Temurin are both Java) are one row of By fix, as their one title says ("Update Java to
+// 21.0.13.1"). A product the catalogue does not know keeps the line's own key.
+func blockKey(product string, fx Fix) string {
+	if p, ok := productOfKey(product); ok && p.Key != "" {
+		product = p.Key
+	}
+	return FixKey(product, fx)
 }
 
 // compareFix orders two fix versions of one kind of product (a line's product key); false when they do not compare (two strings the

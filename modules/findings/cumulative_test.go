@@ -123,3 +123,56 @@ func TestCumulativeTarget_NewestReleaseOfTheTrain(t *testing.T) {
 		t.Errorf("FixFindings of nas-01's block: %d ids, %v", len(ids), err)
 	}
 }
+
+// Class count: By fix cards whose title another card repeats. Two hosts run Java under two names (Oracle's Java SE, Eclipse Temurin),
+// both titled "Update Java to 21.0.6", and a third host runs nginx under the vendor name a banner gives. Before blocks were keyed by the
+// catalogue's product: 2 of 3 cards were one title twice (Java). After: 0 of 2.
+func TestBlockKey_Count_ByFixCardsWithARepeatedTitle(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.feeds.vulns = []Vuln{rangedCVE("CVE-2026-93001", "oracle", "jdk", "21.0.0-21.0.6"), rangedCVE("CVE-2026-93002", "f5", "nginx", "1.30.0-1.30.7")}
+	java := func(id, vendor, product string) Asset {
+		return Asset{ID: id, Name: id, Software: []Software{{ID: "s-" + id, Display: product, Vendor: vendor, Product: product, Version: "21.0.5",
+			CPE: "cpe:2.3:a:oracle:jdk:21.0.5:*:*:*:*:*:*:*", Source: "agent"}}}
+	}
+	devices := []Asset{java("app-01", "Oracle", "Java SE"), java("app-02", "Eclipse Adoptium", "Temurin"),
+		{ID: "web-01", Name: "web-01", Software: []Software{blockLine("s-web-01", "f5", "nginx", "1.30.5")}}}
+	e.inv.assets, e.inv.match = map[string]AssetView{}, map[string]Asset{}
+	for i, a := range devices {
+		e.inv.assets[a.ID] = AssetView{ID: a.ID, Hostname: ptr(a.ID), IP: fmt.Sprintf("192.0.2.%d", 50+i), Kind: "server", Approved: true}
+		e.inv.match[a.ID] = a
+	}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	fx, err := e.svc.ByFix(t.Context(), ListFilter{}, Page{Limit: PageMax})
+	if err != nil {
+		t.Fatal(err)
+	}
+	titles := map[string]int{}
+	for _, c := range fx.Items {
+		titles[c.Fix.Product+" "+ptrOr(c.Fix.Version)]++
+	}
+	repeated := 0
+	for title, n := range titles {
+		if n > 1 {
+			repeated += n
+			t.Logf("%q: %d cards", title, n)
+		}
+	}
+	t.Logf("By fix cards whose title another card repeats: %d of %d", repeated, len(fx.Items))
+	if repeated != 0 || len(fx.Items) != 2 {
+		t.Errorf("%d of %d cards repeat a title, want 0 of 2", repeated, len(fx.Items))
+	}
+	for _, c := range fx.Items {
+		if ptrOr(c.Fix.Version) == "21.0.6" && c.Devices != 2 {
+			t.Errorf("the Java card counts %d devices, want 2", c.Devices)
+		}
+		for _, d := range c.Items { // each row of the card handles that device's block
+			ids, err := e.svc.FixFindings(t.Context(), d.Device.ID, d.Software.ID, c.Fix.Key)
+			if err != nil || len(ids) != d.Findings {
+				t.Errorf("%s: FixFindings %d ids (%v), want %d", d.Device.ID, len(ids), err, d.Findings)
+			}
+		}
+	}
+}

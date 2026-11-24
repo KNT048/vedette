@@ -362,11 +362,27 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await waitFor(() => expect(within(dlg).queryByText(/has no machine yet/)).toBeNull())
   })
 
+  it('osquery: Add a device offers to revoke only the unused install commands it made, never a token made in Settings', async () => {
+    const user = userEvent.setup()
+    enableModule('agent-intake', true)
+    const token = (id: string, name: string) => ({ id, name, kind: 'osquery', last4: 'abcd', created_at: new Date(Date.now() - 30 * 60_000).toISOString(),
+      created_by: 'admin@example.test', last_received: null, hosts: 0, expires_at: new Date(Date.now() + 864e5).toISOString(), device_id: null })
+    const tokens = collection<{ id: string }[]>('intake_agent_tokens', () => [])
+    tokens.set([token('tk-settings', 'osquery install 2026-11-24'), token('tk-ci', 'build servers'), token('tk-add', 'osquery install 2026-11-24, from Add a device')])
+    renderApp('/devices?add=osquery')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.click(await within(dlg).findByRole('button', { name: 'Linux' }, T))
+    expect(within(dlg).getByText(/^An install command made .* has no machine yet\.$/)).toBeInTheDocument()
+    await user.click(within(dlg).getByRole('button', { name: 'Revoke it' }))
+    expect(await screen.findByText('Unused install command revoked')).toBeInTheDocument()
+    expect(tokens.get().map((k) => k.id).sort()).toEqual(['tk-ci', 'tk-settings'])
+  })
+
   it('osquery: several unused install commands are counted from the oldest one', async () => {
     const user = userEvent.setup()
     enableModule('agent-intake', true)
     const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
-    const unused = (id: string, minutes: number) => ({ id, name: id, kind: 'osquery', last4: 'abcd', created_at: ago(minutes), created_by: 'admin@example.test',
+    const unused = (id: string, minutes: number) => ({ id, name: `osquery install 2026-11-2${minutes > 60 ? 3 : 4}, from Add a device`, kind: 'osquery', last4: 'abcd', created_at: ago(minutes), created_by: 'admin@example.test',
       last_received: null, hosts: 0, expires_at: new Date(Date.now() + 864e5).toISOString(), device_id: null })
     // the box lists tokens newest first
     collection<unknown[]>('intake_agent_tokens', () => []).set([unused('tk-new', 10), unused('tk-old', 20 * 60)])

@@ -1127,7 +1127,7 @@
     },
     "osquery": {
       "noMac": "This device runs macOS. Vedette supports osquery on Linux and Windows, on PCs and servers.",
-      "tokenName": "osquery install {{day}}",
+      "tokenName": "osquery install {{day}}, from Add a device",
       "noMacTopic": "macOS",
       "noMacInfo": "The network scan and passive listening still see it."
     },

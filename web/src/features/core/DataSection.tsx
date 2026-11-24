@@ -22,6 +22,7 @@ import { useAccount, useBoxBackups, useDownloadBackup, useDownloadKey, usePurge,
 import { useInstallKind, useModuleAvailable } from '@/lib/modules'
 import { useScope } from '@/lib/v1'
 import { ContainerBackup, InstallPending } from './ContainerOnly'
+import { RestoreFile } from './RestoreFile'
 import type { BoxBackup } from './types'
 import { dayOf, fmtDateTime, fmtTime } from '@/lib/format'
 import { errMsg, useGate } from './parts'
@@ -231,7 +232,7 @@ function BackupDownload({ disabled, title }: { disabled: boolean; title?: string
   )
 }
 
-/** Backups the helper keeps on the box and Restore (S-CORE-1): the dialog says what is replaced and that a copy of the current data is kept first. */
+/** Backups the helper keeps on the box and Restore (S-CORE-1), and Restore from a file for a backup downloaded earlier: the dialogs say what is replaced and that a copy of the current data is kept first. */
 function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) {
   const { t } = useTranslation('core')
   const list = useBoxBackups()
@@ -267,6 +268,7 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
   ]
   return (
     <div className="grid gap-3">
+      <RestoreFile disabled={disabled || running} title={title} />
       {run ? (
         <p role="status" className={run.status === 'done' || run.status === 'running' ? 'text-sm' : 'text-sm text-danger'}>
           {run.status === 'failed' ? t('data.restore.failed', { error: run.error ?? '' }) : t(`data.restore.${run.status}`, { when })}

@@ -3095,6 +3095,68 @@ func decodeCorePostCoreConnectionsIDTestParams(args [1]string, argsEscaped bool,
 	return params, nil
 }
 
+// CorePostCoreDataRestoreUploadParams is parameters of core_post_core_data_restore_upload operation.
+type CorePostCoreDataRestoreUploadParams struct {
+	XBackupPassword OptString `json:",omitempty,omitzero"`
+}
+
+func unpackCorePostCoreDataRestoreUploadParams(packed middleware.Parameters) (params CorePostCoreDataRestoreUploadParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Backup-Password",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XBackupPassword = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeCorePostCoreDataRestoreUploadParams(args [0]string, argsEscaped bool, r *http.Request) (params CorePostCoreDataRestoreUploadParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: X-Backup-Password.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Backup-Password",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXBackupPasswordVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXBackupPasswordVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XBackupPassword.SetTo(paramsDotXBackupPasswordVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Backup-Password",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // CorePostCoreSetupRestoreUploadParams is parameters of core_post_core_setup_restore_upload operation.
 type CorePostCoreSetupRestoreUploadParams struct {
 	XSetupCode      OptString `json:",omitempty,omitzero"`

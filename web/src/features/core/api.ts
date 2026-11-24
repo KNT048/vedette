@@ -5,7 +5,7 @@ import type { Role } from '@/lib/session'
 import type {
   Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, OidcSave, PrivacyState, SetupModule, SetupPayload, SetupStatus, TermsState, TotpStart, EmailCodeSent,
   UpdateChannel, UpdatesState, MaintenanceWindow, OsRebootBody, OsRun, OsState,
-  BoxBackups, RestoreRun, BackupUpload, SetupRestoreRun,
+  BoxBackups, RestoreRun, BackupUpload, DataBackupUpload, SetupRestoreRun,
   NetworkState, IfaceRole, ManagementBody, SpanConfig, SpanStatus, NtpConfig, Connector, ConnectorInput, ConnectorTestResult,
 } from './types'
 
@@ -237,6 +237,18 @@ export const useRestore = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (v: { backup_id: string; confirm_data_loss: true; password: string; code?: string }) => api.post<RestoreRun>('/core/data/restore', v),
+    onSuccess: (r) => { qc.setQueryData(['core', 'restore-run'], r); void qc.invalidateQueries({ queryKey: ['core', 'backups'] }) },
+  })
+}
+/** Restore from a file on a set-up box, step 1: the box checks the file and keeps it for an hour; nothing else changes. */
+export const useUploadBackupFile = () => useMutation({
+  mutationFn: (v: { file: File; password?: string }) => api.upload<DataBackupUpload>('/core/data/restore/upload', v.file, v.password ? { 'X-Backup-Password': passwordHeader(v.password) } : {}),
+})
+/** Step 2: the restore of the uploaded file, followed on the page like the restore of a kept backup. */
+export const useRestoreFile = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { upload_id: string; confirm_data_loss: true; password: string; code?: string; key?: string; confirm_without_key?: boolean }) => api.post<RestoreRun>('/core/data/restore/file', v),
     onSuccess: (r) => { qc.setQueryData(['core', 'restore-run'], r); void qc.invalidateQueries({ queryKey: ['core', 'backups'] }) },
   })
 }

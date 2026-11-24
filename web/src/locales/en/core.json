@@ -1410,7 +1410,15 @@
       "running": "Restoring the backup from {{when}}. Vedette is restarting; this page reconnects by itself.",
       "done": "Restored the backup from {{when}}. The data from before the restore is kept as a backup.",
       "reverted": "The restored data did not start correctly, so the box put back the data it had before. Nothing was lost.",
-      "failed": "The restore failed: {{error}}"
+      "failed": "The restore failed: {{error}}",
+      "file": {
+        "button": "Restore from a file",
+        "title": "Restore from a backup file",
+        "desc": "A backup you downloaded with Download backup. The box checks the file first; nothing changes until you press Restore.",
+        "info": "Use this when the backup you need is not in the list on this box, for example a file you kept elsewhere. A backup downloaded with a password asks for that password. A backup of this box, or one downloaded with a password, brings its saved secrets back; for a backup of another box downloaded without a password, add that box's decryption key file.",
+        "check": "Check the file",
+        "boxKey": "The saved secrets of this backup open with this box's decryption key: they come back with it."
+      }
     },
     "export": {
       "title": "Export data",

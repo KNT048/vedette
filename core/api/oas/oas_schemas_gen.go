@@ -26666,6 +26666,240 @@ func (s *CorePostCoreDataRestoreAcceptedStatus) UnmarshalText(data []byte) error
 	}
 }
 
+type CorePostCoreDataRestoreFileAccepted struct {
+	BackupCreatedAt time.Time `json:"backup_created_at"`
+	BackupID        string    `json:"backup_id"`
+	// Only when not done: why, in words.
+	Error      NilString   `json:"error"`
+	FinishedAt NilDateTime `json:"finished_at"`
+	ID         string      `json:"id"`
+	// The copy of the data from before the restore, kept in the list as pre_restore.
+	PreRestoreBackupID NilString `json:"pre_restore_backup_id"`
+	StartedAt          time.Time `json:"started_at"`
+	// Reverted = the restored data did not start, so the box put back the data from before the restore.
+	Status CorePostCoreDataRestoreFileAcceptedStatus `json:"status"`
+	User   string                                    `json:"user"`
+}
+
+// GetBackupCreatedAt returns the value of BackupCreatedAt.
+func (s *CorePostCoreDataRestoreFileAccepted) GetBackupCreatedAt() time.Time {
+	return s.BackupCreatedAt
+}
+
+// GetBackupID returns the value of BackupID.
+func (s *CorePostCoreDataRestoreFileAccepted) GetBackupID() string {
+	return s.BackupID
+}
+
+// GetError returns the value of Error.
+func (s *CorePostCoreDataRestoreFileAccepted) GetError() NilString {
+	return s.Error
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *CorePostCoreDataRestoreFileAccepted) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreDataRestoreFileAccepted) GetID() string {
+	return s.ID
+}
+
+// GetPreRestoreBackupID returns the value of PreRestoreBackupID.
+func (s *CorePostCoreDataRestoreFileAccepted) GetPreRestoreBackupID() NilString {
+	return s.PreRestoreBackupID
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *CorePostCoreDataRestoreFileAccepted) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *CorePostCoreDataRestoreFileAccepted) GetStatus() CorePostCoreDataRestoreFileAcceptedStatus {
+	return s.Status
+}
+
+// GetUser returns the value of User.
+func (s *CorePostCoreDataRestoreFileAccepted) GetUser() string {
+	return s.User
+}
+
+// SetBackupCreatedAt sets the value of BackupCreatedAt.
+func (s *CorePostCoreDataRestoreFileAccepted) SetBackupCreatedAt(val time.Time) {
+	s.BackupCreatedAt = val
+}
+
+// SetBackupID sets the value of BackupID.
+func (s *CorePostCoreDataRestoreFileAccepted) SetBackupID(val string) {
+	s.BackupID = val
+}
+
+// SetError sets the value of Error.
+func (s *CorePostCoreDataRestoreFileAccepted) SetError(val NilString) {
+	s.Error = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *CorePostCoreDataRestoreFileAccepted) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreDataRestoreFileAccepted) SetID(val string) {
+	s.ID = val
+}
+
+// SetPreRestoreBackupID sets the value of PreRestoreBackupID.
+func (s *CorePostCoreDataRestoreFileAccepted) SetPreRestoreBackupID(val NilString) {
+	s.PreRestoreBackupID = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *CorePostCoreDataRestoreFileAccepted) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *CorePostCoreDataRestoreFileAccepted) SetStatus(val CorePostCoreDataRestoreFileAcceptedStatus) {
+	s.Status = val
+}
+
+// SetUser sets the value of User.
+func (s *CorePostCoreDataRestoreFileAccepted) SetUser(val string) {
+	s.User = val
+}
+
+// Reverted = the restored data did not start, so the box put back the data from before the restore.
+type CorePostCoreDataRestoreFileAcceptedStatus string
+
+const (
+	CorePostCoreDataRestoreFileAcceptedStatusRunning  CorePostCoreDataRestoreFileAcceptedStatus = "running"
+	CorePostCoreDataRestoreFileAcceptedStatusDone     CorePostCoreDataRestoreFileAcceptedStatus = "done"
+	CorePostCoreDataRestoreFileAcceptedStatusReverted CorePostCoreDataRestoreFileAcceptedStatus = "reverted"
+	CorePostCoreDataRestoreFileAcceptedStatusFailed   CorePostCoreDataRestoreFileAcceptedStatus = "failed"
+)
+
+// AllValues returns all CorePostCoreDataRestoreFileAcceptedStatus values.
+func (CorePostCoreDataRestoreFileAcceptedStatus) AllValues() []CorePostCoreDataRestoreFileAcceptedStatus {
+	return []CorePostCoreDataRestoreFileAcceptedStatus{
+		CorePostCoreDataRestoreFileAcceptedStatusRunning,
+		CorePostCoreDataRestoreFileAcceptedStatusDone,
+		CorePostCoreDataRestoreFileAcceptedStatusReverted,
+		CorePostCoreDataRestoreFileAcceptedStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreDataRestoreFileAcceptedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreDataRestoreFileAcceptedStatusRunning:
+		return []byte(s), nil
+	case CorePostCoreDataRestoreFileAcceptedStatusDone:
+		return []byte(s), nil
+	case CorePostCoreDataRestoreFileAcceptedStatusReverted:
+		return []byte(s), nil
+	case CorePostCoreDataRestoreFileAcceptedStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreDataRestoreFileAcceptedStatus) UnmarshalText(data []byte) error {
+	switch CorePostCoreDataRestoreFileAcceptedStatus(data) {
+	case CorePostCoreDataRestoreFileAcceptedStatusRunning:
+		*s = CorePostCoreDataRestoreFileAcceptedStatusRunning
+		return nil
+	case CorePostCoreDataRestoreFileAcceptedStatusDone:
+		*s = CorePostCoreDataRestoreFileAcceptedStatusDone
+		return nil
+	case CorePostCoreDataRestoreFileAcceptedStatusReverted:
+		*s = CorePostCoreDataRestoreFileAcceptedStatusReverted
+		return nil
+	case CorePostCoreDataRestoreFileAcceptedStatusFailed:
+		*s = CorePostCoreDataRestoreFileAcceptedStatusFailed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreDataRestoreFileReq struct {
+	Code OptString `json:"code"`
+	// Required (true): everything written since the backup is replaced.
+	ConfirmDataLoss OptBool `json:"confirm_data_loss"`
+	// Required (true) when the backup holds secrets that neither its own key nor this box's key opens:
+	// they are lost and two-step users cannot sign in.
+	ConfirmWithoutKey OptBool `json:"confirm_without_key"`
+	// The decryption key file, base64.
+	Key      OptString `json:"key"`
+	Password string    `json:"password"`
+	UploadID string    `json:"upload_id"`
+}
+
+// GetCode returns the value of Code.
+func (s *CorePostCoreDataRestoreFileReq) GetCode() OptString {
+	return s.Code
+}
+
+// GetConfirmDataLoss returns the value of ConfirmDataLoss.
+func (s *CorePostCoreDataRestoreFileReq) GetConfirmDataLoss() OptBool {
+	return s.ConfirmDataLoss
+}
+
+// GetConfirmWithoutKey returns the value of ConfirmWithoutKey.
+func (s *CorePostCoreDataRestoreFileReq) GetConfirmWithoutKey() OptBool {
+	return s.ConfirmWithoutKey
+}
+
+// GetKey returns the value of Key.
+func (s *CorePostCoreDataRestoreFileReq) GetKey() OptString {
+	return s.Key
+}
+
+// GetPassword returns the value of Password.
+func (s *CorePostCoreDataRestoreFileReq) GetPassword() string {
+	return s.Password
+}
+
+// GetUploadID returns the value of UploadID.
+func (s *CorePostCoreDataRestoreFileReq) GetUploadID() string {
+	return s.UploadID
+}
+
+// SetCode sets the value of Code.
+func (s *CorePostCoreDataRestoreFileReq) SetCode(val OptString) {
+	s.Code = val
+}
+
+// SetConfirmDataLoss sets the value of ConfirmDataLoss.
+func (s *CorePostCoreDataRestoreFileReq) SetConfirmDataLoss(val OptBool) {
+	s.ConfirmDataLoss = val
+}
+
+// SetConfirmWithoutKey sets the value of ConfirmWithoutKey.
+func (s *CorePostCoreDataRestoreFileReq) SetConfirmWithoutKey(val OptBool) {
+	s.ConfirmWithoutKey = val
+}
+
+// SetKey sets the value of Key.
+func (s *CorePostCoreDataRestoreFileReq) SetKey(val OptString) {
+	s.Key = val
+}
+
+// SetPassword sets the value of Password.
+func (s *CorePostCoreDataRestoreFileReq) SetPassword(val string) {
+	s.Password = val
+}
+
+// SetUploadID sets the value of UploadID.
+func (s *CorePostCoreDataRestoreFileReq) SetUploadID(val string) {
+	s.UploadID = val
+}
+
 type CorePostCoreDataRestoreReq struct {
 	BackupID string    `json:"backup_id"`
 	Code     OptString `json:"code"`
@@ -26712,6 +26946,137 @@ func (s *CorePostCoreDataRestoreReq) SetConfirmDataLoss(val OptBool) {
 // SetPassword sets the value of Password.
 func (s *CorePostCoreDataRestoreReq) SetPassword(val string) {
 	s.Password = val
+}
+
+type CorePostCoreDataRestoreUploadOK struct {
+	// Active administrators who can still sign in when the restore has no decryption key (password
+	// sign-in, no two-step); 0 = nobody could run the box without the key.
+	AdminsWithoutKey int `json:"admins_without_key"`
+	// The saved secrets of the backup open with this box's own decryption key (a backup of this box): the
+	// restore keeps them and two-step sign-in without a key file. false when key_included, or when the
+	// backup holds no secret.
+	BoxKey bool `json:"box_key"`
+	// When the backup was made (its manifest).
+	CreatedAt time.Time `json:"created_at"`
+	// The uploaded backup, kept on the box for an hour; POST /core/data/restore/file names it.
+	ID string `json:"id"`
+	// The password-protected file carried the decryption key and it opens the saved secrets: the restore
+	// keeps them and two-step sign-in, and needs no key file. false for a plain file, or when the backup
+	// holds no secret.
+	KeyIncluded bool `json:"key_included"`
+	// The organization the backup holds.
+	Org string `json:"org"`
+	// Saved secrets (AI and feed keys, channel passwords, tokens, two-step keys): without the key they
+	// must be entered again.
+	Secrets int `json:"secrets"`
+	// Active accounts that sign in with two-step: without the decryption key they cannot sign in.
+	TwofaUsers int `json:"twofa_users"`
+	// Active accounts.
+	Users int `json:"users"`
+}
+
+// GetAdminsWithoutKey returns the value of AdminsWithoutKey.
+func (s *CorePostCoreDataRestoreUploadOK) GetAdminsWithoutKey() int {
+	return s.AdminsWithoutKey
+}
+
+// GetBoxKey returns the value of BoxKey.
+func (s *CorePostCoreDataRestoreUploadOK) GetBoxKey() bool {
+	return s.BoxKey
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *CorePostCoreDataRestoreUploadOK) GetCreatedAt() time.Time {
+	return s.CreatedAt
+}
+
+// GetID returns the value of ID.
+func (s *CorePostCoreDataRestoreUploadOK) GetID() string {
+	return s.ID
+}
+
+// GetKeyIncluded returns the value of KeyIncluded.
+func (s *CorePostCoreDataRestoreUploadOK) GetKeyIncluded() bool {
+	return s.KeyIncluded
+}
+
+// GetOrg returns the value of Org.
+func (s *CorePostCoreDataRestoreUploadOK) GetOrg() string {
+	return s.Org
+}
+
+// GetSecrets returns the value of Secrets.
+func (s *CorePostCoreDataRestoreUploadOK) GetSecrets() int {
+	return s.Secrets
+}
+
+// GetTwofaUsers returns the value of TwofaUsers.
+func (s *CorePostCoreDataRestoreUploadOK) GetTwofaUsers() int {
+	return s.TwofaUsers
+}
+
+// GetUsers returns the value of Users.
+func (s *CorePostCoreDataRestoreUploadOK) GetUsers() int {
+	return s.Users
+}
+
+// SetAdminsWithoutKey sets the value of AdminsWithoutKey.
+func (s *CorePostCoreDataRestoreUploadOK) SetAdminsWithoutKey(val int) {
+	s.AdminsWithoutKey = val
+}
+
+// SetBoxKey sets the value of BoxKey.
+func (s *CorePostCoreDataRestoreUploadOK) SetBoxKey(val bool) {
+	s.BoxKey = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *CorePostCoreDataRestoreUploadOK) SetCreatedAt(val time.Time) {
+	s.CreatedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *CorePostCoreDataRestoreUploadOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetKeyIncluded sets the value of KeyIncluded.
+func (s *CorePostCoreDataRestoreUploadOK) SetKeyIncluded(val bool) {
+	s.KeyIncluded = val
+}
+
+// SetOrg sets the value of Org.
+func (s *CorePostCoreDataRestoreUploadOK) SetOrg(val string) {
+	s.Org = val
+}
+
+// SetSecrets sets the value of Secrets.
+func (s *CorePostCoreDataRestoreUploadOK) SetSecrets(val int) {
+	s.Secrets = val
+}
+
+// SetTwofaUsers sets the value of TwofaUsers.
+func (s *CorePostCoreDataRestoreUploadOK) SetTwofaUsers(val int) {
+	s.TwofaUsers = val
+}
+
+// SetUsers sets the value of Users.
+func (s *CorePostCoreDataRestoreUploadOK) SetUsers(val int) {
+	s.Users = val
+}
+
+type CorePostCoreDataRestoreUploadReq struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s CorePostCoreDataRestoreUploadReq) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
 }
 
 type CorePostCoreMcpTokensCreated struct {

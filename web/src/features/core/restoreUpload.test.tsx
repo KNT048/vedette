@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
-import { MOCK_SETUP_CODE } from './mocks'
+import { MOCK_SETUP_CODE, mockSealed } from './mocks'
 import { useRestoreRun } from './api'
 import type { RestoreRun } from './types'
 
@@ -83,6 +83,46 @@ describe('first-run restore from a backup file', () => {
     await u.upload(screen.getByLabelText('Backup file'), gzip())
     await u.click(screen.getByRole('button', { name: 'Check the backup' }))
     await screen.findByText(/The setup code is missing or wrong/)
+  })
+})
+
+describe('first-run restore of a backup downloaded with a password', () => {
+  const protectedFile = async (password: string) => new File([await mockSealed(password, '{}')], 'vedette-backup-2026-11-01-0830.tar.gz.age')
+
+  it('asks for the password as soon as the file is chosen, sends it in a header (never the body or address), and a wrong one is said next to it', async () => {
+    const u = user()
+    const sent: { header: string | null; url: string }[] = []
+    server.events.on('request:start', ({ request }) => { if (request.url.includes('/restore/upload')) sent.push({ header: request.headers.get('X-Backup-Password'), url: request.url }) })
+    try {
+      await openRestore(u)
+      await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
+      expect(screen.queryByLabelText('Backup password')).toBeNull()
+      await u.upload(screen.getByLabelText('Backup file'), await protectedFile('river lamp orbit cactus, Hà Nội'))
+      const field = await screen.findByLabelText('Backup password')
+      await u.click(screen.getByRole('button', { name: 'Check the backup' }))
+      expect(screen.getByText('Enter the backup password.')).toBeInTheDocument()
+      expect(sent).toHaveLength(0)
+      await u.type(field, 'not the password')
+      await u.click(screen.getByRole('button', { name: 'Check the backup' }))
+      expect(await screen.findByText(/The backup password is wrong/)).toBeInTheDocument()
+      expect(field).toHaveAttribute('aria-invalid', 'true')
+      await u.clear(field)
+      await u.type(field, 'river lamp orbit cactus, Hà Nội')
+      await u.click(screen.getByRole('button', { name: 'Check the backup' }))
+      await screen.findByText(/Backup of Acme Manufacturing/)
+      const last = sent.at(-1)!
+      expect(new TextDecoder().decode(Uint8Array.from(atob(last.header!), (c) => c.charCodeAt(0)))).toBe('river lamp orbit cactus, Hà Nội')
+      expect(last.url).not.toContain('cactus')
+    } finally { server.events.removeAllListeners() }
+  })
+
+  it('a plain backup asks for no password; when the box says one is needed, the field appears with its sentence', async () => {
+    const u = user()
+    await checkBackup(u)
+    expect(screen.queryByLabelText('Backup password')).toBeNull()
+    server.use(http.post('*/api/v1/core/setup/restore/upload', () => HttpResponse.json({ error: { code: 'backup_password_required', message: 'This backup is protected with a password. Enter the password that was set when it was downloaded.' } }, { status: 409 })))
+    await u.click(screen.getByRole('button', { name: 'Check the backup' }))
+    expect(await screen.findByLabelText('Backup password')).toHaveAccessibleDescription(/This backup is protected with a password/)
   })
 })
 

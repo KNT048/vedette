@@ -12,13 +12,13 @@ import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import { useMe } from '@/lib/session'
 import { resetMockDb } from '@/mocks/db'
 
 /** Sample data exists only in the preview (mock) build; a real box answers 400 sample_unavailable, so the release build does not offer to restore it (issue #244). */
 const isPreview = () => import.meta.env.VITE_API_MOCK !== 'off'
-import { useAccount, useBoxBackups, useDownloadKey, usePurge, useRestore, useRestoreRun } from './api'
+import { useAccount, useBoxBackups, useDownloadBackup, useDownloadKey, usePurge, useRestore, useRestoreRun } from './api'
 import { useInstallKind, useModuleAvailable } from '@/lib/modules'
 import { useScope } from '@/lib/v1'
 import { ContainerBackup, InstallPending } from './ContainerOnly'
@@ -40,8 +40,6 @@ export default function DataSection() {
   const gate = useGate('admin')
   const me = useMe().data
   const org = me?.org ?? ''
-  const qc = useQueryClient()
-  const [preparing, setPreparing] = useState(false)
   const install = useInstallKind() // A container-only install has no helper, so no box backups; the customer copies the volume (S-CORE-9)
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
@@ -88,15 +86,8 @@ export default function DataSection() {
         <>
           <Section id="backup" title={t('data.backup.title')} description={t('data.backup.desc')} info={t('data.backup.info')}>
             <Card className="max-w-3xl">
-              <Notice tone="warn" className="mb-3" title={t('data.backup.plainTitle')}>{t('data.backup.plain')}</Notice>
               <p className="mb-3 text-meta text-muted">{t('data.backup.keepsCopy')}</p>
-              {/* The box makes a full backup before the first byte comes (tens of seconds on a large box): say so while it works, then
-                  that a copy stays on the box, and show that copy in the list below at once. The box names the file; this is its fallback. */}
-              <DownloadButton id="backup-download" disabled={gate.disabled} title={gate.title} path="/core/data/backup" filename={`vedette-backup-${fileStamp()}.tar.gz`}
-                onStart={() => setPreparing(true)}
-                onSaved={(saved) => { setPreparing(false); toast.success(t('data.backup.done', { file: saved })); void qc.invalidateQueries({ queryKey: ['core', 'backups'] }) }}
-                onError={(e) => { setPreparing(false); toast.error(errMsg(e, t)) }}><Download />{t('data.backup.button')}</DownloadButton>
-              <BusyNote busy={preparing} className="mt-2">{t('data.backup.preparing')}</BusyNote>
+              <BackupDownload disabled={gate.disabled} title={gate.title} />
               <KeyAside disabled={gate.disabled} title={gate.title} />
             </Card>
           </Section>
@@ -167,6 +158,73 @@ export default function DataSection() {
           </DialogContent>
         </Dialog>
       ) : null}
+    </>
+  )
+}
+
+/** Download backup (S-CORE-1): a dialog that offers a password, on by default. With one the box encrypts the file as it sends
+ * it (age, .tar.gz.age), so a copy left on a laptop or a share gives nothing away; the dialog says plainly that a lost password
+ * cannot be recovered. Without one it says what the plain file holds. The box makes a full backup before the first byte comes
+ * (up to a minute on a large box): the dialog stays open and says so meanwhile, then the new Manual row shows in the list. */
+function BackupDownload({ disabled, title }: { disabled: boolean; title?: string }) {
+  const { t } = useTranslation('core')
+  const qc = useQueryClient()
+  const dl = useDownloadBackup()
+  const [open, setOpen] = useState(false)
+  const [protect, setProtect] = useState(true)
+  const [password, setPassword] = useState('')
+  const [again, setAgain] = useState('')
+  const [errors, setErrors] = useState<{ password?: string; again?: string; form?: string }>({})
+  function start() { setProtect(true); setPassword(''); setAgain(''); setErrors({}); setOpen(true) }
+  async function save() {
+    const e: typeof errors = {}
+    if (protect) {
+      if ([...password].length < 12) e.password = t('data.backup.ask.short')
+      else if (again !== password) e.again = t('data.backup.ask.mismatch')
+    }
+    setErrors(e)
+    if (Object.keys(e).length) return
+    try {
+      const file = await dl.mutateAsync({ filename: `vedette-backup-${fileStamp()}.tar.gz${protect ? '.age' : ''}`, ...(protect ? { password } : {}) })
+      setOpen(false)
+      setPassword(''); setAgain('')
+      toast.success(t('data.backup.done', { file }))
+      void qc.invalidateQueries({ queryKey: ['core', 'backups'] })
+    } catch (err) {
+      setErrors(err instanceof ApiError && err.code === 'weak_password' ? { password: errMsg(err, t) } : { form: errMsg(err, t) })
+    }
+  }
+  return (
+    <>
+      <Button id="backup-download" disabled={disabled} title={title} onClick={start}><Download />{t('data.backup.button')}</Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!dl.isPending) setOpen(o) }}>
+        <DialogContent title={t('data.backup.ask.title')} description={t('data.backup.ask.body')} info={t('data.backup.info')}>
+          <div className="flex items-start gap-2">
+            <Checkbox id="backup-protect" checked={protect} disabled={dl.isPending} onCheckedChange={(on) => { setProtect(on === true); setErrors({}) }} className="mt-0.5" />
+            <Label htmlFor="backup-protect">{t('data.backup.ask.protect')}</Label>
+          </div>
+          {protect ? (
+            <>
+              <Field label={t('data.backup.ask.password')} hint={t('data.backup.ask.passwordHint')} htmlFor="backup-password" error={errors.password}>
+                <Input id="backup-password" type="password" autoComplete="new-password" value={password} aria-invalid={!!errors.password} disabled={dl.isPending} onChange={(e) => setPassword(e.target.value)} />
+              </Field>
+              <Field label={t('data.backup.ask.again')} htmlFor="backup-again" error={errors.again}>
+                <Input id="backup-again" type="password" autoComplete="new-password" value={again} aria-invalid={!!errors.again} disabled={dl.isPending} onChange={(e) => setAgain(e.target.value)} />
+              </Field>
+              <Notice tone="warn" role="note" className="mb-0" title={t('data.backup.ask.lostTitle')}>{t('data.backup.ask.lost')}</Notice>
+              <p className="text-meta text-muted">{t('data.backup.ask.how')}</p>
+            </>
+          ) : (
+            <Notice tone="warn" role="note" className="mb-0" title={t('data.backup.plainTitle')}>{t('data.backup.plain')}</Notice>
+          )}
+          {errors.form ? <p role="alert" className="text-sm text-danger">{errors.form}</p> : null}
+          <BusyNote busy={dl.isPending}>{t('data.backup.preparing')}</BusyNote>
+          <DialogFooter>
+            <Button disabled={dl.isPending} onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
+            <Button variant="primary" busy={dl.isPending} busyLabel={t('data.backup.ask.busy')} onClick={() => void save()}><Download />{t('data.backup.ask.confirm')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

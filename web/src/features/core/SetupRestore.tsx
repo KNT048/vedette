@@ -11,7 +11,7 @@ import { Field, Input, Label } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import type { InstallKind } from '@/lib/modules'
 import { fmtDateTime } from '@/lib/format'
-import { useSetupRestore, useSetupRestoreRun, useUploadBackup } from './api'
+import { isPasswordProtected, useSetupRestore, useSetupRestoreRun, useUploadBackup } from './api'
 import { ContainerBackup } from './ContainerOnly'
 import { errMsg } from './parts'
 import type { BackupUpload } from './types'
@@ -41,6 +41,9 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
   const restore = useSetupRestore()
   const [code, setCode] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  // A backup downloaded with a password (an age file): seen in the file's first bytes, or said by the box (backup_password_required).
+  const [locked, setLocked] = useState(false)
+  const [backupPassword, setBackupPassword] = useState('')
   const [keyFile, setKeyFile] = useState<File | null>(null)
   const [checked, setChecked] = useState<BackupUpload | null>(null)
   const [sure, setSure] = useState(false)
@@ -66,12 +69,23 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
     const e: Record<string, string> = {}
     if (!code.trim()) e.code = t('setup.account.codeError')
     if (!file) e.file = t('setup.restore.fileMissing')
+    if (locked && !backupPassword) e.password = t('setup.restore.passwordMissing')
     setErrors(e)
     if (Object.keys(e).length || !file) return
     setChecked(null)
-    try { setChecked(await upload.mutateAsync({ code, file })) } catch (err) {
-      setErrors(err instanceof ApiError && err.code === 'invalid_setup_code' ? { code: errMsg(err, t) } : { file: errMsg(err, t) })
+    try { setChecked(await upload.mutateAsync({ code, file, ...(locked ? { password: backupPassword } : {}) })) } catch (err) {
+      const c = err instanceof ApiError ? err.code : ''
+      if (c === 'backup_password_required' || c === 'wrong_backup_password') { setLocked(true); setErrors({ password: errMsg(err, t) }) }
+      else setErrors(c === 'invalid_setup_code' ? { code: errMsg(err, t) } : c === 'rate_limited' ? { form: errMsg(err, t) } : { file: errMsg(err, t) })
     }
+  }
+
+  async function pick(f: File | null) {
+    setFile(f)
+    setChecked(null)
+    setBackupPassword('')
+    setErrors((x) => ({ ...x, file: '', password: '' }))
+    setLocked(f ? await isPasswordProtected(f).catch(() => false) : false)
   }
 
   async function doRestore() {
@@ -125,9 +139,15 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
         <Input id="r-code" autoComplete="off" spellCheck={false} value={code} aria-invalid={!!errors.code} onChange={(e) => setCode(e.target.value)} />
       </Field>
       <Field label={t('setup.restore.file')} hint={t('setup.restore.fileHint')} htmlFor="r-file" error={errors.file}>
-        <input id="r-file" type="file" accept=".gz,.tgz,application/gzip" className={FILE_INPUT} aria-invalid={!!errors.file}
-          onChange={(e) => { setFile(e.target.files?.[0] ?? null); setChecked(null) }} />
+        <input id="r-file" type="file" accept=".gz,.tgz,.age,application/gzip" className={FILE_INPUT} aria-invalid={!!errors.file}
+          onChange={(e) => void pick(e.target.files?.[0] ?? null)} />
       </Field>
+      {locked ? (
+        <Field label={t('setup.restore.password')} hint={t('setup.restore.passwordHint')} htmlFor="r-password" error={errors.password}>
+          <Input id="r-password" type="password" autoComplete="off" value={backupPassword} aria-invalid={!!errors.password}
+            onChange={(e) => { setBackupPassword(e.target.value); setChecked(null) }} />
+        </Field>
+      ) : null}
       <Field label={t('setup.restore.key')} hint={t('setup.restore.keyHint')} info={t('setup.restore.keyInfo')} htmlFor="r-key" error={errors.key}>
         <input id="r-key" type="file" accept=".key" className={FILE_INPUT} aria-invalid={!!errors.key} onChange={(e) => { setKeyFile(e.target.files?.[0] ?? null); setErrors((x) => ({ ...x, key: '' })) }} />
       </Field>

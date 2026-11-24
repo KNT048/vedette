@@ -611,17 +611,72 @@ describe('core: data', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     try {
       renderApp('/settings/data')
-      expect(await screen.findByText('The backup file has no password and is not encrypted')).toBeInTheDocument()
-      expect(screen.getByText(/^It holds every device, finding and log line, .* password hashes/)).toBeInTheDocument()
-      expect(screen.getByText(/keeps it on this box \(listed below as Manual\)/)).toBeInTheDocument()
+      expect(await screen.findByText(/keeps it on this box \(listed below as Manual\)/)).toBeInTheDocument()
       // what "Decryption key: Not included" means, and what a restore on another box loses
       expect(await screen.findByText('Decryption key: every backup restores whole on this box; it matters only on another box.')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'About Decryption key' })).toHaveAccessibleDescription(/On another box, .*users with two-step sign-in cannot sign in/)
       const manual = (await screen.findAllByText('Manual')).length
       await u.click(screen.getByRole('button', { name: 'Download backup' }))
+      const dlg = await screen.findByRole('dialog', { name: 'Download backup' })
+      // without a password the dialog says plainly what the unencrypted file holds
+      await u.click(within(dlg).getByLabelText('Protect the file with a password (recommended)'))
+      expect(within(dlg).getByText('Without a password the file is not encrypted')).toBeInTheDocument()
+      expect(within(dlg).getByText(/^It holds every device, finding and log line, .* password hashes/)).toBeInTheDocument()
+      await u.click(within(dlg).getByRole('button', { name: 'Download' }))
       expect(await screen.findByText(/^Downloaded vedette-backup-\d{4}-\d\d-\d\d-\d{4}\.tar\.gz\. A copy stays on this box/)).toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).toBeNull()
       await waitFor(() => expect(screen.getAllByText('Manual')).toHaveLength(manual + 1))
     } finally { url.mockRestore(); revoke.mockRestore(); click.mockRestore() }
+  })
+
+  it('Download backup with a password: on by default, checked twice before anything is asked, sent in the body, saved as .tar.gz.age', async () => {
+    const u = user()
+    const url = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:x')
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const sent: { method: string; url: string; body: string }[] = []
+    server.events.on('request:start', ({ request }) => {
+      if (request.url.includes('/core/data/backup') && !request.url.endsWith('/backups')) void request.clone().text().then((body) => sent.push({ method: request.method, url: request.url, body }))
+    })
+    try {
+      renderApp('/settings/data')
+      await u.click(await screen.findByRole('button', { name: 'Download backup' }))
+      const dlg = await screen.findByRole('dialog', { name: 'Download backup' })
+      expect(within(dlg).getByLabelText('Protect the file with a password (recommended)')).toBeChecked()
+      expect(within(dlg).getByText('A lost password cannot be recovered')).toBeInTheDocument()
+      expect(within(dlg).getByText(/age -d/)).toBeInTheDocument()
+      const download = within(dlg).getByRole('button', { name: 'Download' })
+      await u.type(within(dlg).getByLabelText('Backup password'), 'too short')
+      await u.click(download)
+      expect(within(dlg).getByText('The backup password needs at least 12 characters.')).toBeInTheDocument()
+      await u.clear(within(dlg).getByLabelText('Backup password'))
+      await u.type(within(dlg).getByLabelText('Backup password'), 'river lamp orbit cactus')
+      await u.type(within(dlg).getByLabelText('Type the password again'), 'river lamp orbit cactuz')
+      await u.click(download)
+      expect(within(dlg).getByText('The two passwords are not the same.')).toBeInTheDocument()
+      expect(sent).toHaveLength(0) // nothing was asked of the box yet
+      await u.clear(within(dlg).getByLabelText('Type the password again'))
+      await u.type(within(dlg).getByLabelText('Type the password again'), 'river lamp orbit cactus')
+      await u.click(download)
+      expect(await screen.findByText(/^Downloaded vedette-backup-\d{4}-\d\d-\d\d-\d{4}\.tar\.gz\.age\. A copy stays on this box/)).toBeInTheDocument()
+      await waitFor(() => expect(sent).toHaveLength(1))
+      expect(sent[0]!.method).toBe('POST')
+      expect(sent[0]!.url).not.toContain('cactus') // never in the address
+      expect(JSON.parse(sent[0]!.body)).toEqual({ password: 'river lamp orbit cactus' })
+    } finally { server.events.removeAllListeners(); url.mockRestore(); revoke.mockRestore(); click.mockRestore() }
+  })
+
+  it('Download backup: the box\'s refusal of a weak password is said next to the field, and the dialog stays open', async () => {
+    const u = user()
+    server.use(http.post('*/api/v1/core/data/backup', () => HttpResponse.json({ error: { code: 'weak_password', message: 'This password is too easy to guess.' } }, { status: 400 })))
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Download backup' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Download backup' })
+    await u.type(within(dlg).getByLabelText('Backup password'), 'password1234')
+    await u.type(within(dlg).getByLabelText('Type the password again'), 'password1234')
+    await u.click(within(dlg).getByRole('button', { name: 'Download' }))
+    expect(await within(dlg).findByText('This password is too easy to guess.')).toBeInTheDocument()
+    expect(within(dlg).getByLabelText('Backup password')).toHaveAttribute('aria-invalid', 'true')
   })
 
   it('the restore dialog says in its body that a copy is kept first, that the audit log goes back and that the traps restart', async () => {

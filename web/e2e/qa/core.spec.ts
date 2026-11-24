@@ -623,6 +623,11 @@ test.describe('data', () => {
     for (const [name, fmt] of [['Download backup', 'vedette-backup/1'], ['Export JSON', 'vedette-export/1']] as const) {
       const dl = page.waitForEvent('download')
       await page.getByRole('button', { name, exact: true }).click()
+      if (name === 'Download backup') { // the dialog offers a password; this check reads the plain file
+        const ask = page.getByRole('dialog', { name: 'Download backup' })
+        await ask.getByLabel('Protect the file with a password (recommended)').uncheck()
+        await ask.getByRole('button', { name: 'Download', exact: true }).click()
+      }
       const body = JSON.parse(fs.readFileSync((await (await dl).path())!, 'utf8')) as Record<string, unknown>
       expect(body.format).toBe(fmt)
       expect(JSON.stringify(body)).not.toContain(PW)

@@ -89,6 +89,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
             <InfoTip topic={t('tabs.review')}>{t('pending.descriptionInfo')}</InfoTip>
           </div>
           <p className="max-w-3xl text-meta text-muted">{t('pending.description')}</p>
+          {total ? <p className="max-w-3xl text-meta text-muted">{t('pending.choiceHint')}</p> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {ready.length > 1 ? <Button size="sm" variant="primary" disabled={!can || approveAll.isPending} busy={approveAll.isPending} busyLabel={t('inventory:pending.adding')}

@@ -1,5 +1,5 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
-import { Link } from 'react-router'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -57,7 +57,17 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
   const toggle = useToggleTrapIp()
   const del = useDeleteTrapIp()
   const scan = useTestScan()
-  const [editing, setEditing] = useState<Editing>(null)
+  // ?add=<look> (or add=suggested) opens the Add dialog on that look: the action of a coverage gap on the Overview tab
+  const [params, setParams] = useSearchParams()
+  const asked = params.get('add')
+  const [editing, setEditing] = useState<Editing>(() => {
+    if (!admin || !asked) return null
+    const preset = asked === 'suggested' ? data.suggestions[0]?.preset ?? 'file_server' : PRESETS.find((p) => p.id === asked)?.id
+    return preset ? { mode: 'add', preset } : null
+  })
+  useEffect(() => {
+    if (asked) setParams((p) => { p.delete('add'); return p }, { replace: true })
+  }, [asked, setParams])
   const lastScan = hits.find((h) => h.kind === 'scan' && !h.is_test)
   const scanReason = !operator ? t('common:needRole', { role: t('common:role.operator') }) : data.items.filter((x) => x.enabled).length < 2 ? t('trapIp.scan.needDecoys') : undefined
   const needAdmin = admin ? undefined : t('common:needRole', { role: t('common:role.admin') })
@@ -141,13 +151,31 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
   )
 }
 
+/** `example` when no Trap IP has it, else the example with the first free number: BUILD-SRV-02 → BUILD-SRV-03, FILESRV-OLD → FILESRV-OLD-2
+ *  (at most 15 characters, the NetBIOS limit). */
+function freeName(example: string, taken: string[]): string {
+  if (!taken.includes(example.toUpperCase())) return example
+  const m = /^(.*?)(\d+)$/.exec(example)
+  for (let n = m ? Number(m[2]) + 1 : 2; n < 100; n++) {
+    const tail = m ? String(n).padStart(m[2]!.length, '0') : `-${n}`
+    const name = `${(m ? m[1]! : example).slice(0, 15 - tail.length)}${tail}`
+    if (!taken.includes(name.toUpperCase())) return name
+  }
+  return ''
+}
+
 function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing: NonNullable<Editing>; onDone: () => void }) {
   const { t } = useTranslation('honeypot')
   const add = useAddTrapIp()
   const edit = useEditTrapIp()
   const cur = editing.mode === 'edit' ? editing.item : null
   const [preset, setPreset] = useState<TrapPreset>(cur?.preset ?? (editing.mode === 'add' ? editing.preset : 'file_server'))
-  const [name, setName] = useState(cur?.name ?? '')
+  // A new Trap IP starts with a free name of its look (FILESRV-OLD, NAS-ARCHIVE …); while the person has not typed one, the name
+  // follows the look they pick, so a trap that answers SSH is not left named like a file server.
+  const taken = data.items.filter((x) => x.id !== cur?.id).map((x) => x.name.toUpperCase())
+  const suggested = (p: TrapPreset) => freeName(presetDef(p).example, taken)
+  const [name, setName] = useState(cur?.name ?? suggested(preset))
+  const [named, setNamed] = useState(!!cur)
   const [ip, setIp] = useState(cur?.ip ?? '')
   const [vendor, setVendor] = useState<TrapVendor | null>(cur ? cur.vendor : presetDef(preset).vendor)
   const [services, setServices] = useState<HpService[]>(cur?.services ?? presetDef(preset).services)
@@ -158,6 +186,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
 
   function pickPreset(p: TrapPreset) {
     setPreset(p)
+    if (!named) setName(suggested(p))
     const d = presetDef(p)
     if (p !== 'custom') { setServices(d.services); setVendor(d.vendor) }
     setErrors((e) => ({ ...e, preset: undefined, services: undefined, vendor: undefined }))
@@ -200,7 +229,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
             </Select>
           </Field>
           <Field label={t('trapIp.form.name')} htmlFor="tip-name" hint={t('trapIp.form.nameHint')} info={t('trapIp.form.nameHintInfo')} error={errors.name}>
-            <Input id="tip-name" value={name} onChange={(e) => { setName(e.target.value); setErrors((x) => ({ ...x, name: undefined })) }} maxLength={15} autoComplete="off" spellCheck={false}
+            <Input id="tip-name" value={name} onChange={(e) => { setName(e.target.value); setNamed(true); setErrors((x) => ({ ...x, name: undefined })) }} maxLength={15} autoComplete="off" spellCheck={false}
               placeholder={t('trapIp.form.namePlaceholder', { example: def.example })} aria-invalid={errors.name ? true : undefined} aria-describedby={described('name', 'tip-name')} />
           </Field>
           <Field label={t('trapIp.form.ip')} htmlFor="tip-ip" hint={ipHint} info={ipInfo} error={errors.ip}>

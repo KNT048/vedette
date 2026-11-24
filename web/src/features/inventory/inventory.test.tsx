@@ -332,12 +332,33 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     renderApp('/devices?add=osquery')
     const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
     expect(within(dlg).getByRole('radio', { name: /^osquery/, checked: true })).toBeInTheDocument()
-    expect(within(dlg).getByText(/macOS is not supported/)).toBeInTheDocument()
+    expect(await within(dlg).findByText(/macOS is not supported/, undefined, T)).toBeInTheDocument()
     await user.click(await within(dlg).findByRole('button', { name: 'Linux' }, T))
     await user.click(await within(dlg).findByRole('button', { name: 'Create install command' }, T))
     expect(await within(dlg).findByText(/^vdt_osquery_/, undefined, T)).toBeInTheDocument()
     expect(within(dlg).queryByRole('radiogroup', { name: 'How to add it' })).toBeNull() // the only copy of the secret stays on screen
     expect(within(dlg).getByRole('button', { name: 'Windows' })).toBeInTheDocument()
+  })
+
+  it('osquery: an install command made earlier and never used is said before a new one is made, and can be revoked there', async () => {
+    const user = userEvent.setup()
+    enableModule('agent-intake', true)
+    renderApp('/devices?add=osquery')
+    const first = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.click(await within(first).findByRole('button', { name: 'Linux' }, T))
+    expect(within(first).queryByText(/has no machine yet/)).toBeNull()
+    await user.click(within(first).getByRole('button', { name: 'Create install command' }))
+    await within(first).findByText(/^vdt_osquery_/, undefined, T)
+    await user.click(within(first).getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await user.click(screen.getByRole('button', { name: 'Add a device' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.click(within(dlg).getByRole('radio', { name: /^osquery/ }))
+    await user.click(await within(dlg).findByRole('button', { name: 'Linux' }, T))
+    expect(within(dlg).getByText(/An install command made .* has no machine yet\./)).toBeInTheDocument()
+    await user.click(within(dlg).getByRole('button', { name: 'Revoke it' }))
+    expect(await screen.findByText('Unused install command revoked')).toBeInTheDocument()
+    await waitFor(() => expect(within(dlg).queryByText(/has no machine yet/)).toBeNull())
   })
 
   it('the operator role gets the add button enabled and the setup link hidden (admin only)', async () => {
@@ -358,8 +379,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('the admin gets a link to the setup page (agents included) next to "Add a device" (item 26b)', async () => {
     renderApp('/devices')
     await deviceTable()
-    const link = screen.getByRole('link', { name: 'Device discovery settings' })
-    expect(link).toHaveTextContent('Settings')
+    // the link is named as the page it opens
+    const link = screen.getByRole('link', { name: 'Sensor and agents' })
     expect(link).toHaveAttribute('href', '/devices/setup')
     expect(link.nextElementSibling).toBe(screen.getByRole('button', { name: 'Add a device' }))
   })
@@ -374,7 +395,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const bar = add.parentElement!.parentElement!.parentElement!
     expect(within(bar).getByRole('combobox', { name: 'Search devices' })).toBeInTheDocument()
     expect(within(bar).getByRole('button', { name: 'Export CSV' })).toBeInTheDocument()
-    expect(within(bar).getByRole('link', { name: 'Device discovery settings' })).toBeInTheDocument()
+    expect(within(bar).getByRole('link', { name: 'Sensor and agents' })).toBeInTheDocument()
     expect(within(bar).getByText(/not added yet/)).toBeInTheDocument()
     // primary = the accent-filled button; Export, Filters and Settings are quiet or outlined
     const primary = within(bar).getAllByRole('button').filter((b) => b.className.includes('bg-accent text-accent-ink'))
@@ -424,7 +445,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const user = userEvent.setup()
     renderApp('/devices')
     await deviceTable()
-    await user.click(screen.getByRole('link', { name: 'Device discovery settings' }))
+    await user.click(screen.getByRole('link', { name: 'Sensor and agents' }))
     expect(await screen.findByRole('tab', { name: /^Sensor/ }, T)).toBeInTheDocument()
   })
 
@@ -1528,7 +1549,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(within(dialog).getByText('Expected SHA-256 of the script:').parentElement).toHaveTextContent(sha)
     expect(within(dialog).getByText('What this script does')).toBeInTheDocument()
     expect(within(dialog).getByText('Download and install manually')).toBeInTheDocument()
-    expect(within(dialog).getByText('Remove osquery from the server again')).toBeInTheDocument()
+    expect(within(dialog).getByText('Remove osquery later').closest('details')).not.toHaveAttribute('open') // a later job: folded
     // Direct downloads from this origin, one row per Linux package, with what it is for, its size and its SHA-256
     const pkgs = (await call('GET', '/agents')).json!.install.packages as OsqueryPackage[]
     const downloads = () => within(within(dialog).getByRole('table', { name: 'osquery packages this box serves' })).getAllByRole('link')

@@ -472,11 +472,18 @@
       "none": "Not covered"
     },
     "openLogs": "Open Logs",
+    "fix": {
+      "addSmb": "Add a file server Trap IP (SMB)",
+      "addLogin": "Add a Linux server Trap IP (SSH)",
+      "addSecond": "Add a second Trap IP",
+      "addToken": "Add a token",
+      "addTrap": "Add a Trap IP"
+    },
     "row": {
       "lateral": {
         "move": "Moving sideways to file shares",
         "how": "Trap IPs with SMB and decoy files on shares catch someone browsing for data.",
-        "howNoSmb": "No listening Trap IP has SMB, so nothing catches someone browsing shares. Add SMB to a Trap IP."
+        "howNoSmb": "No listening Trap IP has SMB, so nothing catches someone browsing shares."
       },
       "credentials": {
         "move": "Using stolen or guessed credentials",
@@ -493,7 +500,8 @@
       "documents": {
         "move": "Opening or following bait",
         "how": "Decoy files and URL tokens alert when opened.",
-        "howNoTrap": "URL tokens alert when opened. Decoy files need a listening Trap IP."
+        "howNoTrap": "URL tokens alert when opened. Decoy files need a listening Trap IP.",
+        "howNoBait": "No decoy file or URL token yet, so nothing alerts when bait is opened."
       },
       "outbound": {
         "move": "Talking to known-bad addresses",

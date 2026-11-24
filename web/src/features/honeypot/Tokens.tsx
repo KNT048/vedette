@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical, Plus, Trash2 } from 'lucide-react'
@@ -38,7 +39,13 @@ function Inner({ items }: { items: Token[] }) {
   const operator = useCan('operator')
   const del = useDeleteToken()
   const test = useTestToken()
-  const [adding, setAdding] = useState(false)
+  // ?add=token opens the Add dialog: the action of the bait coverage gap on the Overview tab
+  const [params, setParams] = useSearchParams()
+  const asked = params.get('add') === 'token'
+  const [adding, setAdding] = useState(admin && asked)
+  useEffect(() => {
+    if (asked) setParams((p) => { p.delete('add'); return p }, { replace: true })
+  }, [asked, setParams])
   // what the list's search reads: the name, the type and where the token is planted
   const searchCols: ColumnDef<Token>[] = [{ id: 'text', accessorFn: (k) => [k.name, t(`token.type.${k.type}`), k.plant_at].join(' ') }]
   return (

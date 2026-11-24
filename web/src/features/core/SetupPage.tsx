@@ -68,7 +68,8 @@ export default function SetupPage() {
 
   if (status.isPending) return <div className="p-8"><Loading /></div>
   if (status.error) return <div className="p-8"><ErrorState error={status.error} onRetry={() => void status.refetch()} /></div>
-  if (status.data?.complete && !finished && !restoring) return <Navigate to="/login" replace />
+  // Setup is done on this box: Home, which asks a person who is not signed in to sign in first (and comes back to Home after).
+  if (status.data?.complete && !finished && !restoring) return <Navigate to="/" replace />
 
   const set = (patch: Partial<State>) => setS((x) => ({ ...x, ...patch }))
 

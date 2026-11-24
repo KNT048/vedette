@@ -533,6 +533,7 @@ describe('findings: accept risk until a day (S-MIT-1)', () => {
     expect(await within(dlg).findByText(/^Say why \(at least 3 characters\)/)).toBeInTheDocument()
     expect(within(dlg).getByText('Choose a date from tomorrow up to one year from today.')).toBeInTheDocument()
     const date = within(dlg).getByLabelText('Accept until')
+    expect(date).toHaveFocus() // the first field to fix takes the focus, so its reason is in view in a long dialog
     expect(date).toHaveAttribute('min', untilBounds().min)
     expect(date).toHaveAttribute('max', untilBounds().max)
     await userEvent.click(within(dlg).getByRole('button', { name: '90 days' }))
@@ -806,7 +807,7 @@ describe('findings: a closed finding opens with why it was closed (S-MIT-1)', ()
     const n = await screen.findByTestId('closed-notice')
     expect(n).toHaveTextContent(/^Risk accepted until 12 Feb 2027 by admin@acme\.example on /)
     expect(n).toHaveTextContent('No patch window before March')
-    expect(n).toHaveTextContent('It reopens by itself after that day')
+    expect(n).toHaveTextContent('It reopens by itself after that day.')
   })
 
   it('an open finding is unchanged: no notice, blocks not folded', async () => {

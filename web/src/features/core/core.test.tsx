@@ -44,6 +44,15 @@ async function acceptTerms(u: ReturnType<typeof user>) {
 }
 
 describe('core: initial setup', () => {
+  it('/setup on a box that is set up goes Home when signed in, and to sign-in with Home as the next page otherwise', async () => {
+    const { unmount } = renderApp('/setup')
+    expect(await screen.findByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /Sign in/ })).toBeNull()
+    unmount()
+    renderApp('/setup', { role: null })
+    expect(await screen.findByRole('button', { name: /Sign in/ })).toBeInTheDocument()
+  })
+
   it('the terms of use come first; Continue stays off with its reason until they are ticked, and Back keeps the tick', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })

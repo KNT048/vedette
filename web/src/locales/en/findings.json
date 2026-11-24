@@ -409,12 +409,12 @@
     "vedette": "Vedette",
     "by": " by {{who}}",
     "on": " on {{when}}",
-    "patched": "Closed as patched{{who}}{{when}}",
-    "mitigated": "Closed as mitigated{{who}}{{when}}. Patching is still needed to remove it",
-    "false_positive": "Closed as a false positive{{who}}{{when}}",
-    "not_relevant": "Closed as not relevant{{who}}{{when}}",
-    "systemNotRelevant": "Vedette closed this as not relevant{{when}}",
-    "risk_accepted": "Risk accepted until {{date}}{{who}}{{when}}. It reopens by itself after that day",
+    "patched": "Closed as patched{{who}}{{when}}.",
+    "mitigated": "Closed as mitigated{{who}}{{when}}. Patching is still needed to remove it.",
+    "false_positive": "Closed as a false positive{{who}}{{when}}.",
+    "not_relevant": "Closed as not relevant{{who}}{{when}}.",
+    "systemNotRelevant": "Vedette closed this as not relevant{{when}}.",
+    "risk_accepted": "Risk accepted until {{date}}{{who}}{{when}}. It reopens by itself after that day.",
     "before": "Before it was closed: evidence, how to check, what to do"
   },
   "fix": {
@@ -457,7 +457,7 @@
   },
   "entered": {
     "checking": "Checking which CVEs this closes…",
-    "none": "Vedette found no exploited CVE left to check for this release.",
+    "none": "No exploited CVE matches this release.",
     "closed_one": "Closed {{count}} CVE as not affected:",
     "closed_other": "Closed {{count}} CVEs as not affected:",
     "stillOpen_one": "{{count}} CVE is still affected:",

@@ -24,6 +24,9 @@ export function DialogContent({ className, children, title, description, info, w
           if (!e.defaultPrevented && opener && opener !== document.body && document.contains(opener)) { e.preventDefault(); opener.focus() }
         }}
         className={cn('fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-lg border border-rule bg-surface p-6 shadow-lg', wide ? 'max-w-3xl' : 'max-w-lg', className)}
+        // No description: say so to Radix instead of repeating the title as hidden text, which a screen reader then reads
+        // twice and which copies into the page text twice.
+        {...(description ? {} : { 'aria-describedby': undefined })}
         {...props}
       >
         <div className="grid gap-1 pr-10">
@@ -31,7 +34,7 @@ export function DialogContent({ className, children, title, description, info, w
             <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>
             {info ? <InfoTip topic={title}>{info}</InfoTip> : null}
           </div>
-          {description ? <DialogPrimitive.Description className="text-sm text-muted">{description}</DialogPrimitive.Description> : <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>}
+          {description ? <DialogPrimitive.Description className="text-sm text-muted">{description}</DialogPrimitive.Description> : null}
         </div>
         {children}
         <DialogPrimitive.Close className="absolute right-2 top-2 grid size-10 place-items-center rounded-md text-muted hover:bg-sunken hover:text-ink sm:right-3 sm:top-3 sm:size-8" aria-label={t('close')}>

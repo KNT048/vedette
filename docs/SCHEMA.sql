@@ -1391,6 +1391,8 @@ CREATE INDEX notify_slack_final_at_ix ON notify_slack_final (at);
 
 CREATE UNIQUE INDEX notify_approver_address_ux ON notify_approver (channel_type, address);
 
+CREATE INDEX notify_incident_resolved_idx ON notify_incident (dedupe_key, handled_at) WHERE status = 'resolved';
+
 -- module sensor-passive
 
 CREATE TABLE sp_sensor (

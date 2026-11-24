@@ -89,3 +89,6 @@
 
 ## Modifying: `TestAlerter` / `TestAlertResult` / `Hit.TestAlert` (the test alert of a test hit, INV-4)
 - Implemented by `honeypotTestAlerts` in `cmd/vedette/honeypot.go` over notify `SendTrapTest` (the words of a real trap alert, marked Test). The web shows the answer in the test's toast (`web/src/features/honeypot/testAlert.ts`) and the hit page shows the event lines. The call runs before the hit is stored, so a slow channel delays the answer (each channel is bounded by notify's test timeout, sent in parallel).
+
+## Modifying: `Config.Incidents`, `upsert`'s window, `resolvedAfter`, `eventOf`
+- `cmd/vedette` (`honeypot.go`) wires `incidentResolvedSince` (notify `ResolvedSince` for `honeypot.hit.created`, false while notify is off). `upsert` asks it once a batch per window (`ingestEnv.asked`) before folding a connection into the window's hit; true → the old hit's `conn_key` becomes `connKey(<key>, <old id>)` and the connection is stored as a new hit. The key notify checks is `trapIncident` of the event (`src_ip`, `label`, `service`, or `scan`): `eventOf` must build the same data the published event carries, and a URL token sets `ingestEnv.shownSrc` because its event carries the address shown, not the one stored. `TestAConnectionAfterTheHitsIncidentWasResolvedIsANewHit`.

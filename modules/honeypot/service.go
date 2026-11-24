@@ -29,6 +29,11 @@ type Config struct {
 	Events    Publisher   // optional: nil publishes nothing
 	TestAlert TestAlerter // optional: nil sends no test alert for a test hit
 	Modules   ModuleGate
+	// Incidents says whether the incident a honeypot.hit.created would count on was resolved, by a person or by Vedette, at or after
+	// since, with none of its key open (notify's ResolvedSince, wired while notify is on). A later connection of a hit window is folded
+	// into that window's hit only while it says false; once the hit's incident was resolved, the connection starts a new hit, which
+	// publishes its event (INV-17). Optional: nil, or an error, says false.
+	Incidents func(ctx context.Context, event string, data any, since time.Time) (bool, error)
 
 	// ConfigDir is the folder core writes opencanary.conf and honeytokens.json into. It belongs to core: the honeypot
 	// container mounts it read-only, and core never reads a file back from it (the review).

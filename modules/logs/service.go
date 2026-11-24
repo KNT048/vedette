@@ -77,6 +77,11 @@ type Config struct {
 	// Feeds is where destinations are looked up (iochits.go). Nil: no lookup, no bad connections. The adapter answers ErrFeedsOff while the
 	// feeds module is off (PRE-3). The hits are announced on Events: logs.ioc_hit.detected and logs.bad_address.detected.
 	Feeds Feeds
+	// Incidents says whether the incident an event of this module would count on (logs.bad_address.detected, logs.anomaly.detected)
+	// was resolved, by a person or by Vedette, at or after since, with none of its key open: notify's ResolvedSince, wired while notify is
+	// on. A bad connection inside IocDedupe and failed logins inside AuthDedupe are held back as repeats only while it says false: a repeat
+	// after its incident was resolved is a new hit or incident (the hourly budgets still apply). Nil, or an error: false.
+	Incidents func(ctx context.Context, event string, data any, since time.Time) (bool, error)
 	// Received is handed every batch of lines once it is stored, with the kind and name of each line's source: the intrusion detection
 	// module reads the IPS and IDS events among them (cmd/vedette wires it while that module is on). It is called after the batch's
 	// transaction committed and must not block or write the main database in the call (INV-12). Nil: nothing is handed over.
@@ -145,6 +150,7 @@ type Service struct {
 	iocTimeout   time.Duration // iocLookupTimeout; a field so that a test can lower it
 	iocSent      int
 	iocCapLogged int64
+	iocCapAt     time.Time // when the summary of the hour iocCapLogged was announced
 	// Failed-login incidents (authfail.go): the pairs followed and the hourly budget; authMu guards all of it.
 	authMu        sync.Mutex
 	auth          map[authKey]*authState

@@ -210,6 +210,12 @@ func (a idsIncidents) Intrusion(ctx context.Context, source, target string, at t
 	return idsmodule.IncidentRef{ID: r.ID, Status: string(r.Status)}, true, nil
 }
 
+// ResolvedSince says whether the intrusion incident an announcement of ev would count on was resolved at or after since, with none of its
+// key open (notify ResolvedSince); false while notify is off.
+func (a idsIncidents) ResolvedSince(ctx context.Context, ev idsmodule.AlertEvent, since time.Time) (bool, error) {
+	return incidentResolvedSince(a.d)(ctx, notify.EventIntrusion, ev, since)
+}
+
 // clockOf is the box's clock (deps.Clock; time.Now when unset).
 func clockOf(d *deps) time.Time {
 	if d.Clock != nil {

@@ -12,6 +12,9 @@
 ## Modifying: `notify.Service.OpenIncident(ctx, IncidentInput)`
 - **honeypot**, **logs**, **inventory**, **response** (the Respond button at `/response?incident=<id>`). Changing the merge key = changing the number of incidents the user sees.
 
+## Modifying: `ResolvedSince(ctx, event, data, since)`, `incidentOf`, `mergeKeys` (a repeat after a resolve)
+- **ids** (hourly announcement dedupe and the hour's summary), **logs** (`IocDedupe` of a bad connection, `AuthDedupe` of failed logins), **honeypot** (the 10-minute hit window), through `cmd/vedette` `incidentResolvedSince` (false while notify is off). Each producer holds a repeat back only while this says false. `incidentOf` is the one place that turns a producer's event into its `IncidentInput` for both `OpenIncident` (the event handlers) and `ResolvedSince`, and `mergeKeys` is the key order both use: changing the merge rule in one without the other makes a producer hold back a repeat that notify would open as a new incident, or flood notify with repeats it only counts. `TestResolvedSinceSaysWhenARepeatIsANewIncident`, `TestResolvedSinceFollowsTheAttemptMergeRule`, `cmd/vedette` `TestWiringARepeatAfterAResolveOpensANewIncidentAndAlerts`.
+
 ## Modifying: `notify.Service.SendReport(ctx, to, ReportMail)` and `IncidentsIn(ctx, from, to, top)`
 - **reports** (`cmd/vedette/reports.go`: `reportsMailer` mails the periodic report through the saved email channel: the report's sections as HTML with a text alternative (`reportMailDoc`, `channel.Doc`; `TestWiringReportMailCarriesTheReport`), the digest when the document cannot be read, at most 20 addresses, not in the send history; `reportsDetections.Period` reads the incidents with activity in the period by kind, and the top few by severity with their first device). Changing the fixed errors of `SendReport`, or what counts as activity in a period (`last_seen` after its start, `first_seen` before its end), changes the report.
 

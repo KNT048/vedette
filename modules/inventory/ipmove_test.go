@@ -501,7 +501,7 @@ func TestContract_874_LosingOrChangingTheAddressIsAnnounced(t *testing.T) {
 	}
 
 	e.ev.reset()
-	e.tick(time.Minute)
+	e.tick(20 * time.Minute)                     // later than a card answering at two addresses at once (that is a second address, not a move)
 	e.record(dhcp(burnt2, "10.0.18.206", "")...) // the newcomer moves: same MAC, another address, nothing else changed
 	if e.device(c).IP != "10.0.18.206" || e.updatedFor(c) != 1 {
 		t.Errorf("the move: ip %q, %d updated; want .206 and 1", e.device(c).IP, e.updatedFor(c))

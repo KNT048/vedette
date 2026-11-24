@@ -161,6 +161,9 @@ type joinMode int
 const (
 	joinChassis joinMode = iota
 	joinMachine
+	// joinCard: a card of a device with an address of its own (chassisCard). Its address and MAC stay whole as one of the kept device's
+	// other addresses, and the kept device's main address stays.
+	joinCard
 )
 
 // joinInto moves device from into device into and deletes from: its observations (the MAC as the chassis mark in a
@@ -265,7 +268,7 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &fromAgentIP, &fromConfirmed, &newer); err != nil {
 		return "", fmt.Errorf("inventory: read device: %w", err)
 	}
-	placed, err := s.moveAddresses(ctx, tx, from, into, keep && mode == joinMachine)
+	placed, err := s.moveAddresses(ctx, tx, from, into, keep && mode == joinMachine || mode == joinCard, mode == joinCard)
 	if err != nil {
 		return "", err
 	}
@@ -363,15 +366,16 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, o *outbox, from, into,
 	return watchEvent, s.auditTx(ctx, tx, actor, "inventory.merge", intoName, fromName+" is the same device: "+why+watch)
 }
 
-// moveAddresses gives into the other addresses of from (INV-57) and, with keep (a person's merge), from's main address too, so every
-// address of both stays the device's. The main address follows the machine join's rule: from's when from was seen later and into may
-// lose its address (a discovered device, or one bound to a MAC or an agent: claimIP's rule); into's main address is then one of its
+// moveAddresses gives into the other addresses of from (INV-57) and, with keep (a person's merge, a card's join), from's main address too,
+// so every address of both stays the device's. The main address follows the machine join's rule (with intoMain, a card's join, into's
+// stays): from's when from was seen later and into may lose its address (a discovered device, or one bound to a MAC or an agent: claimIP's rule); into's main address is then one of its
 // others. Each interface stays whole (its IP and MAC together): the halves of one (an address known without its MAC, a MAC seen without
 // an address) make into's main address; two whole interfaces stay two, the one with an IP the main one. What a scan read at an address
 // that becomes a row is bound to that row (addr_id), so it stays apart from what was read at the other. It reports whether it placed the addresses itself: the machine join's own address
 // move is then skipped.
-func (s *Service) moveAddresses(ctx context.Context, tx *sql.Tx, from, into string, keep bool) (placed bool, err error) {
-	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset_address SET asset_id = ? WHERE asset_id = ?`, into, from); err != nil {
+func (s *Service) moveAddresses(ctx context.Context, tx *sql.Tx, from, into string, keep, intoMain bool) (placed bool, err error) {
+	// a row from's main card answered at is not into's main card's: it is a plain other address of into
+	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset_address SET asset_id = ?, main_card = 0 WHERE asset_id = ?`, into, from); err != nil {
 		return false, fmt.Errorf("inventory: move the addresses: %w", err)
 	}
 	if !keep {
@@ -395,7 +399,7 @@ func (s *Service) moveAddresses(ctx context.Context, tx *sql.Tx, from, into stri
 	}
 	// row is the interface that becomes one of into's other addresses; main the one that is into's main address
 	row, main, rowOf := f, i, from
-	if newer && movable && f.ip.Valid {
+	if newer && movable && f.ip.Valid && !intoMain {
 		row, main, rowOf = i, f, into
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = NULL, ip_confirmed_at = NULL, mac = NULL WHERE id = ?`, into); err != nil {
 			return false, fmt.Errorf("inventory: move the addresses: %w", err)
@@ -422,7 +426,14 @@ func (s *Service) moveAddresses(ctx context.Context, tx *sql.Tx, from, into stri
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ?, mac = ? WHERE id = ?`, main.ip, main.confirmed, main.mac, into); err != nil {
 		return false, fmt.Errorf("inventory: move the addresses: %w", err)
 	}
-	id, err := addExtra(ctx, tx, into, row.ip, row.mac, addrMerge, row.first, row.last)
+	src := addrMerge
+	if intoMain { // a join rule, not a person, tied the card to into: the row says what saw it last
+		if err := tx.QueryRowContext(ctx, `SELECT coalesce((SELECT source FROM inv_observation WHERE asset_id = ? AND field = 'mac' AND source NOT IN ('manual', 'declared')
+			ORDER BY seen_at DESC, id DESC LIMIT 1), ?)`, from, addrMerge).Scan(&src); err != nil {
+			return false, fmt.Errorf("inventory: read observations: %w", err)
+		}
+	}
+	id, err := addExtra(ctx, tx, into, row.ip, row.mac, src, row.first, row.last)
 	if err != nil {
 		return false, err
 	}
@@ -437,6 +448,40 @@ func (s *Service) moveAddresses(ctx context.Context, tx *sql.Tx, from, into stri
 		}
 	}
 	return true, nil
+}
+
+// chassisCard finds the device a device with an address is a network card of: its MAC is the chassis MAC a join left as a mark on
+// another device that has an address (sameDevice: the LLDP frames of a router or switch name it as the base of the block its cards are
+// numbered from). A router whose base card answers at an address of its own (a second LAN address, a bridge) would otherwise be two
+// devices of one name, each with its own address. Only a discovered device that is not the box, has no agent bound, and states no other
+// name, model or OS; only into a device that is not the box; only when exactly one device holds the mark. "" when none fits.
+func chassisCard(ctx context.Context, tx *sql.Tx, id string) (into, why string, err error) {
+	var ip, mac sql.NullString
+	var origin string
+	var isBox, agent bool
+	if err := tx.QueryRowContext(ctx, `SELECT ip, mac, origin, is_box, agent_key IS NOT NULL FROM inv_asset WHERE id = ?`, id).Scan(&ip, &mac, &origin, &isBox, &agent); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", "", nil
+		}
+		return "", "", fmt.Errorf("inventory: read device: %w", err)
+	}
+	if !ip.Valid || !mac.Valid || origin != "discovered" || isBox || agent || localMAC(mac.String) {
+		return "", "", nil
+	}
+	owners, err := candidates(ctx, tx, `SELECT DISTINCT o.asset_id FROM inv_observation o JOIN inv_asset a ON a.id = o.asset_id
+		WHERE o.field = 'mac' AND o.value = ? AND o.evidence = ? AND o.asset_id <> ? AND a.ip IS NOT NULL AND a.is_box = 0`, mac.String, chassisEvidence, id)
+	if err != nil || len(owners) != 1 {
+		return "", "", err
+	}
+	own, err := facts(ctx, tx, id)
+	if err != nil {
+		return "", "", err
+	}
+	theirs, err := facts(ctx, tx, owners[0])
+	if err != nil || differ(own, theirs) {
+		return "", "", err
+	}
+	return owners[0], "its network card " + mac.String + " is the chassis MAC of the device's LLDP frames", nil
 }
 
 // chassisOwner is the device a join left the chassis MAC mac on, when it still has an address: an observation that names only that
@@ -538,6 +583,14 @@ func sameAs(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, in
 	if into != "" {
 		if apart, err := keptApart(ctx, tx, id, into); err != nil || !apart {
 			return id, into, why, joinChassis, err
+		}
+	}
+	if into, why, err = chassisCard(ctx, tx, id); err != nil {
+		return "", "", "", 0, err
+	}
+	if into != "" {
+		if apart, err := keptApart(ctx, tx, id, into); err != nil || !apart {
+			return id, into, why, joinCard, err
 		}
 	}
 	if from, why, err = handBound(ctx, tx, id); err != nil {

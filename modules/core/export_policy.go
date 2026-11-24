@@ -127,7 +127,7 @@ var exportPolicy = map[string]tablePolicy{
 	"inv_detected_keep":      {export: "asset_id field detected kept_at kept_by"},                    // detected values a person chose not to switch to
 	"inv_separate":           {export: "a b decided_by decided_at"},                                  // pairs a person kept separate
 	"inv_hand_seen":          {export: "asset_id mac first_seen last_seen"},                          // #829: MACs seen at a hand-added device's address
-	"inv_asset_address":      {export: "id asset_id ip mac source first_seen last_seen"},             // a device's addresses besides its main one
+	"inv_asset_address":      {export: "id asset_id ip mac source first_seen last_seen main_card"},   // a device's addresses besides its main one
 	"inv_merged_from":        {export: "asset_id from_id ip mac user_name merged_at", json: "facts"}, // what a person's merge took in, for Split off
 	"inv_merged_reading":     {export: "asset_id from_id software_id product_key line source instance shared"},
 	"mit_ai_output":          {export: "finding_id skill model profile created_at activity_id", json: "payload"},

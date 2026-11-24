@@ -1116,13 +1116,38 @@ func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, o *outbox, id string,
 	if cur.Valid && cur.String == ip.String() {
 		return confirmIP(ctx, tx, id, ip, seenAt)
 	}
+	x, ok, err := extraByIP(ctx, tx, ip.String())
+	if err != nil {
+		return err
+	}
+	demoted := "" // when the old main address answered last: it becomes an address of the main card (a main_card row)
+	second, err := secondAddress(ctx, tx, id, cur, x, ok, source, seenAt, s.clock())
+	if err != nil {
+		return err
+	}
 	// INV-57: one of the device's other addresses is still that address (the device answers on it too); another device's other
 	// address goes to this one, as a main address does
-	switch x, ok, err := extraByIP(ctx, tx, ip.String()); {
-	case err != nil:
-		return err
-	case ok && x.assetID == id && cur.Valid:
+	switch {
+	case ok && x.assetID == id && cur.Valid && (second || !x.mainCard):
+		if second && !x.mac.Valid && !x.mainCard { // the main card answers there too: the row is that card's from now on
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset_address SET main_card = 1 WHERE id = ?`, x.id); err != nil {
+				return fmt.Errorf("inventory: mark an address of the main card: %w", err)
+			}
+		}
 		return touchExtra(ctx, tx, x.id, source, seenAt)
+	case ok && x.assetID == id && cur.Valid:
+		// an address of the main card where the card is seen while the main address has not answered since: the card went there (a
+		// person re-addressed it, or the main address is the one it answers on less). That address becomes the main one (below), with
+		// what a scan read there; the old main address stays an address of the card, so a sighting there later moves nothing back.
+		if err := s.unbindAddress(ctx, tx, id, x.id); err != nil {
+			return err
+		}
+		if err := s.releaseExtraIP(ctx, tx, nil, x); err != nil {
+			return err
+		}
+		if err := tx.QueryRowContext(ctx, `SELECT coalesce(ip_confirmed_at, last_seen) FROM inv_asset WHERE id = ?`, id).Scan(&demoted); err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
+		}
 	case ok && x.assetID == id: // a device with no main address takes this one as its main address, with what a scan read there
 		if err := s.unbindAddress(ctx, tx, id, x.id); err != nil {
 			return err
@@ -1135,8 +1160,15 @@ func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, o *outbox, id string,
 			return err
 		}
 	}
-	if _, err := freeMainIP(ctx, tx, o, id, ip.String()); err != nil { // the address is unique (inv_asset_ip_uq): one row at most
+	taken, err := freeMainIP(ctx, tx, o, id, ip.String()) // the address is unique (inv_asset_ip_uq): one row at most
+	if err != nil {
 		return err
+	}
+	if second { // one card, two addresses: the main address stays, this one is another address of the card
+		if taken { // a device that keeps its address (the box, a hand-added one known by it) holds it
+			return nil
+		}
+		return addCardAddress(ctx, tx, id, ip, source, seenAt, seenAt)
 	}
 	res, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ? AND NOT EXISTS (SELECT 1 FROM inv_asset WHERE ip = ?)`,
 		ip.String(), seenAt, id, ip.String())
@@ -1145,8 +1177,49 @@ func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, o *outbox, id string,
 	}
 	if n, _ := res.RowsAffected(); n > 0 && cur.Valid { // it left its old address
 		o.readdress(id)
+		if demoted != "" {
+			if old, err := netip.ParseAddr(cur.String); err == nil {
+				return addCardAddress(ctx, tx, id, old, source, demoted, demoted)
+			}
+		}
 	}
 	return nil
+}
+
+// cardTogether is how close in time a card answering at two addresses shows that it has both: a move by DHCP or a person's re-addressing
+// does not put one card at the old and the new address within it (a recorded DHCP move came 30 minutes after the last sighting at the
+// old address), while a discovery sweep probes the addresses of a segment within minutes of each other.
+const cardTogether = 10 * time.Minute
+
+// secondAddress says whether a sighting of device id's main card at ip, which is not its main address cur, is one of the card's
+// addresses rather than a move: a router or server with two addresses on one card, or one that answers ARP for another address, would
+// otherwise move the main address at every sighting of the other one, and with it the address every list, page, run and SNMP read uses
+// (a run of the device stops when its address changes). It is when the main address answered within cardTogether of this sighting (the
+// card has both now), or when ip is already an address of the card (x, a main_card row of id) and the main address answered since the
+// card was first seen there, within ipTrust. A main_card row whose main address has not answered since is where the card moved: claimIP
+// makes it the main address. Never for an agent's report or a device an agent is bound to (the agent follows its machine: keyHit), a
+// private MAC (a phone or laptop: it rotates, and moves), a device without a main address, or the box and a hand-added device known by
+// its address only (claimIP keeps their address).
+func secondAddress(ctx context.Context, tx *sql.Tx, id string, cur sql.NullString, x extraAddr, isRow bool, source, seenAt string, now time.Time) (bool, error) {
+	if !cur.Valid || source == string(observe.Agent) {
+		return false, nil
+	}
+	var confirmed, mac sql.NullString
+	var agent bool
+	if err := tx.QueryRowContext(ctx, `SELECT ip_confirmed_at, mac, agent_key IS NOT NULL FROM inv_asset WHERE id = ?`, id).Scan(&confirmed, &mac, &agent); err != nil {
+		return false, fmt.Errorf("inventory: read device: %w", err)
+	}
+	if !confirmed.Valid || !mac.Valid || localMAC(mac.String) || agent {
+		return false, nil
+	}
+	at, perr := time.Parse(time.RFC3339Nano, seenAt)
+	if perr != nil { // a sighting time that does not parse proves nothing: the address moves as before
+		return false, nil
+	}
+	if confirmed.String >= store.FormatTS(at.Add(-cardTogether)) {
+		return true, nil
+	}
+	return isRow && x.assetID == id && x.mainCard && confirmed.String >= x.firstSeen && confirmed.String >= store.FormatTS(now.Add(-ipTrust)), nil
 }
 
 // confirmIP records that a sighting tied the device to its address ip at seenAt (ipTrust); nothing when the device is elsewhere.

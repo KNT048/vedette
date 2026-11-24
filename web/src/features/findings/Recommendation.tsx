@@ -78,7 +78,9 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   let source = t('rec.fixedSource', { source: f.source })
   if (f.kind === 'distro' && f.distro_fixed) {
     // The distribution's own fixed package for this release
-    text = t('rec.fixedDistroIn', { fixed: f.distro_fixed, distro: f.distro, release: f.distro_release, device, product, version: f.version })
+    text = f.restart_into
+      ? t('rec.fixedDistroRestart', { fixed: f.distro_fixed, distro: f.distro, release: f.distro_release, device, product, version: f.version, installed: f.restart_into })
+      : t('rec.fixedDistroIn', { fixed: f.distro_fixed, distro: f.distro, release: f.distro_release, device, product, version: f.version })
     extra = f.distro_pro ? t('rec.fixedDistroPro') : null
     source = t('rec.fixedSourceDistro', { source: f.source })
   } else if (f.kind === 'fixed') text = t('rec.fixedIn', { fixed: f.fixed, device, version: f.version })

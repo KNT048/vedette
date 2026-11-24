@@ -382,7 +382,8 @@ func withStated(a Asset, rows []Software) []Software {
 // whose KEV keys are the OS row's, gives way to it: the device's own version decides instead of "add the version" (review M3 of
 // #703).
 func deviceSoftware(a Asset) []Software {
-	return withoutCoveredWindows(deviceOSSoftware(a)) // The agent's Windows release row covers a person's "Windows 11"
+	// The agent's Windows release row covers a person's "Windows 11"; a distribution kernel's parts are its Kernel row's (kernelPart)
+	return withoutKernelParts(a, withoutCoveredWindows(deviceOSSoftware(a)))
 }
 
 func deviceOSSoftware(a Asset) []Software {

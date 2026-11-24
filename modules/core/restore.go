@@ -247,7 +247,7 @@ func (h *OSHandlers) startRestore(ctx context.Context, c caller, admin bool, b a
 		return nil, err
 	}
 	rec := &restoreRec{RunID: run.RunID, BackupID: b.BackupID, BackupCreatedAt: b.CreatedAt, User: c.Email, StartedAt: run.StartedAt, Snapshot: snap.ID}
-	if err := h.writePendingRestore(pendingRestore{RunID: run.RunID, StartedAt: run.StartedAt.UTC()}); err != nil {
+	if err := h.writePendingRestore(pendingRestore{RunID: run.RunID, StartedAt: run.StartedAt.UTC(), BackupID: b.BackupID, BackupCreatedAt: b.CreatedAt.UTC()}); err != nil {
 		// The page's next read still settles it; only the record without a reader waits for it
 		h.log.ErrorContext(ctx, "core: could not leave the pending-restore marker", "run", run.RunID, "error", err)
 	}
@@ -462,6 +462,11 @@ func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
 	}
 	if rec == nil || rec.RunID != run.RunID { // a restored database, or a restore started by an earlier process
 		rec = &restoreRec{RunID: run.RunID, User: run.Actor, StartedAt: run.StartedAt}
+		// The marker names the backup as the restore was asked for: a backup imported from a file is listed by the host as
+		// made when it was imported, while the data that came back is of the date the file's backup was made.
+		if p, ok := h.readPendingRestore(); ok && p.RunID == run.RunID && runIDRE.MatchString(p.BackupID) && !p.BackupCreatedAt.IsZero() && !p.BackupCreatedAt.After(h.now().Add(time.Minute)) {
+			rec.BackupID, rec.BackupCreatedAt = p.BackupID, p.BackupCreatedAt
+		}
 	}
 	var res api.BackupRestoreResult
 	if len(run.Result) > 0 {
@@ -545,9 +550,12 @@ const (
 type pendingRestore struct {
 	RunID     string    `json:"run_id"`
 	StartedAt time.Time `json:"started_at"`
+	// The backup restored and when it was made, for the record in the restored database (settleRestore).
+	BackupID        string    `json:"backup_id,omitempty"`
+	BackupCreatedAt time.Time `json:"backup_created_at,omitzero"`
 }
 
-// runIDRE is the shape of a host run id core accepts from the marker (validated at the edge: the file sits on disk).
+// runIDRE is the shape of a host run or backup id core accepts from the marker (validated at the edge: the file sits on disk).
 var runIDRE = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
 func (h *OSHandlers) writePendingRestore(p pendingRestore) error {

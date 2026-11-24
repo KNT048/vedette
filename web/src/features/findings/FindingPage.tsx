@@ -32,6 +32,14 @@ import { NotAdded } from './NotAdded'
 import { HandleDialog } from './HandleDialog'
 import { CveBriefCard } from './CveBrief'
 
+/** What decided the finding: a scan, the distribution's own security data when it compared the device's package release (Ubuntu's,
+ *  Debian's tracker), else the exploited list the CVE is on, else NVD's data. */
+function evidenceSource(f: FindingDetail): string {
+  if (f.basis === 'scan') return 'scan'
+  if (f.fixed_in?.kind === 'distro' && f.fixed_in.distro_fixed) return f.fixed_in.distro === 'Debian' ? 'debian-tracker' : 'ubuntu-security'
+  return f.kev?.source === 'vulncheck-kev' ? 'vulncheck-kev' : f.kev ? 'kev' : 'catalogue'
+}
+
 function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
   // #850 r2 N4: with the vulnerability checks on, the device page re-runs them; off, it only identifies the device again (said so)
   const scanOn = useModuleEnabled('scan') === true
@@ -54,7 +62,7 @@ function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
               { label: t('evidence.basis'), value: t(basisLabel(f)) },
               { label: t('evidence.confidence'), value: fmtPercent(f.confidence, 0) },
               { label: t('evidence.template'), value: ev.template ?? <span className="text-muted">{f.kev?.has_template ? t('evidence.noTemplateRun') : t('evidence.noTemplate')}</span> },
-              { label: t('evidence.source'), value: <SourceBadge source={f.basis === 'scan' ? 'scan' : f.kev?.source === 'vulncheck-kev' ? 'vulncheck-kev' : f.kev ? 'kev' : 'catalogue'} confidence={f.confidence} at={ev.checked_at} /> },
+              { label: t('evidence.source'), value: <SourceBadge source={evidenceSource(f)} confidence={f.confidence} at={ev.checked_at} /> },
             ]} />
             {ev.request ? <CodeBlock code={ev.request} label={t('evidence.request')} /> : null}
             {ev.response ? <CodeBlock code={ev.response} label={t('evidence.response')} /> : null}

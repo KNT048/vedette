@@ -67,7 +67,7 @@ export const Verified = z.enum(['no', 'device', 'scan', 'person'])
 // Same shape as the findings contract; import it when the findings branch merges.
 export const Basis = z.enum(['scan', 'device_version', 'package', 'banner_version', 'statement', 'person'])
 // Same shape as the findings contract; import it when the findings branch merges.
-export const FixKind = z.enum(['update', 'distro_update', 'os_update', 'feature_update', 'none_yet', 'unknown'])
+export const FixKind = z.enum(['update', 'distro_update', 'os_update', 'feature_update', 'restart', 'none_yet', 'unknown'])
 // Same shape as the findings contract; import it when the findings branch merges.
 export const SeverityBand = z.enum(['critical', 'high', 'medium', 'low', 'none'])
 // Same shape as the detection contract (DetectionKind); import it when the detection branch merges.

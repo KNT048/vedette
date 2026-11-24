@@ -164,6 +164,7 @@ const (
 	FixDistroUpdate  FixKind = "distro_update"  // install the distribution's package release FixVersion or later
 	FixOSUpdate      FixKind = "os_update"      // install the operating system update FixRef (a KB) or build FixVersion
 	FixFeatureUpdate FixKind = "feature_update" // no update of this release fixes it: move to release FixVersion
+	FixRestart       FixKind = "restart"        // the fixed kernel (package release FixVersion) is installed: restart the device to run it
 	FixNoneYet       FixKind = "none_yet"       // the vendor has no fix yet (FixRef: the advisory)
 	FixUnknown       FixKind = "unknown"        // no fix data
 )

@@ -152,6 +152,19 @@
   },
   "noDevice": "{{product}} (no device)",
   "makerDevice": "{{maker}} device",
+  "uncheckable": {
+    "title": "Vedette cannot check this device yet",
+    "info": "Vedette matches exploited vulnerabilities against the software and firmware a device runs. It learns them from a network scan's version banners, from SNMP, from an agent or from you. Until one of them names what runs here, no finding can appear for this device, whatever it runs.",
+    "body": "Vedette does not know what software or firmware runs on it, so no exploited vulnerability can match it: no findings here does not mean it is safe.",
+    "bodyPorts_one": "Vedette does not know what software or firmware runs on it: a network scan saw {{count}} open port but no version it can match. No findings here does not mean it is safe.",
+    "bodyPorts_other": "Vedette does not know what software or firmware runs on it: a network scan saw {{count}} open ports but no version it can match. No findings here does not mean it is safe.",
+    "wayVersion": "Enter the firmware or software version its admin page shows (Add its firmware): Vedette checks it at once.",
+    "waySnmp": "Or let Vedette read it by itself: give it SNMP read access and turn SNMP on for this device.",
+    "waySnmpLink": "Sources",
+    "wayAgent": "On a computer or a server, install an agent.",
+    "wayAgentLink": "Agents",
+    "add": "Add its firmware"
+  },
   "tabs": {
     "label": "Device lists",
     "devices": "Devices",

@@ -50,7 +50,6 @@ const (
 
 const (
 	fetchTimeout = 30 * time.Second // one document
-	maxNoteRunes = 500
 )
 
 var (
@@ -1180,11 +1179,9 @@ func availableOf(v *verifiedRelease, channel string, helper *api.Info) []updateA
 		size += im.Size
 		images = append(images, releaseImageView{Service: im.Service, Digest: im.Digest}) // both checked by manifest validate
 	}
-	note := []rune(v.M.Notes)
-	if len(note) > maxNoteRunes {
-		note = note[:maxNoteRunes]
-	}
-	a := updateAvailableView{Component: softwareComponent, Version: v.M.Version, Channel: channel, Note: string(note), Images: images}
+	// The whole signed note: the manifest check already refuses more than 2048 bytes or a control character, so the page can
+	// show it as it was written instead of a cut in the middle of a word.
+	a := updateAvailableView{Component: softwareComponent, Version: v.M.Version, Channel: channel, Note: v.M.Notes, Images: images}
 	if helper != nil && hostNewer(v.M, helper.HostVersion) {
 		a.HostVersion = v.M.Host.Version
 		if f := hostFileOf(v.M, helper.Arch); f != nil {

@@ -27,6 +27,10 @@ import (
 
 const runningVersion = "1.3.0"
 
+// longNote is a release note well past 500 characters with multi-byte letters, under the 2048 bytes a manifest allows: the
+// box offers it whole.
+var longNote = "Faster checks. " + strings.Repeat("Vedette réécrit la liste des appareils, ", 30) + "end."
+
 // releaseServer serves the release documents at the paths of the GitHub release URLs and counts the requests.
 type releaseServer struct {
 	*httptest.Server
@@ -96,7 +100,7 @@ func (s *releaseServer) manifest(t *testing.T, v string, edit func(opstest.Doc))
 	t.Helper()
 	d := s.rel.ManifestDoc(v, opstest.Img{Service: "core", Digest: "sha256:" + strings.Repeat("a", 64), Size: 3 << 20},
 		opstest.Img{Service: "sensor", Digest: "sha256:" + strings.Repeat("b", 64), Size: 1 << 20})
-	d["notes"] = "Faster checks. " + strings.Repeat("x", 600)
+	d["notes"] = longNote
 	d["bundled"] = []any{opstest.Doc{"service": "honeypot", "name": "opencanary", "version": "0.9.4"}}
 	if edit != nil {
 		edit(d)
@@ -217,7 +221,7 @@ func TestUpdateCheckOffersTheNewRelease(t *testing.T) {
 		t.Fatalf("available = %s", r.Raw)
 	}
 	a, _ := av[0].(map[string]any)
-	if a["component"] != "software" || a["version"] != "1.4.0" || a["channel"] != "stable" || a["size_kb"] != float64(4096) || len([]rune(a["note"].(string))) != 500 {
+	if a["component"] != "software" || a["version"] != "1.4.0" || a["channel"] != "stable" || a["size_kb"] != float64(4096) || a["note"] != longNote {
 		t.Errorf("available[0] = %v", a)
 	}
 	// S-CORE-9: the digests of the verified manifest, for the cosign lines of a container-only install.

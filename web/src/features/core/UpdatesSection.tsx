@@ -84,24 +84,20 @@ function RunPanel({ run, name, reconnecting, after }: { run: UpdateRun; name: st
 const norm = (x: string) => x.replace(/\s+/g, ' ').trim().replace(/[.\s]+$/, '').toLowerCase()
 /** "120 MB", "1.4 GB" (decimal, as every size on the screens). */
 const fmtSize = (kb: number) => (kb * 1024 >= 1e9 ? `${((kb * 1024) / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round((kb * 1024) / 1e6))} MB`)
-/** The box sends at most this many characters of a release's notes (the rest is on the release page). */
-const NOTE_MAX = 500
-
-/** A release's notes: two lines, then "Show all" opens the rest; notes the box cut (NOTE_MAX) end at a word, with a link to the
- *  release page where the whole text is. `open`: shown whole from the start (the update dialog). */
+/** A release's notes, the whole signed line (at most 2048 bytes): two lines, then "Show all" opens the rest. `open`: shown whole
+ *  from the start, with a link to the release page and its longer text (the update dialog). */
 function ReleaseNote({ a, className, open = false }: { a: UpdateAvailable; className?: string; open?: boolean }) {
   const { t } = useTranslation('core')
   const [whole, setWhole] = useState(open)
-  const cut = [...a.note].length >= NOTE_MAX
-  const text = cut ? `${a.note.slice(0, a.note.lastIndexOf(' ') > 0 ? a.note.lastIndexOf(' ') : a.note.length).replace(/[\s,;:]+$/, '')}…` : a.note
+  const text = a.note
   const long = text.length > 140
   if (!text) return null
   return (
     <span className={cn('grid justify-items-start gap-0.5', className)}>
-      <span className={whole || !long ? 'whitespace-pre-line' : 'line-clamp-2'}>{text}</span>
+      <span className={cn('[overflow-wrap:anywhere]', whole || !long ? 'whitespace-pre-line' : 'line-clamp-2')}>{text}</span>
       <span className="flex flex-wrap gap-x-3">
+        {open ? <a className="text-accent underline-offset-4 hover:underline" href={releaseUrl(a.version)} target="_blank" rel="noreferrer">{t('updates.notes.page', { version: a.version })}</a> : null}
         {long && !open ? <button type="button" className="text-accent underline-offset-4 hover:underline" aria-expanded={whole} onClick={() => setWhole((v) => !v)}>{t(whole ? 'updates.notes.less' : 'updates.notes.all')}</button> : null}
-        {cut ? <a className="text-accent underline-offset-4 hover:underline" href={releaseUrl(a.version)} target="_blank" rel="noreferrer">{t('updates.notes.page', { version: a.version })}</a> : null}
       </span>
     </span>
   )

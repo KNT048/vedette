@@ -4,27 +4,22 @@
 // none; 3 firewall configuration: only a confirmed pack or the customer's own AI writes one, so without a pack the page says so, names
 // the firewall Vedette knows (or lets the person add it right here) and offers "Ask my AI"; 4 how to check that it is fixed.
 import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { useQuery } from '@tanstack/react-query'
 import { InfoTip } from '@/components/common/InfoTip'
 import { RequireModule } from '@/components/common/States'
-import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { api } from '@/lib/api'
 import { actsAs } from '@/lib/deviceTypes'
 import { fmtDate } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCve } from '@/features/feeds/api'
 import type { CveBrief } from '@/features/feeds/types'
-import { AddDialog } from '@/features/inventory/AddDialog'
-import { nameOf } from '@/features/inventory/nameOf'
-import type { DevicesResponse } from '@/features/inventory/types'
 import { advisories } from './CveBrief'
 import { AskAi, FixedInNote, nowParts } from './Recommendation'
-import { useView } from './api'
+import { useDeviceCards, useView } from './api'
+import { PAGE_MAX } from './contract'
+import { useWalls, WallPicker } from './firewall'
 import { deviceName, isOpen } from './basis'
 import { linkLabels } from './links'
 import { overdue } from './accept'
@@ -47,6 +42,7 @@ export function storedFixText(t: TFunction<'findings'>, f: FindingDetail, view: 
     case 'distro_update': return t(version ? 'todo.fixDistro' : 'todo.fixDistroNoVersion', o)
     case 'os_update': return t(fix.ref ? 'todo.fixOsKb' : 'todo.fixOs', o)
     case 'feature_update': return t('todo.fixFeature', o)
+    case 'restart': return t('todo.fixRestart', o)
   }
   return null
 }
@@ -60,20 +56,35 @@ function FixLine({ f, view, product, links }: { f: FindingDetail; view: View | u
   const { t } = useTranslation('findings')
   const fi = f.fixed_in
   const stored = view?.fix
+  const plan = usePlanFix(f)
   const same = !!fi && (!stored?.version || fi.fixed === stored.version || fi.distro_fixed === stored.version)
-  if (fi && same) return <FixedInNote finding={f} />
+  // The plan names one release per software line of the device (the release that fixes every CVE of the line); it can be later than
+  // this CVE's own fix, so the page says so instead of claiming the two are the same.
+  const later = !!plan?.version && !!stored?.version && plan.version !== stored.version
+  const planLine = later ? <p className="text-meta" data-testid="plan-fix">{t('todo.fixPlan', { product: plan!.product || product, device: deviceName(f.asset, t('removedDevice')), target: plan!.version })}</p> : null
+  if (fi && same) return <>{<FixedInNote finding={f} />}{planLine}</>
   const text = storedFixText(t, f, view)
   if (text) {
     return (
       <div className="grid max-w-3xl gap-1" data-testid="stored-fix">
         <p className="text-sm font-medium">{text}</p>
-        <p className="text-caption text-muted">{t('todo.fixSource')}</p>
+        {planLine}
+        <p className="text-caption text-muted">{t(plan && !later ? 'todo.fixSource' : 'todo.fixAdvisory')}</p>
       </div>
     )
   }
   if (stored?.kind === 'none_yet') return <p className="text-sm font-medium">{t('todo.fixNoneYet', { product: stored.product || product })}</p>
   if (fi) return <FixedInNote finding={f} />
   return <p className="text-sm">{links ? t('brief.fix') : t(f.kev ? 'rec.noVendorLink' : 'rec.noAdvisoryLink', { cve: f.cve, product })}</p>
+}
+
+/** The fix the plan (Findings › By device and By fix) names for the software line this finding is on: the fix of the device's block
+ *  that holds the finding. Undefined while it loads or when the finding is in no block (closed). */
+function usePlanFix(f: FindingDetail) {
+  const device = f.asset?.id ?? ''
+  const q = useDeviceCards({ device }, { offset: 0, limit: PAGE_MAX }, !!device && isOpen(f.status))
+  const card = q.data?.items.find((c) => c.device.id === device)
+  return card?.blocks.find((b) => b.findings.some((r) => r.id === f.id))?.fix
 }
 
 /** Step 1's fix line on its own, for a confirmed pack's patch step: the same sentence as without a pack. */
@@ -83,45 +94,17 @@ export function FixLineOf({ f }: { f: FindingDetail }) {
   return <FixLine f={f} view={view} product={f.kev?.display || view?.fix.product || t('rec.theSoftware')} links />
 }
 
-/** Firewalls and routers in the inventory: the devices a firewall configuration would go on (the AI reads the same ones). */
-function useFirewalls(enabled: boolean) {
-  return useQuery({
-    queryKey: ['inventory', 'devices', 'firewalls'], enabled,
-    queryFn: () => api.get<DevicesResponse>('/inventory/devices?type=firewall,router'),
-    select: (r) => r.items.filter((d) => ['firewall', 'router'].includes(actsAs(d.kind))),
-  })
-}
-
 function FirewallStep({ f }: { f: FindingDetail }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
-  const inventoryOn = useModuleEnabled('inventory') !== false
-  const walls = useFirewalls(inventoryOn)
-  const [adding, setAdding] = useState(false)
-  // the device itself is not the firewall in front of it (a finding on a firewall: another one would carry the rule)
-  const list = (walls.data ?? []).filter((d) => d.id !== f.asset?.id)
-  const names = list.slice(0, 3).map((d) => nameOf(d, t('removedDevice')))
+  const w = useWalls(f)
+  const name = w.chosen?.name
   return (
     <div className="grid gap-3" data-testid="firewall-step">
       <p className="max-w-3xl text-sm">{t('todo.fwNoPack', { cve: f.cve })}</p>
-      {inventoryOn && walls.isSuccess ? (
-        list.length ? (
-          <p className="text-sm">
-            {t('todo.fwYours')}{' '}
-            {list.slice(0, 3).map((d, i) => (
-              <span key={d.id}>{i ? ', ' : ''}<Link to={`/devices/${encodeURIComponent(d.id)}`} className={link}>{names[i]}</Link>{d.ip ? ` (${d.ip})` : ''}</span>
-            ))}
-          </p>
-        ) : (
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm">{t('todo.fwNone')}</p>
-            <Button size="sm" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => setAdding(true)}>{t('todo.fwAdd')}</Button>
-          </div>
-        )
-      ) : null}
+      <WallPicker f={f} w={w} />
       <AskAi finding={f} skill="mitigation-config" result={f.ai.config} label={t('rec.askAi')}
-        hint={f.ai_available.config && can ? (names.length ? t('todo.fwAsk', { firewall: names.join(', ') }) : t('todo.fwAskAny')) : undefined} />
-      {adding ? <AddDialog open onOpenChange={(o) => { if (!o) { setAdding(false); void walls.refetch() } }} /> : null}
+        hint={f.ai_available.config && can ? (name ? t('todo.fwAsk', { firewall: name }) : t('todo.fwAskAny')) : undefined} />
     </div>
   )
 }
@@ -150,14 +133,14 @@ function H3({ children, id }: { children: ReactNode; id: string }) {
 }
 
 /** The workaround the vendor publishes in the CVE record, else plainly none; what the exploited list asks comes under it. */
-function Workaround({ b, f }: { b: CveBrief | undefined; f: FindingDetail }) {
+function Workaround({ b, f, restartOnly }: { b: CveBrief | undefined; f: FindingDetail; restartOnly: boolean }) {
   const { t } = useTranslation('findings')
   const k = f.kev
   return (
     <div className="grid gap-2">
       {b?.workaround
         ? <p className="max-w-3xl text-sm"><span className="font-medium">{t('todo.vendorWorkaround')}</span> <span lang="en" className="whitespace-pre-line">{b.workaround}</span></p>
-        : <p className="text-sm">{t('todo.noWorkaround')}</p>}
+        : <p className="text-sm">{restartOnly ? t('todo.restartNoWorkaround', { device: deviceName(f.asset, t('removedDevice')) }) : t('todo.noWorkaround')}</p>}
       {k?.required_action ? (
         <div className="grid gap-1">
           <p className="text-meta font-medium">{t('todo.cisaAsks', { source: k.source === 'vulncheck-kev' ? 'VulnCheck KEV' : 'CISA' })}</p>
@@ -194,9 +177,12 @@ export function FixGuide({ f }: { f: FindingDetail }) {
   // a restart only where the update is the device's own system: an OS build, a kernel, an appliance's firmware (never an app's update)
   const restart = ['os_update', 'feature_update'].includes(view?.fix.kind ?? '') || /kernel|linux-image/i.test(known ?? '') ||
     ['firewall', 'router', 'switch', 'nas', 'hypervisor', 'ap', 'printer', 'camera'].includes(actsAs(f.asset?.kind ?? ''))
+  // the fixed kernel is installed already: the one step is the restart (the stored fix, or the distribution's word on this device)
+  const restartOnly = view?.fix.kind === 'restart' || !!fi?.restart_into
   const checks: { key: string; node: ReactNode }[] = [
+    ...(restartOnly ? [{ key: 'restart', node: t('todo.checkRestartNow', { device, product: known ?? product }) }] : []),
     { key: 'version', node: t(fixed ? 'todo.checkVersion' : 'todo.checkVersionAdvisory', { software: known ?? product, device, fixed }) },
-    ...(restart ? [{ key: 'restart', node: t('todo.checkRestart', { device }) }] : []),
+    ...(restart && !restartOnly ? [{ key: 'restart', node: t('todo.checkRestart', { device }) }] : []),
     ...(workaround ? [{ key: 'workaround', node: t('todo.checkWorkaround') }] : []),
     { key: 'vedette', node: parts.verify },
   ]
@@ -222,7 +208,7 @@ export function FixGuide({ f }: { f: FindingDetail }) {
       </section>
       <section aria-labelledby="todo-workaround" className="grid gap-2 border-t border-rule pt-3">
         <H3 id="todo-workaround">{t('rec.workaroundTitle')}</H3>
-        <Workaround b={b} f={f} />
+        <Workaround b={b} f={f} restartOnly={restartOnly} />
       </section>
       <section aria-labelledby="todo-firewall" className="grid gap-2 border-t border-rule pt-3">
         <H3 id="todo-firewall">{t('rec.firewallTitle')}</H3>

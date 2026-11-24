@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readFileSync, rmSync } from 'node:fs'
+import { readdirSync, readFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
@@ -31,8 +31,46 @@ const terms: Plugin = {
   },
 }
 
+// docs/cookbook is the one source of the user cookbook: GitHub shows it, and the Help pages render the same files from the build
+// (offline: nothing is fetched from outside the box). `virtual:cookbook` gives the recipes' Markdown and the URL of each image.
+// An image is served at assets/cookbook/<name>-<hash>.<ext>: a content hash, so the immutable cache of assets/ stays right after an
+// update. The dev server answers those URLs from docs/cookbook/images; the build emits them as files.
+const COOKBOOK_DIR = path.resolve(import.meta.dirname, '../docs/cookbook')
+function cookbookImages() {
+  const dir = path.join(COOKBOOK_DIR, 'images')
+  return readdirSync(dir).filter((f) => /\.(webp|png|jpe?g|svg)$/.test(f)).sort().map((f) => {
+    const source = readFileSync(path.join(dir, f))
+    const ext = path.extname(f)
+    return { ref: `images/${f}`, file: path.join(dir, f), source, url: `assets/cookbook/${path.basename(f, ext)}-${createHash('sha256').update(source).digest('hex').slice(0, 8)}${ext}` }
+  })
+}
+const cookbook: Plugin = {
+  name: 'cookbook',
+  resolveId: (id) => (id === 'virtual:cookbook' ? '\0virtual:cookbook' : undefined),
+  load(id) {
+    if (id !== '\0virtual:cookbook') return undefined
+    const pages = readdirSync(COOKBOOK_DIR).filter((f) => f.endsWith('.md')).sort().map((f) => {
+      this.addWatchFile(path.join(COOKBOOK_DIR, f))
+      return { file: f, markdown: readFileSync(path.join(COOKBOOK_DIR, f), 'utf8') }
+    })
+    const images = Object.fromEntries(cookbookImages().map((i) => [i.ref, `/${i.url}`]))
+    return `export const PAGES = ${JSON.stringify(pages)}\nexport const IMAGES = ${JSON.stringify(images)}\n`
+  },
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      const hit = req.url?.startsWith('/assets/cookbook/') ? cookbookImages().find((i) => `/${i.url}` === req.url) : undefined
+      if (!hit) return next()
+      res.setHeader('Content-Type', hit.file.endsWith('.svg') ? 'image/svg+xml' : `image/${path.extname(hit.file).slice(1).replace('jpg', 'jpeg')}`)
+      res.end(hit.source)
+    })
+  },
+  generateBundle() {
+    for (const i of cookbookImages()) this.emitFile({ type: 'asset', fileName: i.url, source: i.source })
+  },
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), dropMockWorker, terms],
+  plugins: [react(), tailwindcss(), dropMockWorker, terms, cookbook],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
   build: {
     chunkSizeWarningLimit: 900,

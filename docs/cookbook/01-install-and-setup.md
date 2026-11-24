@@ -1,6 +1,7 @@
 # Install Vedette and finish the setup wizard
 
 **Goal:** a running Vedette box that watches your network, with you as its first administrator.
+
 **Time:** about 15 minutes: 5 for the install, a few for the wizard.
 
 ## Before you start
@@ -58,6 +59,8 @@ You land on **Home**. Its title answers the first question ("Today: … of your 
 Within the first hour **Devices** starts to fill with what the sensor hears. **Settings → General** shows when the terms of use were accepted.
 
 ## Next
+
+**Help** in the menu lists these guides, and each main screen has a **How-to guide** link to its own.
 
 - The wizard has no alert step: set up a channel now ([recipe 04](04-alerts-email-telegram-zalo.md)).
 - Add the devices the sensor cannot see ([recipe 02](02-add-devices-and-agents.md)).

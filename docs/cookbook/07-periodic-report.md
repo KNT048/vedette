@@ -1,6 +1,7 @@
 # Send a weekly security report
 
 **Goal:** a short report of what is open, what was handled and what to do first, emailed every week or every month.
+
 **Time:** 5 minutes.
 
 ## Before you start

@@ -1,6 +1,7 @@
 # Check what your company exposes to the Internet
 
 **Goal:** see which services and known exploited vulnerabilities are reachable on your public IP or domain, the way an attacker sees them.
+
 **Time:** a few minutes to set up; a scan runs on its own.
 
 ## Before you start

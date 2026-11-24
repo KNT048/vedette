@@ -1,6 +1,7 @@
 # Get alerts by email, Telegram, Zalo or Slack
 
 **Goal:** Vedette messages you when an exploited vulnerability matches one of your devices, or when a trap is touched.
+
 **Time:** 5 minutes per channel.
 
 ## Before you start

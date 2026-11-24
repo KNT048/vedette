@@ -1,6 +1,7 @@
 # Read a finding and fix it
 
 **Goal:** know which vulnerability to deal with first, fix it, and have Vedette close it. Check whether you were already hit.
+
 **Time:** a few minutes to read; the fix itself depends on the device.
 
 ## Before you start

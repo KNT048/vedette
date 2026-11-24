@@ -1,6 +1,7 @@
 # Add your devices (and an agent on a server)
 
 **Goal:** every device you care about is in the Devices list with its product and version, so Vedette can match exploited vulnerabilities to it.
+
 **Time:** 5 minutes for the first devices; a few more for each agent.
 
 ## Before you start

@@ -1,6 +1,7 @@
 # Keep Vedette up to date, back it up, restore it
 
 **Goal:** the box runs the newest signed Vedette on a patched operating system, and you can go back (roll back or restore) if something goes wrong.
+
 **Time:** 5 minutes, plus about 4 minutes per Vedette update.
 
 ## Before you start

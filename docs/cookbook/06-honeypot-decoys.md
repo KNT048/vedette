@@ -1,6 +1,7 @@
 # Set a trap for intruders (decoy machines and honey tokens)
 
 **Goal:** fake machines and bait files on your network. Nobody has a reason to touch them, so anyone who does raises an alert, with almost no false alarms.
+
 **Time:** 10 minutes.
 
 ## Before you start

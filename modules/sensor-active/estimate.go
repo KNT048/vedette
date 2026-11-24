@@ -22,7 +22,11 @@ type runProg struct {
 	passes int       // how many nmap runs the check makes; 0 when it is not known
 	jobs   int       // nmap runs that reported so far (each opens with NewPass): the pass when the caller did not say it
 	at     time.Time // when the worker last reported, whether or not the report moved the line (the run's "Last report")
+	try    int       // which try of a person's check this is when it started again (2, 3); 0 for the first
 }
+
+// reported says the worker reported on the run's current try (a new try starts with no report).
+func (p runProg) reported() bool { return p.u.Phase != "" }
 
 // phaseOrder is the order nmap goes through its phases within one run.
 var phaseOrder = map[string]int{progress.PhaseDiscovery: 1, progress.PhasePorts: 2, progress.PhaseServices: 3, progress.PhaseScripts: 4, progress.PhaseSaving: 5}
@@ -55,10 +59,11 @@ func (k runSink) Report(u progress.Update) {
 	if k.s.clock != nil {
 		now = k.s.clock()
 	}
-	next := runProg{u: u, pass: k.pass, passes: k.passes, jobs: old.jobs, at: now}
-	if u.NewPass || !had {
+	next := runProg{u: u, pass: k.pass, passes: k.passes, jobs: old.jobs, at: now, try: old.try}
+	if u.NewPass || !old.reported() {
 		next.jobs++
 	}
+	had = had && old.reported()
 	if next.pass == 0 {
 		next.pass = next.jobs
 	}
@@ -99,6 +104,17 @@ func withPass(ctx context.Context, pass, passes int) context.Context {
 	return progress.WithSink(ctx, k)
 }
 
+// newTry starts the line of run id again for try of a person's check (identifyIn): the new try's nmap reports from its start, and the
+// line says which try it is, so a line that goes back to the first pass reads as the new try it is.
+func (s *Service) newTry(id string, try int) {
+	s.progMu.Lock()
+	defer s.progMu.Unlock()
+	if s.prog == nil {
+		s.prog = map[string]runProg{}
+	}
+	s.prog[id] = runProg{try: try}
+}
+
 func (s *Service) dropProgress(id string) {
 	s.progMu.Lock()
 	defer s.progMu.Unlock()
@@ -119,22 +135,23 @@ func (s *Service) workerEstimate(_ context.Context, r run.Run) string {
 		return ""
 	}
 	p, ok := s.lastProgress(r.ID)
-	if !ok {
+	if !ok || !p.reported() {
 		return ""
 	}
 	return join([]string{progressLine(p), leftWords(p.u.Remaining)})
 }
 
-// checkEstimate is the line of a running device check: where its nmap is (progressLine) and the time the check has left as a whole
-// (checkHold: the same figure a run queued behind it adds up), "" for a check that is not running. A check that already took longer
-// than its checks usually take says so instead of a time left it cannot know ("taking longer than the usual 3 minutes").
+// checkEstimate is the line of a running device check: where its nmap is (progressLine) and the time the check has left as a whole: how
+// long its checks usually take less the time this turn has run, so it only goes down ("" for a check that is not running). nmap's own
+// time left is for its current phase only (it starts again at every phase and pass), so it is not the check's time left: using it made
+// the line read "less than a minute" and then "about 3 minutes". A check that already took longer than its checks usually take says so
+// instead of a time left it cannot know ("taking longer than the usual 3 minutes").
 func (s *Service) checkEstimate(ctx context.Context, r run.Run) string {
 	if r.Status != run.Running {
 		return ""
 	}
 	line := ""
-	p, reported := s.lastProgress(r.ID)
-	if reported {
+	if p, ok := s.lastProgress(r.ID); ok {
 		line = progressLine(p)
 	}
 	expect := s.expectedCheck(ctx, r)
@@ -142,21 +159,23 @@ func (s *Service) checkEstimate(ctx context.Context, r run.Run) string {
 	if elapsed, ok := s.elapsed(r); ok {
 		left = expect - elapsed
 	}
-	switch {
-	case reported && p.u.Remaining > left && p.u.Remaining >= time.Minute:
-		return join([]string{line, leftWords(p.u.Remaining)})
-	case left <= 0:
+	if left <= 0 {
 		return join([]string{line, "taking longer than the usual " + roundWords(expect)})
 	}
 	return join([]string{line, leftWords(left)})
 }
 
-// elapsed is how long running run r has run.
+// elapsed is how long running run r has run in its current turn (run.Run.RunningSince): a check resumed after a restart, or that
+// waited in the queue, counts from when it began working again, so "taking longer than the usual 7 minutes" never counts queue time.
 func (s *Service) elapsed(r run.Run) (time.Duration, bool) {
-	if r.StartedAt == nil {
+	since := r.RunningSince
+	if since == nil {
+		since = r.StartedAt
+	}
+	if since == nil {
 		return 0, false
 	}
-	at, err := time.Parse(time.RFC3339Nano, *r.StartedAt)
+	at, err := time.Parse(time.RFC3339Nano, *since)
 	if err != nil {
 		return 0, false
 	}
@@ -295,20 +314,65 @@ func (s *Service) readTypicalCheck(ctx context.Context) time.Duration {
 	return time.Duration(probes/st.Rate)*time.Second + checkAllowance
 }
 
-// progressLine writes where the worker's nmap is: the pass when the check makes several, what nmap does and its percent: "pass 1 of
-// 2: reading service versions, 84%".
+// progressLine writes where the worker's nmap is: the try when a person's check started again, the pass when the check makes several,
+// what nmap does, and how much of the whole check is done: "pass 1 of 2: reading service versions; 62% of the check done". nmap's own
+// percent starts again at every phase, so the line gives the share of the whole check instead (checkShare), which only grows while the
+// line moves forward. "" before the first report of the current try.
 func progressLine(p runProg) string {
+	prefix := ""
+	if p.try > 1 {
+		prefix = fmt.Sprintf("try %d of %d: ", p.try, maxIdentifyTries)
+	}
+	if !p.reported() {
+		if prefix == "" {
+			return ""
+		}
+		return prefix + "starting again"
+	}
 	what := phaseWords[p.u.Phase]
 	if what == "" {
 		what = p.u.Phase
 	}
-	if p.u.Percent >= 0 {
-		what = fmt.Sprintf("%s, %d%%", what, int(p.u.Percent))
-	}
 	if p.passes > 1 && p.pass > 0 {
-		return fmt.Sprintf("pass %d of %d: %s", min(p.pass, p.passes), p.passes, what)
+		what = fmt.Sprintf("pass %d of %d: %s", min(p.pass, p.passes), p.passes, what)
 	}
-	return what
+	if share, ok := checkShare(p); ok {
+		what = fmt.Sprintf("%s; %d%% of the check done", what, share)
+	}
+	return prefix + what
+}
+
+// phaseShare is the share of one nmap run each phase takes, roughly (finding the ports and reading the versions are most of it), and
+// passShare the share of a two-pass check each pass takes (the second covers the few extra ports).
+var (
+	phaseShare = map[string]float64{progress.PhaseDiscovery: 0.05, progress.PhasePorts: 0.45, progress.PhaseServices: 0.35, progress.PhaseScripts: 0.13, progress.PhaseSaving: 0.02}
+	passShare  = []float64{0.8, 0.2}
+)
+
+// checkShare is how much of the whole check is done, in percent, from where its nmap is: the passes before, the phases before in this
+// pass, and the reported percent of the current phase. It grows whenever the line moves forward (forward), so it never goes back within
+// a try. ok is false for a phase it does not know.
+func checkShare(p runProg) (int, bool) {
+	cur, ok := phaseShare[p.u.Phase]
+	if !ok {
+		return 0, false
+	}
+	inPass := 0.0
+	for ph, share := range phaseShare {
+		if phaseOrder[ph] < phaseOrder[p.u.Phase] {
+			inPass += share
+		}
+	}
+	if p.u.Percent > 0 {
+		inPass += cur * min(p.u.Percent, 100) / 100
+	}
+	done := inPass
+	if p.passes == 2 && p.pass >= 1 {
+		done = passShare[0]*float64(min(p.pass-1, 1)) + passShare[min(p.pass, 2)-1]*inPass
+	} else if p.passes > 2 && p.pass >= 1 {
+		done = (float64(min(p.pass, p.passes)-1) + inPass) / float64(p.passes)
+	}
+	return min(int(done*100), 99), true // 100% is the check's end, not a phase's
 }
 
 // leftWords writes a time left: "about 9 minutes left", "less than a minute left"; "" for none.

@@ -470,7 +470,7 @@ func TestTruthACheckThatStartsAgainShowsTheProgressOfTheNewTry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(r.Summary, "pass 1 of 2: looking for the device, 10%") {
+	if !strings.Contains(r.Summary, "try 2 of 3: pass 1 of 2: looking for the device; 0% of the check done") {
 		t.Fatalf("while the new try runs: %q", r.Summary)
 	}
 	waitRun(t, e, m.ID, run.Done, run.Partial, run.Failed, run.Stopped)

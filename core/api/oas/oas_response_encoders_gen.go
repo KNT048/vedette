@@ -1258,6 +1258,21 @@ func encodeCorePostCoreConnectionsIDTestResponse(response *CorePostCoreConnectio
 	return nil
 }
 
+func encodeCorePostCoreDataBackupResponse(response CorePostCoreDataBackupOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.WriteHeader(200)
+
+	writer := w
+	if closer, ok := response.Data.(io.Closer); ok {
+		defer closer.Close()
+	}
+	if _, err := io.Copy(writer, response); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeCorePostCoreDataKeyResponse(response CorePostCoreDataKeyOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(200)

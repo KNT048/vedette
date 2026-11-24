@@ -110,6 +110,9 @@ var (
 	rn60AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
+	rn71AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
 	rn128AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
@@ -156,7 +159,7 @@ var (
 		"POST": "Content-Type",
 	}
 	rn139AllowedHeaders = map[string]string{
-		"POST": "Content-Type,X-Setup-Code",
+		"POST": "Content-Type,X-Backup-Password,X-Setup-Code",
 	}
 	rn87AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
@@ -2402,11 +2405,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							switch r.Method {
 							case "GET":
 								s.handleCoreGetCoreDataBackupRequest([0]string{}, elemIsEscaped, w, r)
+							case "POST":
+								s.handleCorePostCoreDataBackupRequest([0]string{}, elemIsEscaped, w, r)
 							default:
 								s.notAllowed(w, r, notAllowedParams{
-									allowedMethods: "GET",
-									allowedHeaders: nil,
-									acceptPost:     "",
+									allowedMethods: "GET,POST",
+									allowedHeaders: rn71AllowedHeaders,
+									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
 							}
@@ -13400,8 +13405,17 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = CoreGetCoreDataBackupOperation
-								r.summary = "Download a backup (password hashes, never passwords or keys)"
+								r.summary = "Download a backup without a password (password hashes, never passwords or keys): the same as POST /core/data/backup with no password"
 								r.operationID = "core_get_core_data_backup"
+								r.operationGroup = ""
+								r.pathPattern = "/core/data/backup"
+								r.args = args
+								r.count = 0
+								return r, true
+							case "POST":
+								r.name = CorePostCoreDataBackupOperation
+								r.summary = "Download a backup (password hashes, never passwords or keys). With password, the file is encrypted while it streams in the age format (age-encryption.org/v1, scrypt passphrase; vedette-backup-<date>-<time>.tar.gz.age): the first-run restore asks for the password, and `age -d` opens it offline. The password follows the sign-in password policy (400 weak_password) and is never stored, logged or audited; it cannot be recovered. Without password, the plain .tar.gz as GET. 409 busy, 429 rate_limited, 409 low_disk, 409 not_appliance as GET"
+								r.operationID = "core_post_core_data_backup"
 								r.operationGroup = ""
 								r.pathPattern = "/core/data/backup"
 								r.args = args
@@ -14195,7 +14209,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = CorePostCoreSetupRestoreUploadOperation
-										r.summary = "First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB"
+										r.summary = "First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz, or the password-protected .tar.gz.age with X-Backup-Password, as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB"
 										r.operationID = "core_post_core_setup_restore_upload"
 										r.operationGroup = ""
 										r.pathPattern = "/core/setup/restore/upload"

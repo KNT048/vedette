@@ -3097,7 +3097,8 @@ func decodeCorePostCoreConnectionsIDTestParams(args [1]string, argsEscaped bool,
 
 // CorePostCoreSetupRestoreUploadParams is parameters of core_post_core_setup_restore_upload operation.
 type CorePostCoreSetupRestoreUploadParams struct {
-	XSetupCode OptString `json:",omitempty,omitzero"`
+	XSetupCode      OptString `json:",omitempty,omitzero"`
+	XBackupPassword OptString `json:",omitempty,omitzero"`
 }
 
 func unpackCorePostCoreSetupRestoreUploadParams(packed middleware.Parameters) (params CorePostCoreSetupRestoreUploadParams) {
@@ -3108,6 +3109,15 @@ func unpackCorePostCoreSetupRestoreUploadParams(packed middleware.Parameters) (p
 		}
 		if v, ok := packed[key]; ok {
 			params.XSetupCode = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Backup-Password",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XBackupPassword = v.(OptString)
 		}
 	}
 	return params
@@ -3150,6 +3160,45 @@ func decodeCorePostCoreSetupRestoreUploadParams(args [0]string, argsEscaped bool
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "X-Setup-Code",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode header: X-Backup-Password.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Backup-Password",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXBackupPasswordVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXBackupPasswordVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XBackupPassword.SetTo(paramsDotXBackupPasswordVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Backup-Password",
 			In:   "header",
 			Err:  err,
 		}

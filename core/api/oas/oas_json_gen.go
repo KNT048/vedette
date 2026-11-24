@@ -51847,6 +51847,69 @@ func (s *CorePostCoreConnectionsReqToolsItemAccess) UnmarshalJSON(data []byte) e
 }
 
 // Encode implements json.Marshaler.
+func (s *CorePostCoreDataBackupReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreDataBackupReq) encodeFields(e *jx.Encoder) {
+	{
+		if s.Password.Set {
+			e.FieldStart("password")
+			s.Password.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreDataBackupReq = [1]string{
+	0: "password",
+}
+
+// Decode decodes CorePostCoreDataBackupReq from json.
+func (s *CorePostCoreDataBackupReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreDataBackupReq to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "password":
+			if err := func() error {
+				s.Password.Reset()
+				if err := s.Password.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreDataBackupReq")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreDataBackupReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreDataBackupReq) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *CorePostCoreDataKeyReq) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)

@@ -222,6 +222,7 @@
   "POST /core/account/sessions/revoke-others": "core",
   "POST /core/connections": "core",
   "POST /core/connections/{id}/test": "core",
+  "POST /core/data/backup": "core",
   "POST /core/data/key": "core",
   "POST /core/data/purge": "core",
   "POST /core/data/restore": "core",

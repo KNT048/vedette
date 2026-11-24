@@ -59,8 +59,9 @@ func (f *fakeInv) MatchInput(context.Context, string) (findings.Asset, bool, err
 	return findings.Asset{}, false, nil
 }
 
-func (f *fakeInv) AssetIDs(context.Context) ([]string, error)   { return nil, nil }
-func (f *fakeInv) IgnoredIDs(context.Context) ([]string, error) { return nil, nil }
+func (f *fakeInv) AssetIDs(context.Context) ([]string, error)    { return nil, nil }
+func (f *fakeInv) IgnoredIDs(context.Context) ([]string, error)  { return nil, nil }
+func (f *fakeInv) ToReviewIDs(context.Context) ([]string, error) { return nil, nil }
 func (f *fakeInv) Lines(context.Context, []string) (map[string]findings.Line, error) {
 	return nil, nil
 }

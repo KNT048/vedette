@@ -3,6 +3,7 @@ package findings
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -469,49 +470,93 @@ func TestModelAPI_NeedsYourInputReadsSearchTermsOnlyForASearch(t *testing.T) {
 	}
 }
 
-// Every device nobody added yet is in the queue with Add device and Ignore, findings or not: a device discovery found that has no
-// finding yet (it was never matched, or nothing on it is exploited) still waits for a person to say whether it is theirs. The ones
-// with findings come first; a device leaves when it is added or ignored, and the box is never asked about.
-func TestModelAPI_EveryDeviceNotAddedNeedsInput(t *testing.T) {
+// A device nobody added yet that has open findings is its own Add device / Ignore card. The devices nobody added yet with no open
+// finding are one grouped card (how many; Review opens the Devices list's To review), after the urgent findings and the questions,
+// counted as one item: a sweep of a large network that found hundreds of devices never buries the urgent items. The group leaves
+// when none is left; the box is never in it; a queue read for one device or by a search has no group.
+func TestModelAPI_NotAddedWithoutFindingsIsOneGroupCard(t *testing.T) {
 	e := modelEnv(t)
-	e.inv.mu.Lock()
-	e.inv.assets["a-cam"] = AssetView{ID: "a-cam", Name: "cam-02", IP: "192.0.2.80", Kind: "camera"}
-	e.inv.assets["a-box"] = AssetView{ID: "a-box", Name: "vedette", IP: "192.0.2.2", Kind: "server", Box: true}
-	e.inv.match = map[string]Asset{"a-nas": {}, "a-fw": {}, "a-new": {}, "a-cam": {}, "a-box": {}}
-	e.inv.mu.Unlock()
-	notAdded := func() (ids []string, findings []int) {
-		in := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input", "viewer", "")
-		for _, it := range in.Items {
-			if it.Type == "device_not_added" {
-				ids = append(ids, it.FindingsGetFindingsInput1DeviceNotAdded.ID)
-				findings = append(findings, it.FindingsGetFindingsInput1DeviceNotAdded.Findings)
-			}
+	type item struct {
+		Kind  string `json:"kind"`
+		ID    string `json:"id"`
+		Count int    `json:"count"`
+	}
+	// overview: also read Home's count (kept until something changes, so read once, after the devices are there)
+	read := func(path string, overview bool) (items []item, total, home int) {
+		t.Helper()
+		conform[oas.FindingsGetFindingsInputOK](t, e, "GET", path, "viewer", "")
+		_, b := e.raw("GET", path, "viewer", "")
+		var l struct {
+			Items []item `json:"items"`
+			Total int    `json:"total"`
 		}
-		return ids, findings
+		if err := json.Unmarshal(b, &l); err != nil {
+			t.Fatal(err)
+		}
+		if !overview {
+			return l.Items, l.Total, -1
+		}
+		_, ob := e.raw("GET", "/findings/overview", "viewer", "")
+		var o struct {
+			Input int `json:"input"`
+		}
+		if err := json.Unmarshal(ob, &o); err != nil {
+			t.Fatal(err)
+		}
+		return l.Items, l.Total, o.Input
 	}
-	ids, n := notAdded()
-	if !slices.Equal(ids, []string{"device:a-new", "device:a-cam"}) || !slices.Equal(n, []int{1, 0}) {
-		t.Fatalf("devices not added in the queue: %v with %v findings; want printer-07 (1) then cam-02 (0)", ids, n)
+	_, before, _ := read("/findings/input?limit=200", false)
+	const n = 300
+	e.inv.mu.Lock()
+	e.inv.assets["a-box"] = AssetView{ID: "a-box", Name: "vedette", IP: "192.0.2.2", Kind: "server", Box: true}
+	e.inv.match["a-box"] = Asset{}
+	for i := range n {
+		id := fmt.Sprintf("a-d%03d", i)
+		e.inv.assets[id] = AssetView{ID: id, Name: id, IP: fmt.Sprintf("10.0.%d.%d", i/250, i%250+1), Kind: "unknown"}
+		e.inv.match[id] = Asset{}
 	}
-	if one := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?device=a-cam", "viewer", ""); one.Total != 1 {
-		t.Errorf("the queue of cam-02 alone: %d items, want its Add device card", one.Total)
+	e.inv.mu.Unlock()
+	items, total, overview := read("/findings/input?limit=200", true)
+	if total != before+1 || overview != total {
+		t.Fatalf("%d devices not added with no finding: queue length %d (before %d), Home's count %d; want one more item, the same count", n, total, before, overview)
 	}
-	if q := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q=cam-02", "viewer", ""); q.Total != 1 {
-		t.Errorf("search cam-02: %d items", q.Total)
+	var cards, groups []item
+	for _, it := range items {
+		switch it.Kind {
+		case "device_not_added":
+			cards = append(cards, it)
+		case "devices_not_added":
+			groups = append(groups, it)
+		}
+	}
+	if len(cards) != 1 || cards[0].ID != "device:a-new" {
+		t.Fatalf("Add device cards: %+v; want only printer-07, the device not added that has a finding", cards)
+	}
+	if len(groups) != 1 || groups[0].Count != n || items[len(items)-1].Kind != "devices_not_added" {
+		t.Fatalf("grouped card: %+v (last item %+v); want one, last, counting %d", groups, items[len(items)-1], n)
+	}
+	if _, one, _ := read("/findings/input?device=a-d007", false); one != 0 {
+		t.Errorf("the queue of one device not added with no finding: %d items, want none", one)
+	}
+	if _, q, _ := read("/findings/input?q=a-d007", false); q != 0 {
+		t.Errorf("search a-d007: %d items, want none", q)
 	}
 	e.inv.mu.Lock()
-	a := e.inv.assets["a-cam"]
-	a.Approved = true
-	e.inv.assets["a-cam"] = a
+	for i := range n - 1 {
+		id := fmt.Sprintf("a-d%03d", i)
+		a := e.inv.assets[id]
+		a.Approved = true
+		e.inv.assets[id] = a
+	}
 	e.inv.mu.Unlock()
-	if ids, _ := notAdded(); !slices.Equal(ids, []string{"device:a-new"}) {
-		t.Fatalf("after cam-02 was added: %v", ids)
+	if items, _, _ := read("/findings/input?limit=200", false); items[len(items)-1].Kind != "devices_not_added" || items[len(items)-1].Count != 1 {
+		t.Fatalf("one left: last item %+v", items[len(items)-1])
 	}
 	e.inv.mu.Lock()
-	e.inv.ignored["a-new"] = true
-	delete(e.inv.match, "a-new")
+	e.inv.ignored["a-d299"] = true
+	delete(e.inv.match, "a-d299")
 	e.inv.mu.Unlock()
-	if ids, _ := notAdded(); len(ids) != 0 {
-		t.Fatalf("after printer-07 was ignored: %v", ids)
+	if items, total, _ := read("/findings/input?limit=200", false); total != before || slices.ContainsFunc(items, func(it item) bool { return it.Kind == "devices_not_added" }) {
+		t.Fatalf("none left: %d items, %+v", total, items)
 	}
 }

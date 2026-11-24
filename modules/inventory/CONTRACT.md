@@ -202,7 +202,7 @@ and to the feeds events (re-match: `feeds.vuln.new_kev`, `feeds.vuln.updated`, `
 
 - **Depends on**: `core`, `feeds` (the `KEV` port for matching and the catalogue; with feeds off the catalogue uses
   `content/catalog/kev-products.json` and matches nothing). Optional: agent-intake (`WazuhAgentAddresses`), honeypot (`DecoyIPs`), findings (`DeviceStatuses`).
-- **Used by** (adapters in `cmd/vedette`): findings (`MatchInput`, `SoftwareLines`, `DeviceRefs`, `AssetIDs`), sensor-active
+- **Used by** (adapters in `cmd/vedette`): findings (`MatchInput`, `SoftwareLines`, `DeviceRefs`, `AssetIDs`, `ToReviewIDs`), sensor-active
   (`ScanPolicy`, `AddressMap`, `KnownMACs`), scan (`VulnScanPolicy`, `Checks`), feeds (`AddManualDevice`,
   `DevicesRunning`), agent-intake (`ApproveEnrolled`, `AgentDevice`), the selfcheck (`ReadIgnoredIDs`, `ReadDeviceIDs` on its read-only handle), response, ai and logs (`DevicesOfKind`), reports, ai,
   honeypot and the exposure gateway (`AllDevices`), notify and audit names (`DeviceRefs`), core setup (`SetupScope`), the reach

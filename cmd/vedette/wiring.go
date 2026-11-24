@@ -225,6 +225,11 @@ func (a findingsInventory) AssetIDs(ctx context.Context) ([]string, error) {
 	return a.inv.AssetIDs(ctx)
 }
 
+// ToReviewIDs lists the devices of To review for findings' Needs your input (inventory.ToReviewIDs).
+func (a findingsInventory) ToReviewIDs(ctx context.Context) ([]string, error) {
+	return a.inv.ToReviewIDs(ctx)
+}
+
 // Lines names software lines for findings' lists (inventory.LineRefs).
 func (a findingsInventory) Lines(ctx context.Context, ids []string) (map[string]findings.Line, error) {
 	refs, err := a.inv.LineRefs(ctx, ids)

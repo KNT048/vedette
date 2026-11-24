@@ -322,7 +322,7 @@ const scanInfo = (a: Asset) => ({
 /** INV-49: a private (randomised) Wi-Fi address: the locally administered bit is set and the prefix is not a stable virtual one (QEMU/KVM, Docker, VirtualBox). */
 export const isPrivateMac = (mac: string | null) => !!mac && mac.length === 17 && (parseInt(mac.slice(0, 2), 16) & 2) !== 0 && !['52:54:00', '02:42', '0a:00:27'].some((p) => mac.toLowerCase().startsWith(p))
 /** INV-49: not approved but held out of To review: a private-address device with no open service that has not stayed past a day. */
-const isQuiet = (a: Asset) => !a.approved && a.origin === 'discovered' && a.id !== BOX_ID && !metaStore.get()[a.id]?.suspicious && !metaStore.get()[a.id]?.ignored_at && isPrivateMac(a.mac)
+export const isQuiet = (a: Asset) => !a.approved && a.origin === 'discovered' && a.id !== BOX_ID && !metaStore.get()[a.id]?.suspicious && !metaStore.get()[a.id]?.ignored_at && isPrivateMac(a.mac)
   && a.services.length === 0 && new Date(a.last_seen).getTime() - new Date(a.first_seen).getTime() <= 24 * 3600_000
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown. */
 const live = (a: Asset) => ({ ...a, private_mac: isPrivateMac(a.mac), quiet: isQuiet(a), name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null, os: a.os && osGuess(a.os) ? { ...a.os, basis: 'guess' as const } : a.os })

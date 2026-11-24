@@ -122,6 +122,9 @@ type Inventory interface {
 	// IgnoredIDs returns the devices a person ignored (inventory INV-38), with no cap; any read error is an error. They are
 	// not in AssetIDs: reconcile closes their open findings and never treats their findings as orphaned.
 	IgnoredIDs(ctx context.Context) ([]string, error)
+	// ToReviewIDs returns the devices of the Devices list's To review, with no cap: not added yet, not quiet, not ignored, never the
+	// box. Needs your input counts the ones with no open finding as one grouped card that opens that list.
+	ToReviewIDs(ctx context.Context) ([]string, error)
 	// IsIgnored says whether a person ignored the device; false when it does not exist. Asked inside a write.
 	IsIgnored(ctx context.Context, assetID string) (bool, error)
 	// EffectiveSoftware returns the device's software as one row per software, the strongest source's reading (inventory INV-50):

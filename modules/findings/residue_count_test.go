@@ -151,8 +151,8 @@ func (e *env) cvesOpen(t *testing.T) []string {
 //
 // After: one question per DSM line for the three ("the vendor names fixes only on newer releases"), the ESXi exact-release questions
 // worded as what they are (listed releases, none of them this one), the two with truly no version kept as they were, and one item for
-// the firewall a person added; the firewall nobody added is the
-// Add device / Ignore card (every device not added yet is one, findings or not). The findings are the same (no new false negative): the CVE VMware fixed in
+// the firewall a person added; the firewall nobody added, which has no finding, is counted in the one card of the devices not added
+// yet with no open finding. The findings are the same (no new false negative): the CVE VMware fixed in
 // 8.0 Update 3d is a finding on both hosts, the DSM CVE of the device's own line is a finding, the line DSM says is not hit is nothing.
 func TestQueue_Count_ResidueByKindAndCause(t *testing.T) {
 	t.Parallel()
@@ -165,7 +165,7 @@ func TestQueue_Count_ResidueByKindAndCause(t *testing.T) {
 		"no_range_data / " + causeNoVersion:           2,
 		"older_line / " + causeOlderDSM + " (3 CVEs)": 1,
 		"device_unchecked / " + causeFirewall:         1,
-		"device_not_added":                            1, // the firewall nobody added: Add device / Ignore
+		"devices_not_added":                           1, // the firewall nobody added (no finding): the grouped card
 		"unconfirmed":                                 2, // the exploited CVE on both hosts: a finding to confirm
 	}
 	if !maps.Equal(items, want) {

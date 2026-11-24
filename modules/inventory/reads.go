@@ -254,6 +254,28 @@ func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err err
 	return total, pending, nil
 }
 
+// ToReviewIDs is the id of every device in To review (toReviewSQL: not approved, not quiet), ignored devices and the box left out,
+// ordered by id, with no cap: findings' Needs your input counts the ones with no open finding as one card that opens To review.
+func (s *Service) ToReviewIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id FROM inv_asset a WHERE a.ignored_at IS NULL AND a.is_box = 0 AND `+toReviewSQL+` ORDER BY a.id`)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read the devices to review: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("inventory: read the devices to review: %w", err)
+		}
+		out = append(out, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read the devices to review: %w", err)
+	}
+	return out, nil
+}
+
 // filtered reads the devices f keeps (limit 0 = all), newest first, each with its finding count, summary and, when withSources, its
 // sources (a source filter reads them in any case) and, when withRisk, its risk marker (a risk filter needs withRisk); the box is
 // marked like any device (loadDevices has it always just seen). riskOK is false when the markers could not be read: the rows have none and a risk filter is not

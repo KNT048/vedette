@@ -54322,9 +54322,8 @@
                               },
                               "findings": {
                                 "type": "integer",
-                                "minimum": 0,
-                                "maximum": 9007199254740991,
-                                "description": "Its open findings; 0 for a device nothing is matched on yet"
+                                "minimum": 1,
+                                "maximum": 9007199254740991
                               }
                             },
                             "required": [
@@ -54335,7 +54334,34 @@
                               "findings"
                             ],
                             "additionalProperties": false,
-                            "description": "A device nobody added yet, with or without open findings (the ones with findings first): Add device (POST /inventory/devices/{id}/approve) or Ignore (POST /inventory/devices/{id}/ignore)"
+                            "description": "A device nobody added has open findings: Add device (POST /inventory/devices/{id}/approve) or Ignore (POST /inventory/devices/{id}/ignore)"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "const": "devices_not_added"
+                              },
+                              "id": {
+                                "type": "string",
+                                "const": "devices_not_added",
+                                "description": "The item"
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991,
+                                "description": "Devices in the Devices list's To review that have no open finding"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "id",
+                              "count"
+                            ],
+                            "additionalProperties": false,
+                            "description": "One card for every device nobody added yet that has no open finding, after the unconfirmed findings and the questions; it counts as one item. Review opens the Devices list's To review (/devices?tab=review), where each is added or ignored. Not in a queue read for one device or by a search"
                           },
                           {
                             "type": "object",
@@ -55064,7 +55090,7 @@
                           }
                         ]
                       },
-                      "description": "Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting; an item leaves the moment it is answered or stops being true"
+                      "description": "Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting, then the one card of the devices not added yet with no open finding; an item leaves the moment it is answered or stops being true"
                     },
                     "total": {
                       "type": "integer",

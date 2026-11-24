@@ -173,14 +173,19 @@ describe('Findings: Needs your input', () => {
   it('a device not added yet is in the queue with Add device, and leaves it once added', async () => {
     renderApp('/findings?tab=input')
     const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
-    // every device nobody added is a card, findings or not: the ones with findings first, then the rest with "no open finding"
-    const adds = await within(table).findAllByRole('button', { name: /^Add device / }, T)
-    expect(adds.length).toBeGreaterThan(1)
-    expect(within(table).getAllByText('Nobody added this device yet. It has no open finding.').length).toBeGreaterThan(0)
-    const add = adds[0]!
+    const add = await within(table).findByRole('button', { name: /^Add device / }, T)
     const name = add.getAttribute('aria-label')!.replace('Add device ', '')
     await userEvent.click(add)
     await waitFor(() => expect(within(table).queryByRole('button', { name: `Add device ${name}` })).toBeNull(), T)
+  })
+
+  it('the devices not added yet with no open finding are one card, last, whose Review opens the Devices list To review', async () => {
+    renderApp('/findings?tab=input')
+    const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
+    const words = await within(table).findByText(/^\d+ devices? not added yet with no open finding\.$/, {}, T)
+    const rows = within(table).getAllByRole('row')
+    expect(rows[rows.length - 1]).toContainElement(words)
+    expect(within(table).getByRole('link', { name: 'Review' })).toHaveAttribute('href', '/devices?tab=review')
   })
 
   it('an urgent finding not confirmed yet: Run the safe check first when one exists, Confirm vulnerability, Not affected…', async () => {

@@ -74,6 +74,20 @@ func (f *fakeInv) IgnoredIDs(context.Context) ([]string, error) {
 	return slices.Sorted(maps.Keys(f.ignored)), nil
 }
 
+// ToReviewIDs is the devices the matcher can read that nobody added, ignored or is the box.
+func (f *fakeInv) ToReviewIDs(context.Context) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []string
+	for id := range f.match {
+		if a, ok := f.assets[id]; ok && !a.Approved && !a.Box && !a.Ignored && !f.ignored[id] {
+			out = append(out, id)
+		}
+	}
+	slices.Sort(out)
+	return out, nil
+}
+
 func (f *fakeInv) IsIgnored(_ context.Context, id string) (bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

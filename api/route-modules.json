@@ -226,6 +226,8 @@
   "POST /core/data/key": "core",
   "POST /core/data/purge": "core",
   "POST /core/data/restore": "core",
+  "POST /core/data/restore/file": "core",
+  "POST /core/data/restore/upload": "core",
   "POST /core/mcp/tokens": "mcp-server",
   "POST /core/network/box-address/forget": "host",
   "POST /core/network/management/confirm": "host",

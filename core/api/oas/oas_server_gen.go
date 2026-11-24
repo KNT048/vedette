@@ -692,6 +692,36 @@ type Handler interface {
 	//
 	// POST /core/data/restore
 	CorePostCoreDataRestore(ctx context.Context, req *CorePostCoreDataRestoreReq) (*CorePostCoreDataRestoreAccepted, error)
+	// CorePostCoreDataRestoreFile implements core_post_core_data_restore_file operation.
+	//
+	// Restore from a file, step 2: restore the uploaded backup as this box's data. As a restore of a kept
+	// backup: 409 confirm_required without confirm_data_loss: true, then the current password (400
+	// wrong_password, counted like a failed sign-in, 429 rate_limited) and, when two-step sign-in is on, a
+	// fresh code (400 code_required / invalid_code); core first takes a copy of the current data, kept as
+	// a pre_restore backup and put back by the helper when the restored data does not start. The saved
+	// secrets come back with the key inside a protected file (key_included), with this box's own key when
+	// it opens them (box_key), or with key (the key file of the box the backup comes from, base64: 400
+	// invalid_key when not 32 bytes, 400 wrong_key when it opens none of them); otherwise
+	// confirm_without_key: true is required (409 confirm_required). Everything is checked before anything
+	// changes. 404 upload_unknown when the upload is gone (older than an hour); 409 busy, low_disk,
+	// schema_newer, not_appliance as for a restore.
+	//
+	// POST /core/data/restore/file
+	CorePostCoreDataRestoreFile(ctx context.Context, req *CorePostCoreDataRestoreFileReq) (*CorePostCoreDataRestoreFileAccepted, error)
+	// CorePostCoreDataRestoreUpload implements core_post_core_data_restore_upload operation.
+	//
+	// Restore from a file, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz, or the
+	// password-protected .tar.gz.age with X-Backup-Password, as the body). The box checks the file as the
+	// first-run upload does (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up;
+	// 409 schema_newer: made by a newer Vedette), keeps it for an hour (one upload at a time: a new one
+	// replaces it) and says what it holds and whether the saved secrets come back (key_included: the key
+	// inside the protected file opens them; box_key: this box's own key opens them). Nothing on the box
+	// changes. A wrong password is 400 wrong_backup_password, counted like a wrong setup code (429
+	// rate_limited); a protected file without one 409 backup_password_required. 409 busy while another
+	// upload is checked or a restore or update runs, 409 low_disk, 409 not_appliance, 413 over 4 GiB.
+	//
+	// POST /core/data/restore/upload
+	CorePostCoreDataRestoreUpload(ctx context.Context, req CorePostCoreDataRestoreUploadReq, params CorePostCoreDataRestoreUploadParams) (*CorePostCoreDataRestoreUploadOK, error)
 	// CorePostCoreMcpTokens implements core_post_core_mcp_tokens operation.
 	//
 	// Create a read-only token by scope; returns the full token once. At most 10 tokens (400 too_many).

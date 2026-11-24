@@ -63,7 +63,7 @@ const (
 
 // BodyLimits is the request cap of the backup upload above the server default (operationId -> bytes). cmd/vedette hands it
 // to server.Config through moduleWiring.BodyLimits.
-var BodyLimits = map[string]int64{"core_post_core_setup_restore_upload": maxUploadBytes}
+var BodyLimits = map[string]int64{"core_post_core_setup_restore_upload": maxUploadBytes, "core_post_core_data_restore_upload": maxUploadBytes}
 
 var sqliteMagic = []byte("SQLite format 3\x00")
 
@@ -503,29 +503,43 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 	if err := h.setup.CheckSetupCode(ctx, params.XSetupCode.Or("")); err != nil {
 		return nil, err
 	}
-	if x, ok := server.ExchangeFrom(ctx); ok {
-		if err := http.NewResponseController(x.W).SetReadDeadline(time.Now().Add(uploadTimeout)); err != nil { // the server's 60 s is for requests, not files
-			h.log.WarnContext(ctx, "core: the upload keeps the server's read timeout; a large backup may be cut", "error", err)
-		}
-	}
+	h.longRead(ctx)
 	live, err := h.liveSchema(ctx)
 	if err != nil {
 		return nil, err
 	}
-	data, key, err := h.openBackupUpload(ctx, req.Data, params.XBackupPassword.Or(""))
+	up, ins, err := h.stageChecked(ctx, req.Data, params.XBackupPassword.Or(""), live)
 	if err != nil {
 		return nil, err
+	}
+	c := caller{Principal: server.Principal{Email: setupActor}}
+	if err := h.recordUpload(ctx, c, false, up); err != nil {
+		return nil, err
+	}
+	return &oas.CorePostCoreSetupRestoreUploadOK{
+		ID: up.ID, CreatedAt: up.meta.CreatedAt, Org: ins.org, Users: ins.users, TwofaUsers: ins.twofaUsers,
+		AdminsWithoutKey: ins.adminsWithoutKey, Secrets: ins.secrets, KeyIncluded: up.key != nil,
+	}, nil
+}
+
+// stageChecked reads an uploaded file (plain, or password-protected with the password of X-Backup-Password) into a staged
+// upload and checks it against live (inspectBackup); the key a protected file carried is kept only when it opens some of the
+// backup's secrets. The box keeps one upload at a time: an older one is removed first. A refusal leaves nothing behind.
+func (h *OSHandlers) stageChecked(ctx context.Context, body io.Reader, passwordHeader string, live liveSchema) (upload, inspection, error) {
+	data, key, err := h.openBackupUpload(ctx, body, passwordHeader)
+	if err != nil {
+		return upload{}, inspection{}, err
 	}
 	defer clear(key)
 	h.snaps.dropUploads()
 	up, err := h.snaps.stageUpload(ctx, data)
 	if err != nil {
-		return nil, err
+		return upload{}, inspection{}, err
 	}
 	ins, err := inspectBackup(ctx, up.db(), live, key, h.schemaObjects)
 	if err != nil {
 		up.remove()
-		return nil, err
+		return upload{}, inspection{}, err
 	}
 	if key != nil && ins.secrets > 0 && ins.opened > 0 {
 		// The key a protected file carries is checked as a key file is in step 2: it is kept only when it opens some of the
@@ -534,20 +548,21 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 		// says what is lost and takes a key file as for a file without one. An unchecked key never becomes the master key.
 		if err := up.keepKey(key); err != nil {
 			up.remove()
-			return nil, h.snapshotFailure(ctx, err)
+			return upload{}, inspection{}, h.snapshotFailure(ctx, err)
 		}
 	}
+	return up, ins, nil
+}
+
+// recordUpload removes the staged upload after the hour step 2 accepts it for and audits data.restore_upload.
+func (h *OSHandlers) recordUpload(ctx context.Context, c caller, admin bool, up upload) error {
 	id := up.ID
 	time.AfterFunc(uploadMaxAge, func() { h.snaps.dropUpload(id) }) // not kept past the hour step 2 accepts it for
-	c := caller{Principal: server.Principal{Email: setupActor}}
-	if err := h.record(ctx, c, false, "data.restore_upload", "backup", "backup of "+up.meta.CreatedAt.Format(time.RFC3339)); err != nil {
+	if err := h.record(ctx, c, admin, "data.restore_upload", "backup", "backup of "+up.meta.CreatedAt.Format(time.RFC3339)); err != nil {
 		up.remove()
-		return nil, err
+		return err
 	}
-	return &oas.CorePostCoreSetupRestoreUploadOK{
-		ID: up.ID, CreatedAt: up.meta.CreatedAt, Org: ins.org, Users: ins.users, TwofaUsers: ins.twofaUsers,
-		AdminsWithoutKey: ins.adminsWithoutKey, Secrets: ins.secrets, KeyIncluded: up.key != nil,
-	}, nil
+	return nil
 }
 
 // openBackupUpload is the archive of an upload: the body itself, or a password-protected file (age) opened with the password
@@ -599,90 +614,105 @@ func (h *OSHandlers) openBackupUpload(ctx context.Context, body io.Reader, heade
 
 // ---- POST /core/setup/restore ----
 
-// CorePostCoreSetupRestore implements POST /core/setup/restore (public, setup code, 202): step 2. Everything that can be
-// refused is refused before the host is asked: the key's shape and that it opens the backup's secrets, the confirmation
-// without a key, an update or restore running. Then the host imports the upload and the restore starts (startRestore).
-func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.CorePostCoreSetupRestoreReq) (*oas.CorePostCoreSetupRestoreAccepted, error) {
-	if err := h.needHost(); err != nil {
-		return nil, err
+// uploadKey is the key a staged upload is restored with, chosen and checked by chooseUploadKey before anything changes.
+type uploadKey struct {
+	key    []byte // sealed with the snapshot, so the host imports the backup with it; nil = the box keeps its own key
+	words  string // for the data.restore_import detail: "with the key", "with this box's key", ...
+	schema string // the backup's migration versions ("module=version,...")
+}
+
+// keyFile is the key file of a request (base64), nil when none was given; 400 invalid_key when it is not 32 bytes.
+func keyFile(keyB64 string) ([]byte, error) {
+	k := strings.TrimSpace(keyB64)
+	if k == "" {
+		return nil, nil
 	}
-	if !h.setup.firstRun.TryLock() { // held to the end: setup cannot finish while this imports and starts the restore
-		return nil, firstRunBusy()
+	b, err := base64.StdEncoding.DecodeString(k)
+	if err != nil || len(b) != secrets.KeySize {
+		return nil, apierr.New(400, codeInvalidKey, "This is not a Vedette decryption key file: the key file is the 32-byte file that Download decryption key saved.")
 	}
-	defer h.setup.firstRun.Unlock()
-	if err := h.setup.CheckSetupCode(ctx, req.SetupCode); err != nil {
-		return nil, err
-	}
-	if !req.AcceptTerms.Or(false) { // a new operator takes the box over: the same terms as setup
-		return nil, termsNotAccepted()
-	}
-	var key []byte
-	if k := strings.TrimSpace(req.Key.Or("")); k != "" {
-		b, err := base64.StdEncoding.DecodeString(k)
-		if err != nil || len(b) != secrets.KeySize {
-			return nil, apierr.New(400, codeInvalidKey, "This is not a Vedette decryption key file: the key file is the 32-byte file that Download decryption key saved.")
-		}
-		key = b
-	}
-	up, err := h.snaps.openUpload(req.UploadID)
-	if err != nil {
-		return nil, err
-	}
+	return b, nil
+}
+
+// chooseUploadKey checks the key a staged upload is restored with, before the host is asked anything: the key file of the
+// request (given, from keyFile: 400 wrong_key when it opens none of the backup's secrets), else the key
+// the protected file carried (key_included), else, with ownKey, this box's own key when it opens them (a backup of this box:
+// the box keeps its key). Without any of them a backup with secrets needs confirmWithoutKey (409 confirm_required). A backup
+// with no secret has nothing to check a key against: an unchecked file never becomes the box's master key, so none is used.
+// (A key that opens some secrets but not all is right: rows a keyless restore left, like an old box CA, stay sealed under
+// another key by design.)
+func (h *OSHandlers) chooseUploadKey(ctx context.Context, up upload, given []byte, confirmWithoutKey, ownKey bool) (uploadKey, error) {
 	live, err := h.liveSchema(ctx)
 	if err != nil {
-		return nil, err
+		return uploadKey{}, err
 	}
-	carried := key == nil && up.key != nil // a key file given in the request is checked as before; without one, the backup's own
-	if carried {
-		key = up.key
+	check := func(key []byte) (inspection, error) { return inspectBackup(ctx, up.db(), live, key, h.schemaObjects) }
+	switch {
+	case given != nil:
+		ins, err := check(given)
+		switch {
+		case err != nil:
+			return uploadKey{}, err
+		case ins.secrets == 0:
+			return uploadKey{words: "without the key (the backup holds no saved secret)", schema: ins.schema}, nil
+		case ins.opened == 0:
+			return uploadKey{}, apierr.New(400, codeWrongKey, "This key does not open the saved secrets of this backup. Choose the key file of the box the backup comes from.")
+		}
+		return uploadKey{key: given, words: "with the key", schema: ins.schema}, nil
+	case up.key != nil:
+		ins, err := check(up.key)
+		if err != nil {
+			return uploadKey{}, err
+		}
+		if ins.secrets == 0 {
+			return uploadKey{words: "without the key (the backup holds no saved secret)", schema: ins.schema}, nil
+		}
+		return uploadKey{key: up.key, words: "with the key inside the protected backup", schema: ins.schema}, nil
 	}
-	ins, err := inspectBackup(ctx, up.db(), live, key, h.schemaObjects)
+	ins, err := check(nil)
 	if err != nil {
-		return nil, err
+		return uploadKey{}, err
 	}
 	if ins.secrets == 0 {
-		// Nothing to check the key against: an unchecked file never becomes the box's master key. The box keeps its own and
-		// the page says so. (A key that opens some secrets but not all is right: rows a keyless restore left, like an old box
-		// CA, stay sealed under another key by design.)
-		key = nil
+		return uploadKey{words: "without the key (the backup holds no saved secret)", schema: ins.schema}, nil
 	}
-	switch {
-	case key != nil && ins.secrets > 0 && ins.opened == 0:
-		return nil, apierr.New(400, codeWrongKey, "This key does not open the saved secrets of this backup. Choose the key file of the box the backup comes from.")
-	case key == nil && ins.secrets > 0 && !req.ConfirmWithoutKey.Or(false):
-		return nil, apierr.New(409, codeConfirmReq, "Without the decryption key the saved secrets are lost and users with two-step sign-in cannot sign in. Add the key file, or confirm to restore without it.")
+	if ownKey && h.boxKeyOpens(ctx, up, live) {
+		return uploadKey{words: "with this box's key", schema: ins.schema}, nil
 	}
-	if done, err := h.setup.SetupDone(ctx); err != nil { // the first-run lock keeps setup from finishing; said again before the import
-		return nil, err
-	} else if done {
-		return nil, alreadySetup()
+	if !confirmWithoutKey {
+		return uploadKey{}, apierr.New(409, codeConfirmReq, "Without the decryption key the saved secrets are lost and users with two-step sign-in cannot sign in. Add the key file, or confirm to restore without it.")
 	}
-	if h.busy(ctx) || h.restoreRunning(ctx) { // asked again under lockRestore below; refused here before the host copies the upload
-		return nil, apierr.New(409, codeBusy, "An update or a restore is running. Wait for it to finish, then restore.")
+	return uploadKey{words: "without the key", schema: ins.schema}, nil
+}
+
+// boxKeyOpens reports whether this box's own key opens some of the staged backup's secrets: a backup of this box restores
+// with them and the box keeps its key. A key file that cannot be read opens nothing.
+func (h *OSHandlers) boxKeyOpens(ctx context.Context, up upload, live liveSchema) bool {
+	own, err := h.loadKey()
+	if err != nil {
+		h.log.WarnContext(ctx, "core: the key file cannot be read to check an uploaded backup", "error", err) // the error names the path, never the bytes
+		return false
 	}
-	if err := h.snaps.seal(up, key, ins.schema); err != nil {
+	defer clear(own)
+	ins, err := inspectBackup(ctx, up.db(), live, own, h.schemaObjects)
+	return err == nil && ins.secrets > 0 && ins.opened > 0
+}
+
+// importUpload has the host import the staged upload as a manual backup (with the chosen key, if any) and answers it, ready
+// for startRestore. The upload is removed once the host copied it or the import failed; one the host may still be reading
+// goes after the hour. extra ends the data.restore_import detail.
+func (h *OSHandlers) importUpload(ctx context.Context, c caller, admin bool, up upload, k uploadKey, extra string) (api.Backup, error) {
+	if err := h.snaps.seal(up, k.key, k.schema); err != nil {
 		up.remove()
-		return nil, h.snapshotFailure(ctx, err)
+		return api.Backup{}, h.snapshotFailure(ctx, err)
 	}
-	c := caller{Principal: server.Principal{Email: setupActor}}
 	b := api.Backup{CreatedAt: up.meta.CreatedAt}
 	keep := false
-	detail := "backup of " + up.meta.CreatedAt.Format(time.RFC3339) + ", without the key"
-	switch {
-	case carried:
-		detail = "backup of " + up.meta.CreatedAt.Format(time.RFC3339) + ", with the key inside the protected backup"
-	case key != nil:
-		detail = "backup of " + up.meta.CreatedAt.Format(time.RFC3339) + ", with the key"
-	}
-	// The acceptance is said here, in the fresh database the pre_restore backup keeps; the restored database gets its
-	// terms.accepted row from the marker file when the run is settled there (settleRestore, settleFirstRunRestore).
-	accepted := firstRunTerms{Version: vedette.TermsVersion(), At: h.now().UTC()}
-	detail += ", terms of use " + accepted.Version + " accepted"
-	err = h.act(ctx, c, false, "data.restore_import", "backup", detail, func(id, actor string) error {
-		// labelRE of the host: letters, digits, space, : and - (no comma). This runs before first-run setup, when the restored
-		// organization's zone is not known yet (a fresh box has only the default), so the time is UTC and says so.
+	err := h.act(ctx, c, admin, "data.restore_import", "backup", "backup of "+up.meta.CreatedAt.Format(time.RFC3339)+", "+k.words+extra, func(id, actor string) error {
+		// labelRE of the host: letters, digits, space, : and - (no comma). Before first-run setup the restored organization's
+		// zone is not known yet (a fresh box has only the default), so the time is UTC and says so.
 		label := "Uploaded backup of " + orgtime.ISODay(up.meta.CreatedAt, time.UTC) + " " + orgtime.ClockZone(up.meta.CreatedAt, time.UTC)
-		run, kept, err := h.startBackup(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: key != nil, Label: label, Snapshot: up.ID}, id, actor)
+		run, kept, err := h.startBackup(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: k.key != nil, Label: label, Snapshot: up.ID}, id, actor)
 		if err != nil {
 			keep = kept // the host may be reading it: the start-up sweep removes it later
 			return err
@@ -703,6 +733,54 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	} else {
 		up.remove() // the host copied it, or the import failed: either way an upload is not used twice
 	}
+	if err != nil {
+		return api.Backup{}, err
+	}
+	return b, nil
+}
+
+// CorePostCoreSetupRestore implements POST /core/setup/restore (public, setup code, 202): step 2. Everything that can be
+// refused is refused before the host is asked: the key's shape and that it opens the backup's secrets, the confirmation
+// without a key, an update or restore running. Then the host imports the upload and the restore starts (startRestore).
+func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.CorePostCoreSetupRestoreReq) (*oas.CorePostCoreSetupRestoreAccepted, error) {
+	if err := h.needHost(); err != nil {
+		return nil, err
+	}
+	if !h.setup.firstRun.TryLock() { // held to the end: setup cannot finish while this imports and starts the restore
+		return nil, firstRunBusy()
+	}
+	defer h.setup.firstRun.Unlock()
+	if err := h.setup.CheckSetupCode(ctx, req.SetupCode); err != nil {
+		return nil, err
+	}
+	if !req.AcceptTerms.Or(false) { // a new operator takes the box over: the same terms as setup
+		return nil, termsNotAccepted()
+	}
+	given, err := keyFile(req.Key.Or(""))
+	if err != nil {
+		return nil, err
+	}
+	up, err := h.snaps.openUpload(req.UploadID)
+	if err != nil {
+		return nil, err
+	}
+	k, err := h.chooseUploadKey(ctx, up, given, req.ConfirmWithoutKey.Or(false), false)
+	if err != nil {
+		return nil, err
+	}
+	if done, err := h.setup.SetupDone(ctx); err != nil { // the first-run lock keeps setup from finishing; said again before the import
+		return nil, err
+	} else if done {
+		return nil, alreadySetup()
+	}
+	if h.busy(ctx) || h.restoreRunning(ctx) { // asked again under lockRestore below; refused here before the host copies the upload
+		return nil, apierr.New(409, codeBusy, "An update or a restore is running. Wait for it to finish, then restore.")
+	}
+	c := caller{Principal: server.Principal{Email: setupActor}}
+	// The acceptance is said here, in the fresh database the pre_restore backup keeps; the restored database gets its
+	// terms.accepted row from the marker file when the run is settled there (settleRestore, settleRestoreAtStart).
+	accepted := firstRunTerms{Version: vedette.TermsVersion(), At: h.now().UTC()}
+	b, err := h.importUpload(ctx, c, false, up, k, ", terms of use "+accepted.Version+" accepted")
 	if err != nil {
 		return nil, err
 	}
@@ -785,30 +863,18 @@ func (h *OSHandlers) dropTermsMarker() {
 	}
 }
 
-// settleFirstRunRestore runs once at start-up, only when a first-run restore left its marker: it settles the run into the
-// database core now runs on (the restored one, or the fresh one put back), so the operator's acceptance is recorded right
-// after the restart whoever opens which page. One host read, bounded; an error waits for the next start or the next read
-// of Settings -> Data, never a retry per request. A run the host still checks is followed to its end.
-func (h *OSHandlers) settleFirstRunRestore() {
+// firstRunRestorePending reports whether a first-run restore left its terms marker, young enough to settle; an older one
+// is dropped (its content is checked when it is used).
+func (h *OSHandlers) firstRunRestorePending() bool {
 	fi, err := os.Stat(h.termsMarker)
 	if err != nil {
-		return
+		return false
 	}
-	if time.Since(fi.ModTime()) > termsMarkerMaxAge { // the file's own age: its content is checked when it is used
+	if time.Since(fi.ModTime()) > termsMarkerMaxAge { // the file's own age
 		h.dropTermsMarker()
-		return
+		return false
 	}
-	ctx, cancel := context.WithTimeout(h.ctx, 10*time.Second)
-	defer cancel()
-	rec, err := h.restoreLatest(ctx)
-	if err != nil {
-		h.log.Warn("core: could not settle the first-run restore at start", "error", err)
-		return
-	}
-	if rec != nil && rec.Status == "" && rec.User == setupActor {
-		h.wg.Add(1)
-		go h.followRestore(api.Run{RunID: rec.RunID, Command: api.CmdBackupRestore, Status: api.StatusRunning, StartedAt: rec.StartedAt, Actor: rec.User})
-	}
+	return true
 }
 
 // ---- GET /core/setup/restore ----
@@ -838,6 +904,129 @@ func (h *OSHandlers) CoreGetCoreSetupRestore(ctx context.Context) (oas.NilCoreGe
 		out.Error = oas.NewNilString(*v.Error)
 	}
 	return oas.NilCoreGetCoreSetupRestoreOK{Value: out}, nil
+}
+
+// ---- restore from a file on a set-up box: POST /core/data/restore/upload and /core/data/restore/file ----
+
+// fileBusy is the answer while another restore from a file is being checked or imported on this box.
+func fileBusy() *apierr.Error {
+	return apierr.New(409, codeBusy, "Another backup file is being checked or restored. Wait for it to finish.")
+}
+
+// longRead gives the request a read deadline long enough for a large file (the server's 60 s is for requests, not files).
+func (h *OSHandlers) longRead(ctx context.Context) {
+	if x, ok := server.ExchangeFrom(ctx); ok {
+		if err := http.NewResponseController(x.W).SetReadDeadline(time.Now().Add(uploadTimeout)); err != nil {
+			h.log.WarnContext(ctx, "core: the upload keeps the server's read timeout; a large backup may be cut", "error", err)
+		}
+	}
+}
+
+// CorePostCoreDataRestoreUpload implements POST /core/data/restore/upload (admin): step 1 of a restore from a downloaded file
+// on a box that is set up, as the first-run upload (stageChecked: the same file checks, password and carried key) behind an
+// administrator's session instead of the setup code. Nothing on the box changes but the staged upload; box_key says whether
+// this box's own key opens the backup's secrets (a backup of this box), so the page asks for no key file then.
+func (h *OSHandlers) CorePostCoreDataRestoreUpload(ctx context.Context, req oas.CorePostCoreDataRestoreUploadReq, params oas.CorePostCoreDataRestoreUploadParams) (*oas.CorePostCoreDataRestoreUploadOK, error) {
+	c, err := callerOf(ctx, h.auth)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.needHost(); err != nil {
+		return nil, err
+	}
+	if !h.fileMu.TryLock() {
+		return nil, fileBusy()
+	}
+	defer h.fileMu.Unlock()
+	if h.busy(ctx) || h.restoreRunning(ctx) {
+		return nil, apierr.New(409, codeBusy, "An update or a restore is running. Wait for it to finish, then restore.")
+	}
+	h.longRead(ctx)
+	live, err := h.liveSchema(ctx)
+	if err != nil {
+		return nil, err
+	}
+	up, ins, err := h.stageChecked(ctx, req.Data, params.XBackupPassword.Or(""), live)
+	if err != nil {
+		return nil, err
+	}
+	boxKey := up.key == nil && ins.secrets > 0 && h.boxKeyOpens(ctx, up, live)
+	if err := h.recordUpload(ctx, c, true, up); err != nil {
+		return nil, err
+	}
+	return &oas.CorePostCoreDataRestoreUploadOK{
+		ID: up.ID, CreatedAt: up.meta.CreatedAt, Org: ins.org, Users: ins.users, TwofaUsers: ins.twofaUsers,
+		AdminsWithoutKey: ins.adminsWithoutKey, Secrets: ins.secrets, KeyIncluded: up.key != nil, BoxKey: boxKey,
+	}, nil
+}
+
+// CorePostCoreDataRestoreFile implements POST /core/data/restore/file (admin, 202): step 2, the restore of the uploaded file
+// as the restore of a kept backup. Everything that can be refused is refused before anything changes, in this order: the
+// confirmation, the key file's shape, the upload, the key (chooseUploadKey, with this box's own key as a choice), an update
+// or restore running, then the step-up of a restore (the current password, a fresh two-step code). A refusal keeps the
+// upload, so the next try needs no new upload. Then the host imports it (importUpload) and the restore starts
+// (startRestore: the copy of the current data first, kept as pre_restore and put back when the restored data does not start).
+func (h *OSHandlers) CorePostCoreDataRestoreFile(ctx context.Context, req *oas.CorePostCoreDataRestoreFileReq) (*oas.CorePostCoreDataRestoreFileAccepted, error) {
+	c, err := callerOf(ctx, h.auth)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.needHost(); err != nil {
+		return nil, err
+	}
+	if v, ok := req.ConfirmDataLoss.Get(); !ok || !v {
+		return nil, apierr.New(409, codeConfirmReq, "Restoring replaces everything written since the backup. Confirm to go on.")
+	}
+	given, err := keyFile(req.Key.Or(""))
+	if err != nil {
+		return nil, err
+	}
+	if !h.fileMu.TryLock() {
+		return nil, fileBusy()
+	}
+	defer h.fileMu.Unlock()
+	up, err := h.snaps.openUpload(req.UploadID)
+	if err != nil {
+		return nil, err
+	}
+	k, err := h.chooseUploadKey(ctx, up, given, req.ConfirmWithoutKey.Or(false), true)
+	if err != nil {
+		return nil, err
+	}
+	if h.busy(ctx) || h.restoreRunning(ctx) { // asked again under lockRestore below; refused here before the host copies the upload
+		return nil, apierr.New(409, codeBusy, "An update or a restore is running. Wait for it to finish, then restore.")
+	}
+	// Step-up as for the restore of a kept backup: the current password, counted against the re-auth limiter, then a fresh
+	// two-step code when it is on.
+	if err := h.auth.VerifyOwnPassword(ctx, c.ID, req.Password, "Wrong password. The password is needed to restore a backup."); err != nil {
+		return nil, err
+	}
+	if u, err := h.auth.GetUser(ctx, c.ID); err != nil {
+		return nil, fmt.Errorf("core: read user: %w", err)
+	} else if u.TwofaMethod != "" {
+		loc, err := h.location(ctx)
+		if err != nil {
+			h.log.WarnContext(ctx, "core: reading the organization time zone failed; the restore summary uses UTC", "error", err)
+			loc = time.UTC
+		}
+		if _, err := h.auth.VerifyTwoStep(ctx, c.ID, req.Code.Or(""), "core.data_restore", "Restore the backup file from "+orgtime.StampZone(up.meta.CreatedAt, loc)); err != nil {
+			return nil, err
+		}
+	}
+	b, err := h.importUpload(ctx, c, true, up, k, "")
+	if err != nil {
+		return nil, err
+	}
+	unlock, err := h.lockRestore(ctx) // only now: the import may wait up to 16 minutes, and an update must answer busy meanwhile, not wait
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	rec, err := h.startRestore(ctx, c, true, b)
+	if err != nil {
+		return nil, err
+	}
+	return asOAS[oas.CorePostCoreDataRestoreFileAccepted](rec.view())
 }
 
 // ---- POST /core/data/key ----

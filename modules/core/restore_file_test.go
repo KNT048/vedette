@@ -186,3 +186,33 @@ func TestRestoreFromAFileNeedsTheTwoStepCode(t *testing.T) {
 		t.Fatalf("calls %d, imported %v", f.calls, e.imported())
 	}
 }
+
+// A restore from a file is recorded in the restored database with the date the file's backup was made, not the moment the
+// host imported it: the host lists the imported copy as made at the import, and the restored database holds nothing of
+// this run, so the record would otherwise say the data of the import moment came back.
+func TestRestoreFromAFileIsRecordedWithTheBackupsDate(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	own := newKey(t)
+	e.setBoxKey(own)
+	up := e.uploadFile(e.admin, backupOf(t, e.backupDB(own)))
+	wantOK(t, up, 200)
+	wantOK(t, e.admin.post("/core/data/restore/file", map[string]any{"upload_id": up.str("id"), "confirm_data_loss": true, "password": authtest.Password}), 202)
+	b := e.imported()
+	if b == nil || b.CreatedAt.Equal(time.Date(2026, 11, 1, 8, 30, 0, 0, time.UTC)) {
+		t.Fatalf("imported = %+v: the host dates the copy at the import", b)
+	}
+	f.mu.Lock()
+	f.backups = append(f.backups, *b) // the host lists the imported copy, dated when it was imported
+	f.mu.Unlock()
+	e.swapIn()
+	e.newHandlers(t, newFollowHost(t, f), 0) // core is back on the restored data; the run is not over yet
+	f.finish(api.StatusSucceeded, api.BackupRestoreResult{RestoredBackupID: b.BackupID, PreRestoreBackupID: "dddd0000dddd0000dddd0000dddd0000"}, "")
+	eventuallyOS(t, "the restore recorded in the restored database", func() bool { return e.count("data.restore_done") == 1 })
+	if d := e.auditDetails("data.restore_done"); len(d) != 1 || !strings.Contains(d[0], "the backup from 1 Nov 2026") {
+		t.Errorf("data.restore_done detail = %q, want the backup's own date", d)
+	}
+	if got := e.admin.get("/core/data/restore/run"); got.str("id") != "rn_restore1" || got.str("status") != "done" || got.str("backup_created_at") != "2026-11-01T08:30:00Z" {
+		t.Fatalf("run = %s", got.Raw)
+	}
+}

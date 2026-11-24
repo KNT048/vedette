@@ -139,6 +139,9 @@ type fakeInv struct {
 	onInScope func()
 	// onPolicy, when set, runs at every ScanPolicy call, outside the lock (a test acting while a scan reads its device's policy).
 	onPolicy func(id string)
+	// afterProtected runs once, right after the next ProtectedIPs read (outside the lock): a test changes a device after a sweep chose
+	// its batch.
+	afterProtected func()
 	// snmpRead and snmpOn are what SNMPKnown answers (move); turnedOn are the devices TurnSNMPOn was called for, and
 	// turnOnErr what it answers.
 	snmpRead, snmpOn []string
@@ -278,8 +281,13 @@ func (f *fakeInv) KnownMACs(context.Context) ([]string, error) {
 
 func (f *fakeInv) ProtectedIPs(context.Context) ([]netip.Addr, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Clone(f.protected), nil
+	out, after := slices.Clone(f.protected), f.afterProtected
+	f.afterProtected = nil
+	f.mu.Unlock()
+	if after != nil {
+		after()
+	}
+	return out, nil
 }
 
 func (f *fakeInv) markedIDs() []string {

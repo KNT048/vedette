@@ -353,6 +353,11 @@ export const InputItem = z.discriminatedUnion('kind', [
     findings: z.number().int().min(1),
   }).describe('A device nobody added has open findings: Add device (POST /inventory/devices/{id}/approve) or Ignore (POST /inventory/devices/{id}/ignore)'),
   z.object({
+    kind: z.literal('devices_not_added'),
+    id: z.literal('devices_not_added').describe('The item'),
+    count: z.number().int().min(1).describe('Devices in the Devices list\'s To review that have no open finding'),
+  }).describe('One card for every device nobody added yet that has no open finding, after the unconfirmed findings and the questions; it counts as one item. Review opens the Devices list\'s To review (/devices?tab=review), where each is added or ignored. Not in a queue read for one device or by a search'),
+  z.object({
     kind: z.literal('device_unchecked'),
     id: z.string().describe('The item'),
     device: DeviceRef,
@@ -387,7 +392,7 @@ export const InputItem = z.discriminatedUnion('kind', [
   }).describe('What Vedette cannot decide without a person'),
 ])
 export const InputList = z.object({
-  items: z.array(InputItem).describe('Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting; an item leaves the moment it is answered or stops being true'),
+  items: z.array(InputItem).describe('Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting, then the one card of the devices not added yet with no open finding; an item leaves the moment it is answered or stops being true'),
   total: z.number().int().min(0).describe('The queue length: the tab count'),
 })
 export const AnsweredQuestion = z.object({

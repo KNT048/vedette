@@ -104903,6 +104903,49 @@ func (s *FindingsGetFindingsInput1DeviceUncheckedDeviceKind) UnmarshalText(data 
 	}
 }
 
+// One card for every device nobody added yet that has no open finding, after the unconfirmed findings
+// and the questions; it counts as one item. Review opens the Devices list's To review
+// (/devices?tab=review), where each is added or ignored. Not in a queue read for one device or by a
+// search.
+// Ref: #/components/schemas/findings_get_findings_input_1_devices_not_added
+type FindingsGetFindingsInput1DevicesNotAdded struct {
+	// Devices in the Devices list's To review that have no open finding.
+	Count int `json:"count"`
+	// The item.
+	ID   string `json:"id"`
+	Kind string `json:"kind"`
+}
+
+// GetCount returns the value of Count.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) GetCount() int {
+	return s.Count
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) GetKind() string {
+	return s.Kind
+}
+
+// SetCount sets the value of Count.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) SetCount(val int) {
+	s.Count = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) SetKind(val string) {
+	s.Kind = val
+}
+
 // What Vedette cannot decide without a person.
 // Ref: #/components/schemas/findings_get_findings_input_1_question
 type FindingsGetFindingsInput1Question struct {
@@ -107188,7 +107231,8 @@ func (s *FindingsGetFindingsInput1UnconfirmedStatus) UnmarshalText(data []byte) 
 
 type FindingsGetFindingsInputOK struct {
 	// Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status,
-	// then questions by CVEs waiting; an item leaves the moment it is answered or stops being true.
+	// then questions by CVEs waiting, then the one card of the devices not added yet with no open finding;
+	// an item leaves the moment it is answered or stops being true.
 	Items []FindingsGetFindingsInputOKItemsItem `json:"items"`
 	// The queue length: the tab count.
 	Total int `json:"total"`
@@ -107219,6 +107263,7 @@ type FindingsGetFindingsInputOKItemsItem struct {
 	// Type selects the active sum variant, switch on this field.
 	Type                                     FindingsGetFindingsInputOKItemsItemType
 	FindingsGetFindingsInput1DeviceNotAdded  FindingsGetFindingsInput1DeviceNotAdded
+	FindingsGetFindingsInput1DevicesNotAdded FindingsGetFindingsInput1DevicesNotAdded
 	FindingsGetFindingsInput1DeviceUnchecked FindingsGetFindingsInput1DeviceUnchecked
 	FindingsGetFindingsInput1Unconfirmed     FindingsGetFindingsInput1Unconfirmed
 	FindingsGetFindingsInput1Question        FindingsGetFindingsInput1Question
@@ -107230,6 +107275,7 @@ type FindingsGetFindingsInputOKItemsItemType string
 // Possible values for FindingsGetFindingsInputOKItemsItemType.
 const (
 	FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem  FindingsGetFindingsInputOKItemsItemType = "device_not_added"
+	FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem FindingsGetFindingsInputOKItemsItemType = "devices_not_added"
 	FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem FindingsGetFindingsInputOKItemsItemType = "device_unchecked"
 	FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInputOKItemsItem     FindingsGetFindingsInputOKItemsItemType = "unconfirmed"
 	FindingsGetFindingsInput1QuestionFindingsGetFindingsInputOKItemsItem        FindingsGetFindingsInputOKItemsItemType = "question"
@@ -107238,6 +107284,11 @@ const (
 // IsFindingsGetFindingsInput1DeviceNotAdded reports whether FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DeviceNotAdded.
 func (s FindingsGetFindingsInputOKItemsItem) IsFindingsGetFindingsInput1DeviceNotAdded() bool {
 	return s.Type == FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem
+}
+
+// IsFindingsGetFindingsInput1DevicesNotAdded reports whether FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DevicesNotAdded.
+func (s FindingsGetFindingsInputOKItemsItem) IsFindingsGetFindingsInput1DevicesNotAdded() bool {
+	return s.Type == FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem
 }
 
 // IsFindingsGetFindingsInput1DeviceUnchecked reports whether FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DeviceUnchecked.
@@ -107273,6 +107324,27 @@ func (s FindingsGetFindingsInputOKItemsItem) GetFindingsGetFindingsInput1DeviceN
 func NewFindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem(v FindingsGetFindingsInput1DeviceNotAdded) FindingsGetFindingsInputOKItemsItem {
 	var s FindingsGetFindingsInputOKItemsItem
 	s.SetFindingsGetFindingsInput1DeviceNotAdded(v)
+	return s
+}
+
+// SetFindingsGetFindingsInput1DevicesNotAdded sets FindingsGetFindingsInputOKItemsItem to FindingsGetFindingsInput1DevicesNotAdded.
+func (s *FindingsGetFindingsInputOKItemsItem) SetFindingsGetFindingsInput1DevicesNotAdded(v FindingsGetFindingsInput1DevicesNotAdded) {
+	s.Type = FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem
+	s.FindingsGetFindingsInput1DevicesNotAdded = v
+}
+
+// GetFindingsGetFindingsInput1DevicesNotAdded returns FindingsGetFindingsInput1DevicesNotAdded and true boolean if FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DevicesNotAdded.
+func (s FindingsGetFindingsInputOKItemsItem) GetFindingsGetFindingsInput1DevicesNotAdded() (v FindingsGetFindingsInput1DevicesNotAdded, ok bool) {
+	if !s.IsFindingsGetFindingsInput1DevicesNotAdded() {
+		return v, false
+	}
+	return s.FindingsGetFindingsInput1DevicesNotAdded, true
+}
+
+// NewFindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem returns new FindingsGetFindingsInputOKItemsItem from FindingsGetFindingsInput1DevicesNotAdded.
+func NewFindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem(v FindingsGetFindingsInput1DevicesNotAdded) FindingsGetFindingsInputOKItemsItem {
+	var s FindingsGetFindingsInputOKItemsItem
+	s.SetFindingsGetFindingsInput1DevicesNotAdded(v)
 	return s
 }
 

@@ -179,6 +179,15 @@ describe('Findings: Needs your input', () => {
     await waitFor(() => expect(within(table).queryByRole('button', { name: `Add device ${name}` })).toBeNull(), T)
   })
 
+  it('the devices not added yet with no open finding are one card, last, whose Review opens the Devices list To review', async () => {
+    renderApp('/findings?tab=input')
+    const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
+    const words = await within(table).findByText(/^\d+ devices? not added yet with no open finding\.$/, {}, T)
+    const rows = within(table).getAllByRole('row')
+    expect(rows[rows.length - 1]).toContainElement(words)
+    expect(within(table).getByRole('link', { name: 'Review' })).toHaveAttribute('href', '/devices?tab=review')
+  })
+
   it('an urgent finding not confirmed yet: Run the safe check first when one exists, Confirm vulnerability, Not affected…', async () => {
     renderApp('/findings?tab=input')
     const table = await screen.findByRole('table', { name: 'What needs your input' }, T)

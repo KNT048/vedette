@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<!-- hand-written fixture shaped after nmap 7.94 output for a firewall that drops or rate-limits every probe it does not answer; no
+     live network was scanned. It answers on 53 and 443; nmap groups the other 998 ports, its SSH port 22 among them, as filtered
+     (no-response), so whether 22 closed or its probes were dropped is not known. -->
+<nmaprun scanner="nmap" args="nmap --privileged -sS -sV -O -n --max-rate 100 --top-ports 1000 --host-timeout 30m -oX - 10.0.0.1" start="1762650000" version="7.94" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<host starttime="1762650001" endtime="1762650230"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="10.0.0.1" addrtype="ipv4"/>
+<address addr="AA:BB:CC:00:00:31" addrtype="mac" vendor="Example Networks"/>
+<ports>
+<extraports state="filtered" count="998"><extrareasons reason="no-response" count="998"/></extraports>
+<port protocol="tcp" portid="53"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="domain" product="Unbound" method="probed" conf="10"><cpe>cpe:/a:nlnetlabs:unbound</cpe></service></port>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" product="Caddy httpd" tunnel="ssl" method="probed" conf="10"><cpe>cpe:/a:caddyserver:caddy</cpe></service></port>
+</ports>
+<os></os>
+</host>
+<runstats><finished time="1762650231" elapsed="230.00" summary="Nmap done" exit="success"/><hosts up="1" down="0" total="1"/></runstats>
+</nmaprun>

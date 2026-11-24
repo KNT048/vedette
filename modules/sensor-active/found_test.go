@@ -13,8 +13,10 @@ import (
 )
 
 // Every device check keeps what it found with its job, naming the device: the open ports with nmap's names and the OS it recorded,
-// and against the device's previous check of the same reach, the ports opened and closed and the OS guess before it changed. A
-// check of another device never counts as this one's previous check.
+// and against the device's previous check of the same reach, the ports opened and closed and the OS guess before it changed. A port
+// that sent nothing back (the FortiGate drops every probe it does not answer) is kept once as "no answer", and taken off the list
+// when the next check gets no answer from it either; a port the check did not ask about (8080, outside the FortiGate run's list) is
+// not called closed. A check of another device never counts as this one's previous check.
 func TestDeviceCheckKeepsWhatItFoundAndWhatChanged(t *testing.T) {
 	t.Parallel()
 	fx := func(name string) []byte {
@@ -64,7 +66,7 @@ func TestDeviceCheckKeepsWhatItFoundAndWhatChanged(t *testing.T) {
 		t.Fatal(err)
 	}
 	f = last().Found
-	if !f.Compared || !slices.Equal(f.New, []int{443, 541}) || !slices.Equal(f.Gone, []int{80, 8080}) || f.OSWas != "Linux 5.4 - 5.15" || f.OS != "Fortinet FortiGate-60F firewall (FortiOS 7.2)" {
+	if !f.Compared || !slices.Equal(f.New, []int{443, 541}) || len(f.Gone) != 0 || !slices.Equal(f.NoAnswer, []int{80}) || f.OSWas != "Linux 5.4 - 5.15" || f.OS != "Fortinet FortiGate-60F firewall (FortiOS 7.2)" {
 		t.Fatalf("second check: %+v", f)
 	}
 
@@ -72,8 +74,8 @@ func TestDeviceCheckKeepsWhatItFoundAndWhatChanged(t *testing.T) {
 		t.Fatal(err)
 	}
 	f = last().Found
-	if !f.Compared || len(f.New) != 0 || len(f.Gone) != 0 || f.OSWas != "" {
-		t.Fatalf("third check, nothing changed: %+v", f)
+	if !f.Compared || len(f.New) != 0 || len(f.Gone) != 0 || len(f.NoAnswer) != 0 || !slices.Equal(f.Dropped, []int{80}) || f.OSWas != "" {
+		t.Fatalf("third check, 80 again no answer: %+v", f)
 	}
 
 	// another device's first check compares with nothing of a-web's

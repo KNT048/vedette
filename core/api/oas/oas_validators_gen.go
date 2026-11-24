@@ -57402,6 +57402,39 @@ func (s FindingsGetFindingsInput1DeviceUncheckedDeviceKind) Validate() error {
 	}
 }
 
+func (s *FindingsGetFindingsInput1DevicesNotAdded) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *FindingsGetFindingsInput1Question) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -58344,6 +58377,11 @@ func (s FindingsGetFindingsInputOKItemsItem) Validate() error {
 	switch s.Type {
 	case FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem:
 		if err := s.FindingsGetFindingsInput1DeviceNotAdded.Validate(); err != nil {
+			return err
+		}
+		return nil
+	case FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem:
+		if err := s.FindingsGetFindingsInput1DevicesNotAdded.Validate(); err != nil {
 			return err
 		}
 		return nil

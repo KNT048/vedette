@@ -499,7 +499,7 @@ func identified(hosts []host, ip netip.Addr, shape nmapargv.Kind) (found []strin
 	switch {
 	case slices.ContainsFunc(sw, func(s observe.Software) bool { return !s.Guess && s.Version != "" }):
 		return found, ""
-	case len(h.ports) == 0 && h.filtered > 0 && h.filtered >= h.closed:
+	case h.noPortAnswered():
 		return found, WhyFiltered
 	case len(h.ports) == 0:
 		return found, WhyNoOpenPorts

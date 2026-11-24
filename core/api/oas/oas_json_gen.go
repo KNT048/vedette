@@ -192465,6 +192465,136 @@ func (s *FindingsGetFindingsInput1DeviceUncheckedDeviceKind) UnmarshalJSON(data 
 }
 
 // Encode implements json.Marshaler.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("count")
+		e.Int(s.Count)
+	}
+	{
+		e.FieldStart("id")
+		e.Str("devices_not_added")
+	}
+	{
+		e.FieldStart("kind")
+		e.Str("devices_not_added")
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsInput1DevicesNotAdded = [3]string{
+	0: "count",
+	1: "id",
+	2: "kind",
+}
+
+// Decode decodes FindingsGetFindingsInput1DevicesNotAdded from json.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1DevicesNotAdded to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "count":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Count = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"count\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Kind = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsInput1DevicesNotAdded")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1DevicesNotAdded) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput1DevicesNotAdded[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsGetFindingsInput1Question) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -194788,6 +194918,20 @@ func (s FindingsGetFindingsInputOKItemsItem) encodeFields(e *jx.Encoder) {
 				s.Status.Encode(e)
 			}
 		}
+	case FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem:
+		e.FieldStart("kind")
+		e.Str("devices_not_added")
+		{
+			s := s.FindingsGetFindingsInput1DevicesNotAdded
+			{
+				e.FieldStart("count")
+				e.Int(s.Count)
+			}
+			{
+				e.FieldStart("id")
+				e.Str("devices_not_added")
+			}
+		}
 	case FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem:
 		e.FieldStart("kind")
 		e.Str("device_unchecked")
@@ -194943,6 +195087,9 @@ func (s *FindingsGetFindingsInputOKItemsItem) Decode(d *jx.Decoder) error {
 				case "device_not_added":
 					s.Type = FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem
 					found = true
+				case "devices_not_added":
+					s.Type = FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem
+					found = true
 				case "device_unchecked":
 					s.Type = FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem
 					found = true
@@ -194968,6 +195115,10 @@ func (s *FindingsGetFindingsInputOKItemsItem) Decode(d *jx.Decoder) error {
 	switch s.Type {
 	case FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem:
 		if err := s.FindingsGetFindingsInput1DeviceNotAdded.Decode(d); err != nil {
+			return err
+		}
+	case FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem:
+		if err := s.FindingsGetFindingsInput1DevicesNotAdded.Decode(d); err != nil {
 			return err
 		}
 	case FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem:

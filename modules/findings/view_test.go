@@ -3,6 +3,7 @@ package findings
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -466,5 +467,96 @@ func TestModelAPI_NeedsYourInputReadsSearchTermsOnlyForASearch(t *testing.T) {
 	}
 	if all.Total == 0 || all.Items[0].FindingsGetFindingsInput1DeviceNotAdded.Findings != 2 {
 		t.Fatalf("the queue: %d items, first %+v; want the device not added first with its 2 open findings", all.Total, all.Items[0])
+	}
+}
+
+// A device nobody added yet that has open findings is its own Add device / Ignore card. The devices nobody added yet with no open
+// finding are one grouped card (how many; Review opens the Devices list's To review), after the urgent findings and the questions,
+// counted as one item: a sweep of a large network that found hundreds of devices never buries the urgent items. The group leaves
+// when none is left; the box is never in it; a queue read for one device or by a search has no group.
+func TestModelAPI_NotAddedWithoutFindingsIsOneGroupCard(t *testing.T) {
+	e := modelEnv(t)
+	type item struct {
+		Kind  string `json:"kind"`
+		ID    string `json:"id"`
+		Count int    `json:"count"`
+	}
+	// overview: also read Home's count (kept until something changes, so read once, after the devices are there)
+	read := func(path string, overview bool) (items []item, total, home int) {
+		t.Helper()
+		conform[oas.FindingsGetFindingsInputOK](t, e, "GET", path, "viewer", "")
+		_, b := e.raw("GET", path, "viewer", "")
+		var l struct {
+			Items []item `json:"items"`
+			Total int    `json:"total"`
+		}
+		if err := json.Unmarshal(b, &l); err != nil {
+			t.Fatal(err)
+		}
+		if !overview {
+			return l.Items, l.Total, -1
+		}
+		_, ob := e.raw("GET", "/findings/overview", "viewer", "")
+		var o struct {
+			Input int `json:"input"`
+		}
+		if err := json.Unmarshal(ob, &o); err != nil {
+			t.Fatal(err)
+		}
+		return l.Items, l.Total, o.Input
+	}
+	_, before, _ := read("/findings/input?limit=200", false)
+	const n = 300
+	e.inv.mu.Lock()
+	e.inv.assets["a-box"] = AssetView{ID: "a-box", Name: "vedette", IP: "192.0.2.2", Kind: "server", Box: true}
+	e.inv.match["a-box"] = Asset{}
+	for i := range n {
+		id := fmt.Sprintf("a-d%03d", i)
+		e.inv.assets[id] = AssetView{ID: id, Name: id, IP: fmt.Sprintf("10.0.%d.%d", i/250, i%250+1), Kind: "unknown"}
+		e.inv.match[id] = Asset{}
+	}
+	e.inv.mu.Unlock()
+	items, total, overview := read("/findings/input?limit=200", true)
+	if total != before+1 || overview != total {
+		t.Fatalf("%d devices not added with no finding: queue length %d (before %d), Home's count %d; want one more item, the same count", n, total, before, overview)
+	}
+	var cards, groups []item
+	for _, it := range items {
+		switch it.Kind {
+		case "device_not_added":
+			cards = append(cards, it)
+		case "devices_not_added":
+			groups = append(groups, it)
+		}
+	}
+	if len(cards) != 1 || cards[0].ID != "device:a-new" {
+		t.Fatalf("Add device cards: %+v; want only printer-07, the device not added that has a finding", cards)
+	}
+	if len(groups) != 1 || groups[0].Count != n || items[len(items)-1].Kind != "devices_not_added" {
+		t.Fatalf("grouped card: %+v (last item %+v); want one, last, counting %d", groups, items[len(items)-1], n)
+	}
+	if _, one, _ := read("/findings/input?device=a-d007", false); one != 0 {
+		t.Errorf("the queue of one device not added with no finding: %d items, want none", one)
+	}
+	if _, q, _ := read("/findings/input?q=a-d007", false); q != 0 {
+		t.Errorf("search a-d007: %d items, want none", q)
+	}
+	e.inv.mu.Lock()
+	for i := range n - 1 {
+		id := fmt.Sprintf("a-d%03d", i)
+		a := e.inv.assets[id]
+		a.Approved = true
+		e.inv.assets[id] = a
+	}
+	e.inv.mu.Unlock()
+	if items, _, _ := read("/findings/input?limit=200", false); items[len(items)-1].Kind != "devices_not_added" || items[len(items)-1].Count != 1 {
+		t.Fatalf("one left: last item %+v", items[len(items)-1])
+	}
+	e.inv.mu.Lock()
+	e.inv.ignored["a-d299"] = true
+	delete(e.inv.match, "a-d299")
+	e.inv.mu.Unlock()
+	if items, total, _ := read("/findings/input?limit=200", false); total != before || slices.ContainsFunc(items, func(it item) bool { return it.Kind == "devices_not_added" }) {
+		t.Fatalf("none left: %d items, %+v", total, items)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
@@ -25,7 +26,9 @@ func TestFoundComparesOnlyWhatBothChecksCovered(t *testing.T) {
 		}
 	}
 	h := func(os string, ports ...int) host {
-		x := host{addr: netip.MustParseAddr("192.168.10.20")}
+		// every port asked about that is not open refused the connection (host.answer: closed)
+		all := []observe.PortRange{{From: 1, To: 65535}}
+		x := host{addr: netip.MustParseAddr("192.168.10.20"), scanned: all, runs: []portRun{{scanned: all, extra: []string{"closed"}}}}
 		for _, p := range ports {
 			x.ports = append(x.ports, portInfo{number: p, proto: "tcp", name: "x"})
 		}

@@ -207,6 +207,9 @@ func jobHistory(j sensoractive.JobRow, shown map[string]shownOS) (core.HistoryRu
 					page = &o
 				}
 				found = foundText(addr, *j.Found, page)
+				if f := j.Found; (f.TimedOut || f.NoPortAnswered || len(f.NoAnswer) > 0) && r.Outcome == "ok" {
+					r.Outcome = "partial" // incomplete: ports it asked about sent nothing back, never read as closed
+				}
 			case m != nil && m[1] == "0":
 				found = "scanned " + addr + ": it did not answer"
 			case m != nil:
@@ -346,9 +349,12 @@ func foundText(addr string, f sensoractive.DeviceFound, page *shownOS) string {
 	if f.Reach == "extra" {
 		sep = "; "
 	}
-	if f.TimedOut {
-		b.WriteString(sep + "it answered, but nmap reached its time limit before it listed the ports; the ports known before are kept")
-	} else {
+	switch {
+	case f.TimedOut:
+		b.WriteString(sep + "incomplete: it answered, but nmap reached its time limit before it listed the ports (a slow or rate-limited device); the ports known before are kept")
+	case f.NoPortAnswered:
+		b.WriteString(sep + "incomplete: no port answered (a firewall or the device dropped or rate-limited the probes), so no port is known to be closed")
+	default:
 		b.WriteString(sep + portsText(f))
 	}
 	osChanged := false
@@ -383,11 +389,17 @@ func foundText(addr string, f sensoractive.DeviceFound, page *shownOS) string {
 		if len(f.Gone) > 0 {
 			ch = append(ch, portList(f.Gone)+" no longer open")
 		}
+		if len(f.Dropped) > 0 {
+			ch = append(ch, portList(f.Dropped)+" gave no answer in two checks in a row and left the list")
+		}
 		switch {
 		case len(ch) > 0:
 			b.WriteString("; " + since + ": " + strings.Join(ch, ", "))
-		case !osChanged:
+		case !osChanged && len(f.NoAnswer) == 0:
 			b.WriteString("; nothing changed " + since)
+		}
+		if len(f.NoAnswer) > 0 { // host.answer: nothing back is not a closed port
+			b.WriteString("; incomplete: " + portList(f.NoAnswer) + " open at the previous check gave no answer this time (a firewall or the device dropped or rate-limited the probes); what was known about it is kept")
 		}
 	}
 	return b.String()

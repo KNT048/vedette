@@ -68,6 +68,9 @@ func TestContract_AQuietPrivateDeviceIsNotToReview(t *testing.T) {
 	if total, pending, err := e.svc.DeviceCounts(e.ctx()); err != nil || total != 1 || pending != 0 {
 		t.Fatalf("DeviceCounts = %d, %d, %v", total, pending, err)
 	}
+	if review, err := e.svc.ToReviewIDs(e.ctx()); err != nil || len(review) != 0 {
+		t.Fatalf("ToReviewIDs = %v, %v; want none", review, err)
+	}
 	d := e.detail(id)
 	if !d.Asset.PrivateMAC || !d.Asset.Quiet || d.Asset.Approved {
 		t.Fatalf("detail: private %v quiet %v approved %v", d.Asset.PrivateMAC, d.Asset.Quiet, d.Asset.Approved)

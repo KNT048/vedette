@@ -2,7 +2,8 @@
 // Devices nobody added yet that have findings (Add device, Ignore); devices Vedette cannot check (Add its firmware, SNMP, an agent);
 // urgent findings not confirmed yet (Run the safe check first when one exists, then Confirm vulnerability or Not affected…);
 // questions (the version, the platform, the package release, "possibly affected: check the version", a release line the vendor names
-// no fix for). An item leaves the queue the moment it is answered or stops being true (GET /findings/input).
+// no fix for); last, one card for the devices nobody added yet that have no open finding (Review: the Devices list's To review). An
+// item leaves the queue the moment it is answered or stops being true (GET /findings/input).
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -13,7 +14,8 @@ import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { SeverityBadge, StatusBadge, VerificationLine } from '@/components/common/status'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { fmtDate } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useDeviceAction } from '@/features/inventory/api'
@@ -54,6 +56,18 @@ function NotAddedItem({ i, link }: { i: Item<'device_not_added'>; link: boolean 
         <span className="text-meta text-muted">{t('queue.notAdded', { count: i.findings })}</span>
       </div>
       <NotAdded asset={asAsset(i.device)} findings={i.findings} />
+    </div>
+  )
+}
+
+/** Every device nobody added yet that has no open finding, as one card: how many, and Review opens the Devices list's To review, where
+ *  each is added or ignored (one by one or several at once). */
+function NotAddedGroupItem({ i }: { i: Item<'devices_not_added'> }) {
+  const { t } = useTranslation('findings')
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="text-sm">{t('queue.notAddedGroup', { count: i.count })}</p>
+      <Link to="/devices?tab=review" className={cn(buttonVariants({ size: 'sm' }))}>{t('queue.review')}</Link>
     </div>
   )
 }
@@ -229,7 +243,8 @@ function QuestionItem({ i, link }: { i: Item<'question'>; link: boolean }) {
 
 /** One item of the queue. linkDevice false names its device without a link: an earlier item of the page links to its page. */
 export function QueueItem({ i, linkDevice = true }: { i: InputItem; linkDevice?: boolean }) {
-  return i.kind === 'device_not_added' ? <NotAddedItem i={i} link={linkDevice} />
+  return i.kind === 'devices_not_added' ? <NotAddedGroupItem i={i} />
+    : i.kind === 'device_not_added' ? <NotAddedItem i={i} link={linkDevice} />
     : i.kind === 'device_unchecked' ? <UncheckedItem i={i} link={linkDevice} />
     : i.kind === 'unconfirmed' ? <UnconfirmedItem i={i} link={linkDevice} /> : <QuestionItem i={i} link={linkDevice} />
 }
@@ -240,6 +255,7 @@ function deviceLinks(items: InputItem[]): Set<string> {
   const seen = new Set<string>()
   const out = new Set<string>()
   for (const i of items) {
+    if (i.kind === 'devices_not_added') continue
     if (!seen.has(i.device.id)) {
       seen.add(i.device.id)
       out.add(i.id)
@@ -300,7 +316,7 @@ export function InputTab({ device, onDevice }: { device: string; onDevice: (id: 
   const columns: ColumnDef<InputItem>[] = [
     { id: 'item', header: t('queue.col'), cell: ({ row: { original: i } }) => <QueueItem i={i} linkDevice={links.has(i.id)} /> },
   ]
-  const named = q.data?.items.find((x) => x.device.id === device)?.device.name
+  const named = q.data?.items.flatMap((x) => x.kind !== 'devices_not_added' && x.device.id === device ? [x.device.name] : [])[0]
   const filtered = !!(device || raw.q)
   const clear = () => { raw.set({ q: '', page: 0 }); onDevice('') }
   return (

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -186,7 +187,39 @@ const firstLookLookups = 200
 // firstLookTitle is the headline of a first look told in several summaries: every finding they told, once, on how many devices, in the
 // words of a first summary. The findings are the ones each summary recorded (notify_notice_finding), plus the ones its title counts
 // without listing them; their devices are read from the finding directory, and are at least as many as any one summary counted.
+//
+// Home and the menu badge read it every minute for a week after a load, and each lookup reads the finding page's data: the headline is
+// kept for the summaries it counted and counted again only when a pass adds one (or a restart forgets it).
 func (s *Service) firstLookTitle(ctx context.Context, q dbtx, look []summaryRow) (string, error) {
+	ids := make([]string, 0, len(look))
+	for _, n := range look {
+		ids = append(ids, n.id)
+	}
+	key := strings.Join(ids, "\n")
+	s.firstLook.mu.Lock()
+	memo, title := s.firstLook.key, s.firstLook.title
+	s.firstLook.mu.Unlock()
+	if memo == key {
+		return title, nil
+	}
+	title, err := s.countFirstLook(ctx, q, look)
+	if err != nil {
+		return "", err
+	}
+	s.firstLook.mu.Lock()
+	s.firstLook.key, s.firstLook.title = key, title
+	s.firstLook.mu.Unlock()
+	return title, nil
+}
+
+// firstLookMemo is the last first look firstLookTitle counted: its summaries' ids and its headline.
+type firstLookMemo struct {
+	mu         sync.Mutex
+	key, title string
+}
+
+// countFirstLook counts the headline firstLookTitle keeps.
+func (s *Service) countFirstLook(ctx context.Context, q dbtx, look []summaryRow) (string, error) {
 	listed := map[string][]string{} // notice id → the findings it recorded
 	ids := make([]any, 0, len(look))
 	marks := make([]string, 0, len(look))

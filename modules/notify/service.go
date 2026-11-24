@@ -91,6 +91,8 @@ type Service struct {
 	signIns   signInSet           // user sign-ins of the email channel under way
 	rotations sync.WaitGroup      // saves of rotated refresh tokens (rotateEmailSecret)
 	lastPrune time.Time
+	// firstLook is the last headline firstLookTitle counted (homecard.go).
+	firstLook firstLookMemo
 	// zaloGrant is the last rotation of the Zalo OA grant: a refresh token works once, so a rotation whose save failed lives
 	// here until a save succeeds, and a sender built meanwhile, or a save of the channel, starts from it (NewerZaloGrant).
 	zaloGrant secrets.Value

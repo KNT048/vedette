@@ -1,9 +1,11 @@
 package notify_test
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -208,5 +210,72 @@ func TestHomeFirstLookPassWhileTheFirstSummaryIsBeingSent(t *testing.T) {
 	}
 	if f.Title != "Patch first: 2 urgent findings on 2 devices" || f.Later != 1 || f.LaterTitle != "1 more urgent finding on 1 device to patch first" {
 		t.Fatalf("after a later summary = %+v", f)
+	}
+}
+
+// countedFindings is a finding directory that counts its lookups.
+type countedFindings struct {
+	*liveFindings
+	mu sync.Mutex
+	n  int
+}
+
+func (c *countedFindings) Finding(ctx context.Context, id string) (notify.FindingInfo, bool, error) {
+	c.mu.Lock()
+	c.n++
+	c.mu.Unlock()
+	return c.liveFindings.Finding(ctx, id)
+}
+
+func (c *countedFindings) lookups() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.n
+}
+
+// Home and the menu badge read the overview every minute for a week after a first load. The headline of a first look told in several
+// summaries reads each of its findings through the finding directory (milliseconds each, up to firstLookLookups); a read that finds the
+// same first look counts it again from memory, not from the directory.
+func TestHomeFirstLookIsCountedOncePerPass(t *testing.T) {
+	dir := &countedFindings{liveFindings: &liveFindings{}}
+	e := newEnv(t, func(c *notify.Config) { c.Findings = dir })
+	e.svc.Subscribe(e.bus)
+	pub := func(ev any) {
+		t.Helper()
+		if err := e.bus.Publish(e.ctx(), eventOf(notify.EventFirstRun, ev)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	dir.at("f-3", 2, finding("Example NAS OS", "CVE-2026-13639", "nas-office", notify.Critical))
+	pub(firstRun(e, "f-1"))
+	e.clock.Add(20 * time.Second)
+	pub(firstRun(e, "f-2"))
+	week := e.clock.Now().Add(-7 * 24 * time.Hour)
+	read := func() string {
+		t.Helper()
+		f, err := e.svc.FirstRunSummary(e.ctx(), week)
+		if err != nil || f == nil {
+			t.Fatalf("summary: %+v, %v", f, err)
+		}
+		return f.Title
+	}
+	if got := read(); got != "Patch first: 2 urgent findings on 2 devices" {
+		t.Fatalf("title = %q", got)
+	}
+	before := dir.lookups()
+	for range 3 {
+		if got := read(); got != "Patch first: 2 urgent findings on 2 devices" {
+			t.Fatalf("title read again = %q", got)
+		}
+	}
+	if n := dir.lookups() - before; n != 0 {
+		t.Fatalf("reading the same first look again made %d finding lookups, want 0", n)
+	}
+	e.clock.Add(20 * time.Second) // a new pass changes the first look: it is counted again
+	pub(firstRun(e, "f-3"))
+	if got := read(); got != "Patch first: 3 urgent findings on 3 devices" {
+		t.Fatalf("title after a new pass = %q", got)
 	}
 }

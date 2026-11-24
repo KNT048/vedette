@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Notice } from '@/components/common/PageHeader'
-import { fmtDate } from '@/lib/format'
+import { fmtDate, fmtDateTime } from '@/lib/format'
 import { BUNDLE_IN_UI } from '@/lib/bundle'
 import { useUpdatesBanner } from './api'
 import type { UpdatesState } from './types'
@@ -41,7 +41,7 @@ export function RunningVersion({ onNavigate }: { onNavigate?: () => void }) {
   return <Link to="/settings/updates" onClick={onNavigate} className="truncate px-2.5 text-caption text-muted underline-offset-4 hover:text-ink hover:underline">{t('updates.footerVersion', { version })}</Link>
 }
 
-/** On the Updates page only, a withdrawn release with block_install and stale update information. `bundle`: the install can import an offline bundle (appliance, and only while BUNDLE_IN_UI). */
+/** On the Updates page only, a withdrawn release with block_install, an automatic install that waits for a restart of the box, and stale update information. `bundle`: the install can import an offline bundle (appliance, and only while BUNDLE_IN_UI). */
 export function UpdateNotices({ s, bundle = BUNDLE_IN_UI }: { s: UpdatesState; bundle?: boolean }) {
   const { t } = useTranslation('core')
   const quiet = s.running_revoked && !warns(s) ? s.running_revoked : null
@@ -49,6 +49,11 @@ export function UpdateNotices({ s, bundle = BUNDLE_IN_UI }: { s: UpdatesState; b
     <>
       {quiet ? (
         <Notice tone="warn" role="status" className="mb-6" title={t('updates.revoked.quietTitle', { version: quiet.version })} info={t('updates.revoked.quietInfo')}>{t('updates.revoked.quietBody', { reason: reasonOf(quiet.reason) })}</Notice>
+      ) : null}
+      {s.auto_wait && s.mode === 'auto' ? (
+        <Notice tone="accent" role="status" className="mb-6" title={t('updates.autoWait.title', { version: s.auto_wait.version })}>
+          {t('updates.autoWait.body', { version: s.auto_wait.version, time: fmtDateTime(s.auto_wait.reboot_at) })}
+        </Notice>
       ) : null}
       {s.stale_since ? (
         <Notice tone="warn" role="status" className="mb-6" title={t('updates.stale.title')} info={s.check_enabled ? t('updates.stale.checkOnInfo') : undefined}>

@@ -18,6 +18,7 @@ const (
 	keyUpdateRelease  = "core_update_release" // check side: the stored verified index (sequence floor, revocations) and the offered manifest
 	keyUpdateRun      = "core_update_run"     // run side: the run in progress or the latest one
 	keyUpdateHistory  = "core_update_history" // run side: the latest 100 history entries, newest first
+	keyUpdateWait     = "core_update_wait"    // automatic side: the release that waits for the operating system's restart (autoWaitRec)
 	softwareComponent = "software"            // the one component of the release
 )
 

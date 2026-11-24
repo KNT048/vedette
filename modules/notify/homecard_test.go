@@ -1,10 +1,13 @@
 package notify_test
 
 import (
+	"database/sql"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/notify"
 	"github.com/knt048/vedette/modules/notify/channel"
 )
@@ -104,5 +107,106 @@ func TestHomeFirstRunSummaryFailedKeepsTheErrorInHistory(t *testing.T) {
 	if f.State != notify.SummaryNotSent || f.NotSent == nil || f.NotSent.Reason != notify.UnsentFailed || f.NotSent.Channel != channel.Telegram ||
 		f.NotSent.Text != "Not delivered. Telegram failed to deliver it." {
 		t.Fatalf("summary = %+v (not sent: %+v)", f, f.NotSent)
+	}
+}
+
+// A box with no alert channel keeps each pass of its first look as its own summary (nothing waits in the queue to join). Home's headline
+// is the whole first look: every finding of every pass, once (also the ones a pass counted without listing them), on how many devices;
+// there is no "Since then" for passes seconds apart.
+func TestHomeFirstLookWithoutAChannelCountsEveryPass(t *testing.T) {
+	dir := &liveFindings{}
+	e := newEnv(t, func(c *notify.Config) { c.Findings = dir })
+	e.svc.Subscribe(e.bus)
+	pub := func(ev any) {
+		t.Helper()
+		if err := e.bus.Publish(e.ctx(), eventOf(notify.EventFirstRun, ev)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	dir.at("f-3", 2, finding("Example NAS OS", "CVE-2026-13639", "nas-office", notify.Critical))
+	dir.at("f-4", 4, finding("OpenSSH", "CVE-2026-20001", "web-01", notify.High))
+	big := firstRun(e, "f-1") // a pass that counts more findings than it lists
+	big.Findings, big.Devices = 3, 2
+	pub(big)
+	first, err := e.svc.FirstRunSummary(e.ctx(), e.clock.Now().Add(-time.Hour))
+	if err != nil || first == nil {
+		t.Fatalf("first pass: %+v, %v", first, err)
+	}
+	e.clock.Add(20 * time.Second)
+	pub(firstRun(e, "f-2"))
+	e.clock.Add(20 * time.Second)
+	pub(firstRun(e, "f-3", "f-4"))
+	e.clock.Add(3 * time.Minute)
+	e.flush()
+	if n := e.count(`SELECT count(*) FROM notify_notice WHERE event = 'first_run'`); n != 3 {
+		t.Fatalf("summaries kept = %d, want one per pass (3)", n)
+	}
+	f, err := e.svc.FirstRunSummary(e.ctx(), e.clock.Now().Add(-7*24*time.Hour))
+	if err != nil || f == nil {
+		t.Fatalf("summary: %+v, %v", f, err)
+	}
+	if f.ID != first.ID || f.Title != "Patch first: 6 urgent findings on 3 devices" || f.Later != 0 || f.LaterTitle != "" ||
+		f.State != notify.SummaryNotSent || f.NotSent == nil || f.NotSent.Reason != notify.UnsentNoChannel ||
+		f.Link != "/findings?tab=device&status=exploited,public_exploit,critical_edge" {
+		t.Fatalf("summary = %+v (not sent: %+v)", f, f.NotSent)
+	}
+}
+
+// A pass that lands while the first summary is being sent (claimed by a delivery run, not delivered yet) says "N more": the customer is
+// getting the first one. On Home it joins the first look; "Since then" counts only summaries made after one was delivered.
+func TestHomeFirstLookPassWhileTheFirstSummaryIsBeingSent(t *testing.T) {
+	dir := &liveFindings{}
+	e, pub := alertEnv(t, dir)
+	dir.at("f-1", 3, finding("Java", "CVE-2026-114938", "java-app-01", notify.High))
+	dir.at("f-2", 4, finding("nginx", "CVE-2026-123007", "web-01", notify.Critical))
+	dir.at("f-3", 2, finding("Example NAS OS", "CVE-2026-13639", "nas-office", notify.Critical))
+	pub(notify.EventFirstRun, firstRun(e, "f-1"))
+	e.clock.Add(3 * time.Minute)
+	e.write(func(tx *sql.Tx) error { // a delivery run claimed it and has not sent it yet
+		_, err := tx.ExecContext(e.ctx(), `UPDATE notify_pending SET state = 'claimed', claimed_at = ?`, store.FormatTS(e.clock.Now()))
+		return err
+	})
+	e.clock.Add(20 * time.Second)
+	pub(notify.EventFirstRun, firstRun(e, "f-2"))
+	var title string
+	if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT title FROM notify_notice WHERE event = 'first_run' ORDER BY id DESC LIMIT 1`).Scan(&title); err != nil {
+		t.Fatal(err)
+	}
+	if title != "1 more urgent finding on 1 device to patch first" {
+		t.Fatalf("the pass made while the first summary was being sent = %q, want the \"N more\" words", title)
+	}
+	e.write(func(tx *sql.Tx) error { // the run sends it
+		_, err := tx.ExecContext(e.ctx(), `UPDATE notify_pending SET state = 'pending', claimed_at = NULL WHERE state = 'claimed'`)
+		return err
+	})
+	e.flush()
+	e.clock.Add(3 * time.Minute)
+	e.flush()
+	got := summaries(e)
+	if len(got) != 2 || got[0].Title != "Patch first: 1 urgent finding on 1 device" || got[1].Title != "1 more urgent finding on 1 device to patch first" ||
+		!strings.HasPrefix(got[1].What, "Since the previous summary, Vedette rated 1 more finding on 1 device") {
+		t.Fatalf("messages = %+v", got)
+	}
+	week := e.clock.Now().Add(-7 * 24 * time.Hour)
+	f, err := e.svc.FirstRunSummary(e.ctx(), week)
+	if err != nil || f == nil {
+		t.Fatalf("summary: %+v, %v", f, err)
+	}
+	if f.Title != "Patch first: 2 urgent findings on 2 devices" || f.State != notify.SummarySent || f.Later != 0 || f.LaterTitle != "" {
+		t.Fatalf("summary = %+v", f)
+	}
+
+	e.clock.Add(time.Hour)
+	pub(notify.EventFirstRun, firstRun(e, "f-3"))
+	e.clock.Add(3 * time.Minute)
+	e.flush()
+	f, err = e.svc.FirstRunSummary(e.ctx(), week)
+	if err != nil || f == nil {
+		t.Fatalf("after a later summary: %+v, %v", f, err)
+	}
+	if f.Title != "Patch first: 2 urgent findings on 2 devices" || f.Later != 1 || f.LaterTitle != "1 more urgent finding on 1 device to patch first" {
+		t.Fatalf("after a later summary = %+v", f)
 	}
 }

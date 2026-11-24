@@ -65,9 +65,12 @@ func renameIncident(i *Incident, states map[string]DeviceState) {
 	i.Action = replaceNames(i.Action, pairs)
 }
 
+// isLabel says whether a stored device name is a label: a name and its address in brackets (deviceLabel).
+func isLabel(name string) bool { return strings.HasSuffix(name, ")") && strings.Contains(name, " (") }
+
 // currentName is the name of st in the form of stored: the label (name and address) when the stored name was one, else the name.
 func currentName(stored string, st DeviceState) string {
-	if label := deviceLabel(st); st.Address != "" && strings.HasSuffix(stored, ")") && strings.Contains(stored, " (") {
+	if label := deviceLabel(st); st.Address != "" && isLabel(stored) {
 		return label
 	}
 	return clip(strings.TrimSpace(st.Name), 200)
@@ -76,6 +79,9 @@ func currentName(stored string, st DeviceState) string {
 // replaceNames replaces, left to right, each whole occurrence of an old name of pairs ({old, new}) in text: one that does not
 // continue a word or a dotted name on either side ("Dell" is not replaced in "Dellwood" nor in "Dell.Remote.Access"). At one place
 // the longest old name wins, and a replaced name is never read again, so two devices whose names contain each other stay apart.
+// The words of an incident name a device as a label, "name (address)" (deviceLabel, the IPS and log events): an old name that is
+// not a label itself is replaced only where such a label starts. Elsewhere the same words are what was seen (an IPS signature, a
+// quoted log line, the log source's own name, the attacking address of a device first known by its address) and stay as they were.
 func replaceNames(text string, pairs [][2]string) string {
 	if text == "" || len(pairs) == 0 {
 		return text
@@ -87,7 +93,8 @@ func replaceNames(text string, pairs [][2]string) string {
 		done := false
 		if wordStart(text, i) {
 			for _, p := range pairs {
-				if p[0] != "" && strings.HasPrefix(text[i:], p[0]) && wordEnd(text, i+len(p[0])) {
+				end := i + len(p[0])
+				if p[0] != "" && strings.HasPrefix(text[i:], p[0]) && wordEnd(text, end) && (isLabel(p[0]) || strings.HasPrefix(text[end:], " (")) {
 					b.WriteString(p[1])
 					i += len(p[0])
 					done = true

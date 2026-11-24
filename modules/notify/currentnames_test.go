@@ -41,7 +41,7 @@ func TestIncidentsNameTheirDevicesAsDevicesDoesNow(t *testing.T) {
 	if got.Title != wantTitle {
 		t.Errorf("list title %q, want %q", got.Title, wantTitle)
 	}
-	if !strings.Contains(got.What, "to VMware ESXi (192.0.2.67) port 443") || !strings.Contains(got.What, "Hewlett Packard Enterprise is not") || got.Action != "Check VMware ESXi." {
+	if !strings.Contains(got.What, "to VMware ESXi (192.0.2.67) port 443") || !strings.Contains(got.What, "Hewlett Packard Enterprise is not") || got.Action != "Check Hewlett Packard." { // a bare name is not a label: left as written
 		t.Errorf("list what %q, action %q", got.What, got.Action)
 	}
 	names := []string{}
@@ -70,19 +70,61 @@ func TestIncidentsNameTheirDevicesAsDevicesDoesNow(t *testing.T) {
 	}
 }
 
-// The discovery summary stores devices by label (name and address): the current label replaces it.
+// The discovery summary stores devices by label (name and address): the current label replaces it. A bare old name is replaced only
+// where a label starts with it, as a whole name.
 func TestReplaceNamesWholeNamesOnly(t *testing.T) {
 	pairs := [][2]string{{"Dell", "build-01"}, {"Dell (192.0.2.5)", "build-01 (192.0.2.5)"}}
 	for in, want := range map[string]string{
-		"Dell":                         "build-01",
-		"at Dell (192.0.2.5).":         "at build-01 (192.0.2.5).",
-		"Dellwood and Dell.Remote.Fix": "Dellwood and Dell.Remote.Fix",
-		"to Dell, then Dell.":          "to build-01, then build-01.",
-		"xDell Dell-2 Dell":            "xDell Dell-2 build-01",
-		"Dell Technologies, Dell is":   "Dell Technologies, build-01 is",
+		"Dell":                                 "Dell",
+		"at Dell (192.0.2.5).":                 "at build-01 (192.0.2.5).",
+		"Dellwood (x) and Dell.Remote.Fix (y)": "Dellwood (x) and Dell.Remote.Fix (y)",
+		"to Dell (192.0.2.9), then Dell.":      "to build-01 (192.0.2.9), then Dell.",
+		"xDell (a) Dell-2 (b) Dell (c)":        "xDell (a) Dell-2 (b) build-01 (c)",
+		"Dell Technologies (d), Dell (e) is":   "Dell Technologies (d), build-01 (e) is",
 	} {
 		if got := notify.ReplaceNamesForTest(in, pairs); got != want {
 			t.Errorf("%q: got %q, want %q", in, got, want)
 		}
+	}
+}
+
+// The words of an incident quote what was seen: an IPS signature, a log line, the attacking address. A device is named in them as a
+// label ("name (address)"); only that label takes the current name. A device first known by its address keeps the address in its
+// label and in the advice to block it, and a signature or a quoted log line that happens to contain the old name stays as it was seen.
+func TestIncidentsRenameOnlyTheDeviceLabels(t *testing.T) {
+	devs := &stateDevices{m: map[string]notify.DeviceState{
+		"esx": {Name: "192.0.2.67", Address: "192.0.2.67"},
+		"pc":  {Name: "192.0.2.10", Address: "192.0.2.10"},
+		"fw":  {Name: "fw01", Address: "192.0.2.1"},
+	}}
+	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
+	in := notify.IncidentInput{Kind: notify.IncidentIntrusion, Source: "192.0.2.10", Target: "sig", Severity: notify.High, Link: "/detection",
+		Title: "192.0.2.10 fired ET EXPLOIT fw01 command injection at 192.0.2.67 (192.0.2.67)",
+		What: "An IPS event in the log of fw01 (192.0.2.1): ET EXPLOIT fw01 command injection (rule 1), from 192.0.2.10 to 192.0.2.67 (192.0.2.67) port 443. " +
+			"Example line: fw01 sshd[12]: probe.",
+		Action:  "Check whether the device runs what the rule targets and is up to date. If 192.0.2.10 is not yours and keeps trying, block it at the firewall.",
+		Devices: []notify.Device{{ID: "esx", Name: "192.0.2.67"}, {ID: "pc", Name: "192.0.2.10"}, {ID: "fw", Name: "fw01"}}}
+	id, _, err := e.svc.OpenIncident(e.ctx(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	devs.set("esx", notify.DeviceState{Name: "VMware ESXi", Address: "192.0.2.67"})
+	devs.set("pc", notify.DeviceState{Name: "pc-01", Address: "192.0.2.10"})
+	devs.set("fw", notify.DeviceState{Name: "Main firewall", Address: "192.0.2.1"})
+
+	d, err := e.svc.IncidentDetail(e.ctx(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := d.Incident
+	if want := "192.0.2.10 fired ET EXPLOIT fw01 command injection at VMware ESXi (192.0.2.67)"; got.Title != want {
+		t.Errorf("title %q, want %q", got.Title, want)
+	}
+	if want := "An IPS event in the log of Main firewall (192.0.2.1): ET EXPLOIT fw01 command injection (rule 1), from 192.0.2.10 to VMware ESXi (192.0.2.67) port 443. " +
+		"Example line: fw01 sshd[12]: probe."; got.What != want {
+		t.Errorf("what %q, want %q", got.What, want)
+	}
+	if got.Action != in.Action {
+		t.Errorf("action %q: the address to block is gone", got.Action)
 	}
 }

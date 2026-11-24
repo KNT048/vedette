@@ -46,8 +46,7 @@ type Overview struct {
 		Total    int                `json:"total"`
 		NotAdded int                `json:"not_added"`
 		ByStatus DeviceStatusCounts `json:"by_status"`
-		// Affected: devices with an open finding by their most urgent status, the Vedette box included (it carries no badge, but its
-		// findings are counted like any device's: "3 open findings on 1 device").
+		// Affected: devices with an open finding by their most urgent status, the Vedette box included like any device.
 		Affected StatusCounts `json:"affected"`
 	} `json:"devices"`
 	Input       int               `json:"input"`
@@ -129,10 +128,6 @@ func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notif
 	if err != nil {
 		return nil, err
 	}
-	boxes, err := s.cfg.Inventory.Assets(ctx, keysOf(statuses))
-	if err != nil {
-		return nil, fmt.Errorf("findings: overview: reading devices: %w", err)
-	}
 	for id, st := range statuses {
 		if ignored[id] {
 			continue
@@ -140,9 +135,6 @@ func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notif
 		l, ok := layerOf(st.Code)
 		if ok {
 			o.Devices.Affected.add(l, 1)
-		}
-		if boxes[id].Box { // the Vedette box never carries a badge, as on the Devices list
-			continue
 		}
 		if ok {
 			o.Devices.ByStatus.add(l, 1)

@@ -61,10 +61,9 @@ function kevInfo(cve: string): KevInfo | null {
 /** A device's badge as the box computes it (findings' device status, through inventory). null when it has none, and while the
  *  findings module is off. */
 type Risk = { code: DeviceStatusCode; count: number }
-/** The box (inventory's BOX_ID) is never marked. */
-const MOCK_BOX = 'a-box'
+/** The box (inventory's BOX_ID) is marked like any device. */
 export function deviceRisk(assetId: string): Risk | null {
-  if (!isOn('findings') || assetId === MOCK_BOX) return null
+  if (!isOn('findings')) return null
   return deviceStatus(assetId)
 }
 

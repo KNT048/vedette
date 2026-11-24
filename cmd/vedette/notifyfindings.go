@@ -64,8 +64,7 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 		Status: findings.StatusName(f.Urgency), Meaning: findings.StatusMeaning(f.Urgency),
 		Reasons: plainText(v.ReasonsLine(), noticeReasonsMax), Verification: plainText(v.VerificationLine(), noticeReasonsMax)}
 	info.Product = cmp.Or(plainText(product, noticeProductMax), plainText(lineName(v), noticeProductMax), "A product on your network")
-	info.Action = cmp.Or(plainText(action, noticeActionMax),
-		"Open the finding in Vedette and follow its steps: update the software, or limit who can reach the device.")
+	info.Action = noticeAction(v, action)
 	if n.d.Inventory == nil {
 		return info, true, nil // no device name: notify sends nothing for a finding that matched no device
 	}
@@ -91,6 +90,18 @@ func (n notifyFindings) Finding(ctx context.Context, id string) (notify.FindingI
 		}
 	}
 	return info, true, nil
+}
+
+// noticeAction is the "What to do first" of a finding's notice: the fix the finding page shows when it names a release to install
+// ("Update VMware ESXi from 8.0.3 to 8.0 U3j."), else the action the CVE's exploited list requires (CISA's text), else the finding's own
+// steps. The fix comes first: it is the one step that ends the finding, the list's action is the same for every CVE on the list.
+func noticeAction(v findings.View, listAction string) string {
+	fx := v.Finding.Fix
+	if findings.FixWords(fx.Kind, v.FixProduct(), "", fx.Version, fx.Ref) != "" {
+		return plainText(v.FixText(), noticeActionMax)
+	}
+	return cmp.Or(plainText(listAction, noticeActionMax),
+		"Open the finding in Vedette and follow its steps: update the software, or limit who can reach the device.")
 }
 
 // noticeSeverity is the severity class of a notice: the band of the CVE's score as the finding page shows it, medium while the CVE has no

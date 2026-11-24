@@ -18,6 +18,7 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useAddTrapIp, useDeleteTrapIp, useEditTrapIp, useTestScan, useToggleTrapIp, useTrapIps } from './api'
+import { testAlertToast } from './testAlert'
 import { PRESETS, presetDef, portLabel, VENDORS } from './presets'
 import { TrapStateChip } from './TrapStateChip'
 import { HP_SERVICES, type Hit, type HpService, type TrapIP, type TrapIPsResponse, type TrapPreset, type TrapVendor } from './types'
@@ -141,7 +142,7 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
             <p className="text-meta text-muted">{t('trapIp.scan.body')}</p>
             <p className="text-meta text-muted">{lastScan ? t('trapIp.scan.last', { when: fmtRelative(lastScan.ts), src: lastScan.src_name ?? lastScan.src_ip, trapIps: lastScan.trap_hostname || lastScan.trap_ip }) : t('trapIp.scan.never')}</p>
           </div>
-          <Button size="sm" disabled={!!scanReason} busy={scan.isPending} busyLabel={t('common:busy.testing')} title={scanReason} onClick={() => scan.mutate(undefined, { onSuccess: () => toast.success(t('trapIp.scan.testToast')), onError: (e) => toast.error(errMsg(e)) })}>
+          <Button size="sm" disabled={!!scanReason} busy={scan.isPending} busyLabel={t('common:busy.testing')} title={scanReason} onClick={() => scan.mutate(undefined, { onSuccess: (hit) => testAlertToast(t, t('trapIp.scan.testToast'), hit), onError: (e) => toast.error(errMsg(e)) })}>
             <FlaskConical />{t('trapIp.scan.test')}
           </Button>
         </div>

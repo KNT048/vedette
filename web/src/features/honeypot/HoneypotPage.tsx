@@ -14,6 +14,7 @@ import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useModules } from '@/lib/modules'
 import { useHits, useOverview, useTestHit, useTokens } from './api'
+import { testAlertToast } from './testAlert'
 import { hitName } from './hitName'
 import { RespondLink } from './hitParts'
 import { notOffered } from '@/lib/v1'
@@ -125,7 +126,7 @@ function ServicesTab({ data }: { data: HpOverview }) {
 
   function doTest(trap: Trap) {
     test.mutate(trap.service, {
-      onSuccess: () => toast.success(t('traps.testToast', { service: svc(trap.service) })),
+      onSuccess: (hit) => testAlertToast(t, t('traps.testToast', { service: svc(trap.service) }), hit),
       onError: (e) => toast.error(errMsg(e)),
     })
   }

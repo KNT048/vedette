@@ -121,7 +121,7 @@ func reportFix(f reports.Fix, from string) string {
 	case "none_yet":
 		return "No fix known yet for " + f.Product
 	}
-	return "No fix data for " + f.Product
+	return "See the vendor advisory for the fixed release of " + f.Product
 }
 
 func reportDevice(d reports.DeviceRef) string {
@@ -185,7 +185,7 @@ func reportMailDoc(d reports.Document) *channel.Doc {
 	}
 	if s := d.Summary; s != nil {
 		sec := channel.DocSection{Title: "Summary"}
-		sec.Paragraphs = append(sec.Paragraphs, fmt.Sprintf("Open now: %d (%d at the start of the period). New this period: %d. Handled this period: %d.", s.OpenNow, s.OpenBefore, s.New, s.Handled))
+		sec.Paragraphs = append(sec.Paragraphs, reports.FlowLine(*s))
 		if h := d.Handled; h != nil && h.MedianDays != nil {
 			sec.Paragraphs = append(sec.Paragraphs, fmt.Sprintf("Median days to fix: %s.", strconv.FormatFloat(*h.MedianDays, 'f', -1, 64)))
 		}
@@ -222,7 +222,7 @@ func reportMailDoc(d reports.Document) *channel.Doc {
 		for _, dv := range h.Devices {
 			for _, it := range dv.Items {
 				n++
-				t.Rows = append(t.Rows, []string{reportDevice(dv.Device), it.CVE + " · " + it.Product, reports.HandledLine(it.Handled, it.Product, loc)})
+				t.Rows = append(t.Rows, []string{reportDevice(dv.Device), it.CVE + " · " + it.Product, reports.ItemLine(it, loc)})
 			}
 		}
 		if n == 0 {
@@ -341,7 +341,11 @@ func reportExposureSection(x *reports.ReportExposure, loc *time.Location) channe
 		if proof == "" {
 			proof = t.Proof
 		}
-		targets.Rows = append(targets.Rows, []string{name, proof, scan, reportPlural(open, "open port", "open ports"), strings.Join(issues, "; ")})
+		portsCell := reportPlural(open, "open port", "open ports")
+		if t.LastScanAt == nil && open == 0 && len(t.Issues) == 0 { // nothing was checked: no count to claim
+			portsCell, issues = "–", []string{"–"}
+		}
+		targets.Rows = append(targets.Rows, []string{name, proof, scan, portsCell, strings.Join(issues, "; ")})
 	}
 	sec.Tables = append(sec.Tables, targets, ports)
 	return sec
@@ -385,6 +389,9 @@ func reportDetectionsSection(x *reports.ReportDetections, loc *time.Location) ch
 			dev := ""
 			if t.Device != nil {
 				dev = reportDevice(*t.Device)
+			}
+			if t.DeviceCount > 1 { // one device's name would read as the only one
+				dev = fmt.Sprintf("%d devices", t.DeviceCount)
 			}
 			top.Rows = append(top.Rows, []string{reportKind(t.Kind) + ": " + t.Title, t.Severity, dev, reportDay(t.At, loc)})
 		}

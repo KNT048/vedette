@@ -37,7 +37,8 @@
     "not_relevant": "{{device}}: {{cve}} marked as not relevant",
     "risk_accepted": "{{device}}: {{cve}} risk accepted until {{date}}",
     "agent": "{{device}} has {{cve}}: its agent reports an affected version",
-    "agentLast": "{{device}} has {{cve}}: an agent last reported an affected version"
+    "agentLast": "{{device}} has {{cve}}: an agent last reported an affected version",
+    "suspected_1": "Someone on your network sent the {{cve}} exploit to {{device}}: whether it is affected still needs checking"
   },
   "meta": {
     "ransomware": "Used by ransomware",
@@ -156,17 +157,11 @@
     "checklistTitle": "4. Checklist",
     "checklistHint": "Tick as you finish ({{done}}/{{total}}). Only for tracking on this screen; not saved.",
     "noPack": "No confirmed recommendation yet",
-    "noPackBody": "What this box knows: source information, not a Vedette recommendation.",
     "noPackAi": "Your own AI can draft more; its answer always carries the AI-generated label.",
     "noPackBodyInfo": "Vedette maintainers have not confirmed a step-by-step pack for this CVE yet. Below is what the exploited list requires, where the vendor's fix is, and how to check your device.",
-    "sourceHint": "CISA's required action when it added this vulnerability on {{date}} (original English).",
-    "sourceHintVulnCheck": "VulnCheck KEV's note of {{date}} (original English). CISA does not list it yet.",
     "dueDate": "CISA's deadline for US federal agencies: {{date}}. Use it as your own deadline.",
     "dueDatePassed": "CISA's deadline for US federal agencies passed on {{date}}: update now.",
-    "askTitle": "Ask your AI",
     "askAi": "Ask my AI",
-    "cisaTitle": "What CISA requires",
-    "vulncheckTitle": "What VulnCheck KEV says",
     "ransomware": "Ransomware groups have used this flaw, so handle it before the deadline.",
     "fixedIn": "Fixed in {{fixed}}: upgrade {{device}} from {{version}} to {{fixed}} or later.",
     "fixedFeatureUpdate": "NVD names the fix for {{branch}} ({{fixed}}), not for the Windows release {{device}} runs ({{version}}): Microsoft no longer updates that release, so no monthly update brings it this fix. Move {{device}} to a Windows release Microsoft still services (a feature update). If Windows Update still offers it monthly updates, install the latest and check Microsoft's advisory.",
@@ -203,7 +198,6 @@
     },
     "linkDetail": "{{label}}: {{detail}}",
     "linkNumbered": "{{label}} ({{n}})",
-    "stepsTitle": "Steps you can take now",
     "step1": "Find which version of {{product}} runs on {{device}}, and add it to the device on the Devices page so Vedette can compare it.",
     "step1Known": "Nothing to look up: {{device}} runs {{software}} {{version}} ({{from}}).",
     "from": {
@@ -214,9 +208,6 @@
       "scan": "a network scan read it",
       "manual": "entered on the Devices page"
     },
-    "step2Due": "If it is older than the fixed version in the advisory, update it by {{date}}.",
-    "step2Overdue": "If it is older than the fixed version in the advisory, update it now: CISA's deadline passed on {{date}}.",
-    "step2": "If it is older than the fixed version in the advisory, update it.",
     "step3": "Then press \"I updated it\" at the top of this page and type the new version: Vedette checks it and closes every finding on {{device}} that version fixes. For software a scan reads, run a scan of {{device}} instead.",
     "step3Manual": "Then press \"I updated {{software}}\" at the top of this page and type the new version: Vedette checks it and closes every finding on {{device}} that version fixes.",
     "step3Agent": "The agent reports the new version by itself, usually within two hours (after the restart the update needs). Vedette then closes the findings on {{device}} it can prove that version fixes; if this one stays open, press \"Mark as handled\" and choose Patched.",
@@ -225,16 +216,16 @@
     "step3Stated": "{{device}} states its new version on the network by itself after the update, and Vedette then closes the findings on {{device}} it can prove that version fixes. If this one stays open, press \"Mark as handled\" and choose Patched.",
     "step3Scan": "Then rescan {{device}} with the button under Evidence: the scan reads the new version and Vedette closes the findings on {{device}} it can prove that version fixes. If this one stays open, press \"Mark as handled\" and choose Patched.",
     "step3Mark": "Then press \"Mark as handled\" at the top of this page and choose Patched. If the version was already fixed, choose False positive and write the version in the note.",
-    "theSoftware": "the software",
-    "noKev": "This CVE is not on an exploited list this box holds.",
-    "noKevInfo": "The list may have dropped it, or VulnCheck KEV was turned off, so there is no source information to show."
+    "theSoftware": "the software"
   },
   "compromise": {
     "title": "Have I been hit?",
     "description": "Signs that the device was exploited, and commands to check yourself.",
     "none": "No confirmed exploitation signs for this CVE yet.",
     "noneInfo": "Follow the recheck steps under Evidence and look at the device logs around the day the vulnerability was published.",
-    "ifFound": "If you see signs"
+    "ifFound": "If you see signs",
+    "reports": "No exploitation signs specific to {{cve}} are in Vedette's data. These reports of the attacks may name the files, accounts or addresses seen:",
+    "noReports": "No exploitation signs specific to {{cve}} are in Vedette's data, and it holds no report of the attacks that names them."
   },
   "hardening": {
     "title": "General hardening",
@@ -271,7 +262,9 @@
       "mikrotik": "MikroTik configuration",
       "generic": "general guidance"
     },
-    "risk_accepted": "Risk accepted"
+    "risk_accepted": "Risk accepted",
+    "urgency_changed": "Urgency changed",
+    "fix_changed": "Fix changed"
   },
   "explain": {
     "title": "Explain in plain language",
@@ -506,7 +499,7 @@
     "restart": "Restart to run the installed {{product}} {{to}}",
     "restartAny": "Restart to run the installed {{product}}",
     "noneYet": "No fix known yet for {{product}}",
-    "unknown": "No fix data for {{product}}",
+    "unknown": "See the vendor advisory for the fixed release of {{product}}",
     "advisory": "Vendor advisory",
     "advisories": "Advisories for {{cve}}",
     "notes": "Release notes"
@@ -680,10 +673,34 @@
     "title": "About {{cve}}",
     "epss": "Exploit likelihood {{score}} (EPSS)",
     "device": "Your device: {{software}} {{version}}",
-    "todo": "What to do",
     "fix": "Install the fixed release the vendor advisory names.",
-    "check": "Once {{device}} is fixed, Vedette sees the new version at its next check.",
-    "checkNow": "Check it now",
     "more": "Affected versions, sources and score"
+  },
+  "todo": {
+    "source": "From the vendor, the CVE record and the exploited lists.",
+    "fixUpdate": "Fixed in {{fixed}}: update {{product}} on {{device}} from {{version}} to {{fixed}} or later.",
+    "fixUpdateNoVersion": "Fixed in {{fixed}}: update {{product}} on {{device}} to {{fixed}} or later.",
+    "fixDistro": "Fixed in the distribution's package {{fixed}}: install the security updates of {{device}} (for example apt upgrade or dnf upgrade). It has {{version}}.",
+    "fixDistroNoVersion": "Fixed in the distribution's package {{fixed}}: install the security updates of {{device}} (for example apt upgrade or dnf upgrade).",
+    "fixOs": "Fixed in build {{fixed}}: install the latest monthly update on {{device}}.",
+    "fixOsKb": "Fixed in build {{fixed}} ({{kb}}): install the latest monthly update on {{device}}.",
+    "fixFeature": "No update of the release {{device}} runs fixes it: move it to {{fixed}}, a release that has the fix.",
+    "fixNoneYet": "The vendor has no fixed release of {{product}} for this yet: follow the vendor advisory, and use the steps below until one ships.",
+    "fixSource": "The same fix the findings lists and the plan name. Check the vendor advisory before you update.",
+    "vendorSolution": "The vendor's solution:",
+    "vendorWorkaround": "The vendor's workaround:",
+    "noWorkaround": "No workaround is published: install the fix.",
+    "cisaAsks": "What {{source}} asks:",
+    "fwNoPack": "No firewall configuration is published for {{cve}}: Vedette maintainers have not confirmed one, and Vedette does not write one by guesswork.",
+    "fwYours": "Your firewall in Vedette:",
+    "fwNone": "Vedette does not know your firewall yet. Add it here, and your AI can write its configuration.",
+    "fwAdd": "Add your firewall",
+    "fwAsk": "Your AI writes a configuration for {{firewall}} from this device's open ports. Read every line before you paste it.",
+    "fwAskAny": "Your AI writes a configuration from this device's open ports. Read every line before you paste it.",
+    "checkTitle": "4. Check that it is fixed",
+    "checkVersion": "{{software}} on {{device}} shows {{fixed}} or later.",
+    "checkVersionAdvisory": "{{software}} on {{device}} shows the fixed release the vendor advisory names.",
+    "checkRestart": "If the update asks for a restart, restart {{device}}: the old version keeps running until then.",
+    "checkWorkaround": "If you put the workaround in place, undo it once the new version shows, where it gets in your users' way."
   }
 }

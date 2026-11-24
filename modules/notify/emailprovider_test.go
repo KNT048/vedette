@@ -19,7 +19,7 @@ func TestEmailProviderFieldsAndSecretFollowTheSignInMethod(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Fields["tenant_id"] == "" || c.Fields["client_id"] == "" || c.Fields["provider"] != "microsoft365" || *c.SecretLast4 != "-123" {
+	if c.Fields["tenant_id"] == "" || c.Fields["client_id"] == "" || c.Fields["provider"] != "microsoft365" || *c.SecretLast4 != "••••" {
 		t.Fatalf("fields %v", c.Fields)
 	}
 	// The same method keeps the saved client secret.

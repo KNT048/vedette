@@ -550,6 +550,7 @@ const usersHandlers = [
 // ---------- Audit log ----------
 function filterAudit(q: Partial<AuditQuery>): AuditRow[] {
   const text = (q.q ?? '').trim().toLowerCase()
+  const named = new Set(text && q.actions ? q.actions.split(',') : [])
   const from = q.from ? new Date(`${q.from}T00:00:00`).getTime() : -Infinity
   const to = q.to ? new Date(`${q.to}T23:59:59.999`).getTime() : Infinity
   return auditStore.get().map(({ prev_hash: _p, hash: _h, detail, ...r }): AuditRow => (detail === null ? r : { ...r, detail })).filter((r) => {
@@ -558,11 +559,11 @@ function filterAudit(q: Partial<AuditQuery>): AuditRow[] {
     if (q.user && r.user !== q.user) return false
     if (q.actor === 'people' && isSystemActor(r.user)) return false
     if (q.group && r.action.split('.')[0] !== q.group) return false
-    if (text && !`${r.action} ${r.target} ${r.detail ?? ''} ${r.user}`.toLowerCase().includes(text)) return false
+    if (text && !named.has(r.action) && !`${r.action} ${r.target} ${r.detail ?? ''} ${r.user}`.toLowerCase().includes(text)) return false
     return true
   })
 }
-const qOf = (url: string): Partial<AuditQuery> => { const p = new URL(url).searchParams; return { q: p.get('q') ?? '', user: p.get('user') ?? '', group: p.get('group') ?? '', from: p.get('from') ?? '', to: p.get('to') ?? '', actor: p.get('actor') === 'people' ? 'people' : '' } }
+const qOf = (url: string): Partial<AuditQuery> => { const p = new URL(url).searchParams; return { q: p.get('q') ?? '', actions: p.get('actions') ?? '', user: p.get('user') ?? '', group: p.get('group') ?? '', from: p.get('from') ?? '', to: p.get('to') ?? '', actor: p.get('actor') === 'people' ? 'people' : '' } }
 /** An automatic line is written by the box itself: user "system" or "system:<part>" (a person, the console and an MCP token are not). */
 const isSystemActor = (user: string) => user === 'system' || user.startsWith('system:')
 /** ids of devices (a-…) and findings (f-…) in a line's target or detail. */

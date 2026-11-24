@@ -225303,6 +225303,12 @@ func (s *HoneypotGetHoneypotHitsIDOK) encodeFields(e *jx.Encoder) {
 		s.SrcName.Encode(e)
 	}
 	{
+		if s.TestAlert.Set {
+			e.FieldStart("test_alert")
+			s.TestAlert.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("trap_hostname")
 		e.Str(s.TrapHostname)
 	}
@@ -225320,7 +225326,7 @@ func (s *HoneypotGetHoneypotHitsIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfHoneypotGetHoneypotHitsIDOK = [16]string{
+var jsonFieldsNameOfHoneypotGetHoneypotHitsIDOK = [17]string{
 	0:  "asset",
 	1:  "events",
 	2:  "excerpt",
@@ -225333,10 +225339,11 @@ var jsonFieldsNameOfHoneypotGetHoneypotHitsIDOK = [16]string{
 	9:  "src_asset_id",
 	10: "src_ip",
 	11: "src_name",
-	12: "trap_hostname",
-	13: "trap_ip",
-	14: "ts",
-	15: "window_minutes",
+	12: "test_alert",
+	13: "trap_hostname",
+	14: "trap_ip",
+	15: "ts",
+	16: "window_minutes",
 }
 
 // Decode decodes HoneypotGetHoneypotHitsIDOK from json.
@@ -225344,7 +225351,7 @@ func (s *HoneypotGetHoneypotHitsIDOK) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode HoneypotGetHoneypotHitsIDOK to nil")
 	}
-	var requiredBitSet [2]uint8
+	var requiredBitSet [3]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -225486,8 +225493,18 @@ func (s *HoneypotGetHoneypotHitsIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"src_name\"")
 			}
+		case "test_alert":
+			if err := func() error {
+				s.TestAlert.Reset()
+				if err := s.TestAlert.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"test_alert\"")
+			}
 		case "trap_hostname":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.TrapHostname = string(v)
@@ -225499,7 +225516,7 @@ func (s *HoneypotGetHoneypotHitsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trap_hostname\"")
 			}
 		case "trap_ip":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.TrapIP = string(v)
@@ -225511,7 +225528,7 @@ func (s *HoneypotGetHoneypotHitsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trap_ip\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -225523,7 +225540,7 @@ func (s *HoneypotGetHoneypotHitsIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ts\"")
 			}
 		case "window_minutes":
-			requiredBitSet[1] |= 1 << 7
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
 				s.WindowMinutes = int(v)
@@ -225543,9 +225560,10 @@ func (s *HoneypotGetHoneypotHitsIDOK) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
+	for i, mask := range [3]uint8{
 		0b11111111,
-		0b11111111,
+		0b11101111,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -226044,6 +226062,276 @@ func (s *HoneypotGetHoneypotHitsIDOKService) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlert) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlert) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channels")
+		e.ArrStart()
+		for _, elem := range s.Channels {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfHoneypotGetHoneypotHitsIDOKTestAlert = [1]string{
+	0: "channels",
+}
+
+// Decode decodes HoneypotGetHoneypotHitsIDOKTestAlert from json.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlert) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotGetHoneypotHitsIDOKTestAlert to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channels":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Channels = make([]HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Channels = append(s.Channels, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channels\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HoneypotGetHoneypotHitsIDOKTestAlert")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfHoneypotGetHoneypotHitsIDOKTestAlert) {
+					name = jsonFieldsNameOfHoneypotGetHoneypotHitsIDOKTestAlert[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlert) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlert) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channel")
+		e.Str(s.Channel)
+	}
+	{
+		e.FieldStart("detail")
+		e.Str(s.Detail)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("ok")
+		e.Bool(s.Ok)
+	}
+	{
+		e.FieldStart("skipped")
+		e.Bool(s.Skipped)
+	}
+}
+
+var jsonFieldsNameOfHoneypotGetHoneypotHitsIDOKTestAlertChannelsItem = [5]string{
+	0: "channel",
+	1: "detail",
+	2: "name",
+	3: "ok",
+	4: "skipped",
+}
+
+// Decode decodes HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem from json.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channel":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Channel = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		case "detail":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Detail = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"detail\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "ok":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ok = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ok\"")
+			}
+		case "skipped":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Skipped = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"skipped\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfHoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) {
+					name = jsonFieldsNameOfHoneypotGetHoneypotHitsIDOKTestAlertChannelsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *HoneypotGetHoneypotHitsOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -226199,6 +226487,12 @@ func (s *HoneypotGetHoneypotHitsOKItemsItem) encodeFields(e *jx.Encoder) {
 		s.SrcName.Encode(e)
 	}
 	{
+		if s.TestAlert.Set {
+			e.FieldStart("test_alert")
+			s.TestAlert.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("trap_hostname")
 		e.Str(s.TrapHostname)
 	}
@@ -226212,7 +226506,7 @@ func (s *HoneypotGetHoneypotHitsOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfHoneypotGetHoneypotHitsOKItemsItem = [13]string{
+var jsonFieldsNameOfHoneypotGetHoneypotHitsOKItemsItem = [14]string{
 	0:  "excerpt",
 	1:  "id",
 	2:  "is_test",
@@ -226223,9 +226517,10 @@ var jsonFieldsNameOfHoneypotGetHoneypotHitsOKItemsItem = [13]string{
 	7:  "src_asset_id",
 	8:  "src_ip",
 	9:  "src_name",
-	10: "trap_hostname",
-	11: "trap_ip",
-	12: "ts",
+	10: "test_alert",
+	11: "trap_hostname",
+	12: "trap_ip",
+	13: "ts",
 }
 
 // Decode decodes HoneypotGetHoneypotHitsOKItemsItem from json.
@@ -226347,8 +226642,18 @@ func (s *HoneypotGetHoneypotHitsOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"src_name\"")
 			}
+		case "test_alert":
+			if err := func() error {
+				s.TestAlert.Reset()
+				if err := s.TestAlert.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"test_alert\"")
+			}
 		case "trap_hostname":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.TrapHostname = string(v)
@@ -226360,7 +226665,7 @@ func (s *HoneypotGetHoneypotHitsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trap_hostname\"")
 			}
 		case "trap_ip":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.TrapIP = string(v)
@@ -226372,7 +226677,7 @@ func (s *HoneypotGetHoneypotHitsOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trap_ip\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -226394,7 +226699,7 @@ func (s *HoneypotGetHoneypotHitsOKItemsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -226550,6 +226855,276 @@ func (s HoneypotGetHoneypotHitsOKItemsItemService) MarshalJSON() ([]byte, error)
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *HoneypotGetHoneypotHitsOKItemsItemService) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlert) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlert) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channels")
+		e.ArrStart()
+		for _, elem := range s.Channels {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfHoneypotGetHoneypotHitsOKItemsItemTestAlert = [1]string{
+	0: "channels",
+}
+
+// Decode decodes HoneypotGetHoneypotHitsOKItemsItemTestAlert from json.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlert) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotGetHoneypotHitsOKItemsItemTestAlert to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channels":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Channels = make([]HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Channels = append(s.Channels, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channels\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HoneypotGetHoneypotHitsOKItemsItemTestAlert")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfHoneypotGetHoneypotHitsOKItemsItemTestAlert) {
+					name = jsonFieldsNameOfHoneypotGetHoneypotHitsOKItemsItemTestAlert[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlert) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlert) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channel")
+		e.Str(s.Channel)
+	}
+	{
+		e.FieldStart("detail")
+		e.Str(s.Detail)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("ok")
+		e.Bool(s.Ok)
+	}
+	{
+		e.FieldStart("skipped")
+		e.Bool(s.Skipped)
+	}
+}
+
+var jsonFieldsNameOfHoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem = [5]string{
+	0: "channel",
+	1: "detail",
+	2: "name",
+	3: "ok",
+	4: "skipped",
+}
+
+// Decode decodes HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem from json.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channel":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Channel = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		case "detail":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Detail = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"detail\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "ok":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ok = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ok\"")
+			}
+		case "skipped":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Skipped = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"skipped\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfHoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) {
+					name = jsonFieldsNameOfHoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -230133,6 +230708,12 @@ func (s *HoneypotPostHoneypotTestHitOK) encodeFields(e *jx.Encoder) {
 		s.SrcName.Encode(e)
 	}
 	{
+		if s.TestAlert.Set {
+			e.FieldStart("test_alert")
+			s.TestAlert.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("trap_hostname")
 		e.Str(s.TrapHostname)
 	}
@@ -230146,7 +230727,7 @@ func (s *HoneypotPostHoneypotTestHitOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfHoneypotPostHoneypotTestHitOK = [13]string{
+var jsonFieldsNameOfHoneypotPostHoneypotTestHitOK = [14]string{
 	0:  "excerpt",
 	1:  "id",
 	2:  "is_test",
@@ -230157,9 +230738,10 @@ var jsonFieldsNameOfHoneypotPostHoneypotTestHitOK = [13]string{
 	7:  "src_asset_id",
 	8:  "src_ip",
 	9:  "src_name",
-	10: "trap_hostname",
-	11: "trap_ip",
-	12: "ts",
+	10: "test_alert",
+	11: "trap_hostname",
+	12: "trap_ip",
+	13: "ts",
 }
 
 // Decode decodes HoneypotPostHoneypotTestHitOK from json.
@@ -230281,8 +230863,18 @@ func (s *HoneypotPostHoneypotTestHitOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"src_name\"")
 			}
+		case "test_alert":
+			if err := func() error {
+				s.TestAlert.Reset()
+				if err := s.TestAlert.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"test_alert\"")
+			}
 		case "trap_hostname":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.TrapHostname = string(v)
@@ -230294,7 +230886,7 @@ func (s *HoneypotPostHoneypotTestHitOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trap_hostname\"")
 			}
 		case "trap_ip":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.TrapIP = string(v)
@@ -230306,7 +230898,7 @@ func (s *HoneypotPostHoneypotTestHitOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trap_ip\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -230328,7 +230920,7 @@ func (s *HoneypotPostHoneypotTestHitOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -230484,6 +231076,276 @@ func (s HoneypotPostHoneypotTestHitOKService) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *HoneypotPostHoneypotTestHitOKService) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *HoneypotPostHoneypotTestHitOKTestAlert) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HoneypotPostHoneypotTestHitOKTestAlert) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channels")
+		e.ArrStart()
+		for _, elem := range s.Channels {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfHoneypotPostHoneypotTestHitOKTestAlert = [1]string{
+	0: "channels",
+}
+
+// Decode decodes HoneypotPostHoneypotTestHitOKTestAlert from json.
+func (s *HoneypotPostHoneypotTestHitOKTestAlert) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotPostHoneypotTestHitOKTestAlert to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channels":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Channels = make([]HoneypotPostHoneypotTestHitOKTestAlertChannelsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem HoneypotPostHoneypotTestHitOKTestAlertChannelsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Channels = append(s.Channels, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channels\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HoneypotPostHoneypotTestHitOKTestAlert")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfHoneypotPostHoneypotTestHitOKTestAlert) {
+					name = jsonFieldsNameOfHoneypotPostHoneypotTestHitOKTestAlert[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HoneypotPostHoneypotTestHitOKTestAlert) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotPostHoneypotTestHitOKTestAlert) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channel")
+		e.Str(s.Channel)
+	}
+	{
+		e.FieldStart("detail")
+		e.Str(s.Detail)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("ok")
+		e.Bool(s.Ok)
+	}
+	{
+		e.FieldStart("skipped")
+		e.Bool(s.Skipped)
+	}
+}
+
+var jsonFieldsNameOfHoneypotPostHoneypotTestHitOKTestAlertChannelsItem = [5]string{
+	0: "channel",
+	1: "detail",
+	2: "name",
+	3: "ok",
+	4: "skipped",
+}
+
+// Decode decodes HoneypotPostHoneypotTestHitOKTestAlertChannelsItem from json.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotPostHoneypotTestHitOKTestAlertChannelsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channel":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Channel = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		case "detail":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Detail = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"detail\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "ok":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ok = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ok\"")
+			}
+		case "skipped":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Skipped = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"skipped\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HoneypotPostHoneypotTestHitOKTestAlertChannelsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfHoneypotPostHoneypotTestHitOKTestAlertChannelsItem) {
+					name = jsonFieldsNameOfHoneypotPostHoneypotTestHitOKTestAlertChannelsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -230704,6 +231566,12 @@ func (s *HoneypotPostHoneypotTestScanOK) encodeFields(e *jx.Encoder) {
 		s.SrcName.Encode(e)
 	}
 	{
+		if s.TestAlert.Set {
+			e.FieldStart("test_alert")
+			s.TestAlert.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("trap_hostname")
 		e.Str(s.TrapHostname)
 	}
@@ -230717,7 +231585,7 @@ func (s *HoneypotPostHoneypotTestScanOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfHoneypotPostHoneypotTestScanOK = [13]string{
+var jsonFieldsNameOfHoneypotPostHoneypotTestScanOK = [14]string{
 	0:  "excerpt",
 	1:  "id",
 	2:  "is_test",
@@ -230728,9 +231596,10 @@ var jsonFieldsNameOfHoneypotPostHoneypotTestScanOK = [13]string{
 	7:  "src_asset_id",
 	8:  "src_ip",
 	9:  "src_name",
-	10: "trap_hostname",
-	11: "trap_ip",
-	12: "ts",
+	10: "test_alert",
+	11: "trap_hostname",
+	12: "trap_ip",
+	13: "ts",
 }
 
 // Decode decodes HoneypotPostHoneypotTestScanOK from json.
@@ -230852,8 +231721,18 @@ func (s *HoneypotPostHoneypotTestScanOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"src_name\"")
 			}
+		case "test_alert":
+			if err := func() error {
+				s.TestAlert.Reset()
+				if err := s.TestAlert.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"test_alert\"")
+			}
 		case "trap_hostname":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.TrapHostname = string(v)
@@ -230865,7 +231744,7 @@ func (s *HoneypotPostHoneypotTestScanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trap_hostname\"")
 			}
 		case "trap_ip":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.TrapIP = string(v)
@@ -230877,7 +231756,7 @@ func (s *HoneypotPostHoneypotTestScanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trap_ip\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -230899,7 +231778,7 @@ func (s *HoneypotPostHoneypotTestScanOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -231055,6 +231934,276 @@ func (s HoneypotPostHoneypotTestScanOKService) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *HoneypotPostHoneypotTestScanOKService) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *HoneypotPostHoneypotTestScanOKTestAlert) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HoneypotPostHoneypotTestScanOKTestAlert) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channels")
+		e.ArrStart()
+		for _, elem := range s.Channels {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfHoneypotPostHoneypotTestScanOKTestAlert = [1]string{
+	0: "channels",
+}
+
+// Decode decodes HoneypotPostHoneypotTestScanOKTestAlert from json.
+func (s *HoneypotPostHoneypotTestScanOKTestAlert) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotPostHoneypotTestScanOKTestAlert to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channels":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Channels = make([]HoneypotPostHoneypotTestScanOKTestAlertChannelsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem HoneypotPostHoneypotTestScanOKTestAlertChannelsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Channels = append(s.Channels, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channels\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HoneypotPostHoneypotTestScanOKTestAlert")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfHoneypotPostHoneypotTestScanOKTestAlert) {
+					name = jsonFieldsNameOfHoneypotPostHoneypotTestScanOKTestAlert[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HoneypotPostHoneypotTestScanOKTestAlert) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotPostHoneypotTestScanOKTestAlert) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channel")
+		e.Str(s.Channel)
+	}
+	{
+		e.FieldStart("detail")
+		e.Str(s.Detail)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("ok")
+		e.Bool(s.Ok)
+	}
+	{
+		e.FieldStart("skipped")
+		e.Bool(s.Skipped)
+	}
+}
+
+var jsonFieldsNameOfHoneypotPostHoneypotTestScanOKTestAlertChannelsItem = [5]string{
+	0: "channel",
+	1: "detail",
+	2: "name",
+	3: "ok",
+	4: "skipped",
+}
+
+// Decode decodes HoneypotPostHoneypotTestScanOKTestAlertChannelsItem from json.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotPostHoneypotTestScanOKTestAlertChannelsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channel":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Channel = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		case "detail":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Detail = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"detail\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "ok":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ok = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ok\"")
+			}
+		case "skipped":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Skipped = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"skipped\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HoneypotPostHoneypotTestScanOKTestAlertChannelsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfHoneypotPostHoneypotTestScanOKTestAlertChannelsItem) {
+					name = jsonFieldsNameOfHoneypotPostHoneypotTestScanOKTestAlertChannelsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -231380,6 +232529,12 @@ func (s *HoneypotPostHoneypotTokensIDTestOK) encodeFields(e *jx.Encoder) {
 		s.SrcName.Encode(e)
 	}
 	{
+		if s.TestAlert.Set {
+			e.FieldStart("test_alert")
+			s.TestAlert.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("trap_hostname")
 		e.Str(s.TrapHostname)
 	}
@@ -231393,7 +232548,7 @@ func (s *HoneypotPostHoneypotTokensIDTestOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfHoneypotPostHoneypotTokensIDTestOK = [13]string{
+var jsonFieldsNameOfHoneypotPostHoneypotTokensIDTestOK = [14]string{
 	0:  "excerpt",
 	1:  "id",
 	2:  "is_test",
@@ -231404,9 +232559,10 @@ var jsonFieldsNameOfHoneypotPostHoneypotTokensIDTestOK = [13]string{
 	7:  "src_asset_id",
 	8:  "src_ip",
 	9:  "src_name",
-	10: "trap_hostname",
-	11: "trap_ip",
-	12: "ts",
+	10: "test_alert",
+	11: "trap_hostname",
+	12: "trap_ip",
+	13: "ts",
 }
 
 // Decode decodes HoneypotPostHoneypotTokensIDTestOK from json.
@@ -231528,8 +232684,18 @@ func (s *HoneypotPostHoneypotTokensIDTestOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"src_name\"")
 			}
+		case "test_alert":
+			if err := func() error {
+				s.TestAlert.Reset()
+				if err := s.TestAlert.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"test_alert\"")
+			}
 		case "trap_hostname":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.TrapHostname = string(v)
@@ -231541,7 +232707,7 @@ func (s *HoneypotPostHoneypotTokensIDTestOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trap_hostname\"")
 			}
 		case "trap_ip":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.TrapIP = string(v)
@@ -231553,7 +232719,7 @@ func (s *HoneypotPostHoneypotTokensIDTestOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"trap_ip\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -231575,7 +232741,7 @@ func (s *HoneypotPostHoneypotTokensIDTestOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -231731,6 +232897,276 @@ func (s HoneypotPostHoneypotTokensIDTestOKService) MarshalJSON() ([]byte, error)
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *HoneypotPostHoneypotTokensIDTestOKService) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlert) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlert) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channels")
+		e.ArrStart()
+		for _, elem := range s.Channels {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfHoneypotPostHoneypotTokensIDTestOKTestAlert = [1]string{
+	0: "channels",
+}
+
+// Decode decodes HoneypotPostHoneypotTokensIDTestOKTestAlert from json.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlert) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotPostHoneypotTokensIDTestOKTestAlert to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channels":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Channels = make([]HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Channels = append(s.Channels, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channels\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HoneypotPostHoneypotTokensIDTestOKTestAlert")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfHoneypotPostHoneypotTokensIDTestOKTestAlert) {
+					name = jsonFieldsNameOfHoneypotPostHoneypotTokensIDTestOKTestAlert[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlert) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlert) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("channel")
+		e.Str(s.Channel)
+	}
+	{
+		e.FieldStart("detail")
+		e.Str(s.Detail)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("ok")
+		e.Bool(s.Ok)
+	}
+	{
+		e.FieldStart("skipped")
+		e.Bool(s.Skipped)
+	}
+}
+
+var jsonFieldsNameOfHoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem = [5]string{
+	0: "channel",
+	1: "detail",
+	2: "name",
+	3: "ok",
+	4: "skipped",
+}
+
+// Decode decodes HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem from json.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "channel":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Channel = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"channel\"")
+			}
+		case "detail":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Detail = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"detail\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "ok":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ok = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ok\"")
+			}
+		case "skipped":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Skipped = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"skipped\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfHoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) {
+					name = jsonFieldsNameOfHoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -303390,6 +304826,10 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) encodeFields(e *jx.Encoder) {
 		e.Bool(s.Ok)
 	}
 	{
+		e.FieldStart("resent")
+		e.Bool(s.Resent)
+	}
+	{
 		e.FieldStart("to")
 		e.Str(s.To)
 	}
@@ -303399,17 +304839,18 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotifyGetNotifyHistoryOKItemsItem = [10]string{
-	0: "at",
-	1: "channel",
-	2: "delayed",
-	3: "error",
-	4: "id",
-	5: "kind",
-	6: "link",
-	7: "ok",
-	8: "to",
-	9: "what",
+var jsonFieldsNameOfNotifyGetNotifyHistoryOKItemsItem = [11]string{
+	0:  "at",
+	1:  "channel",
+	2:  "delayed",
+	3:  "error",
+	4:  "id",
+	5:  "kind",
+	6:  "link",
+	7:  "ok",
+	8:  "resent",
+	9:  "to",
+	10: "what",
 }
 
 // Decode decodes NotifyGetNotifyHistoryOKItemsItem from json.
@@ -303511,8 +304952,20 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ok\"")
 			}
-		case "to":
+		case "resent":
 			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Resent = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resent\"")
+			}
+		case "to":
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.To = string(v)
@@ -303524,7 +304977,7 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"to\"")
 			}
 		case "what":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.What = string(v)
@@ -303546,7 +304999,7 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11110111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -311116,6 +312569,10 @@ func (s *NotifyPostNotifyHistoryIDResendOK) encodeFields(e *jx.Encoder) {
 		e.Bool(s.Ok)
 	}
 	{
+		e.FieldStart("resent")
+		e.Bool(s.Resent)
+	}
+	{
 		e.FieldStart("to")
 		e.Str(s.To)
 	}
@@ -311125,17 +312582,18 @@ func (s *NotifyPostNotifyHistoryIDResendOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfNotifyPostNotifyHistoryIDResendOK = [10]string{
-	0: "at",
-	1: "channel",
-	2: "delayed",
-	3: "error",
-	4: "id",
-	5: "kind",
-	6: "link",
-	7: "ok",
-	8: "to",
-	9: "what",
+var jsonFieldsNameOfNotifyPostNotifyHistoryIDResendOK = [11]string{
+	0:  "at",
+	1:  "channel",
+	2:  "delayed",
+	3:  "error",
+	4:  "id",
+	5:  "kind",
+	6:  "link",
+	7:  "ok",
+	8:  "resent",
+	9:  "to",
+	10: "what",
 }
 
 // Decode decodes NotifyPostNotifyHistoryIDResendOK from json.
@@ -311237,8 +312695,20 @@ func (s *NotifyPostNotifyHistoryIDResendOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ok\"")
 			}
-		case "to":
+		case "resent":
 			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Resent = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resent\"")
+			}
+		case "to":
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.To = string(v)
@@ -311250,7 +312720,7 @@ func (s *NotifyPostNotifyHistoryIDResendOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"to\"")
 			}
 		case "what":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.What = string(v)
@@ -311272,7 +312742,7 @@ func (s *NotifyPostNotifyHistoryIDResendOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11110111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -317377,6 +318847,171 @@ func (s *OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Unmarsha
 	return s.Decode(d)
 }
 
+// Encode encodes HoneypotGetHoneypotHitsIDOKTestAlert as json.
+func (o OptHoneypotGetHoneypotHitsIDOKTestAlert) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes HoneypotGetHoneypotHitsIDOKTestAlert from json.
+func (o *OptHoneypotGetHoneypotHitsIDOKTestAlert) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptHoneypotGetHoneypotHitsIDOKTestAlert to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptHoneypotGetHoneypotHitsIDOKTestAlert) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptHoneypotGetHoneypotHitsIDOKTestAlert) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HoneypotGetHoneypotHitsOKItemsItemTestAlert as json.
+func (o OptHoneypotGetHoneypotHitsOKItemsItemTestAlert) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes HoneypotGetHoneypotHitsOKItemsItemTestAlert from json.
+func (o *OptHoneypotGetHoneypotHitsOKItemsItemTestAlert) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptHoneypotGetHoneypotHitsOKItemsItemTestAlert to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptHoneypotGetHoneypotHitsOKItemsItemTestAlert) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptHoneypotGetHoneypotHitsOKItemsItemTestAlert) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HoneypotPostHoneypotTestHitOKTestAlert as json.
+func (o OptHoneypotPostHoneypotTestHitOKTestAlert) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes HoneypotPostHoneypotTestHitOKTestAlert from json.
+func (o *OptHoneypotPostHoneypotTestHitOKTestAlert) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptHoneypotPostHoneypotTestHitOKTestAlert to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptHoneypotPostHoneypotTestHitOKTestAlert) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptHoneypotPostHoneypotTestHitOKTestAlert) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HoneypotPostHoneypotTestScanOKTestAlert as json.
+func (o OptHoneypotPostHoneypotTestScanOKTestAlert) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes HoneypotPostHoneypotTestScanOKTestAlert from json.
+func (o *OptHoneypotPostHoneypotTestScanOKTestAlert) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptHoneypotPostHoneypotTestScanOKTestAlert to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptHoneypotPostHoneypotTestScanOKTestAlert) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptHoneypotPostHoneypotTestScanOKTestAlert) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes HoneypotPostHoneypotTokensIDTestOKTestAlert as json.
+func (o OptHoneypotPostHoneypotTokensIDTestOKTestAlert) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes HoneypotPostHoneypotTokensIDTestOKTestAlert from json.
+func (o *OptHoneypotPostHoneypotTokensIDTestOKTestAlert) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptHoneypotPostHoneypotTokensIDTestOKTestAlert to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptHoneypotPostHoneypotTokensIDTestOKTestAlert) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptHoneypotPostHoneypotTokensIDTestOKTestAlert) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes HoneypotPostHoneypotTokensReqExt as json.
 func (o OptHoneypotPostHoneypotTokensReqExt) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -321609,6 +323244,12 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) encodeFields(e *jx.Encode
 		s.Device.Encode(e)
 	}
 	{
+		if s.DeviceCount.Set {
+			e.FieldStart("device_count")
+			s.DeviceCount.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -321622,12 +323263,13 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) encodeFields(e *jx.Encode
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKDetectionsTopItem = [5]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKDetectionsTopItem = [6]string{
 	0: "at",
 	1: "device",
-	2: "kind",
-	3: "severity",
-	4: "title",
+	2: "device_count",
+	3: "kind",
+	4: "severity",
+	5: "title",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKDetectionsTopItem from json.
@@ -321661,8 +323303,18 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Decode(d *jx.Decoder) err
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"device\"")
 			}
+		case "device_count":
+			if err := func() error {
+				s.DeviceCount.Reset()
+				if err := s.DeviceCount.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device_count\"")
+			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -321672,7 +323324,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -321682,7 +323334,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -321703,7 +323355,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Decode(d *jx.Decoder) err
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -323384,17 +325036,24 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) encodeFields(e 
 		e.Str(s.Product)
 	}
 	{
+		if s.ReopenedAt.Set {
+			e.FieldStart("reopened_at")
+			s.ReopenedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
 		e.FieldStart("severity")
 		s.Severity.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItem = [5]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItem = [6]string{
 	0: "cve",
 	1: "finding_id",
 	2: "handled",
 	3: "product",
-	4: "severity",
+	4: "reopened_at",
+	5: "severity",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItem from json.
@@ -323452,8 +325111,18 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Decode(d *jx.De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"product\"")
 			}
+		case "reopened_at":
+			if err := func() error {
+				s.ReopenedAt.Reset()
+				if err := s.ReopenedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reopened_at\"")
+			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -323472,7 +325141,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Decode(d *jx.De
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00101111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -328151,15 +329820,22 @@ func (s *ReportsGetReportsDocumentOKSummary) encodeFields(e *jx.Encoder) {
 		e.FieldStart("open_now")
 		e.Int(s.OpenNow)
 	}
+	{
+		if s.Reopened.Set {
+			e.FieldStart("reopened")
+			s.Reopened.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKSummary = [6]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKSummary = [7]string{
 	0: "first",
 	1: "handled",
 	2: "new",
 	3: "open_before",
 	4: "open_by_status",
 	5: "open_now",
+	6: "reopened",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKSummary from json.
@@ -328254,6 +329930,16 @@ func (s *ReportsGetReportsDocumentOKSummary) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_now\"")
+			}
+		case "reopened":
+			if err := func() error {
+				s.Reopened.Reset()
+				if err := s.Reopened.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reopened\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -330987,6 +332673,12 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) encodeFields(e *
 		s.Device.Encode(e)
 	}
 	{
+		if s.DeviceCount.Set {
+			e.FieldStart("device_count")
+			s.DeviceCount.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -331000,12 +332692,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) encodeFields(e *
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentDetectionsTopItem = [5]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentDetectionsTopItem = [6]string{
 	0: "at",
 	1: "device",
-	2: "kind",
-	3: "severity",
-	4: "title",
+	2: "device_count",
+	3: "kind",
+	4: "severity",
+	5: "title",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem from json.
@@ -331039,8 +332732,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Decode(d *jx.Dec
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"device\"")
 			}
+		case "device_count":
+			if err := func() error {
+				s.DeviceCount.Reset()
+				if err := s.DeviceCount.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device_count\"")
+			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -331050,7 +332753,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -331060,7 +332763,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -331081,7 +332784,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Decode(d *jx.Dec
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -332762,17 +334465,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) encode
 		e.Str(s.Product)
 	}
 	{
+		if s.ReopenedAt.Set {
+			e.FieldStart("reopened_at")
+			s.ReopenedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
 		e.FieldStart("severity")
 		s.Severity.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem = [5]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem = [6]string{
 	0: "cve",
 	1: "finding_id",
 	2: "handled",
 	3: "product",
-	4: "severity",
+	4: "reopened_at",
+	5: "severity",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem from json.
@@ -332830,8 +334540,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Decode
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"product\"")
 			}
+		case "reopened_at":
+			if err := func() error {
+				s.ReopenedAt.Reset()
+				if err := s.ReopenedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reopened_at\"")
+			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -332850,7 +334570,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Decode
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00101111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -337529,15 +339249,22 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummary) encodeFields(e *jx.Encoder
 		e.FieldStart("open_now")
 		e.Int(s.OpenNow)
 	}
+	{
+		if s.Reopened.Set {
+			e.FieldStart("reopened")
+			s.Reopened.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentSummary = [6]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentSummary = [7]string{
 	0: "first",
 	1: "handled",
 	2: "new",
 	3: "open_before",
 	4: "open_by_status",
 	5: "open_now",
+	6: "reopened",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentSummary from json.
@@ -337632,6 +339359,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummary) Decode(d *jx.Decoder) erro
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_now\"")
+			}
+		case "reopened":
+			if err := func() error {
+				s.Reopened.Reset()
+				if err := s.Reopened.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reopened\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -356907,6 +358644,8 @@ func (s *ResponseGetResponseApproveTokenOKState) Decode(d *jx.Decoder) error {
 		*s = ResponseGetResponseApproveTokenOKStateUsed
 	case ResponseGetResponseApproveTokenOKStateDecided:
 		*s = ResponseGetResponseApproveTokenOKStateDecided
+	case ResponseGetResponseApproveTokenOKStateWithdrawn:
+		*s = ResponseGetResponseApproveTokenOKStateWithdrawn
 	case ResponseGetResponseApproveTokenOKStateUnknown:
 		*s = ResponseGetResponseApproveTokenOKStateUnknown
 	default:

@@ -227,7 +227,7 @@ func TestZaloOARefreshTokenFlow(t *testing.T) {
 	}))
 	saved := e.save(channel.Zalo, notify.ChannelInput{Enabled: true, MinSeverity: notify.Low, SecretKey: "app-secret-key-123", //nolint:gosec // fake test secrets
 		RefreshToken: "refresh-token-first-0123456789", Fields: map[string]string{"oa_id": "1234567890", "user_id": "987654321", "app_id": "4318650137000000000"}})
-	if saved.SecretLast4 == nil || *saved.SecretLast4 != "6789" || saved.Fields["app_id"] != "4318650137000000000" {
+	if saved.SecretLast4 == nil || *saved.SecretLast4 != "••••" || !zaloSavedEndsIn(e, "6789") || saved.Fields["app_id"] != "4318650137000000000" {
 		t.Fatalf("saved = %+v", saved)
 	}
 	e.plain()
@@ -241,7 +241,7 @@ func TestZaloOARefreshTokenFlow(t *testing.T) {
 	}
 	rejectAccess = "access-token-number-01-abcdefghij" // revoked early: Zalo says -216
 	mu.Unlock()
-	if c, _ := e.svc.Channels(e.ctx()); !hasLast4(c, channel.Zalo, "ghij") {
+	if !zaloSavedEndsIn(e, "ghij") {
 		t.Fatal("the rotated refresh token was not saved")
 	}
 	e.incident("i2", notify.Critical)
@@ -257,13 +257,15 @@ func TestZaloOARefreshTokenFlow(t *testing.T) {
 	}
 }
 
-func hasLast4(v notify.ChannelsView, t channel.Type, l4 string) bool {
-	for _, c := range v.Channels {
-		if c.Type == t {
-			return c.SecretLast4 != nil && *c.SecretLast4 == l4
-		}
+// zaloSavedEndsIn says whether the saved Zalo grant holds a refresh token ending in l4. The API shows only that a secret is saved, so
+// the test reads the sealed one.
+func zaloSavedEndsIn(e *env, l4 string) bool {
+	e.t.Helper()
+	sec, err := e.svc.SavedSecretForTest(e.ctx(), channel.Zalo)
+	if err != nil {
+		e.t.Fatal(err)
 	}
-	return false
+	return strings.Contains(sec, l4+`"`) || strings.HasSuffix(sec, l4)
 }
 
 func eventOf(name string, data any) events.Event { return events.Event{Name: name, Data: data} }
@@ -357,12 +359,12 @@ func TestZaloRotationSurvivesAFailedSave(t *testing.T) {
 	})
 	e.incident("i1", notify.Critical)
 	e.flush() // refreshes; the save fails; the message still goes with the new access token
-	if c, _ := e.svc.Channels(e.ctx()); !hasLast4(c, channel.Zalo, "6789") {
+	if !zaloSavedEndsIn(e, "6789") {
 		t.Fatal("the failed save changed the channel")
 	}
 	e.incident("i2", notify.Critical)
 	e.flush() // the same sender saves the rotation before it sends again
-	if c, _ := e.svc.Channels(e.ctx()); !hasLast4(c, channel.Zalo, "ghij") {
+	if !zaloSavedEndsIn(e, "ghij") {
 		t.Fatal("the rotation was not saved before the next send")
 	}
 	if e.count(`SELECT COUNT(*) FROM notify_send WHERE channel = 'zalo' AND ok = 1`) != 2 {

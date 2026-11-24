@@ -99,6 +99,8 @@ type HistoryItem struct {
 	Kind string `json:"kind"` // incident | vuln | approval
 	What string `json:"what"`
 	Link string `json:"link"`
+	// Resent: a person sent this message again from the History (Send again); its words are those of the message it copies.
+	Resent bool `json:"resent"`
 }
 
 // HistoryView is the answer of GET /notify/history. Suppressed counts the new vulnerabilities that

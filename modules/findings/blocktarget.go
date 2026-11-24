@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // The release a block names must clear every CVE the block lists. The newest of the findings' own fixes does not always: a CVE fixed
@@ -47,7 +49,7 @@ func (j *releaseJudge) ends(g lineGroup) []string {
 // each CVE judged by its ranges.
 func (j *releaseJudge) clears(g lineGroup, x string) bool {
 	if x != g.Fix.Version {
-		if c, ok := compareFix(g.Fix.Kind, x, g.Fix.Version); !ok || c < 0 {
+		if c, ok := compareFix(g.Fix.Kind, g.Product, x, g.Fix.Version); !ok || c < 0 {
 			return false
 		}
 	}
@@ -64,45 +66,75 @@ func (j *releaseJudge) clears(g lineGroup, x string) bool {
 }
 
 // planReleases sets the blocks of the groups is of one device, line and product, each with an update to a release that compares with
-// every other (combine checked it), as the comment at the top of this file says.
+// every other (combine checked it), as the comment at the top of this file says. A line can list hundreds of CVEs whose ranges name
+// thousands of releases, so the candidates are deduplicated before they are ordered, only those at or above the highest fix of the
+// groups left are tried for the release that clears them all (no lower one can), stopping at the first group one leaves open, and
+// each (group, release) is judged once.
 func planReleases(gs []lineGroup, is []int, product string, j *releaseJudge) {
 	kind := gs[is[0]].Fix.Kind
-	var stored, cands []string
+	stored, cands := map[string]bool{}, map[string]bool{}
 	for _, i := range is {
-		stored = append(stored, gs[i].Fix.Version)
-		cands = append(cands, gs[i].Fix.Version)
-		cands = append(cands, j.ends(gs[i])...)
-	}
-	cands = slices.DeleteFunc(cands, func(x string) bool { // only releases that compare with every stored fix can be ordered with them
-		for _, v := range stored {
-			if _, ok := compareFix(kind, x, v); !ok && x != v {
-				return true
-			}
+		stored[gs[i].Fix.Version] = true
+		cands[gs[i].Fix.Version] = true
+		for _, x := range j.ends(gs[i]) {
+			cands[x] = true
 		}
-		return false
-	})
-	slices.SortStableFunc(cands, func(a, b string) int {
-		c, _ := compareFix(kind, a, b)
+	}
+	order := func(a, b string) int {
+		c, _ := compareFix(kind, product, a, b)
 		return c
-	})
-	cands = slices.Compact(cands)
+	}
+	var list []string
+	fixes := keys(stored)
+	for x := range cands { // only releases that compare with every stored fix can be ordered with them
+		if stored[x] || !slices.ContainsFunc(fixes, func(v string) bool { _, ok := compareFix(kind, product, x, v); return !ok }) {
+			list = append(list, x)
+		}
+	}
+	slices.Sort(list) // a fixed order before the stable sort by release, so equal releases keep one order run to run
+	slices.SortStableFunc(list, order)
+	memo := map[int]map[string]bool{}
+	clears := func(i int, x string) bool {
+		m := memo[i]
+		if m == nil {
+			m = map[string]bool{}
+			memo[i] = m
+		}
+		ok, seen := m[x]
+		if !seen {
+			ok = j.clears(gs[i], x)
+			m[x] = ok
+		}
+		return ok
+	}
 	left := slices.Clone(is)
 	for len(left) > 0 {
-		best, set, most := "", []int(nil), 0
-		for _, x := range cands {
-			var cleared []int
-			n := 0
-			for _, i := range left {
-				if j.clears(gs[i], x) {
-					cleared, n = append(cleared, i), n+gs[i].All
-				}
+		top := gs[left[0]].Fix.Version
+		for _, i := range left[1:] {
+			if order(gs[i].Fix.Version, top) > 0 {
+				top = gs[i].Fix.Version
 			}
-			if len(cleared) == len(left) { // the lowest release that clears them all
-				best, set = x, cleared
+		}
+		best, set := "", []int(nil)
+		for _, x := range list[slices.Index(list, top):] { // the lowest release that clears them all
+			if !slices.ContainsFunc(left, func(i int) bool { return !clears(i, x) }) {
+				best, set = x, slices.Clone(left)
 				break
 			}
-			if n > most { // else the lowest that clears the most findings
-				best, set, most = x, cleared, n
+		}
+		if set == nil { // else the lowest that clears the most findings
+			most := 0
+			for _, x := range list {
+				var cleared []int
+				n := 0
+				for _, i := range left {
+					if clears(i, x) {
+						cleared, n = append(cleared, i), n+gs[i].All
+					}
+				}
+				if n > most {
+					best, set, most = x, cleared, n
+				}
 			}
 		}
 		if len(set) == 0 {
@@ -115,7 +147,7 @@ func planReleases(gs []lineGroup, is []int, product string, j *releaseJudge) {
 				break
 			}
 		}
-		key := FixKey(product, fx)
+		key := blockKey(product, fx)
 		for _, i := range set {
 			gs[i].Block, gs[i].BlockFix = key, fx
 		}
@@ -217,13 +249,13 @@ func (s *Service) releaseJudge(ctx context.Context, gs []lineGroup, rows string,
 }
 
 // rangeParts are the ranges of v that apply to line s of device a when FixOf reads v's fix on it from them (the nearest release
-// outside every one of them); nil when it reads it otherwise (the vendor's notation, Microsoft's release data, the distribution's
-// package) or reads none.
+// outside every one of them), or the vendor's rows in its notation when FixOf reads the fix from those (schemeParts); nil when it
+// reads it otherwise (Microsoft's release data, the distribution's package) or reads none.
 func rangeParts(a Asset, s Software, v Vuln) *fixedParts {
-	if _, ok := schemeFix(a, s, v); ok {
-		return nil
-	}
 	in := newSWInfo(s, a.OS)
+	if _, ok := schemeFix(a, s, v); ok {
+		return schemeParts(a, s, in, v)
+	}
 	if _, ok := windowsFixedIn(in, v); ok {
 		return nil
 	}
@@ -235,5 +267,27 @@ func rangeParts(a Asset, s Software, v Vuln) *fixedParts {
 		return nil
 	}
 	p := fixedPartsOf(in, v, key)
+	return &p
+}
+
+// schemeParts reads the vendor's rows of v for line s the way the matcher does (schemeJudge): a release clears the CVE when the vendor's
+// word on it is "not affected" from a row that ends in the release's own train (a train the vendor is silent on proves nothing), and
+// the rows' fixed releases are candidates for the block's release. So a block of ESXi 8.0 Update 2 CVEs whose fixes are U2d, U2e and
+// the U3 releases of CVEs that only Update 3 fixes names the one release that clears them all (8.0 U3k), and DSM's updates of one build
+// combine into the newest one the CVEs need.
+func schemeParts(a Asset, s Software, in swInfo, v Vuln) *fixedParts {
+	scheme, spans, _, _ := schemedSpans(a, s, in, v)
+	if scheme == nil {
+		return nil
+	}
+	p := fixedParts{outside: func(x string) bool {
+		rel, ok := scheme.Release(x)
+		return ok && endsInTrain(spans, rel) && versionscheme.Judge(rel, spans).State == versionscheme.NotAffected
+	}}
+	for _, sp := range spans {
+		if sp.End != nil && !sp.EndIncl && !sp.End.LineStart {
+			p.usable = append(p.usable, fixedEntry{r: VersionRange{EndExcl: releaseName(*sp.End)}})
+		}
+	}
 	return &p
 }

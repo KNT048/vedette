@@ -1182,6 +1182,10 @@ describe('core: audit log (S-CORE-3)', () => {
     expect(within(table).getByText('Devices: brand new thing')).toBeInTheDocument()
     for (const code of ['schedule.save', 'inventory.software_sync', 'inventory.brand_new_thing']) expect(within(table).queryByText(code)).toBeNull()
     expect(within(table).getByText('Change a schedule')).toHaveAttribute('title', 'schedule.save') // the code, for support, on hover
+    // the search finds what the screen shows: a word of a label finds the lines of that action, although the box stores the code
+    await user().type(screen.getByLabelText('Search text'), 'synced')
+    expect(await screen.findByText('1 log line matches the filters')).toBeInTheDocument()
+    expect(within(screen.getByRole('table', { name: 'Audit log' })).getByText('Software list synced')).toBeInTheDocument()
   })
 
   it('CSV export resists formulas and has correct quoting', async () => {

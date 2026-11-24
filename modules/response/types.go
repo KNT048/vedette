@@ -222,7 +222,7 @@ type EmailLink struct {
 // ApprovalView is GET /response/approve/{token}: what the link would change, never a decision. Every field about the content is empty or
 // null unless State is "ready", so a wrong, used or expired link shows nothing of the request (spec approval-tokens.md 4.4).
 type ApprovalView struct {
-	State             string         `json:"state"` // ready, expired, used, decided or unknown
+	State             string         `json:"state"` // ready, expired, used, decided, withdrawn or unknown
 	Title             *string        `json:"title"`
 	Items             []ApprovalItem `json:"items"`
 	Approver          *string        `json:"approver"`
@@ -273,8 +273,12 @@ type ActionRequest struct {
 // request is the stored form of ActionRequest.
 type request struct {
 	ActionRequest
-	recs []itemRec // the items with their values
+	recs      []itemRec // the items with their values
+	endReason string    // why it ended without a person or its time: EndSplit, or "" (resp_actions.end_reason)
 }
+
+// EndSplit is the end reason of a request a device split withdrew: its finding moved to another device before anyone decided.
+const EndSplit = "split"
 
 // hiddenHeader is what stands in for a header value a reader may not see.
 const hiddenHeader = "(hidden)"

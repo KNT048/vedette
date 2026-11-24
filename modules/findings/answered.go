@@ -126,10 +126,7 @@ func (s *Service) UnanswerQuestion(ctx context.Context, id, user string) error {
 		if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET answer = NULL, answered_by = NULL, answered_at = NULL WHERE id = ?`, x.ID); err != nil {
 			return fmt.Errorf("findings: taking back an answer: %w", err)
 		}
-		detail := string(x.Kind) + " on " + x.AssetID + ": asked again (was not affected, answered by " + x.AnsweredBy + ")"
-		if x.CVE != "" {
-			detail = x.CVE + " " + detail
-		}
+		detail := questionAuditDetail(x, "asked again (was not affected, answered by "+x.AnsweredBy+")")
 		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "findings.question_unanswered", Target: x.ID, Detail: strings.TrimSpace(detail)})
 	})
 }

@@ -10,7 +10,7 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useGeneral, useSaveGeneral, useTerms } from './api'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
-import { browserTimeZone, TIMEZONES, validTimeZone } from './util'
+import { browserTimeZone, sameTimeZone, TIMEZONES, validTimeZone } from './util'
 import type { GeneralSettings, TermsState } from './types'
 import { TermsText } from './TermsText'
 
@@ -46,7 +46,7 @@ function Form({ initial }: { initial: GeneralSettings }) {
       <Field label={t('general.timezone')} hint={t('general.timezoneHint')} info={t('general.timezoneInfo')} htmlFor="org-tz" error={tzError ?? undefined}>
         <Input id="org-tz" list="org-tz-list" autoComplete="off" spellCheck={false} value={v.timezone} disabled={gate.disabled} aria-invalid={!!tzError} onChange={(e) => setV({ ...v, timezone: e.target.value })} />
         <datalist id="org-tz-list">{TIMEZONES.map((z) => <option key={z} value={z} />)}</datalist>
-        {here && here !== v.timezone && !gate.disabled ? <button type="button" className="mt-1 w-fit text-meta text-accent underline-offset-4 hover:underline" onClick={() => setV({ ...v, timezone: here })}>{t('general.useBrowserZone', { zone: here })}</button> : null}
+        {here && !sameTimeZone(here, v.timezone) && !gate.disabled ? <button type="button" className="mt-1 w-fit text-meta text-accent underline-offset-4 hover:underline" onClick={() => setV({ ...v, timezone: here })}>{t('general.useBrowserZone', { zone: here })}</button> : null}
       </Field>
       <div><Button type="submit" variant="primary" disabled={gate.disabled || !dirty} busy={save.isPending} busyLabel={t('common:busy.saving')} title={gate.title}>{t('common:save')}</Button></div>
     </form>

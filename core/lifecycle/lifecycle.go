@@ -82,6 +82,10 @@ type FindingFold struct {
 // a device id next to a finding id say here which of their rows follow it.
 type FindingMove struct {
 	Finding, From, Into string
+	// IntoName and IntoIP are device Into as Devices names it and its main address, when the mover knows them: a split passes its
+	// Split.IntoName and IntoIP (the new device is not readable through the inventory's ordinary reads inside the write). Empty when
+	// the device was already there; a participant then reads it as usual.
+	IntoName, IntoIP string
 }
 
 // LinesDelete is software lines the inventory deletes for good (removed lines past their retention): Lines are their ids, deleted

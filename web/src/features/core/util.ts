@@ -77,6 +77,14 @@ export const validTimeZone = (z: string): boolean => {
   try { new Intl.DateTimeFormat(undefined, { timeZone: z }); return true } catch { return false }
 }
 export const browserTimeZone = (): string | null => Intl.DateTimeFormat().resolvedOptions().timeZone || null
+/** Two names of one zone: an engine reports a zone under its own name for it (Chrome's "Asia/Saigon" is the IANA "Asia/Ho_Chi_Minh"),
+ *  so names are compared as the engine resolves them. */
+export const sameTimeZone = (a: string, b: string): boolean => {
+  if (a === b) return true
+  try {
+    return new Intl.DateTimeFormat('en', { timeZone: a }).resolvedOptions().timeZone === new Intl.DateTimeFormat('en', { timeZone: b }).resolvedOptions().timeZone
+  } catch { return false }
+}
 
 export async function sha256Hex(buf: ArrayBuffer): Promise<string> {
   const d = await crypto.subtle.digest('SHA-256', buf)

@@ -1,6 +1,7 @@
 package sensoractive_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/netip"
@@ -203,29 +204,35 @@ func TestContract_INV3_SettingsChangeStopsTheRunningScan(t *testing.T) {
 	case <-time.After(15 * time.Second):
 		t.Fatal("the run was not stopped by the settings change")
 	}
-	if got := e.str(`SELECT status FROM jobs_v`); got != "stopped" {
-		t.Fatalf("job status = %q", got)
+	// the pass waits for the setting with its cursor (it goes on when scanning is turned on again); the cut batch's row says why
+	if got := e.str(`SELECT status || ': ' || waiting_for FROM core_run WHERE kind = 'lan_sweep'`); got != "waiting: active scanning to be turned on" {
+		t.Fatalf("the pass = %q", got)
+	}
+	if got := e.str(`SELECT result FROM sa_probe`); got != "stopped: active scanning was turned off" {
+		t.Fatalf("the cut batch's row = %q", got)
 	}
 }
 
-// An exclusion added while a batch runs stops it too (the addresses of the run are checked again).
+// An exclusion added while a batch runs stops it too (the addresses of the run are checked again): the batch is swept again at once
+// without the excluded address.
 func TestContract_INV1_ExclusionAddedMidRunStopsIt(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 1})
-	done := make(chan error, 1)
-	go func() { _, err := e.svc.DiscoverRanges(e.ctx()); done <- err }()
+	ctx, cancel := context.WithCancel(e.ctx())
+	defer cancel()
+	go func() { _, _ = e.svc.DiscoverRanges(ctx) }()
 	waitFor(t, "the fake nmap to start", func() bool { return len(e.nm.calls(t)) > 0 })
 	e.inv.set(func(s *sa.Settings) { s.Exclusions = []string{"192.168.10.5"} })
 	if err := e.svc.SettingsChanged(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
-	select {
-	case err := <-done:
-		if !errors.Is(err, sa.ErrStopped) {
-			t.Fatalf("err = %v, want ErrStopped", err)
-		}
-	case <-time.After(15 * time.Second):
-		t.Fatal("not stopped")
+	waitFor(t, "the cut batch to be swept again", func() bool { return len(e.nm.calls(t)) > 1 })
+	calls := e.nm.calls(t)
+	if !slices.Contains(targetsOf(calls[0]), "192.168.10.5") || slices.Contains(targetsOf(calls[1]), "192.168.10.5") {
+		t.Fatalf("nmap ran %q, want the batch cut and sent again without the excluded address", calls)
+	}
+	if got := e.str(`SELECT result FROM sa_probe ORDER BY rowid LIMIT 1`); got != "stopped: its address is no longer inside the scan scope" {
+		t.Fatalf("the cut batch's row = %q", got)
 	}
 }
 

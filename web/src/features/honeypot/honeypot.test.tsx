@@ -10,6 +10,7 @@ import { eachOption } from '@/test/formMatrix'
 import { makeQueryClient } from '@/app/App'
 import { assetsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { seedAssets } from '@/mocks/seed/assets'
+import { collection } from '@/mocks/db'
 import DevicePanel from './DevicePanel'
 import TrapIpsTab from './TrapIps'
 import { feature } from './index'
@@ -59,13 +60,28 @@ describe('honeypot: main page (S-HP-1)', () => {
   it('"Test trap" creates a hit labelled as a test and does not count it in the statistics', async () => {
     renderApp('/honeypot?tab=services')
     await userEvent.click(await screen.findByRole('button', { name: 'Test trap SMB (file sharing)' }))
-    expect(await screen.findByText('Recorded a test hit on the SMB (file sharing) trap')).toBeInTheDocument()
+    // no alert channel is on: the test says a real touch would only show in Vedette
+    expect(await screen.findByText(/^Recorded a test hit on the SMB \(file sharing\) trap\. No alert channel is on, so no test alert was sent/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('tab', { name: /Hits/ }))
     const testChip = await waitFor(() => within(screen.getByRole('table', { name: 'Trap hits' })).getByText('Test'))
     const row = testChip.closest('tr')!
     expect(within(row).getByText('Vedette box (test)')).toBeInTheDocument()
     expect(within(row).getByText('FILESRV-OLD')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/5 times in 7 days/)
+  })
+
+  it('"Test trap" sends the test alert through the channels that are on and says what each did', async () => {
+    collection<unknown[]>('notify_channels', () => []).set([
+      { type: 'email', configured: true, enabled: true, min_severity: 'medium' },
+      { type: 'telegram', configured: true, enabled: false, min_severity: 'low' },
+    ])
+    renderApp('/honeypot?tab=services')
+    await userEvent.click(await screen.findByRole('button', { name: 'Test trap SMB (file sharing)' }))
+    expect(await screen.findByText('Recorded a test hit on the SMB (file sharing) trap. Test alert sent by Email: check that it arrived.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: /Hits/ }))
+    const row = (await waitFor(() => within(screen.getByRole('table', { name: 'Trap hits' })).getByText('Test'))).closest('tr')!
+    await userEvent.click(within(row).getAllByRole('link')[0]!)
+    expect(await screen.findByText('Test alert sent by Email.')).toBeInTheDocument()
   })
 
   it('cannot test a service no Trap IP that is on has', async () => {
@@ -260,7 +276,7 @@ describe('honeypot: hit detail', () => {
   it('an opened test hit is labelled as a test and has no "What to do" section', async () => {
     renderApp('/honeypot?tab=services')
     await userEvent.click(await screen.findByRole('button', { name: 'Test trap RDP (remote desktop)' }))
-    await screen.findByText('Recorded a test hit on the RDP (remote desktop) trap')
+    await screen.findByText(/^Recorded a test hit on the RDP \(remote desktop\) trap\./)
     await userEvent.click(screen.getByRole('tab', { name: /Hits/ }))
     const row = (await waitFor(() => within(screen.getByRole('table', { name: 'Trap hits' })).getByText('Test'))).closest('tr')!
     await userEvent.click(within(row).getAllByRole('link')[0]!)
@@ -354,7 +370,7 @@ describe('honeypot: S-HP-2 suggestions, tokens, respond, coverage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Create token' }))
     expect(await screen.findByText('Token created')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: 'Test token Wiki admin link' }))
-    expect(await screen.findByText('Recorded a test trigger for Wiki admin link')).toBeInTheDocument()
+    expect(await screen.findByText(/^Recorded a test trigger for Wiki admin link\./)).toBeInTheDocument()
   })
 })
 

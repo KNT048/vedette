@@ -47,6 +47,7 @@ type File struct {
 // other path outside the spec. Each function must only read.
 type Readers struct {
 	OS            func(ctx context.Context) (any, error) // GET /v1/state/os
+	Time          func(ctx context.Context) (any, error) // GET /v1/state/time (the operating system's time zone)
 	Backups       func(ctx context.Context) (any, error) // GET /v1/state/backups
 	Net           func(ctx context.Context) (any, error) // GET /v1/state/net (WP-07b part 3, slice 3-3)
 	Containers    func(ctx context.Context) (any, error) // GET /v1/state/containers (slice 3-6)
@@ -68,6 +69,8 @@ func (s *Server) serveRead(w http.ResponseWriter, r *http.Request, kind routeKin
 	switch kind {
 	case routeStateOS:
 		s.serveState(w, r, rd.OS)
+	case routeStateTime:
+		s.serveState(w, r, rd.Time)
 	case routeStateBackups:
 		s.serveState(w, r, rd.Backups)
 	case routeStateNet:

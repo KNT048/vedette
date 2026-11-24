@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -17,7 +17,7 @@ import { CHECK_FAILURES, checkScenario, mockSign, MOCK_IDP_USER } from './mocks'
 import { saveSsoFlow, takeSsoFlow } from './ssoFlow'
 import type { Role } from '@/lib/session'
 import { restartWait } from './BoxRestarting'
-import { nav, compareVersion, toBase64 } from './util'
+import { nav, compareVersion, toBase64, browserTimeZone } from './util'
 import { fmtDateTime } from '@/lib/format'
 
 // The offline bundle is hidden in the GUI for v1 (BUNDLE_IN_UI false) but its code is kept, so this file runs the bundle as
@@ -87,6 +87,10 @@ describe('core: initial setup', () => {
     await acceptTerms(u)
     expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
     await expectNoA11yViolations()
+    // the box's one time zone starts as this browser's; an alias is written under its current name by the box
+    expect(screen.getByLabelText('Time zone')).toHaveValue(browserTimeZone())
+    await u.clear(screen.getByLabelText('Time zone'))
+    await u.type(screen.getByLabelText('Time zone'), 'Asia/Saigon')
     // error at step 1: the password is too short
     await u.type(screen.getByLabelText('Organization name'), 'ABC Company')
     await u.type(screen.getByLabelText('Administrator name'), 'Lan')
@@ -143,6 +147,7 @@ describe('core: initial setup', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
     expect(orgStore.get().setup_complete).toBe(true)
     expect(orgStore.get().name).toBe('ABC Company')
+    expect(orgStore.get().timezone).toBe('Asia/Ho_Chi_Minh')
     expect(usersStore.get().map((x) => x.email)).toEqual(['lan@abc.vn'])
     expect(assetsStore.get()).toHaveLength(0)
     expect(modulesStore.get().find((m) => m.id === 'scan')!.enabled).toBe(true)
@@ -464,6 +469,20 @@ describe('core: Settings frame and roles', () => {
     expect(await screen.findByText('Saved')).toBeInTheDocument()
     expect(orgStore.get().name).toBe('New Company')
     expect(auditStore.get()[0]!.action).toBe('core.general')
+  })
+
+  it('says whether the operating system of the box uses the zone too, and why not', async () => {
+    renderApp('/settings/general')
+    expect(await screen.findByText(/The operating system of the box uses this time zone too/)).toBeInTheDocument()
+    cleanup()
+    server.use(http.get('*/api/v1/core/general', () => HttpResponse.json({ name: 'Acme', timezone: 'Europe/Paris', os_time_zone: { state: 'failed', zone: 'Asia/Ho_Chi_Minh', message: 'The operating system does not know this time zone. Choose another name for it from the list.' } })))
+    renderApp('/settings/general')
+    const failed = await screen.findByText(/could not be set\. The operating system does not know this time zone/)
+    expect(failed).toHaveAttribute('data-state', 'failed')
+    cleanup()
+    server.use(http.get('*/api/v1/core/general', () => HttpResponse.json({ name: 'Acme', timezone: 'Europe/Berlin', os_time_zone: { state: 'pending', zone: 'Etc/UTC', message: 'The system helper is busy or not answering. Vedette sets the operating system\'s time zone as soon as it can.' } })))
+    renderApp('/settings/general')
+    expect(await screen.findByText(/still uses Etc\/UTC\. The system helper is busy/)).toBeInTheDocument()
   })
 
   it('an API error shows a message and a retry button', async () => {

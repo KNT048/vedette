@@ -35,6 +35,13 @@
     "timezoneInfo": "Used for scan windows, quiet hours and the weekly report.",
     "timezoneError": "Pick a time zone from the list, for example Europe/Berlin or UTC.",
     "useBrowserZone": "Use this browser's time zone ({{zone}})",
+    "os": {
+      "in_sync": "The operating system of the box uses this time zone too, so its logs read the same clock.",
+      "pending": "The operating system of the box still uses {{zone}}.",
+      "pendingUnknown": "The operating system's time zone is not set to this one yet.",
+      "failed": "The operating system's time zone could not be set.",
+      "not_managed": "Vedette does not manage the operating system's time zone on this install."
+    },
     "terms": {
       "title": "Terms of use",
       "by": "Accepted by {{by}} on {{when}} during first-time setup (version {{version}}).",
@@ -318,6 +325,7 @@
       "core": {
         "setup": "First-run setup",
         "general": "Change general settings",
+        "os_time_zone": "Set the operating system's time zone",
         "terms_accept": "Accept the terms of use"
       },
       "user": {
@@ -1679,6 +1687,9 @@
       "desc": "This account is the first administrator, with full control over settings.",
       "org": "Organization name",
       "orgError": "Enter the organization name (at least 2 characters).",
+      "timezone": "Time zone",
+      "timezoneHint": "Every page, mail, log and schedule of the box uses it, and so does its operating system. Change it later in Settings › General.",
+      "timezoneError": "Pick a time zone from the list, for example Europe/Berlin or UTC.",
       "name": "Administrator name",
       "nameError": "Enter the administrator's name.",
       "email": "Sign-in email",

@@ -24,6 +24,9 @@ type Host interface {
 	OSCheck(ctx context.Context, requestID, actor string) (api.Run, error)
 	OSInstall(ctx context.Context, scope, snapshot, requestID, actor string) (api.Run, error)
 	OSAutoSecuritySet(ctx context.Context, enabled bool, requestID, actor string) (api.Run, error)
+	// The box's one time zone (INV-43, host-api 6.18): the operating system's zone, and setting it.
+	StateTime(ctx context.Context) (api.TimeState, error)
+	OSTimezoneSet(ctx context.Context, zone, requestID, actor string) (api.Run, error)
 	OSReboot(ctx context.Context, args api.OSRebootArgs, requestID, actor string) (api.Run, error)
 	OSRebootCancel(ctx context.Context, requestID, actor string) (api.Run, error)
 	BackupCreate(ctx context.Context, args api.BackupCreateArgs, requestID, actor string) (api.Run, error)

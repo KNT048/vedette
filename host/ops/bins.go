@@ -20,6 +20,8 @@ const (
 	binDpkg      = "dpkg"
 	binSystemctl = "systemctl"
 	binJournal   = "journalctl"
+	// binTimedatectl sets the operating system's time zone (os.timezone.set): exactly "set-timezone <zone>".
+	binTimedatectl = "timedatectl"
 )
 
 // binNetplan and binChronyc are the network binaries (slice 3-4). The production runner knows
@@ -44,11 +46,13 @@ var prodPaths = map[string]string{
 	binDpkg:      "/usr/bin/dpkg",
 	binSystemctl: "/usr/bin/systemctl",
 	binJournal:   "/usr/bin/journalctl",
-	binNetplan:   "/usr/sbin/netplan",
-	binChronyc:   "/usr/bin/chronyc",
-	binIP:        "/usr/sbin/ip",
-	binPodman:    "/usr/bin/podman",
-	binIptables:  "/usr/sbin/iptables", // Ubuntu 24.04 and 26.04, Debian 13: the alternatives link, nft or legacy flavour
+	// os.timezone.set: systemd's timedatectl, in /usr/bin on Debian and Ubuntu.
+	binTimedatectl: "/usr/bin/timedatectl",
+	binNetplan:     "/usr/sbin/netplan",
+	binChronyc:     "/usr/bin/chronyc",
+	binIP:          "/usr/sbin/ip",
+	binPodman:      "/usr/bin/podman",
+	binIptables:    "/usr/sbin/iptables", // Ubuntu 24.04 and 26.04, Debian 13: the alternatives link, nft or legacy flavour
 	// binConntrack is conntrack-tools' conntrack: one fixed delete, conntrack.go. The Debian and Ubuntu package puts it in /usr/sbin.
 	binConntrack: "/usr/sbin/conntrack",
 	// host.self_update (spec 6.14): systemd, dpkg and dpkg-deb put them in /usr/bin on Debian and Ubuntu.
@@ -136,6 +140,15 @@ func validateJournal(args []string) error {
 		args[4] != "--until" || !journalTimeRE.MatchString(args[5]) ||
 		args[6] != "-o" || args[7] != "json" || args[8] != "--no-pager" {
 		return errors.New("not the fixed journalctl command line")
+	}
+	return nil
+}
+
+// validateTimedatectl accepts exactly "set-timezone <zone>" with a zone name of the fixed shape (api.ValidZoneName): never another
+// verb (set-time, set-ntp, set-local-rtc), never a flag, never a path.
+func validateTimedatectl(args []string) error {
+	if len(args) != 2 || args[0] != "set-timezone" || !api.ValidZoneName(args[1]) {
+		return errors.New("not the fixed timedatectl command line")
 	}
 	return nil
 }
@@ -230,6 +243,7 @@ func hostBinaries(stateDir, coreUnit string, paths map[string]string, streamLimi
 		{Name: binDpkg, Path: p(binDpkg), Validate: exactly("--audit")},
 		{Name: binSystemctl, Path: p(binSystemctl), Validate: validateSystemctl(coreUnit)},
 		{Name: binJournal, Path: p(binJournal), Validate: validateJournal, MaxOutput: streamLimit + 1},
+		{Name: binTimedatectl, Path: p(binTimedatectl), Validate: validateTimedatectl, MaxOutput: 1 << 16},
 		{Name: binNetplan, Path: p(binNetplan), Validate: validateNetplan},
 		{Name: binChronyc, Path: p(binChronyc), Validate: validateChronyc},
 		{Name: binIP, Path: p(binIP), Validate: validateIP, MaxOutput: 1 << 20},

@@ -5,6 +5,8 @@ import type { Role } from '@/lib/session'
 import type { ModuleId, ModuleState } from '@/lib/modules'
 
 export type GeneralSettings = z.infer<typeof C.GeneralSettings>
+export type GeneralView = z.infer<typeof C.GeneralView>
+export type OsTimeZone = z.infer<typeof C.OsTimeZone>
 export type TermsState = z.infer<typeof C.TermsState>
 
 export type SetupStatus = z.infer<typeof C.SetupStatus>

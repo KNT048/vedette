@@ -205,8 +205,8 @@ func eq(t *testing.T, what string, got, want []string) {
 	}
 }
 
-// The preview gives the next three starts of every kind of rule, read in a zone that is not UTC (the organization's, Berlin, or
-// the rule's own).
+// The preview gives the next three starts of every kind of rule, read in the box's zone (Berlin here), also for a rule that names a
+// zone of its own (a client of an earlier version).
 func TestPreviewOfEveryRuleKindInAZone(t *testing.T) {
 	b := newBox(t, "Europe/Berlin")
 	b.clock.Set("2026-11-20T09:00:00Z") // Friday 10:00 in Berlin
@@ -223,7 +223,7 @@ func TestPreviewOfEveryRuleKindInAZone(t *testing.T) {
 		{"weekly Monday and Thursday at 08:00", schedule.WeeklyAt("08:00", 1, 4), "Europe/Berlin", []string{"2026-11-23T07:00:00Z", "2026-11-26T07:00:00Z", "2026-11-30T07:00:00Z"}},
 		{"monthly on the 31st", schedule.MonthlyAt("08:00", 31), "Europe/Berlin", []string{"2026-11-30T07:00:00Z", "2026-12-31T07:00:00Z", "2027-01-31T07:00:00Z"}},
 		{"once", once("2026-12-24T18:00:00Z"), "Europe/Berlin", []string{"2026-12-24T18:00:00Z"}},
-		{"daily in its own zone", func() schedule.Rule { r := schedule.DailyAt("02:30"); r.TZ = ny; return r }(), ny, []string{"2026-11-21T07:30:00Z", "2026-11-22T07:30:00Z", "2026-11-23T07:30:00Z"}},
+		{"daily with a zone of its own: read in the box's", func() schedule.Rule { r := schedule.DailyAt("02:30"); r.TZ = ny; return r }(), "Europe/Berlin", []string{"2026-11-21T01:30:00Z", "2026-11-22T01:30:00Z", "2026-11-23T01:30:00Z"}},
 		{"every 3 days at 02:30 in a Monday to Friday window", custom(everyDaysAt230(3), "00:00", "00:00", 1, 2, 3, 4, 5), "Europe/Berlin", []string{"2026-11-23T01:30:00Z", "2026-11-26T01:30:00Z", "2026-11-29T23:00:00Z"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -422,22 +422,60 @@ func TestPauseOffAndChanges(t *testing.T) {
 	}
 }
 
-// The organization's zone changes: the rules in tz "org" move with it once Recompute runs in the same transaction.
-func TestAZoneChangeMovesTheOrgRules(t *testing.T) {
+// The organization's zone changes: every rule moves with it once Recompute runs in the same transaction, also one saved with a zone
+// of its own (the box has one time zone).
+func TestAZoneChangeMovesEveryRule(t *testing.T) {
 	b := newBox(t, "Asia/Ho_Chi_Minh")
 	b.save("scan.vuln", schedule.Setting{Enabled: true, Rule: schedule.DailyAt("02:30")})
 	own := schedule.DailyAt("02:30")
 	own.TZ = "Asia/Ho_Chi_Minh"
 	b.save("exposure.target:tgt-1", schedule.Setting{Enabled: true, Rule: own})
 	b.exec(`UPDATE core_org SET timezone = 'Europe/Berlin'`)
-	if n, _ := schedule.NextDueMismatches(t.Context(), b.db.Reader()); n != 1 {
-		t.Fatalf("before recompute: %d mismatches, want 1 (the org rule)", n)
+	if n, _ := schedule.NextDueMismatches(t.Context(), b.db.Reader()); n != 2 {
+		t.Fatalf("before recompute: %d mismatches, want 2", n)
 	}
 	must(t, b.db.Write(t.Context(), func(tx *sql.Tx) error { _, err := schedule.Recompute(t.Context(), tx); return err }))
 	b.holds()
-	if v := b.get("scan.vuln"); v.Zone != "Europe/Berlin" || !v.NextDueAt.Equal(utc("2026-11-21T01:30:00Z")) {
-		t.Fatalf("after the change %+v", v)
+	for _, key := range []string{"scan.vuln", "exposure.target:tgt-1"} {
+		if v := b.get(key); v.Zone != "Europe/Berlin" || v.Rule.TZ != schedule.OrgZone || !v.NextDueAt.Equal(utc("2026-11-21T01:30:00Z")) {
+			t.Fatalf("%s after the change %+v", key, v)
+		}
 	}
+}
+
+// A row an earlier version saved with a zone of its own (New York) and a next due time computed in it: this version reads it in the
+// box's zone, the start brings its next due time in line (the self-check holds), and nothing rewrites the stored zone until the row
+// is saved again, which stores "org". An older binary reads both forms: the stored zone of a row nobody saved again, "org" (the
+// organization's zone) once saved, and its own start recomputes every next due time from what it reads, so its self-check holds too.
+func TestAZoneStoredByAnEarlierVersionIsReadAsTheBoxZone(t *testing.T) {
+	b := newBox(t, "Asia/Ho_Chi_Minh")
+	b.clock.Set("2026-11-20T03:00:00Z")
+	b.save("exposure.target:tgt-1", schedule.Setting{Enabled: true, Rule: schedule.DailyAt("02:30")})
+	// What an earlier version left: tz America/New_York, next due 02:30 in New York (07:30 UTC).
+	b.exec(`UPDATE core_schedule SET tz = 'America/New_York', next_due_at = '2026-11-20T07:30:00.000Z' WHERE owner_key = 'exposure.target:tgt-1'`)
+	stored := func() string {
+		var tz string
+		must(t, b.db.Reader().QueryRowContext(t.Context(), `SELECT tz FROM core_schedule WHERE owner_key = 'exposure.target:tgt-1'`).Scan(&tz))
+		return tz
+	}
+	if n, _ := schedule.NextDueMismatches(t.Context(), b.db.Reader()); n != 1 {
+		t.Fatalf("before the start: %d mismatches, want 1", n)
+	}
+	must(t, b.svc.Start(t.Context()))
+	defer b.svc.Close()
+	b.holds()
+	v := b.get("exposure.target:tgt-1")
+	if v.Zone != "Asia/Ho_Chi_Minh" || v.Rule.TZ != schedule.OrgZone || !v.NextDueAt.Equal(utc("2026-11-20T19:30:00Z")) {
+		t.Fatalf("read %+v", v)
+	}
+	if got := stored(); got != "America/New_York" {
+		t.Fatalf("the start rewrote the stored zone: %q", got)
+	}
+	b.save("exposure.target:tgt-1", schedule.Setting{Enabled: true, Rule: schedule.DailyAt("02:30")})
+	if got := stored(); got != schedule.OrgZone {
+		t.Fatalf("a save stored %q", got)
+	}
+	b.holds()
 }
 
 func TestOwnersKeysAndLimits(t *testing.T) {

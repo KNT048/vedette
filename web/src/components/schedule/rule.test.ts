@@ -6,7 +6,7 @@ import { describeRule, isoToZoned, split, toDraft, toRule, unitsFor, zonedToIso 
 import type { Schedule, ScheduleRule } from './types'
 
 const t = i18n.getFixedT('en', 'schedule')
-const rule = (r: Partial<ScheduleRule>): ScheduleRule => ({ freq: 'daily', every_minutes: null, at_time: null, weekdays: null, month_day: null, once_at: null, tz: 'org', window: 'none', window_days: null, window_from: null, window_to: null, ...r })
+const rule = (r: Partial<ScheduleRule>): ScheduleRule => ({ freq: 'daily', every_minutes: null, at_time: null, weekdays: null, month_day: null, once_at: null, window: 'none', window_days: null, window_from: null, window_to: null, ...r })
 const limits = { freqs: ['interval', 'daily', 'weekly', 'monthly', 'once'] as ScheduleRule['freq'][], min_every_minutes: 1, max_every_minutes: 527040, windows: ['global', 'none', 'custom'] as ScheduleRule['window'][], reason: '' }
 const schedule = (r: Partial<ScheduleRule>): Schedule => ({
   owner_key: 'scan.vuln', module: 'scan', saved: true, enabled: true, paused_until: null, rule: rule(r), zone: 'Europe/Berlin', next_due_at: null, upcoming: [],
@@ -32,7 +32,7 @@ describe('schedule rule helpers', () => {
     expect(split(120, ['hours', 'days'])).toEqual({ every: 2, unit: 'hours' })
   })
 
-  it('sends only the fields its frequency uses', () => {
+  it('sends only the fields its frequency uses, and no zone: every schedule follows the box\'s', () => {
     const d = toDraft(schedule({ freq: 'weekly', at_time: '23:00', weekdays: [7], window: 'global' }), 'Europe/Berlin')
     expect(toRule({ ...d, freq: 'interval', every: '3', unit: 'days', at: '02:30', window: 'custom', windowDays: [5, 1], windowFrom: '00:00', windowTo: '00:00' }, 'Europe/Berlin'))
       .toEqual(rule({ freq: 'interval', every_minutes: 4320, at_time: '02:30', window: 'custom', window_days: [1, 5], window_from: '00:00', window_to: '00:00' }))
@@ -47,7 +47,8 @@ describe('schedule rule helpers', () => {
     expect(describeRule(rule({ freq: 'interval', every_minutes: 4320, at_time: '02:30', window: 'custom', window_days: [1, 2, 3, 4, 5], window_from: '00:00', window_to: '00:00' }), t, when))
       .toBe('Every 3 days at 02:30, only Mon–Fri, all day')
     expect(describeRule(rule({ freq: 'weekly', at_time: '08:00', weekdays: [1, 4], window: 'global' }), t, when)).toBe('Weekly on Mon, Thu at 08:00, in the scan window')
-    expect(describeRule(rule({ freq: 'monthly', month_day: 0, at_time: '08:00', tz: 'Europe/Berlin' }), t, when)).toBe('Monthly on the last day at 08:00 (Europe/Berlin)')
+    // a zone an earlier version stored is not said: the box reads every rule in its own zone
+    expect(describeRule(rule({ freq: 'monthly', month_day: 0, at_time: '08:00', tz: 'Europe/Berlin' }), t, when)).toBe('Monthly on the last day at 08:00')
     expect(describeRule(rule({ freq: 'once', once_at: '2026-12-24T17:00:00Z' }), t, when)).toBe('Once, 2026-12-24')
   })
 })

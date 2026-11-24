@@ -1109,8 +1109,10 @@ const dataHandlers = [
     const denied = guard('admin')
     if (denied) return denied
     audit('data.backup', 'backup')
+    // Like the box: every download is also a Manual backup kept on the box, without the decryption key.
+    boxBackupsStore.update((l) => [{ id: Array.from(crypto.getRandomValues(new Uint8Array(16)), (x) => x.toString(16).padStart(2, '0')).join(''), kind: 'manual', created_at: nowIso(), size: 4_200_000, includes_key: false }, ...l])
     // Passwords and keys are not put into the mock backup (SYS-4).
-    return download(`vedette-backup-${stamp()}.tar.gz`, { format: 'vedette-backup/1', created_at: nowIso(), org: orgStore.get(), modules: modulesStore.get(), users: usersStore.get().map(adminOf), assets: assetsStore.get(), findings: findingsStore.get(), audit: auditStore.get() })
+    return download(`vedette-backup-${stamp()}-${new Date().toISOString().slice(11, 16).replace(':', '')}.tar.gz`, { format: 'vedette-backup/1', created_at: nowIso(), org: orgStore.get(), modules: modulesStore.get(), users: usersStore.get().map(adminOf), assets: assetsStore.get(), findings: findingsStore.get(), audit: auditStore.get() })
   }),
   http.get(`${API}/core/data/backups`, () => {
     const denied = guard('admin')

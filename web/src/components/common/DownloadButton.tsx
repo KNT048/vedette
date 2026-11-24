@@ -9,13 +9,13 @@ import { download } from '@/lib/api'
  * waits on the server: the shared busy state "Downloading…" shows meanwhile and a second click cannot start a second download
  * (docs/UI.md §8, #930 review r1). `onSaved` gets the saved file name; a failure goes to `onError`, else a toast.
  */
-export function DownloadButton({ path, filename, onSaved, onError, ...props }: Omit<ButtonProps, 'onClick' | 'busy' | 'busyLabel'> & {
-  path: string; filename: string; onSaved?: (name: string) => void; onError?: (e: unknown) => void
+export function DownloadButton({ path, filename, onStart, onSaved, onError, ...props }: Omit<ButtonProps, 'onClick' | 'busy' | 'busyLabel'> & {
+  path: string; filename: string; onStart?: () => void; onSaved?: (name: string) => void; onError?: (e: unknown) => void
 }) {
   const { t } = useTranslation()
   const dl = useMutation({ mutationFn: () => download(path, filename) })
   return (
     <Button {...props} busy={dl.isPending} busyLabel={t('busy.downloading')}
-      onClick={() => dl.mutate(undefined, { onSuccess: onSaved, onError: onError ?? ((e) => toast.error(e instanceof Error ? e.message : String(e))) })} />
+      onClick={() => { onStart?.(); dl.mutate(undefined, { onSuccess: onSaved, onError: onError ?? ((e) => toast.error(e instanceof Error ? e.message : String(e))) }) }} />
   )
 }

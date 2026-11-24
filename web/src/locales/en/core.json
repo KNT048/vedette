@@ -664,20 +664,25 @@
     "auto": "Automatic",
     "manual": "Manual",
     "modeHint": {
-      "auto": "The box installs new builds when a check finds them.",
+      "auto": "The box installs a new build as soon as a check finds one, a check you start here too, inside the maintenance window.",
       "manual": "The box only tells you there is a new build; you press Update when ready."
     },
     "modeInfo": "With automatic updates, boxes get new builds in waves to limit risk.",
     "check": "Check for Vedette releases",
+    "checkAuto": "Check and install new releases",
     "checkWaiting": "Checking for Vedette releases… this can take up to a minute.",
     "checkOff": "Update checks are off in Privacy.",
     "lastCheck": "Last checked {{time}}.",
     "neverChecked": "Never checked.",
     "checkFailed": "Last check failed {{time}}: {{reason}}",
     "lastGood": "Last successful check {{time}}.",
+    "resultNone": "You run the newest release ({{version}}).",
+    "resultNew": "Vedette {{version}} is available.",
     "footerVersion": "Vedette {{version}}",
     "checkedApplied": "Installed {{count}} new items automatically.",
     "checkedNew": "{{count}} new items. Press Update on the matching row.",
+    "checkedInstalling": "Found Vedette {{version}}. Updates are automatic, so the box is installing it now.",
+    "checkedNewAuto": "Found Vedette {{version}}. It installs by itself in the next maintenance window, or press Update now.",
     "checkedNone": "You're on the latest version ({{version}}).",
     "components": "Versions in use",
     "componentsDesc": "Software and recommendation packs arrive inside signed updates.",
@@ -726,13 +731,14 @@
       "confirm": "Update to {{version}}"
     },
     "notes": {
+      "running": "Notes of {{version}}",
       "all": "Show all",
       "less": "Show less",
       "page": "Full notes of {{version}}"
     },
     "applyOf": "Update {{name}}",
     "applied": "{{name}} updated. Signature valid.",
-    "appliedSoftware": "{{name}} installed in the spare slot, health check passed, switched to the new build.",
+    "appliedSoftware": "{{name}} installed next to the old version, health check passed, switched to the new build.",
     "rollbackTo": "Back to {{version}}",
     "rollbackOf": "Roll {{name}} back",
     "noPrevious": "None",
@@ -747,7 +753,9 @@
       "dataLoss": "Data written since the update is lost.",
       "dataLossWhy": "Findings, logs and settings changed since then are gone.",
       "dataLossInfo": "This release changed how Vedette stores its data, so the box also puts back the database it saved just before the update.",
-      "dataLossOk": "I understand that data written since the update is lost."
+      "dataLossOk": "I understand that data written since the update is lost.",
+      "dataKept": "Your data is kept: {{to}} reads the database as it is now, so devices, findings, logs and settings stay.",
+      "restart": "Every part of Vedette restarts, its sensor, scanner and traps too; this page loses its connection for a minute or two."
     },
     "advisories": "Vedette security advisories",
     "advisoriesDesc": "Vulnerabilities in Vedette itself, with the fix.",
@@ -813,6 +821,7 @@
     "titleOs_one": "{{name}}: {{count}} security update waiting",
     "titleOs_other": "{{name}}: {{count}} security updates waiting",
     "titleOsClean": "{{name}}: no security updates waiting",
+    "titleOsReboot": "{{name}}: updates installed, a reboot is needed to use them",
     "managed": {
       "title": "Packages managed by Vedette",
       "desc": "Tools Vedette installs and pins itself.",
@@ -831,7 +840,7 @@
     },
     "vedette": {
       "title": "Vedette software",
-      "desc": "Signed releases from GitHub, with a spare slot and one-click rollback.",
+      "desc": "Signed releases from GitHub, with one-click rollback.",
       "info": "The channel, the update method and the update history are in this part."
     },
     "os": {
@@ -992,12 +1001,20 @@
       },
       "stepOf": "Step {{n}} of {{total}}:",
       "step": {
-        "host": "update the system helper",
-        "download": "download and check the signed images",
-        "start": "start the sensor, scan and decoy parts",
-        "restart": "restart Vedette and check it is healthy",
-        "restore": "put back the database saved before the update"
+        "update": {
+          "host": "update the system helper",
+          "download": "download and check the signed images",
+          "restart": "restart Vedette on the new version and check it is healthy",
+          "start": "switch the sensor, scanner and traps to the new version"
+        },
+        "rollback": {
+          "start": "switch the sensor, scanner and traps back first",
+          "restore": "put back the database saved before the update",
+          "restart": "restart Vedette on the older version and check it is healthy"
+        }
       },
+      "startedAt": "Started {{time}}",
+      "finishedAt": "Finished {{time}}",
       "stepDone": "(done)",
       "restartNote": "Vedette is restarting. This page loses its connection for a moment and comes back by itself.",
       "hostNote": "Updating the system helper. Vedette keeps running; settings that need the helper cannot be changed until this step ends.",
@@ -1309,9 +1326,14 @@
     "downloaded": "Downloaded {{file}}",
     "backup": {
       "title": "Backup",
-      "desc": "No AI keys or tokens. Keep the file as safe as the box.",
+      "desc": "No AI keys or tokens. The file is not encrypted: keep it as safe as the box.",
       "info": "Settings, users (with their password hashes, never the passwords themselves), modules, devices, findings and the log. The hashes could be attacked offline.",
-      "button": "Download backup"
+      "button": "Download backup",
+      "plainTitle": "The backup file has no password and is not encrypted",
+      "plain": "It holds every device, finding and log line, the users' email addresses and password hashes, and the saved secrets in encrypted form without the key that opens them.",
+      "keepsCopy": "Download backup makes a new backup, keeps it on this box (listed below as Manual) and saves it on your computer.",
+      "preparing": "Preparing the backup: the box copies its whole database first, which takes up to a minute on a large box.",
+      "done": "Downloaded {{file}}. A copy stays on this box, listed below as Manual."
     },
     "key": {
       "title": "Keep the decryption key apart",
@@ -1348,12 +1370,14 @@
       },
       "withKey": "Included",
       "withoutKey": "Not included",
+      "keyLine": "Decryption key: every backup restores whole on this box; it matters only on another box.",
+      "keyExplained": "This box keeps its own key, so any backup restores whole here. On another box, a backup without the key brings back devices, findings, users and settings, but not the saved secrets (AI and feed keys, alert channel passwords, tokens), and users with two-step sign-in cannot sign in. Download the key above to keep that option.",
       "button": "Restore",
       "ask": {
         "title": "Restore the backup from {{when}}?",
-        "lost": "Everything written since then is replaced: devices, findings, alerts, logs, users and settings.",
-        "kept": "Before it restores, the box keeps a copy of the data it has now, listed here as Before restore, so you can go back.",
-        "restart": "Vedette restarts during the restore; this page reconnects by itself.",
+        "lost": "Everything written since then is replaced: devices, findings, alerts, logs, the audit log, users and settings.",
+        "kept": "Before it restores, the box keeps a copy of the data it has now, listed here as Before restore, so you can go back. The audit log goes back too: lines written after this backup stay only in that copy.",
+        "restart": "Vedette restarts during the restore and the traps stop for about a minute; this page reconnects by itself.",
         "understand": "I understand that data written since this backup is replaced",
         "retention": "The box keeps the last 3 Before restore copies.",
         "pushesOut": "This restore adds one, so the oldest Before restore copy, from {{when}}, is deleted.",
@@ -1717,7 +1741,7 @@
       "desc": "Everything comes back as it was in the backup.",
       "descInfo": "Your organization, users, devices, findings and settings come back as they were in the backup. You sign in with your password from the old box.",
       "file": "Backup file",
-      "fileHint": "The vedette-backup-<date>.tar.gz file that Download backup saved.",
+      "fileHint": "The vedette-backup-<date>-<time>.tar.gz file that Download backup saved.",
       "fileMissing": "Choose the backup file.",
       "key": "Decryption key file (optional)",
       "keyHint": "The vedette-key-<date>.key file.",

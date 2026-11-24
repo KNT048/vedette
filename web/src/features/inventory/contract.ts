@@ -202,6 +202,7 @@ export const PossibleSame = z.object({
   why: z.string().describe('What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same time, and a private Wi-Fi address (phones and laptops change it).'),
   reason: SameReason,
   approved: z.boolean(), last_seen: dt,
+  never_seen: z.boolean().describe('The device was added by hand and nothing has seen it since: last_seen is when it was added, not a sighting'),
   ignored: z.boolean().describe('a person ignored the other device. A merge keeps the kept device watched or ignored, except that an approved device a person watches is never hidden: merged with it, an ignored device is watched again'),
 })
 export const SameRef = PossibleSame.omit({ why: true, ignored: true, reason: true })

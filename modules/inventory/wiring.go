@@ -30,9 +30,9 @@ type DeviceRef struct {
 	Vendor   string  // the current vendor value, "" when none
 	// VendorSource is the source of the vendor observation; nmap and passive name the network card's maker only (CardVendor).
 	VendorSource string
-	Kind     string
-	Display  string // the first software's display name, else the kind (DisplayName's product of a declared device, notify)
-	OS       string // the current operating system value ("Microsoft Windows Server 2025 10.0.26100.1742"), "" when unknown (#905)
+	Kind         string
+	Display      string // the first software's display name, else the kind (DisplayName's product of a declared device, notify)
+	OS           string // the current operating system value ("Microsoft Windows Server 2025 10.0.26100.1742"), "" when unknown (#905)
 	// OSSource is the source of the OS observation the ranking chose for OS (INV-44: manual, agent, snmp, passive, nmap, scan); ""
 	// when there is none. "nmap" means the page shows the scan's OS guess; any other source means a better one won over it.
 	OSSource string

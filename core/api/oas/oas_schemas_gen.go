@@ -143076,6 +143076,9 @@ type InventoryGetInventoryDevicesIDOKPossibleSameItem struct {
 	LastSeen time.Time `json:"last_seen"`
 	// The other device, named as every page names it.
 	Name string `json:"name"`
+	// The device was added by hand and nothing has seen it since: last_seen is when it was added, not a
+	// sighting.
+	NeverSeen bool `json:"never_seen"`
 	// Same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a
 	// maker on network gear (the interfaces of one router or firewall); same_name_cards: one host name on
 	// two cards with burned-in MACs (Wi-Fi and cable); rotating_name / rotating_model: one name or stated
@@ -143113,6 +143116,11 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetName() string {
 	return s.Name
 }
 
+// GetNeverSeen returns the value of NeverSeen.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetNeverSeen() bool {
+	return s.NeverSeen
+}
+
 // GetReason returns the value of Reason.
 func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetReason() InventoryGetInventoryDevicesIDOKPossibleSameItemReason {
 	return s.Reason
@@ -143146,6 +143154,11 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetLastSeen(val time.
 // SetName sets the value of Name.
 func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetNeverSeen sets the value of NeverSeen.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetNeverSeen(val bool) {
+	s.NeverSeen = val
 }
 
 // SetReason sets the value of Reason.
@@ -148804,6 +148817,9 @@ type InventoryGetInventoryPossibleSameOKItemsItemA struct {
 	LastSeen time.Time `json:"last_seen"`
 	// The other device, named as every page names it.
 	Name string `json:"name"`
+	// The device was added by hand and nothing has seen it since: last_seen is when it was added, not a
+	// sighting.
+	NeverSeen bool `json:"never_seen"`
 }
 
 // GetApproved returns the value of Approved.
@@ -148826,6 +148842,11 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemA) GetName() string {
 	return s.Name
 }
 
+// GetNeverSeen returns the value of NeverSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) GetNeverSeen() bool {
+	return s.NeverSeen
+}
+
 // SetApproved sets the value of Approved.
 func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetApproved(val bool) {
 	s.Approved = val
@@ -148846,12 +148867,20 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetName(val string) {
 	s.Name = val
 }
 
+// SetNeverSeen sets the value of NeverSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetNeverSeen(val bool) {
+	s.NeverSeen = val
+}
+
 type InventoryGetInventoryPossibleSameOKItemsItemB struct {
 	Approved bool      `json:"approved"`
 	ID       string    `json:"id"`
 	LastSeen time.Time `json:"last_seen"`
 	// The other device, named as every page names it.
 	Name string `json:"name"`
+	// The device was added by hand and nothing has seen it since: last_seen is when it was added, not a
+	// sighting.
+	NeverSeen bool `json:"never_seen"`
 }
 
 // GetApproved returns the value of Approved.
@@ -148874,6 +148903,11 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemB) GetName() string {
 	return s.Name
 }
 
+// GetNeverSeen returns the value of NeverSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) GetNeverSeen() bool {
+	return s.NeverSeen
+}
+
 // SetApproved sets the value of Approved.
 func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetApproved(val bool) {
 	s.Approved = val
@@ -148892,6 +148926,11 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetLastSeen(val time.Tim
 // SetName sets the value of Name.
 func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetName(val string) {
 	s.Name = val
+}
+
+// SetNeverSeen sets the value of NeverSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetNeverSeen(val bool) {
+	s.NeverSeen = val
 }
 
 // Same_mac: seen with one MAC, never online at once; mac_block: burned-in MACs from one block of a

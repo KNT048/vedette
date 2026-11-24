@@ -19,10 +19,12 @@ type Me = { id: string; name: string; approved: boolean; ignored?: boolean }
 /** After a merge from the notice: the device kept and the ones that went (the page moves to the kept one when it was not this one). */
 type OnMerged = (kept: string, gone: string[]) => void
 
-/** "Waiting for review, seen 2 days ago": what tells the two apart at a glance. */
-function StateLine({ approved, lastSeen }: { approved: boolean; lastSeen: string }) {
+/** "nas is not added yet, last seen 2 days ago": what tells the two apart at a glance. It names the other device, so it is never read as
+ *  this page's own state, and a device added by hand that nothing has seen says so, never "seen" at the time it was added. */
+function StateLine({ p }: { p: PossibleSame }) {
   const { t } = useTranslation('inventory')
-  return <span className="text-meta text-muted">{t(approved ? 'same.stateApproved' : 'same.statePending', { when: fmtRelative(lastSeen) })}</span>
+  const key = p.never_seen ? 'same.stateNeverSeen' : p.approved ? 'same.stateApproved' : 'same.statePending'
+  return <span className="text-meta text-muted">{t(key, { name: p.name, when: fmtRelative(p.last_seen) })}</span>
 }
 
 /**
@@ -56,14 +58,14 @@ export function PossibleSameNotice({ me, list, onMerged }: { me: Me; list: Possi
           {one ? (
             <div className="grid gap-1">
               <p className="text-ink [overflow-wrap:anywhere]">{one.why}</p>
-              <p className="flex flex-wrap gap-x-3"><StateLine approved={one.approved} lastSeen={one.last_seen} />{admin ? null : <span className="text-meta">{t('same.adminOnly')}</span>}</p>
+              <p className="flex flex-wrap gap-x-3"><StateLine p={one} />{admin ? null : <span className="text-meta">{t('same.adminOnly')}</span>}</p>
             </div>
           ) : (
             <>
               <ul className="grid gap-3" aria-label={t('same.titleMany', { count: list.length })}>
                 {list.map((p) => (
                   <li key={p.id} className="grid gap-1.5 border-t border-rule pt-3 first:border-t-0 first:pt-0">
-                    <span className="flex flex-wrap items-baseline gap-x-3">{other(p)}<StateLine approved={p.approved} lastSeen={p.last_seen} /></span>
+                    <span className="flex flex-wrap items-baseline gap-x-3">{other(p)}<StateLine p={p} /></span>
                     <p className="text-ink [overflow-wrap:anywhere]">{p.why}</p>
                     {buttons(p)}
                   </li>

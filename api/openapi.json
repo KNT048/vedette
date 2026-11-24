@@ -63519,6 +63519,10 @@
                             "format": "date-time",
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
+                          "never_seen": {
+                            "type": "boolean",
+                            "description": "The device was added by hand and nothing has seen it since: last_seen is when it was added, not a sighting"
+                          },
                           "ignored": {
                             "type": "boolean",
                             "description": "a person ignored the other device. A merge keeps the kept device watched or ignored, except that an approved device a person watches is never hidden: merged with it, an ignored device is watched again"
@@ -63531,6 +63535,7 @@
                           "reason",
                           "approved",
                           "last_seen",
+                          "never_seen",
                           "ignored"
                         ],
                         "additionalProperties": false
@@ -66119,13 +66124,18 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "never_seen": {
+                                "type": "boolean",
+                                "description": "The device was added by hand and nothing has seen it since: last_seen is when it was added, not a sighting"
                               }
                             },
                             "required": [
                               "id",
                               "name",
                               "approved",
-                              "last_seen"
+                              "last_seen",
+                              "never_seen"
                             ],
                             "additionalProperties": false,
                             "description": "The approved device when one is, else the one seen first: the one a merge most likely keeps"
@@ -66147,13 +66157,18 @@
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              "never_seen": {
+                                "type": "boolean",
+                                "description": "The device was added by hand and nothing has seen it since: last_seen is when it was added, not a sighting"
                               }
                             },
                             "required": [
                               "id",
                               "name",
                               "approved",
-                              "last_seen"
+                              "last_seen",
+                              "never_seen"
                             ],
                             "additionalProperties": false
                           },

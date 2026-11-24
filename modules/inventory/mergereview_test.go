@@ -107,8 +107,12 @@ func TestSameDevice_AHandAddedRowWithoutAnAddressAndAFoundDeviceOfOneOS(t *testi
 	if !slices.Equal(ids, []string{hand}) {
 		t.Fatalf("offered for the found host: %v, want only %s (not %s, %s)", ids, hand, other, twin)
 	}
-	if back := e.sameAs(hand); len(back) != 1 || back[0].ID != host || back[0].Reason != inventory.ReasonSameOS {
+	if back := e.sameAs(hand); len(back) != 1 || back[0].ID != host || back[0].Reason != inventory.ReasonSameOS || back[0].NeverSeen {
 		t.Errorf("offered for the hand-added row: %+v", back)
+	}
+	// the hand-added row nothing has seen is not "seen" at the time it was added: the host's page says it was never seen
+	if got := e.sameAs(host); len(got) != 1 || !got[0].NeverSeen {
+		t.Errorf("the hand-added row as the found host's page shows it: %+v", got)
 	}
 	pairs, err := e.svc.PossibleSamePairs(e.ctx())
 	if err != nil {

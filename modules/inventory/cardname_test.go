@@ -77,11 +77,11 @@ func TestOSProduct(t *testing.T) {
 	for in, want := range map[string]string{
 		"VMware ESXi 8.0 Update 3 (build 24022510)": "VMware ESXi",
 		"MikroTik RouterOS 7.2 - 7.5 (Linux 5.6.3)": "MikroTik RouterOS",
-		"JUNOS 15.1R7.9":                            "JUNOS",
-		"Ubuntu 26.04":                              "Ubuntu",
-		"Microsoft Windows Server 2025 10.0.26100":  "Microsoft Windows Server",
-		"8.0.3":                                     "",
-		"":                                          "",
+		"JUNOS 15.1R7.9": "JUNOS",
+		"Ubuntu 26.04":   "Ubuntu",
+		"Microsoft Windows Server 2025 10.0.26100": "Microsoft Windows Server",
+		"8.0.3": "",
+		"":      "",
 	} {
 		if got := inventory.OSProduct(in); got != want {
 			t.Errorf("OSProduct(%q) = %q, want %q", in, got, want)

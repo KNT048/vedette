@@ -23,6 +23,8 @@ import { useInstallKind, useModuleAvailable } from '@/lib/modules'
 import { useScope } from '@/lib/v1'
 import { ContainerBackup, InstallPending } from './ContainerOnly'
 import { RestoreFile } from './RestoreFile'
+import { RestartSlow } from './RestartSlow'
+import { useRestartWait } from './useRestartWait'
 import type { BoxBackup } from './types'
 import { dayOf, fmtDateTime, fmtTime } from '@/lib/format'
 import { errMsg, useGate } from './parts'
@@ -236,7 +238,11 @@ function BackupDownload({ disabled, title }: { disabled: boolean; title?: string
 function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) {
   const { t } = useTranslation('core')
   const list = useBoxBackups()
-  const run = useRestoreRun().data
+  const runQ = useRestoreRun()
+  const run = runQ.data
+  // Vedette restarts during the run: the shared waiting rule says when it is back, and takes the person to sign in when the
+  // restored data does not know this browser's session (the restore is over then).
+  const wait = useRestartWait(run?.status === 'running', runQ.error, 'restore')
   const restore = useRestore()
   const me = useMe().data
   const [pick, setPick] = useState<BoxBackup | null>(null)
@@ -274,6 +280,7 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
           {run.status === 'failed' ? t('data.restore.failed', { error: run.error ?? '' }) : t(`data.restore.${run.status}`, { when })}
         </p>
       ) : null}
+      <RestartSlow wait={wait} />
       {list.isSuccess ? (
         <DataTable urlKey="restore-points" data={rows} columns={columns} caption={t('data.restore.title')} pageSize={20} empty={t('data.restore.empty')}
           mobileRow={(b) => (

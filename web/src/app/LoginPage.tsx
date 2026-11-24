@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { StandalonePage } from '@/components/common/StandalonePage'
 import { Card } from '@/components/common/Card'
+import { Notice } from '@/components/common/PageHeader'
 import { useAuthOptions } from '@/features/core/api'
 import { PreviewCode } from '@/features/core/parts'
 import { useCountdown } from '@/features/core/useCountdown'
@@ -41,6 +42,9 @@ export default function LoginPage() {
   const setup = useSetup()
   const mock = import.meta.env.VITE_API_MOCK !== 'off' && setup.data?.data_mode === 'sample'
   const sso = useAuthOptions().data?.oidc === true
+  // A page that waited for Vedette to restart (useRestartWait) sends the person here when the session did not survive it.
+  const after = params.get('after')
+  const afterNote = after === 'restore' ? t('core:login.afterRestore') : after === 'update' ? t('core:login.afterUpdate') : null
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -97,6 +101,7 @@ export default function LoginPage() {
   return (
     <StandalonePage subtitle={t('login.subtitle')} footer={mock ? t('login.demoHint') : undefined}>
       <Card>
+          {afterNote ? <Notice tone="accent" role="status" className="mb-4" title={afterNote} /> : null}
           <form onSubmit={(e) => void submit(e)} className="grid gap-4" noValidate>
             <Field label={t('login.email')} htmlFor="email">
               <Input id="email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!error} />

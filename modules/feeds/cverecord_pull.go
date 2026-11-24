@@ -29,7 +29,10 @@ import (
 //     what it does not hold by its ID when every box keeps the CVE (recordKeep.askable), at most recordLeftPerPull a pull. About 10 to
 //     20 MB a day, at most every recordDeltaEvery;
 //   - by ID, every pull: the records of the CVEs an exploited list or a qualifying public signal names that the box has not read, or
-//     that have no NVD ranges and were not read for recordRecheck (a new CISA entry has its vendor's versions at once).
+//     that have no NVD ranges and were not read for recordRecheck (a new CISA entry has its vendor's versions at once);
+//   - by ID, every pull once the whole list is read: the records still missing of the CVEs every box keeps (recordKeep.askable: named
+//     by a public list or signal, or published inside the window) that entered the catalogue after the archives that would have
+//     brought them (recordsBacklog), within recordIDBudget asks a pull.
 //
 // Asking by ID would be about 110,000 requests for the catalogue and 2,000 to 7,000 a day for the changes: the archives are one
 // request each. Nothing of the customer is in any request: the archives are the same for every box, and an ID is asked only when a
@@ -44,6 +47,11 @@ const (
 	recordRecheck = 12 * time.Hour
 	// recordLeftPerPull is the most records of the change log one pull asks for by ID (what the day's archive does not hold).
 	recordLeftPerPull = 400
+	// recordIDBudget is the most records one pull asks for by ID in all (the lists and signals, the change log's leftovers, then the
+	// backlog of recordsBacklog, which takes what the others left); recordBacklogBatch backlog records are written per transaction, so
+	// a pull that stops loses at most one batch.
+	recordIDBudget     = recordPerPull + recordLeftPerPull
+	recordBacklogBatch = 100
 	// recordDeltaEvery: the change log is read at most this often.
 	recordDeltaEvery = 12 * time.Hour
 	// recordArchiveKeep: the release files of a day stay published for about 4 days (the newest 100 hourly releases): data older than
@@ -139,6 +147,8 @@ type recordRun struct {
 	src        sourceRow
 	from       recordSource
 	byID       int // records read by ID
+	asked      int // records asked for by ID (read or not)
+	backlog    int // CVEs every box keeps still without a record after this pull (recordsBacklog)
 	fromBulk   int // records read from the archives
 	stored     int
 	missing    int // records the source does not have (yet)
@@ -174,6 +184,12 @@ func (s *Service) buildCVERecords(ctx context.Context, src sourceRow, p pullPlan
 		}
 		if errors.Is(errBulk, errRecordsLater) {
 			errBulk = nil // goes on at the next check: its note says so
+		}
+		if errBulk == nil {
+			errBulk = s.recordsBacklog(ctx, run, now)
+			if refused(errBulk) || errors.Is(errBulk, ErrFeedDisabled) {
+				return p, errBulk
+			}
 		}
 	}
 	failed := errors.Join(errID, errBulk)
@@ -226,6 +242,10 @@ func (r *recordRun) note(failed error) string {
 	for _, n := range r.notes {
 		t = strings.TrimSpace(t + " " + n)
 	}
+	if r.backlog > 0 {
+		t = strings.TrimSpace(t + " " + fmt.Sprintf("%s CVEs of the catalogue still have no record: Vedette reads them by their ID, up to %s a pull.",
+			grouped(r.backlog), grouped(recordIDBudget)))
+	}
 	if failed != nil && nvdRetryable(failed) {
 		t = strings.TrimSpace(t + " The CVE Program's files stopped answering; Vedette goes on at the next check.")
 	}
@@ -277,6 +297,62 @@ func (s *Service) recordsByID(ctx context.Context, run *recordRun, now time.Time
 	return err
 }
 
+// recordsBacklog reads by ID the records still missing of the CVEs every box keeps (Store.recordBacklog): a CVE that entered the
+// catalogue, or a public list or signal, after the archive or the day's changes that would have brought its record (a new box whose
+// signal indexes loaded after its first read of the whole list, an older CVE an exploit index names today, a CVE NVD published a while
+// after the CVE Program). Only once the whole list is read with the current reader (before, the archive brings them all), with what
+// the pull's recordIDBudget leaves, recordLeftPause apart, written recordBacklogBatch at a time so a pull that stops keeps what it
+// read; it ends early, without failing, a minute before the pull's deadline. A record the source does not have is stamped like any
+// by-ID ask (not asked again: the change log brings it once it is published).
+func (s *Service) recordsBacklog(ctx context.Context, run *recordRun, now time.Time) error {
+	cur, err := s.st.nvdCursor(ctx, selectorRecord)
+	if err != nil || cur == nil || cur.Mode != modeDone || cur.URL != recordCursorURL(run.src.URL) {
+		return err
+	}
+	cutoff := now.AddDate(0, 0, -windowDays)
+	defer func() {
+		if n, err := s.st.recordBacklogCount(ctx, cutoff); err == nil {
+			run.backlog = n
+		}
+	}()
+	limit := recordIDBudget - run.asked
+	if limit <= 0 {
+		return nil
+	}
+	due, err := s.st.recordBacklog(ctx, cutoff, limit)
+	if err != nil || len(due) == 0 {
+		return err
+	}
+	fctx := ctx
+	if dl, ok := ctx.Deadline(); ok {
+		var cancel context.CancelFunc
+		fctx, cancel = context.WithDeadline(ctx, dl.Add(-time.Minute))
+		defer cancel()
+	}
+	for i, chunk := range slices.Collect(slices.Chunk(due, recordBacklogBatch)) {
+		if i > 0 {
+			if err := s.sleep(fctx, recordLeftPause); err != nil {
+				break
+			}
+		}
+		recs, unread, gerr := s.recordsGet(fctx, run, chunk, recordLeftPause)
+		run.byID += len(recs)
+		if err := s.storeRecords(ctx, run, recs, unread, now); err != nil {
+			return err
+		}
+		if gerr != nil {
+			if fctx.Err() != nil && ctx.Err() == nil {
+				return nil // the pull's time is nearly spent: the next pull goes on
+			}
+			return gerr
+		}
+	}
+	if ctx.Err() == nil && fctx.Err() != nil {
+		return nil
+	}
+	return ctx.Err()
+}
+
 // recordsGet asks for each record of cves by ID, pause apart. It returns the records read, the CVEs it could not read (to stamp), and
 // why it stopped early (busy, refused address, the pull's end).
 func (s *Service) recordsGet(ctx context.Context, run *recordRun, cves []string, pause time.Duration) (recs []CVERecord, unread []string, err error) {
@@ -290,6 +366,7 @@ func (s *Service) recordsGet(ctx context.Context, run *recordRun, cves []string,
 		if err != nil {
 			return recs, unread, err
 		}
+		run.asked++
 		resp, err := s.recordGet(ctx, u)
 		var se *StatusError
 		switch {

@@ -481,10 +481,10 @@ func TestExploitAuthors(t *testing.T) {
 	}
 }
 
-// A signal source that names hundreds of older CVEs without a record does not turn into hundreds of single-record asks: while that many
-// are unread, only the exploited lists' CVEs are asked for by ID (the next read of the whole list brings the rest); a few unread signalled
-// CVEs are asked for by ID as before.
-func TestCVERecordsByID_ManySignalledCVEsWaitForTheWholeList(t *testing.T) {
+// A signal source that names hundreds of older CVEs without a record: while that many are unread, the exploited lists' CVEs are asked
+// for first, then the signalled ones as the backlog of the pull (recordsBacklog), each once; a few unread signalled CVEs are asked for
+// by ID as before.
+func TestCVERecordsByID_ManySignalledCVEsAfterTheExploitedLists(t *testing.T) {
 	t.Parallel()
 	signals := func(n int) []publicSignal {
 		out := make([]publicSignal, n)
@@ -497,11 +497,20 @@ func TestCVERecordsByID_ManySignalledCVEsWaitForTheWholeList(t *testing.T) {
 	write(t, e.db, func(tx *sql.Tx) error {
 		return applyPublicSignals(t.Context(), tx, epoch0, exploitDBFeedID, signals(recordRescanUnread))
 	})
-	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil { // any ask for a CVE-2015 record hits an undeclared path
+	for _, g := range signals(recordRescanUnread) {
+		o.serve("/repo/cves/2015/1xxx/"+g.CVE+".json", func(w http.ResponseWriter, _ *http.Request) { http.NotFound(w, nil) })
+	}
+	if err := e.svc.Fetch(t.Context(), cveOrgFeedID); err != nil {
 		t.Fatal(err)
 	}
-	if o.count("/repo/cves/2024/3xxx/CVE-2024-3400.json") != 1 {
-		t.Fatalf("the exploited list's CVE was not asked: %d", o.count("/repo/cves/2024/3xxx/CVE-2024-3400.json"))
+	hits := o.all()
+	if len(hits) != recordRescanUnread+4 || o.count("/repo/cves/2024/3xxx/CVE-2024-3400.json") != 1 {
+		t.Fatalf("%d asks; the exploited list's CVE asked %d times", len(hits), o.count("/repo/cves/2024/3xxx/CVE-2024-3400.json"))
+	}
+	for _, h := range hits[:4] {
+		if strings.Contains(h.path, "CVE-2015-") {
+			t.Fatalf("a signalled CVE before the exploited lists': %s", h.path)
+		}
 	}
 
 	e2, o2, _ := recordEnv(t, false)

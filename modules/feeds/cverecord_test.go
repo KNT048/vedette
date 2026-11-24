@@ -929,6 +929,13 @@ VALUES ('CVE-2026-0901', 'exploited', 'ids-local', '2026-11-05T00:00:00.000Z', '
 	}
 }
 
+// readWithTheWholeList stamps the records of the CVEs like (a LIKE pattern) as read with the whole list of 2026-11-20.
+func readWithTheWholeList(t *testing.T, tx *sql.Tx, like string) error {
+	t.Helper()
+	_, err := tx.ExecContext(t.Context(), `UPDATE feeds_cve SET record_at = '2026-11-20T00:00:00.000Z' WHERE cve LIKE ?`, like)
+	return err
+}
+
 // changesEnv is a box whose whole list is read up to 2026-11-20 00:00, with a CVE of the window and an old CVE only a finding pins.
 func changesEnv(t *testing.T) (*env, *origin) {
 	t.Helper()
@@ -937,6 +944,9 @@ func changesEnv(t *testing.T) (*env, *origin) {
 	e.svc.Pins = func(context.Context) ([]string, error) { return []string{"CVE-2019-7001", "CVE-2019-7002"}, nil }
 	write(t, e.db, func(tx *sql.Tx) error {
 		if err := storeRecords(t.Context(), tx, []NVDRecord{{CVE: "CVE-2026-7000", Published: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Received"}}, e.clock()); err != nil {
+			return err
+		}
+		if err := readWithTheWholeList(t, tx, "CVE-2026-7000"); err != nil { // the whole list read up to 2026-11-20 held it
 			return err
 		}
 		for _, cve := range []string{"CVE-2019-7001", "CVE-2019-7002"} { // old CVEs only a finding keeps
@@ -1022,7 +1032,10 @@ func TestCVERecords_ChangesGoneLoadTheWholeList(t *testing.T) {
 			recs = append(recs, NVDRecord{CVE: cve, Published: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Received"})
 			updated = append(updated, fmt.Sprintf(`{"cveId":%q,"dateUpdated":"2026-11-20T10:00:00.000Z"}`, cve))
 		}
-		return storeRecords(t.Context(), tx, recs, e.clock())
+		if err := storeRecords(t.Context(), tx, recs, e.clock()); err != nil {
+			return err
+		}
+		return readWithTheWholeList(t, tx, "CVE-2026-8%")
 	})
 	logJSON := `[{"fetchTime":"2026-11-19T09:00:00.000Z","new":[],"updated":[]},{"fetchTime":"2026-11-20T10:00:00.000Z","new":[],"updated":[` + strings.Join(updated, ",") + `]}]`
 	o.serve("/repo/cves/deltaLog.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(logJSON)) })
@@ -1098,7 +1111,10 @@ func TestCVERecords_ManyLeftoversInOneHour(t *testing.T) {
 			recs = append(recs, NVDRecord{CVE: cve, Published: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Received"})
 			updated = append(updated, fmt.Sprintf(`{"cveId":%q,"dateUpdated":"2026-11-20T23:39:00.000Z"}`, cve))
 		}
-		return storeRecords(t.Context(), tx, recs, e.clock())
+		if err := storeRecords(t.Context(), tx, recs, e.clock()); err != nil {
+			return err
+		}
+		return readWithTheWholeList(t, tx, "CVE-2026-8%")
 	})
 	logJSON := `[{"fetchTime":"2026-11-19T09:00:00.000Z","new":[],"updated":[]},{"fetchTime":"2026-11-20T23:40:00.000Z","new":[],"updated":[` + strings.Join(updated, ",") + `]}]`
 	o.serve("/repo/cves/deltaLog.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(logJSON)) })
@@ -1156,7 +1172,10 @@ func TestCVERecords_YesterdaysArchiveNotYetPublished(t *testing.T) {
 			recs = append(recs, NVDRecord{CVE: cve, Published: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), LastModified: epoch0, Status: "Received"})
 			updated = append(updated, fmt.Sprintf(`{"cveId":%q,"dateUpdated":"2026-11-20T10:00:00.000Z"}`, cve))
 		}
-		return storeRecords(t.Context(), tx, recs, e.clock())
+		if err := storeRecords(t.Context(), tx, recs, e.clock()); err != nil {
+			return err
+		}
+		return readWithTheWholeList(t, tx, "CVE-2026-8%")
 	})
 	logJSON := `[{"fetchTime":"2026-11-19T09:00:00.000Z","new":[],"updated":[]},{"fetchTime":"2026-11-20T10:00:00.000Z","new":[],"updated":[` + strings.Join(updated, ",") + `]}]`
 	o.serve("/repo/cves/deltaLog.json", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(logJSON)) })

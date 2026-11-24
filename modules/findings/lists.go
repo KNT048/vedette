@@ -18,9 +18,10 @@ import (
 
 // The Findings lists: By device and By fix are two GROUP BYs of the same open rows, so their totals are equal by construction (open
 // findings = Σ by device = Σ by fix). The database groups the rows by (device, software line, fix key); the read then combines the
-// fixes of one product on one line into one block, the newest fix release of the group, so the CVEs of one software that need
-// different releases do not split it ("Update OpenSSH 10.2p1 → 10.6: fixes 25 CVEs"). Both lists, and the handling of one fix on one
-// device, read the same combination.
+// fixes of one product on one line into one block, so the CVEs of one software that need different releases do not split it
+// ("Update OpenSSH 10.2p1 → 10.6: fixes 25 CVEs"). An update block names the lowest release that clears every CVE it lists
+// (blocktarget.go); other kinds the newest fix release of the group. Both lists, Home, the report and the handling of one fix on one
+// device read the same combination.
 
 // ListFilter is what a list of findings shows: open statuses (layers), one device or a set of devices, the ignored devices only or
 // none of them, a search, one CVE.
@@ -228,13 +229,19 @@ func (s *Service) lineGroups(ctx context.Context, f ListFilter) ([]lineGroup, er
 	if err := errors.Join(r.Err(), r.Close()); err != nil {
 		return nil, fmt.Errorf("findings: grouping open findings: %w", err)
 	}
-	combine(out)
+	j, err := s.releaseJudge(ctx, out, rows, args)
+	if err != nil {
+		return nil, err
+	}
+	combine(out, j)
 	return out, nil
 }
 
-// combine sets the block of each group: the groups of one device, line, product and fix kind with a version share the newest version
-// of them, when every version of the group compares with it; otherwise (or for a kind without a version) a group is its own block.
-func combine(gs []lineGroup) {
+// combine sets the block of each group: the groups of one device, line, product and fix kind with a version combine when every
+// version of them compares with the others; otherwise (or for a kind without a version) a group is its own block. Updates to
+// different releases get the lowest release that clears every CVE (planReleases, with j's ranges; nil: each CVE cleared by its own
+// fix and any later release), the other kinds the newest version of them.
+func combine(gs []lineGroup, j *releaseJudge) {
 	type bucket struct {
 		asset, software, product string
 		kind                     FixKind
@@ -265,6 +272,10 @@ func combine(gs []lineGroup) {
 			}
 		}
 		if !ok {
+			continue
+		}
+		if b.kind == FixUpdate && slices.ContainsFunc(is, func(i int) bool { return gs[i].Fix.Version != gs[top].Fix.Version }) {
+			planReleases(gs, is, b.product, j)
 			continue
 		}
 		fx := gs[top].Fix
@@ -926,9 +937,9 @@ func (s *Service) DeviceStatuses(ctx context.Context) (map[string]DeviceStatus, 
 	return out, nil
 }
 
-// ListedFix is the fix an open finding is listed under in By device and By fix: its block's combined release (the newest release of
-// its product on its line), which can be newer than the finding's own stored fix ("Update to 9.0.2.0200: fixes 3 CVEs", not 9.0.2.0100
-// for one of them). A reader that lists fixes (the report's "Do these first" and "Still open") uses it, so it names the fix the
+// ListedFix is the fix an open finding is listed under in By device and By fix: its block's combined release (the lowest release of
+// its product that clears every CVE of the block on its line), which can be newer than the finding's own stored fix ("Update to
+// 9.0.2.0200: fixes 3 CVEs", not 9.0.2.0100 for one of them). A reader that lists fixes (the report's "Do these first" and "Still open") uses it, so it names the fix the
 // Findings lists name.
 type ListedFix struct {
 	Key string // the block key, By fix's group

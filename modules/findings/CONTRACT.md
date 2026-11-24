@@ -83,7 +83,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen
   draws one status the same way; `View.ReasonsLine` and `View.VerificationLine` are those lines as text for notices, mails and reports.
-  By device and By fix group the same open rows in SQL, so their totals always agree. The Needs your input queue is computed from
+  By device and By fix group the same open rows in SQL, so their totals always agree. The fixes of one product on one line combine
+  into one block (`combine`), read the same way by By device, By fix, Home, the report (`ListedFixes`) and the handling of a block:
+  an update block names the lowest release the CVEs' ranges name that clears every CVE it lists on that line, and splits when no
+  such release clears them all (`blocktarget.go`, `TestBlockTarget_Count_TargetsThatLeaveAListedCVEOpen`). The Needs your input queue is computed from
   rows, never stored, and searched like the other lists (`q`: the device's name or address, the software, the CVE id); a device not
   added yet is also found by the CVE ids and software names of its open findings, which its item does not show (read only when `q`
   is set); a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).

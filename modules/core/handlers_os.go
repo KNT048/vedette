@@ -53,9 +53,12 @@ type OSHandlers struct {
 	// termsMarker is <core_data>/first-run-terms.json: the acceptance of the terms by the operator of a first-run restore,
 	// outside the database the restore replaces (restore_upload.go).
 	termsMarker string
-	zone        func(context.Context) (string, error)
-	log         *slog.Logger
-	now         func() time.Time
+	// pendingMarker is <core_data>/restore-pending.json: the restore run core started, outside the database the restore
+	// replaces, so the process that starts on the restored data records its end there (restore.go).
+	pendingMarker string
+	zone          func(context.Context) (string, error)
+	log           *slog.Logger
+	now           func() time.Time
 	// loadTimeout bounds one shared read of the host (loadTimeout, shorter in tests).
 	loadTimeout time.Duration
 
@@ -85,6 +88,7 @@ type OSHandlers struct {
 
 	upd updCheck // the check side of the software update (updates_check.go)
 
+	fileMu  sync.Mutex   // one restore from a file at a time on a set-up box, from its upload to the start of its restore (restore_upload.go)
 	setup   *APIHandlers // the setup code gate, the first-run lock and the migrations of the first-run restore (restore_upload.go)
 	keyPath string       // the master key file, for its download (POST /core/data/key)
 }
@@ -174,6 +178,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 		}
 		h.pkgDir = filepath.Join(c.DataDir, hostPackagesDir)
 		h.termsMarker = filepath.Join(c.DataDir, termsMarkerFile)
+		h.pendingMarker = filepath.Join(c.DataDir, pendingRestoreFile)
 		h.sweepHostPackages()
 	}
 	if c.Host != nil {
@@ -187,7 +192,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 			go h.resume()
 		}
 		h.resumeUpdate()
-		h.settleFirstRunRestore()
+		h.settleRestoreAtStart()
 	}
 	return h, nil
 }

@@ -3,6 +3,13 @@ package core_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
@@ -10,6 +17,7 @@ import (
 
 	"github.com/knt048/vedette/core/auth/authtest"
 	"github.com/knt048/vedette/host/api"
+	hostclient "github.com/knt048/vedette/host/client"
 	"github.com/knt048/vedette/modules/core"
 )
 
@@ -239,5 +247,106 @@ func TestRestoreReadsShareTheRunListAndALostRunEnds(t *testing.T) {
 	}
 	if e.count("data.restore_done") != 1 {
 		t.Errorf("actions = %v", e.actions())
+	}
+}
+
+// followHost is restoreHost with the run followable (GetRun and an event stream that ends at once), as the real host is
+// for a core process that starts while backup.restore still checks its health.
+type followHost struct {
+	*restoreHost
+	ev *hostclient.Client
+}
+
+func newFollowHost(t *testing.T, f *restoreHost) *followHost {
+	t.Helper()
+	return &followHost{restoreHost: f, ev: endedStreams(t)}
+}
+
+func (f *followHost) GetRun(_ context.Context, id string) (api.Run, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, r := range f.runs {
+		if r.RunID == id {
+			return r, nil
+		}
+	}
+	return api.Run{}, &hostclient.Error{Status: 404, Code: "run_not_found", Message: "no such run"}
+}
+
+func (f *followHost) Events(ctx context.Context, runID string, after uint64) *hostclient.Stream {
+	return f.ev.Events(ctx, runID, after)
+}
+
+// endedStreams is a host client whose event streams end at once with a final state (the follower then reads the run itself).
+func endedStreams(t *testing.T) *hostclient.Client {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "vr") // unix socket paths are short: t.TempDir is too long on macOS
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	sock := filepath.Join(dir, "h.sock")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &http.Server{ReadHeaderTimeout: time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprint(w, "id: 1\ndata: {\"seq\":1,\"kind\":\"state\",\"status\":\"succeeded\"}\n\n")
+	})}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+	return hostclient.New(sock)
+}
+
+// swapIn makes the database look like the one a restore brings back: it holds the copy of an older, settled restore and
+// nothing of the run that restored it.
+func (e *osEnv) swapIn() {
+	e.t.Helper()
+	e.setting("data.restore", `{"run_id":"rn_older","backup_id":"aaaa0000aaaa0000aaaa0000aaaa0000","backup_created_at":"2026-10-01T00:00:00Z","user":"a","started_at":"2026-10-01T00:00:00Z","status":"done"}`)
+}
+
+// Core starts on the restored database while the host still checks its health. The end of the restore is recorded in
+// that database by the start-up pass, without anyone opening a page: one data.restore_done row naming the backup that
+// came back, and the run is the latest restore (not the older one the restored data remembers).
+func TestRestoreIsRecordedInTheRestoredDatabaseAtStart(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	wantOK(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "bbbb0000bbbb0000bbbb0000bbbb0000", "confirm_data_loss": true, "password": authtest.Password}), 202)
+	e.swapIn()
+	e.newHandlers(t, newFollowHost(t, f), 0) // core is back on the restored data; the run is not over yet
+	f.finish(api.StatusSucceeded, api.BackupRestoreResult{RestoredBackupID: "bbbb0000bbbb0000bbbb0000bbbb0000", PreRestoreBackupID: "dddd0000dddd0000dddd0000dddd0000"}, "")
+	eventuallyOS(t, "the restore recorded in the restored database", func() bool { return e.count("data.restore_done") == 1 })
+	want := "done: the backup from 8 Nov 2026, 16:00 (Before operating system update) is back; audit lines written after it are only in the Before restore copy"
+	if d := e.auditDetails("data.restore_done"); len(d) != 1 || d[0] != want {
+		t.Errorf("data.restore_done detail = %q, want %q", d, want)
+	}
+	got := e.admin.get("/core/data/restore/run")
+	if got.str("id") != "rn_restore1" || got.str("status") != "done" || got.str("backup_created_at") != "2026-11-08T09:00:00Z" {
+		t.Fatalf("run = %s", got.Raw)
+	}
+	if _, err := os.Stat(filepath.Join(e.m.CoreData, "restore-pending.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the pending-restore marker stayed after the run was recorded: %v", err)
+	}
+}
+
+// The Data page reads the run while the host still checks the restored data: it says running, and once the run ended
+// the next read records and shows it, never the older restore the restored database remembers.
+func TestRestoreReadDuringTheHealthCheckShowsTheNewRun(t *testing.T) {
+	t.Parallel()
+	e, f := newRestoreEnv(t)
+	wantOK(t, e.admin.post("/core/data/restore", map[string]any{"backup_id": "bbbb0000bbbb0000bbbb0000bbbb0000", "confirm_data_loss": true, "password": authtest.Password}), 202)
+	e.swapIn()
+	e.newHandlers(t, f, 0) // this host cannot be followed: only the page's reads see the end
+	if r := e.admin.get("/core/data/restore/run"); r.str("id") != "rn_restore1" || r.str("status") != "running" {
+		t.Fatalf("during the health check = %s", r.Raw)
+	}
+	f.finish(api.StatusSucceeded, api.BackupRestoreResult{RestoredBackupID: "bbbb0000bbbb0000bbbb0000bbbb0000", PreRestoreBackupID: "dddd0000dddd0000dddd0000dddd0000"}, "")
+	e.clock.Advance(6 * time.Second) // past the shared run list
+	if r := e.admin.get("/core/data/restore/run"); r.str("id") != "rn_restore1" || r.str("status") != "done" {
+		t.Fatalf("after the run ended = %s", r.Raw)
+	}
+	if n := e.count("data.restore_done"); n != 1 {
+		t.Errorf("data.restore_done rows = %d, want 1", n)
 	}
 }

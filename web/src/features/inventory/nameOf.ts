@@ -32,13 +32,15 @@ const namingOS = (o: Asset['os'] | undefined) => (o && o.basis !== 'guess' && !o
  *  the name a person gave in Vedette (`name`) always wins when present; then the host name (the name typed at hand declaration is also the host name); a hand-declared device follows its first product, with no IP "<product> (no device)",
  *  never an empty row name; a discovered device gets vendor + model, unless the maker is only its network card's and no model is
  *  known; then the product of the OS or firmware it states ("VMware ESXi"); then "<card maker> device"; then the IP. '' when nothing is known. */
+// Its words are in the bundled `common` namespace: other features (Runs, a finding's firewall list) call it outside any component that
+// waits for `inventory`, and a lazy namespace would show the raw key there ("makerDevice").
 export function displayName(a: Named): string {
   if (userName(a)) return userName(a)
   if (a.hostname) return a.hostname
   // The backend lists software by display name (ORDER BY display): the first of them, whatever order this array has.
   // what it runs: never a line a person said is not installed
   const product = a.origin !== 'manual' ? undefined : a.software ? a.software.filter((s) => !s.not_installed).map((s) => s.display.trim()).filter(Boolean).sort()[0] : a.product?.display.trim() || undefined
-  if (product) return hasIp(a) ? product : i18n.t('inventory:noDevice', { product })
+  if (product) return hasIp(a) ? product : i18n.t('common:device.noDevice', { product })
   // A maker or model read from a person's declared OS row (software_id) is not the observations' (inventory INV-45): the backend's
   // naming rule leaves it out, and so does this one, so a device has one name on every page.
   const vendor = a.vendor && !a.vendor.software_id ? a.vendor.value.trim() : ''
@@ -46,7 +48,7 @@ export function displayName(a: Named): string {
   if (model || (vendor && !cardVendor(a.vendor))) return [vendor, model].filter(Boolean).join(' ')
   const os = osProduct(namingOS(a.os))
   if (os) return os
-  if (vendor) return i18n.t('inventory:makerDevice', { maker: vendor })
+  if (vendor) return i18n.t('common:device.makerDevice', { maker: vendor })
   return hasIp(a) ? a.ip : ''
 }
 

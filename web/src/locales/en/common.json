@@ -18,6 +18,10 @@
   "no": "No",
   "unknown": "Unknown",
   "none": "None",
+  "device": {
+    "noDevice": "{{product}} (no device)",
+    "makerDevice": "{{maker}} device"
+  },
   "sampleData": "Sample data",
   "needRole": "Requires {{role}} role",
   "updatedAt": "Updated {{time}}",

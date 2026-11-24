@@ -3,6 +3,7 @@ package sensoractive
 import (
 	"context"
 	"log/slog"
+	"net/netip"
 	"slices"
 	"testing"
 	"time"
@@ -120,4 +121,21 @@ func (r *recordingSinks) AddServices(context.Context, observe.AssetHint, observe
 }
 func (r *recordingSinks) PortReadTimes(context.Context, string, observe.Source) (map[int]time.Time, error) {
 	return nil, nil
+}
+
+// Every port open at the previous check that sends nothing back now is kept, however many: the list that keeps them out of the
+// replace scope is not the history's capped list of changes, so the ports past that cap are not removed as if they had closed.
+func TestNoAnswerKeepsEveryPortPastTheChangeCap(t *testing.T) {
+	t.Parallel()
+	all := []observe.PortRange{{From: 1, To: 1000}}
+	h := host{addr: netip.MustParseAddr("192.0.2.10"), filtered: 1000, scanned: all, runs: []portRun{{scanned: all, extra: []string{"filtered"}}}}
+	n := maxFoundDiff + 8
+	prev := DeviceFound{Reach: "top1000", Open: n}
+	for p := 1; p <= n; p++ {
+		prev.Ports = append(prev.Ports, FoundPort{Port: p, Proto: "tcp"})
+	}
+	f := foundOf(h, nmapargv.Normal, false, []DeviceFound{prev})
+	if len(f.NoAnswer) != n || len(f.Gone) != 0 {
+		t.Fatalf("%d ports open before gave no answer: %d kept, %d gone (want all %d kept)", n, len(f.NoAnswer), len(f.Gone), n)
+	}
 }

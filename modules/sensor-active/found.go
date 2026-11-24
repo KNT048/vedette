@@ -139,7 +139,9 @@ func foundOf(h host, kind nmapargv.Kind, extraFailed bool, prev []DeviceFound) D
 			if slices.Contains(prev[i].NoAnswer, p) {
 				f.Dropped = appendCapped(f.Dropped, p)
 			} else {
-				f.NoAnswer = appendCapped(f.NoAnswer, p)
+				// not capped: recordHost keeps these out of the replace scope, and a port left off would be removed as if closed. The
+				// list stays bounded: a port kept once is dropped or open at the next check, so it holds ports open at the previous one
+				f.NoAnswer = append(f.NoAnswer, p)
 			}
 		}
 	}

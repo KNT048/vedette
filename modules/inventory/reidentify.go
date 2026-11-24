@@ -78,6 +78,9 @@ const reidentifyPage = 200
 // identified again is logged and skipped: the devices after it still are, and the pass stays open, so the next run walks every
 // device again (a device already done is only read).
 func (s *Service) ReidentifyLines(ctx context.Context) error {
+	if err := s.bareBannerNames(ctx); err != nil {
+		return err
+	}
 	if err := s.settleStaleLines(ctx); err != nil {
 		return err
 	}
@@ -88,6 +91,34 @@ func (s *Service) ReidentifyLines(ctx context.Context) error {
 			return err
 		}
 	}
+}
+
+// bannerNameFix drops, from the scan readings and lines of one table, the version a stored name repeats (bannerName): a release
+// before bannerName stored "OpenSSH 9.6" beside version 9.6. Only rows whose name ends with " <version>" and keeps a name without it.
+const bannerNameFix = ` SET display = rtrim(substr(display, 1, length(display) - length(version) - 1))
+WHERE source IN ('nmap', 'scan') AND version IS NOT NULL AND length(display) > length(version) + 1
+  AND substr(display, length(display) - length(version)) = ' ' || version
+  AND trim(substr(display, 1, length(display) - length(version) - 1)) <> ''`
+
+// bareBannerNames gives the scan readings and lines stored before bannerName their product name alone, as new readings get it. It
+// changes names only (no version, no product, no train), so nothing is matched again; once done, each run changes no row.
+func (s *Service) bareBannerNames(ctx context.Context) error {
+	var n int64
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
+		for _, table := range []string{"inv_software_reading", "inv_software"} {
+			res, err := tx.ExecContext(ctx, `UPDATE `+table+bannerNameFix) //nolint:gosec // table is one of two constants
+			if err != nil {
+				return fmt.Errorf("inventory: name scanned software: %w", err)
+			}
+			c, _ := res.RowsAffected()
+			n += c
+		}
+		return nil
+	})
+	if err == nil && n > 0 {
+		s.log.InfoContext(ctx, "inventory: scanned software named without its repeated version", "rows", n)
+	}
+	return err
 }
 
 // settleStaleLines settles again every line whose stored value is not what the resolver says of its readings now (the self-check

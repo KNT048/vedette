@@ -21,7 +21,7 @@ import type {
 } from './types'
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
-import { badUserName, declaredSoftwareOnly, nameOf } from './nameOf'
+import { badUserName, declaredSoftwareOnly, nameOf, neverSeen } from './nameOf'
 import { deviceRisk } from '@/features/findings/mocks'
 import { DEVICE_STATUSES } from '@/lib/statusCodes'
 import { actsAs, lookupType, TYPE_IDS } from '@/lib/deviceTypes'
@@ -513,7 +513,7 @@ function samePairs(): { a: Asset; b: Asset; why: string }[] {
   const latest = (p: { a: Asset; b: Asset }) => (p.a.last_seen > p.b.last_seen ? p.a.last_seen : p.b.last_seen)
   return out.sort((p, q) => latest(q).localeCompare(latest(p)))
 }
-const sameRef = (a: Asset) => ({ id: a.id, name: nameOf(a, a.kind), approved: a.approved, last_seen: a.last_seen })
+const sameRef = (a: Asset) => ({ id: a.id, name: nameOf(a, a.kind), approved: a.approved, last_seen: a.last_seen, never_seen: neverSeen(a) })
 /** A device's addresses besides its main one (inventory INV-57): a merge keeps the merged device's address here, a split takes one out. */
 const addrStore = collection<Record<string, DeviceAddress[]>>('inv_addresses', () => ({}))
 /** Every address of a device as the box lists them: the main one first, then the others. */

@@ -68,8 +68,8 @@ func TestContract_OneNamingRule(t *testing.T) {
 		if d.Name() != names[d.ID] && names[d.ID] != d.ID {
 			t.Fatalf("Device.Name %q != Names %q", d.Name(), names[d.ID])
 		}
-		if d.Origin == "discovered" && !d.IsBox && d.Name() != "Synology" {
-			t.Fatalf("discovered device name = %q, want its make", d.Name())
+		if d.Origin == "discovered" && !d.IsBox && d.Name() != "Synology device" { // the passive sensor's maker is its network card's
+			t.Fatalf("discovered device name = %q, want its card's maker", d.Name())
 		}
 	}
 	// the audit names it the same way, not by its id

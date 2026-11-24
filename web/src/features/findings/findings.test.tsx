@@ -509,7 +509,7 @@ describe('findings: as a customer', () => {
   it('a device with no IP is named, says "No IP address" and offers no rescan', async () => {
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, ip: '—', hostname: null } : a)))
     renderApp('/findings/f-2')
-    expect(await screen.findByRole('heading', { level: 1, name: /^VMware may be affected/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /^Ubuntu may be affected/ })).toBeInTheDocument()
     expect(screen.getAllByText('No IP address').length).toBeGreaterThan(0)
     expect(screen.queryByRole('link', { name: 'Rescan this device' })).not.toBeInTheDocument()
     expect(screen.queryByText(/a-web01/)).not.toBeInTheDocument()

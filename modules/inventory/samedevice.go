@@ -38,6 +38,8 @@ type PossibleSame struct {
 	// Ignored: a person ignored the other device; the Merge dialog says which watch state the kept device ends with.
 	Ignored  bool   `json:"ignored"`
 	LastSeen string `json:"last_seen"`
+	// NeverSeen: the other device was added by hand and nothing has seen it since (SameRef.NeverSeen).
+	NeverSeen bool `json:"never_seen"`
 }
 
 // SameRef is one device of a SamePair.
@@ -46,6 +48,8 @@ type SameRef struct {
 	Name     string `json:"name"`
 	Approved bool   `json:"approved"`
 	LastSeen string `json:"last_seen"`
+	// NeverSeen: the device was added by hand and nothing has seen it since (LastSeen is when it was added, not a sighting).
+	NeverSeen bool `json:"never_seen"`
 }
 
 // SamePair is one pair of GET /inventory/possible-same.
@@ -94,7 +98,7 @@ func (r *sameRow) lastOnline() string {
 }
 
 func (r *sameRow) ref(ctx context.Context, q querier) SameRef {
-	return SameRef{ID: r.id, Name: deviceName(ctx, q, r.id), Approved: r.approved, LastSeen: r.last}
+	return SameRef{ID: r.id, Name: deviceName(ctx, q, r.id), Approved: r.approved, LastSeen: r.last, NeverSeen: r.origin == "manual" && r.last <= r.first}
 }
 
 // burnedOnly reports a row whose only MACs were burned in by a maker: a server, a printer, a switch. It never rotates its MAC, so a
@@ -608,7 +612,8 @@ func (s *Service) PossibleSameAs(ctx context.Context, id string) ([]PossibleSame
 		if other.ID == id {
 			other = p.a
 		}
-		out = append(out, PossibleSame{ID: other.ID, Name: other.Name, Why: p.why, Reason: p.reason, Approved: other.Approved, Ignored: ignored[other.ID], LastSeen: other.LastSeen})
+		out = append(out, PossibleSame{ID: other.ID, Name: other.Name, Why: p.why, Reason: p.reason, Approved: other.Approved, Ignored: ignored[other.ID], LastSeen: other.LastSeen,
+			NeverSeen: other.NeverSeen})
 	}
 	slices.SortFunc(out, func(a, b PossibleSame) int {
 		if c := strings.Compare(b.LastSeen, a.LastSeen); c != 0 {

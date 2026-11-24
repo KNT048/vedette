@@ -246544,6 +246544,10 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) encodeFields(e *jx.En
 		e.Str(s.Name)
 	}
 	{
+		e.FieldStart("never_seen")
+		e.Bool(s.NeverSeen)
+	}
+	{
 		e.FieldStart("reason")
 		s.Reason.Encode(e)
 	}
@@ -246553,14 +246557,15 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) encodeFields(e *jx.En
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKPossibleSameItem = [7]string{
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKPossibleSameItem = [8]string{
 	0: "approved",
 	1: "id",
 	2: "ignored",
 	3: "last_seen",
 	4: "name",
-	5: "reason",
-	6: "why",
+	5: "never_seen",
+	6: "reason",
+	7: "why",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDOKPossibleSameItem from json.
@@ -246632,8 +246637,20 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) Decode(d *jx.Decoder)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
-		case "reason":
+		case "never_seen":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Bool()
+				s.NeverSeen = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"never_seen\"")
+			}
+		case "reason":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Reason.Decode(d); err != nil {
 					return err
@@ -246643,7 +246660,7 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"reason\"")
 			}
 		case "why":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Why = string(v)
@@ -246664,7 +246681,7 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) Decode(d *jx.Decoder)
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -252458,13 +252475,18 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemA) encodeFields(e *jx.Encod
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
+	{
+		e.FieldStart("never_seen")
+		e.Bool(s.NeverSeen)
+	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryPossibleSameOKItemsItemA = [4]string{
+var jsonFieldsNameOfInventoryGetInventoryPossibleSameOKItemsItemA = [5]string{
 	0: "approved",
 	1: "id",
 	2: "last_seen",
 	3: "name",
+	4: "never_seen",
 }
 
 // Decode decodes InventoryGetInventoryPossibleSameOKItemsItemA from json.
@@ -252524,6 +252546,18 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemA) Decode(d *jx.Decoder) er
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
+		case "never_seen":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.NeverSeen = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"never_seen\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -252534,7 +252568,7 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemA) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -252605,13 +252639,18 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemB) encodeFields(e *jx.Encod
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
+	{
+		e.FieldStart("never_seen")
+		e.Bool(s.NeverSeen)
+	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryPossibleSameOKItemsItemB = [4]string{
+var jsonFieldsNameOfInventoryGetInventoryPossibleSameOKItemsItemB = [5]string{
 	0: "approved",
 	1: "id",
 	2: "last_seen",
 	3: "name",
+	4: "never_seen",
 }
 
 // Decode decodes InventoryGetInventoryPossibleSameOKItemsItemB from json.
@@ -252671,6 +252710,18 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemB) Decode(d *jx.Decoder) er
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
+		case "never_seen":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.NeverSeen = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"never_seen\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -252681,7 +252732,7 @@ func (s *InventoryGetInventoryPossibleSameOKItemsItemB) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -135,7 +135,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await expectNoA11yViolations() // combobox is open
     await user.click(option) // click 2
     await user.click(screen.getByRole('button', { name: 'Add' })) // click 3
-    expect(await screen.findByText(/Added FortiGate/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText(/^Added 192\.168\.30\.9, running FortiGate/, undefined, T)).toBeInTheDocument()
     expect(assetsStore.get()).toHaveLength(before + 1)
     const a = assetsStore.get()[0]!
     expect(a.origin).toBe('manual')
@@ -187,7 +187,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(assetsStore.get()).toHaveLength(before)
   })
 
-  it('free entry: "Can\'t find it?" switches to Maker and Product inputs; incomplete input cannot be submitted', async () => {
+  it('free entry: "Can\'t find it?" switches to Maker and Product inputs; incomplete input says what is missing; the toast names the device', async () => {
     const user = userEvent.setup()
     const before = assetsStore.get().length
     renderApp('/devices')
@@ -197,11 +197,13 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(screen.getByRole('dialog')).queryByRole('combobox')).not.toBeInTheDocument()
     await user.type(screen.getByLabelText('Host name'), 'branch-fw')
     await user.type(screen.getByLabelText('Maker'), 'Fortinet')
-    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled() // product is still empty
-    await user.type(screen.getByLabelText('Product'), 'FortiGate')
-    expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled()
+    // Add is never off without a reason: sent with the product still empty, the form says what is missing and adds nothing
     await user.click(screen.getByRole('button', { name: 'Add' }))
-    expect(await screen.findByText(/Added Fortinet FortiGate/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText(/Pick the product this device runs, or enter its maker and product yourself/, undefined, T)).toBeInTheDocument()
+    expect(assetsStore.get()).toHaveLength(before)
+    await user.type(screen.getByLabelText('Product'), 'FortiGate')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText(/^Added branch-fw, running Fortinet FortiGate\./, undefined, T)).toBeInTheDocument()
     expect(assetsStore.get()).toHaveLength(before + 1)
     const sw = assetsStore.get()[0]!.software[0]!
     expect(sw).toMatchObject({ vendor: 'Fortinet', product: 'FortiGate', source: 'manual' })
@@ -2173,10 +2175,12 @@ describe('inventory: form matrix', () => {
     expect(within(dlg).getByRole('button', { name: 'Add' })).toBeEnabled()
     await user.click(within(dlg).getByRole('button', { name: 'Back to the list' }))
     await user.click(within(dlg).getByRole('button', { name: NOT_LISTED }))
-    // the fields do not look filled while the form holds nothing: they start empty, and Add stays locked until both are typed
+    // the fields do not look filled while the form holds nothing: they start empty, and Add says a product is missing until both are typed
     expect(within(dlg).getByLabelText('Maker')).toHaveValue('')
     expect(within(dlg).getByLabelText('Product')).toHaveValue('')
-    expect(within(dlg).getByRole('button', { name: 'Add' })).toBeDisabled()
+    await user.type(within(dlg).getByLabelText('IP address'), '192.0.2.77')
+    await user.click(within(dlg).getByRole('button', { name: 'Add' }))
+    expect(await within(dlg).findByText(/Pick the product this device runs/, undefined, T)).toBeInTheDocument()
   })
 
   it('the server refuses active scanning without the scope confirmation', async () => {

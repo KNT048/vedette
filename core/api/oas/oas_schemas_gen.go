@@ -24363,7 +24363,11 @@ func (s *CorePatchModulesIDReq) SetWithDependencies(val OptBool) {
 }
 
 type CorePostAuthLoginOK struct {
+	// True: signed in, the session cookies are set. false: the password was right and the account has
+	// two-step sign-in; send the same body again with code.
 	Ok bool `json:"ok"`
+	// Present when ok is false: the code the sign-in needs.
+	Twofa OptCorePostAuthLoginOKTwofa `json:"twofa"`
 }
 
 // GetOk returns the value of Ok.
@@ -24371,16 +24375,107 @@ func (s *CorePostAuthLoginOK) GetOk() bool {
 	return s.Ok
 }
 
+// GetTwofa returns the value of Twofa.
+func (s *CorePostAuthLoginOK) GetTwofa() OptCorePostAuthLoginOKTwofa {
+	return s.Twofa
+}
+
 // SetOk sets the value of Ok.
 func (s *CorePostAuthLoginOK) SetOk(val bool) {
 	s.Ok = val
 }
 
+// SetTwofa sets the value of Twofa.
+func (s *CorePostAuthLoginOK) SetTwofa(val OptCorePostAuthLoginOKTwofa) {
+	s.Twofa = val
+}
+
+// Present when ok is false: the code the sign-in needs.
+type CorePostAuthLoginOKTwofa struct {
+	// App = authenticator app (TOTP), email = 6-digit code sent to the sign-in email.
+	Method CorePostAuthLoginOKTwofaMethod `json:"method"`
+	// Email method: seconds before another code can be sent (60).
+	ResendAfter OptInt `json:"resend_after"`
+	// Email method: the masked sign-in email the code was just sent to, like a•••@acme.example.
+	SentTo OptString `json:"sent_to"`
+}
+
+// GetMethod returns the value of Method.
+func (s *CorePostAuthLoginOKTwofa) GetMethod() CorePostAuthLoginOKTwofaMethod {
+	return s.Method
+}
+
+// GetResendAfter returns the value of ResendAfter.
+func (s *CorePostAuthLoginOKTwofa) GetResendAfter() OptInt {
+	return s.ResendAfter
+}
+
+// GetSentTo returns the value of SentTo.
+func (s *CorePostAuthLoginOKTwofa) GetSentTo() OptString {
+	return s.SentTo
+}
+
+// SetMethod sets the value of Method.
+func (s *CorePostAuthLoginOKTwofa) SetMethod(val CorePostAuthLoginOKTwofaMethod) {
+	s.Method = val
+}
+
+// SetResendAfter sets the value of ResendAfter.
+func (s *CorePostAuthLoginOKTwofa) SetResendAfter(val OptInt) {
+	s.ResendAfter = val
+}
+
+// SetSentTo sets the value of SentTo.
+func (s *CorePostAuthLoginOKTwofa) SetSentTo(val OptString) {
+	s.SentTo = val
+}
+
+// App = authenticator app (TOTP), email = 6-digit code sent to the sign-in email.
+type CorePostAuthLoginOKTwofaMethod string
+
+const (
+	CorePostAuthLoginOKTwofaMethodApp   CorePostAuthLoginOKTwofaMethod = "app"
+	CorePostAuthLoginOKTwofaMethodEmail CorePostAuthLoginOKTwofaMethod = "email"
+)
+
+// AllValues returns all CorePostAuthLoginOKTwofaMethod values.
+func (CorePostAuthLoginOKTwofaMethod) AllValues() []CorePostAuthLoginOKTwofaMethod {
+	return []CorePostAuthLoginOKTwofaMethod{
+		CorePostAuthLoginOKTwofaMethodApp,
+		CorePostAuthLoginOKTwofaMethodEmail,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostAuthLoginOKTwofaMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostAuthLoginOKTwofaMethodApp:
+		return []byte(s), nil
+	case CorePostAuthLoginOKTwofaMethodEmail:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostAuthLoginOKTwofaMethod) UnmarshalText(data []byte) error {
+	switch CorePostAuthLoginOKTwofaMethod(data) {
+	case CorePostAuthLoginOKTwofaMethodApp:
+		*s = CorePostAuthLoginOKTwofaMethodApp
+		return nil
+	case CorePostAuthLoginOKTwofaMethodEmail:
+		*s = CorePostAuthLoginOKTwofaMethodEmail
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePostAuthLoginReq struct {
-	// 6-digit code when the account has two-step sign-in; a missing code gives 401 twofa_required with
-	// method (app|email) and, for email, sent_to (masked address) and resend_after (seconds). The email
-	// code is sent by that same call. Email channel off or unconfigured: 503 twofa_email_unavailable,
-	// never password-only.
+	// 6-digit code when the account has two-step sign-in; a right password without it is 200 with ok false
+	// and twofa (method; for email also sent_to and resend_after). The email code is sent by that same
+	// call. Email channel off or unconfigured: 503 twofa_email_unavailable, never password-only.
 	Code     OptString `json:"code"`
 	Email    string    `json:"email"`
 	Password string    `json:"password"`
@@ -202417,6 +202512,52 @@ func (o OptCorePatchCoreUsersIDReqRole) Get() (v CorePatchCoreUsersIDReqRole, ok
 
 // Or returns value if set, or given parameter if does not.
 func (o OptCorePatchCoreUsersIDReqRole) Or(d CorePatchCoreUsersIDReqRole) CorePatchCoreUsersIDReqRole {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptCorePostAuthLoginOKTwofa returns new OptCorePostAuthLoginOKTwofa with value set to v.
+func NewOptCorePostAuthLoginOKTwofa(v CorePostAuthLoginOKTwofa) OptCorePostAuthLoginOKTwofa {
+	return OptCorePostAuthLoginOKTwofa{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptCorePostAuthLoginOKTwofa is optional CorePostAuthLoginOKTwofa.
+type OptCorePostAuthLoginOKTwofa struct {
+	Value CorePostAuthLoginOKTwofa
+	Set   bool
+}
+
+// IsSet returns true if OptCorePostAuthLoginOKTwofa was set.
+func (o OptCorePostAuthLoginOKTwofa) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptCorePostAuthLoginOKTwofa) Reset() {
+	var v CorePostAuthLoginOKTwofa
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptCorePostAuthLoginOKTwofa) SetTo(v CorePostAuthLoginOKTwofa) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptCorePostAuthLoginOKTwofa) Get() (v CorePostAuthLoginOKTwofa, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptCorePostAuthLoginOKTwofa) Or(d CorePostAuthLoginOKTwofa) CorePostAuthLoginOKTwofa {
 	if v, ok := o.Get(); ok {
 		return v
 	}

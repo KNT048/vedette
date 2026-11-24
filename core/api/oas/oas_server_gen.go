@@ -547,8 +547,9 @@ type Handler interface {
 	CorePatchModulesID(ctx context.Context, req *CorePatchModulesIDReq, params CorePatchModulesIDParams) (*CorePatchModulesIDOK, error)
 	// CorePostAuthLogin implements core_post_auth_login operation.
 	//
-	// Sign in with email and password (plus the two-step code when on; email-code users get a code sent
-	// and 401 twofa_required). An expired temporary password is 400 temp_password_expired.
+	// Sign in with email and password (plus the two-step code when on: without it the answer is 200 with
+	// ok false and twofa, and email-code users get a code sent). An expired temporary password is 400
+	// temp_password_expired.
 	//
 	// POST /auth/login
 	CorePostAuthLogin(ctx context.Context, req *CorePostAuthLoginReq) (*CorePostAuthLoginOK, error)

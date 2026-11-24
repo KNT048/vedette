@@ -12735,7 +12735,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								switch method {
 								case "POST":
 									r.name = CorePostAuthLoginOperation
-									r.summary = "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired"
+									r.summary = "Sign in with email and password (plus the two-step code when on: without it the answer is 200 with ok false and twofa, and email-code users get a code sent). An expired temporary password is 400 temp_password_expired"
 									r.operationID = "core_post_auth_login"
 									r.operationGroup = ""
 									r.pathPattern = "/auth/login"

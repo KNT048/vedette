@@ -886,12 +886,13 @@ describe('core: two-step sign-in', () => {
     expect(sessionStore.get().userId).toBe('u-admin')
   })
 
-  it('API: a missing code 401 twofa_required, a wrong code 400 invalid_code', async () => {
+  it('API: a missing code is the code step (200, ok false, no session), a wrong code 400 invalid_code', async () => {
     usersStore.update((l) => l.map((x) => (x.id === 'u-op' ? { ...x, twofa: true } : x)))
     const login = (extra: object) => fetch(`${location.origin}/api/v1/auth/login`, { method: 'POST', body: JSON.stringify({ email: 'it@acme.example', password: 'vedette-demo', ...extra }) })
     const a = await login({})
-    expect(a.status).toBe(401)
-    expect(((await a.json()) as { error: { code: string } }).error.code).toBe('twofa_required')
+    expect(a.status).toBe(200)
+    expect(await a.json()).toEqual({ ok: false, twofa: { method: 'app' } })
+    expect(sessionStore.get().userId).toBeNull()
     const b = await login({ code: '123456' })
     expect(b.status).toBe(400)
     expect(((await b.json()) as { error: { code: string } }).error.code).toBe('invalid_code')
@@ -1912,23 +1913,23 @@ describe('core: two-step sign-in, email code method', () => {
     expect(sessionStore.get().userId).toBeNull()
   })
 
-  it('login API: 401 twofa_required carries method and masked sent_to; app users get method app and no code is sent', async () => {
+  it('login API: the code step carries method and masked sent_to; app users get method app and no code is sent', async () => {
     setUser('u-op', { twofa: true, twofa_method: 'email' })
     setUser('u-view', { twofa: true })
     const a = await loginAs('it@acme.example')
-    expect(a.status).toBe(401)
-    expect(((await a.json()) as { error: Record<string, unknown> }).error).toMatchObject({ code: 'twofa_required', method: 'email', sent_to: 'i•••@acme.example', resend_after: 60 })
+    expect(a.status).toBe(200)
+    expect(await a.json()).toMatchObject({ ok: false, twofa: { method: 'email', sent_to: 'i•••@acme.example', resend_after: 60 } })
     // reloading the page and signing in again within 60 s keeps the code instead of spending another send
     const code = slot('u-op').pending!.code
     const b = await loginAs('it@acme.example')
-    expect(b.status).toBe(401)
+    expect(b.status).toBe(200)
     expect(slot('u-op').pending!.code).toBe(code)
     expect(slot('u-op').sends).toHaveLength(1)
     const c = await loginAs('director@acme.example')
-    expect(c.status).toBe(401)
-    const cb = ((await c.json()) as { error: Record<string, unknown> }).error
-    expect(cb).toMatchObject({ code: 'twofa_required', method: 'app' })
-    expect(cb.sent_to).toBeUndefined()
+    expect(c.status).toBe(200)
+    const cb = ((await c.json()) as { ok: boolean; twofa: Record<string, unknown> })
+    expect(cb).toMatchObject({ ok: false, twofa: { method: 'app' } })
+    expect(cb.twofa.sent_to).toBeUndefined()
     expect(emailCodes.get()['u-view']).toBeUndefined()
   })
 

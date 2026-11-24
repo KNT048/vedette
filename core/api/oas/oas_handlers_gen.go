@@ -11592,8 +11592,9 @@ func (s *Server) handleCorePatchModulesIDRequest(args [1]string, argsEscaped boo
 
 // handleCorePostAuthLoginRequest handles core_post_auth_login operation.
 //
-// Sign in with email and password (plus the two-step code when on; email-code users get a code sent
-// and 401 twofa_required). An expired temporary password is 400 temp_password_expired.
+// Sign in with email and password (plus the two-step code when on: without it the answer is 200 with
+// ok false and twofa, and email-code users get a code sent). An expired temporary password is 400
+// temp_password_expired.
 //
 // POST /auth/login
 func (s *Server) handleCorePostAuthLoginRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11631,7 +11632,7 @@ func (s *Server) handleCorePostAuthLoginRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostAuthLoginOperation,
-			OperationSummary: "Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired",
+			OperationSummary: "Sign in with email and password (plus the two-step code when on: without it the answer is 200 with ok false and twofa, and email-code users get a code sent). An expired temporary password is 400 temp_password_expired",
 			OperationID:      "core_post_auth_login",
 			Body:             request,
 			RawBody:          rawBody,

@@ -17,7 +17,15 @@ export const TwofaMethod = z.enum(['app', 'email']).describe('app = authenticato
 // ---- base ----
 export const Me = z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, org: z.string(), twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), password_change_required: z.boolean().describe('The password was set by an administrator: until the user changes it, every call except GET /me, POST /core/account/password and POST /auth/logout answers 403 password_change_required, and the GUI shows the Choose a new password screen') })
 export const SetupStatus = z.object({ complete: z.boolean(), org: z.string(), data_mode: z.enum(['sample', 'clean']).describe('sample = trial build with sample data; clean = real install, every table starts empty') })
-export const LoginBody = z.object({ email: z.string(), password: z.string(), code: z.string().optional().describe('6-digit code when the account has two-step sign-in; a missing code gives 401 twofa_required with method (app|email) and, for email, sent_to (masked address) and resend_after (seconds). The email code is sent by that same call. Email channel off or unconfigured: 503 twofa_email_unavailable, never password-only') })
+export const LoginBody = z.object({ email: z.string(), password: z.string(), code: z.string().optional().describe('6-digit code when the account has two-step sign-in; a right password without it is 200 with ok false and twofa (method; for email also sent_to and resend_after). The email code is sent by that same call. Email channel off or unconfigured: 503 twofa_email_unavailable, never password-only') })
+export const LoginResult = z.object({
+  ok: z.boolean().describe('true: signed in, the session cookies are set. false: the password was right and the account has two-step sign-in; send the same body again with code'),
+  twofa: z.object({
+    method: TwofaMethod,
+    sent_to: z.string().optional().describe('email method: the masked sign-in email the code was just sent to, like a•••@acme.example'),
+    resend_after: z.number().int().optional().describe('email method: seconds before another code can be sent (60)'),
+  }).optional().describe('Present when ok is false: the code the sign-in needs'),
+})
 export const EmailCodeSent = z.object({ sent_to: z.string().describe('Masked sign-in email, like a•••@acme.example'), resend_after: z.number().int().describe('Seconds before another code can be sent (60)') })
 const available = z.boolean().describe('false: this install cannot run the module (needs_host in its manifest on a container-only install: honeypot, credentialed scans); turning it on answers 409 not_appliance')
 export const InstallKind = z.enum(['appliance', 'container']).describe('appliance: installed by install.sh, with the system helper vedette-host; container: container-only install on the customer\'s Docker or Podman, no helper. The one place the GUI learns it')
@@ -352,7 +360,7 @@ export const endpoints = defineEndpoints([
   // base
   { method: 'get', path: '/me', summary: 'The signed-in user (401 when not signed in)', stories: ['S-CORE-3'], role: 'viewer', response: Me },
   { method: 'get', path: '/setup', summary: 'Whether first-run setup is done', stories: ['S-CORE-1'], role: 'public', response: SetupStatus },
-  { method: 'post', path: '/auth/login', summary: 'Sign in with email and password (plus the two-step code when on; email-code users get a code sent and 401 twofa_required). An expired temporary password is 400 temp_password_expired', stories: ['S-CORE-3'], role: 'public', body: LoginBody, response: Ok },
+  { method: 'post', path: '/auth/login', summary: 'Sign in with email and password (plus the two-step code when on: without it the answer is 200 with ok false and twofa, and email-code users get a code sent). An expired temporary password is 400 temp_password_expired', stories: ['S-CORE-3'], role: 'public', body: LoginBody, response: LoginResult },
   { method: 'post', path: '/auth/login/resend-code', summary: 'Send a new two-step email code during sign-in (needs the password again; 429 resend_too_soon within 60 s, too_many_codes after 5 per hour)', stories: ['S-CORE-3'], role: 'public', body: z.object({ email: z.string(), password: z.string() }), response: EmailCodeSent },
   { method: 'post', path: '/auth/logout', summary: 'Sign out', stories: ['S-CORE-3'], role: 'public', response: null },
   { method: 'get', path: '/modules', summary: 'On/off state of every module', stories: ['S-CORE-1'], role: 'viewer', response: ModulesResponse },

@@ -11,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/versionscheme"
 	"github.com/knt048/vedette/core/winrel"
 )
 
@@ -135,7 +136,7 @@ func (s *Service) applyMatch(ctx context.Context, tx *sql.Tx, a Asset, vulns []V
 			res.Closed++
 		}
 	}
-	if err := replaceQuestions(ctx, tx, a.ID, questionsOfMatch(qm), now); err != nil {
+	if err := replaceQuestions(ctx, tx, a.ID, deviceQuestions(a, qm), now); err != nil {
 		return res, err
 	}
 	n, err := countQuestions(ctx, tx, a.ID)
@@ -319,8 +320,27 @@ func sameRelease(a, b string) bool {
 	return next < '0' || next > '9'
 }
 
+// deviceQuestions is the device's questions as a match of device a gives them (questionsOfMatch), and nothing_to_check when Vedette knows
+// nothing a can be matched by (nothingToCheck).
+func deviceQuestions(a Asset, m MatchResult) []Question {
+	out := questionsOfMatch(m)
+	if nothingToCheck(a) {
+		out = append(out, Question{Kind: QuestionNothingToCheck, Cves: 1})
+	}
+	return out
+}
+
+// nothingToCheck says the matcher has nothing to match device a by: no software line (a row a person said is not installed is none),
+// no network OS it states as a line (deviceLines), and no OS its agent, SNMP or LLDP states or a person set. A network scan's
+// fingerprint guess (Asset.OS alone) is matched against nothing. Such a device has no finding whatever it runs (a firewall whose SNMP
+// read fails and whose scan sees an SSH port only), so its empty list must not read as safe: the queue asks for what runs there.
+func nothingToCheck(a Asset) bool {
+	return len(deviceLines(a)) == 0 && a.StatedOS == "" && a.SNMPOS == "" && a.AgentOS == "" && a.ManualOS == ""
+}
+
 // questionsOfMatch is the device's questions as a match gives them: one version_needed per software line that has no version Vedette
-// can read, and one per (line, CVE) Vedette could not check.
+// can read, one older_line per software line whose vendor names fixes only on later release lines (all its CVEs in one), and one per
+// (line, CVE) Vedette could not check otherwise.
 func questionsOfMatch(m MatchResult) []Question {
 	var out []Question
 	for _, n := range m.NeedVersion {
@@ -330,7 +350,23 @@ func questionsOfMatch(m MatchResult) []Question {
 		out = append(out, Question{SoftwareID: storedLine(n.SoftwareID), Kind: QuestionVersionNeeded, Cves: len(n.CVEs),
 			Detail: QuestionDetail{Software: n.Software, Version: n.Version, CVEList: n.CVEs}})
 	}
+	older := map[string]int{} // software line -> its older_line question in out
+	fixes := map[int][]versionscheme.Version{}
 	for _, u := range m.Unchecked {
+		if u.Line != "" {
+			sid := storedLine(u.SoftwareID)
+			i, ok := older[sid]
+			if !ok {
+				i, older[sid] = len(out), len(out)
+				out = append(out, Question{SoftwareID: sid, Kind: QuestionOlderLine,
+					Detail: QuestionDetail{Software: u.Software, Version: u.Version, Source: u.Source, Reason: string(u.Reason), Line: u.Line}})
+			}
+			if !slices.Contains(out[i].Detail.CVEList, u.CVE) {
+				out[i].Detail.CVEList = append(out[i].Detail.CVEList, u.CVE)
+			}
+			fixes[i] = append(fixes[i], u.fixes...)
+			continue
+		}
 		kind := QuestionNoRangeData
 		switch u.Reason {
 		case UncheckedNotComparable:
@@ -341,7 +377,12 @@ func questionsOfMatch(m MatchResult) []Question {
 			kind = QuestionPackageRelease
 		}
 		out = append(out, Question{SoftwareID: storedLine(u.SoftwareID), CVE: u.CVE, Kind: kind, Cves: 1,
-			Detail: QuestionDetail{Software: u.Software, Version: u.Version, Source: u.Source, Reason: string(u.Reason), NVDPending: u.NVDPending, Choice: u.Answer}})
+			Detail: QuestionDetail{Software: u.Software, Version: u.Version, Source: u.Source, Reason: string(u.Reason), NVDPending: u.NVDPending, Choice: u.Answer,
+				Listed: u.Listed}})
+	}
+	for _, i := range older {
+		slices.Sort(out[i].Detail.CVEList)
+		out[i].Cves, out[i].Detail.Fixes = len(out[i].Detail.CVEList), newestPerLine(fixes[i])
 	}
 	return out
 }

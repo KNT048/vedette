@@ -121,7 +121,19 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version read from the network (a banner, the passive sensor) it is neither compared nor asked. A line NVD names only at exact
   releases older than its own is not asked either: the release numbers each side starts with decide, whatever update or build
   follows them (ESXi 8.0.3 is later than `esxi:6.5:update1`, not than `esxi:8.0:update_3`). A version inside a range with an end
-  and an open-ended one is read with the range that has an end. A release the device states is stored as `device_version`.
+  and an open-ended one is read with the range that has an end. A release the device states is stored as `device_version`. An ESXi
+  update is never read as later than NVD's exact GA entry (`esxi:8.0:-`): NVD lists only 8.0 GA for flaws VMware fixed in 8.0 Update
+  3d, so the question stays (`TestLaterThan_ESXiUpdateIsNotLaterThanTheGAEntry`). A `no_range_data` question says whether the CVE lists
+  versions of the software at all (`detail.listed`, `versions_listed`): "gives no affected versions" only when it lists none. When
+  the vendor's own rows (`Vuln.Schemed`) name fixed releases only on release lines later than the line's own and nothing about it
+  (Synology naming DSM 7.3.2 and 7.4.1 for a device on 7.2.1), those CVEs of one line are one `older_line` question (`cve_list`, `line`,
+  the newest fix of each later line in `fixes`): no verdict either way. A person's answer to one CVE's own question keeps that
+  question, and a CVE joining an answered `older_line` asks it again (`replaceQuestions`).
+- **INV-4h** A device a person added (not the box) that the matcher has nothing to match by (no software line, no network OS it
+  states as a line, no OS its agent, SNMP or LLDP states or a person set: `nothingToCheck`) has one `nothing_to_check` question. The
+  queue shows it as a `device_unchecked` item (add its firmware, SNMP read access, or an agent) and the device badge counts it; it
+  cannot be answered "not affected" and leaves once something says what runs there (`TestNothingToCheck_QueueBadgeAndAnswer`). Count
+  test: `TestQueue_Count_ResidueByKindAndCause`.
 - **INV-5** The severity a match reports for a new finding: version evidence is `high` (`critical` with ransomware use or EPSS ≥ 0.5);
   product only is `medium`. The shown severity of a finding is the CVE's CVSS band.
 - **INV-6** Writing a match is idempotent per (device, CVE, line) and goes only through `Transition`.

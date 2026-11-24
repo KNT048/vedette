@@ -290,7 +290,11 @@ func questionWords(k QuestionKind) string {
 	case QuestionNotComparable:
 		return "its version cannot be compared with the affected versions"
 	case QuestionNoRangeData:
-		return "the CVE names the product but gives no affected versions"
+		return "the CVE names the product but gives no versions that decide this one"
+	case QuestionOlderLine:
+		return "the vendor names fixes only for newer releases than the device's"
+	case QuestionNothingToCheck:
+		return "Vedette knows no software or firmware the device runs"
 	}
 	return codeWords(string(k))
 }

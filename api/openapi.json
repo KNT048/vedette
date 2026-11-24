@@ -51291,9 +51291,10 @@
                               "platform",
                               "package_release",
                               "not_comparable",
-                              "no_range_data"
+                              "no_range_data",
+                              "older_line"
                             ],
-                            "description": "version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution's package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no affected versions (\"Possibly affected: check the version\")"
+                            "description": "version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution's package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no versions that decide this one (\"Possibly affected: check the version\"; versions_listed says whether it lists any); older_line = the vendor names fixes for these CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one question for all of them (cve_list)"
                           },
                           "device": {
                             "type": "object",
@@ -53692,6 +53693,156 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
+                                "const": "device_unchecked"
+                              },
+                              "id": {
+                                "type": "string",
+                                "description": "The item"
+                              },
+                              "device": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "description": "The name the Devices page shows; never the internal id"
+                                  },
+                                  "ip": {
+                                    "description": "null when the device has no IP address",
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "enum": [
+                                      "router",
+                                      "switch",
+                                      "modem",
+                                      "sd_wan",
+                                      "load_balancer",
+                                      "network_controller",
+                                      "firewall",
+                                      "vpn_gateway",
+                                      "ids_sensor",
+                                      "proxy",
+                                      "ap",
+                                      "wireless_controller",
+                                      "wifi_extender",
+                                      "mesh_node",
+                                      "server",
+                                      "virtual_machine",
+                                      "hypervisor",
+                                      "bmc",
+                                      "domain_controller",
+                                      "mail_server",
+                                      "database_server",
+                                      "backup_server",
+                                      "pc",
+                                      "laptop",
+                                      "workstation",
+                                      "thin_client",
+                                      "pos_terminal",
+                                      "kiosk",
+                                      "smartphone",
+                                      "tablet",
+                                      "smartwatch",
+                                      "printer",
+                                      "mfp",
+                                      "scanner",
+                                      "label_printer",
+                                      "receipt_printer",
+                                      "plotter",
+                                      "3d_printer",
+                                      "camera",
+                                      "nvr",
+                                      "dvr",
+                                      "video_encoder",
+                                      "doorbell",
+                                      "video_conferencing",
+                                      "ip_phone",
+                                      "pbx",
+                                      "voip_adapter",
+                                      "voip_gateway",
+                                      "conference_phone",
+                                      "intercom",
+                                      "nas",
+                                      "san",
+                                      "backup_appliance",
+                                      "tape_library",
+                                      "iot",
+                                      "smart_tv",
+                                      "media_player",
+                                      "smart_speaker",
+                                      "game_console",
+                                      "smart_plug",
+                                      "smart_light",
+                                      "smart_hub",
+                                      "thermostat",
+                                      "projector",
+                                      "digital_signage",
+                                      "single_board_computer",
+                                      "smart_appliance",
+                                      "robot_vacuum",
+                                      "wireless_bridge",
+                                      "plc",
+                                      "hmi",
+                                      "rtu",
+                                      "scada_server",
+                                      "industrial_switch",
+                                      "ups",
+                                      "pdu",
+                                      "access_control",
+                                      "time_clock",
+                                      "alarm_panel",
+                                      "hvac_controller",
+                                      "building_controller",
+                                      "power_meter",
+                                      "environment_monitor",
+                                      "ev_charger",
+                                      "solar_inverter",
+                                      "medical_device",
+                                      "web",
+                                      "cloud_service",
+                                      "unknown"
+                                    ]
+                                  },
+                                  "added": {
+                                    "type": "boolean",
+                                    "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
+                                  },
+                                  "ignored": {
+                                    "type": "boolean",
+                                    "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name",
+                                  "ip",
+                                  "kind",
+                                  "added",
+                                  "ignored"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "id",
+                              "device"
+                            ],
+                            "additionalProperties": false,
+                            "description": "A device a person added that Vedette cannot check: it knows no software, firmware or OS the device runs, so no finding can appear for it. Answered by saying what runs there: its firmware version (POST /inventory/devices/{id}/software), SNMP read access (Sources), or an agent"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
                                 "const": "unconfirmed"
                               },
                               "id": {
@@ -53973,9 +54124,10 @@
                                   "platform",
                                   "package_release",
                                   "not_comparable",
-                                  "no_range_data"
+                                  "no_range_data",
+                                  "older_line"
                                 ],
-                                "description": "version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution's package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no affected versions (\"Possibly affected: check the version\")"
+                                "description": "version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution's package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no versions that decide this one (\"Possibly affected: check the version\"; versions_listed says whether it lists any); older_line = the vendor names fixes for these CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one question for all of them (cve_list)"
                               },
                               "device": {
                                 "type": "object",
@@ -54212,7 +54364,33 @@
                                   ],
                                   "additionalProperties": false
                                 },
-                                "description": "platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data: POST /findings/questions/{id}/answer)"
+                                "description": "platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data, older_line: POST /findings/questions/{id}/answer)"
+                              },
+                              "cve_list": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                },
+                                "description": "older_line, version_needed: the CVEs that wait on the answer; empty when the question is about one CVE (cve)"
+                              },
+                              "fixes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "older_line: the newest release the vendor names as fixed on each newer line, oldest line first (\"7.3.2-86009 Update 5\"); empty for the other kinds"
+                              },
+                              "line": {
+                                "description": "older_line: the release line the device runs (\"7.2.1\"); null for the other kinds",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "versions_listed": {
+                                "type": "boolean",
+                                "description": "no_range_data: true when the CVE lists affected versions of the software but none that decides this one (only exact releases, or no end); false when it lists none. false for the other kinds"
                               }
                             },
                             "required": [
@@ -54226,14 +54404,18 @@
                               "asked_at",
                               "url",
                               "command",
-                              "choices"
+                              "choices",
+                              "cve_list",
+                              "fixes",
+                              "line",
+                              "versions_listed"
                             ],
                             "additionalProperties": false,
                             "description": "What Vedette cannot decide without a person"
                           }
                         ]
                       },
-                      "description": "Devices not added yet first, then unconfirmed findings by status, then questions by CVEs waiting; an item leaves the moment it is answered or stops being true"
+                      "description": "Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting; an item leaves the moment it is answered or stops being true"
                     },
                     "total": {
                       "type": "integer",

@@ -896,6 +896,7 @@ func (d *devMatch) result(idx []int, have map[string]bool) MatchResult {
 			}
 		}
 	}
+	d.explainUnchecked(res.Unchecked, vulns)
 	return res
 }
 

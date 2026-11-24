@@ -205,8 +205,8 @@ export const FixKind = z.enum(['update', 'distro_update', 'os_update', 'feature_
   .describe('update = install `version` of the software or later; distro_update = install the distribution\'s package release `version` or later; os_update = install the operating system update `ref` (a KB number) or build `version`; feature_update = no update of this release fixes it, move to release `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data')
 export const SeverityBand = z.enum(['critical', 'high', 'medium', 'low', 'none'])
 export const DeviceStatusCode = z.enum(DEVICE_STATUSES)
-export const QuestionKind = z.enum(['version_needed', 'platform', 'package_release', 'not_comparable', 'no_range_data'])
-  .describe('version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution\'s package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no affected versions ("Possibly affected: check the version")')
+export const QuestionKind = z.enum(['version_needed', 'platform', 'package_release', 'not_comparable', 'no_range_data', 'older_line'])
+  .describe('version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution\'s package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no versions that decide this one ("Possibly affected: check the version"; versions_listed says whether it lists any); older_line = the vendor names fixes for these CVEs only on newer release lines (fixes) and says nothing about the device\'s line (line): one question for all of them (cve_list)')
 export const EventKind = z.enum(['created', 'confirmed', 'unconfirmed', 'handled', 'reopened', 'urgency_changed', 'fix_changed', 'redetected', 'no_longer_detected', 'acceptance_expired'])
 /** Most findings one handle request may touch. */
 export const MAX_HANDLE = 500
@@ -353,6 +353,11 @@ export const InputItem = z.discriminatedUnion('kind', [
     findings: z.number().int().min(1),
   }).describe('A device nobody added has open findings: Add device (POST /inventory/devices/{id}/approve) or Ignore (POST /inventory/devices/{id}/ignore)'),
   z.object({
+    kind: z.literal('device_unchecked'),
+    id: z.string().describe('The item'),
+    device: DeviceRef,
+  }).describe('A device a person added that Vedette cannot check: it knows no software, firmware or OS the device runs, so no finding can appear for it. Answered by saying what runs there: its firmware version (POST /inventory/devices/{id}/software), SNMP read access (Sources), or an agent'),
+  z.object({
     kind: z.literal('unconfirmed'),
     id: z.string().describe('The finding'),
     cve,
@@ -374,11 +379,15 @@ export const InputItem = z.discriminatedUnion('kind', [
     asked_at: iso,
     url: z.url().nullable().describe('The advisory to read'),
     command: z.string().nullable().describe('What prints the answer on the device ("apk info -e -v openssh-server"); null when none'),
-    choices: z.array(UncheckedAnswer).describe('platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data: POST /findings/questions/{id}/answer)'),
+    choices: z.array(UncheckedAnswer).describe('platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data, older_line: POST /findings/questions/{id}/answer)'),
+    cve_list: z.array(cve).describe('older_line, version_needed: the CVEs that wait on the answer; empty when the question is about one CVE (cve)'),
+    fixes: z.array(z.string()).describe('older_line: the newest release the vendor names as fixed on each newer line, oldest line first ("7.3.2-86009 Update 5"); empty for the other kinds'),
+    line: z.string().nullable().describe('older_line: the release line the device runs ("7.2.1"); null for the other kinds'),
+    versions_listed: z.boolean().describe('no_range_data: true when the CVE lists affected versions of the software but none that decides this one (only exact releases, or no end); false when it lists none. false for the other kinds'),
   }).describe('What Vedette cannot decide without a person'),
 ])
 export const InputList = z.object({
-  items: z.array(InputItem).describe('Devices not added yet first, then unconfirmed findings by status, then questions by CVEs waiting; an item leaves the moment it is answered or stops being true'),
+  items: z.array(InputItem).describe('Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting; an item leaves the moment it is answered or stops being true'),
   total: z.number().int().min(0).describe('The queue length: the tab count'),
 })
 export const AnsweredQuestion = z.object({

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/knt048/vedette/core/store"
@@ -356,7 +357,9 @@ func questionsOf(ctx context.Context, q querier, assetID string) ([]Question, er
 }
 
 // replaceQuestions makes qs the questions of the device: a question that still holds keeps its row (its id, when it was asked and
-// its answer), one that no longer holds goes, a new one is added.
+// its answer), one that no longer holds goes, a new one is added. Two rules keep a person's answer honest where questions of several
+// CVEs come in (older_line): a CVE whose own question a person answered keeps that question and answer and leaves the group (a
+// group that keeps no CVE is not asked); and an answered group asks again when a CVE joins it that the person did not answer for.
 func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Question, now time.Time) error {
 	old, err := questionsOf(ctx, tx, assetID)
 	if err != nil {
@@ -367,7 +370,26 @@ func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Ques
 		have[q.key()] = q
 	}
 	keep := map[string]bool{}
+	qs = slices.Clone(qs)
+	for i, q := range qs {
+		if q.Kind != QuestionOlderLine {
+			continue
+		}
+		var left []string
+		for _, c := range q.Detail.CVEList {
+			own := Question{SoftwareID: q.SoftwareID, CVE: c, Kind: QuestionNoRangeData}.key()
+			if was, ok := have[own]; ok && was.Answer != "" {
+				keep[own] = true // the person's answer to this CVE's own question holds
+				continue
+			}
+			left = append(left, c)
+		}
+		qs[i].Detail.CVEList, qs[i].Cves = left, len(left)
+	}
 	for _, q := range qs {
+		if q.Kind == QuestionOlderLine && len(q.Detail.CVEList) == 0 {
+			continue
+		}
 		q.AssetID = assetID
 		k := q.key()
 		if keep[k] {
@@ -382,6 +404,14 @@ func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Ques
 			q.Cves = 1
 		}
 		if was, ok := have[k]; ok {
+			if was.Answer != "" && slices.ContainsFunc(q.Detail.CVEList, func(c string) bool { return !slices.Contains(was.Detail.CVEList, c) }) {
+				// a CVE the person did not answer for joined a group they answered: asked again, never decided by that answer
+				if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET detail = ?, cves = ?, answer = NULL, answered_by = NULL, answered_at = NULL, asked_at = ?
+					WHERE id = ?`, string(detail), q.Cves, store.FormatTS(now), was.ID); err != nil {
+					return fmt.Errorf("findings: asking a question again: %w", err)
+				}
+				continue
+			}
 			if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET detail = ?, cves = ? WHERE id = ?`, string(detail), q.Cves, was.ID); err != nil {
 				return fmt.Errorf("findings: updating a question: %w", err)
 			}

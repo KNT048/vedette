@@ -151,9 +151,6 @@ type Service struct {
 	allPortsHeldIn time.Time
 	// firstUntil is set while the first pass of a new box runs (firstPass): until then the window counts as open. Zero otherwise.
 	firstUntil time.Time
-	// personUntil is the end of the hour of a pass a person asked to go on now (Scan the LAN now on a pass that waited for the
-	// window), by run: in memory, so a restart leaves the pass to the window.
-	personUntil map[string]time.Time
 	// yielded is the passes that wait only because they gave way to other work in the nmap lane: they go on once it is done
 	// (resumeYielded, followPass); a pass that waits for anything else is resumed by the window's driver only.
 	yielded map[string]bool
@@ -174,11 +171,11 @@ func (s *Service) setYielded(id string, on bool) {
 
 // recoverYielded marks, at start, a person's pass that waits within its hour as one that gave way (a pass of a person can wait in
 // its hour for nothing else but the lane, the worker or the settings): the end of the next run of the lane, or the window's driver,
-// resumes it, as before the restart. The hour of a window's pass a person asked to go on now (personUntil) is not kept: that pass
-// waits for the window after a restart.
+// resumes it, as before the restart. The hour of a window's pass a person asked to go on now is kept too (sweepUntil reads the ask
+// from the run's record).
 func (s *Service) recoverYielded(ctx context.Context) {
 	sw, err := s.liveRun(ctx, RunSweep)
-	if err != nil || sw == nil || sw.Status != run.Waiting || !s.clock().Before(s.sweepUntil(*sw)) {
+	if err != nil || sw == nil || sw.Status != run.Waiting || !s.clock().Before(s.sweepUntil(ctx, *sw)) {
 		return
 	}
 	s.setYielded(sw.ID, true)
@@ -1502,7 +1499,7 @@ func (s *Service) identifyIn(ctx context.Context, assetID string) (Identificatio
 		// A person asked to check the device, not an address: a device that moved while it was checked, or settings that changed but
 		// still allow the check, are checked again from the start (every rule read again), a few times at most.
 		if errors.Is(err, ErrStopped) && canGoOn(err) && ctx.Err() == nil && try < maxIdentifyTries {
-			s.dropProgress(runIDOf(ctx)) // the new try's nmap reports from its start: the cut one's last report no longer says where it is
+			s.newTry(runIDOf(ctx), try+1) // the new try's nmap reports from its start: the cut one's last report no longer says where it is
 			continue
 		}
 		return got, err
@@ -1802,5 +1799,31 @@ func (s *Service) dropRefused(ctx context.Context, assetID string) {
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		return
 	}
-	s.dropWaiting(context.WithoutCancel(ctx), assetID, "The device may no longer be checked")
+	s.dropWaiting(context.WithoutCancel(ctx), assetID, refusedWords(dec, err))
+}
+
+// refusedWords is the stop reason of a waiting check whose device may no longer be checked: the rule that refuses it, in words, so the
+// run page says which one ("The device may no longer be checked: its address is outside the scan ranges or on the exclusion list").
+// err is the inventory's error reading the device (ErrNotFound: it was removed).
+func refusedWords(dec Decision, err error) string {
+	why := "its scan settings do not allow it"
+	switch {
+	case errors.Is(err, ErrNotFound):
+		why = "it was removed from the inventory"
+	case dec.Never || dec.Reason == reasonNever:
+		why = "it is set to never be scanned (on its device page)"
+	case dec.Reason == "declared_by_hand":
+		why = "it was added by hand and its network scan is off (on its device page)"
+	case dec.Reason == "no_ip":
+		why = "it has no address"
+	case dec.Reason == "out_of_scope":
+		why = "its address is outside the scan ranges or on the exclusion list"
+	case dec.Reason == reasonFragilePassive:
+		why = "it is marked fragile, so it only gets its one gentle scan"
+	case dec.Reason == reasonUnclassifiedPassive:
+		why = "its type is not known yet, so it only gets its one gentle scan"
+	case dec.Reason == reasonBox:
+		why = "it is the Vedette box itself"
+	}
+	return "The device may no longer be checked: " + why
 }

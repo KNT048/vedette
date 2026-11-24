@@ -67,21 +67,20 @@ func waits(r run.Run) bool {
 	return r.Status == run.Waiting || r.Status == run.Queued && r.BlockedBy != nil
 }
 
-// sweepUntil is when the window stops counting as open for pass r: a person's sweep, or a pass a person asked to go on now, runs
-// outside the window for manualFor from the moment it was asked; zero for every other pass.
-func (s *Service) sweepUntil(r run.Run) time.Time {
-	var until time.Time
-	if r.Trigger == run.Manual && r.StartedAt != nil {
-		if t, err := time.Parse(time.RFC3339Nano, *r.StartedAt); err == nil {
-			until = t.Add(manualFor)
-		}
+// sweepUntil is when the window stops counting as open for pass r: a person's sweep, or a pass a person asked to go on now (Scan the
+// LAN now on a pass that waits, or its Start now), runs outside the window for manualFor from the moment it began working after the
+// person's latest ask; zero for every other pass. The ask is read from the run's record (run.Manager.Asked), so a restart keeps it: a
+// person's pass goes on after a restart within its hour, and Start now means now. A pass that has not started since the ask has not
+// begun its hour: it ends manualFor after now.
+func (s *Service) sweepUntil(ctx context.Context, r run.Run) time.Time {
+	asked, began, err := s.runs.Asked(ctx, r)
+	if err != nil || asked.IsZero() {
+		return time.Time{}
 	}
-	s.mu.Lock()
-	if t := s.personUntil[r.ID]; t.After(until) {
-		until = t
+	if began.IsZero() {
+		began = s.clock()
 	}
-	s.mu.Unlock()
-	return until
+	return began.Add(manualFor)
 }
 
 type manualKey struct{}
@@ -130,13 +129,13 @@ func (s *Service) personRuns(ctx context.Context) ([]run.Run, error) {
 	var out []run.Run
 	for _, id := range ids {
 		r, err := s.runs.Read(ctx, id)
-		if err != nil || r.Status.Ended() || (r.Kind == RunSweep && r.Status == run.Waiting && !s.goesOnByItself(r)) {
+		if err != nil || r.Status.Ended() || (r.Kind == RunSweep && r.Status == run.Waiting && !s.goesOnByItself(ctx, r)) {
 			continue
 		}
 		out = append(out, r)
 	}
 	if sw, err := s.liveRun(ctx, RunSweep); err == nil && sw != nil && sw.Trigger != run.Manual && !sw.Status.Ended() &&
-		s.clock().Before(s.sweepUntil(*sw)) && (sw.Status != run.Waiting || s.goesOnByItself(*sw)) {
+		s.clock().Before(s.sweepUntil(ctx, *sw)) && (sw.Status != run.Waiting || s.goesOnByItself(ctx, *sw)) {
 		out = append(out, *sw)
 	}
 	return out, nil
@@ -145,8 +144,8 @@ func (s *Service) personRuns(ctx context.Context) ([]run.Run, error) {
 // goesOnByItself says waiting pass r goes on by itself within its person's hour: it gave way to other work in the nmap lane, or waits
 // for the scan worker (after a restart, until it reports). A pass that waits for the settings, or for the window once the hour is over,
 // waits for a person or the window and is not a person's run going on.
-func (s *Service) goesOnByItself(r run.Run) bool {
-	if !s.clock().Before(s.sweepUntil(r)) {
+func (s *Service) goesOnByItself(ctx context.Context, r run.Run) bool {
+	if !s.clock().Before(s.sweepUntil(ctx, r)) {
 		return false
 	}
 	return s.isYielded(r.ID) || (r.WaitingFor != nil && *r.WaitingFor == waitWorker)
@@ -187,7 +186,7 @@ func (s *Service) manualOf(ctx context.Context, r run.Run) *ManualRun {
 	switch {
 	case r.Kind == RunSweep && r.Subject != nil:
 		m.Ranges = strings.Split(r.Subject.Label, ", ")
-		m.Until = m.StartedAt.Add(manualFor)
+		m.Until = s.sweepUntil(ctx, r)
 	case r.Subject != nil:
 		m.Assets = []string{r.Subject.ID}
 		if a, err := s.inv.Asset(ctx, r.Subject.ID); err == nil {
@@ -277,7 +276,16 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 		if sw != nil && (sw.Status != run.Waiting || s.goesOnAfterOthers(ctx, *sw)) {
 			return ManualRun{}, ErrSlotBusy // the pass going on is the answer: no second consent, no second pass
 		}
-		if sw != nil { // the pass that waits for the window goes on now from its cursor, under the person's hour: never a second pass
+		if sw != nil && s.passFitsAnHour(ctx, st) {
+			// The waiting pass covers a scope one person's hour sweeps whole: a fresh pass now is truer than going on with one whose
+			// first addresses were swept hours ago (Scan the LAN now means the LAN as it is now). It is never a second pass: the old
+			// one ends first, saying why.
+			if err := s.runs.Stop(ctx, sw.ID, run.System, replacedReason); err != nil && !errors.Is(err, run.ErrEnded) {
+				return ManualRun{}, err
+			}
+			sw = nil
+		}
+		if sw != nil { // a pass of many windows that waits goes on now from its cursor, under the person's hour: never a second pass
 			err := s.db.Write(ctx, func(tx *sql.Tx) error {
 				m.ID, m.Runs = sw.ID, []string{sw.ID}
 				if record == nil {
@@ -288,17 +296,16 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 			if err != nil {
 				return ManualRun{}, err
 			}
-			s.mu.Lock()
-			if s.personUntil == nil {
-				s.personUntil = map[string]time.Time{}
-			}
-			s.personUntil[sw.ID] = m.Until
-			s.mu.Unlock()
-			s.expect(sw.ID)
+			s.expect(sw.ID) // the person's Resume below records the ask: the pass's hour (sweepUntil) holds across a restart
 			if err := s.runs.Resume(ctx, sw.ID, by); err != nil {
 				return ManualRun{}, err
 			}
 			m.Progress, m.Queued = s.stateOfRun(ctx, sw.ID)
+			if r, err := s.runs.Read(ctx, sw.ID); err == nil && m.Progress != nil && m.Progress.Message != nil {
+				// the answer says plainly that the old pass goes on, and how far it got, before what it waits for now
+				msg := join([]string{"Goes on with the pass that was waiting, from where it stopped (" + run.Count(r.Done, r.Total, unitAddresses) + " done)", *m.Progress.Message})
+				m.Progress.Message = &msg
+			}
 			return m, nil
 		}
 		id, err := s.newSweep(ctx, st, run.Spec{Trigger: run.Manual, RequestedBy: by}, func(tx *sql.Tx, id string) error {
@@ -367,10 +374,20 @@ func (s *Service) StartManual(ctx context.Context, by string, targets []string, 
 	return m, nil
 }
 
+// replacedReason is the stop reason of a waiting pass that a person's Scan the LAN now replaced with a fresh one.
+const replacedReason = "A person started a new sweep of the whole scope instead"
+
+// passFitsAnHour says one pass over the scope of st takes less than a person's hour (manualFor) at its rate: Scan the LAN now then
+// starts a fresh pass rather than going on with a waiting one.
+func (s *Service) passFitsAnHour(ctx context.Context, st Settings) bool {
+	c := st.Cost(s.localPrefixes(ctx))
+	return st.Rate >= 1 && c.Pass <= manualFor
+}
+
 // goesOnAfterOthers says pass sw waits only because it gave way to other work in the nmap lane, and goes on by itself once that work
 // is done (resumeYielded: in the window, or within a person's hour).
 func (s *Service) goesOnAfterOthers(ctx context.Context, sw run.Run) bool {
-	return sw.Status == run.Waiting && s.isYielded(sw.ID) && s.sweepWait(withManualUntil(ctx, s.sweepUntil(sw))).Status != run.Waiting
+	return sw.Status == run.Waiting && s.isYielded(sw.ID) && s.sweepWait(withManualUntil(ctx, s.sweepUntil(ctx, sw))).Status != run.Waiting
 }
 
 // personChecks is, by device, the person's check of it that is queued, waiting for the scan worker or going now.
@@ -396,6 +413,9 @@ func (s *Service) personChecks(ctx context.Context, tx *sql.Tx) (map[string]stri
 func runView(r run.Run) *progress.View {
 	msg := r.Summary
 	at := derefOr(r.StartedAt, r.QueuedAt)
+	if r.RunningSince != nil { // a running run's elapsed time counts from its current turn, not from a turn before a restart or a wait
+		at = *r.RunningSince
+	}
 	v := &progress.View{Phase: progress.PhaseDiscovery, StartedAt: at, PhaseStartedAt: at, UpdatedAt: r.UpdatedAt, Message: &msg}
 	if r.Total > 0 {
 		done, total, unit := int64(r.Done), int64(r.Total), progress.UnitHosts

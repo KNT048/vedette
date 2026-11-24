@@ -25,6 +25,8 @@ func TestReportMailFixIsThePagesFixLine(t *testing.T) {
 		{reports.Fix{Kind: "os_update", Product: "Windows 11 24H2"}, "", "Install the latest cumulative update on Windows 11 24H2"},
 		{reports.Fix{Kind: "feature_update", Product: "Windows 10", Version: v("22H2")}, "", "Move Windows 10 to release 22H2"},
 		{reports.Fix{Kind: "feature_update", Product: "Windows 10"}, "", "Move Windows 10 to a later release"},
+		{reports.Fix{Kind: "restart", Product: "Kernel", Version: v("7.0.0-44.44")}, "7.0.0", "Restart to run the installed Kernel 7.0.0-44.44"},
+		{reports.Fix{Kind: "restart", Product: "Kernel"}, "", "Restart to run the installed Kernel"},
 		{reports.Fix{Kind: "none_yet", Product: "Example Manager"}, "", "No fix known yet for Example Manager"},
 		{reports.Fix{Kind: "unknown", Product: "Example Manager"}, "", "No fix data for Example Manager"},
 	}

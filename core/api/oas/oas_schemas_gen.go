@@ -91209,7 +91209,9 @@ type FindingsGetFindingsDevicesOKItemsItemBlocksItemFix struct {
 	// Update = install `version` of the software or later; distro_update = install the distribution's
 	// package release `version` or later; os_update = install the operating system update `ref` (a KB
 	// number) or build `version`; feature_update = no update of this release fixes it, move to release
-	// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+	// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+	// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+	// advisory); unknown = no fix data.
 	Kind FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind `json:"kind"`
 	// The product the fix is for, as people name it ("OpenSSH").
 	Product string `json:"product"`
@@ -91218,7 +91220,7 @@ type FindingsGetFindingsDevicesOKItemsItemBlocksItemFix struct {
 	// The vendor advisory or release notes.
 	URL NilURI `json:"url"`
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
-	// known.
+	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
 }
 
@@ -91285,7 +91287,9 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFix) SetVersion(val NilS
 // Update = install `version` of the software or later; distro_update = install the distribution's
 // package release `version` or later; os_update = install the operating system update `ref` (a KB
 // number) or build `version`; feature_update = no update of this release fixes it, move to release
-// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+// advisory); unknown = no fix data.
 type FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind string
 
 const (
@@ -91293,6 +91297,7 @@ const (
 	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindDistroUpdate  FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind = "distro_update"
 	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindOsUpdate      FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind = "os_update"
 	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindFeatureUpdate FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind = "feature_update"
+	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindRestart       FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind = "restart"
 	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindNoneYet       FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind = "none_yet"
 	FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindUnknown       FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind = "unknown"
 )
@@ -91304,6 +91309,7 @@ func (FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind) AllValues() []Find
 		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindDistroUpdate,
 		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindOsUpdate,
 		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindFeatureUpdate,
+		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindRestart,
 		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindNoneYet,
 		FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindUnknown,
 	}
@@ -91319,6 +91325,8 @@ func (s FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind) MarshalText() ([
 	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindOsUpdate:
 		return []byte(s), nil
 	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindRestart:
 		return []byte(s), nil
 	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindNoneYet:
 		return []byte(s), nil
@@ -91343,6 +91351,9 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind) UnmarshalText(d
 		return nil
 	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindFeatureUpdate:
 		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindRestart:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindRestart
 		return nil
 	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindNoneYet:
 		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindNoneYet
@@ -92536,7 +92547,9 @@ type FindingsGetFindingsFixesOKItemsItemFix struct {
 	// Update = install `version` of the software or later; distro_update = install the distribution's
 	// package release `version` or later; os_update = install the operating system update `ref` (a KB
 	// number) or build `version`; feature_update = no update of this release fixes it, move to release
-	// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+	// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+	// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+	// advisory); unknown = no fix data.
 	Kind FindingsGetFindingsFixesOKItemsItemFixKind `json:"kind"`
 	// The product the fix is for, as people name it ("OpenSSH").
 	Product string `json:"product"`
@@ -92545,7 +92558,7 @@ type FindingsGetFindingsFixesOKItemsItemFix struct {
 	// The vendor advisory or release notes.
 	URL NilURI `json:"url"`
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
-	// known.
+	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
 }
 
@@ -92612,7 +92625,9 @@ func (s *FindingsGetFindingsFixesOKItemsItemFix) SetVersion(val NilString) {
 // Update = install `version` of the software or later; distro_update = install the distribution's
 // package release `version` or later; os_update = install the operating system update `ref` (a KB
 // number) or build `version`; feature_update = no update of this release fixes it, move to release
-// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+// advisory); unknown = no fix data.
 type FindingsGetFindingsFixesOKItemsItemFixKind string
 
 const (
@@ -92620,6 +92635,7 @@ const (
 	FindingsGetFindingsFixesOKItemsItemFixKindDistroUpdate  FindingsGetFindingsFixesOKItemsItemFixKind = "distro_update"
 	FindingsGetFindingsFixesOKItemsItemFixKindOsUpdate      FindingsGetFindingsFixesOKItemsItemFixKind = "os_update"
 	FindingsGetFindingsFixesOKItemsItemFixKindFeatureUpdate FindingsGetFindingsFixesOKItemsItemFixKind = "feature_update"
+	FindingsGetFindingsFixesOKItemsItemFixKindRestart       FindingsGetFindingsFixesOKItemsItemFixKind = "restart"
 	FindingsGetFindingsFixesOKItemsItemFixKindNoneYet       FindingsGetFindingsFixesOKItemsItemFixKind = "none_yet"
 	FindingsGetFindingsFixesOKItemsItemFixKindUnknown       FindingsGetFindingsFixesOKItemsItemFixKind = "unknown"
 )
@@ -92631,6 +92647,7 @@ func (FindingsGetFindingsFixesOKItemsItemFixKind) AllValues() []FindingsGetFindi
 		FindingsGetFindingsFixesOKItemsItemFixKindDistroUpdate,
 		FindingsGetFindingsFixesOKItemsItemFixKindOsUpdate,
 		FindingsGetFindingsFixesOKItemsItemFixKindFeatureUpdate,
+		FindingsGetFindingsFixesOKItemsItemFixKindRestart,
 		FindingsGetFindingsFixesOKItemsItemFixKindNoneYet,
 		FindingsGetFindingsFixesOKItemsItemFixKindUnknown,
 	}
@@ -92646,6 +92663,8 @@ func (s FindingsGetFindingsFixesOKItemsItemFixKind) MarshalText() ([]byte, error
 	case FindingsGetFindingsFixesOKItemsItemFixKindOsUpdate:
 		return []byte(s), nil
 	case FindingsGetFindingsFixesOKItemsItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemFixKindRestart:
 		return []byte(s), nil
 	case FindingsGetFindingsFixesOKItemsItemFixKindNoneYet:
 		return []byte(s), nil
@@ -92670,6 +92689,9 @@ func (s *FindingsGetFindingsFixesOKItemsItemFixKind) UnmarshalText(data []byte) 
 		return nil
 	case FindingsGetFindingsFixesOKItemsItemFixKindFeatureUpdate:
 		*s = FindingsGetFindingsFixesOKItemsItemFixKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemFixKindRestart:
+		*s = FindingsGetFindingsFixesOKItemsItemFixKindRestart
 		return nil
 	case FindingsGetFindingsFixesOKItemsItemFixKindNoneYet:
 		*s = FindingsGetFindingsFixesOKItemsItemFixKindNoneYet
@@ -97768,6 +97790,9 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
+	// Kind distro on a Linux kernel only: the installed kernel (package release, at or above distro_fixed)
+	// the device runs after a restart, so a restart alone fixes it; absent otherwise.
+	RestartInto OptString `json:"restart_into"`
 	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
 	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
 	// Tracker".
@@ -97819,6 +97844,11 @@ func (s *FindingsGetFindingsIDOKFixedIn) GetMore() int {
 // GetNoFix returns the value of NoFix.
 func (s *FindingsGetFindingsIDOKFixedIn) GetNoFix() int {
 	return s.NoFix
+}
+
+// GetRestartInto returns the value of RestartInto.
+func (s *FindingsGetFindingsIDOKFixedIn) GetRestartInto() OptString {
+	return s.RestartInto
 }
 
 // GetSource returns the value of Source.
@@ -97874,6 +97904,11 @@ func (s *FindingsGetFindingsIDOKFixedIn) SetMore(val int) {
 // SetNoFix sets the value of NoFix.
 func (s *FindingsGetFindingsIDOKFixedIn) SetNoFix(val int) {
 	s.NoFix = val
+}
+
+// SetRestartInto sets the value of RestartInto.
+func (s *FindingsGetFindingsIDOKFixedIn) SetRestartInto(val OptString) {
+	s.RestartInto = val
 }
 
 // SetSource sets the value of Source.
@@ -100628,7 +100663,9 @@ type FindingsGetFindingsIDViewOKFix struct {
 	// Update = install `version` of the software or later; distro_update = install the distribution's
 	// package release `version` or later; os_update = install the operating system update `ref` (a KB
 	// number) or build `version`; feature_update = no update of this release fixes it, move to release
-	// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+	// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+	// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+	// advisory); unknown = no fix data.
 	Kind FindingsGetFindingsIDViewOKFixKind `json:"kind"`
 	// The product the fix is for, as people name it ("OpenSSH").
 	Product string `json:"product"`
@@ -100637,7 +100674,7 @@ type FindingsGetFindingsIDViewOKFix struct {
 	// The vendor advisory or release notes.
 	URL NilURI `json:"url"`
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
-	// known.
+	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
 }
 
@@ -100704,7 +100741,9 @@ func (s *FindingsGetFindingsIDViewOKFix) SetVersion(val NilString) {
 // Update = install `version` of the software or later; distro_update = install the distribution's
 // package release `version` or later; os_update = install the operating system update `ref` (a KB
 // number) or build `version`; feature_update = no update of this release fixes it, move to release
-// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+// advisory); unknown = no fix data.
 type FindingsGetFindingsIDViewOKFixKind string
 
 const (
@@ -100712,6 +100751,7 @@ const (
 	FindingsGetFindingsIDViewOKFixKindDistroUpdate  FindingsGetFindingsIDViewOKFixKind = "distro_update"
 	FindingsGetFindingsIDViewOKFixKindOsUpdate      FindingsGetFindingsIDViewOKFixKind = "os_update"
 	FindingsGetFindingsIDViewOKFixKindFeatureUpdate FindingsGetFindingsIDViewOKFixKind = "feature_update"
+	FindingsGetFindingsIDViewOKFixKindRestart       FindingsGetFindingsIDViewOKFixKind = "restart"
 	FindingsGetFindingsIDViewOKFixKindNoneYet       FindingsGetFindingsIDViewOKFixKind = "none_yet"
 	FindingsGetFindingsIDViewOKFixKindUnknown       FindingsGetFindingsIDViewOKFixKind = "unknown"
 )
@@ -100723,6 +100763,7 @@ func (FindingsGetFindingsIDViewOKFixKind) AllValues() []FindingsGetFindingsIDVie
 		FindingsGetFindingsIDViewOKFixKindDistroUpdate,
 		FindingsGetFindingsIDViewOKFixKindOsUpdate,
 		FindingsGetFindingsIDViewOKFixKindFeatureUpdate,
+		FindingsGetFindingsIDViewOKFixKindRestart,
 		FindingsGetFindingsIDViewOKFixKindNoneYet,
 		FindingsGetFindingsIDViewOKFixKindUnknown,
 	}
@@ -100738,6 +100779,8 @@ func (s FindingsGetFindingsIDViewOKFixKind) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsIDViewOKFixKindOsUpdate:
 		return []byte(s), nil
 	case FindingsGetFindingsIDViewOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsIDViewOKFixKindRestart:
 		return []byte(s), nil
 	case FindingsGetFindingsIDViewOKFixKindNoneYet:
 		return []byte(s), nil
@@ -100762,6 +100805,9 @@ func (s *FindingsGetFindingsIDViewOKFixKind) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsIDViewOKFixKindFeatureUpdate:
 		*s = FindingsGetFindingsIDViewOKFixKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsIDViewOKFixKindRestart:
+		*s = FindingsGetFindingsIDViewOKFixKindRestart
 		return nil
 	case FindingsGetFindingsIDViewOKFixKindNoneYet:
 		*s = FindingsGetFindingsIDViewOKFixKindNoneYet
@@ -108150,7 +108196,9 @@ type FindingsGetFindingsOverviewOKFirstItemBlockFix struct {
 	// Update = install `version` of the software or later; distro_update = install the distribution's
 	// package release `version` or later; os_update = install the operating system update `ref` (a KB
 	// number) or build `version`; feature_update = no update of this release fixes it, move to release
-	// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+	// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+	// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+	// advisory); unknown = no fix data.
 	Kind FindingsGetFindingsOverviewOKFirstItemBlockFixKind `json:"kind"`
 	// The product the fix is for, as people name it ("OpenSSH").
 	Product string `json:"product"`
@@ -108159,7 +108207,7 @@ type FindingsGetFindingsOverviewOKFirstItemBlockFix struct {
 	// The vendor advisory or release notes.
 	URL NilURI `json:"url"`
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
-	// known.
+	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
 }
 
@@ -108226,7 +108274,9 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFix) SetVersion(val NilStrin
 // Update = install `version` of the software or later; distro_update = install the distribution's
 // package release `version` or later; os_update = install the operating system update `ref` (a KB
 // number) or build `version`; feature_update = no update of this release fixes it, move to release
-// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+// advisory); unknown = no fix data.
 type FindingsGetFindingsOverviewOKFirstItemBlockFixKind string
 
 const (
@@ -108234,6 +108284,7 @@ const (
 	FindingsGetFindingsOverviewOKFirstItemBlockFixKindDistroUpdate  FindingsGetFindingsOverviewOKFirstItemBlockFixKind = "distro_update"
 	FindingsGetFindingsOverviewOKFirstItemBlockFixKindOsUpdate      FindingsGetFindingsOverviewOKFirstItemBlockFixKind = "os_update"
 	FindingsGetFindingsOverviewOKFirstItemBlockFixKindFeatureUpdate FindingsGetFindingsOverviewOKFirstItemBlockFixKind = "feature_update"
+	FindingsGetFindingsOverviewOKFirstItemBlockFixKindRestart       FindingsGetFindingsOverviewOKFirstItemBlockFixKind = "restart"
 	FindingsGetFindingsOverviewOKFirstItemBlockFixKindNoneYet       FindingsGetFindingsOverviewOKFirstItemBlockFixKind = "none_yet"
 	FindingsGetFindingsOverviewOKFirstItemBlockFixKindUnknown       FindingsGetFindingsOverviewOKFirstItemBlockFixKind = "unknown"
 )
@@ -108245,6 +108296,7 @@ func (FindingsGetFindingsOverviewOKFirstItemBlockFixKind) AllValues() []Findings
 		FindingsGetFindingsOverviewOKFirstItemBlockFixKindDistroUpdate,
 		FindingsGetFindingsOverviewOKFirstItemBlockFixKindOsUpdate,
 		FindingsGetFindingsOverviewOKFirstItemBlockFixKindFeatureUpdate,
+		FindingsGetFindingsOverviewOKFirstItemBlockFixKindRestart,
 		FindingsGetFindingsOverviewOKFirstItemBlockFixKindNoneYet,
 		FindingsGetFindingsOverviewOKFirstItemBlockFixKindUnknown,
 	}
@@ -108260,6 +108312,8 @@ func (s FindingsGetFindingsOverviewOKFirstItemBlockFixKind) MarshalText() ([]byt
 	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindOsUpdate:
 		return []byte(s), nil
 	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindRestart:
 		return []byte(s), nil
 	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindNoneYet:
 		return []byte(s), nil
@@ -108284,6 +108338,9 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFixKind) UnmarshalText(data 
 		return nil
 	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindFeatureUpdate:
 		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindRestart:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixKindRestart
 		return nil
 	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindNoneYet:
 		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixKindNoneYet
@@ -112400,6 +112457,9 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
+	// Kind distro on a Linux kernel only: the installed kernel (package release, at or above distro_fixed)
+	// the device runs after a restart, so a restart alone fixes it; absent otherwise.
+	RestartInto OptString `json:"restart_into"`
 	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
 	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
 	// Tracker".
@@ -112451,6 +112511,11 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) GetMore() int {
 // GetNoFix returns the value of NoFix.
 func (s *FindingsPostFindingsIDAiOKFixedIn) GetNoFix() int {
 	return s.NoFix
+}
+
+// GetRestartInto returns the value of RestartInto.
+func (s *FindingsPostFindingsIDAiOKFixedIn) GetRestartInto() OptString {
+	return s.RestartInto
 }
 
 // GetSource returns the value of Source.
@@ -112506,6 +112571,11 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) SetMore(val int) {
 // SetNoFix sets the value of NoFix.
 func (s *FindingsPostFindingsIDAiOKFixedIn) SetNoFix(val int) {
 	s.NoFix = val
+}
+
+// SetRestartInto sets the value of RestartInto.
+func (s *FindingsPostFindingsIDAiOKFixedIn) SetRestartInto(val OptString) {
+	s.RestartInto = val
 }
 
 // SetSource sets the value of Source.
@@ -116712,6 +116782,9 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	More int `json:"more"`
 	// Release lines NVD gives no fixed release for (a range that ends at an affected version).
 	NoFix int `json:"no_fix"`
+	// Kind distro on a Linux kernel only: the installed kernel (package release, at or above distro_fixed)
+	// the device runs after a restart, so a restart alone fixes it; absent otherwise.
+	RestartInto OptString `json:"restart_into"`
 	// Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE
 	// record's CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security
 	// Tracker".
@@ -116763,6 +116836,11 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetMore() int {
 // GetNoFix returns the value of NoFix.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetNoFix() int {
 	return s.NoFix
+}
+
+// GetRestartInto returns the value of RestartInto.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) GetRestartInto() OptString {
+	return s.RestartInto
 }
 
 // GetSource returns the value of Source.
@@ -116818,6 +116896,11 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetMore(val int) {
 // SetNoFix sets the value of NoFix.
 func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetNoFix(val int) {
 	s.NoFix = val
+}
+
+// SetRestartInto sets the value of RestartInto.
+func (s *FindingsPostFindingsIDAppliedOKFixedIn) SetRestartInto(val OptString) {
+	s.RestartInto = val
 }
 
 // SetSource sets the value of Source.
@@ -119648,7 +119731,9 @@ type FindingsPostFindingsIDReopenOKFix struct {
 	// Update = install `version` of the software or later; distro_update = install the distribution's
 	// package release `version` or later; os_update = install the operating system update `ref` (a KB
 	// number) or build `version`; feature_update = no update of this release fixes it, move to release
-	// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+	// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+	// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+	// advisory); unknown = no fix data.
 	Kind FindingsPostFindingsIDReopenOKFixKind `json:"kind"`
 	// The product the fix is for, as people name it ("OpenSSH").
 	Product string `json:"product"`
@@ -119657,7 +119742,7 @@ type FindingsPostFindingsIDReopenOKFix struct {
 	// The vendor advisory or release notes.
 	URL NilURI `json:"url"`
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
-	// known.
+	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
 }
 
@@ -119724,7 +119809,9 @@ func (s *FindingsPostFindingsIDReopenOKFix) SetVersion(val NilString) {
 // Update = install `version` of the software or later; distro_update = install the distribution's
 // package release `version` or later; os_update = install the operating system update `ref` (a KB
 // number) or build `version`; feature_update = no update of this release fixes it, move to release
-// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+// advisory); unknown = no fix data.
 type FindingsPostFindingsIDReopenOKFixKind string
 
 const (
@@ -119732,6 +119819,7 @@ const (
 	FindingsPostFindingsIDReopenOKFixKindDistroUpdate  FindingsPostFindingsIDReopenOKFixKind = "distro_update"
 	FindingsPostFindingsIDReopenOKFixKindOsUpdate      FindingsPostFindingsIDReopenOKFixKind = "os_update"
 	FindingsPostFindingsIDReopenOKFixKindFeatureUpdate FindingsPostFindingsIDReopenOKFixKind = "feature_update"
+	FindingsPostFindingsIDReopenOKFixKindRestart       FindingsPostFindingsIDReopenOKFixKind = "restart"
 	FindingsPostFindingsIDReopenOKFixKindNoneYet       FindingsPostFindingsIDReopenOKFixKind = "none_yet"
 	FindingsPostFindingsIDReopenOKFixKindUnknown       FindingsPostFindingsIDReopenOKFixKind = "unknown"
 )
@@ -119743,6 +119831,7 @@ func (FindingsPostFindingsIDReopenOKFixKind) AllValues() []FindingsPostFindingsI
 		FindingsPostFindingsIDReopenOKFixKindDistroUpdate,
 		FindingsPostFindingsIDReopenOKFixKindOsUpdate,
 		FindingsPostFindingsIDReopenOKFixKindFeatureUpdate,
+		FindingsPostFindingsIDReopenOKFixKindRestart,
 		FindingsPostFindingsIDReopenOKFixKindNoneYet,
 		FindingsPostFindingsIDReopenOKFixKindUnknown,
 	}
@@ -119758,6 +119847,8 @@ func (s FindingsPostFindingsIDReopenOKFixKind) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDReopenOKFixKindOsUpdate:
 		return []byte(s), nil
 	case FindingsPostFindingsIDReopenOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDReopenOKFixKindRestart:
 		return []byte(s), nil
 	case FindingsPostFindingsIDReopenOKFixKindNoneYet:
 		return []byte(s), nil
@@ -119782,6 +119873,9 @@ func (s *FindingsPostFindingsIDReopenOKFixKind) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDReopenOKFixKindFeatureUpdate:
 		*s = FindingsPostFindingsIDReopenOKFixKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDReopenOKFixKindRestart:
+		*s = FindingsPostFindingsIDReopenOKFixKindRestart
 		return nil
 	case FindingsPostFindingsIDReopenOKFixKindNoneYet:
 		*s = FindingsPostFindingsIDReopenOKFixKindNoneYet
@@ -122213,7 +122307,9 @@ type FindingsPostFindingsIDUnverifyOKFix struct {
 	// Update = install `version` of the software or later; distro_update = install the distribution's
 	// package release `version` or later; os_update = install the operating system update `ref` (a KB
 	// number) or build `version`; feature_update = no update of this release fixes it, move to release
-	// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+	// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+	// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+	// advisory); unknown = no fix data.
 	Kind FindingsPostFindingsIDUnverifyOKFixKind `json:"kind"`
 	// The product the fix is for, as people name it ("OpenSSH").
 	Product string `json:"product"`
@@ -122222,7 +122318,7 @@ type FindingsPostFindingsIDUnverifyOKFix struct {
 	// The vendor advisory or release notes.
 	URL NilURI `json:"url"`
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
-	// known.
+	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
 }
 
@@ -122289,7 +122385,9 @@ func (s *FindingsPostFindingsIDUnverifyOKFix) SetVersion(val NilString) {
 // Update = install `version` of the software or later; distro_update = install the distribution's
 // package release `version` or later; os_update = install the operating system update `ref` (a KB
 // number) or build `version`; feature_update = no update of this release fixes it, move to release
-// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+// advisory); unknown = no fix data.
 type FindingsPostFindingsIDUnverifyOKFixKind string
 
 const (
@@ -122297,6 +122395,7 @@ const (
 	FindingsPostFindingsIDUnverifyOKFixKindDistroUpdate  FindingsPostFindingsIDUnverifyOKFixKind = "distro_update"
 	FindingsPostFindingsIDUnverifyOKFixKindOsUpdate      FindingsPostFindingsIDUnverifyOKFixKind = "os_update"
 	FindingsPostFindingsIDUnverifyOKFixKindFeatureUpdate FindingsPostFindingsIDUnverifyOKFixKind = "feature_update"
+	FindingsPostFindingsIDUnverifyOKFixKindRestart       FindingsPostFindingsIDUnverifyOKFixKind = "restart"
 	FindingsPostFindingsIDUnverifyOKFixKindNoneYet       FindingsPostFindingsIDUnverifyOKFixKind = "none_yet"
 	FindingsPostFindingsIDUnverifyOKFixKindUnknown       FindingsPostFindingsIDUnverifyOKFixKind = "unknown"
 )
@@ -122308,6 +122407,7 @@ func (FindingsPostFindingsIDUnverifyOKFixKind) AllValues() []FindingsPostFinding
 		FindingsPostFindingsIDUnverifyOKFixKindDistroUpdate,
 		FindingsPostFindingsIDUnverifyOKFixKindOsUpdate,
 		FindingsPostFindingsIDUnverifyOKFixKindFeatureUpdate,
+		FindingsPostFindingsIDUnverifyOKFixKindRestart,
 		FindingsPostFindingsIDUnverifyOKFixKindNoneYet,
 		FindingsPostFindingsIDUnverifyOKFixKindUnknown,
 	}
@@ -122323,6 +122423,8 @@ func (s FindingsPostFindingsIDUnverifyOKFixKind) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDUnverifyOKFixKindOsUpdate:
 		return []byte(s), nil
 	case FindingsPostFindingsIDUnverifyOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDUnverifyOKFixKindRestart:
 		return []byte(s), nil
 	case FindingsPostFindingsIDUnverifyOKFixKindNoneYet:
 		return []byte(s), nil
@@ -122347,6 +122449,9 @@ func (s *FindingsPostFindingsIDUnverifyOKFixKind) UnmarshalText(data []byte) err
 		return nil
 	case FindingsPostFindingsIDUnverifyOKFixKindFeatureUpdate:
 		*s = FindingsPostFindingsIDUnverifyOKFixKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDUnverifyOKFixKindRestart:
+		*s = FindingsPostFindingsIDUnverifyOKFixKindRestart
 		return nil
 	case FindingsPostFindingsIDUnverifyOKFixKindNoneYet:
 		*s = FindingsPostFindingsIDUnverifyOKFixKindNoneYet
@@ -124764,7 +124869,9 @@ type FindingsPostFindingsIDVerifyOKFix struct {
 	// Update = install `version` of the software or later; distro_update = install the distribution's
 	// package release `version` or later; os_update = install the operating system update `ref` (a KB
 	// number) or build `version`; feature_update = no update of this release fixes it, move to release
-	// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+	// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+	// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+	// advisory); unknown = no fix data.
 	Kind FindingsPostFindingsIDVerifyOKFixKind `json:"kind"`
 	// The product the fix is for, as people name it ("OpenSSH").
 	Product string `json:"product"`
@@ -124773,7 +124880,7 @@ type FindingsPostFindingsIDVerifyOKFix struct {
 	// The vendor advisory or release notes.
 	URL NilURI `json:"url"`
 	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
-	// known.
+	// known; restart: the installed kernel's package release the device runs after the restart.
 	Version NilString `json:"version"`
 }
 
@@ -124840,7 +124947,9 @@ func (s *FindingsPostFindingsIDVerifyOKFix) SetVersion(val NilString) {
 // Update = install `version` of the software or later; distro_update = install the distribution's
 // package release `version` or later; os_update = install the operating system update `ref` (a KB
 // number) or build `version`; feature_update = no update of this release fixes it, move to release
-// `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data.
+// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+// advisory); unknown = no fix data.
 type FindingsPostFindingsIDVerifyOKFixKind string
 
 const (
@@ -124848,6 +124957,7 @@ const (
 	FindingsPostFindingsIDVerifyOKFixKindDistroUpdate  FindingsPostFindingsIDVerifyOKFixKind = "distro_update"
 	FindingsPostFindingsIDVerifyOKFixKindOsUpdate      FindingsPostFindingsIDVerifyOKFixKind = "os_update"
 	FindingsPostFindingsIDVerifyOKFixKindFeatureUpdate FindingsPostFindingsIDVerifyOKFixKind = "feature_update"
+	FindingsPostFindingsIDVerifyOKFixKindRestart       FindingsPostFindingsIDVerifyOKFixKind = "restart"
 	FindingsPostFindingsIDVerifyOKFixKindNoneYet       FindingsPostFindingsIDVerifyOKFixKind = "none_yet"
 	FindingsPostFindingsIDVerifyOKFixKindUnknown       FindingsPostFindingsIDVerifyOKFixKind = "unknown"
 )
@@ -124859,6 +124969,7 @@ func (FindingsPostFindingsIDVerifyOKFixKind) AllValues() []FindingsPostFindingsI
 		FindingsPostFindingsIDVerifyOKFixKindDistroUpdate,
 		FindingsPostFindingsIDVerifyOKFixKindOsUpdate,
 		FindingsPostFindingsIDVerifyOKFixKindFeatureUpdate,
+		FindingsPostFindingsIDVerifyOKFixKindRestart,
 		FindingsPostFindingsIDVerifyOKFixKindNoneYet,
 		FindingsPostFindingsIDVerifyOKFixKindUnknown,
 	}
@@ -124874,6 +124985,8 @@ func (s FindingsPostFindingsIDVerifyOKFixKind) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDVerifyOKFixKindOsUpdate:
 		return []byte(s), nil
 	case FindingsPostFindingsIDVerifyOKFixKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsPostFindingsIDVerifyOKFixKindRestart:
 		return []byte(s), nil
 	case FindingsPostFindingsIDVerifyOKFixKindNoneYet:
 		return []byte(s), nil
@@ -124898,6 +125011,9 @@ func (s *FindingsPostFindingsIDVerifyOKFixKind) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDVerifyOKFixKindFeatureUpdate:
 		*s = FindingsPostFindingsIDVerifyOKFixKindFeatureUpdate
+		return nil
+	case FindingsPostFindingsIDVerifyOKFixKindRestart:
+		*s = FindingsPostFindingsIDVerifyOKFixKindRestart
 		return nil
 	case FindingsPostFindingsIDVerifyOKFixKindNoneYet:
 		*s = FindingsPostFindingsIDVerifyOKFixKindNoneYet
@@ -209192,6 +209308,7 @@ const (
 	ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate  ReportsGetReportsDocumentOKNewItemsItemFixKind = "distro_update"
 	ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate      ReportsGetReportsDocumentOKNewItemsItemFixKind = "os_update"
 	ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate ReportsGetReportsDocumentOKNewItemsItemFixKind = "feature_update"
+	ReportsGetReportsDocumentOKNewItemsItemFixKindRestart       ReportsGetReportsDocumentOKNewItemsItemFixKind = "restart"
 	ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet       ReportsGetReportsDocumentOKNewItemsItemFixKind = "none_yet"
 	ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown       ReportsGetReportsDocumentOKNewItemsItemFixKind = "unknown"
 )
@@ -209203,6 +209320,7 @@ func (ReportsGetReportsDocumentOKNewItemsItemFixKind) AllValues() []ReportsGetRe
 		ReportsGetReportsDocumentOKNewItemsItemFixKindDistroUpdate,
 		ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate,
 		ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsDocumentOKNewItemsItemFixKindRestart,
 		ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet,
 		ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown,
 	}
@@ -209218,6 +209336,8 @@ func (s ReportsGetReportsDocumentOKNewItemsItemFixKind) MarshalText() ([]byte, e
 	case ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate:
 		return []byte(s), nil
 	case ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindRestart:
 		return []byte(s), nil
 	case ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet:
 		return []byte(s), nil
@@ -209242,6 +209362,9 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFixKind) UnmarshalText(data []by
 		return nil
 	case ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindRestart:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindRestart
 		return nil
 	case ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet:
 		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet
@@ -210165,6 +210288,7 @@ const (
 	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate  ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "distro_update"
 	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate      ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "os_update"
 	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "feature_update"
+	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindRestart       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "restart"
 	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "none_yet"
 	ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown       ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind = "unknown"
 )
@@ -210176,6 +210300,7 @@ func (ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) AllValues() []R
 		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindDistroUpdate,
 		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate,
 		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindRestart,
 		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet,
 		ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown,
 	}
@@ -210191,6 +210316,8 @@ func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) MarshalText()
 	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate:
 		return []byte(s), nil
 	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindRestart:
 		return []byte(s), nil
 	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet:
 		return []byte(s), nil
@@ -210215,6 +210342,9 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) UnmarshalTex
 		return nil
 	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindRestart:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindRestart
 		return nil
 	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet:
 		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet
@@ -211459,6 +211589,7 @@ const (
 	ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate  ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "distro_update"
 	ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate      ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "os_update"
 	ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "feature_update"
+	ReportsGetReportsDocumentOKSummaryFirstItemFixKindRestart       ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "restart"
 	ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet       ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "none_yet"
 	ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown       ReportsGetReportsDocumentOKSummaryFirstItemFixKind = "unknown"
 )
@@ -211470,6 +211601,7 @@ func (ReportsGetReportsDocumentOKSummaryFirstItemFixKind) AllValues() []ReportsG
 		ReportsGetReportsDocumentOKSummaryFirstItemFixKindDistroUpdate,
 		ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate,
 		ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate,
+		ReportsGetReportsDocumentOKSummaryFirstItemFixKindRestart,
 		ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet,
 		ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown,
 	}
@@ -211485,6 +211617,8 @@ func (s ReportsGetReportsDocumentOKSummaryFirstItemFixKind) MarshalText() ([]byt
 	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate:
 		return []byte(s), nil
 	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindRestart:
 		return []byte(s), nil
 	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet:
 		return []byte(s), nil
@@ -211509,6 +211643,9 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFixKind) UnmarshalText(data 
 		return nil
 	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindRestart:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindRestart
 		return nil
 	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet:
 		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet
@@ -214340,6 +214477,7 @@ const (
 	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate  ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "distro_update"
 	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate      ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "os_update"
 	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "feature_update"
+	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindRestart       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "restart"
 	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "none_yet"
 	ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown       ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind = "unknown"
 )
@@ -214351,6 +214489,7 @@ func (ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) AllValues() []Rep
 		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindDistroUpdate,
 		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate,
 		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindRestart,
 		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet,
 		ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown,
 	}
@@ -214366,6 +214505,8 @@ func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) MarshalText() (
 	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate:
 		return []byte(s), nil
 	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindRestart:
 		return []byte(s), nil
 	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet:
 		return []byte(s), nil
@@ -214390,6 +214531,9 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) UnmarshalText(
 		return nil
 	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindRestart:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindRestart
 		return nil
 	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet:
 		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet
@@ -215313,6 +215457,7 @@ const (
 	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate  ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "distro_update"
 	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate      ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "os_update"
 	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "feature_update"
+	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindRestart       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "restart"
 	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "none_yet"
 	ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown       ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind = "unknown"
 )
@@ -215324,6 +215469,7 @@ func (ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) AllVal
 		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindDistroUpdate,
 		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate,
 		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate,
+		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindRestart,
 		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet,
 		ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown,
 	}
@@ -215339,6 +215485,8 @@ func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) Mars
 	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate:
 		return []byte(s), nil
 	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindRestart:
 		return []byte(s), nil
 	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet:
 		return []byte(s), nil
@@ -215363,6 +215511,9 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) Unm
 		return nil
 	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindRestart:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindRestart
 		return nil
 	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet:
 		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet
@@ -216607,6 +216758,7 @@ const (
 	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate  ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "distro_update"
 	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate      ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "os_update"
 	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "feature_update"
+	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindRestart       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "restart"
 	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "none_yet"
 	ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown       ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind = "unknown"
 )
@@ -216618,6 +216770,7 @@ func (ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) AllValues() [
 		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindDistroUpdate,
 		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate,
 		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate,
+		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindRestart,
 		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet,
 		ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown,
 	}
@@ -216633,6 +216786,8 @@ func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) MarshalText
 	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate:
 		return []byte(s), nil
 	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate:
+		return []byte(s), nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindRestart:
 		return []byte(s), nil
 	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet:
 		return []byte(s), nil
@@ -216657,6 +216812,9 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) UnmarshalT
 		return nil
 	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate
+		return nil
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindRestart:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindRestart
 		return nil
 	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet:
 		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet

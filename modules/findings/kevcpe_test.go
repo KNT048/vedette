@@ -113,7 +113,8 @@ func TestMatchAsset_910_IGELEntryOnWindowsServer2025(t *testing.T) {
 
 // CVE-2024-36971 is CISA "Android | Kernel"; NVD lists upstream linux_kernel ranges (6.7 to 6.9.4, 5.16 to 6.1.94). A distribution's
 // kernel keeps its upstream version while it backports fixes, so only the distribution's own word decides: no word, no
-// finding; Ubuntu's "fixed in linux 6.8.0-44.44" on 6.8.0-31.31 is one.
+// finding; Ubuntu's "fixed in linux 6.8.0-44.44" on 6.8.0-31.31 is one, and so is Debian's "fixed in linux 6.1.94-1" on 6.1.69-1
+// (Debian's stable kernel moves to newer upstream point releases: its own builds compare across them).
 func TestMatchAsset_910_AndroidKernelEntryOnDistributionKernels(t *testing.T) {
 	t.Parallel()
 	v := Vuln{CVE: "CVE-2024-36971", Vendor: "Android", Product: "Kernel", DateAdded: winDay("2024-08-07"), Published: winDay("2024-06-10"),
@@ -138,7 +139,7 @@ func TestMatchAsset_910_AndroidKernelEntryOnDistributionKernels(t *testing.T) {
 	}
 	v.Distro = []DistroFix{
 		{Distro: "ubuntu", Release: "24.04", Package: "linux", Status: "fixed", Fixed: "6.8.0-44.44"},
-		{Distro: "debian", Release: "12", Package: "linux", Status: "fixed", Fixed: "6.1.94-1"}, // another upstream release: no word on 6.1.69-1
+		{Distro: "debian", Release: "12", Package: "linux", Status: "fixed", Fixed: "6.1.94-1"}, // another upstream point release of Debian's own kernel
 	}
 	m := onlyMatch(t, "Ubuntu 24.04 kernel", MatchAsset(ubuntu, []Vuln{v}, nil, t0))
 	if m.Basis != BasisVersion || !strings.Contains(m.Evidence.Summary, "6.8.0-44.44") {
@@ -147,8 +148,17 @@ func TestMatchAsset_910_AndroidKernelEntryOnDistributionKernels(t *testing.T) {
 	if f := FixedInFor(ubuntu, v); f == nil || f.DistroFixed != "6.8.0-44.44" {
 		t.Errorf("Ubuntu fixed_in: %+v", f)
 	}
-	if res := MatchAsset(debian, []Vuln{v}, nil, t0); len(res.New) != 0 {
-		t.Errorf("Debian kernel: %+v", res)
+	if m := onlyMatch(t, "Debian 12 kernel", MatchAsset(debian, []Vuln{v}, nil, t0)); m.Basis != BasisVersion || !strings.Contains(m.Evidence.Summary, "Debian fixed CVE-2024-36971 in linux 6.1.94-1") {
+		t.Errorf("Debian kernel: %+v", m)
+	}
+	if f := FixOf(debian, debian.Software[0], v); f.Kind != FixDistroUpdate || f.Version != "6.1.94-1" {
+		t.Errorf("Debian fix: %+v", f)
+	}
+	// a Debian kernel from backports is not the stable release's own build: no word
+	bpo := debian
+	bpo.Software = []Software{kernel("6.1.69", "6.1.69-1~bpo11+1", "linux-signed-amd64", true)}
+	if res := MatchAsset(bpo, []Vuln{v}, nil, t0); len(res.New) != 0 {
+		t.Errorf("Debian backports kernel: %+v", res)
 	}
 }
 

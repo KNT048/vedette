@@ -132,7 +132,7 @@ func distroOf(in swInfo) (string, string) {
 // is asked for it ("24.04", "12"; "" for a distribution
 // whose rows of every release are read, Alpine: the branch is chosen per row, distroData.anyRelease) and the source packages of the
 // device's package rows as the security data names them (securitySource: "linux" for linux-signed), sorted, each once (the
-// distribution feeds keep their rows for these packages only). A kernel's packages count only for the running kernel
+// distribution feeds keep their rows for these packages only). A kernel counts by its Kernel row alone
 // (distroRows). "" and nil when no distribution's data can say something about the device.
 func DevicePackages(a Asset) (distro, release string, pkgs []string) {
 	d, rel, rows := distroRows(a)
@@ -160,11 +160,8 @@ type distroPkgRow struct {
 
 // distroRows are the device's package rows compared with their distribution's data (distroData.pkgOf: an agent's package row
 // with its release and source package, or a package release a person gave), with that distribution and the device's release ("" when
-// the OS names none: no row, unless the distribution's rows of every release are read, Alpine). Packages of a kernel source count only
-// when they are the running kernel's (review r1 #1 of #808, distroData.kernelRule): apt keeps the previous kernel's linux-modules-*,
-// linux-headers-* and linux-tools-* installed, intake blanks only the image of a kernel that does not run, and those rows would
-// name "Upgrade linux" on a box that already runs the fix. The running kernel is the Kernel row intake built from the running image (its
-// source and version); a device without one compares no kernel package (drop when unsure).
+// the OS names none: no row, unless the distribution's rows of every release are read, Alpine). A kernel's packages other than its
+// Kernel row (kernelPart) are never compared: the Kernel row stands for the running kernel, which is the source package the data lists.
 func distroRows(a Asset) (d *distroData, release string, rows []distroPkgRow) {
 	d = distroOfDevice(a)
 	if d == nil {
@@ -175,37 +172,115 @@ func distroRows(a Asset) (d *distroData, release string, rows []distroPkgRow) {
 	if release == "" && !d.anyRelease {
 		return d, "", nil
 	}
-	var ksrc, kver string
-	var all []distroPkgRow
 	for _, s := range a.Software {
 		ver, src, ok := d.pkgOf(s, osName)
-		if !ok {
+		if !ok || d.kernelRule && kernelPart(s) {
 			continue
 		}
 		in := newSWInfo(s, osName)
 		in.pkgVer, in.pkgSrc = ver, src
-		r := distroPkgRow{s: s, in: in, ver: ver, pkg: d.source(src)}
-		if d.kernelRule && productid.Norm(s.Vendor) == "linux" && productid.Norm(s.Product) == "kernel" {
-			ksrc, kver = r.pkg, ver
-		}
-		all = append(all, r)
-	}
-	for _, r := range all {
-		if d.kernelRule && kernelSource(r.pkg) && (r.pkg != ksrc || r.ver != kver) {
-			continue
-		}
-		rows = append(rows, r)
+		rows = append(rows, distroPkgRow{s: s, in: in, ver: ver, pkg: d.source(src)})
 	}
 	return d, release, rows
 }
 
-// notKernel are the linux-* source packages that build no kernel, kernel modules, headers or tools.
-var notKernel = map[string]bool{"linux-firmware": true, "linux-atm": true, "linux-base": true, "linux-sound-base": true}
+// Distribution kernels. Ubuntu and Debian name a kernel's packages after its ABI (linux-image-7.0.0-43-generic,
+// linux-modules-7.0.0-43-generic, linux-headers-6.12.48+deb13-amd64), so apt keeps the previous kernel's packages installed next to
+// the new kernel's, under names of their own, and a kernel update installs a new image that runs only after a restart. Their security
+// data lists every kernel CVE under the kernel's source package ("linux"), which builds the image, its modules, headers and tools,
+// linux-libc-dev and the kernel's userspace tools. A flaw in the kernel is the running kernel's: the device has it once, on its Kernel
+// row (intake makes it of the running kernel's image alone), whatever kernel packages are installed. So, on those distributions:
+//   - a package of a kernel's source other than the Kernel row (kernelPart: the headers, modules and tools of any kernel, an image that
+//     does not run, a metapackage) is never matched: it is a part of a kernel, not the exposure, and its fix can never be a newer
+//     release of its own name (linux-headers-7.0.0-43-generic never gets a 7.0.0-44 release);
+//   - an installed image the device does not run yet, of the same source, at or above the release the distribution fixed a CVE in
+//     (installedKernel) makes the Kernel row's fix a restart into it (FixRestart), not an update to install.
+//
+// Ubuntu's own OVAL checks of kernel CVEs compare the running kernel (uname), not the installed packages; listing a CVE once per ABI
+// package multiplies one flaw by every package of every installed kernel.
 
-// kernelSource says whether a source package (as the security data names it) builds a Linux kernel or its modules, headers and
-// tools: "linux", "linux-hwe-6.8", "linux-aws", "linux-meta", "linux-restricted-modules".
+// isKernelRow says the row is the Linux kernel itself (the catalogue's Kernel product, NVD's linux_kernel).
+func isKernelRow(s Software) bool {
+	p := productid.Norm(s.Product)
+	return productid.Norm(s.Vendor) == "linux" && (p == "kernel" || p == "linuxkernel")
+}
+
+// kernelPart says an agent's package row is built from a Linux kernel's source package and is not the Kernel row: a part of a kernel
+// (headers, modules, tools, an image that does not run, a metapackage, linux-libc-dev), never matched on its own.
+func kernelPart(s Software) bool {
+	return s.Packaged && s.builtBy() == "agent" && !isKernelRow(s) && kernelSource(strings.ToLower(strings.TrimSpace(s.PkgSource)))
+}
+
+// withoutKernelParts is rows without the kernel parts (kernelPart) on a device whose distribution keeps several kernels' packages
+// installed (distroData.kernelRule); rows itself when there is none to leave out.
+func withoutKernelParts(a Asset, rows []Software) []Software {
+	if !slices.ContainsFunc(rows, kernelPart) {
+		return rows
+	}
+	if d := distroOfDevice(a); d == nil || !d.kernelRule {
+		return rows
+	}
+	out := make([]Software, 0, len(rows))
+	for _, s := range rows {
+		if !kernelPart(s) {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// kernelImageRE is the name of a kernel image package of Ubuntu or Debian (intake's own rule): linux-image-7.0.0-44-generic,
+// linux-image-unsigned-…, linux-image-6.12.57+deb13-amd64; linux-image-generic and linux-image-amd64 are metapackages.
+var kernelImageRE = regexp.MustCompile(`^linux-image-(unsigned-)?[0-9]`)
+
+// installedKernel is the newest kernel image installed on the device that is not its Kernel row (an image intake lists under its own
+// name: one the device does not run), of the same source package as the Kernel row k as the security data names it, built by the
+// distribution itself, and newer than the running one. ok is false when there is none.
+func installedKernel(a Asset, k Software) (string, bool) {
+	if !isKernelRow(k) || k.PkgVersion == "" || k.PkgSource == "" {
+		return "", false
+	}
+	in := newSWInfo(k, a.OS)
+	d, _ := distroOf(in)
+	if d == "" {
+		return "", false
+	}
+	src := securitySource(d, strings.ToLower(k.PkgSource))
+	best := k.PkgVersion
+	for _, s := range a.Software {
+		name := strings.ToLower(strings.TrimSpace(s.Product))
+		if !kernelPart(s) || !kernelImageRE.MatchString(name) || securitySource(d, strings.ToLower(s.PkgSource)) != src || !ownBuild(d, src, s.PkgVersion, false) {
+			continue
+		}
+		if c, err := debver.Compare(s.PkgVersion, best); err == nil && c > 0 {
+			best = s.PkgVersion
+		}
+	}
+	return best, best != k.PkgVersion
+}
+
+// restartInto is the kernel release the device runs after a restart when that alone fixes a CVE the distribution fixed in fixed on
+// its Kernel row k: an installed kernel it does not run yet at or above fixed (installedKernel). ok is false otherwise (the fix is to
+// install updates).
+func restartInto(a Asset, k Software, fixed string) (string, bool) {
+	kv, ok := installedKernel(a, k)
+	if !ok || fixed == "" {
+		return "", false
+	}
+	c, err := debver.Compare(kv, fixed)
+	return kv, err == nil && c >= 0
+}
+
+// notKernel are the linux-* source packages that build no kernel, kernel modules, headers or tools.
+var notKernel = map[string]bool{"linux-atm": true, "linux-base": true, "linux-sound-base": true, "linux-ftpd": true, "linux-ftpd-ssl": true,
+	"linux-igd": true, "linux-minidisc": true, "linux-show-player": true, "linux-apfs-rw": true, "linux-gpib": true, "linux-wlan-ng": true,
+	"linux-user-chroot": true}
+
+// kernelSource says whether a source package (as the security data names it, or a signing source of one) builds a Linux kernel or its
+// modules, headers and tools: "linux", "linux-signed", "linux-hwe-6.8", "linux-aws", "linux-meta", "linux-restricted-modules". The
+// firmware sources (linux-firmware, linux-firmware-raspi) build none.
 func kernelSource(pkg string) bool {
-	return pkg == "linux" || strings.HasPrefix(pkg, "linux-") && !notKernel[pkg]
+	return pkg == "linux" || strings.HasPrefix(pkg, "linux-") && !notKernel[pkg] && !strings.HasPrefix(pkg, "linux-firmware")
 }
 
 // securitySource is the source package under which the distribution's security data lists a device's source package.
@@ -286,8 +361,10 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	a := distroAnswer{pkg: pkg, name: distroName(in), release: rel}
 	switch {
 	case fix != nil:
-		// only the backport case: the same epoch and upstream release, a revision the distribution builds (review H2)
-		if !debver.SameUpstream(in.pkgVer, fix.Fixed) || !ownBuild(d, pkg, in.pkgVer, false) {
+		// only the backport case: the same epoch and upstream release, a revision the distribution builds (review H2). Debian's kernel
+		// is the exception: a stable release moves it to newer upstream point releases (6.12.48-1, then 6.12.57-1) and the tracker
+		// names the first of them that fixes a CVE, so its own builds compare across upstream releases (debianKernelMoves)
+		if !debver.SameUpstream(in.pkgVer, fix.Fixed) && !debianKernelMoves(d, pkg) || !ownBuild(d, pkg, in.pkgVer, false) {
 			return distroAnswer{}, false
 		}
 		c, err := debver.Compare(in.pkgVer, fix.Fixed)
@@ -308,6 +385,10 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 	}
 	return a, true
 }
+
+// debianKernelMoves says the package is Debian's kernel (source linux, its signed images included: securitySource), whose stable
+// updates bring newer upstream point releases, so an installed build of another upstream release than the fix still compares with it.
+func debianKernelMoves(distro, pkg string) bool { return distro == "debian" && pkg == "linux" }
 
 // distroMatch is matchOne's result for a row the distribution has a word on.
 func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now time.Time) (Match, outcome) {
@@ -333,13 +414,18 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 	}
 	m.Evidence = Evidence{CheckedAt: now, Summary: fmt.Sprintf("%s runs %s %s from %s %s's packages. %s fixed %s in %s %s%s (%s); no scan has confirmed it yet, so this is only suspected.",
 		clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src)}
+	until := fmt.Sprintf("so this device has the flaw until it installs %s's security updates.", d.name)
+	if k, ok := restartInto(a, s, d.fixed); ok { // the fixed kernel is installed and not running yet
+		until = fmt.Sprintf("and the fixed kernel %s is already installed, so this device has the flaw until it restarts into it.", clean(k))
+		m.Evidence.Summary += fmt.Sprintf(" The fixed kernel %s is already installed: a restart into it fixes this.", clean(k))
+	}
 	if s.Source == "agent" { // The agent read the installed package; a detection
 		m.Evidence.Agent = true
 		if deviceSays(a) { // a person's OS correction is not the device's word
 			m.Evidence.Source = SourceAgent
 		}
-		m.Evidence.Summary = fmt.Sprintf("The agent on %s reports %s %s installed from %s %s's packages. %s fixed %s in %s %s%s (%s), so this device has the flaw until it installs %s's security updates.",
-			clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src, d.name)
+		m.Evidence.Summary = fmt.Sprintf("The agent on %s reports %s %s installed from %s %s's packages. %s fixed %s in %s %s%s (%s), %s",
+			clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src, until)
 	}
 	return m, outMatch
 }

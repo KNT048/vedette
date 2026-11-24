@@ -86834,8 +86834,10 @@
                         "expired",
                         "used",
                         "decided",
+                        "withdrawn",
                         "unknown"
-                      ]
+                      ],
+                      "description": "withdrawn: a device split moved the finding of the request to another device before anyone decided; nothing was changed and a new request is asked for that device"
                     },
                     "title": {
                       "type": [

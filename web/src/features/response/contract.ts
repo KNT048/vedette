@@ -245,7 +245,7 @@ export const LogEntry = z.object({
 export const LogList = z.object({ items: z.array(LogEntry).describe('Oldest first, so the chain can be checked from the start') })
 
 export const ApprovalView = z.object({
-  state: z.enum(['ready', 'expired', 'used', 'decided', 'unknown']), title: z.string().nullable(),
+  state: z.enum(['ready', 'expired', 'used', 'decided', 'withdrawn', 'unknown']).describe('withdrawn: a device split moved the finding of the request to another device before anyone decided; nothing was changed and a new request is asked for that device'), title: z.string().nullable(),
   items: z.array(z.object({ title: z.string(), risk: Risk, change: Change })), approver: z.string().nullable(), expires_at: iso.nullable(), status: ActionStatus.nullable(),
   requires_approvals: z.number().int().nullable(), approved_so_far: z.number().int().nullable(),
   ai_generated: z.boolean().describe('true when an AI proposed the request: the page shows the AI-generated label. false unless state is ready'),

@@ -356830,6 +356830,8 @@ func (s *ResponseGetResponseApproveTokenOKState) Decode(d *jx.Decoder) error {
 		*s = ResponseGetResponseApproveTokenOKStateUsed
 	case ResponseGetResponseApproveTokenOKStateDecided:
 		*s = ResponseGetResponseApproveTokenOKStateDecided
+	case ResponseGetResponseApproveTokenOKStateWithdrawn:
+		*s = ResponseGetResponseApproveTokenOKStateWithdrawn
 	case ResponseGetResponseApproveTokenOKStateUnknown:
 		*s = ResponseGetResponseApproveTokenOKStateUnknown
 	default:

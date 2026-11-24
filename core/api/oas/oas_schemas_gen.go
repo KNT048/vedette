@@ -225139,9 +225139,11 @@ type ResponseGetResponseApproveTokenOK struct {
 	ExpiresAt         NilDateTime                                  `json:"expires_at"`
 	Items             []ResponseGetResponseApproveTokenOKItemsItem `json:"items"`
 	RequiresApprovals NilInt                                       `json:"requires_approvals"`
-	State             ResponseGetResponseApproveTokenOKState       `json:"state"`
-	Status            NilResponseGetResponseApproveTokenOKStatus   `json:"status"`
-	Title             NilString                                    `json:"title"`
+	// Withdrawn: a device split moved the finding of the request to another device before anyone decided;
+	// nothing was changed and a new request is asked for that device.
+	State  ResponseGetResponseApproveTokenOKState     `json:"state"`
+	Status NilResponseGetResponseApproveTokenOKStatus `json:"status"`
+	Title  NilString                                  `json:"title"`
 }
 
 // GetAiGenerated returns the value of AiGenerated.
@@ -225716,14 +225718,17 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemRisk) UnmarshalText(data []by
 	}
 }
 
+// Withdrawn: a device split moved the finding of the request to another device before anyone decided;
+// nothing was changed and a new request is asked for that device.
 type ResponseGetResponseApproveTokenOKState string
 
 const (
-	ResponseGetResponseApproveTokenOKStateReady   ResponseGetResponseApproveTokenOKState = "ready"
-	ResponseGetResponseApproveTokenOKStateExpired ResponseGetResponseApproveTokenOKState = "expired"
-	ResponseGetResponseApproveTokenOKStateUsed    ResponseGetResponseApproveTokenOKState = "used"
-	ResponseGetResponseApproveTokenOKStateDecided ResponseGetResponseApproveTokenOKState = "decided"
-	ResponseGetResponseApproveTokenOKStateUnknown ResponseGetResponseApproveTokenOKState = "unknown"
+	ResponseGetResponseApproveTokenOKStateReady     ResponseGetResponseApproveTokenOKState = "ready"
+	ResponseGetResponseApproveTokenOKStateExpired   ResponseGetResponseApproveTokenOKState = "expired"
+	ResponseGetResponseApproveTokenOKStateUsed      ResponseGetResponseApproveTokenOKState = "used"
+	ResponseGetResponseApproveTokenOKStateDecided   ResponseGetResponseApproveTokenOKState = "decided"
+	ResponseGetResponseApproveTokenOKStateWithdrawn ResponseGetResponseApproveTokenOKState = "withdrawn"
+	ResponseGetResponseApproveTokenOKStateUnknown   ResponseGetResponseApproveTokenOKState = "unknown"
 )
 
 // AllValues returns all ResponseGetResponseApproveTokenOKState values.
@@ -225733,6 +225738,7 @@ func (ResponseGetResponseApproveTokenOKState) AllValues() []ResponseGetResponseA
 		ResponseGetResponseApproveTokenOKStateExpired,
 		ResponseGetResponseApproveTokenOKStateUsed,
 		ResponseGetResponseApproveTokenOKStateDecided,
+		ResponseGetResponseApproveTokenOKStateWithdrawn,
 		ResponseGetResponseApproveTokenOKStateUnknown,
 	}
 }
@@ -225747,6 +225753,8 @@ func (s ResponseGetResponseApproveTokenOKState) MarshalText() ([]byte, error) {
 	case ResponseGetResponseApproveTokenOKStateUsed:
 		return []byte(s), nil
 	case ResponseGetResponseApproveTokenOKStateDecided:
+		return []byte(s), nil
+	case ResponseGetResponseApproveTokenOKStateWithdrawn:
 		return []byte(s), nil
 	case ResponseGetResponseApproveTokenOKStateUnknown:
 		return []byte(s), nil
@@ -225769,6 +225777,9 @@ func (s *ResponseGetResponseApproveTokenOKState) UnmarshalText(data []byte) erro
 		return nil
 	case ResponseGetResponseApproveTokenOKStateDecided:
 		*s = ResponseGetResponseApproveTokenOKStateDecided
+		return nil
+	case ResponseGetResponseApproveTokenOKStateWithdrawn:
+		*s = ResponseGetResponseApproveTokenOKStateWithdrawn
 		return nil
 	case ResponseGetResponseApproveTokenOKStateUnknown:
 		*s = ResponseGetResponseApproveTokenOKStateUnknown

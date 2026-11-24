@@ -103870,6 +103870,8 @@ func (s ResponseGetResponseApproveTokenOKState) Validate() error {
 		return nil
 	case "decided":
 		return nil
+	case "withdrawn":
+		return nil
 	case "unknown":
 		return nil
 	default:

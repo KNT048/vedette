@@ -222,7 +222,7 @@ type EmailLink struct {
 // ApprovalView is GET /response/approve/{token}: what the link would change, never a decision. Every field about the content is empty or
 // null unless State is "ready", so a wrong, used or expired link shows nothing of the request (spec approval-tokens.md 4.4).
 type ApprovalView struct {
-	State             string         `json:"state"` // ready, expired, used, decided or unknown
+	State             string         `json:"state"` // ready, expired, used, decided, withdrawn or unknown
 	Title             *string        `json:"title"`
 	Items             []ApprovalItem `json:"items"`
 	Approver          *string        `json:"approver"`

@@ -475,3 +475,75 @@ func TestTruthACheckThatStartsAgainShowsTheProgressOfTheNewTry(t *testing.T) {
 	}
 	waitRun(t, e, m.ID, run.Done, run.Partial, run.Failed, run.Stopped)
 }
+
+// A check is expected to take as long as its own device's recent checks took, not the box's middle figure (a device with many open
+// services takes far longer than the rest): the running check and the line behind it both use it, and a check that runs past it says
+// so instead of an "about a minute left" that never moves.
+func TestTruthAChecksTimeIsItsOwnDevices(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, outsideWindow)
+	e.sweptBefore()
+	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		add := func(id, device string, ago time.Duration, took time.Duration) error {
+			from := e.clock().Add(-ago).UTC()
+			_, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, subject_kind, subject_id, status,
+				queued_at, started_at, ended_at, updated_at)
+				VALUES (?1, 'sensor-active', 'device_check', 'nmap', 'Check', 'manual', 'ann@example.com', 'device', ?2, 'done', ?3, ?3, ?4, ?4)`,
+				id, device, from.Format("2006-01-02T15:04:05.000Z"), from.Add(took).Format("2006-01-02T15:04:05.000Z"))
+			return err
+		}
+		for i := range 5 { // the box's other devices: 3 minutes each
+			if err := add("old-"+string(rune('a'+i)), "a-printer", time.Duration(i+2)*time.Hour, 3*time.Minute); err != nil {
+				return err
+			}
+		}
+		return add("old-web", "a-web", time.Hour, 8*time.Minute) // this device: 8 minutes
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	started, hold := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	e.withProber(probeFunc(func(ctx context.Context, argv []string) (sa.Output, error) {
+		if slices.Contains(argv, "192.168.10.20") {
+			once.Do(func() { close(started) })
+			select {
+			case <-hold:
+			case <-ctx.Done():
+				return sa.Output{}, ctx.Err()
+			}
+		}
+		return sa.Output{XML: emptyScan}, nil
+	}))
+	defer close(hold)
+	web, err := e.svc.StartManual(e.ctx(), "ann@example.com", []string{"a-web"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitClosed(t, started, "the check of a-web")
+	behind, err := e.svc.StartManual(e.ctx(), "ann@example.com", []string{"a-printer"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(id string) string {
+		t.Helper()
+		r, err := e.svc.Runs().Read(e.ctx(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.Summary
+	}
+	if got := read(web.ID); !strings.HasSuffix(got, "about 8 minutes left") {
+		t.Fatalf("the running check: %q", got)
+	}
+	if got := read(behind.ID); !strings.HasSuffix(got, "; it starts in about 8 minutes") {
+		t.Fatalf("the check behind it: %q", got)
+	}
+	e.setBase(e.baseTime().Add(9 * time.Minute)) // it runs past its usual time
+	if got := read(web.ID); !strings.HasSuffix(got, "taking longer than the usual 8 minutes") {
+		t.Fatalf("the check past its usual time: %q", got)
+	}
+	if got := read(behind.ID); !strings.HasSuffix(got, "; it starts in about a minute") {
+		t.Fatalf("the check behind it, past that time: %q", got)
+	}
+}

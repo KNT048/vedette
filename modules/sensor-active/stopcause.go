@@ -71,8 +71,9 @@ func (s *Service) stopCur(cur *running, why *stopCause) {
 	if cur.why == nil {
 		cur.why = why
 	}
+	cancel := cur.cancel // a pass arms a new one for each batch (batchCtx)
 	s.mu.Unlock()
-	cur.cancel()
+	cancel()
 }
 
 // whyStopped is the reason run cur was stopped for (stopCur), nil when none was given.

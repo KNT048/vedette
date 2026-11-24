@@ -125,6 +125,7 @@ var operationRolesSession = map[string][]string{
 	CorePostCoreAccountSessionsRevokeOthersOperation:         []string{},
 	CorePostCoreConnectionsOperation:                         []string{},
 	CorePostCoreConnectionsIDTestOperation:                   []string{},
+	CorePostCoreDataBackupOperation:                          []string{},
 	CorePostCoreDataKeyOperation:                             []string{},
 	CorePostCoreDataPurgeOperation:                           []string{},
 	CorePostCoreDataRestoreOperation:                         []string{},

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -772,7 +773,7 @@ func (h *OSHandlers) cancelReboot(ctx context.Context, c caller, why string) err
 	})
 }
 
-// ---- GET /core/data/backup ----
+// ---- GET and POST /core/data/backup ----
 
 // backupLabel is the label the host keeps with the backup (letters, digits and a few signs only).
 const backupLabel = "Downloaded from Settings"
@@ -784,29 +785,51 @@ const backupLabel = "Downloaded from Settings"
 // makes a full snapshot and a manual backup on the box (the host keeps the latest 10), so: 409 busy while an
 // install runs or another download is being made, 429 within a minute of the last one.
 func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCoreDataBackupOK, error) {
+	body, err := h.downloadBackup(ctx, "")
+	return oas.CoreGetCoreDataBackupOK{Data: body}, err
+}
+
+// CorePostCoreDataBackup implements POST /core/data/backup (admin): the download of GET, encrypted with password when one is
+// given (encryptBackup: age, scrypt). The password is checked against the sign-in policy before anything is made.
+func (h *OSHandlers) CorePostCoreDataBackup(ctx context.Context, req *oas.CorePostCoreDataBackupReq) (oas.CorePostCoreDataBackupOK, error) {
+	body, err := h.downloadBackup(ctx, req.Password.Or(""))
+	return oas.CorePostCoreDataBackupOK{Data: body}, err
+}
+
+// downloadBackup is the backup download of GET and POST: the archive as the host keeps it, or encrypted with password.
+func (h *OSHandlers) downloadBackup(ctx context.Context, password string) (io.Reader, error) {
 	c, err := callerOf(ctx, h.auth)
 	if err != nil {
-		return oas.CoreGetCoreDataBackupOK{}, err
+		return nil, err
+	}
+	if password != "" {
+		if err := checkBackupPassword(password, c.Email); err != nil {
+			return nil, err
+		}
 	}
 	if err := h.alive(ctx); err != nil {
-		return oas.CoreGetCoreDataBackupOK{}, err
+		return nil, err
 	}
 	if h.busy(ctx) {
-		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then download the backup.")
+		return nil, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then download the backup.")
 	}
 	if h.restoreRunning(ctx) { // the restore stops core: nothing to wait for
-		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "A backup is being restored. Wait for it to finish.")
+		return nil, apierr.New(409, codeBusy, "A backup is being restored. Wait for it to finish.")
 	}
 	if !h.dlMu.TryLock() {
-		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "A backup is already being made. Wait for it to finish.")
+		return nil, apierr.New(409, codeBusy, "A backup is already being made. Wait for it to finish.")
 	}
 	defer h.dlMu.Unlock()
 	if wait := downloadGap - h.now().Sub(h.lastDL); !h.lastDL.IsZero() && wait > 0 {
 		secs := int((wait + time.Second - 1) / time.Second)
-		return oas.CoreGetCoreDataBackupOK{}, apierr.New(429, codeRateLimited, "A backup was made a moment ago. Wait a minute before downloading another.").With("retry_after", secs)
+		return nil, apierr.New(429, codeRateLimited, "A backup was made a moment ago. Wait a minute before downloading another.").With("retry_after", secs)
 	}
 	var backupID string
-	err = h.act(ctx, c, true, "data.backup", "backup", "database without secrets", func(id, actor string) error {
+	detail := "database without secrets"
+	if password != "" {
+		detail += ", encrypted with a password" // that it is, never the password
+	}
+	err = h.act(ctx, c, true, "data.backup", "backup", detail, func(id, actor string) error {
 		h.lastDL = h.now()
 		snap, err := h.snaps.create(ctx, false)
 		if err != nil {
@@ -836,14 +859,14 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 		return nil
 	})
 	if err != nil {
-		return oas.CoreGetCoreDataBackupOK{}, err
+		return nil, err
 	}
 	// From here the backup exists on the box: a failure to hand it over is its own audit row.
-	failed := func(code string, err error) (oas.CoreGetCoreDataBackupOK, error) {
+	failed := func(code string, err error) (io.Reader, error) {
 		if rerr := h.record(context.WithoutCancel(ctx), c, false, "data.backup_failed", "backup", code); rerr != nil {
 			h.log.ErrorContext(ctx, "core: could not audit a failed download", "error", rerr)
 		}
-		return oas.CoreGetCoreDataBackupOK{}, err
+		return nil, err
 	}
 	body, size, err := h.host.DownloadBackup(ctx, backupID)
 	if err != nil {
@@ -859,16 +882,27 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 		h.log.ErrorContext(ctx, "core: the host sent a backup of unknown size", "backup", backupID)
 		return failed(CodeHostError, apierr.New(502, CodeHostError, "The operating system helper could not do this. The details are in the box log."))
 	}
+	ext := ".tar.gz"
+	if password != "" {
+		enc, encSize, err := encryptBackup(body, size, password)
+		if err != nil {
+			_ = body.Close()
+			h.log.ErrorContext(ctx, "core: could not encrypt a backup download", "error", err) // never the password
+			return failed(apierr.CodeInternal, apierr.Internal())
+		}
+		body, size = enc, encSize
+		ext += ".age"
+	}
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		hd := x.W.Header()
 		loc, err := h.location(ctx) // the name carries the organization's day and time; a zone that cannot be read is UTC
 		if err != nil {
 			loc = time.UTC
 		}
-		hd.Set("Content-Disposition", `attachment; filename="vedette-backup-`+orgtime.FileStamp(h.now(), loc)+`.tar.gz"`)
+		hd.Set("Content-Disposition", `attachment; filename="vedette-backup-`+orgtime.FileStamp(h.now(), loc)+ext+`"`)
 		hd.Set("Content-Length", strconv.FormatInt(size, 10))
 	}
-	return oas.CoreGetCoreDataBackupOK{Data: body}, nil // the encoder closes body when the copy ends
+	return body, nil // the encoder closes body when the copy ends
 }
 
 // hostBusyWait is how long a backup the user asked for waits while vedette-host finishes another write command, and

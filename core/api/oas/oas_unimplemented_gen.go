@@ -533,7 +533,8 @@ func (UnimplementedHandler) CoreGetCoreConnections(ctx context.Context) (r *Core
 
 // CoreGetCoreDataBackup implements core_get_core_data_backup operation.
 //
-// Download a backup (password hashes, never passwords or keys).
+// Download a backup without a password (password hashes, never passwords or keys): the same as POST
+// /core/data/backup with no password.
 //
 // GET /core/data/backup
 func (UnimplementedHandler) CoreGetCoreDataBackup(ctx context.Context) (r CoreGetCoreDataBackupOK, _ error) {
@@ -946,6 +947,20 @@ func (UnimplementedHandler) CorePostCoreConnectionsIDTest(ctx context.Context, p
 	return r, ht.ErrNotImplemented
 }
 
+// CorePostCoreDataBackup implements core_post_core_data_backup operation.
+//
+// Download a backup (password hashes, never passwords or keys). With password, the file is encrypted
+// while it streams in the age format (age-encryption.org/v1, scrypt passphrase;
+// vedette-backup--.tar.gz.age): the first-run restore asks for the password, and `age -d` opens it
+// offline. The password follows the sign-in password policy (400 weak_password) and is never stored,
+// logged or audited; it cannot be recovered. Without password, the plain .tar.gz as GET. 409 busy, 429
+// rate_limited, 409 low_disk, 409 not_appliance as GET.
+//
+// POST /core/data/backup
+func (UnimplementedHandler) CorePostCoreDataBackup(ctx context.Context, req *CorePostCoreDataBackupReq) (r CorePostCoreDataBackupOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CorePostCoreDataKey implements core_post_core_data_key operation.
 //
 // Download the decryption key once, to keep apart from the backups: without it a backup restores on
@@ -1064,12 +1079,13 @@ func (UnimplementedHandler) CorePostCoreSetupRestore(ctx context.Context, req *C
 
 // CorePostCoreSetupRestoreUpload implements core_post_core_setup_restore_upload operation.
 //
-// First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz as the
-// body). Only before setup is done (409 already_setup) and with the setup code (403
-// invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a
-// Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps
-// it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a
-// container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB.
+// First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz, or the
+// password-protected .tar.gz.age with X-Backup-Password, as the body). Only before setup is done (409
+// already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The
+// box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409
+// schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the
+// decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload
+// is checked, 409 low_disk, 413 over 4 GiB.
 //
 // POST /core/setup/restore/upload
 func (UnimplementedHandler) CorePostCoreSetupRestoreUpload(ctx context.Context, req CorePostCoreSetupRestoreUploadReq, params CorePostCoreSetupRestoreUploadParams) (r *CorePostCoreSetupRestoreUploadOK, _ error) {

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"database/sql"
@@ -472,8 +473,12 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 	if err != nil {
 		return nil, err
 	}
+	data, err := h.openBackupUpload(ctx, req.Data, params.XBackupPassword.Or(""))
+	if err != nil {
+		return nil, err
+	}
 	h.snaps.dropUploads()
-	up, err := h.snaps.stageUpload(ctx, req.Data)
+	up, err := h.snaps.stageUpload(ctx, data)
 	if err != nil {
 		return nil, err
 	}
@@ -493,6 +498,43 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 		ID: up.ID, CreatedAt: up.meta.CreatedAt, Org: ins.org, Users: ins.users, TwofaUsers: ins.twofaUsers,
 		AdminsWithoutKey: ins.adminsWithoutKey, Secrets: ins.secrets,
 	}, nil
+}
+
+// openBackupUpload is the archive of an upload: the body itself, or a password-protected file (age) opened with the password
+// of X-Backup-Password while it is read, so only the plain archive reaches the staging (nothing encrypted is stored). A
+// protected file without a password is 409 password_required; a wrong password is 400 wrong_backup_password and counts as
+// a guess on the setup-code limit of the caller's address (BeginSetupAttempt, given back when the password is right): the
+// upload already needs the setup code, scrypt costs about a second per try, and the limit keeps guessing online slower
+// than guessing on a copy of the file. A plain file with a password is taken as it is (the password protects nothing).
+func (h *OSHandlers) openBackupUpload(ctx context.Context, body io.Reader, header string) (io.Reader, error) {
+	br := bufio.NewReaderSize(body, maxAgeHeader)
+	if !isAgeFile(br) {
+		return br, nil
+	}
+	password, err := backupPasswordHeader(header)
+	if err != nil {
+		return nil, err
+	}
+	if password == "" {
+		return nil, passwordRequired()
+	}
+	_, ip, err := exchange(ctx)
+	if err != nil {
+		return nil, err
+	}
+	refund, err := h.auth.BeginSetupAttempt(ip)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // 429 rate_limited as for the setup code
+	}
+	r, err := decryptBackup(br, password)
+	if ae, ok := apierr.As(err); ok && ae.Code == codeWrongBackupPassword {
+		return nil, err // a wrong guess keeps its count
+	}
+	refund() // the right password, or a file that is not one to guess at
+	if errors.Is(err, errAgeNotPassword) {
+		return nil, notABackup("This file is encrypted with a key, not with a password, so it is not a file Download backup saved.")
+	}
+	return r, err
 }
 
 // ---- POST /core/setup/restore ----

@@ -28,7 +28,16 @@ export function useSubmitSetup() {
 }
 
 // ---- restore from a backup file on the first install (S-CORE-1) ----
-export const useUploadBackup = () => useMutation({ mutationFn: (v: { code: string; file: File }) => api.upload<BackupUpload>('/core/setup/restore/upload', v.file, { 'X-Setup-Code': v.code.trim() }) })
+/** A header carries ASCII only and a password may be any text: the box reads X-Backup-Password as base64 of its UTF-8 bytes. */
+export const passwordHeader = (p: string) => btoa(Array.from(new TextEncoder().encode(p), (b) => String.fromCharCode(b)).join(''))
+/** A backup downloaded with a password is an age file: it starts with this line, so the page asks for the password before uploading. */
+export async function isPasswordProtected(f: File): Promise<boolean> {
+  const head = new Uint8Array(await f.slice(0, 22).arrayBuffer())
+  return new TextDecoder().decode(head) === 'age-encryption.org/v1\n'
+}
+export const useUploadBackup = () => useMutation({
+  mutationFn: (v: { code: string; file: File; password?: string }) => api.upload<BackupUpload>('/core/setup/restore/upload', v.file, { 'X-Setup-Code': v.code.trim(), ...(v.password ? { 'X-Backup-Password': passwordHeader(v.password) } : {}) }),
+})
 export const useSetupRestore = () => useMutation({ mutationFn: (v: { setup_code: string; upload_id: string; key?: string; confirm_without_key?: boolean; accept_terms: boolean }) => api.post<SetupRestoreRun>('/core/setup/restore', v) })
 /** Polled while the first-run restore runs. Vedette restarts during it, so a failed poll keeps polling; done once the restored
  * organization is there. */
@@ -221,6 +230,8 @@ export const useRestoreRun = () => {
   })
 }
 /** The decryption key, once, behind the password and two-step code. */
+/** Download backup: a POST so a password is never in a URL; with one the box sends an encrypted .tar.gz.age. */
+export const useDownloadBackup = () => useMutation({ mutationFn: (v: { password?: string; filename: string }) => download('/core/data/backup', v.filename, v.password ? { password: v.password } : {}) })
 export const useDownloadKey = () => useMutation({ mutationFn: (v: { password: string; code?: string }) => download('/core/data/key', 'vedette.key', v) })
 export const useRestore = () => {
   const qc = useQueryClient()

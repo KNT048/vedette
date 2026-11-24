@@ -157,6 +157,7 @@ var contractRoutes = map[string][]string{
 		"POST /core/account/sessions/revoke-others",
 		"POST /core/connections",
 		"POST /core/connections/{id}/test",
+		"POST /core/data/backup",
 		"POST /core/data/purge",
 		"POST /core/data/key",
 		"POST /core/data/restore",

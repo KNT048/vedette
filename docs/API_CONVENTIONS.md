@@ -90,7 +90,7 @@ Extracted **statically** from every call of `fail(`/`refuse(`/the `bad(` functio
 
 Codes built by a validation function with its own table (`response/state.ts` `checkCatalog`: `invalid`, `read_only`; `feeds/parsers.ts`: `too_large`, `bad_config`, `bad_sample`) were added by hand.
 
-#### HTTP 400 (258 codes)
+#### HTTP 400 (259 codes)
 
 | Code | HTTP | Sample message (EN, from the mock) | Endpoint |
 |---|---|---|---|
@@ -333,9 +333,10 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `url_unreadable` | 400 | The saved webhook URL cannot be read. Enter it again and save. | `PUT /notify/channels/webhook` (backend only: a sealed URL cannot be opened, for example after the key changed; the mock has no sealed state, so it does not return this code). A separate code because the webhook's `secret_required` is about the signing key; the GUI shows it under the URL field |
 | `username_required` | 400 | Enter the user name the box signs in with. | `POST /core/connections`; `PUT /core/connections/{id}` (SSH and Basic sign-in) |
 | `viewer_not_allowed` | 400 | A viewer cannot be an approver. | module notify (shared validator) |
-| `weak_password` | 400 | The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters. | `POST /core/account/password`; `POST /core/setup` |
+| `weak_password` | 400 | The password needs at least ${MIN_PASSWORD} characters. A long sentence is easier to remember than random characters. | `POST /core/account/password`; `POST /core/setup`; `POST /core/data/backup` (the backup password: "The backup password needs at least …") |
 | `wrong_code` | 400 | Wrong code. ${left} ${left === 1 ? 'try' : 'tries'} left. | `POST /core/account/2fa/confirm`; `POST /response/actions/{id}/approve` (email, from `VerifyTwoStep`, returned as is) |
 | `wrong_password` | 400 | The current password is wrong. | `POST /core/data/purge` ("Wrong password. The password is needed to delete all data."); `POST /core/account/2fa/disable`; `POST /core/account/password`; `POST /core/account/2fa/start`; `POST /core/account/2fa/email/start` (turning on two-step also needs the current password, message "The password is needed to turn on two-factor authentication."; a wrong one counts against the per-account re-authentication counter, separate from the failed-login counter but with the same limit of 10 per 15 minutes and the same back-off growth, and writes `auth.reauth_failed`). Also the code when the password just proven was changed between the check and the write |
+| `wrong_backup_password` | 400 | The backup password is wrong. Enter the password that was set when the backup was downloaded. | `POST /core/setup/restore/upload` (counted like a wrong setup code: 429 `rate_limited` after ten) |
 | `wrong_kind` | 400 | This action is an SSH command. Choose an SSH connection. | `PUT /response/catalog/{id}` |
 | `dhcp_no_static` | 400 | With DHCP the address, gateway and DNS come from your DHCP server. Remove the static fields. | `PUT /core/network/management` |
 | `gateway_outside_subnet` | 400 | The gateway must be inside the address range you entered. Backend [PROPOSED]: checked by `core` first, and the host's `gateway_outside_subnet` (412). | `PUT /core/network/management` |
@@ -394,7 +395,7 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (117 codes)
+#### HTTP 409 (118 codes)
 
 | Code | HTTP | Sample message (EN, from the mock) | Endpoint |
 |---|---|---|---|
@@ -410,6 +411,7 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `already_requested` | 409 | This action already has an open request or has already been carried out. | `POST /response/proposals/{id}/request`; `POST /response/incidents/{id}/request` |
 | `already_running` | 409 | A scan is already running. Wait for it to finish or press Stop now. | `POST /scans/runs` |
 | `already_setup` | 409 | This box is already set up. Sign in with the administrator account. | `POST /core/setup` |
+| `backup_password_required` | 409 | This backup is protected with a password. Enter the password that was set when it was downloaded. | `POST /core/setup/restore/upload` (an age file sent without `X-Backup-Password`) |
 | `box_device` | 409 | This is the Vedette box itself, so it cannot be deleted. It is always the first device in the list. Its packages come fr | `DELETE /inventory/devices/{id}`; `POST /inventory/devices/{id}/merge`, `POST /inventory/devices/{id}/keep-separate` ("…so it cannot be merged with another device / compared with another device. It is always its own device.") |
 | `circuit_open` | 409 | The circuit breaker is open: too many actions in one hour, so everything is paused. An admin can resume it in Settings, AI response. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); the emergency stop opens it too; `POST /response/incidents/{id}/request` |
 | `connection_changed` | 409 | The connection "…" was changed after the request was made. Nothing was changed. Ask again. (another connection, address or version than the one the request was rendered against) | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/actions/{id}/rollback`; `POST /core/connections/{id}/test` (the connection was edited while the test ran, so the result was not saved) |

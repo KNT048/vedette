@@ -68,6 +68,9 @@ test('the Download backup button saves an archive of the box (a stored secret is
   await expect(page.getByText('No AI keys or tokens.')).toBeVisible() // what the page promises about the backup
   const dl = page.waitForEvent('download', { timeout: 60_000 }) // the host makes a full snapshot and a backup first: 10 to 20 s on a busy machine
   await page.getByRole('button', { name: 'Download backup', exact: true }).click()
+  const ask = page.getByRole('dialog', { name: 'Download backup' }) // a password is offered; this test reads the plain archive
+  await ask.getByLabel('Protect the file with a password (recommended)').uncheck()
+  await ask.getByRole('button', { name: 'Download', exact: true }).click()
   const download = await dl
   savedAs = download.suggestedFilename()
   archive = readFileSync((await download.path())!)

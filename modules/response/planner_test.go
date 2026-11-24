@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-11 (S-RESP-1, INV-14e, FORBID-5): the AI writes plans, response checks every proposal, nothing runs without a person.
+// S-RESP-1, INV-14e, FORBID-5: the AI writes plans, response checks every proposal, nothing runs without a person.
 
 type fakePlanner struct {
 	mu    sync.Mutex

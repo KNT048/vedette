@@ -403,7 +403,7 @@ func (h *Handlers) InventoryGetInventoryImportTemplateCsv(ctx context.Context) (
 	return oas.InventoryGetInventoryImportTemplateCsvOK{Data: ImportTemplate()}, nil
 }
 
-// csvDownload makes the response a CSV file download (API_CONVENTIONS §7, §11): the generated file encoder says octet-stream and
+// csvDownload makes the response a CSV file download (API_CONVENTIONS §11): the generated file encoder says octet-stream and
 // names no file. Called only on success.
 func csvDownload(ctx context.Context, name string) {
 	if x, ok := server.ExchangeFrom(ctx); ok {

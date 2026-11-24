@@ -27,7 +27,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// The honeypot image (WP-08e). Its text, its locks and its unit are checked here; what a connection does to the running container is
+// The honeypot image. Its text, its locks and its unit are checked here; what a connection does to the running container is
 // checked by effect by scripts/dev/honeypot-check.sh (make honeypot-check), which builds it.
 
 func honeypotUnit(t *testing.T) map[string][]string {

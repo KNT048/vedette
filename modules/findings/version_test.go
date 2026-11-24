@@ -166,7 +166,7 @@ func FuzzCompareVersions(f *testing.F) {
 }
 
 // Regression: an ignored build/revision tail must never turn "cannot tell" into
-// "equal" at a range boundary (review of WP-21a, bug 1).
+// "equal" at a range boundary (review, bug 1).
 func TestVersionRange_Contains_TailsAtBoundary(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Vedette installer for a fresh Ubuntu 24.04 / 26.04 or Debian 13 box (WP-08h). Run as root:
+# Vedette installer for a fresh Ubuntu 24.04 / 26.04 or Debian 13 box. Run as root:
 #
 #   curl -fsSL https://github.com/KNT048/vedette/releases/download/v<version>/install.sh | sudo sh
 #   sh install.sh [--network-handover] [--uninstall --yes [--keep-data]] [--test-artifacts DIR]
@@ -23,7 +23,7 @@
 # then installs its release over them, and refuses a release older than the one that last ran on them); a podman that holds anything
 # that is not Vedette's stays with its storage, and so does any podman with --keep-data. Nothing is read from the environment.
 #
-# The three values below are filled by the release job (WP-08k) and are empty in the repository: an empty value makes the
+# The three values below are filled by the release job and are empty in the repository: an empty value makes the
 # customer path stop with a clear message, so a script that is not tied to a release can never install anything. A script that
 # has them filled never installs test artifacts.
 VEDETTE_VERSION=""

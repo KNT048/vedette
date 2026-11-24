@@ -371,7 +371,7 @@ func hostStatus(t *testing.T, h http.Handler, host string) int {
 	return rec.Code
 }
 
-// Review of WP-04b part 2 (L2): the master key file and the database are refused unless their mode is 0600,
+// Review (L2): the master key file and the database are refused unless their mode is 0600,
 // and the TLS private key is held to the same rule: a key readable by other local users lets them impersonate
 // the box to every administrator.
 func TestLoadTLSRefusesAGroupOrWorldReadableKey(t *testing.T) {

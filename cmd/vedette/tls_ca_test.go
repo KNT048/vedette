@@ -30,7 +30,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// WP-26 slice 1: the box CA signs the self-made 8443 leaf; it is sealed in core_secret.
+// the box CA signs the self-made 8443 leaf; it is sealed in core_secret.
 
 // testCAs holds one box CA store per data directory of a test, so a second call for the same directory is the same box restarting.
 var testCAs sync.Map

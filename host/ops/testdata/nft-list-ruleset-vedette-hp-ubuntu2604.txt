@@ -5,10 +5,10 @@ table inet vedette_hp {
 
 	set allow {
 		type ipv4_addr . inet_proto . inet_service
-		elements = { 192.168.142.240 . tcp . 3389,
-			     192.168.142.241 . tcp . 80,
-			     192.168.142.240 . tcp . 445,
-			     192.168.142.241 . tcp . 445 }
+		elements = { 10.142.0.240 . tcp . 3389,
+			     10.142.0.241 . tcp . 80,
+			     10.142.0.240 . tcp . 445,
+			     10.142.0.241 . tcp . 445 }
 	}
 
 	chain input {

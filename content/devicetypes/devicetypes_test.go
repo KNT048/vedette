@@ -133,7 +133,7 @@ func TestIdentify(t *testing.T) {
 			"switch", "Juniper EX2300-24P", "Juniper switch"},
 		{"nmap device type of a service", Facts{Services: []Service{{Port: 80, Proto: "tcp", Product: "Hikvision IP camera httpd", Detail: "device type: webcam"}}},
 			"camera", "", "IP camera"},
-		{"gateway", Facts{IP: "192.168.142.1", Gateway: true, Services: []Service{svc(53, "domain"), svc(443, "https")}},
+		{"gateway", Facts{IP: "10.142.0.1", Gateway: true, Services: []Service{svc(53, "domain"), svc(443, "https")}},
 			"router", "", "It is the box's default gateway: the network's router"},
 		{"gateway that is a FortiGate", Facts{IP: "10.0.0.1", Gateway: true, Vendor: "Fortinet, Inc.", VendorFromCard: true},
 			"firewall", "", "It is the box's default gateway and Fortinet network card"},

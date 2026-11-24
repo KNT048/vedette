@@ -1,4 +1,4 @@
-// Contract tests of the system commands of WP-07b part 1 (modules/host/CONTRACT.md): os.check,
+// Contract tests of the system commands (modules/host/CONTRACT.md): os.check,
 // os.install, os.auto_security.set, os.reboot, os.reboot.cancel, backup.create, backup.restore,
 // logs.export and the state endpoints. Every test runs on a fake machine (opstest): a temp root,
 // fake binaries that record argv and environment, a real SQLite database. Nothing touches /etc,
@@ -264,7 +264,7 @@ func assertEnvClean(t *testing.T, envs [][]string) {
 
 // --- the command table matches the spec ----------------------------------------------------------
 
-// documentedCommandsPart1 are the commands WP-07b has implemented so far (parts 1, 3-4, 3-5, 3-6, 3-7 and 3-8a), host.self_update
+// documentedCommandsPart1 are the commands the host has implemented so far (parts 1, 3-4, 3-5, 3-6, 3-7 and 3-8a), host.self_update
 // and zap.baseline.
 var documentedCommandsPart1 = []string{
 	"backup.create", "backup.purge", "backup.restore", "container.pull", "container.rollback", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "decoy_ip.set_ports",

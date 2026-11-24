@@ -15040,7 +15040,7 @@
     "/core/privacy": {
       "get": {
         "operationId": "core_get_core_privacy",
-        "summary": "The 14 data flows leaving the box and the verbatim anonymous-signal payload",
+        "summary": "The data flows leaving the box and the verbatim anonymous-signal payload",
         "tags": [
           "core"
         ],
@@ -15092,7 +15092,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 16 flows listed in PRIVACY.md"
+                      "description": "Exactly the flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -15227,7 +15227,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 16 flows listed in PRIVACY.md"
+                      "description": "Exactly the flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -15539,7 +15539,7 @@
                       "description": "appliance: installed by install.sh, with the system helper vedette-host; container: container-only install on the customer's Docker or Podman, no helper. The one place the GUI learns it"
                     },
                     "lan": {
-                      "description": "The network of the box's management address (CIDR, like 192.168.142.0/24), offered as the first range of the network step; null when setup is done, on a container-only install, or when the box has no private IPv4 address",
+                      "description": "The network of the box's management address (CIDR, like 10.142.0.0/24), offered as the first range of the network step; null when setup is done, on a container-only install, or when the box has no private IPv4 address",
                       "type": [
                         "string",
                         "null"
@@ -68096,7 +68096,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Ranges normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24"
+                      "description": "Ranges normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24"
                     }
                   },
                   "required": [
@@ -99953,7 +99953,7 @@
                           },
                           "label": {
                             "type": "string",
-                            "description": "What it scans, e.g. \"LAN sweep 192.168.142.0/24\", \"Check 192.168.142.20\", \"203.0.113.10\""
+                            "description": "What it scans, e.g. \"LAN sweep 10.142.0.0/24\", \"Check 10.142.0.20\", \"203.0.113.10\""
                           },
                           "target_id": {
                             "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
@@ -100685,7 +100685,7 @@
                           },
                           "label": {
                             "type": "string",
-                            "description": "What it scans, e.g. \"LAN sweep 192.168.142.0/24\", \"Check 192.168.142.20\", \"203.0.113.10\""
+                            "description": "What it scans, e.g. \"LAN sweep 10.142.0.0/24\", \"Check 10.142.0.20\", \"203.0.113.10\""
                           },
                           "target_id": {
                             "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
@@ -100985,7 +100985,7 @@
                     },
                     "label": {
                       "type": "string",
-                      "description": "What it scans, e.g. \"LAN sweep 192.168.142.0/24\", \"Check 192.168.142.20\", \"203.0.113.10\""
+                      "description": "What it scans, e.g. \"LAN sweep 10.142.0.0/24\", \"Check 10.142.0.20\", \"203.0.113.10\""
                     },
                     "target_id": {
                       "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
@@ -101260,7 +101260,7 @@
                           },
                           "label": {
                             "type": "string",
-                            "description": "What it scanned: \"LAN 192.168.142.0/24\", \"192.168.142.20\", \"SNMP read of 3 devices\", \"203.0.113.10\""
+                            "description": "What it scanned: \"LAN 10.142.0.0/24\", \"10.142.0.20\", \"SNMP read of 3 devices\", \"203.0.113.10\""
                           },
                           "target_id": {
                             "description": "The exposure target of a public scan, for a link; null otherwise (a LAN job does not record its device)",
@@ -101299,7 +101299,7 @@
                           },
                           "text": {
                             "type": "string",
-                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 192.168.142.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, \"OS guess <x>\" for nmap's fingerprint, \"OS <x>\" for the device's own answer, \"OS guess now <x> (changed since the previous check)\"; otherwise \"OS: scan guess not used now\", never a second OS value; \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 192.168.142.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
+                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 10.142.0.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, \"OS guess <x>\" for nmap's fingerprint, \"OS <x>\" for the device's own answer, \"OS guess now <x> (changed since the previous check)\"; otherwise \"OS: scan guess not used now\", never a second OS value; \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 10.142.0.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
                           }
                         },
                         "required": [
@@ -101708,7 +101708,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24"
+                      "description": "Ranges and exclusions normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24"
                     }
                   },
                   "required": [
@@ -101918,7 +101918,7 @@
                   "entry": {
                     "type": "string",
                     "maxLength": 64,
-                    "description": "One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 192.168.142.9 or 192.168.142.64/28"
+                    "description": "One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 10.142.0.9 or 10.142.0.64/28"
                   }
                 },
                 "required": [
@@ -102387,7 +102387,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24"
+                      "description": "Ranges and exclusions normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24"
                     }
                   },
                   "required": [

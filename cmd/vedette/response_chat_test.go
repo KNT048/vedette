@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-8 (response INV-3) in the real wiring: notify's Config.Decisions is the adapter over the response service, and a
+// Response INV-3 in the real wiring: notify's Config.Decisions is the adapter over the response service, and a
 // decision a chat listener hands to it is mapped to a Vedette person and goes through the same gates as the app. The listeners are not built
 // yet, so the test calls the port the way a listener will, after the platform was checked.
 

@@ -425,7 +425,7 @@ type Handler interface {
 	CoreGetCoreOidc(ctx context.Context) (*CoreGetCoreOidcOK, error)
 	// CoreGetCorePrivacy implements core_get_core_privacy operation.
 	//
-	// The 14 data flows leaving the box and the verbatim anonymous-signal payload.
+	// The data flows leaving the box and the verbatim anonymous-signal payload.
 	//
 	// GET /core/privacy
 	CoreGetCorePrivacy(ctx context.Context) (*CoreGetCorePrivacyOK, error)

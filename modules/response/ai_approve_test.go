@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-9: approving an AI request with the two-step code (INV-16), hints (INV-18), the quality breaker (INV-15 (8)), the AI state.
+// approving an AI request with the two-step code (INV-16), hints (INV-18), the quality breaker (INV-15 (8)), the AI state.
 
 // fakeTwoStep stands in for core/auth: a code belongs to one person and one purpose and works once; the line sent with it is kept.
 type fakeTwoStep struct {
@@ -610,7 +610,7 @@ func TestContract_INV16_SummaryRiskCannotBeSpoofedByTheAssetName(t *testing.T) {
 
 // L3: a rejection reason kept as a hint keeps invisible format characters (bidi overrides, Unicode tag
 // characters that a person cannot see but a model reads), unlike the summary, which strips them. Hints are shown as
-// advice and "memory" hints are meant for the AI later (13b-10, WP-25).
+// advice and "memory" hints are meant for the AI later (13b-10).
 func TestContract_INV18_HintAndRejectNoteHaveNoInvisibleCharacters(t *testing.T) {
 	t.Parallel()
 	e, _ := newAIEnv(t)

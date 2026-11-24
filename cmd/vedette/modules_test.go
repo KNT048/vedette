@@ -144,7 +144,7 @@ func TestInventoryEventsReachTheBus(t *testing.T) {
 }
 
 // Every module handler embedded in handler must be built by newHandler: a nil embedded pointer compiles
-// but panics on the first request to that module (WP-11 merge nearly shipped one).
+// but panics on the first request to that module.
 func TestNewHandlerSetsEveryModule(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

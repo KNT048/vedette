@@ -54,8 +54,8 @@ export interface NormalisedCidr { value: string; note: 'prefix' | 'network' | nu
 /** A bare address without the prefix length: do NOT guess /24 (the range could be /25, /23...). */
 export const isBareIp = (raw: string) => IPV4_BARE.test(raw.trim())
 /**
- * Normalise a network range the user typed. A prefix is required ("192.168.142.0/24"); without a prefix → null
- * (use isBareIp to report the right error). "192.168.142.5/24" has host bits → "192.168.142.0/24" (note 'network', the prefix is kept).
+ * Normalise a network range the user typed. A prefix is required ("10.142.0.0/24"); without a prefix → null
+ * (use isBareIp to report the right error). "10.142.0.5/24" has host bits → "10.142.0.0/24" (note 'network', the prefix is kept).
  */
 export function normaliseCidr(raw: string): NormalisedCidr | null {
   const s = raw.trim()

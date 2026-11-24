@@ -129,7 +129,7 @@ func TestContract_INV14c_PrecheckAndExpectAreTypedAndChecked(t *testing.T) {
 	}
 }
 
-// INV-14c (M4 of the WP-13a review): a device action that names a port needs a check before it with at least one refusal
+// INV-14c (M4 of the review): a device action that names a port needs a check before it with at least one refusal
 // text, so a trunk or uplink port is never touched. Refused when saved; an older row without one is "not available".
 func TestContract_INV14c_PortActionNeedsACheckBefore(t *testing.T) {
 	t.Parallel()

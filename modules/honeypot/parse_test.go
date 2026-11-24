@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// A real log type 5000 line written by the honeypot image (WP-08e): OpenCanary's smb module sets "src_port" to the STRING "-1".
+// A real log type 5000 line written by the honeypot image: OpenCanary's smb module sets "src_port" to the STRING "-1".
 // Before the fix the whole line was refused, so no SMB file-token hit ever reached core.
 const realSMBLine = `{"dst_host": "10.89.0.2", "dst_port": 445, "local_time": "2026-11-11 07:57:08.484465", "local_time_adjusted": "2026-11-11 07:57:08.484477", "logdata": {"AUDITACTION": "openat", "DOMAIN": "", "FILENAME": "/passwords.txt", "LOCALNAME": "FILESERVER", "REMOTENAME": "10.89.0.3", "SHARENAME": "Shared", "SMBARCH": "Vista", "SMBVER": "SMB3_11", "STATUS": "ok", "USER": "anonymous"}, "logtype": 5000, "node_id": "vedette-honeypot", "src_host": "10.89.0.3", "src_port": "-1", "utc_time": "2026-11-11 07:57:08.484465"}`
 
@@ -58,7 +58,7 @@ func TestHTTPRedirectAndRefusedMethodAreHTTPHits(t *testing.T) {
 		ltHTTPRedirect: "request GET / (redirected to the login page), User-Agent: curl/8",
 		ltHTTPOther:    "request with a method the page refuses, / , User-Agent: curl/8",
 	} {
-		line := `{"logtype":` + strconv.Itoa(lt) + `,"src_host":"192.168.142.50","dst_host":"192.168.142.240","src_port":5,"dst_port":80,"utc_time":"2026-11-12 10:00:00.1","logdata":{"HOSTNAME":"192.168.142.240","PATH":"/","USERAGENT":"curl/8"}}`
+		line := `{"logtype":` + strconv.Itoa(lt) + `,"src_host":"10.142.0.50","dst_host":"10.142.0.240","src_port":5,"dst_port":80,"utc_time":"2026-11-12 10:00:00.1","logdata":{"HOSTNAME":"10.142.0.240","PATH":"/","USERAGENT":"curl/8"}}`
 		r, err := ParseLine([]byte(line))
 		if err != nil {
 			t.Fatal(err)

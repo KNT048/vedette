@@ -73,7 +73,7 @@ type deps struct {
 	// SelfSigned: the box serves its own certificate (no -tls-cert), so it adds the Box address itself; the Box network page says so.
 	SelfSigned bool
 	Conn       *conn.Service // connections to devices (core/conn): core's handlers, response and the Privacy page share it
-	// ConnReader lists and calls the read tools of the connections (core/conn/read). The ai module (WP-25) is given this and nothing
+	// ConnReader lists and calls the read tools of the connections (core/conn/read). The ai module is given this and nothing
 	// else of core/conn: not the *conn.Service and not the writer, which only response gets. nil when there is no Conn.
 	ConnReader *read.Reader
 	Logs       *logexport.Registry   // the sources of /core/logs/export (INV-13): core adds "audit", registerLogSources the rest
@@ -98,7 +98,7 @@ type deps struct {
 	// BoxName is the box's own name (#471): the OS host name vedette-host reports, "vedette" without one. The inventory's box row, the
 	// Logs sources page and the SIEM records share it. nil in tests: "vedette".
 	BoxName *boxHostName
-	// TrustAnchor, HostAllowed and OsqueryDir feed agent-intake's install scripts, ca.pem and package mirror (WP-26 slice 3); all may be
+	// TrustAnchor, HostAllowed and OsqueryDir feed agent-intake's install scripts, ca.pem and package mirror; all may be
 	// nil or empty in tests, and the module then answers 404 for what it lacks.
 	TrustAnchor func() ([]byte, error)
 	HostAllowed func(host string) bool

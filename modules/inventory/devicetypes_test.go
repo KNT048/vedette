@@ -29,21 +29,21 @@ func labDevices() []labDevice {
 		return []observe.Observation{{Field: observe.Vendor, Value: vendor, Source: observe.Nmap, Confidence: 0.6}}
 	}
 	return []labDevice{
-		{"192.168.142.251", "70:4c:a5:fc:2f:50", v("Fortinet"), []observe.Service{tcp(22, "ssh")}, "firewall", "Fortinet network card and port 22 (ssh): most likely a FortiGate firewall"},
-		{"192.168.142.252", "70:4c:a5:f6:f8:e4", v("Fortinet"), []observe.Service{tcp(22, "ssh")}, "firewall", "FortiGate"},
-		{"192.168.142.47", "3c:8a:b0:9c:85:ff", v("Juniper Networks"), []observe.Service{tcp(22, "ssh"), tcp(80, "http"), tcp(443, "https")}, "switch", "Juniper Networks network card and ports 22 (ssh), 80 (http) and 443 (https): most likely a Juniper switch"},
-		{"192.168.142.1", "00:f0:4d:00:9d:60", nil, []observe.Service{tcp(53, "domain"), tcp(443, "https")}, "router", "It is the box's default gateway"},
-		{"192.168.142.254", "10:2d:41:cc:a0:1d", v("Sichuan AI-Link Technology"), []observe.Service{tcp(80, "http"), tcp(443, "https"), tcp(554, "rtsp"), tcp(8000, "http-alt"), tcp(8443, "https-alt")}, "camera", "port 554 (rtsp)"},
-		{"192.168.142.108", "c8:b5:ad:cf:71:34", []observe.Observation{{Field: observe.Vendor, Value: "Hewlett Packard Enterprise", Source: observe.Passive, Confidence: 0.4}},
+		{"10.142.0.251", "70:4c:a5:fc:2f:50", v("Fortinet"), []observe.Service{tcp(22, "ssh")}, "firewall", "Fortinet network card and port 22 (ssh): most likely a FortiGate firewall"},
+		{"10.142.0.252", "70:4c:a5:f6:f8:e4", v("Fortinet"), []observe.Service{tcp(22, "ssh")}, "firewall", "FortiGate"},
+		{"10.142.0.47", "3c:8a:b0:9c:85:ff", v("Juniper Networks"), []observe.Service{tcp(22, "ssh"), tcp(80, "http"), tcp(443, "https")}, "switch", "Juniper Networks network card and ports 22 (ssh), 80 (http) and 443 (https): most likely a Juniper switch"},
+		{"10.142.0.1", "00:f0:4d:00:9d:60", nil, []observe.Service{tcp(53, "domain"), tcp(443, "https")}, "router", "It is the box's default gateway"},
+		{"10.142.0.254", "10:2d:41:cc:a0:1d", v("Sichuan AI-Link Technology"), []observe.Service{tcp(80, "http"), tcp(443, "https"), tcp(554, "rtsp"), tcp(8000, "http-alt"), tcp(8443, "https-alt")}, "camera", "port 554 (rtsp)"},
+		{"10.142.0.108", "c8:b5:ad:cf:71:34", []observe.Observation{{Field: observe.Vendor, Value: "Hewlett Packard Enterprise", Source: observe.Passive, Confidence: 0.4}},
 			[]observe.Service{tcp(22, "ssh"), tcp(23, "telnet"), tcp(80, "http"), tcp(443, "https"), tcp(8080, "http-proxy")}, "switch", "HPE/Aruba managed switch"},
-		{"192.168.142.100", "94:57:a5:68:6c:aa", v("Hewlett Packard"), []observe.Service{tcp(22, "ssh"), tcp(80, "http"), tcp(443, "https")}, "switch", "HP switch"},
-		{"192.168.142.67", "94:57:a5:56:9d:cc", v("Hewlett Packard"), []observe.Service{tcp(80, "http"), tcp(443, "https"), tcp(8000, "http-alt")}, "", ""},
-		{"192.168.142.109", "00:0b:82:e1:cf:26", v("Grandstream Networks"), []observe.Service{tcp(22, "ssh"), tcp(80, "http")}, "ip_phone", "Grandstream IP phone"},
-		{"192.168.142.155", "00:0c:29:4b:9b:f7", v("VMware"), []observe.Service{tcp(22, "ssh"), tcp(443, "https")}, "virtual_machine", "VMware network card"},
-		{"192.168.142.140", "2c:6f:c9:33:13:bb", append(v("Hon Hai Precision Ind."), observe.Observation{Field: observe.Hostname, Value: "byn2", Source: observe.Passive, Confidence: 0.6}),
+		{"10.142.0.100", "94:57:a5:68:6c:aa", v("Hewlett Packard"), []observe.Service{tcp(22, "ssh"), tcp(80, "http"), tcp(443, "https")}, "switch", "HP switch"},
+		{"10.142.0.67", "94:57:a5:56:9d:cc", v("Hewlett Packard"), []observe.Service{tcp(80, "http"), tcp(443, "https"), tcp(8000, "http-alt")}, "", ""},
+		{"10.142.0.109", "00:0b:82:e1:cf:26", v("Grandstream Networks"), []observe.Service{tcp(22, "ssh"), tcp(80, "http")}, "ip_phone", "Grandstream IP phone"},
+		{"10.142.0.155", "00:0c:29:4b:9b:f7", v("VMware"), []observe.Service{tcp(22, "ssh"), tcp(443, "https")}, "virtual_machine", "VMware network card"},
+		{"10.142.0.140", "2c:6f:c9:33:13:bb", append(v("Hon Hai Precision Ind."), observe.Observation{Field: observe.Hostname, Value: "srv02", Source: observe.Passive, Confidence: 0.6}),
 			[]observe.Service{tcp(22, "ssh"), tcp(514, "shell"), tcp(8443, "https-alt")}, "server", "Linux server"},
-		{"192.168.142.141", "8c:ec:4b:45:f8:b7", v("Dell"), []observe.Service{tcp(22, "ssh"), tcp(514, "shell"), tcp(8443, "https-alt")}, "server", "Dell network card and port 22 (ssh)"},
-		{"192.168.142.145", "b2:f0:09:23:2e:5b", []observe.Observation{
+		{"10.142.0.141", "8c:ec:4b:45:f8:b7", v("Dell"), []observe.Service{tcp(22, "ssh"), tcp(514, "shell"), tcp(8443, "https-alt")}, "server", "Dell network card and port 22 (ssh)"},
+		{"10.142.0.145", "b2:f0:09:23:2e:5b", []observe.Observation{
 			{Field: observe.Hostname, Value: "annas-macbook-air", Source: observe.Passive, Confidence: 0.6},
 			{Field: observe.Model, Value: "Mac14,2", Source: observe.Passive, Confidence: 0.5},
 		}, []observe.Service{tcp(5000, "upnp"), tcp(49153, "")}, "laptop", `host name "annas-macbook-air"`},
@@ -83,7 +83,7 @@ func TestContract_LabDevicesGetTheirType(t *testing.T) {
 	t.Parallel()
 	asked := 0
 	e := newEnv(t, func(c *inventory.Config) {
-		c.Gateway = func(context.Context) netip.Addr { asked++; return netip.MustParseAddr("192.168.142.1") }
+		c.Gateway = func(context.Context) netip.Addr { asked++; return netip.MustParseAddr("10.142.0.1") }
 	})
 	ids := loadLab(e)
 	// #714 M3: only the Devices page and the device page ask for guesses (and the host for its gateway); every other reader, such as
@@ -92,7 +92,7 @@ func TestContract_LabDevicesGetTheirType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d, _ := e.svc.Device(e.ctx(), ids["192.168.142.251"]); d.Guess != nil || asked != 0 || slices.ContainsFunc(plain.Items, func(d inventory.Device) bool { return d.Guess != nil }) {
+	if d, _ := e.svc.Device(e.ctx(), ids["10.142.0.251"]); d.Guess != nil || asked != 0 || slices.ContainsFunc(plain.Items, func(d inventory.Device) bool { return d.Guess != nil }) {
 		t.Fatalf("Devices/Device computed guesses (asked the gateway %d times)", asked)
 	}
 	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{})
@@ -123,7 +123,7 @@ func TestContract_LabDevicesGetTheirType(t *testing.T) {
 	}
 	// Behaviour is untouched: still unknown for the scan policy, and no never-touch gateway from a guess.
 	confirmScope(e)
-	dec, err := e.svc.ScanPolicy(e.ctx(), ids["192.168.142.251"])
+	dec, err := e.svc.ScanPolicy(e.ctx(), ids["10.142.0.251"])
 	if err != nil || !dec.Unclassified {
 		t.Fatalf("scan policy of a guessed FortiGate = %+v, %v; want unclassified (careful)", dec, err)
 	}
@@ -136,7 +136,7 @@ func TestContract_LabDevicesGetTheirType(t *testing.T) {
 	loadLab(e2)
 	l2, _ := e2.svc.DevicesPage(e2.ctx(), inventory.DeviceFilter{})
 	for _, d := range l2.Items {
-		if d.IP == "192.168.142.1" && (d.Guess == nil || d.Guess.Type != "router" || !strings.Contains(d.Guess.Evidence, "address ending in .1")) {
+		if d.IP == "10.142.0.1" && (d.Guess == nil || d.Guess.Type != "router" || !strings.Contains(d.Guess.Evidence, "address ending in .1")) {
 			t.Fatalf("gateway unknown: .1 guess = %+v", d.Guess)
 		}
 	}
@@ -150,7 +150,7 @@ func confirmScope(e *env) {
 		e.t.Fatal(err)
 	}
 	in := inventory.SettingsInput{Settings: st, ScopeConfirmed: true}
-	in.LANRanges = []string{"192.168.142.0/24"}
+	in.LANRanges = []string{"10.142.0.0/24"}
 	in.Active.Enabled = true
 	if _, err := e.svc.SaveSettings(e.ctx(), "it@acme.example", in); err != nil {
 		e.t.Fatal(err)
@@ -174,23 +174,23 @@ func TestContract_TypesActAsTheirKind(t *testing.T) {
 		}
 		return d
 	}
-	if d := set("192.168.142.109", "ip_phone"); d.Kind != "ip_phone" || !d.Fragile || d.Guess != nil || d.KindSource == nil || *d.KindSource != "manual" {
+	if d := set("10.142.0.109", "ip_phone"); d.Kind != "ip_phone" || !d.Fragile || d.Guess != nil || d.KindSource == nil || *d.KindSource != "manual" {
 		t.Fatalf("confirmed IP phone = kind %q fragile %v guess %v source %v; want ip_phone, fragile (acts as iot), no guess, manual", d.Kind, d.Fragile, d.Guess, d.KindSource)
 	}
-	if d := set("192.168.142.155", "virtual_machine"); d.Fragile {
+	if d := set("10.142.0.155", "virtual_machine"); d.Fragile {
 		t.Fatal("a virtual machine acts as a server: not fragile")
 	}
-	set("192.168.142.251", "vpn_gateway")
+	set("10.142.0.251", "vpn_gateway")
 	gws, err := e.svc.DevicesOfKind(e.ctx(), []string{"router", "firewall"})
 	if err != nil || len(gws) != 1 || gws[0].Kind != "vpn_gateway" || !gws[0].TrustedKind() {
 		t.Fatalf("never-touch gateways = %+v, %v; want the VPN gateway, trusted", gws, err)
 	}
 	bad := "fortigate"
-	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", ids["192.168.142.47"], inventory.Patch{Kind: &bad}); err == nil {
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", ids["10.142.0.47"], inventory.Patch{Kind: &bad}); err == nil {
 		t.Fatal("a kind that is no device type was accepted")
 	}
 	// A sensor may report a new type too (nmap's VoIP phone), and the fragile setting still lists only the 13 kinds.
-	e.record(obs(netip.MustParseAddr("192.168.142.67"), "", observe.Kind, "smartphone", observe.Nmap, 0.5))
+	e.record(obs(netip.MustParseAddr("10.142.0.67"), "", observe.Kind, "smartphone", observe.Nmap, 0.5))
 	st, _ := e.svc.Settings(e.ctx())
 	in := inventory.SettingsInput{Settings: st}
 	in.FragileKinds = append(slices.Clone(st.FragileKinds), "ip_phone")
@@ -203,7 +203,7 @@ func TestContract_TypesActAsTheirKind(t *testing.T) {
 func TestContract_ImportReadsTypeNames(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	res, err := e.svc.Import(e.ctx(), "it@acme.example", "d.csv", "name,ip,type\nphone-1,192.168.142.20,IP phone\nnote-1,192.168.142.21,notebook\nrec-1,192.168.142.22,camera_recorder\nx,192.168.142.23,fortigate\n")
+	res, err := e.svc.Import(e.ctx(), "it@acme.example", "d.csv", "name,ip,type\nphone-1,10.142.0.20,IP phone\nnote-1,10.142.0.21,notebook\nrec-1,10.142.0.22,camera_recorder\nx,10.142.0.23,fortigate\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestContract_ImportReadsTypeNames(t *testing.T) {
 	for _, d := range l.Items {
 		got[d.IP] = d.Kind
 	}
-	if got["192.168.142.20"] != "ip_phone" || got["192.168.142.21"] != "laptop" || got["192.168.142.22"] != "nvr" {
+	if got["10.142.0.20"] != "ip_phone" || got["10.142.0.21"] != "laptop" || got["10.142.0.22"] != "nvr" {
 		t.Fatalf("imported kinds = %v", got)
 	}
 }
@@ -227,16 +227,16 @@ func TestContract_PendingGentleScans(t *testing.T) {
 	e := newEnv(t)
 	ids := loadLab(e)
 	fragile, never := true, "never"
-	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", ids["192.168.142.109"], inventory.Patch{Fragile: &fragile}); err != nil {
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", ids["10.142.0.109"], inventory.Patch{Fragile: &fragile}); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", ids["192.168.142.47"], inventory.Patch{RegularScan: &never}); err != nil {
+	if err := e.svc.PatchDevice(e.ctx(), "it@acme.example", ids["10.142.0.47"], inventory.Patch{RegularScan: &never}); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.svc.MarkFirstScan(e.ctx(), ids["192.168.142.251"]); err != nil {
+	if err := e.svc.MarkFirstScan(e.ctx(), ids["10.142.0.251"]); err != nil {
 		t.Fatal(err)
 	}
-	e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.142.250"}) // declared by hand
+	e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "10.142.0.250"}) // declared by hand
 	got, err := e.svc.PendingGentleScans(e.ctx())
 	if err != nil {
 		t.Fatal(err)
@@ -244,7 +244,7 @@ func TestContract_PendingGentleScans(t *testing.T) {
 	if len(got) != len(labDevices())-3 {
 		t.Fatalf("%d devices wait for their gentle scan, want %d (13 less the fragile, the never and the scanned one)", len(got), len(labDevices())-3)
 	}
-	for _, ip := range []string{"192.168.142.109", "192.168.142.47", "192.168.142.251"} {
+	for _, ip := range []string{"10.142.0.109", "10.142.0.47", "10.142.0.251"} {
 		if slices.Contains(got, ids[ip]) {
 			t.Errorf("%s listed", ip)
 		}

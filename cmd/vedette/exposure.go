@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/modules/notify"
 )
 
-// exposureTestConfig is a seam for the end-to-end box (cmd/vedette/e2eexposure_test.go, WP-30, #263): a test binary sets it to swap the
+// exposureTestConfig is a seam for the end-to-end box (cmd/vedette/e2eexposure_test.go, #263): a test binary sets it to swap the
 // prober, the resolver and the scan runner for loopback fakes. It is nil in the production binary, which keeps the real ones.
 var exposureTestConfig func(*exposure.Config)
 

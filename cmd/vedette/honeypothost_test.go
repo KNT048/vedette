@@ -30,7 +30,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// The honeypot over the real vedette-host (WP-30 slice 8a): the real host server and the real client on a unix
+// The honeypot over the real vedette-host: the real host server and the real client on a unix
 // socket, a fake machine under them (opstest), the module and the adapter as cmd/vedette wires them. Nothing here runs
 // a container or touches a network card.
 

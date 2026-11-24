@@ -1,4 +1,4 @@
-// Package deb checks the vedette-host .deb (WP-08g) by building it: nfpm runs for real (go tool -modfile=tools/go.mod nfpm, pinned,
+// Package deb checks the vedette-host .deb by building it: nfpm runs for real (go tool -modfile=tools/go.mod nfpm, pinned,
 // a few seconds) over a placeholder binary, and the control fields, the file list with modes and owners, the unit bytes and the maintainer scripts
 // are read back from the package. Nothing is installed here: what the scripts do to a system (users, directories, /etc/subuid, enabled and not
 // started, data kept on remove) is checked by scripts/dev/host-deb-check.sh in a systemd container (`make host-deb-check`, opt-in).

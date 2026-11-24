@@ -107,10 +107,10 @@ func TestWiringSensorCardsComeFromTheHost(t *testing.T) {
 func TestWiringSensorDefaultCardIsTheDefaultRouteCard(t *testing.T) {
 	t.Parallel()
 	fresh := api.NetState{Interfaces: []api.NetInterface{
-		{Name: "enp2s0", MAC: "02:00:00:00:00:01", State: "up", Addresses: []string{"192.168.142.141/24"}},
+		{Name: "enp2s0", MAC: "02:00:00:00:00:01", State: "up", Addresses: []string{"10.142.0.141/24"}},
 		{Name: "vedette0", MAC: "02:00:00:00:00:02", State: "up", Addresses: []string{"172.30.7.1/24"}},
-		{Name: "wlp3s0", MAC: "02:00:00:00:00:03", State: "up", Addresses: []string{"192.168.142.142/24"}},
-	}, DefaultRoute: &api.NetRoute{Iface: "enp2s0", Gateway: "192.168.142.1"}}
+		{Name: "wlp3s0", MAC: "02:00:00:00:00:03", State: "up", Addresses: []string{"10.142.0.142/24"}},
+	}, DefaultRoute: &api.NetRoute{Iface: "enp2s0", Gateway: "10.142.0.1"}}
 	f := startFakeHost(t, fresh)
 	var skew atomic.Int64
 	s := newStackWith(t, func(d *deps) {
@@ -286,7 +286,7 @@ func TestWiringContainerOnlyAdminChoosesAnAddressedCard(t *testing.T) {
 	s := newStackWith(t, func(*deps) {})
 	ctx := t.Context()
 	beat := &sensorlink.PassiveHeartbeat{Version: "1.0.0", Drops: map[string]int64{}, Interfaces: []sensorlink.HeartbeatIface{
-		{Name: "enp2s0", MAC: "02:00:00:00:00:01", Link: true, IPv4: []string{"192.168.142.141/24"}},
+		{Name: "enp2s0", MAC: "02:00:00:00:00:01", Link: true, IPv4: []string{"10.142.0.141/24"}},
 		{Name: "eno1", MAC: "02:00:00:00:00:02", Link: true, IPv4: []string{"10.0.0.5/24"}},
 	}}
 	if _, err := s.d.SensorPassive.PassiveHeartbeat(ctx, beat); err != nil {

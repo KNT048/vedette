@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-10 in the real wiring: the AI proposal goes through the Go port, never through HTTP, and evidence the
+// In in the real wiring: the AI proposal goes through the Go port, never through HTTP, and evidence the
 // binary cannot look up yet fails closed.
 
 func TestWiringProposeThroughTheGoPort(t *testing.T) {

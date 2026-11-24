@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Slice 4a of WP-25 (S-AI-7): the rules a company adds to every prompt, its own hooks and the switches of the built-in hooks.
+// the rules a company adds to every prompt, its own hooks and the switches of the built-in hooks.
 // They live in ai_rule, ai_hook and ai_hook_state. The service keeps one immutable generation of them (harness) that a change
 // replaces after its transaction commits, so a call in flight sees either the old settings or the new ones, never a mix.
 

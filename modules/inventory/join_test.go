@@ -14,7 +14,7 @@ import (
 const (
 	jnprBase = "3c:8a:b0:9c:85:80"
 	jnprMgmt = "3c:8a:b0:9c:85:ff"
-	jnprIP   = "192.168.142.47"
+	jnprIP   = "10.142.0.47"
 )
 
 // lldp is what sensor-passive sends for one LLDP frame (capture/engine.go handleLLDP).
@@ -138,8 +138,8 @@ func TestContract_DifferentDevicesStayApart(t *testing.T) {
 		"another maker":            {ipMAC: "00:11:22:9c:85:ff", frame: lldp(jnprBase, "")},
 		"outside the block":        {ipMAC: "3c:8a:b0:9c:85:80", frame: lldp("3c:8a:b0:9c:85:00", "")},
 		"below the base":           {ipMAC: "3c:8a:b0:9c:85:10", frame: lldp(jnprBase, "")},
-		"two in one block":         {ipMAC: "3c:8a:b0:9c:85:90", extra: seenAt("3c:8a:b0:9c:85:a0", "192.168.142.49", ""), frame: lldp(jnprBase, "")},
-		"both have addresses":      {ipMAC: jnprMgmt, frame: seenAt(jnprBase, "192.168.142.48", "")},
+		"two in one block":         {ipMAC: "3c:8a:b0:9c:85:90", extra: seenAt("3c:8a:b0:9c:85:a0", "10.142.0.49", ""), frame: lldp(jnprBase, "")},
+		"both have addresses":      {ipMAC: jnprMgmt, frame: seenAt(jnprBase, "10.142.0.48", "")},
 		"a random MAC":             {ipMAC: "3e:8a:b0:9c:85:ff", frame: lldp("3e:8a:b0:9c:85:80", "")},
 		"not network gear":         {ipMAC: jnprMgmt, frame: []observe.Observation{{AssetHint: observe.AssetHint{MAC: jnprBase}, Field: observe.Hostname, Value: "laptop", Source: observe.Passive, Confidence: 0.5}}},
 		"names differ":             {ipMAC: jnprMgmt, ipName: "sw-b", frame: lldp(jnprBase, "sw-a")},
@@ -148,7 +148,7 @@ func TestContract_DifferentDevicesStayApart(t *testing.T) {
 		"a name on another maker":  {ipMAC: "00:11:22:9c:00:01", ipName: "sw-core", frame: lldp(jnprBase, "sw-core")},
 		"a name on a far MAC":      {ipMAC: "3c:8a:b0:11:00:01", ipName: "sw-core", frame: lldp(jnprBase, "sw-core")},
 		"a default name":           {ipMAC: "3c:8a:b0:9c:00:10", ipName: "Amnesiac", frame: lldp(jnprBase, "Amnesiac")},
-		"a name two devices share": {ipMAC: "3c:8a:b0:9c:00:01", ipName: "sw-core", extra: seenAt("3c:8a:b0:9c:00:02", "192.168.142.49", "sw-core"), frame: lldp(jnprBase, "sw-core")},
+		"a name two devices share": {ipMAC: "3c:8a:b0:9c:00:01", ipName: "sw-core", extra: seenAt("3c:8a:b0:9c:00:02", "10.142.0.49", "sw-core"), frame: lldp(jnprBase, "sw-core")},
 		"another chassis":          {ipMAC: jnprMgmt, extra: lldp("3c:8a:b0:9c:85:81", ""), frame: lldp(jnprBase, "")},
 		"a declared row": {ipMAC: jnprMgmt, frame: lldp(jnprBase, ""), setup: func(e *env) {
 			e.exec(`UPDATE inv_asset SET origin = 'manual' WHERE mac = ?`, jnprBase)

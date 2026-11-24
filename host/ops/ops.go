@@ -1,5 +1,5 @@
 // Package ops implements the system commands of vedette-host (docs/specs/host-api.md section 6)
-// that WP-07b part 1 delivers: os.check, os.install, os.auto_security.set, os.reboot,
+// that the host delivers: os.check, os.install, os.auto_security.set, os.reboot,
 // os.reboot.cancel, backup.create, backup.restore and logs.export, plus the read-only state
 // endpoints that belong to them, and (part 3) net.apply, net.confirm, net.revert and the NTP
 // sources, (slice 3-5) decoy_ip.add and decoy_ip.remove with the honeypot namespace, and (slice 3-6)

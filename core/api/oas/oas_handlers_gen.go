@@ -9205,7 +9205,7 @@ func (s *Server) handleCoreGetCoreOidcRequest(args [0]string, argsEscaped bool, 
 
 // handleCoreGetCorePrivacyRequest handles core_get_core_privacy operation.
 //
-// The 14 data flows leaving the box and the verbatim anonymous-signal payload.
+// The data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9274,7 +9274,7 @@ func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCorePrivacyOperation,
-			OperationSummary: "The 14 data flows leaving the box and the verbatim anonymous-signal payload",
+			OperationSummary: "The data flows leaving the box and the verbatim anonymous-signal payload",
 			OperationID:      "core_get_core_privacy",
 			Body:             nil,
 			RawBody:          rawBody,

@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible } from '../helpers'
-import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
+import { begin, noHScroll, stepper, THEMES } from './ui-check-shared'
 
-// WP-06 independent check, area 7: "As the IT operator I open a device whose sources disagree and want to know which value Vedette uses and why."
+// "As the IT operator I open a device whose sources disagree and want to know which value Vedette uses and why."
 // Devices -> a device's details. Source priority: manual > agent > snmp > nmap/scan > passive; other values still listed.
 const RANK: Record<string, number> = { manual: 5, agent: 4, snmp: 3, 'active scan': 2, nmap: 2, scan: 2, passive: 1 }
 type Obs = { field: string; value: string; source: string; current: boolean }

@@ -42,7 +42,7 @@ test('a user works in the GUI: declares a device, handles a finding, signs out a
   // "I have" from the "This week" table adds a hand-declared device
   await page.getByRole('button', { name: 'I have this' }).first().click()
   await expect(page.getByText(/^Done\. This flaw is now a finding/).first()).toBeVisible() // feeds weekly.addedToast
-  // A confirmed finding shows the "BYN confirmed" guidance and the FortiGate config snippet
+  // A confirmed finding shows the confirmed-finding guidance and the FortiGate config snippet
   await page.goto('/findings/f-1')
   await expect(page.getByText('Confirmed by scan', { exact: true }).first()).toBeVisible()
   await expect(page.getByText(/192\.168\.10\.21/).first()).toBeVisible()

@@ -10,11 +10,11 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-31 review, slice R2: the execution path.
+//, slice R2: the execution path.
 
 // L1: when the second approval completes a request, the first approver is read again. A first approver who was disabled since does not count:
 // the second approval stays one approval and the request waits for another person.
-func TestWP31_L1_ADisabledFirstApproverNoLongerCounts(t *testing.T) {
+func TestADisabledFirstApproverNoLongerCounts(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_policy_disable")
@@ -46,7 +46,7 @@ func TestWP31_L1_ADisabledFirstApproverNoLongerCounts(t *testing.T) {
 }
 
 // L1, the same for a demotion.
-func TestWP31_L1_ADemotedFirstApproverNoLongerCounts(t *testing.T) {
+func TestADemotedFirstApproverNoLongerCounts(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_policy_disable")
@@ -67,7 +67,7 @@ func TestWP31_L1_ADemotedFirstApproverNoLongerCounts(t *testing.T) {
 }
 
 // L2: a step whose outcome is not known (a time-out, a 5xx) may have changed the device, so it uses up the hourly limit like one that ran.
-func TestWP31_L2_AnUnknownOutcomeUsesUpTheHourlyLimit(t *testing.T) {
+func TestAnUnknownOutcomeUsesUpTheHourlyLimit(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.firewall("fgt_ban_ip")
@@ -89,7 +89,7 @@ func TestWP31_L2_AnUnknownOutcomeUsesUpTheHourlyLimit(t *testing.T) {
 
 // L3: the rollback that goes out is the one that was rendered when the request was made. The catalog entry is edited after the run, so the
 // re-render check is not asked; the stored rollback is then altered: the TTL sweep must not send it.
-func TestWP31_L3_AnUndoRefusesARollbackThatDoesNotMatchItsHash(t *testing.T) {
+func TestAnUndoRefusesARollbackThatDoesNotMatchItsHash(t *testing.T) {
 	t.Parallel()
 	e := banRequest(t)
 	got := e.approveOnly()
@@ -109,7 +109,7 @@ func TestWP31_L3_AnUndoRefusesARollbackThatDoesNotMatchItsHash(t *testing.T) {
 
 // L5: the emergency stop cancels a step that is being sent. The item ends as "stopped", state unknown, and the log says why; it does not wait
 // for the step's own time limit.
-func TestWP31_L5_EmergencyStopCancelsAStepInFlight(t *testing.T) {
+func TestEmergencyStopCancelsAStepInFlight(t *testing.T) {
 	t.Parallel()
 	e := banRequest(t)
 	e.exec.hold = make(chan struct{}) // the device is slow to answer the run step
@@ -149,7 +149,7 @@ func TestWP31_L5_EmergencyStopCancelsAStepInFlight(t *testing.T) {
 }
 
 // Body credentials: headers are covered elsewhere; a JSON body key that names a credential may only hold exactly one placeholder.
-func TestWP31_BodyCredentialKeyWithALiteralValueIsRefused(t *testing.T) {
+func TestBodyCredentialKeyWithALiteralValueIsRefused(t *testing.T) {
 	t.Parallel()
 	refused := []string{
 		`{"api_key":"abc123"}`, `{"apiKey":"abc123"}`, `{"API-KEY":"abc123"}`, `{"token":"x"}`, `{"password":"hunter2"}`, `{"secret":12345}`,
@@ -183,7 +183,7 @@ func TestWP31_BodyCredentialKeyWithALiteralValueIsRefused(t *testing.T) {
 
 // The never-touch list fails closed. A box address source that cannot say (a host that never answered, an unreadable honeypot record)
 // is a refusal, not a smaller list.
-func TestWP31_L9_AnUnknownBoxAddressSetRefuses(t *testing.T) {
+func TestAnUnknownBoxAddressSetRefuses(t *testing.T) {
 	t.Parallel()
 	fail := true
 	e := newEnv(t, func(c *response.Config) {
@@ -207,7 +207,7 @@ func TestWP31_L9_AnUnknownBoxAddressSetRefuses(t *testing.T) {
 }
 
 // The MACs of the decoys and of the cards are on the never-touch list (the MAC side), and an unreadable source refuses.
-func TestWP31_L9_DecoyAndCardMACsAreNeverTouch(t *testing.T) {
+func TestDecoyAndCardMACsAreNeverTouch(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, func(c *response.Config) {
 		c.BoxMACs = func() ([]string, error) { return []string{"02:11:22:33:44:55"}, nil }
@@ -227,7 +227,7 @@ func TestWP31_L9_DecoyAndCardMACsAreNeverTouch(t *testing.T) {
 }
 
 // The card MACs come from the interfaces of the box itself.
-func TestWP31_L9_CardMACsAreNeverTouch(t *testing.T) {
+func TestCardMACsAreNeverTouch(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.svc.SetMACsForTest(func() ([]string, error) { return []string{"aa:bb:cc:00:00:01"}, nil })
@@ -240,7 +240,7 @@ func TestWP31_L9_CardMACsAreNeverTouch(t *testing.T) {
 
 // A change made before the steps were hashed still expires while its catalog entry is unchanged (the steps are re-rendered and
 // compared, as before); once the entry was edited there is nothing to hold them to and the undo is not sent.
-func TestWP31_L3_AChangeWithoutAHashUndoesWhileTheCatalogIsUnchanged(t *testing.T) {
+func TestAChangeWithoutAHashUndoesWhileTheCatalogIsUnchanged(t *testing.T) {
 	t.Parallel()
 	for name, edited := range map[string]bool{"unchanged": false, "edited": true} {
 		e := banRequest(t)
@@ -264,7 +264,7 @@ func TestWP31_L3_AChangeWithoutAHashUndoesWhileTheCatalogIsUnchanged(t *testing.
 
 // A step whose context ended while the check before ran is not sent. The re-check right before the write refuses it as "not sent"
 // (never "state unknown", and nothing is charged to the hourly limit); the stop flag still comes first.
-func TestWP31_L5_AStepThatEndedBeforeItWasSentIsNotSent(t *testing.T) {
+func TestAStepThatEndedBeforeItWasSentIsNotSent(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.sshSwitch("cisco_port_shut")
@@ -285,7 +285,7 @@ func TestWP31_L5_AStepThatEndedBeforeItWasSentIsNotSent(t *testing.T) {
 }
 
 // The emergency stop cancels a run in flight but lets an undo already in flight finish (an undo is the safe direction).
-func TestWP31_L5_AnUndoInFlightFinishesWhenTheStopIsPressed(t *testing.T) {
+func TestAnUndoInFlightFinishesWhenTheStopIsPressed(t *testing.T) {
 	t.Parallel()
 	var e *env
 	e = newEnv(t, func(c *response.Config) {

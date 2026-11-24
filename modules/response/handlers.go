@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// ResponseHandlers implements the operations of the response module that part 1 (WP-13a) builds. Embed it in the
+// ResponseHandlers implements the operations of the response module that part 1 builds. Embed it in the
 // composite handler of cmd/vedette. The role of each route comes from the route table, so nothing here checks roles.
 //
 // GET and POST /response/approve/{token} (public: the link is the credential, 13b-7) are implemented here too; they read no session.

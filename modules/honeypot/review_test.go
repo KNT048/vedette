@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// WP-31 L13: variation selectors are invisible text an attacker chooses; clean drops them like the other invisible characters.
+// variation selectors are invisible text an attacker chooses; clean drops them like the other invisible characters.
 func TestHostileTextLosesVariationSelectors(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -40,7 +40,7 @@ func TestHostileTextLosesVariationSelectors(t *testing.T) {
 	}
 }
 
-// WP-31 L14 (INV-10): a viewer sees the bait password masked, an operator and an administrator in full.
+// (INV-10) a viewer sees the bait password masked, an operator and an administrator in full.
 func TestTokenPasswordIsMaskedForAViewer(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -79,7 +79,7 @@ func TestTokenPasswordIsMaskedForAViewer(t *testing.T) {
 	}
 }
 
-// WP-31 L11 (SYS-5): EnsureOff keeps failing until the host has confirmed, then it is done; on a module that is on it does nothing.
+// (SYS-5) EnsureOff keeps failing until the host has confirmed, then it is done; on a module that is on it does nothing.
 func TestEnsureOffConvergesOnlyWhenTheHostConfirms(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

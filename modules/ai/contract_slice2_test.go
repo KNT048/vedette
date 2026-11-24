@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// Slice 2 of WP-25: explaining a CVE (S-AI-2, S-AI-6), the activity row of every call (INV-17, INV-18), usage and runs (S-AI-4).
+// explaining a CVE (S-AI-2, S-AI-6), the activity row of every call (INV-17, INV-18), usage and runs (S-AI-4).
 
 // withProfile adds a cloud profile named Claude and has it answer with a good explanation.
 func (a *api) withProfile() string {

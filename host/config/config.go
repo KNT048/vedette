@@ -53,10 +53,10 @@ type Config struct {
 	SocketGID int
 	// CoreCgroup is the unified-hierarchy path core's processes must be at or below. Optional;
 	// empty means /system.slice/<core_unit>. A rootless Quadlet core lives under its user manager,
-	// so the installer writes the real path (WP-08).
+	// so the installer writes the real path.
 	CoreCgroup string
 	// CoreData is the directory that holds core's database (vedette.db) and master key file
-	// (vedette.key). Optional: the installer (WP-08) writes it, the host never takes a path from a
+	// (vedette.key). Optional: the installer writes it, the host never takes a path from a
 	// request. Empty means backups answer db_unreadable.
 	CoreData string
 }

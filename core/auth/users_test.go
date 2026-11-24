@@ -221,7 +221,7 @@ func TestOwnPasswordGuessesAreRateLimited(t *testing.T) {
 	}
 }
 
-// Review of WP-04b part 2 (M1): the renewed session is the same browser (device text and address) with new
+// Review (M1): the renewed session is the same browser (device text and address) with new
 // tokens, and it lives a full lifetime from now, like a new sign-in (the user has just proved the password).
 func TestRenewedSessionKeepsTheBrowserAndChangesEveryToken(t *testing.T) {
 	t.Parallel()
@@ -252,7 +252,7 @@ func TestRenewedSessionKeepsTheBrowserAndChangesEveryToken(t *testing.T) {
 	}
 }
 
-// Review of WP-04b part 2 (L5): a wrong password typed to change the password or turn two-step on or off is
+// Review (L5): a wrong password typed to change the password or turn two-step on or off is
 // a guess, and leaves an auth.reauth_failed row like a wrong sign-in password leaves auth.login_failed.
 func TestWrongReauthPasswordIsAudited(t *testing.T) {
 	t.Parallel()
@@ -277,7 +277,7 @@ func TestWrongReauthPasswordIsAudited(t *testing.T) {
 	}
 }
 
-// Review of WP-04b part 2 (L7): names refuse invisible format characters (category Cf) as well as control
+// Review (L7): names refuse invisible format characters (category Cf) as well as control
 // characters: a bidirectional override makes a name read as another, a zero-width space makes one that cannot be
 // typed back.
 func TestNamesRefuseInvisibleFormatCharacters(t *testing.T) {

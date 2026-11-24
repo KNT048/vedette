@@ -39,7 +39,7 @@ func TestWiringCVEPageNotAffected(t *testing.T) {
 	}
 	// gw-alpine, a scanned OpenSSH 10.2 whose package release a person gave on a device a person says runs Alpine Linux 3.23: not affected
 	// by Alpine's fixed release from the feed's rows, and only with them (no rows: NVD decides, the page keeps it)
-	bn := netip.MustParseAddr("192.168.142.1")
+	bn := netip.MustParseAddr("10.142.0.1")
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: bn}, Field: observe.Hostname, Value: "gw-alpine", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
 		t.Fatal(err)
 	}

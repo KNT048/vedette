@@ -11,7 +11,7 @@ import (
 )
 
 // Some devices need no watching (a staff phone): Ignore keeps a device known but unwatched. A test box's
-// "iPhone" at 192.168.142.129 with its private MAC.
+// "iPhone" at 10.142.0.129 with its private MAC.
 const phoneMAC = "c2:31:86:3f:8c:a0"
 
 func (e *env) list(ignored string, approved string) inventory.DeviceList {
@@ -38,9 +38,9 @@ func ids(l inventory.DeviceList) []string {
 func TestContract_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.confirmScope("192.168.142.0/24")
+	e.confirmScope("10.142.0.0/24")
 	const who = "it@acme.example"
-	ip := netip.MustParseAddr("192.168.142.129")
+	ip := netip.MustParseAddr("10.142.0.129")
 	e.record(obs(ip, phoneMAC, observe.Hostname, "iPhone", observe.Passive, 0.7))
 	id := e.idByMAC(phoneMAC)
 	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: ip, MAC: phoneMAC}, observe.Nmap, nil, []observe.Software{
@@ -119,11 +119,11 @@ func TestContract_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
 
 	// Seen again by its MAC at another address: the same device, still ignored, no new-device alert.
 	e.ev.reset()
-	e.record(obs(netip.MustParseAddr("192.168.142.140"), phoneMAC, observe.Hostname, "iPhone", observe.Passive, 0.7))
+	e.record(obs(netip.MustParseAddr("10.142.0.140"), phoneMAC, observe.Hostname, "iPhone", observe.Passive, 0.7))
 	if e.idByMAC(phoneMAC) != id || len(e.ev.named(inventory.EventAssetDiscovered)) != 0 {
 		t.Fatalf("seen again: id %s, discovered %+v", e.idByMAC(phoneMAC), e.ev.named(inventory.EventAssetDiscovered))
 	}
-	if d := e.detail(id); d.Asset.IgnoredAt == nil || d.Asset.IP != "192.168.142.140" {
+	if d := e.detail(id); d.Asset.IgnoredAt == nil || d.Asset.IP != "10.142.0.140" {
 		t.Fatalf("seen again: %+v", d.Asset.AssetCore)
 	}
 
@@ -163,7 +163,7 @@ func TestContract_AnIgnoredDeviceIsKnownButNotWatched(t *testing.T) {
 func TestContract_UndoSendsAnApprovedDeviceBackToReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.record(obs(netip.MustParseAddr("192.168.142.20"), macA, observe.Hostname, "laptop-ha", observe.Passive, 0.7))
+	e.record(obs(netip.MustParseAddr("10.142.0.20"), macA, observe.Hostname, "laptop-ha", observe.Passive, 0.7))
 	id := e.idByMAC(macA)
 	if err := e.svc.Approve(e.ctx(), "it@acme.example", id); err != nil {
 		t.Fatal(err)
@@ -180,7 +180,7 @@ func TestContract_UndoSendsAnApprovedDeviceBackToReview(t *testing.T) {
 	if d := e.detail(id); d.Asset.Approved || d.Asset.ApprovedAt != nil {
 		t.Fatalf("after undo: approved %v at %v", d.Asset.Approved, d.Asset.ApprovedAt)
 	}
-	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette", IP: "192.168.142.2"})
+	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette", IP: "10.142.0.2"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +192,7 @@ func TestContract_UndoSendsAnApprovedDeviceBackToReview(t *testing.T) {
 func TestContract_AnOsqueryEnrolmentDoesNotApproveAnIgnoredDevice(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	ip := netip.MustParseAddr("192.168.142.30")
+	ip := netip.MustParseAddr("10.142.0.30")
 	e.record(obs(ip, macA, observe.Hostname, "staff-pc", observe.Passive, 0.7))
 	id := e.idByMAC(macA)
 	if err := e.svc.SetIgnored(e.ctx(), "it@acme.example", id, true); err != nil {
@@ -211,8 +211,8 @@ func TestContract_AnOsqueryEnrolmentDoesNotApproveAnIgnoredDevice(t *testing.T) 
 func TestContract_IgnoreKeepsTheSourcesAndTheMark(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.confirmScope("192.168.142.0/24")
-	e.record(obs(netip.MustParseAddr("192.168.142.40"), macA, observe.Hostname, "plc-line-2", observe.Passive, 0.7))
+	e.confirmScope("10.142.0.0/24")
+	e.record(obs(netip.MustParseAddr("10.142.0.40"), macA, observe.Hostname, "plc-line-2", observe.Passive, 0.7))
 	id := e.idByMAC(macA)
 	off, on := inventory.SourceOff, inventory.SourceOn
 	if _, err := e.svc.SetSources(e.ctx(), "admin@acme.example", id, &off, nil); err != nil { // the admin: never scan this one
@@ -269,8 +269,8 @@ func TestContract_AJoinKeepsTheWatchStateOfTheKeptDevice(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			e := newEnv(t)
-			e.record(obs(netip.MustParseAddr("192.168.142.50"), macA, observe.Hostname, "srv-a", observe.Passive, 0.7))
-			e.record(obs(netip.MustParseAddr("192.168.142.51"), macB, observe.Hostname, "srv-b", observe.Passive, 0.7))
+			e.record(obs(netip.MustParseAddr("10.142.0.50"), macA, observe.Hostname, "srv-a", observe.Passive, 0.7))
+			e.record(obs(netip.MustParseAddr("10.142.0.51"), macB, observe.Hostname, "srv-b", observe.Passive, 0.7))
 			into, from := e.idByMAC(macA), e.idByMAC(macB)
 			if c.approveFrom {
 				if err := e.svc.Approve(e.ctx(), "it@acme.example", from); err != nil {
@@ -319,7 +319,7 @@ func TestContract_AnEnrolmentsApprovalSurvivesAJoinIntoADeclaredRow(t *testing.T
 	t.Parallel()
 	e := newEnv(t)
 	const who = "it@acme.example"
-	declared := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.142.20"})
+	declared := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "10.142.0.20"})
 	e.exec(`UPDATE inv_asset SET mac = ? WHERE id = ?`, burnt1, declared)
 	for _, ignored := range []bool{true, false, true} {
 		if err := e.svc.SetIgnored(e.ctx(), who, declared, ignored); err != nil {
@@ -330,17 +330,17 @@ func TestContract_AnEnrolmentsApprovalSurvivesAJoinIntoADeclaredRow(t *testing.T
 		t.Fatalf("before: approved %v, ignored %v", d.Asset.Approved, d.Asset.IgnoredAt)
 	}
 	e.tick(time.Hour)
-	e.record(osq("192.168.142.40")...)
-	orphan := e.idOf("192.168.142.40")
+	e.record(osq("10.142.0.40")...)
+	orphan := e.idOf("10.142.0.40")
 	if orphan == declared {
 		t.Fatal("the agent's report reached the hand-added row by its card")
 	}
-	if found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.142.40"), Agent: "osquery:node-a"}, burnt1, "enrolled", false); err != nil || !found {
+	if found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("10.142.0.40"), Agent: "osquery:node-a"}, burnt1, "enrolled", false); err != nil || !found {
 		t.Fatalf("ApproveEnrolled: %v %v", found, err)
 	}
 	e.ev.reset()
 	e.tick(time.Minute)
-	e.record(dhcp(burnt1, "192.168.142.40", "")...)
+	e.record(dhcp(burnt1, "10.142.0.40", "")...)
 	d := e.only()
 	if d.ID != declared || d.Origin != "manual" || !d.Approved {
 		t.Fatalf("after the join: id %s (want the declared %s) origin %s approved %v", d.ID, declared, d.Origin, d.Approved)

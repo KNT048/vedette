@@ -1,6 +1,6 @@
 // Package auth is the sign-in library of the core module: argon2id passwords, cookie sessions with CSRF
 // tokens (implementing server.Authenticator), TOTP and email two-step codes, the login rate limit, the
-// Login flow of core INV-8 and the user and two-step rules of INV-7. The HTTP handlers (WP-04b part 2)
+// Login flow of core INV-8 and the user and two-step rules of INV-7. The HTTP handlers
 // are thin: they decode a request, call this package and encode the result.
 //
 // Conventions: errors meant for the client are *apierr.Error (the codes of docs/API_CONVENTIONS.md 3.3);

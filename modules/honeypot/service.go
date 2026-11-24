@@ -31,7 +31,7 @@ type Config struct {
 	Modules   ModuleGate
 
 	// ConfigDir is the folder core writes opencanary.conf and honeytokens.json into. It belongs to core: the honeypot
-	// container mounts it read-only (WP-08), and core never reads a file back from it (amendment of the WP-14 review).
+	// container mounts it read-only, and core never reads a file back from it (the review).
 	// Empty means the module is not wired to a container: nothing is written, no trap can listen.
 	ConfigDir string
 	// LogDir is the folder the container writes the JSON-lines log opencanary.jsonl into (writable for the container,

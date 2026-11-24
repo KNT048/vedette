@@ -69,11 +69,11 @@ func TestOSGuessGoesWhenAStrongerSourceStatesTheOS(t *testing.T) {
 	for _, src := range []string{"snmp", "agent", "manual"} {
 		t.Run(src, func(t *testing.T) {
 			e := newEnv(t)
-			id := guessEnv(e, "192.168.142.21", "Android 9 - 10 (Linux 4.9 - 4.14)", androidRows...)
+			id := guessEnv(e, "10.142.0.21", "Android 9 - 10 (Linux 4.9 - 4.14)", androidRows...)
 			if list, match := shown(e, id); len(list) != 3 || len(match) != 3 {
 				t.Fatalf("with nmap alone: software %v, matching %v; want the guesses listed as before", list, match)
 			}
-			hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.142.21")}
+			hint := observe.AssetHint{IP: netip.MustParseAddr("10.142.0.21")}
 			switch src {
 			case "snmp":
 				e.record(observe.Observation{AssetHint: hint, Field: observe.OS, Value: "Alpine Linux", Source: observe.SNMP, Confidence: 0.9})
@@ -102,12 +102,12 @@ func TestOSGuessGoesWhenAStrongerSourceStatesTheOS(t *testing.T) {
 func TestOSGuessNTLMWindowsRowGoesWhenTheAgentStatesTheOS(t *testing.T) {
 	e := newEnv(t)
 	ntlm := "Microsoft Windows 11 24H2 / Server 2025 (build 26100)"
-	id := guessEnv(e, "192.168.142.34", ntlm, observe.Software{Display: ntlm, Vendor: "microsoft", Product: "windows", Version: "10.0.26100",
+	id := guessEnv(e, "10.142.0.34", ntlm, observe.Software{Display: ntlm, Vendor: "microsoft", Product: "windows", Version: "10.0.26100",
 		CPE: "cpe:/o:microsoft:windows", Confidence: 0.95, Guess: true})
 	if list, _ := shown(e, id); len(list) != 2 {
 		t.Fatalf("with nmap alone: %v, want the NTLM row listed", list)
 	}
-	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.142.34")}, Field: observe.OS,
+	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.142.0.34")}, Field: observe.OS,
 		Value: "Microsoft Windows 11 Pro 10.0.26300.9974", Source: observe.Agent, Confidence: 0.95})
 	if list, match := shown(e, id); len(list) != 1 || len(match) != 1 {
 		t.Errorf("after the agent: software %v, matching %v; want only openssh", list, match)
@@ -119,7 +119,7 @@ func TestOSGuessNTLMWindowsRowGoesWhenTheAgentStatesTheOS(t *testing.T) {
 // OS and matches the device again; typing it back to a type the guess fits brings the guess back.
 func TestOSGuessTheTypeRulesOutIsNotUsed(t *testing.T) {
 	e := newEnv(t)
-	id := guessEnv(e, "192.168.142.1", "Android 9 - 10 (Linux 4.9 - 4.14)", androidRows...)
+	id := guessEnv(e, "10.142.0.1", "Android 9 - 10 (Linux 4.9 - 4.14)", androidRows...)
 	if got := osOf(e, id); got != "Android 9 - 10 (Linux 4.9 - 4.14)" {
 		t.Fatalf("with nmap alone and no type the OS is the guess, got %q", got)
 	}
@@ -154,12 +154,12 @@ func TestOSGuessTheTypeRulesOutIsNotUsed(t *testing.T) {
 		t.Errorf("the guess stays in Observations, not used, marked: %+v", d.Observations)
 	}
 	// Another reading of the OS still wins; a later nmap scan re-decides the same way.
-	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.142.1")}, Field: observe.OS,
+	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.142.0.1")}, Field: observe.OS,
 		Value: "Android 9 - 10 (Linux 4.9 - 4.14)", Source: observe.Nmap, Confidence: 0.9})
 	if got := osOf(e, id); got != "" {
 		t.Errorf("after a rescan: OS %q, want none", got)
 	}
-	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.142.1")}, Field: observe.OS,
+	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.142.0.1")}, Field: observe.OS,
 		Value: "Linux", Source: observe.Passive, Confidence: 0.4})
 	if got := osOf(e, id); got != "Linux" {
 		t.Errorf("a weaker reading the type allows wins over the ruled-out guess: %q", got)
@@ -223,7 +223,7 @@ func TestOSGuessContradictionTable(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.kind+"/"+c.os, func(t *testing.T) {
 			e := newEnv(t)
-			id := guessEnv(e, "192.168.142.50", c.os, observe.Software{Display: c.os, Vendor: "v", Product: "os", CPE: "cpe:/o:v:os", Confidence: 0.86, Guess: true})
+			id := guessEnv(e, "10.142.0.50", c.os, observe.Software{Display: c.os, Vendor: "v", Product: "os", CPE: "cpe:/o:v:os", Confidence: 0.86, Guess: true})
 			if c.kind != "unknown" {
 				if err := e.svc.PatchDevice(e.ctx(), "op@example.com", id, inventory.Patch{Kind: ptr(c.kind)}); err != nil {
 					t.Fatal(err)
@@ -242,8 +242,8 @@ func TestOSGuessContradictionTable(t *testing.T) {
 // A type nmap gave from the same fingerprint never rules its OS out: with nmap alone the device is as before.
 func TestOSGuessNmapsOwnTypeNeverRulesOutItsOS(t *testing.T) {
 	e := newEnv(t)
-	id := guessEnv(e, "192.168.142.60", "Android 9 - 10 (Linux 4.9 - 4.14)", androidRows...)
-	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.142.60")}, Field: observe.Kind, Value: "router",
+	id := guessEnv(e, "10.142.0.60", "Android 9 - 10 (Linux 4.9 - 4.14)", androidRows...)
+	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.142.0.60")}, Field: observe.Kind, Value: "router",
 		Source: observe.Nmap, Confidence: 0.7})
 	if got := osOf(e, id); got != "Android 9 - 10 (Linux 4.9 - 4.14)" {
 		t.Errorf("OS %q, want the guess: nmap's own type", got)
@@ -258,8 +258,8 @@ func TestOSGuessNmapsOwnTypeNeverRulesOutItsOS(t *testing.T) {
 func TestOSGuessAPassiveTypeNeverRulesOutTheGuess(t *testing.T) {
 	e := newEnv(t)
 	mac := "Apple macOS 12 (Monterey) (Darwin 21.1.0 - 21.6.0)"
-	id := guessEnv(e, "192.168.142.70", mac, observe.Software{Display: mac, Vendor: "apple", Product: "macos", CPE: "cpe:/o:apple:macos", Confidence: 0.86, Guess: true})
-	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.142.70")}, Field: observe.Kind, Value: "printer",
+	id := guessEnv(e, "10.142.0.70", mac, observe.Software{Display: mac, Vendor: "apple", Product: "macos", CPE: "cpe:/o:apple:macos", Confidence: 0.86, Guess: true})
+	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.142.0.70")}, Field: observe.Kind, Value: "printer",
 		Source: observe.Passive, Confidence: 0.6})
 	if d, err := e.svc.Device(e.ctx(), id); err != nil || d.Kind != "printer" {
 		t.Fatalf("kind %q %v, want the passive printer", d.Kind, err)
@@ -275,11 +275,11 @@ func TestOSGuessAPassiveTypeNeverRulesOutTheGuess(t *testing.T) {
 // When the latest guess is ruled out, an older nmap guess the type allows does not come back: the OS is another source's, else none.
 func TestOSGuessRuledOutNeverFallsBackToAnOlderGuess(t *testing.T) {
 	e := newEnv(t)
-	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.142.80"), MAC: "00:0c:29:aa:bb:50"}
+	hint := observe.AssetHint{IP: netip.MustParseAddr("10.142.0.80"), MAC: "00:0c:29:aa:bb:50"}
 	e.record(observe.Observation{AssetHint: hint, Field: observe.OS, Value: "Linux 3.2 - 4.9", Source: observe.Nmap, Confidence: 0.5})
 	e.tick(time.Hour)
 	e.record(observe.Observation{AssetHint: hint, Field: observe.OS, Value: "Android 9 - 10 (Linux 4.9 - 4.14)", Source: observe.Nmap, Confidence: 0.86})
-	id := e.idOf("192.168.142.80")
+	id := e.idOf("10.142.0.80")
 	if err := e.svc.PatchDevice(e.ctx(), "op@example.com", id, inventory.Patch{Kind: ptr("firewall")}); err != nil {
 		t.Fatal(err)
 	}

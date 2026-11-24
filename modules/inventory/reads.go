@@ -152,7 +152,7 @@ func loadServices(ctx context.Context, q querier, sub string, idx map[string]int
 
 // summaryOf is the source of the most trusted of vendor, model, os and the confidence of the weakest. A device with
 // none of them (a router seen only by ARP) takes its hostname and MAC instead, so the list still says which sensor saw
-// it ("Unknown 192.168.142.1" with source "–").
+// it ("Unknown 10.142.0.1" with source "–").
 func summaryOf(d *Device) *Summary {
 	if d.Vendor == nil && d.Model == nil && d.OS == nil {
 		return summaryOver(d.ident)

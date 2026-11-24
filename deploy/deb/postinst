@@ -1,7 +1,7 @@
 #!/bin/sh
-# vedette-host postinst (WP-08g). POSIX sh, idempotent: a second run leaves the same users, directories, modes and
+# vedette-host postinst. POSIX sh, idempotent: a second run leaves the same users, directories, modes and
 # /etc/subuid lines. Creates what vedette-host expects at fixed paths and enables the unit. A first install does NOT start it, and
-# nothing here writes /etc/vedette/host.conf: the installer (WP-08h) does that from `getent`, then starts vedette-host.service.
+# nothing here writes /etc/vedette/host.conf: the installer does that from `getent`, then starts vedette-host.service.
 # An UPGRADE restarts the unit when it is running (restart_after_upgrade), so the old daemon never outlives the new package.
 # Everything is checked before anything is created: a refusal leaves no half-made state behind.
 set -eu

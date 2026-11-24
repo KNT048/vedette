@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make host-deb-check (WP-08g): install the vedette-host .deb in a systemd container per target OS (Debian 13 and Ubuntu 24.04,
+# make host-deb-check: install the vedette-host .deb in a systemd container per target OS (Debian 13 and Ubuntu 24.04,
 # pinned by digest) and check the EFFECTS: refusals (a normal user named vedette, a symbolic link, a foreign core_data, a foreign range in
 # /etc/subuid) that leave nothing half-made; the same users, groups, /etc/subuid lines, directories, modes, owners and file hashes after a
 # second install; the unit enabled and NOT started, and still disabled after an upgrade when the administrator disabled it; an existing
@@ -191,7 +191,7 @@ EOT
 
 	# A box installed by an older version has the old log/ folder, which podman's :U gave to the container's user (a subuid) with mode 755:
 	# an upgrade must go through and leave it alone (install.sh --uninstall removes it with /var/lib/vedette-honeypot).
-	# 61000 stands for the image user's subuid: any uid inside every default rootless map (a map such as byn:100000:65536 only reaches 0..65535) that is not vedette's.
+	# 61000 stands for the image user's subuid: any uid inside every default rootless map (a map such as alice:100000:65536 only reaches 0..65535) that is not vedette's.
 	x 'install -d -m 0755 -o 61000 -g 0 /var/lib/vedette-honeypot/log'
 	install "--reinstall"
 	[ "$(x 'stat -c "%u:%g %a" /var/lib/vedette-honeypot/log')" = "61000:0 755" ] || fail "an upgrade changed the old log/ owner or mode"

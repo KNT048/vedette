@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// Approvers prove their own channel identity (S-RESP-2, WP-31 R3, finding L7).
+// Approvers prove their own channel identity (S-RESP-2, finding L7).
 
 type fakeMailer struct {
 	mu    sync.Mutex

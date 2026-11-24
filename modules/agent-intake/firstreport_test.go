@@ -63,7 +63,7 @@ func TestContract_FirstReportIsAskedEveryMinute(t *testing.T) {
 
 	w.clock.Advance(time.Minute)
 	w.post("/intake/osquery/log", peerA, logBody(key,
-		snap("system_info", map[string]string{"hostname": "byn", "hardware_vendor": "Dell Inc.", "hardware_model": "Vostro 3669"}),
+		snap("system_info", map[string]string{"hostname": "srv01", "hardware_vendor": "Dell Inc.", "hardware_model": "Vostro 3669"}),
 		snap("deb_packages", debRow("openssh-server", "1:9.6p1-3ubuntu13.5")), snap("rpm_packages")))
 	wantIntervals(t, "first report complete", w.intervals(key),
 		map[string]float64{"os_version": 3600, "interfaces": 3600, "system_info": 3600, "deb_packages": 3600, "rpm_packages": 3600, "programs": 3600})
@@ -100,7 +100,7 @@ func TestContract_AgentClaimsThePassiveRowTypedAndApproved(t *testing.T) {
 	}
 
 	_, secret := w.token("srv", 7)
-	key := w.enroll(secret, "byn", peerA)
+	key := w.enroll(secret, "srv01", peerA)
 	w.post("/intake/osquery/log", peerA, fullLog(key))
 	d, _ := w.device(peerA)
 	if w.deviceCount() != 1 || !d.Approved || d.Kind != "server" || d.OS == nil || d.OS.Source != "agent" || len(d.Software) == 0 {
@@ -240,7 +240,7 @@ func TestContract_UpgradeApprovesAndTypesEnrolledMachines(t *testing.T) {
 		record(ip, observe.Agent, observe.MAC, mac)
 	}
 	_, secret := w.token("srv", 7)
-	for host, peer := range map[string]string{"byn": peerA, "dhcp": peerB, "kept": peerC, "nat": peerD} {
+	for host, peer := range map[string]string{"srv01": peerA, "dhcp": peerB, "kept": peerC, "nat": peerD} {
 		w.enroll(secret, host, peer)
 	}
 	old(peerA, macA)
@@ -255,7 +255,7 @@ func TestContract_UpgradeApprovesAndTypesEnrolledMachines(t *testing.T) {
 		t.Fatal(err)
 	}
 	w.clock.Advance(2 * time.Hour) // enrolled two hours before the upgrade: past the first-report window
-	w.bind("byn", peerA, macA, time.Hour)
+	w.bind("srv01", peerA, macA, time.Hour)
 	w.bind("dhcp", peerB, macC, time.Hour)
 	w.bind("kept", peerC, macD, time.Hour)
 	const peerE, macE = "192.0.2.14", "52:54:00:aa:bb:06"
@@ -282,8 +282,8 @@ func TestContract_UpgradeApprovesAndTypesEnrolledMachines(t *testing.T) {
 	if d, _ := w.device(peerE); d.Approved || d.Kind != "unknown" {
 		t.Fatalf("a node silent for 8 days: %s approved=%v", d.Kind, d.Approved)
 	}
-	if n := w.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.approve_enrolled' AND user = 'system' AND detail LIKE '%"byn" enrolled with the token "srv", made by admin@acme.example, approved from its earlier reports after an upgrade'`); n != 1 {
-		t.Fatalf("approval audit rows of byn: %d", n)
+	if n := w.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.approve_enrolled' AND user = 'system' AND detail LIKE '%"srv01" enrolled with the token "srv", made by admin@acme.example, approved from its earlier reports after an upgrade'`); n != 1 {
+		t.Fatalf("approval audit rows of srv01: %d", n)
 	}
 	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE approved_at IS NOT NULL`); n != 3 {
 		t.Fatalf("%d nodes marked done, want 3 (the node with no binding and the silent one wait for a report)", n)

@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// Slice 5a of WP-25: "Ask your data" (S-AI-5, S-AI-6, INV-3, INV-13, INV-14). The model reads the box with read tools only. The
+// "Ask your data" (S-AI-5, S-AI-6, INV-3, INV-13, INV-14). The model reads the box with read tools only. The
 // provider is a script (no network); the data and the connections are fakes behind the ports of the module.
 
 type fakeData struct {

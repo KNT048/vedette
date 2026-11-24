@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-7 (response INV-4, POST-5, FORBID-4) in the real wiring: the real response and notify services, a fake SMTP
+// Response INV-4, POST-5, FORBID-4 in the real wiring: the real response and notify services, a fake SMTP
 // server on loopback, the real generated server. A request is created, the approver gets a mail with a link, the link approves once, a
 // request from another site is refused, and the token is nowhere in the database.
 

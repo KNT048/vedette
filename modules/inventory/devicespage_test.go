@@ -145,7 +145,7 @@ func TestContract_AddManualDeviceReturnsTheNamedDevice(t *testing.T) {
 	var id string
 	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
 		var err error
-		id, err = e.svc.AddManualDevice(e.ctx(), tx, "emily@acme.example", inventory.ManualDevice{Vendor: "Microsoft", Product: "Office", Display: "Microsoft Office", Key: "microsoft|office"})
+		id, err = e.svc.AddManualDevice(e.ctx(), tx, "admin@acme.example", inventory.ManualDevice{Vendor: "Microsoft", Product: "Office", Display: "Microsoft Office", Key: "microsoft|office"})
 		return err
 	})
 	if err != nil || id == "" {
@@ -164,7 +164,7 @@ func TestContract_AddManualDeviceReturnsTheNamedDevice(t *testing.T) {
 func TestContract_INV1_AReadableHostnameBeatsAUUID(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	ip := netip.MustParseAddr("192.168.142.40")
+	ip := netip.MustParseAddr("10.142.0.40")
 	e.record(obs(ip, "aa:bb:cc:00:00:40", observe.Hostname, "annas-macbook-air", observe.Passive, 0.6))
 	e.record(obs(ip, "aa:bb:cc:00:00:40", observe.Hostname, "FBAF5191-CC17-4626-A85B-812BC3D7B83B", observe.Agent, 0.95))
 	id := e.idByMAC("aa:bb:cc:00:00:40")

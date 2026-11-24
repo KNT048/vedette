@@ -48,7 +48,7 @@ export const Engine = z.object({
 
 export const RunningJob = z.object({
   engine: EngineId, id: z.string().describe('The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST /scanning/engines/nmap-discovery/run'),
-  label: z.string().describe('What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10"'),
+  label: z.string().describe('What it scans, e.g. "LAN sweep 10.142.0.0/24", "Check 10.142.0.20", "203.0.113.10"'),
   target_id: z.string().nullable().describe('The device id or exposure target id the run is about, for a link; null for a sweep or several devices'),
   started_at: iso, progress: JobProgress.nullable().describe('null until the run reports a step, and for runs that do not report one'),
   queued: z.boolean().describe('true while the run has not started, or gave way to other work: it waits for the run in its way or for the scan worker, and progress.message says what for and roughly when it starts; false while it runs'),
@@ -86,7 +86,7 @@ export const SafetyInput = z.object({
   version: z.string().max(64).describe('The version of GET /scanning (safety.version) this page was built on. Not the stored one: 409 safety_changed with the current block (error.safety), nothing stored'),
 })
 export const SafetySaved = Safety.extend({
-  adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24'),
+  adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges and exclusions normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24'),
 })
 
 export const RangeAdd = z.object({
@@ -110,7 +110,7 @@ export const ScopeCost = z.object({
   fits_window: z.boolean(), fits_week: z.boolean().describe('False: a save of this scope is refused (400 scope_too_large)'),
 })
 export const ExclusionAdd = z.object({
-  entry: z.string().max(64).describe('One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 192.168.142.9 or 192.168.142.64/28'),
+  entry: z.string().max(64).describe('One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 10.142.0.9 or 10.142.0.64/28'),
 })
 
 export const Scanning = z.object({
@@ -139,11 +139,11 @@ export const HistoryRun = z.object({
   kind: z.enum(['sweep', 'device', 'snmp', 'external']).describe('sweep: discovery of the LAN ranges; device: the identification of one device (a window\'s queue, Check this device now, the first step of Scan now); snmp: SNMP reads; external: a scan of a public target (one per target and day)'),
   engine: EngineId,
   trigger: z.enum(['sweep', 'automatic', 'person', 'scan_now', 'test']).describe('sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart); automatic: the window\'s queue (a new device, a weekly scan) or its SNMP round; person: a person asked (Check this device now, Read now, a public scan); scan_now: the identification step of a vulnerability check; test: an SNMP credential Test'),
-  label: z.string().describe('What it scanned: "LAN 192.168.142.0/24", "192.168.142.20", "SNMP read of 3 devices", "203.0.113.10"'),
+  label: z.string().describe('What it scanned: "LAN 10.142.0.0/24", "10.142.0.20", "SNMP read of 3 devices", "203.0.113.10"'),
   target_id: z.string().nullable().describe('The exposure target of a public scan, for a link; null otherwise (a LAN job does not record its device)'),
   started_at: z.iso.datetime(), ended_at: z.iso.datetime().nullable(),
   outcome: z.enum(['ok', 'partial', 'failed', 'stopped', 'running']).describe('partial: it ended, but part of it found nothing usable (an SNMP device of several that did not answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that failed)'),
-  text: z.string().describe('The outcome in words, only from what the run stored: "Swept 254 addresses: 12 hosts answered, 2 new devices", "2 of 3 devices answered over SNMP", "Failed: the device did not answer over SNMP." (an SNMP read nothing answered is failed, never partial), "Scanned 192.168.142.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap\'s guess>; nothing changed since the previous check" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, "OS guess <x>" for nmap\'s fingerprint, "OS <x>" for the device\'s own answer, "OS guess now <x> (changed since the previous check)"; otherwise "OS: scan guess not used now", never a second OS value; "since the previous check: port 8080 newly open, port 23 no longer open"), "Scanned 192.168.142.20: it did not answer", "Stopped: <reason>. Swept 64 addresses … before it ended", "Failed: <reason>."'),
+  text: z.string().describe('The outcome in words, only from what the run stored: "Swept 254 addresses: 12 hosts answered, 2 new devices", "2 of 3 devices answered over SNMP", "Failed: the device did not answer over SNMP." (an SNMP read nothing answered is failed, never partial), "Scanned 10.142.0.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap\'s guess>; nothing changed since the previous check" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, "OS guess <x>" for nmap\'s fingerprint, "OS <x>" for the device\'s own answer, "OS guess now <x> (changed since the previous check)"; otherwise "OS: scan guess not used now", never a second OS value; "since the previous check: port 8080 newly open, port 23 no longer open"), "Scanned 10.142.0.20: it did not answer", "Stopped: <reason>. Swept 64 addresses … before it ended", "Failed: <reason>."'),
 })
 
 // Runs: every run of every engine (a LAN sweep, a device check, an SNMP read, the vulnerability checks, an exposure scan and its

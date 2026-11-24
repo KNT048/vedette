@@ -12,7 +12,7 @@ import (
 
 // The addresses the box answers on besides its own device (the decoys of the honeypot, Config.BoxOwnedIPs) are the box: an
 // observation of one of them (the ARP replies the trap gives itself) never creates or updates a device, it is counted,
-// and a sweep must not probe the address (WP-14 review, honeypot CONTRACT open question 2).
+// and a sweep must not probe the address.
 func TestBoxOwnedAddressIsNoDevice(t *testing.T) {
 	t.Parallel()
 	owned := netip.MustParseAddr("192.168.10.240")
@@ -79,7 +79,7 @@ func TestNoBoxOwnedProviderChangesNothing(t *testing.T) {
 	}
 }
 
-// WP-31 M7: a device that sits on a decoy's address (a DHCP lease or a static address an intruder chose) is a device. Only what
+// a device that sits on a decoy's address (a DHCP lease or a static address an intruder chose) is a device. Only what
 // carries no MAC, or one of the box's own MACs (its cards and the decoys' macvlan links, Config.BoxOwnedMACs), is the box; while
 // the box's MACs are unknown, everything at the address is dropped as before.
 func TestContract_INV17_AForeignMACOnADecoyAddressIsADevice(t *testing.T) {
@@ -167,7 +167,7 @@ func TestContract_INV17_ADecoyComingUpIsNoDevice(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM inv_asset`); n != 0 {
 		t.Fatalf("the Trap IP coming up became %d device(s)", n)
 	}
-	// Where the host holds a decoy with another MAC, a foreign MAC is still another machine on the address (WP-31 M7).
+	// Where the host holds a decoy with another MAC, a foreign MAC is still another machine on the address.
 	if err := e.svc.Record(e.ctx(), at(held, "aa:bb:cc:00:02:40")); err != nil {
 		t.Fatal(err)
 	}

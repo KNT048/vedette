@@ -24,7 +24,7 @@ func TestScanningHistory_NewestFirstCappedAndEmptyWithoutSource(t *testing.T) {
 	base := time.Date(2026, 11, 17, 3, 0, 0, 0, time.UTC)
 	runs := []core.HistoryRun{}
 	for i := range 205 {
-		runs = append(runs, core.HistoryRun{ID: fmt.Sprintf("r%03d", i), Kind: "device", Engine: "nmap-versions", Trigger: "person", Label: "192.168.142.20", StartedAt: base.Add(time.Duration(i) * time.Minute), Outcome: "ok", Text: "Scanned 192.168.142.20"})
+		runs = append(runs, core.HistoryRun{ID: fmt.Sprintf("r%03d", i), Kind: "device", Engine: "nmap-versions", Trigger: "person", Label: "10.142.0.20", StartedAt: base.Add(time.Duration(i) * time.Minute), Outcome: "ok", Text: "Scanned 10.142.0.20"})
 	}
 	mk := func(src func(context.Context, string) ([]core.HistoryRun, error)) *core.ScanningHandlers {
 		h, err := core.NewScanningHandlers(core.ScanningConfig{DB: db, Reg: reg, Audit: audit.New(nil), Safety: &fakeSafety{}, History: src})
@@ -45,7 +45,7 @@ func TestScanningHistory_NewestFirstCappedAndEmptyWithoutSource(t *testing.T) {
 	if len(got.Items) != 200 || got.Items[0].ID != "r204" || got.Items[199].ID != "r005" {
 		t.Fatalf("items: %d, first %s, last %s", len(got.Items), got.Items[0].ID, got.Items[len(got.Items)-1].ID)
 	}
-	if got.Items[0].TargetID.Null != true || got.Items[0].EndedAt.Null != true || got.Items[0].Text != "Scanned 192.168.142.20" {
+	if got.Items[0].TargetID.Null != true || got.Items[0].EndedAt.Null != true || got.Items[0].Text != "Scanned 10.142.0.20" {
 		t.Errorf("item: %+v", got.Items[0])
 	}
 	// ?asset= hands the device to the source, which caps its runs per kind: core does not cut them at 200

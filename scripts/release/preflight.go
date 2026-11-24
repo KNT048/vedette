@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The release preflight (WP-08j). Nothing here signs or publishes: it refuses a build that must never be published.
+// The release preflight. Nothing here signs or publishes: it refuses a build that must never be published.
 
 // testKeysTag is the build tag of keys_testonly.go (internal/release): the throwaway release keys.
 const testKeysTag = "releasetestkeys"

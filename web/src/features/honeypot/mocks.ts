@@ -414,7 +414,7 @@ export const handlers = [
   // --- S-HP-2: honey tokens ---
   http.get(`${API}/honeypot/tokens`, () => {
     const denied = guard('viewer'); if (denied) return denied
-    // WP-31 L14: the bait password is in full for an operator and an administrator; a viewer sees the last 4 characters, as the backend does.
+    // the bait password is in full for an operator and an administrator; a viewer sees the last 4 characters, as the backend does.
     const role = currentUser()?.role
     const reveal = role === 'operator' || role === 'admin' // fail closed, as the backend does for an unknown role
     return HttpResponse.json({ items: tokens.get().map(tokenView).map((k) => (reveal || k.password === null ? k : { ...k, password: maskPassword(k.password) })) })

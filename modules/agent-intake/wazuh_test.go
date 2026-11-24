@@ -24,7 +24,7 @@ import (
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
 )
 
-// The Wazuh pull (WP-26 slice 4). A fake Wazuh server API on loopback answers with the shapes of the official OpenAPI spec v4.9.2
+// The Wazuh pull. A fake Wazuh server API on loopback answers with the shapes of the official OpenAPI spec v4.9.2
 // (api/api/spec/spec.yaml); conntest gives it a name the address policy lets through and a self-signed certificate.
 
 const (

@@ -20,7 +20,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// Slice 3 of WP-25: the activity log (S-AI-8): list, verify, retention, the export source, the prune.
+// the activity log (S-AI-8): list, verify, retention, the export source, the prune.
 
 // threeCalls makes an explain, a blocked explain and a connection test, ten minutes apart, and returns their rows oldest first.
 func (a *api) threeCalls() []actRow {

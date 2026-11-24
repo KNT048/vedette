@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// Part A of the release job (WP-08k): install.sh with its three baked lines and its signature, and the SemVer name of a
+// Part A of the release job: install.sh with its three baked lines and its signature, and the SemVer name of a
 // prerelease .deb.
 
 var sha256HexRE = regexp.MustCompile(`^[0-9a-f]{64}$`)

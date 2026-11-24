@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/host/server/servertest"
 )
 
-// net.apply, net.confirm, net.revert and the NTP sources (WP-07b part 3, slice 3-4; spec 6.5;
+// net.apply, net.confirm, net.revert and the NTP sources (spec 6.5;
 // host CONTRACT INV-16, INV-18, NET-1..NET-5). The machine is the fake of opstest: a
 // temp root, fake netplan and chronyc, a fake ARP prober, and a fake network whose addresses follow
 // whichever netplan file is the effective one (the overlay in /run, else /etc).

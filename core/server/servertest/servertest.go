@@ -21,7 +21,7 @@ const (
 
 // Auth is a fake server.Authenticator for tests only: the value of the session cookie IS the user
 // name (a key of Users), with no signature or expiry, so anyone can claim any user. It must never be
-// linked into cmd/vedette; WP-04b's real authenticator replaces it. Unknown or missing cookie means
+// linked into cmd/vedette; the real authenticator replaces it. Unknown or missing cookie means
 // no session. CheckCSRF wants the header CSRFHeader: CSRFValue.
 type Auth struct {
 	Users map[string]server.Principal

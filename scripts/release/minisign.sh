@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prints the absolute path of the pinned minisign (WP-08f), downloading it first when it is not in the cache.
+# Prints the absolute path of the pinned minisign, downloading it first when it is not in the cache.
 # The pin is deploy/tools.env: MINISIGN_VERSION, MINISIGN_URL, the SHA-256 of the tarball and of the binary of each architecture,
 # and the author's public key. The tarball is checked against its pinned hash before it is unpacked, the binary against its pinned
 # hash before it is used, and the author's signature on the tarball is verified with the binary itself (a second, independent

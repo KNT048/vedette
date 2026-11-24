@@ -39,7 +39,7 @@ type Event struct {
 	Data any
 }
 
-// Publisher announces events. The real implementation is core/events.Bus (WP-04b); a nil Publisher drops events.
+// Publisher announces events. The real implementation is core/events.Bus; a nil Publisher drops events.
 type Publisher interface {
 	Publish(ctx context.Context, e Event) error
 }
@@ -105,7 +105,7 @@ type KEVProduct struct {
 	Count   int    `json:"kev_count"`
 }
 
-// KEV is the view of the feeds module the inventory needs (INV-10, INV-12). feeds (WP-20) implements it;
+// KEV is the view of the feeds module the inventory needs (INV-10, INV-12). feeds implements it;
 // until then cmd/vedette passes EmbeddedKEVProducts and no CVE source.
 type KEV interface {
 	// Products lists every vendor/product pair ever in KEV; Version changes when the list does.

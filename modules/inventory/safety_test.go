@@ -41,8 +41,8 @@ func (e *env) saveSafety(in inventory.SafetyInput) (inventory.SavedSettings, err
 
 func okSafety() inventory.SafetyInput {
 	return inventory.SafetyInput{
-		LANRanges: []string{"192.168.142.5/24"}, Confirmed: true, Days: []int{5, 1, 1}, From: "21:00", To: "04:00",
-		PacketsPerS: 80, RequestsPerS: 8, Exclusions: []string{"192.168.142.9"}, FragileKinds: []string{"printer"}, RegularScanKinds: []string{},
+		LANRanges: []string{"10.142.0.5/24"}, Confirmed: true, Days: []int{5, 1, 1}, From: "21:00", To: "04:00",
+		PacketsPerS: 80, RequestsPerS: 8, Exclusions: []string{"10.142.0.9"}, FragileKinds: []string{"printer"}, RegularScanKinds: []string{},
 	}
 }
 
@@ -51,17 +51,17 @@ func okSafety() inventory.SafetyInput {
 func TestContract_INV32_SaveSafety(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.confirmScope("192.168.142.0/24") // active scanning on
+	e.confirmScope("10.142.0.0/24") // active scanning on
 	e.ev.reset()
 	saved, err := e.saveSafety(okSafety())
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := saved.Active
-	if !a.Enabled || !slices.Equal(a.Days, []int{1, 5}) || a.From != "21:00" || a.To != "04:00" || a.Rate != 80 || a.CheckRate != 8 || !slices.Equal(a.Exclusions, []string{"192.168.142.9"}) {
+	if !a.Enabled || !slices.Equal(a.Days, []int{1, 5}) || a.From != "21:00" || a.To != "04:00" || a.Rate != 80 || a.CheckRate != 8 || !slices.Equal(a.Exclusions, []string{"10.142.0.9"}) {
 		t.Fatalf("active = %+v", a)
 	}
-	if !slices.Equal(saved.LANRanges, []string{"192.168.142.0/24"}) || len(saved.Adjusted) != 1 || saved.ScopeConfirmedAt == nil {
+	if !slices.Equal(saved.LANRanges, []string{"10.142.0.0/24"}) || len(saved.Adjusted) != 1 || saved.ScopeConfirmedAt == nil {
 		t.Fatalf("saved = %+v", saved)
 	}
 	if n := len(e.ev.named(inventory.EventSettingsChanged)); n != 1 {
@@ -86,7 +86,7 @@ func TestContract_INV32_SaveSafety(t *testing.T) {
 				in.Exclusions = append(in.Exclusions, "10.1."+strconv.Itoa(i/250)+"."+strconv.Itoa(i%250))
 			}
 		}, "too_many_exclusions"},
-		{"host bits in an exclusion", func(in *inventory.SafetyInput) { in.Exclusions = []string{"192.168.142.5/28"} }, "bad_exclusion"},
+		{"host bits in an exclusion", func(in *inventory.SafetyInput) { in.Exclusions = []string{"10.142.0.5/28"} }, "bad_exclusion"},
 		{"discovery on, scope not ticked", func(in *inventory.SafetyInput) { in.Confirmed = false }, "scope_not_confirmed"},
 		{"same start and end", func(in *inventory.SafetyInput) { in.To = in.From }, "bad_window"},
 	} {
@@ -112,7 +112,7 @@ func TestContract_INV32_SetDiscovery(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	wantAPIError(t, e.svc.SetDiscovery(e.ctx(), "admin@acme.example", true), 400, "no_ranges")
-	in := okSettings("192.168.142.0/24")
+	in := okSettings("10.142.0.0/24")
 	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", in); err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestContract_INV32_SetDiscovery(t *testing.T) {
 func TestContract_INV32_ScanWritesThrough(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.confirmScope("192.168.142.0/24")
+	e.confirmScope("10.142.0.0/24")
 	write := func(in inventory.ChecksInput, commit bool) error {
 		var serr error
 		var tx *sql.Tx
@@ -160,12 +160,12 @@ func TestContract_INV32_ScanWritesThrough(t *testing.T) {
 		return serr
 	}
 	e.ev.reset()
-	if err := write(inventory.ChecksInput{Days: []int{7, 6}, From: "20:00", To: "02:00", CheckRate: 12, Exclusions: []string{"192.168.142.5/28", "192.168.142.9", "192.168.142.9"}}, true); err != nil {
+	if err := write(inventory.ChecksInput{Days: []int{7, 6}, From: "20:00", To: "02:00", CheckRate: 12, Exclusions: []string{"10.142.0.5/28", "10.142.0.9", "10.142.0.9"}}, true); err != nil {
 		t.Fatal(err)
 	}
 	st, _ := e.svc.Settings(e.ctx())
 	if a := st.Active; !a.Enabled || !slices.Equal(a.Days, []int{6, 7}) || a.From != "20:00" || a.CheckRate != 12 || a.Rate != 50 ||
-		!slices.Equal(a.Exclusions, []string{"192.168.142.0/28", "192.168.142.9"}) {
+		!slices.Equal(a.Exclusions, []string{"10.142.0.0/28", "10.142.0.9"}) {
 		t.Fatalf("active = %+v", a)
 	}
 	if n := len(e.ev.named(inventory.EventSettingsChanged)); n != 1 {
@@ -190,7 +190,7 @@ func TestContract_INV32_ScanWritesThrough(t *testing.T) {
 		wantAPIError(t, write(c.in, true), 400, c.code)
 	}
 	// PUT /inventory/settings carries no check rate: a save keeps it
-	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", okSettings("192.168.142.0/24")); err != nil {
+	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", okSettings("10.142.0.0/24")); err != nil {
 		t.Fatal(err)
 	}
 	if st, _ := e.svc.Settings(e.ctx()); st.Active.CheckRate != 12 {
@@ -224,7 +224,7 @@ func TestContract_INV32_LongListsAndTheStoredSwitch(t *testing.T) {
 	for i := range 210 {
 		long = append(long, "10."+strconv.Itoa(i/250)+"."+strconv.Itoa(i%250)+".1")
 	}
-	in := okSettings("192.168.142.0/24")
+	in := okSettings("10.142.0.0/24")
 	in.Active.Exclusions = long
 	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", in); err != nil { // the discovery page has no cap; a merge may add more
 		t.Fatal(err)
@@ -235,7 +235,7 @@ func TestContract_INV32_LongListsAndTheStoredSwitch(t *testing.T) {
 	if err != nil || len(saved.Active.Exclusions) != 210 || saved.Active.Enabled {
 		t.Fatalf("the same long list: %v, %d, enabled %v", err, len(saved.Active.Exclusions), saved.Active.Enabled)
 	}
-	safety.Exclusions = append(slices.Clone(long), "192.168.142.77")
+	safety.Exclusions = append(slices.Clone(long), "10.142.0.77")
 	_, err = e.saveSafety(safety)
 	wantAPIError(t, err, 400, "too_many_exclusions")
 	var tx *sql.Tx
@@ -248,7 +248,7 @@ func TestContract_INV32_LongListsAndTheStoredSwitch(t *testing.T) {
 		t.Fatalf("the scan module's save of the same long list: %v", werr)
 	}
 	// the switch: turned on between the page's read and its save, it stays on
-	e.confirmScope("192.168.142.0/24")
+	e.confirmScope("10.142.0.0/24")
 	safety.Exclusions = long[:5]
 	if saved, err := e.saveSafety(safety); err != nil || !saved.Active.Enabled {
 		t.Fatalf("the stored switch: %v, enabled %v", err, saved.Active.Enabled)
@@ -261,14 +261,14 @@ func TestContract_INV32_LongListsAndTheStoredSwitch(t *testing.T) {
 func TestContract_INV32_AddRange(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.confirmScope("192.168.142.0/24")
-	shown := []string{"192.168.142.0/24"}
+	e.confirmScope("10.142.0.0/24")
+	shown := []string{"10.142.0.0/24"}
 	for _, c := range []struct{ raw, code string }{
 		{"192.168.20.7", "no_prefix"},
 		{"bogus", "bad_cidr"},
 		{"", "bad_cidr"},
 		{"8.8.8.0/24", "public_range"},
-		{"192.168.0.0/16", "overlap_range"}, // it contains the stored one
+		{"10.142.0.0/16", "overlap_range"}, // it contains the stored one
 	} {
 		_, err := e.addRange("admin@acme.example", c.raw, shown, true)
 		wantAPIError(t, err, 400, c.code)
@@ -286,7 +286,7 @@ func TestContract_INV32_AddRange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(saved.LANRanges, []string{"192.168.142.0/24", "192.168.20.0/24"}) || len(saved.Adjusted) != 1 || saved.Adjusted[0].To != "192.168.20.0/24" {
+	if !slices.Equal(saved.LANRanges, []string{"10.142.0.0/24", "192.168.20.0/24"}) || len(saved.Adjusted) != 1 || saved.Adjusted[0].To != "192.168.20.0/24" {
 		t.Fatalf("saved = %+v", saved)
 	}
 	if saved.ScopeConfirmedBy == nil || *saved.ScopeConfirmedBy != "it@acme.example" || *saved.ScopeConfirmedAt != "2026-11-09T11:00:00.000Z" || !saved.Active.Enabled {
@@ -307,7 +307,7 @@ func TestContract_INV32_AddRange(t *testing.T) {
 	// covered: nothing changes, nothing is audited or announced, whatever the dialog showed
 	e.ev.reset()
 	rows := e.count(`SELECT count(*) FROM core_audit`)
-	for _, raw := range []string{"192.168.20.0/24", "192.168.20.128/25", "192.168.142.64/26"} {
+	for _, raw := range []string{"192.168.20.0/24", "192.168.20.128/25", "10.142.0.64/26"} {
 		again, err := e.addRange("admin@acme.example", raw, nil, true)
 		if err != nil || !slices.Equal(again.LANRanges, saved.LANRanges) || *again.ScopeConfirmedBy != "it@acme.example" {
 			t.Fatalf("%s again: %+v, %v", raw, again, err)
@@ -318,7 +318,7 @@ func TestContract_INV32_AddRange(t *testing.T) {
 	}
 
 	// a dialog that showed another list (stale, or blind) confirms nothing: 409 scope_changed with the current block
-	for _, stale := range [][]string{nil, shown, {"192.168.142.0/24", "192.168.20.0/24", "10.0.0.0/8"}} {
+	for _, stale := range [][]string{nil, shown, {"10.142.0.0/24", "192.168.20.0/24", "10.0.0.0/8"}} {
 		_, err := e.addRange("admin@acme.example", "192.168.30.0/24", stale, true)
 		wantAPIError(t, err, 409, "scope_changed")
 		var ch *inventory.Changed
@@ -380,24 +380,24 @@ func TestContract_INV32_AddRange(t *testing.T) {
 func TestContract_INV32_FullSavesNeverDropAnInlineAdd(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.confirmScope("192.168.142.0/24")
+	e.confirmScope("10.142.0.0/24")
 	opened := e.version()                                                                          // the page loads
-	if _, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", "192.168.142.40"); err != nil { // another tab excludes the PLC
+	if _, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", "10.142.0.40"); err != nil { // another tab excludes the PLC
 		t.Fatal(err)
 	}
 	stale := okSafety()
-	stale.LANRanges, stale.Exclusions, stale.Version = []string{"192.168.142.0/24"}, []string{}, opened
+	stale.LANRanges, stale.Exclusions, stale.Version = []string{"10.142.0.0/24"}, []string{}, opened
 	_, err := e.svc.SaveSafety(e.ctx(), "admin@acme.example", stale)
 	wantAPIError(t, err, 409, "safety_changed")
 	var ch *inventory.Changed
-	if !errors.As(err, &ch) || !slices.Contains(ch.Current.Active.Exclusions, "192.168.142.40") {
+	if !errors.As(err, &ch) || !slices.Contains(ch.Current.Active.Exclusions, "10.142.0.40") {
 		t.Fatalf("the refusal does not carry the current block: %v", err)
 	}
 	stale.Version = ""
 	_, err = e.svc.SaveSafety(e.ctx(), "admin@acme.example", stale)
 	wantAPIError(t, err, 409, "safety_changed") // required on this writer
 
-	old := okSettings("192.168.142.0/24")
+	old := okSettings("10.142.0.0/24")
 	old.ScopeConfirmed, old.Active.Enabled, old.Version = true, true, opened
 	_, err = e.svc.SaveSettings(e.ctx(), "admin@acme.example", old)
 	wantAPIError(t, err, 409, "safety_changed")
@@ -408,12 +408,12 @@ func TestContract_INV32_FullSavesNeverDropAnInlineAdd(t *testing.T) {
 	})
 	e.svc.Settle(e.ctx(), tx, werr == nil)
 	wantAPIError(t, werr, 409, "safety_changed")
-	if st, _ := e.svc.Settings(e.ctx()); !slices.Equal(st.Active.Exclusions, []string{"192.168.142.40"}) || st.Active.From != "23:00" {
+	if st, _ := e.svc.Settings(e.ctx()); !slices.Equal(st.Active.Exclusions, []string{"10.142.0.40"}) || st.Active.From != "23:00" {
 		t.Fatalf("a refused save stored something: %+v", st.Active)
 	}
 
 	// the current version saves; the version is the values, so a save of the same values keeps it
-	stale.Version, stale.Exclusions = e.version(), []string{"192.168.142.40"}
+	stale.Version, stale.Exclusions = e.version(), []string{"10.142.0.40"}
 	saved, err := e.svc.SaveSafety(e.ctx(), "admin@acme.example", stale)
 	if err != nil || saved.Version != e.version() {
 		t.Fatalf("current version: %v, %q vs %q", err, saved.Version, e.version())
@@ -424,8 +424,8 @@ func TestContract_INV32_FullSavesNeverDropAnInlineAdd(t *testing.T) {
 	}
 	// review #860 r2 L1: the discovery switch is part of the version, so a Settings › Scanning › Safety page loaded with it on cannot turn it
 	// back on after another admin turned it off
-	scopePage := okSettings("192.168.142.0/24")
-	scopePage.ScopeConfirmed, scopePage.Active.Enabled, scopePage.Active.Exclusions, scopePage.Version = true, true, []string{"192.168.142.40"}, e.version()
+	scopePage := okSettings("10.142.0.0/24")
+	scopePage.ScopeConfirmed, scopePage.Active.Enabled, scopePage.Active.Exclusions, scopePage.Version = true, true, []string{"10.142.0.40"}, e.version()
 	if err := e.svc.SetDiscovery(e.ctx(), "admin@acme.example", false); err != nil || e.version() == saved.Version {
 		t.Fatalf("the discovery switch did not change the version: %v", err)
 	}
@@ -435,7 +435,7 @@ func TestContract_INV32_FullSavesNeverDropAnInlineAdd(t *testing.T) {
 		t.Fatal("a stale Settings › Scanning › Safety save turned discovery back on")
 	}
 	old.Version = ""
-	old.Active.Exclusions = []string{"192.168.142.40"}
+	old.Active.Exclusions = []string{"10.142.0.40"}
 	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", old); err != nil { // optional there: the old page sends none
 		t.Fatalf("PUT /inventory/settings without a version: %v", err)
 	}
@@ -446,27 +446,27 @@ func TestContract_INV32_FullSavesNeverDropAnInlineAdd(t *testing.T) {
 func TestContract_INV32_AddExclusion(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.confirmScope("192.168.142.0/24")
-	for _, raw := range []string{"192.168.142.5/28", "bogus", "", "fe80::1"} {
+	e.confirmScope("10.142.0.0/24")
+	for _, raw := range []string{"10.142.0.5/28", "bogus", "", "fe80::1"} {
 		_, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", raw)
 		wantAPIError(t, err, 400, "bad_exclusion")
 	}
 	before, _ := e.svc.Settings(e.ctx())
 	e.ev.reset()
-	saved, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", " 192.168.142.64/28 ")
-	if err != nil || !slices.Equal(saved.Active.Exclusions, []string{"192.168.142.64/28"}) || !saved.Active.Enabled {
+	saved, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", " 10.142.0.64/28 ")
+	if err != nil || !slices.Equal(saved.Active.Exclusions, []string{"10.142.0.64/28"}) || !saved.Active.Enabled {
 		t.Fatalf("saved = %+v, %v", saved, err)
 	}
 	if saved.ScopeConfirmedAt == nil || *saved.ScopeConfirmedAt != *before.ScopeConfirmedAt {
 		t.Fatalf("the attestation moved: %v", saved.ScopeConfirmedAt)
 	}
 	if len(e.ev.named(inventory.EventSettingsChanged)) != 1 ||
-		e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND detail = 'added exclusion 192.168.142.64/28: 1 exclusions'`) != 1 {
+		e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND detail = 'added exclusion 10.142.0.64/28: 1 exclusions'`) != 1 {
 		t.Fatal("no event or audit row naming the exclusion")
 	}
 	e.ev.reset()
 	rows := e.count(`SELECT count(*) FROM core_audit`)
-	for _, raw := range []string{"192.168.142.64/28", "192.168.142.70", "192.168.142.72/29"} {
+	for _, raw := range []string{"10.142.0.64/28", "10.142.0.70", "10.142.0.72/29"} {
 		again, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", raw)
 		if err != nil || !slices.Equal(again.Active.Exclusions, saved.Active.Exclusions) {
 			t.Fatalf("%s again: %+v, %v", raw, again.Active.Exclusions, err)
@@ -486,9 +486,9 @@ func TestContract_INV32_AddExclusion(t *testing.T) {
 			t.Fatalf("exclusion %d: %v", i+1, err)
 		}
 	}
-	_, err = e.svc.AddExclusion(e.ctx(), "admin@acme.example", "192.168.142.9")
+	_, err = e.svc.AddExclusion(e.ctx(), "admin@acme.example", "10.142.0.9")
 	wantAPIError(t, err, 400, "too_many_exclusions")
-	if _, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", "192.168.142.65"); err != nil {
+	if _, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", "10.142.0.65"); err != nil {
 		t.Fatalf("a covered entry at the limit: %v", err)
 	}
 }
@@ -499,17 +499,17 @@ func TestContract_INV32_AddExclusion(t *testing.T) {
 func TestContract_INV32_ConcurrentAddsKeepBoth(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.confirmScope("192.168.142.0/24")
+	e.confirmScope("10.142.0.0/24")
 	const n = 8
 	var wg sync.WaitGroup
 	rangeErrs := make([]error, n)
 	exclErrs := make([]error, n)
 	for i := range n {
 		wg.Go(func() {
-			_, rangeErrs[i] = e.addRange("admin@acme.example", "10."+strconv.Itoa(i)+".0.0/16", []string{"192.168.142.0/24"}, true)
+			_, rangeErrs[i] = e.addRange("admin@acme.example", "10."+strconv.Itoa(i)+".0.0/16", []string{"10.142.0.0/24"}, true)
 		})
 		wg.Go(func() {
-			_, exclErrs[i] = e.svc.AddExclusion(e.ctx(), "admin@acme.example", "192.168.142."+strconv.Itoa(i+1))
+			_, exclErrs[i] = e.svc.AddExclusion(e.ctx(), "admin@acme.example", "10.142.0."+strconv.Itoa(i+1))
 		})
 	}
 	wg.Wait()

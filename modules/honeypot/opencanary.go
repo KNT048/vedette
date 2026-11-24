@@ -205,7 +205,7 @@ func removeInRoot(dir, name string) error {
 
 // writeInRoot replaces dir/name with data: a new file with a random name (O_EXCL) created through os.Root, so no path
 // component can leave dir, then fsync, rename over name and fsync of the directory. The directory belongs to core and
-// the container mounts it read-only (amendment of the WP-14 review); core never reads back what it wrote, it
+// the container mounts it read-only (the review); core never reads back what it wrote, it
 // compares against the hash it keeps in memory (Service.written), so nothing a hostile container leaves is ever opened.
 func writeInRoot(dir, name string, data []byte) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // the container reads the directory; no secret in it

@@ -21,7 +21,7 @@ import (
 	"github.com/knt048/vedette/host/server/servertest"
 )
 
-// Tests that came out of the security review of WP-07a (M1-M3, L1-L5, info items). Each fails
+// Tests that came out of the security review (M1-M3, L1-L5, info items). Each fails
 // against the code as first committed.
 
 // overlap tracks how many write handlers run at the same moment.

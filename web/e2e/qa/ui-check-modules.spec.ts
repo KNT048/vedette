@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible } from '../helpers'
-import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
+import { begin, noHScroll, stepper, THEMES } from './ui-check-shared'
 
-// WP-06 independent check, area 6: "As the admin I switch modules on and off; findings is its own module; turning off mitigation must not hide findings."
+// "As the admin I switch modules on and off; findings is its own module; turning off mitigation must not hide findings."
 // Settings -> Modules; Findings page; a finding's "What to do".
 const row = (page: Page, name: RegExp) => page.getByRole('table', { name: 'Modules' }).locator('tbody tr').filter({ hasText: name }).first()
 

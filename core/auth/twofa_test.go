@@ -214,7 +214,7 @@ func confirmWrongCodes(t *testing.T, env *authtest.Env, userID string, secret []
 	return err
 }
 
-// Review of WP-04b part 2 (M2): a holder of any session of the account could try every 6-digit code at
+// Review (M2): a holder of any session of the account could try every 6-digit code at
 // network speed while the key was pending (three codes are valid at any time) and so turn two-step on and end
 // the owner's sessions. Five wrong codes now drop the pending key, like an emailed code.
 func TestConfirmTOTPDropsThePendingKeyAfterFiveWrongCodes(t *testing.T) {
@@ -245,7 +245,7 @@ func TestConfirmTOTPDropsThePendingKeyAfterFiveWrongCodes(t *testing.T) {
 	}
 }
 
-// Review of WP-04b part 2 (M2): every confirm code is a guess on the account's two-step limiter (the one
+// Review (M2): every confirm code is a guess on the account's two-step limiter (the one
 // of sign-in codes), so restarting the key with the password does not reset it.
 func TestConfirmTOTPGuessesShareTheAccountsTwoStepLimiter(t *testing.T) {
 	t.Parallel()

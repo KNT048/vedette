@@ -21,7 +21,7 @@ const inWindow = (v: Vuln, hours: number, end: number) => new Date(`${v.date_add
 
 const weeklyAnswers = collection<Record<string, 'have' | 'not_relevant'>>('feeds_weekly_answers', () => ({}))
 
-// Sample IOCs for lookup (S-FEED-3). The real version: feeds/ioc/* from the builder (DATA_PIPELINE §2b).
+// Sample IOCs for lookup (S-FEED-3). The real version: the indicator feeds the box fetches itself (DATA_PIPELINE §2).
 const IOCS: Omit<IocHit, 'sources'>[] = [
   { value: '185.220.101.47', type: 'ip', category: 'Tor exit node, SSH scanning', score: 0.92, first_seen: '2026-09-12', last_seen: '2026-11-05', verdict: 'block' },
   { value: '45.148.10.95', type: 'ip', category: 'VPN vulnerability scanner', score: 0.81, first_seen: '2026-10-20', last_seen: '2026-11-04', verdict: 'block' },

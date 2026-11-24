@@ -23,8 +23,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// container.start (the current image), container.stop and GET /v1/state/containers (WP-07b part 3, slice
-// 3-6; spec 6.8, 6.9; host CONTRACT INV-17). The machine is the fake of opstest with a
+// container.start (the current image), container.stop and GET /v1/state/containers (spec 6.8, 6.9; host CONTRACT INV-17). The machine is the fake of opstest with a
 // stateful systemctl and podman: restart copies the unit file as the container's own record, and the
 // fake podman reports that record's digest. The tests assert the argv of every step, the unit text,
 // the journal and the effect.

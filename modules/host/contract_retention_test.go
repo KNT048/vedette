@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// WP-31 M4: backup retention never drops a backup something still needs and always keeps the one
+// backup retention never drops a backup something still needs and always keeps the one
 // just made, a missing or corrupt backup is not retried for ever (and an I/O error is), and os.install waits
 // for core.
 
@@ -46,7 +46,7 @@ func (e *updEnv) coreJournal(t *testing.T, backupID string, unrecoverable bool) 
 	}
 }
 
-// The exact WP-31 failure: an update to a release that says rollback.safe=false records its backup B1, three
+// The exact failure: an update to a release that says rollback.safe=false records its backup B1, three
 // os.install runs follow, and container.rollback must still find B1.
 func TestContract_Backup_RetentionKeepsTheBackupARollbackNeedsAfterThreeOSInstalls(t *testing.T) {
 	t.Parallel()

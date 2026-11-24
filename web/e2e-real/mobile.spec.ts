@@ -1,4 +1,4 @@
-// @mobile smoke on the real backend (WP-30 slice 10): the main screens at phone width (Pixel 7) as the administrator. Each must show its heading,
+// @mobile smoke on the real backend: the main screens at phone width (Pixel 7) as the administrator. Each must show its heading,
 // throw no script error and not scroll sideways. The 5xx and 404 map of every route is gaps.spec.ts (desktop); this only proves the phone layout.
 import { expect, test } from '@playwright/test'
 import { authFile } from './box'

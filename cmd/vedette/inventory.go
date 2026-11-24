@@ -47,7 +47,7 @@ func newInventory(d *deps) *inventory.Service {
 	cfg := inventory.Config{Zone: orgTimeZone(d), DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned,
 		Findings: findingCounts{d}, Risk: findingCounts{d}, WazuhAgents: wazuhAgents{d}.addresses, DeclaredOS: declaredOS, OSVersion: findings.OSVersion,
 		SNMPOf: sourceFacts{d}.snmp, AgentOf: sourceFacts{d}.agent, AskAgent: sourceFacts{d}.askAgent, Lifecycle: d.Lifecycle}
-	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device (WP-31 M7). Without a
+	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device. Without a
 	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
 	if d.HostSocket != "" {
 		cfg.Box = boxPackages{c: hostclient.New(d.HostSocket), log: d.Log}

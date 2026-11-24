@@ -234,7 +234,7 @@ func (o *Ops) revertDatabase(ctx context.Context, t transition) error {
 		// that cannot work does not stop core. What no retry can cure is errUnrecoverable (the loop stops; the
 		// way out is backup.restore): the index was read and has no such backup, the archive file does not
 		// exist, or it does not match its checksum or is not a valid archive. An I/O error, a full disk or an
-		// unreadable index may pass: those stay plain errors and the loop tries again (WP-31 M4).
+		// unreadable index may pass: those stay plain errors and the loop tries again.
 		rec, ok, err := o.lookupBackup(t.BackupID)
 		if err != nil {
 			return fmt.Errorf("ops: read the backup index: %w", err)

@@ -1,7 +1,7 @@
 // Operating system updates on the real backend through vedette-host (S-CORE-7, core INV-18/20/21). The host is the fake machine of
 // cmd/vedette/e2ehost_test.go: the real host/ops commands over a temporary root, with a fake apt (two pending packages: libc6, and openssl from
 // the security pocket, that an install empties), a fake apt-config and systemctl that follow the automatic-updates switch, and knobs for the
-// dpkg lock, a failing install, a reboot-required flag, and the end of a reboot. The steps are those of e2e/qa/wp06-updates-os.spec.ts.
+// dpkg lock, a failing install, a reboot-required flag, and the end of a reboot. The steps are those of e2e/qa/ui-check-updates-os.spec.ts.
 // Global project: an install or a reboot changes the box for every other spec, and the tests below depend on each other's order.
 // Where the real box differs from what the GUI can show, the test is test.fail() with the issue and the deferred line, after it has
 // confirmed the known symptom: a marker passes only on that symptom, any other failure is reported red (the pattern of logs-export.spec.ts).

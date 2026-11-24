@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make install-check (WP-08h): run install.sh end to end, TEST channel, in a systemd container per target OS (Ubuntu 24.04,
+# make install-check: run install.sh end to end, TEST channel, in a systemd container per target OS (Ubuntu 24.04,
 # Ubuntu 26.04, Debian 13; the pinned images of deploy/deb/check-pins.env and deploy/containers/pins.env) and check the EFFECTS:
 # refusals that change nothing; a fresh install (vedette-host active, socket, core healthy, interface answers, host.conf from getent,
 # a non-clashing container network, chrony sources, no leftover mirror or registry); a second run that changes nothing; --uninstall

@@ -138,7 +138,7 @@ func agentPkg(vendor, product, version string) Software {
 	return Software{ID: "s-" + strings.ToLower(product), Display: product, Vendor: vendor, Product: product, Version: version, KevKeys: []string{productid.Key(vendor, product)}, Source: "agent"}
 }
 
-// ubuntuServer is the test box "byn": Ubuntu 26.04.1, every version from osquery.
+// ubuntuServer is the test box "srv01": Ubuntu 26.04.1, every version from osquery.
 func ubuntuServer() []Software {
 	return []Software{
 		agentPkg("Linux", "Kernel", "7.0.0"), agentPkg("OpenSSL", "OpenSSL", "3.5.5"), agentPkg("GNU", "GNU Bash", "5.3"),
@@ -162,7 +162,7 @@ func TestAliases_DataIsValid(t *testing.T) {
 func TestGolden_PatchedUbuntuServer(t *testing.T) {
 	t.Parallel()
 	vulns := goldenVulns(t)
-	res := MatchAsset(Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}, vulns, nil, t0)
+	res := MatchAsset(Asset{ID: "a", Name: "srv01", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}, vulns, nil, t0)
 	var got []string
 	for _, m := range res.New {
 		got = append(got, m.CVE+" "+string(m.Basis))
@@ -178,16 +178,16 @@ func TestGolden_PatchedUbuntuServer(t *testing.T) {
 	}
 	// The box already has the old flood (every KEV CVE of these products, by product). The four stay; every
 	// other one is proved outside its ranges (or, CVE-2021-3493, outside the OS releases it lists) and closes by itself.
-	byn := Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
+	srv01 := Asset{ID: "a", Name: "srv01", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
 	flood := map[string]bool{}
 	for _, v := range vulns {
-		for _, sw := range byn.Software {
+		for _, sw := range srv01.Software {
 			if keyedTo(sw, v) {
 				flood[v.CVE] = true
 			}
 		}
 	}
-	res = MatchAsset(byn, vulns, flood, t0)
+	res = MatchAsset(srv01, vulns, flood, t0)
 	var kept, closed []string
 	for _, m := range res.Existing {
 		kept = append(kept, m.CVE+" "+string(m.Basis))
@@ -204,7 +204,7 @@ func TestGolden_PatchedUbuntuServer(t *testing.T) {
 			t.Errorf("%s is not closed", c)
 		}
 	}
-	t.Logf("byn: %d old findings, %d kept, %d closed by auto-resolve", len(flood), len(kept), len(closed))
+	t.Logf("srv01: %d old findings, %d kept, %d closed by auto-resolve", len(flood), len(kept), len(closed))
 	// the same server years ago is caught by version, not by product
 	old := []Software{agentPkg("OpenSSL", "OpenSSL", "1.0.1f"), agentPkg("Sudo", "Sudo", "1.8.31"), agentPkg("Red Hat", "Polkit", "0.105"),
 		agentPkg("Linux", "Kernel", "4.4.0"), agentPkg("GNU", "GNU C Library", "2.35")}

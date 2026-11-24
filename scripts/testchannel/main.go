@@ -1,5 +1,5 @@
 // Command testchannel makes the TEST release that `make install-artifacts` hands to `install.sh --test-artifacts`
-// (WP-08h). The real release keys do not exist yet (08k), so a test install needs a release signed with
+//. The real release keys do not exist yet (08k), so a test install needs a release signed with
 // throwaway keys, and a vedette-host that trusts exactly those keys.
 //
 //	keys   makes the throwaway keys (private halves stay in -out, mode 0600, never committed; a folder that already holds keys

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make sbom / make vuln-scan (WP-08i): CycloneDX SBOMs and the vulnerability gate, with trivy run from its official container image
+# make sbom / make vuln-scan: CycloneDX SBOMs and the vulnerability gate, with trivy run from its official container image
 # (pinned by digest in deploy/tools.env), on the LOCAL images of `make images` (tag IMAGE_TAG, every platform of PLATFORMS) and on the source tree.
 #   supply-chain.sh sbom   writes dist/sbom/<image>-<arch>.cdx.json for core, sensor, scan-base, honeypot and dist/sbom/source.cdx.json
 #   supply-chain.sh scan   prints every finding (all severities), then fails when an image or the source has a HIGH or CRITICAL vulnerability

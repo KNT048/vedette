@@ -32,7 +32,7 @@ import (
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
-// The box CA (WP-26 slice 1): a CA of its own, never the 8443 leaf (Firefox refuses a CA certificate as the server's
+// The box CA: a CA of its own, never the 8443 leaf (Firefox refuses a CA certificate as the server's
 // end-entity certificate), signs the self-made leaf, so an agent that pins the CA (GET /intake/ca.pem) keeps trusting the box
 // through every leaf re-issue. Made once, never rotated by a renewal; only an expired CA, or one that cannot cover a new
 // leaf, is replaced.

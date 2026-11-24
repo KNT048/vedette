@@ -26,7 +26,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// container.pull (WP-07b part 3, slice 3-7; spec 6.7; host CONTRACT INV-7 and INV-19).
+// container.pull (spec 6.7; host CONTRACT INV-7 and INV-19).
 // The machine is the fake of opstest with a fake podman that remembers images (StatefulImages) and
 // signing keys made for the test (opstest.Release, handed to the host through Deps.Keys). A refusal
 // must leave no podman call behind; the happy path asserts the argv of every call in order.

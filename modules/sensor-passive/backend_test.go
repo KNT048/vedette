@@ -1267,12 +1267,12 @@ func TestDefaultCardIsTheManagementCard(t *testing.T) {
 		cards []sensorlink.HeartbeatIface
 		want  string
 	}{
-		"the wired card with an address": {[]sensorlink.HeartbeatIface{card("enp2s0", "192.168.142.141/24"), card("wlp3s0", "192.168.142.142/24"), card("enp3s0"), card("eno2", "169.254.3.4/16")}, "enp2s0"},
-		"only a wireless card":           {[]sensorlink.HeartbeatIface{card("wlp3s0", "192.168.142.142/24"), card("enp3s0")}, "wlp3s0"},
-		"two wired cards: not clear":     {[]sensorlink.HeartbeatIface{card("enp2s0", "192.168.142.141/24"), card("eno1", "10.0.0.5/24")}, ""},
+		"the wired card with an address": {[]sensorlink.HeartbeatIface{card("enp2s0", "10.142.0.141/24"), card("wlp3s0", "10.142.0.142/24"), card("enp3s0"), card("eno2", "169.254.3.4/16")}, "enp2s0"},
+		"only a wireless card":           {[]sensorlink.HeartbeatIface{card("wlp3s0", "10.142.0.142/24"), card("enp3s0")}, "wlp3s0"},
+		"two wired cards: not clear":     {[]sensorlink.HeartbeatIface{card("enp2s0", "10.142.0.141/24"), card("eno1", "10.0.0.5/24")}, ""},
 		// SYS-6: the sensor leaves container bridges, veth and lo out of its heartbeat, but the heartbeat is untrusted;
 		// an older or compromised sensor that lists them up with an address never makes them a candidate.
-		"container bridges are not cards": {[]sensorlink.HeartbeatIface{card("lo", "127.0.0.1/8"), card("docker0", "172.17.0.1/16"), card("br-1a2b3c4d5e6f", "172.18.0.1/16"), card("veth12ab"), card("podman0", "10.88.0.1/16"), card("enp2s0", "192.168.142.141/24")}, "enp2s0"},
+		"container bridges are not cards": {[]sensorlink.HeartbeatIface{card("lo", "127.0.0.1/8"), card("docker0", "172.17.0.1/16"), card("br-1a2b3c4d5e6f", "172.18.0.1/16"), card("veth12ab"), card("podman0", "10.88.0.1/16"), card("enp2s0", "10.142.0.141/24")}, "enp2s0"},
 	} {
 		if _, err := e.svc.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: c.cards, Drops: map[string]int64{}}); err != nil {
 			t.Fatal(err)
@@ -1284,7 +1284,7 @@ func TestDefaultCardIsTheManagementCard(t *testing.T) {
 
 	// Two wired cards with an address give no default; the admin chooses one of them, without SPAN, and the sensor
 	// listens there. Chosen tells that choice from the default; clearing it brings the default rule back (here: no card).
-	two := []sensorlink.HeartbeatIface{card("enp2s0", "192.168.142.141/24"), card("eno1", "10.0.0.5/24")}
+	two := []sensorlink.HeartbeatIface{card("enp2s0", "10.142.0.141/24"), card("eno1", "10.0.0.5/24")}
 	if _, err := e.svc.PassiveHeartbeat(ctx, &sensorlink.PassiveHeartbeat{Version: "1.0.0", Interfaces: two, Drops: map[string]int64{}}); err != nil {
 		t.Fatal(err)
 	}

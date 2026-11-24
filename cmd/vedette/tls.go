@@ -32,7 +32,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// Self-signed certificate lifetime (WP-04b part 2): 825 days, the longest Apple platforms accept for a
+// Self-signed certificate lifetime: 825 days, the longest Apple platforms accept for a
 // certificate (support.apple.com/en-us/103769, HT210176), the same as mkcert. The box makes a new one at
 // start-up, and once a day while running, when its own pair expires within selfSignedRenewBefore (a new
 // certificate for the same key, served without a restart); browsers still warn about a self-signed certificate, and the owner who wants a clean padlock

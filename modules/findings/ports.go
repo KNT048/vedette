@@ -186,7 +186,7 @@ type CVSS struct {
 	Vector  string  `json:"vector"`  // NVD's vector string ("CVSS:3.1/AV:N/…", v2 "AV:N/AC:L/…")
 }
 
-// Feeds is what findings reads from the feeds module (WP-20; not built yet). findings never reads
+// Feeds is what findings reads from the feeds module (not built yet). findings never reads
 // feeds_* tables (FORBID-5 of feeds).
 type Feeds interface {
 	// KevInfo returns the KEV entries of these CVEs. CVEs that are not on the list are absent.

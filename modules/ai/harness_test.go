@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/ai"
 )
 
-// Slice 4a of WP-25: rules and hooks (S-AI-7, INV-7, INV-12, INV-13, INV-14). The GUI mock is the contract.
+// rules and hooks (S-AI-7, INV-7, INV-12, INV-13, INV-14). The GUI mock is the contract.
 
 func ruleBody(text string) string {
 	return fmt.Sprintf(`{"text":%q,"jobs":[],"enabled":true}`, text)

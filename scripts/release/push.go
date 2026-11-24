@@ -21,7 +21,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The release job's registry and GitHub steps (WP-08k): push the manifest lists of `make images` by digest and record them
+// The release job's registry and GitHub steps: push the manifest lists of `make images` by digest and record them
 // (images.json), turn that into the release description (release.in.json), and publish the signed documents and packages as
 // GitHub release assets. Every external command is a fixed argv through runFunc; the tests replace it.
 

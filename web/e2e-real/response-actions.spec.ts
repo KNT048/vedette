@@ -1,5 +1,5 @@
-// Response actions on the real backend (S-RESP-4; WP-30 slice 9a): the administrator adds an action of her own for each kind of
-// connection. The form matrix is that of e2e/qa/wp06-response-actions.spec.ts (the steps and the selectors are the same: the GUI is the same). What
+// Response actions on the real backend (S-RESP-4): the administrator adds an action of her own for each kind of
+// connection. The form matrix is that of e2e/qa/ui-check-response-actions.spec.ts (the steps and the selectors are the same: the GUI is the same). What
 // only a real box shows is new: the connections are real rows (the loopback devices of the box for HTTP, SSH and MCP), the server refuses `{text}` and
 // shell characters whatever the page does, a refused action is not stored, what is saved comes back from GET /response/catalog exactly as typed, the
 // check before and the read-back are kept and shown to the approver, and an operator or a viewer cannot add, change or delete an action.

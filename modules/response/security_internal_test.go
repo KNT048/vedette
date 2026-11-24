@@ -1,6 +1,6 @@
 package response
 
-// Permanent tests of the security review of WP-13a on the internal helpers.
+// Permanent tests of the security review on the internal helpers.
 
 import (
 	"net/netip"

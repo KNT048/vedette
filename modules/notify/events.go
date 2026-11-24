@@ -346,8 +346,8 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 }
 
 // deviceLabel names a device on its new-device incidents: the name the Devices page shows (inventory's one naming rule,
-// so a host name learnt later or a name typed by hand shows), then its address when that is not the name already: "byn
-// (192.168.142.181)", "Hon Hai Precision Ind. Co.,Ltd. (192.168.142.181)", "192.168.142.254".
+// so a host name learnt later or a name typed by hand shows), then its address when that is not the name already: "srv01
+// (10.142.0.181)", "Hon Hai Precision Ind. Co.,Ltd. (10.142.0.181)", "10.142.0.254".
 func deviceLabel(st DeviceState) string {
 	if st.Address != "" && st.Address != st.Name {
 		return clip(st.Name+" ("+st.Address+")", 200)

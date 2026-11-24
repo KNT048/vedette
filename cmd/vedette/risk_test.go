@@ -98,7 +98,7 @@ func TestDeviceRiskAmberThroughTheWiring(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := s.addFortiGate() // FortiOS 7.2.5, typed by a person
-	box, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "boxanna", IP: "192.168.142.2"})
+	box, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "boxanna", IP: "10.142.0.2"})
 	if err != nil {
 		t.Fatal(err)
 	}

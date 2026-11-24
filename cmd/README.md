@@ -1,1 +1,1 @@
-cmd/vedette (server|sensor|all), cmd/vedette-builder (the central pipeline). No code yet.
+cmd/vedette (the box: core and the modules), cmd/vedette-host (the privileged system helper), cmd/vedette-sensor (the separable sensor).

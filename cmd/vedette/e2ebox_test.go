@@ -1,6 +1,6 @@
 package main
 
-// The box of the real-backend end-to-end run (WP-30): the same run() that main() calls, started inside a test binary so that later
+// The box of the real-backend end-to-end run: the same run() that main() calls, started inside a test binary so that later
 // slices can put loopback fakes in the same process (the address policy refuses loopback except through the in-process test hooks).
 // `make e2e-real` compiles this package with -tags webui and starts TestE2EBox; the browser specs of web/e2e-real/ read ready.json.
 // TestE2EBox is skipped unless VEDETTE_E2E_DIR is set, so CI compiles it and never runs it.
@@ -49,7 +49,7 @@ type e2eReady struct {
 	SetupCode   string `json:"setup_code"`
 	DataDir     string `json:"data_dir"`
 	HoneypotDir string `json:"honeypot_dir"`
-	// Control is the base URL of the loopback control server (WP-30 slice 3) and ControlToken the bearer token it asks for; SMTPPort is the
+	// Control is the base URL of the loopback control server and ControlToken the bearer token it asks for; SMTPPort is the
 	// port of the fake SMTP server the specs point the email channel at (host 127.0.0.1, security none).
 	Control      string `json:"control"`
 	ControlToken string `json:"control_token"`
@@ -618,7 +618,7 @@ func TestE2EBoxHarness(t *testing.T) {
 	}
 }
 
-// startE2EControl starts the fakes that live next to the box and the small loopback server the specs reach them through (WP-30 slice 3): the
+// startE2EControl starts the fakes that live next to the box and the small loopback server the specs reach them through: the
 // SMTP sink that receives the two-step codes, and two calls, both behind a bearer token that only ready.json (0600) holds:
 //
 //	GET  /smtp          -> {"messages": ["<raw message>", ...]}, every message the sink received, oldest first

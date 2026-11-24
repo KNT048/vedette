@@ -64,15 +64,15 @@ descendants() {
 	done
 }
 
-# New GitHub issues for this developer (2026-11-09: a teammate's request must never wait).
-# Notifies once per new open issue with VEDETTE_ISSUE_LABEL (default owner:kien) in VEDETTE_REPO
+# New GitHub issues for this developer.
+# Notifies once per new open issue with VEDETTE_ISSUE_LABEL (default needs-triage) in VEDETTE_REPO
 # (default KNT048/vedette). Needs `gh` signed in; silently skipped otherwise or with VEDETTE_REAPER_ISSUES=0.
 check_issues() {
 	[ "${VEDETTE_REAPER_ISSUES:-1}" = "1" ] || return 0
 	command -v gh >/dev/null 2>&1 || return 0
 	local repo label seen list new
 	repo=${VEDETTE_REPO:-KNT048/vedette}
-	label=${VEDETTE_ISSUE_LABEL:-owner:kien}
+	label=${VEDETTE_ISSUE_LABEL:-needs-triage}
 	seen="$(dirname "$log")/vedette-issues-seen.txt"
 	touch "$seen"
 	# perl alarm = a timeout that exists on stock macOS (no coreutils `timeout` there).

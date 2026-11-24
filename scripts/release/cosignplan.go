@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The cosign plan (WP-08k step 6): the exact cosign commands the maintainer runs with the release key, printed and never run
+// The cosign plan: the exact cosign commands the maintainer runs with the release key, printed and never run
 // here. One `cosign sign` per image (the index digest of release.in.json, written to <out>/<service>.{payload.json,sig}, which
 // `release manifest` reads, and uploaded to the registry as the <digest>.sig tag that `cosign verify` reads), then one
 // `cosign attest --type cyclonedx` per platform of each image, attaching the SBOM `make sbom` wrote for that platform

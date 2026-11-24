@@ -813,6 +813,7 @@ func (s *Service) ResolvedSince(ctx context.Context, event string, data any, sin
 	if n > 0 {
 		return false, nil
 	}
+	// notify_incident_resolved_idx answers this read.
 	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT 1 FROM notify_incident WHERE status = 'resolved' AND dedupe_key IN (?, ?) AND handled_at >= ? LIMIT 1`,
 		first, key, store.FormatTS(since)).Scan(&n)
 	switch {

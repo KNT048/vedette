@@ -607,6 +607,9 @@ func (s *Service) runCheck(ctx context.Context, x *run.Exec) (run.Result, error)
 		s.stepStart(ctx, x, d.Steps[0].Seq)
 	}
 	if d.Trigger == run.Manual {
+		if d.ParentID != nil { // a Scan now identification: its caller's run handed the work in memory, and a restart ended that caller
+			return run.Result{Status: run.Failed, Error: noteLost}, nil
+		}
 		got, err := s.identifyIn(ctx, id)
 		if s.waitsForWorker(got, err) {
 			return run.Result{Status: run.Waiting, WaitingFor: waitWorker}, nil

@@ -29,3 +29,18 @@ describe('displayName: the maker of the network card is a weak name', () => {
     expect(osProduct('8.0.3')).toBe('')
   })
 })
+
+describe('displayName: never a raw key on another feature\'s screen', () => {
+  it('names "<maker> device" and "<product> (no device)" while the inventory words are not loaded', async () => {
+    const i18n = (await import('@/lib/i18n')).default
+    const bundle = i18n.getResourceBundle('en', 'inventory') as Record<string, unknown> | undefined
+    i18n.removeResourceBundle('en', 'inventory')
+    try {
+      const card = { value: 'Fortinet', source: 'nmap' as const, confidence: 0.6, seen_at: '2026-11-17T08:00:00.000Z' }
+      expect(displayName({ hostname: null, ip: '192.0.2.251', origin: 'discovered', model: null, vendor: card })).toBe('Fortinet device')
+      expect(displayName({ hostname: null, ip: '', origin: 'manual', vendor: null, model: null, product: { display: 'Microsoft Office' } })).toBe('Microsoft Office (no device)')
+    } finally {
+      if (bundle) i18n.addResourceBundle('en', 'inventory', bundle)
+    }
+  })
+})

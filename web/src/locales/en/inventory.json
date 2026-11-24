@@ -150,8 +150,6 @@
     "titleEmpty": "No devices yet",
     "titleBoxOnly": "Only the Vedette box so far"
   },
-  "noDevice": "{{product}} (no device)",
-  "makerDevice": "{{maker}} device",
   "uncheckable": {
     "title": "Vedette cannot check this device yet",
     "info": "Vedette matches exploited vulnerabilities against the software and firmware a device runs. It learns them from a network scan's version banners, from SNMP, from an agent or from you. Until one of them names what runs here, no finding can appear for this device, whatever it runs.",

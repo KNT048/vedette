@@ -45,3 +45,36 @@ describe('locale namespaces: no raw key', () => {
     expect(missing("const { t } = useTranslation('inventory'); t(`findings:device.tab`)")).toEqual(['findings'])
   })
 })
+
+// A plain helper (a .ts module, no component) that another feature imports runs outside any useTranslation that would wait for its
+// namespace: its i18n.t('<ns>:…') shows the raw key until that namespace happens to be loaded (a device called "makerDevice" in the
+// Runs filter). Such a helper reads only the bundled namespaces.
+const helpers = readdirSync(join(SRC, 'features'), { recursive: true, encoding: 'utf8' })
+  .filter((f) => /\.ts$/.test(f) && !/\.test\.ts$/.test(f))
+  .map((f) => ({ feature: f.split(/[\\/]/)[0]!, mod: f.replace(/\.ts$/, '').split('\\').join('/'), text: readFileSync(join(SRC, 'features', f), 'utf8') }))
+const everyFile = ROOTS.flatMap((root) => readdirSync(join(SRC, root), { recursive: true, encoding: 'utf8' })
+  .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
+  .map((f) => ({ feature: root === 'features' ? f.split(/[\\/]/)[0]! : root, text: readFileSync(join(SRC, root, f), 'utf8') })))
+
+/** The lazy namespaces a helper reads with i18n.t('<ns>:…') without loading them first (loadNamespaces('<ns>')). */
+export function lazyReads(text: string): string[] {
+  const loaded = new Set([...text.matchAll(/loadNamespaces\(\s*['"`]([\w-]+)['"`]/g)].map((m) => m[1]!))
+  const out = new Set<string>()
+  for (const m of text.matchAll(/i18n\.t\(\s*['"`]([\w-]+):/g)) if (NAMESPACES.has(m[1]!) && !BUNDLED.has(m[1]!) && !loaded.has(m[1]!)) out.add(m[1]!)
+  return [...out].sort()
+}
+
+describe('locale namespaces: shared helpers', () => {
+  it('a helper another feature imports reads only the bundled namespaces with i18n.t', () => {
+    const hits = helpers.filter((h) => lazyReads(h.text).length > 0)
+      .filter((h) => everyFile.some((f) => f.feature !== h.feature && f.text.includes(`'@/features/${h.mod}'`)))
+      .map((h) => `features/${h.mod}.ts: ${lazyReads(h.text).join(', ')}`)
+    expect(hits, 'Move the words to common (or core), or read them in a component that names the namespace').toEqual([])
+  })
+
+  it('the helper guard catches what it must', () => {
+    expect(lazyReads("i18n.t('inventory:makerDevice', { maker })")).toEqual(['inventory'])
+    expect(lazyReads("i18n.t('common:device.makerDevice', { maker })")).toEqual([])
+    expect(lazyReads("await loadNamespaces('scan'); toast.error(i18n.t('scan:safety.changedElsewhere'))")).toEqual([])
+  })
+})

@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { toast } from 'sonner'
 import { Square } from 'lucide-react'
-import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { ScanNowButton } from '@/features/scanning/ScanNow'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
@@ -30,13 +32,17 @@ export function useScanFlow(node: TargetNode) {
   const needTwoStep = !!notice && scan.isError && (scan.error as { code?: string }).code === 'twofa_required'
   const blocked = notice ? null : node.blocked ? t(`blocked.long.${node.blocked}`, { value: node.value }) : null
   const roleReason = operator ? null : t('common:needRole', { role: t('common:role.operator') })
+  // The scan that records the confirmation asks first, in a dialog that shows the sentence and the scope: Scan now never records a
+  // confirmation the person has not seen in front of the button they press.
+  const [confirming, setConfirming] = useState(false)
   function run() {
     scan.mutate({ id: node.id, noticeVersion: notice?.version }, {
-      onSuccess: (s) => toast.success(t(s.status === 'queued' ? 'run.queuedToast' : 'run.startedToast', { value: node.value })),
-      onError: (e) => { if ((e as { code?: string }).code !== 'twofa_required') toast.error(errMsg(e)) },
+      onSuccess: (s) => { setConfirming(false); toast.success(t(s.status === 'queued' ? 'run.queuedToast' : 'run.startedToast', { value: node.value })) },
+      onError: (e) => { setConfirming(false); if ((e as { code?: string }).code !== 'twofa_required') toast.error(errMsg(e)) },
     })
   }
-  return { scan, notice, needTwoStep, blocked, roleReason, run, live: isLive(node.last_scan) }
+  const start = () => (notice ? setConfirming(true) : run())
+  return { scan, notice, needTwoStep, blocked, roleReason, run, start, confirming, setConfirming, live: isLive(node.last_scan) }
 }
 type Flow = ReturnType<typeof useScanFlow>
 
@@ -44,9 +50,31 @@ type Flow = ReturnType<typeof useScanFlow>
 export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
   const { t } = useTranslation('exposure')
   return (
-    <ScanNowButton label={node.deep ? t('scan.deepButton') : t('scan.button')} onStart={flow.run} running={flow.live} pending={flow.scan.isPending} runningLabel={t('scan.running')}
-      blocked={flow.blocked ?? flow.roleReason} describedBy={flow.blocked ? 'scan-reason' : flow.notice ? 'scan-notice' : undefined} />
+    <>
+      <ScanNowButton label={node.deep ? t('scan.deepButton') : t('scan.button')} onStart={flow.start} running={flow.live} pending={flow.scan.isPending && !flow.confirming} runningLabel={t('scan.running')}
+        blocked={flow.blocked ?? flow.roleReason} describedBy={flow.blocked ? 'scan-reason' : undefined} />
+      {flow.notice ? (
+        <Dialog open={flow.confirming} onOpenChange={(o) => { if (!o && !flow.scan.isPending) flow.setConfirming(false) }}>
+          {flow.confirming ? (
+            <DialogContent title={t('scan.confirmTitle', { value: node.value })} description={scopeLine(t, node)} info={<><p>{t('scan.noticeWho')}</p>{node.commitment ? <p>{t('scan.noticeChangedInfo')}</p> : null}</>}>
+              {node.commitment ? <p className="text-meta text-muted">{t('scan.noticeChanged')}</p> : null}
+              <p className="rounded-md border border-rule p-3 text-sm">{flow.notice.text}</p>
+              <DialogFooter>
+                <Button disabled={flow.scan.isPending} onClick={() => flow.setConfirming(false)}>{t('common:cancel')}</Button>
+                <Button variant="primary" busy={flow.scan.isPending} busyLabel={t('common:busy.starting')} onClick={flow.run}>{t('scan.confirmButton')}</Button>
+              </DialogFooter>
+            </DialogContent>
+          ) : null}
+        </Dialog>
+      ) : null}
+    </>
   )
+}
+
+/** What Scan now does on this node, in one line: the deep scan the accepted terms allow, or the safe scan. */
+function scopeLine(t: TFunction<'exposure'>, node: TargetNode): string {
+  const deepKey = `scan.deep${node.kind === 'domain' ? 'Domain' : 'Ip'}`
+  return node.deep ? `${t(deepKey)} ${t(node.terms?.disruptive ? 'scan.deepDisruptive' : 'scan.deepNotDisruptive')}` : t('scan.safe')
 }
 
 /** Under the header: why Scan now is refused or what it does, the confirmation it records, and the live or last scan with its run. */
@@ -55,23 +83,14 @@ export function ScanBar({ node, flow }: { node: TargetNode; flow: Flow }) {
   const admin = useCan('admin')
   const tabHref = useTabHref()
   const deepKey = `scan.deep${node.kind === 'domain' ? 'Domain' : 'Ip'}`
-  const scope = node.deep ? `${t(deepKey)} ${t(node.terms?.disruptive ? 'scan.deepDisruptive' : 'scan.deepNotDisruptive')}` : t('scan.safe')
+  const scope = scopeLine(t, node)
   return (
     <div className="-mt-3 mb-6 grid max-w-3xl gap-3">
       {flow.needTwoStep ? <p role="alert" className="text-sm text-warn">{t('scan.needTwoStep', { value: node.value })} <Link to="/settings/account?tab=sign-in#two-step" className="underline">{t('scan.needTwoStepLink')}</Link></p> : null}
       {flow.blocked ? <p id="scan-reason" className="text-sm text-warn">{flow.blocked}</p>
         : node.deep ? <InfoLine className="text-meta text-muted" topic={t('scan.scopeTopic')} info={<><p>{t(`${deepKey}Info`)}</p>{node.terms?.disruptive ? <p>{t('scan.deepDisruptiveInfo')}</p> : null}</>}>{scope}</InfoLine>
         : <p className="text-meta text-muted">{scope}{admin ? <> <Link to={tabHref('ownership', '#step-terms')} className={link}>{t('scan.acceptTerms')}</Link></> : null}</p>}
-      {flow.notice ? (
-        <div id="scan-notice" role="note" aria-label={t('scan.noticeTitle')} className="rounded-md border border-line p-3 text-sm">
-          <div className="mb-1 flex items-center gap-1">
-            <p className="font-medium">{t('scan.noticeTitle')}</p>
-            <InfoTip topic={t('scan.noticeTitle')}>{node.commitment ? <p>{t('scan.noticeChangedInfo')}</p> : null}<p>{t('scan.noticeWho')}</p></InfoTip>
-          </div>
-          {node.commitment ? <p className="mb-1 text-meta text-muted">{t('scan.noticeChanged')}</p> : null}
-          <p>{flow.notice.text}</p>
-        </div>
-      ) : null}
+      {flow.notice ? <p className="text-meta text-muted">{t('scan.noticeFirst')}</p> : null}
       <LastScan node={node} />
     </div>
   )

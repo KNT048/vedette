@@ -96,15 +96,21 @@ describe('exposure screens: a target page', () => {
     expect(await screen.findByText(/^Stopped by it@acme\.example$/)).toBeInTheDocument()
   })
 
-  it("an administrator's first Scan now shows the sentence it records; without two-step the server's refusal says what to do", async () => {
+  it("an administrator's first Scan now asks in a dialog with the sentence it records and the scope; without two-step the server's refusal says what to do", async () => {
     usersStore.update((l) => l.map((u) => (u.id === 'u-admin' ? { ...u, twofa: false } : u)))
     renderApp('/exposure/xt-15?tab=ownership')
-    // the mock finds the proof file at this check: the page then offers the first scan with the sentence it records
+    // the mock finds the proof file at this check: the page then offers the first scan, which asks before it records the sentence
     await userEvent.click(await screen.findByRole('button', { name: 'Check' }))
-    const note = await screen.findByRole('note', { name: 'Pressing Scan now records this confirmation' })
-    expect(note).toHaveTextContent('my company owns 198.51.100.3')
+    await userEvent.click(await screen.findByRole('button', { name: 'Scan now' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm and scan 198.51.100.3' })
+    expect(dialog).toHaveTextContent('my company owns 198.51.100.3')
+    expect(dialog).toHaveAccessibleDescription(/non-intrusive/)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Scan now' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Confirm and scan' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Turn on two-step sign-in for your account before the first scan of 198.51.100.3')
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
 

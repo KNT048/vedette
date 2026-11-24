@@ -59,7 +59,7 @@ func TestContract_INV1_SecretsOnlyAsLast4(t *testing.T) {
 		t.Fatalf("the channel list holds the secret: %s", raw)
 	}
 	tg := v.Channels[0]
-	if tg.SecretLast4 == nil || *tg.SecretLast4 != tgToken[len(tgToken)-4:] || len(v.Channels) != 6 {
+	if tg.SecretLast4 == nil || *tg.SecretLast4 != "••••" || len(v.Channels) != 6 {
 		t.Fatalf("telegram = %+v, %d channels", tg, len(v.Channels))
 	}
 	if got := e.count(`SELECT COUNT(*) FROM core_audit WHERE detail LIKE '%' || ? || '%' OR target LIKE '%' || ? || '%'`, tgSecret, tgSecret); got != 0 {

@@ -1,6 +1,7 @@
 package honeypot
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -190,10 +191,12 @@ func (s *Service) insertHit(ctx context.Context, tx *sql.Tx, h storedHit) error 
 	return nil
 }
 
-// recordTest stores a test hit (INV-4): from the box itself, marked is_test, counted nowhere, published nowhere.
-func (s *Service) recordTest(ctx context.Context, actor, action, target string, h storedHit) (Hit, error) {
+// recordTest stores a test hit (INV-4): from the box itself, marked is_test, counted nowhere, published nowhere. First it sends the
+// alert a real hit would send, marked Test, through the alert channels (Config.TestAlert), and the hit keeps what each channel did.
+func (s *Service) recordTest(ctx context.Context, actor, action, target string, h *storedHit) (Hit, error) {
+	h.TestAlert = s.testAlert(ctx, h)
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		if err := s.insertHit(ctx, tx, h); err != nil {
+		if err := s.insertHit(ctx, tx, *h); err != nil {
 			return err
 		}
 		return s.auditTx(ctx, tx, actor, action, target, "")
@@ -204,6 +207,44 @@ func (s *Service) recordTest(ctx context.Context, actor, action, target string, 
 	out := h.Hit
 	out.SrcAssetID, out.SrcName = nil, nil
 	return out, nil
+}
+
+// testAlert sends the test alert of test hit h and adds a line per channel to its events; nil when no alerter is wired.
+func (s *Service) testAlert(ctx context.Context, h *storedHit) *TestAlertSent {
+	if s.cfg.TestAlert == nil {
+		return nil
+	}
+	d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: cmp.Or(h.TrapHostname, h.TrapIP)}
+	if h.Service != nil {
+		d.Service = string(*h.Service)
+	}
+	if h.Port != nil {
+		d.Port = *h.Port
+	}
+	res, err := s.cfg.TestAlert.TestAlert(ctx, d)
+	line := func(text string) {
+		h.events = append(h.events, HitEvent{TS: store.FormatTS(s.now()), Source: "vedette", Text: clean(text, 300)})
+	}
+	switch {
+	case err != nil:
+		s.cfg.Log.WarnContext(ctx, "honeypot: the test alert could not be sent", "error", err)
+		line("The test alert could not be sent: Vedette could not read the alert channels.")
+		return &TestAlertSent{Channels: []TestAlertResult{}}
+	case len(res) == 0:
+		line("No alert channel is on, so no test alert was sent: a real touch would only show in Vedette. Set one up in Settings, Alert channels.")
+		return &TestAlertSent{Channels: []TestAlertResult{}}
+	}
+	for _, r := range res {
+		switch {
+		case r.OK:
+			line("Test alert sent by " + r.Name + ". " + r.Detail)
+		case r.Skipped:
+			line("Test alert not sent by " + r.Name + ". " + r.Detail)
+		default:
+			line("Test alert not delivered by " + r.Name + ": " + r.Detail)
+		}
+	}
+	return &TestAlertSent{Channels: res}
 }
 
 func (s *Service) testHit(box Box, kind HitKind, svc *ServiceName, port *int, label, excerpt, trapIP, trapHost, eventText string) storedHit {
@@ -246,7 +287,7 @@ func (s *Service) TestHit(ctx context.Context, actor string, svc ServiceName) (H
 	h := s.testHit(w.box, KindService, &svc, &p, svc.Label(),
 		fmt.Sprintf("[test] The Vedette box connected to %s port %d on %s itself to check the trap", svc.Label(), p, t.Name), t.IP, t.Name,
 		fmt.Sprintf(`Test started by a user selecting "Test trap" for %s. Not an attacker.`, svc.Label()))
-	return s.recordTest(ctx, actor, "honeypot.test_hit", svc.Label(), h)
+	return s.recordTest(ctx, actor, "honeypot.test_hit", svc.Label(), &h)
 }
 
 // TestScan is POST /honeypot/test-scan.
@@ -268,7 +309,7 @@ func (s *Service) TestScan(ctx context.Context, actor string) (Hit, error) {
 	h := s.testHit(w.box, KindScan, nil, nil, fmt.Sprintf("Port scan across %d decoy IPs", n),
 		fmt.Sprintf("[test] The Vedette box simulated a sweep across %d decoy IPs", n), joinMax(ips, 400), "Decoy sweep",
 		`Test started by a user selecting "Test scan". Not an attacker.`)
-	return s.recordTest(ctx, actor, "honeypot.test_scan", fmt.Sprintf("%d decoys", n), h)
+	return s.recordTest(ctx, actor, "honeypot.test_scan", fmt.Sprintf("%d decoys", n), &h)
 }
 
 // TestToken is POST /honeypot/tokens/{id}/test.
@@ -285,7 +326,7 @@ func (s *Service) TestToken(ctx context.Context, actor, id string) (Hit, error) 
 	h := s.testHit(box, KindToken, nil, nil, label, "[test] The Vedette box triggered "+label+" to check it", t.Value, label,
 		fmt.Sprintf(`Test started by a user selecting "Test token" for %s. Not an attacker.`, t.Name))
 	h.tokenID = t.ID
-	return s.recordTest(ctx, actor, "honeypot.test_token", t.Value, h)
+	return s.recordTest(ctx, actor, "honeypot.test_token", t.Value, &h)
 }
 
 func tokenLabel(t TokenType) string {

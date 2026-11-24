@@ -233,3 +233,10 @@ The only caller in every item is `response` (through the adapter in `cmd/vedette
 
 ## Modifying: `GET /notify/history` `not_sent`, `notify_notice.unsent`/`title`/`severity`
 - **web** History (Settings › Alert channels): the "Not sent" list reads `not_sent` as is (`what`, `link`, `not_sent.text`, the fix link of `not_sent.reason`); a new reason needs its fix link in `shared.tsx` `FIXABLE`/`fixAt` and `incidents.fix.<reason>`. `core` data export lists the new columns (`modules/core/export_policy.go`).
+
+## Modifying: `SendTrapTest`, `TrapHit`, `trapIncident` (the honeypot's test alert, INV-30)
+- The only caller is `honeypotTestAlerts` in `cmd/vedette/honeypot.go` (honeypot `Config.TestAlert`); honeypot writes each channel's result into the test hit's events and the answer of test-hit, test-scan and tokens/{id}/test (`web/src/features/honeypot/testAlert.ts`). `trapIncident` makes both the real trap incident and the test alert: change its words or severity once.
+
+## Modifying: Not sent and the resend mark (INV-29; `notSentNotices`, `untold`, `notify_send.resend_of`)
+- `untold` decides both whether `SendNow` sends and whether a notice stays on Not sent: change it in one place. Each listed notice reads its findings through `FindingDirectory` once per request (cached by finding).
+- `resend_of` is written by `Resend` only; `modules/core/export_policy.go` classifies it (exported).

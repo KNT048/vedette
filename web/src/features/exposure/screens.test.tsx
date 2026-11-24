@@ -55,7 +55,7 @@ describe('exposure screens: a target page', () => {
     const services = await screen.findByRole('table', { name: 'Services of example.com' })
     expect(within(services).getAllByRole('row')).toHaveLength(4)
     expect(within(services).getByText('198.51.100.21:25/tcp').closest('tr')).toHaveTextContent('Certificate for mail.example.com')
-    await userEvent.click(screen.getByRole('button', { name: 'Closed (1)' }))
+    await userEvent.click(screen.getByRole('button', { name: 'No longer seen (1)' }))
     expect(within(await screen.findByRole('table', { name: 'Services of example.com' })).getByText('198.51.100.22:443/tcp')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('tab', { name: 'Names' }))
     const names = await screen.findByRole('table', { name: 'Names under example.com' })

@@ -34,8 +34,17 @@ type DeviceFound struct {
 	Compared bool `json:"compared,omitempty"`
 	// ComparedPart: one of the two checks had ExtraFailed, so the extra ports were left out of the comparison.
 	ComparedPart bool  `json:"compared_part,omitempty"`
-	New          []int `json:"new,omitempty"`  // TCP ports open now that the previous check of the same reach did not find
-	Gone         []int `json:"gone,omitempty"` // TCP ports that check found and this one did not
+	New          []int `json:"new,omitempty"` // TCP ports open now that the previous check of the same reach did not find
+	// Gone are the TCP ports that check found open and that refused the connection this time (host.answer): closed.
+	Gone []int `json:"gone,omitempty"`
+	// NoAnswer are the TCP ports that check found open and that sent nothing back this time: a firewall that drops probes and a device
+	// or link that rate-limits them look the same, so the check is incomplete for them and what was known about them is kept.
+	NoAnswer []int `json:"no_answer,omitempty"`
+	// Dropped are the TCP ports the previous check already kept as NoAnswer and that sent nothing back again: two misses in a row
+	// take a port off the device's list (the public scan's rule too).
+	Dropped []int `json:"dropped,omitempty"`
+	// NoPortAnswered: the device was up but no port it was asked about answered (host.noPortAnswered): the check is incomplete.
+	NoPortAnswered bool `json:"no_port_answered,omitempty"`
 	// OSWas is the previous OS guess when this check recorded another one; "" when it is the same, or when there is nothing to compare.
 	OSWas string `json:"os_was,omitempty"`
 }
@@ -71,7 +80,7 @@ func reachOf(kind nmapargv.Kind) string {
 // both covered; its OS guess with the newest one that recorded an OS, when both are complete top1000 checks. With no earlier check
 // to compare with, it says what it found and nothing about a change.
 func foundOf(h host, kind nmapargv.Kind, extraFailed bool, prev []DeviceFound) DeviceFound {
-	f := DeviceFound{Reach: reachOf(kind), TimedOut: h.timedOut, ExtraFailed: extraFailed && reachOf(kind) == "top1000"}
+	f := DeviceFound{Reach: reachOf(kind), TimedOut: h.timedOut, ExtraFailed: extraFailed && reachOf(kind) == "top1000", NoPortAnswered: h.noPortAnswered()}
 	for _, o := range deviceObservations(h, kind) {
 		if o.Field == observe.OS {
 			f.OS = o.Value
@@ -104,12 +113,14 @@ func foundOf(h host, kind nmapargv.Kind, extraFailed bool, prev []DeviceFound) D
 		part := f.ExtraFailed || prev[i].ExtraFailed
 		return !part || !slices.Contains(nmapargv.ExtraPortNumbers, p)
 	}
+	// before: the ports open at that check, and the ones it kept after they gave no answer (still on the device's list)
 	var before []int
 	for _, p := range prev[i].Ports {
 		if p.Proto == "tcp" {
 			before = append(before, p.Port)
 		}
 	}
+	before = unionPorts(before, prev[i].NoAnswer)
 	f.Compared, f.ComparedPart = true, f.ExtraFailed || prev[i].ExtraFailed
 	for _, p := range tcp {
 		if covered(p) && !slices.Contains(before, p) && len(f.New) < maxFoundDiff {
@@ -117,23 +128,42 @@ func foundOf(h host, kind nmapargv.Kind, extraFailed bool, prev []DeviceFound) D
 		}
 	}
 	for _, p := range before {
-		if covered(p) && !slices.Contains(tcp, p) && len(f.Gone) < maxFoundDiff {
-			f.Gone = append(f.Gone, p)
+		if !covered(p) || slices.Contains(tcp, p) {
+			continue
+		}
+		// host.answer is the one rule: closed only when the device refused the connection; nothing back is not a closed port
+		switch h.answer(p) {
+		case answeredClosed:
+			f.Gone = appendCapped(f.Gone, p)
+		case noAnswer:
+			if slices.Contains(prev[i].NoAnswer, p) {
+				f.Dropped = appendCapped(f.Dropped, p)
+			} else {
+				f.NoAnswer = appendCapped(f.NoAnswer, p)
+			}
 		}
 	}
-	slices.Sort(f.New)
-	slices.Sort(f.Gone)
+	for _, l := range [][]int{f.New, f.Gone, f.NoAnswer, f.Dropped} {
+		slices.Sort(l)
+	}
 	return f
 }
 
+func appendCapped(l []int, p int) []int {
+	if len(l) < maxFoundDiff {
+		return append(l, p)
+	}
+	return l
+}
+
 // What a check found is kept as items of its run (core_run_item), not as a blob: one item for the check (its reach and how complete
-// it was, as a code of checkCodes), one per open port (the first maxFoundPorts; "more" when there were others), one per port that is
-// no longer open, one for the OS it recorded, and one saying it was compared with an earlier check. The run page lists them as they
+// it was, as a code of checkCodes), one per open port (the first maxFoundPorts; "more" when there were others), one per port open before
+// that closed, gave no answer or gave no answer twice, one for the OS it recorded, and one saying it was compared with an earlier check. The run page lists them as they
 // are; loadFound reads them back for the words of the history and for the next check's comparison.
 
 const (
 	itemCheck   = "check"   // label: the device's address; outcome: a checkCodes code
-	itemPort    = "port"    // label: "22/tcp ssh"; outcome: open | new (open, and not before) | gone | more
+	itemPort    = "port"    // label: "22/tcp ssh"; outcome: open | new (open, and not before) | gone | no_answer | dropped | more
 	itemOS      = "os"      // label: the OS; outcome: recorded | changed (and then an item "before": the OS of the previous check)
 	itemCompare = "compare" // label: "the previous check"; outcome: compared | compared_part
 )
@@ -144,8 +174,10 @@ var checkCodes = func() map[string]DeviceFound {
 	for _, reach := range []string{"top100", "top1000", "extra", "all"} {
 		for _, part := range []bool{false, true} {
 			for _, to := range []bool{false, true} {
-				f := DeviceFound{Reach: reach, ExtraFailed: part, TimedOut: to}
-				m[checkCode(f)] = f
+				for _, quiet := range []bool{false, true} {
+					f := DeviceFound{Reach: reach, ExtraFailed: part, TimedOut: to, NoPortAnswered: quiet && !to}
+					m[checkCode(f)] = f
+				}
 			}
 		}
 	}
@@ -159,6 +191,9 @@ func checkCode(f DeviceFound) string {
 	}
 	if f.TimedOut {
 		c += "_timeout"
+	}
+	if f.NoPortAnswered {
+		c += "_no_answer"
 	}
 	return c
 }
@@ -176,8 +211,13 @@ func foundItems(assetID string, ip netip.Addr, f DeviceFound) []run.Item {
 	if f.Open > len(f.Ports) {
 		its = append(its, run.Item{SubjectKind: itemPort, Label: fmt.Sprintf("%d more open ports", f.Open-len(f.Ports)), Outcome: "more"})
 	}
-	for _, p := range f.Gone {
-		its = append(its, run.Item{SubjectKind: itemPort, Label: strconv.Itoa(p) + "/tcp", Outcome: "gone"})
+	for _, l := range []struct {
+		ports []int
+		out   string
+	}{{f.Gone, "gone"}, {f.NoAnswer, "no_answer"}, {f.Dropped, "dropped"}} {
+		for _, p := range l.ports {
+			its = append(its, run.Item{SubjectKind: itemPort, Label: strconv.Itoa(p) + "/tcp", Outcome: l.out})
+		}
 	}
 	if f.OS != "" {
 		if f.OSWas == "" {
@@ -224,7 +264,7 @@ func (s *Service) loadFound(ctx context.Context, id string) (DeviceFound, bool, 
 			if !known {
 				continue
 			}
-			f.Reach, f.ExtraFailed, f.TimedOut, ok = c.Reach, c.ExtraFailed, c.TimedOut, true
+			f.Reach, f.ExtraFailed, f.TimedOut, f.NoPortAnswered, ok = c.Reach, c.ExtraFailed, c.TimedOut, c.NoPortAnswered, true
 		case itemPort:
 			switch out {
 			case "open", "new":
@@ -237,9 +277,16 @@ func (s *Service) loadFound(ctx context.Context, id string) (DeviceFound, bool, 
 				}
 			case "more":
 				f.Open++ // its list was not kept whole: a later check is not compared with it
-			case "gone":
+			case "gone", "no_answer", "dropped":
 				if p, good := parsePortLabel(lbl); good {
-					f.Gone = append(f.Gone, p.Port)
+					switch out {
+					case "gone":
+						f.Gone = append(f.Gone, p.Port)
+					case "no_answer":
+						f.NoAnswer = append(f.NoAnswer, p.Port)
+					default:
+						f.Dropped = append(f.Dropped, p.Port)
+					}
 				}
 			}
 		case itemOS:

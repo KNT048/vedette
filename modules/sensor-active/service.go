@@ -1168,18 +1168,22 @@ func (s *Service) recordDevice(ctx context.Context, jobID, assetID string, ip ne
 	h := hosts[i]
 	// what this check found, in words for History and the device page, compared with what was known before it records
 	prev := s.beforeRecord(ctx, assetID, jobID, ip)
-	if err := s.recordHost(ctx, assetID, ip, h, kind); err != nil {
+	f := foundOf(h, kind, extraFailed, prev)
+	if err := s.recordHost(ctx, assetID, ip, h, kind, f.NoAnswer); err != nil {
 		return err
 	}
-	s.saveFound(ctx, assetID, ip, foundOf(h, kind, extraFailed, prev))
+	s.saveFound(ctx, assetID, ip, f)
 	return nil
 }
 
 // statedInstance names the readings of what a device states about its firmware in a gentle look with titles (statedSoftware).
 const statedInstance = "stated"
 
-// recordHost stores the result of h on the device (recordDevice).
-func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr, h host, kind nmapargv.Kind) error {
+// recordHost stores the result of h on the device (recordDevice). keep are the ports open at the previous check that sent nothing
+// back this time (DeviceFound.NoAnswer): the check is incomplete for them, so their services stay out of the replace scope and the
+// software is not replaced (a banner read on such a port would go with a list that missed it); a second check with no answer from
+// them replaces both.
+func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr, h host, kind nmapargv.Kind, keep []int) error {
 	if obs := deviceObservations(h, kind); len(obs) > 0 {
 		if err := s.obs.Record(ctx, obs); err != nil {
 			return fmt.Errorf("sensoractive: recording observations: %w", err)
@@ -1191,6 +1195,8 @@ func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr,
 	full := kind == nmapargv.Normal || kind == nmapargv.Versions
 	hint := observe.AssetHint{IP: ip}
 	switch {
+	case len(keep) > 0 && (full || kind == nmapargv.AllPorts):
+		// the software of the last complete check stays until a check reaches its ports again
 	case full: // both read nmap's top 1000 and nmapargv.ExtraPorts with -sV (probeDevice)
 		// the readings of the ports the weekly follow-up read (observe.PortInstance) are not this scan's to replace, except on the
 		// ports this scan found open and read itself: an older follow-up reading there must not stay next to this one
@@ -1233,13 +1239,13 @@ func (s *Service) recordHost(ctx context.Context, assetID string, ip netip.Addr,
 		case full:
 			// the ports this scan looked at are replaced; the open ports the last weekly scan of every port found outside them stay
 			// until the next weekly scan, or 14 days after it at most
-			err = s.svc.ReplaceServices(ctx, hint, observe.Nmap, scopeOf(h, allPortsKeep, false), tcpIn(list, h))
+			err = s.svc.ReplaceServices(ctx, hint, observe.Nmap, withoutPorts(scopeOf(h, allPortsKeep, false), keep, tcpPorts(h.ports)), tcpIn(list, h))
 		case kind == nmapargv.AllPorts:
 			// every port was looked at, none read with versions: a port that closed goes, the others keep what was read on them. A port
 			// read with versions in the last week (a normal scan) that this run did not see stays: one try a port (--max-retries 1)
 			// can miss a reply, and the next normal scan, or this run a week later, decides
-			err = s.svc.ReplaceServices(ctx, hint, observe.Nmap, s.weeklyScope(ctx, assetID, h), tcpIn(list, h))
-			if err == nil && len(h.read) > 0 {
+			err = s.svc.ReplaceServices(ctx, hint, observe.Nmap, withoutPorts(s.weeklyScope(ctx, assetID, h), keep, tcpPorts(h.ports)), tcpIn(list, h))
+			if err == nil && len(h.read) > 0 && len(keep) == 0 {
 				// then the follow-up is a version read of its own ports: their name, product and version are what it read (none
 				// too) and their read time moves (inventory inv_service.read_at), so the next week's follow-up reads others first
 				err = s.svc.ReplaceServices(ctx, hint, observe.Nmap, readScope(h.read), readIn(list, h.read))
@@ -1305,6 +1311,41 @@ func (s *Service) weeklyScope(ctx context.Context, assetID string, h host) obser
 		for _, p := range open {
 			out = append(out, observe.PortRange{From: p, To: p})
 		}
+	}
+	sc.Ports = out
+	return sc
+}
+
+// withoutPorts is sc less these ports, ascending (each cut out of its range). When that takes more ranges than a scope holds, the
+// scope is the open ports alone (open: h's open TCP ports), so the replace removes nothing, as weeklyScope does.
+func withoutPorts(sc observe.ServiceScope, ports, open []int) observe.ServiceScope {
+	if len(ports) == 0 || sc.Ports == nil {
+		return sc
+	}
+	var out []observe.PortRange
+	for _, r := range sc.Ports {
+		from := r.From
+		for _, p := range ports {
+			if p < from || p > r.To {
+				continue
+			}
+			if p > from {
+				out = append(out, observe.PortRange{From: from, To: p - 1})
+			}
+			from = p + 1
+		}
+		if from <= r.To {
+			out = append(out, observe.PortRange{From: from, To: r.To})
+		}
+	}
+	if len(out) > maxScopeRanges {
+		out = []observe.PortRange{}
+		for _, p := range open {
+			out = append(out, observe.PortRange{From: p, To: p})
+		}
+	}
+	if out == nil {
+		out = []observe.PortRange{}
 	}
 	sc.Ports = out
 	return sc
@@ -1411,6 +1452,7 @@ func mergeExtra(hosts, extra []host, ip netip.Addr) []host {
 		h.ntlm = x.ntlm
 	}
 	h.scanned = append(slices.Clone(h.scanned), x.scanned...) // the two runs together looked at both lists
+	h.runs = append(slices.Clone(h.runs), x.runs...)
 	return hosts
 }
 

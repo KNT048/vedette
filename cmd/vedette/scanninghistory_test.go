@@ -104,7 +104,8 @@ func TestExposureHistory_CountsInWords(t *testing.T) {
 
 // A device check says what it found and what changed, from what it stored (sa_job.found), for every reach of a check: open ports
 // with nmap's names, the OS guess (and the one before when it changed), the ports opened and closed since the previous check of the
-// same reach, "nothing changed" when the ports and the guess are the same; a check that timed out says the ports were not listed.
+// same reach, "nothing changed" when the ports and the guess are the same; a check that timed out, where no port answered, or where a
+// port open before sent nothing back says it is incomplete (partly done) and never calls such a port closed.
 func TestJobHistory_DeviceCheckSaysWhatItFound(t *testing.T) {
 	end := "2026-11-17T03:19:00.000Z"
 	job := func(f sensoractive.DeviceFound, result string) sensoractive.JobRow {
@@ -141,8 +142,14 @@ func TestJobHistory_DeviceCheckSaysWhatItFound(t *testing.T) {
 			"Scanned 192.168.10.47: 1 open port (22 ssh); the scan of the extra ports did not finish; since the previous check (outside the extra ports): port 40000 newly open"},
 		{"compared outside the extra ports, no change", sensoractive.DeviceFound{Reach: "top1000", Open: 1, Ports: ports[:1], Compared: true, ComparedPart: true}, "ok: 1 hosts up", "ok",
 			"Scanned 192.168.10.47: 1 open port (22 ssh); nothing changed since the previous check (outside the extra ports)"},
-		{"timed out", sensoractive.DeviceFound{Reach: "top1000", TimedOut: true, Compared: true}, "ok: 1 hosts up", "ok",
-			"Scanned 192.168.10.47: it answered, but nmap reached its time limit before it listed the ports; the ports known before are kept"},
+		{"timed out", sensoractive.DeviceFound{Reach: "top1000", TimedOut: true, Compared: true}, "ok: 1 hosts up", "partial",
+			"Scanned 192.168.10.47: incomplete: it answered, but nmap reached its time limit before it listed the ports (a slow or rate-limited device); the ports known before are kept"},
+		{"no port answered", sensoractive.DeviceFound{Reach: "top1000", NoPortAnswered: true}, "ok: 1 hosts up", "partial",
+			"Scanned 192.168.10.47: incomplete: no port answered (a firewall or the device dropped or rate-limited the probes), so no port is known to be closed"},
+		{"a port open before gave no answer", sensoractive.DeviceFound{Reach: "top1000", Open: 1, Ports: ports[1:2], Compared: true, NoAnswer: []int{22}}, "ok: 1 hosts up", "partial",
+			"Scanned 192.168.10.47: 1 open port (80 http); incomplete: port 22 open at the previous check gave no answer this time (a firewall or the device dropped or rate-limited the probes); what was known about it is kept"},
+		{"no answer twice", sensoractive.DeviceFound{Reach: "top1000", Open: 1, Ports: ports[1:2], Compared: true, Dropped: []int{22}, Gone: []int{443}}, "ok: 1 hosts up", "ok",
+			"Scanned 192.168.10.47: 1 open port (80 http); since the previous check: port 443 no longer open, port 22 gave no answer in two checks in a row and left the list"},
 	} {
 		r, ok := jobHistory(job(c.f, c.result), nil)
 		if !ok || r.Outcome != c.outcome || r.Text != c.text || r.Label != "192.168.10.47" {

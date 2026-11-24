@@ -632,9 +632,6 @@ func (s *Service) deviceCards(ctx context.Context, f ListFilter, assets []string
 			continue
 		}
 		c := DeviceCardJS{Device: deviceRef(devices[a]), Status: statuses[a], Counts: *counts[a], Findings: found[a], CVEs: len(cves[a])}
-		if devices[a].Box { // the Vedette box itself never carries a badge, as on the Devices list
-			c.Status = nil
-		}
 		for _, k := range byAsset[a] {
 			c.Blocks = append(c.Blocks, block(k.key, fixes[k], groups[k]))
 		}

@@ -243,8 +243,10 @@ func TestContract_TheCSVHasTheRisk(t *testing.T) {
 	_ = c
 }
 
-// The Vedette box itself is never marked (the owner's done check: boxanna shows nothing); its updates stay in To fix.
-func TestContract_TheBoxIsNeverMarked(t *testing.T) {
+// The Vedette box is marked by the one rule every device follows: its open findings give it the badge they give any device, on the
+// list and on its page (a box with 139 open findings and no badge read as a clean device beside one with 2 marked "Update
+// recommended"); a box with none has no marker.
+func TestContract_TheBoxIsMarkedLikeAnyDevice(t *testing.T) {
 	t.Parallel()
 	src := fakeRisk{}
 	e := newEnv(t, withRisk(src))
@@ -258,16 +260,20 @@ func TestContract_TheBoxIsNeverMarked(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, d := range l.Items {
-		if d.IsBox && d.Risk != nil {
-			t.Errorf("the box is marked %+v", d.Risk)
+		if d.IsBox && (d.Risk == nil || d.Risk.Code != "exploited") {
+			t.Errorf("the box is not marked: %+v", d.Risk)
 		}
 	}
-	if d, err := e.svc.DetailPage(e.ctx(), box); err != nil || d.Risk != nil {
+	if d, err := e.svc.DetailPage(e.ctx(), box); err != nil || d.Risk == nil || d.Risk.Code != "exploited" {
 		t.Errorf("box detail: %+v, %v", d.Risk, err)
 	}
-	f, _ := inventory.ParseDeviceSearch("", "", "", "", "", "", "none", "")
+	f, _ := inventory.ParseDeviceSearch("", "", "", "", "", "", "exploited", "")
 	if l, _ := e.svc.DevicesPage(e.ctx(), f); len(l.Items) != 1 || !l.Items[0].IsBox {
-		t.Errorf("risk=none: %+v", l.Items)
+		t.Errorf("risk=exploited: %+v", l.Items)
+	}
+	delete(src, box)
+	if d, err := e.svc.DetailPage(e.ctx(), box); err != nil || d.Risk != nil {
+		t.Errorf("a box with no open finding is marked: %+v, %v", d.Risk, err)
 	}
 }
 
@@ -310,9 +316,9 @@ func TestContract_HasFindingsIsOpenFindings(t *testing.T) {
 	}
 }
 
-// The box is never marked, so it has no open findings for has_findings either (its own updates stay in To fix): the same answer
-// as the Devices page's "Has findings" chip, which reads the row's status.
-func TestContract_HasFindingsLeavesTheBoxOut(t *testing.T) {
+// has_findings reads the box like any device: with open findings it is listed under true, the same answer as the Devices page's "Has
+// findings" chip, which reads the row's status.
+func TestContract_HasFindingsReadsTheBoxLikeAnyDevice(t *testing.T) {
 	t.Parallel()
 	src := fakeRisk{}
 	e := newEnv(t, withRisk(src))
@@ -322,7 +328,7 @@ func TestContract_HasFindingsLeavesTheBoxOut(t *testing.T) {
 	}
 	src[box] = inventory.Risk{Code: "exploited", Count: 1}
 	e.findg[box] = 1
-	for v, want := range map[string]int{"true": 0, "false": 1} {
+	for v, want := range map[string]int{"true": 1, "false": 0} {
 		f, err := inventory.ParseDeviceSearch("", "", v, "", "", "", "", "")
 		if err != nil {
 			t.Fatal(err)
@@ -332,7 +338,7 @@ func TestContract_HasFindingsLeavesTheBoxOut(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(l.Items) != want || (want == 1 && !l.Items[0].IsBox) {
-			t.Errorf("has_findings=%s: %d rows %+v, want %d (the box only with false)", v, len(l.Items), l.Items, want)
+			t.Errorf("has_findings=%s: %d rows %+v, want %d (the box only with true)", v, len(l.Items), l.Items, want)
 		}
 	}
 }

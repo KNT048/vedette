@@ -15,10 +15,10 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Input is the Needs your input queue: what Vedette cannot settle without a person, in one list. Three kinds of item, each with its one
-// action: a device nobody added that has open findings (Add device, Ignore), an urgent finding (layers 1 to 4) not confirmed yet
-// (Run the safe check, Confirm vulnerability, Not affected), and a question (fnd_question) not answered yet. Devices a person ignored
-// are left out. An item leaves the moment it is answered or stops being true: the queue is read from the current rows, never stored.
+// Input is the Needs your input queue: what Vedette cannot settle without a person, in one list. Four kinds of item, each with its one
+// action: a device nobody added that has open findings (Add device, Ignore), a watched device Vedette knows nothing to check by (say
+// what runs there: its firmware, SNMP read access or an agent), an urgent finding (layers 1 to 4) not confirmed yet (Run the safe
+// check, Confirm vulnerability, Not affected), and a question (fnd_question) not answered yet. Devices a person ignored are left out. An item leaves the moment it is answered or stops being true: the queue is read from the current rows, never stored.
 
 // InputItemJS is one item of contract.ts InputItem (the fields of its kind are set, the others left out).
 type InputItemJS struct {
@@ -38,6 +38,10 @@ type InputItemJS struct {
 	URL      *string           `json:"url,omitempty"`
 	Command  *string           `json:"command,omitempty"`
 	Choices  []UncheckedAnswer `json:"choices,omitempty"`
+	CVEList  []string          `json:"cve_list,omitempty"`
+	Fixes    []string          `json:"fixes,omitempty"`
+	Line     *string           `json:"line,omitempty"`
+	Listed   *bool             `json:"versions_listed,omitempty"`
 
 	nullables []string // the keys of this kind that are null when unset (encoded explicitly)
 	rank      [3]int
@@ -62,8 +66,12 @@ func (it InputItemJS) MarshalJSON() ([]byte, error) {
 			m[k] = nil
 		}
 	}
-	if _, ok := m["choices"]; !ok && it.Kind == "question" {
-		m["choices"] = []any{}
+	if it.Kind == "question" {
+		for _, k := range []string{"choices", "cve_list", "fixes"} {
+			if _, ok := m[k]; !ok {
+				m[k] = []any{}
+			}
+		}
 	}
 	return json.Marshal(m)
 }
@@ -75,7 +83,7 @@ type InputList struct {
 }
 
 // Input reads one page of the queue (of one device when device is set, of the items a search q finds when q is set): devices not
-// added yet first, then unconfirmed findings by status, then questions by the CVEs waiting on them.
+// added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by the CVEs waiting on them.
 func (s *Service) Input(ctx context.Context, device, q string, p Page) (InputList, error) {
 	q = strings.TrimSpace(q)
 	var items []InputItemJS
@@ -198,9 +206,20 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 	}
 	var distro map[string][]DistroFix
 	for i, x := range qs {
+		if x.Kind == QuestionNothingToCheck {
+			if a := ref.device(x.AssetID); a.Approved && !a.Box { // a device waiting to be added, or the box, is not asked about
+				out = append(out, InputItemJS{Kind: "device_unchecked", ID: x.ID, Device: deviceRef(a), rank: [3]int{0, statusRank(nil) + 1, i}})
+			}
+			continue
+		}
+		listed := x.Detail.Listed
 		it := InputItemJS{Kind: "question", ID: x.ID, Question: string(x.Kind), Device: deviceRef(ref.device(x.AssetID)), CVEs: max(x.Cves, 1),
-			AskedAt: store.FormatTS(x.AskedAt), Choices: []UncheckedAnswer{}, nullables: []string{"software", "cve", "url", "command"},
-			rank: [3]int{2, -x.Cves, i}}
+			AskedAt: store.FormatTS(x.AskedAt), Choices: []UncheckedAnswer{}, CVEList: x.Detail.CVEList, Fixes: x.Detail.Fixes, Listed: &listed,
+			nullables: []string{"software", "cve", "url", "command", "line"}, rank: [3]int{2, -x.Cves, i}}
+		if x.Detail.Line != "" {
+			line := x.Detail.Line
+			it.Line = &line
+		}
 		if l, ok := ref.lines[x.SoftwareID]; ok && x.SoftwareID != "" {
 			sw := &softwareRefJS{ID: l.ID, Name: cmp.Or(x.Detail.Software, l.Display)}
 			if v := cmp.Or(x.Detail.Version, l.Version); v != "" {
@@ -414,6 +433,8 @@ var (
 	ErrAnswered    = &APIError{"already_answered", 409, "This question is answered already."}
 	ErrSeveralCVEs = &APIError{"invalid", 400, "This question is about several CVEs: give the version on the software line instead."}
 	ErrBadAnswer   = &APIError{"invalid", 400, "Answer affected or not affected."}
+	// ErrNotAnswerable is an answer to "Vedette cannot check this device": it is answered by saying what runs there.
+	ErrNotAnswerable = &APIError{"invalid", 400, "Tell Vedette what runs on this device instead: add its firmware, give SNMP read access or install an agent."}
 	// ErrFixTooBig is a fix with more open findings on one device than one handle request may change.
 	ErrFixTooBig        = &APIError{"invalid", 400, fmt.Sprintf("This fix has more than %d open findings on the device: tick the CVEs to handle, %d at a time.", MaxBulk, MaxBulk)}
 	ErrAffectedNeedsWhy = &APIError{"confirm_note_required", 400, "Write what makes you sure (at least 3 characters) so the next person understands."}
@@ -448,6 +469,9 @@ func (s *Service) AnswerQuestion(ctx context.Context, id, answer, note, user str
 		}
 		if x.Answer != "" {
 			return ErrAnswered
+		}
+		if x.Kind == QuestionNothingToCheck {
+			return ErrNotAnswerable
 		}
 		if answer == AnswerAffected {
 			if x.CVE == "" {

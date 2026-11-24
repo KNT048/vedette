@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/knt048/vedette/core/productid"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // UncheckedReason says why an exploited CVE of software the device has could not be checked (#910 phase 1, contract.ts
@@ -39,6 +40,115 @@ type Unchecked struct {
 	// NVDPending: no_nvd_data while NVD has not answered for the CVE (Vuln.NVDAnswered false: a new box, the NVD feed off or failing):
 	// Vedette is waiting for NVD's data, NVD has not said it has none (review r2 M1 of #939).
 	NVDPending bool
+	// Listed: no_nvd_versions only, the entries that name the row give versions, just none that decides this one (only exact versions,
+	// only a start, or a partial CVE.org list); false when they give none (explainUnchecked). The question then says so, never "gives
+	// no affected versions".
+	Listed bool
+	// Line is set when the vendor's own rows (Vuln.Schemed) name fixed releases only on release lines later than the row's and say
+	// nothing about the row's own line ("7.2.1" of DSM 7.2.1-69057-5): the row's release line, and fixes the fixed releases those rows
+	// state (olderLine). Such rows of one line are one question (QuestionOlderLine). "" otherwise.
+	Line  string
+	fixes []versionscheme.Version
+}
+
+// explainUnchecked adds to each unchecked row with no version data its question needs (no_nvd_data, no_nvd_versions) what the reason
+// alone does not say: whether the entries naming the row list versions of it at all (Listed), and whether the vendor's own rows name
+// fixes only on later release lines than the row's (Line, olderLine). Only the device's rows are read (the network OS a device states
+// without a row is not: its versions do not order).
+func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
+	if len(us) == 0 {
+		return
+	}
+	row := make(map[string]int, len(d.sws))
+	for i, s := range d.sws {
+		if _, ok := row[s.ID]; !ok { // the first row of an id is its effective reading
+			row[s.ID] = i
+		}
+	}
+	byCVE := make(map[string]Vuln, len(vulns))
+	for _, v := range vulns {
+		if _, ok := byCVE[v.CVE]; !ok {
+			byCVE[v.CVE] = v
+		}
+	}
+	for k := range us {
+		u := &us[k]
+		if u.Reason != UncheckedNoNVDData && u.Reason != UncheckedNoNVDVersions {
+			continue
+		}
+		i, okR := row[u.SoftwareID]
+		v, okV := byCVE[u.CVE]
+		if !okR || !okV {
+			continue
+		}
+		s, in := d.sws[i], d.infos[i]
+		if u.Reason == UncheckedNoNVDVersions {
+			u.Listed = slices.ContainsFunc(rowEntries(s, in, v), versionEvidence)
+		}
+		u.Line, u.fixes = olderLine(d.a, s, in, v)
+	}
+}
+
+// olderLine says the vendor's own rows of v for the row's product (Vuln.Schemed: Synology's fixed DSM releases, VMware's ESXi builds)
+// name only release lines later than the row's: line is the row's release line as the scheme names it ("7.2.1") and fixes the fixed
+// releases the rows state. "" when there are no such rows, the scheme does not place the row's version, a row reaches the row's line
+// (the vendor speaks about it: schemeJudge decides), or a row does not start on a later line. The vendor then says nothing about the
+// row's line: a fix on a later line shows neither that this one is affected nor that it is not (a vendor fixes an older line for
+// selected flaws only, in other advisories), so there is no verdict and the row stays a question, which says so. It decides nothing.
+func olderLine(a Asset, s Software, in swInfo, v Vuln) (string, []versionscheme.Version) {
+	if len(v.Schemed) == 0 {
+		return "", nil
+	}
+	scheme, spans, _, _ := schemedSpans(a, s, in, v)
+	if scheme == nil || len(spans) == 0 {
+		return "", nil
+	}
+	installed, ok := scheme.Installed(in.ver, statedBuild(s))
+	if !ok || installed.LineStart || namesLine(spans, installed) {
+		return "", nil
+	}
+	here := versionscheme.LineStart(installed)
+	var fixes []versionscheme.Version
+	for _, sp := range spans {
+		if sp.Start == nil { // a span from the first release on reaches every earlier line (namesLine): it ends on an earlier one here
+			return "", nil
+		}
+		if c, ok := versionscheme.Compare(here, versionscheme.LineStart(*sp.Start)); !ok || c >= 0 {
+			return "", nil
+		}
+		if e := sp.End; e != nil && !sp.EndIncl && !e.LineStart && len(e.Build) > 0 { // not a line's empty row ("7.3.1" before "7.3.1")
+			fixes = append(fixes, *e)
+		}
+	}
+	return here.Label, fixes
+}
+
+// newestPerLine is the newest of fixes on each release line, oldest line first, as people read them ("7.3.2-86009 Update 5").
+func newestPerLine(fixes []versionscheme.Version) []string {
+	var best []versionscheme.Version
+	for _, f := range fixes {
+		i := slices.IndexFunc(best, func(b versionscheme.Version) bool {
+			c, ok := versionscheme.Compare(versionscheme.LineStart(b), versionscheme.LineStart(f))
+			return ok && c == 0
+		})
+		switch {
+		case i < 0:
+			best = append(best, f)
+		default:
+			if c, ok := versionscheme.Compare(f, best[i]); ok && c > 0 {
+				best[i] = f
+			}
+		}
+	}
+	slices.SortStableFunc(best, func(x, y versionscheme.Version) int {
+		c, _ := versionscheme.Compare(x, y)
+		return c
+	})
+	out := make([]string, len(best))
+	for i, b := range best {
+		out[i] = b.Display
+	}
+	return out
 }
 
 // uncheckedRow says whether row s, read against v with outcome out (matchOne), is one the device has but Vedette could not check,

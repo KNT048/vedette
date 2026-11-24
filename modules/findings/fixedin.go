@@ -67,6 +67,21 @@ const maxFixedBranches = 5
 // #910: a Chrome row for CISA's "Chromium V8"), the fix is that row's, the one the finding is about.
 func FixedInFor(a Asset, v Vuln) *FixedIn { return newDevRows(a).fixedInFor(v) }
 
+// FixedInOn is the release that fixes v on the finding's own line s of device a, read as FixOf reads it (the entry's key only when the line
+// carries it): a finding on no exploited list has no key that FixedInFor could find its line by, so its line is named. nil when the ranges
+// do not say.
+func FixedInOn(a Asset, s Software, v Vuln) *FixedIn {
+	in := newSWInfo(s, a.OS)
+	if f, ok := windowsFixedIn(in, v); ok {
+		return f
+	}
+	var key []identity
+	if keyedTo(s, v) {
+		key = keyIDs(v)
+	}
+	return newDevRows(a).withRestart(s, fixedInSoftware(in, v, key))
+}
+
 // devRows is a device's software as the fix readers read it, built once per device: deviceSoftware's rows, each row's swInfo (with
 // the device's OS) and, when a reader needs them, each row's vendors (rowVendors). FixedInFor answers from it.
 type devRows struct {

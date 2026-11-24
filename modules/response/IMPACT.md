@@ -146,8 +146,9 @@
   `TestWiringSplitMovesTheFindingWithItsLine` (cmd/vedette) covers it end to end.
 - **Ended requests** (`endedAnswer`, `isWithdrawn` in `requests.go`): every decision on a request that is not pending, from the app
   (`approvalGate`, `reject`), a chat button or Zalo code (`DecideFromChat`) or an email link (`DecideByLink`, `LinkView` state
-  `withdrawn`), answers through it; a withdrawn request is recognised by the note `withdrawMoved` writes (`withdrawnPrefix`). Changing
-  that note's start, or adding a way a request ends without going through `endedAnswer`, breaks
+  `withdrawn`), answers through it; a withdrawn request is recognised by `resp_actions.end_reason = 'split'` (`EndSplit`, set by
+  `withdrawMoved`; the note is for people only), and the answer names the device the finding is on now through
+  `Directory.Finding`/`Device`. Adding a way a request ends without going through `endedAnswer` breaks
   `TestEveryEndedRequestAnswersItsButtonsTheSameWay`. notify relays the code and message as the chat reply (`responseDecisions`).
 
 - `FindingInfo.KEV` is "exploited in the wild" (findings' layer 1 or 2), set by `cmd/vedette/response.go`; `PlanTarget.Urgency` carries the status code of the finding's layer into the plan job's data.

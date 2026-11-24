@@ -296,7 +296,7 @@ func (s *Service) approvalGate(ctx context.Context, q dbq, r request, who Actor,
 	}
 	switch {
 	case a.Status != StatusPending:
-		return g, endedAnswer(ctx, q, r), nil
+		return g, s.endedAnswer(ctx, q, r), nil
 	case len(chosenRecs) == 0 || len(chosenRecs) != len(uniq):
 		return g, fail(http.StatusBadRequest, "invalid_items", "Pick at least one action of this request."), nil
 	}
@@ -1009,7 +1009,7 @@ func (s *Service) reject(ctx context.Context, who Actor, id, reason, remember st
 				}
 			}
 			if r.Status != StatusPending {
-				refusal = endedAnswer(ctx, tx, r)
+				refusal = s.endedAnswer(ctx, tx, r)
 				return nil
 			}
 			if lk != nil { // the person may have been demoted or disabled since the link was opened (the app path reads the account the same way)
@@ -1082,25 +1082,18 @@ func (s *Service) expire(ctx context.Context, tx *sql.Tx, r *request, fx *effect
 	return updateReq(ctx, tx, *r)
 }
 
-// withdrawnPrefix starts the note of a request a device split withdrew (withdrawMoved): it ended expired, without a decision, because
-// its finding moved to another device.
-const withdrawnPrefix = "Withdrawn: "
-
-// isWithdrawn says r ended because a device split withdrew it, not because its time ran out.
-func isWithdrawn(r request) bool {
-	return r.Status == StatusExpired && r.Note != nil && strings.HasPrefix(*r.Note, withdrawnPrefix)
-}
+// isWithdrawn says r ended because a device split withdrew it (its end reason), not because its time ran out.
+func isWithdrawn(r request) bool { return r.Status == StatusExpired && r.endReason == EndSplit }
 
 // endedAnswer is the one answer to a decision on request r that is no longer pending, whichever way it came (the app, a chat button
 // or reply code, an email link): 409 with the code withdrawn, expired or not_pending, and a message that says plainly how the request
-// ended and that this decision changed nothing. A withdrawn request says why (the device split) and points to the request made for the
-// finding since then (new_request_id), or says a new one is asked for from the finding's new plan. The callers that answer a person
-// outside the app (chat, link) name not_pending "decided".
-func endedAnswer(ctx context.Context, q dbq, r request) *apierr.Error {
+// ended and that this decision changed nothing. A withdrawn request says why (the device split, naming the device its finding is on
+// now) and points to the request made for the finding since then (new_request_id), or says a new one is asked for from the finding's
+// new plan. The callers that answer a person outside the app (chat, link) name not_pending "decided".
+func (s *Service) endedAnswer(ctx context.Context, q dbq, r request) *apierr.Error {
 	switch {
 	case isWithdrawn(r):
-		why, _, _ := strings.Cut(strings.TrimPrefix(*r.Note, withdrawnPrefix), ". Nothing was changed.")
-		msg := "This request was withdrawn without a decision: " + why + ". Nothing was changed."
+		msg := "This request was withdrawn without a decision: the finding moved to " + s.findingDevice(ctx, r) + " after a device split. Nothing was changed."
 		next, ok := replacement(ctx, q, r)
 		switch {
 		case ok && next.Status == StatusPending:
@@ -1113,6 +1106,22 @@ func endedAnswer(ctx context.Context, q dbq, r request) *apierr.Error {
 		return fail(http.StatusConflict, "expired", "This request has expired. Nothing was changed. Ask for a new one.")
 	}
 	return fail(http.StatusConflict, "not_pending", "This request is already "+strings.ReplaceAll(string(r.Status), "_", " ")+". This decision changed nothing.")
+}
+
+// findingDevice names the device the finding of request r is on now, as the directory names it; "another device" when it cannot.
+func (s *Service) findingDevice(ctx context.Context, r request) string {
+	if r.FindingID == nil || s.cfg.Directory == nil {
+		return "another device"
+	}
+	f, ok, err := s.cfg.Directory.Finding(ctx, *r.FindingID)
+	if err != nil || !ok {
+		return "another device"
+	}
+	d, ok, err := s.cfg.Directory.Device(ctx, f.AssetID)
+	if name := oneLine(firstNonEmpty(d.Name, d.IP), 120); err == nil && ok && name != "" {
+		return name
+	}
+	return "another device"
 }
 
 // replacement is the newest request made for the finding of withdrawn request r on another device since r was withdrawn. An error

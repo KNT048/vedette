@@ -1616,7 +1616,7 @@ CREATE TABLE "resp_actions" (
     pre_approved       BOOLEAN NOT NULL DEFAULT 0 CHECK (pre_approved IN (0, 1)),
     ai                 TEXT    CHECK (ai IS NULL OR json_valid(ai)),
     items              TEXT    NOT NULL CHECK (json_valid(items))
-);
+, end_reason TEXT);
 
 CREATE INDEX resp_plans_finding_ix ON resp_plans (finding_id);
 

@@ -341,6 +341,12 @@ func TestEveryEndedRequestAnswersItsButtonsTheSameWay(t *testing.T) {
 		c.must(c.db.Write(c.ctx(), func(tx *sql.Tx) error {
 			return c.svc.FindingMoved(c.ctx(), tx, lifecycle.FindingMove{Finding: "f1", From: "a-old", Into: "a-split", IntoName: "camera-02", IntoIP: "192.0.2.42"})
 		}))
+		if n := c.count(`SELECT count(*) FROM resp_actions WHERE id = ? AND end_reason = 'split'`, a.ID); n != 1 {
+			t.Fatal("the withdrawn request does not store why it ended")
+		}
+		// the split committed: the finding is on the device split off
+		c.dir.devices["a-split"] = response.DeviceInfo{ID: "a-split", Name: "camera-02", IP: "192.0.2.42", Kind: "camera"}
+		c.dir.findings["f1"] = response.FindingInfo{ID: "f1", AssetID: "a-split", CVE: "CVE-2024-0001", Severity: "high", Status: "confirmed"}
 		msg := same(t, ask(t, c, a.ID), "withdrawn", "withdrawn")
 		for _, want := range []string{"withdrawn without a decision", "moved to camera-02 after a device split", "Nothing was changed", "ask again from that plan"} {
 			if !strings.Contains(msg, want) {

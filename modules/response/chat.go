@@ -363,7 +363,7 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 	// request that replaced it), expired, or already decided; for a code that was not used, before whether the code itself ended,
 	// which says less. Nothing is burned. The transaction answers the same for a request that ends while this call waits.
 	if r.Status != StatusPending {
-		return refuse(withID(outsideApp(endedAnswer(ctx, s.cfg.DB.Reader(), r))))
+		return refuse(withID(outsideApp(s.endedAnswer(ctx, s.cfg.DB.Reader(), r))))
 	}
 	if zalo {
 		if !rec.expires.After(s.now()) {

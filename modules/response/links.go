@@ -380,7 +380,7 @@ func (s *Service) DecideByLink(ctx context.Context, token, decision, from string
 	case state == "decided" && s.linkUsed(ctx, rec.hash): // the winner of two POSTs at once burned it after we read it: say so
 		return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusConflict, "used", linkMsg("used"))), r.ID, rec.address)
 	case state != "ready": // the request ended (withdrawn, expired, decided): the same answer as a chat button or the app
-		return ActionRequest{}, s.refuse(ctx, withID(outsideApp(endedAnswer(ctx, s.cfg.DB.Reader(), r))), r.ID, rec.address)
+		return ActionRequest{}, s.refuse(ctx, withID(outsideApp(s.endedAnswer(ctx, s.cfg.DB.Reader(), r))), r.ID, rec.address)
 	}
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
 	if err != nil {

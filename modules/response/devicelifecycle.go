@@ -148,8 +148,8 @@ func (s *Service) withdrawMoved(ctx context.Context, tx *sql.Tx, f lifecycle.Fin
 		if err := s.step(ctx, tx, "response.expire", r.ID, LogExpired, "Request withdrawn without a decision, nothing was changed: "+r.Title+": "+why, "system"); err != nil {
 			return err
 		}
-		r.Status, r.DecidedAt = StatusExpired, strp(s.ts())
-		r.Note = strp(withdrawnPrefix + why + ". Nothing was changed. A new plan is written for the finding on its new device; ask again from that plan.")
+		r.Status, r.DecidedAt, r.endReason = StatusExpired, strp(s.ts()), EndSplit
+		r.Note = strp("Withdrawn: " + why + ". Nothing was changed. A new plan is written for the finding on its new device; ask again from that plan.")
 		for i := range r.recs {
 			r.recs[i].Status = ItemSkipped
 		}

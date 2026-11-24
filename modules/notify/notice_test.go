@@ -492,3 +492,22 @@ func TestDigestWordingFollowsTheUrgencyLayer(t *testing.T) {
 		t.Errorf("exploited ones: %+v", exploited)
 	}
 }
+
+// A message that groups several findings of one product says one "What to do first" for all of them: the action they share, else
+// the way to each finding's own fix. The first finding's fix release ("Update nginx to 1.30.1.") would leave the others open when
+// they are fixed only in a later release.
+func TestGroupedNoticesOfOneProductNameNoSingleFindingsFix(t *testing.T) {
+	t.Parallel()
+	a := vuln("a", "nginx", "CVE-1", []string{"WEB01"}, High, at(9, 0))
+	a.Action = "Update nginx to 1.30.1."
+	b := vuln("b", "nginx", "CVE-2", []string{"WEB01"}, High, at(9, 5))
+	b.Action = "Update nginx to 1.31.9."
+	m := msgOf(t, oneBatch(t, a, b))
+	if strings.Contains(m.Action, "1.30.1") || strings.Contains(m.Action, "1.31.9") || m.Action == "" {
+		t.Errorf("grouped action = %q, want one that names no single finding's release", m.Action)
+	}
+	b.Action = a.Action
+	if m := msgOf(t, oneBatch(t, a, b)); m.Action != a.Action {
+		t.Errorf("shared action = %q, want %q", m.Action, a.Action)
+	}
+}

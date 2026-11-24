@@ -147,7 +147,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   modules and tools of any installed kernel, an image that does not run, a metapackage, linux-libc-dev) is never matched. When an
   installed image the device does not run, built by the distribution, is at or above the distribution's fix, the fix is `restart`
   (`fix_version` = that image's package release) and the evidence says so. Debian's own kernel builds compare across upstream point
-  releases (its stable kernel moves to them). `TestDistroKernelOnceOnTheRunningKernel`, `TestCount_DistributionKernelFindings`.
+  releases inside one kernel series (its stable kernel moves to them; a release never changes series), and a long-term-support
+  series shipped as a source of its own (Debian 11's linux-6.1, signed by linux-signed-6.1-amd64) is judged by that source's rows.
+  `TestDistroKernelOnceOnTheRunningKernel`, `TestCount_DistributionKernelFindings`, `TestMatchAsset_DebianKernelComparesOnlyInsideItsSeries`.
 - **INV-15** A Windows release line is judged by its build revision against Microsoft's fixed builds (`windows.go`).
 - **INV-16** CVEs in `content/catalog/platform-limits.json` affect only the platforms listed; platform evidence comes only from the
   device's own reading (agent OS, its SNMP answer). No platform evidence is a `platform` question (INV-16c); the fixed versions per

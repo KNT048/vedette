@@ -126,3 +126,26 @@ func TestSignPacksSignsTheShippedPacks(t *testing.T) {
 		t.Fatalf("read back: %d docs, %v", len(u.Docs), err)
 	}
 }
+
+// The committed pack directory carries a signature of the release key over exactly the packs it holds. A pack edited after signing
+// (or a pack added without running make release-packs) makes the box refuse the whole set at load-packs, so it fails here instead.
+func TestShippedPacksCarryAReleaseSignature(t *testing.T) {
+	if _, _, testOnly := release.EmbeddedMinisignKeys(); testOnly {
+		t.Skip("built with the throwaway release keys; the committed packs are signed with the real ones")
+	}
+	trust, err := release.Embedded() // the production keys of keys.go, as the box verifies the packs
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, err := mitigation.ReadPackDir("../../content/mitigation/packs")
+	if err != nil {
+		t.Fatalf("the shipped packs carry no signed set: %v", err)
+	}
+	stmt, err := mitigation.Statement(u.Version, u.Docs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := release.VerifyContent(stmt, u.Signature, trust); err != nil {
+		t.Fatalf("packs.minisig does not verify the committed packs (version %q): run make release-packs with a newer version: %v", u.Version, err)
+	}
+}

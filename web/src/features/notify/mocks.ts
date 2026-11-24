@@ -126,10 +126,13 @@ function suppressed(all: Notice[]) {
   const sent = new Set(all.flatMap((a) => a.cves))
   return { count: kevData.vulns.filter((v) => new Date(`${v.date_added}T23:59:59Z`).getTime() >= since && !sent.has(v.cve)).length, days: 7 }
 }
+/** The sends made with Send again (the box keeps notify_send.resend_of): History marks them "Sent again". */
+const resentIds = new Set<string>()
 function history(): HistoryItem[] {
-  const inc = incidents.get().flatMap((i) => i.sends.map((x): HistoryItem => ({ ...x, kind: 'incident', what: i.title, link: `/incidents/${i.id}` })))
-  const vul = notices.get().flatMap((n) => n.sends.map((x): HistoryItem => ({ ...x, kind: 'vuln', what: `${n.product} is being exploited (${n.cves.join(', ')})`, link: `/findings/${n.finding_ids[0]}` })))
-  const apr = approvalSends.get().map((x): HistoryItem => ({ ...x.send, kind: 'approval', what: x.what, link: '/response' }))
+  const resent = (id: string) => resentIds.has(id)
+  const inc = incidents.get().flatMap((i) => i.sends.map((x): HistoryItem => ({ ...x, kind: 'incident', what: i.title, link: `/incidents/${i.id}`, resent: resent(x.id) })))
+  const vul = notices.get().flatMap((n) => n.sends.map((x): HistoryItem => ({ ...x, kind: 'vuln', what: `${n.product} is being exploited (${n.cves.join(', ')})`, link: `/findings/${n.finding_ids[0]}`, resent: resent(x.id) })))
+  const apr = approvalSends.get().map((x): HistoryItem => ({ ...x.send, kind: 'approval', what: x.what, link: '/response', resent: resent(x.send.id) }))
   return [...inc, ...vul, ...apr].sort((a, b) => b.at.localeCompare(a.at))
 }
 
@@ -147,8 +150,9 @@ export function openIncidents(): { open: number; urgent: number } {
   return { open: open.length, urgent: open.filter((i) => i.severity === 'high' || i.severity === 'critical').length }
 }
 
-const last4 = (v?: string) => (v ? v.slice(-4) : null)
-const shownUrl = (u?: string) => { try { const x = new URL(u ?? ''); return `${x.protocol}//${x.host}/…${(u as string).slice(-4)}` } catch { return '' } }
+/** A saved secret is returned as a mark, never a character of it (as the box does). */
+const last4 = (v?: string) => (v ? '••••' : null)
+const shownUrl = (u?: string) => { try { const x = new URL(u ?? ''); return `${x.protocol}//${x.host}/…` } catch { return '' } }
 const pub = (c: StoredChannel): Channel => { const { secret, url, app_token, bot_token, approvals, approvers, secret_key: _k, refresh_token, ...r } = c; return { ...r, fields: c.type === 'webhook' && url ? { url: shownUrl(url) } : r.fields, secret_last4: last4(refresh_token || secret), approvals: approvals === true, approvers: approvers ?? [], approval_last4: { app_token: last4(app_token), bot_token: last4(bot_token) } } }
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/
 
@@ -623,8 +627,9 @@ export const handlers = [
     if (old.kind === 'incident') incidents.update((l) => l.map((x) => (x.sends.some((y) => y.id === id) ? { ...x, sends: [...x.sends, rec] } : x)))
     else if (old.kind === 'vuln') notices.update((l) => l.map((x) => (x.sends.some((y) => y.id === id) ? { ...x, sends: [...x.sends, rec] } : x)))
     else approvalSends.update((l) => [...l, { id: newId('ap'), at: rec.at, what: old.what, send: rec }])
+    resentIds.add(rec.id)
     audit('notify.resend', old.what, c.type)
-    return HttpResponse.json({ ...rec, kind: old.kind, what: old.what, link: old.link })
+    return HttpResponse.json({ ...rec, kind: old.kind, what: old.what, link: old.link, resent: true })
   }),
 
   http.get(`${API}/notify/findings/:id/notices`, ({ params }) => {

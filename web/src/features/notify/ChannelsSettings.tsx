@@ -69,7 +69,7 @@ function randomKey() {
 }
 
 /** The form of one alert channel (exported for #850: Settings › Scanning creates a channel where matches need one, §0). */
-export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void }) {
+export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved, onSwitch }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void; onSwitch?: (type: Channel['type']) => void }) {
   const { t, i18n } = useTranslation('notify')
   // #824: a field's hint is one short line; its explanation, when it has one, is the sibling `info` key of the hint actually shown.
   const infoOf = (keys: string[]) => {
@@ -193,6 +193,19 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
       <DialogContent title={t('channels.dialogTitle', { name })} description={t('channels.dialogDesc')}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
+          {type === 'zalo' ? (
+            // An Official Account is a business setup on Zalo Developers: the form says so first, offers the personal channel (a QR
+            // sign-in) for someone who only wants alerts on their own Zalo, and lists where each value comes from, in order.
+            <div role="note" aria-label={t('channels.f.zalo.guideTitle')} className="grid gap-2 rounded-md border border-rule bg-sunken p-3 text-meta">
+              <p className="font-medium">{t('channels.f.zalo.guideTitle')}</p>
+              <p>{t('channels.f.zalo.guideWho')}</p>
+              {onSwitch && !opened.configured ? <Button size="sm" className="w-fit" onClick={() => onSwitch('zalo-personal')}>{t('channels.f.zalo.usePersonal')}</Button> : null}
+              <ol className="list-decimal grid gap-1 pl-5">
+                {(['s1', 's2', 's3', 's4', 's5'] as const).map((k) => <li key={k}>{t(`channels.f.zalo.steps.${k}`)}</li>)}
+              </ol>
+              <a className="w-fit text-accent underline underline-offset-4" href={ZALO_OA_DOC} target="_blank" rel="noopener noreferrer">{t('channels.f.zalo.doc')}</a>
+            </div>
+          ) : null}
           {type === 'zalo-personal' ? null : FIELDS[type].filter(shown).map((k) => {
             const id = `ch-${type}-${k}`
             const label = type === 'email' ? t(emailKeys(prov, k, 'label')) : t(`channels.f.${type}.${k}.label`)
@@ -258,9 +271,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
           {type === 'zalo' ? (
             <div className="grid gap-3">
               <div role="note" aria-label={t('channels.f.zalo.helpTitle')}>
-                <Notice tone="accent" title={t('channels.f.zalo.help')} info={t('channels.f.zalo.helpInfo')} className="mb-0">
-                  <a className="w-fit text-accent underline underline-offset-4" href={ZALO_OA_DOC} target="_blank" rel="noopener noreferrer">{t('channels.f.zalo.doc')}</a>
-                </Notice>
+                <Notice tone="accent" title={t('channels.f.zalo.help')} info={t('channels.f.zalo.helpInfo')} className="mb-0" />
               </div>
               <Field label={t('channels.f.zalo.secret_key.label')} hint={zaloGrant ? t('channels.keepSaved') : t('channels.f.zalo.secret_key.hint')} info={t('channels.f.zalo.secret_key.info')} htmlFor="ch-zalo-secret_key" error={fieldErr.secret_key}>
                 <Input id="ch-zalo-secret_key" type="password" value={zaloKey} onChange={(e) => { setZaloKey(e.target.value); fixed('secret_key') }} autoComplete="new-password" {...aria('ch-zalo-secret_key', 'secret_key')} />
@@ -366,10 +377,12 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: 
               </>
             ) : <p className="text-meta text-muted">{t('approve.linkOnly')}</p>}
           </fieldset>) : null}
+          {/* Findings are chosen by their status (the words of every screen), incidents by their severity: each choice says what it sends */}
           <Field label={t('channels.minSeverity')} hint={t('channels.minSeverityHint')} htmlFor={`ch-${type}-min`}>
-            <Select id={`ch-${type}-min`} value={min} onChange={(e) => setMin(e.target.value as RouteSeverity)} aria-describedby={`ch-${type}-min-hint`}>
-              {ROUTE_SEVERITIES.map((s) => <option key={s} value={s}>{t('channels.min', { sev: t(`common:severity.${s}`) })}</option>)}
+            <Select id={`ch-${type}-min`} value={min} onChange={(e) => setMin(e.target.value as RouteSeverity)} aria-describedby={`ch-${type}-min-hint ch-${type}-min-sends`}>
+              {ROUTE_SEVERITIES.map((s) => <option key={s} value={s}>{t(`channels.level.${s}.option`)}</option>)}
             </Select>
+            <p id={`ch-${type}-min-sends`} className="text-meta" data-testid="min-sends">{t(`channels.level.${min}.sends`)}</p>
           </Field>
           <div className="flex items-center gap-3">
             <Switch id={`ch-${type}-on`} checked={enabled} onCheckedChange={setEnabled} />
@@ -405,7 +418,7 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   const runTest = (type: Channel['type']) => test.mutate(type, { onSuccess: (res) => (res.ok ? toast.success(res.detail) : toast.error(res.detail)), onError: (e) => toast.error(errMsg(e)) })
   const dest = (c: Channel) => (!c.configured ? '' : c.type === 'zalo-personal' ? t('channels.dest.zaloPersonal', { id: c.fields.user_id }) : c.type === 'telegram' ? t('channels.dest.telegram', { id: c.fields.chat_id }) : c.type === 'slack' ? (c.fields.label || t('channels.dest.slack')) : c.type === 'zalo' ? t('channels.dest.zalo', { id: c.fields.oa_id, user: c.fields.user_id }) : c.type === 'email' ? (c.fields.to ?? '') : (c.fields.url ?? ''))
   const chName = (r: Channel) => <span className="font-medium">{t(`ch.${r.type}`)}{r.configured && r.approvals ? <Chip tone="ok" className="ml-2">{t('approve.chip')}</Chip> : null}</span>
-  const min = (r: Channel) => (r.configured ? t('channels.min', { sev: t(`common:severity.${r.min_severity}`) }) : '')
+  const min = (r: Channel) => (r.configured ? t(`channels.levelShort.${r.min_severity}`) : '')
   const status = (r: Channel) => <Chip tone={!r.configured ? 'off' : r.enabled ? 'ok' : 'off'}>{t(`channels.state.${!r.configured ? 'none' : r.enabled ? 'on' : 'off'}`)}</Chip>
   // A test waits for the far end (up to 45 s, testTimeout): the row says so, and a failure shows its reason as text, not only as a hover title.
   const lastTest = (r: Channel) => {
@@ -464,7 +477,8 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
     <>
       {/* #850: the place deep links name (docs/UI.md §0): /settings/channels#channels focuses the first channel's button */}
       <div id="channels"><DataTable urlKey="notify-channels" caption={t('channels.caption')} data={channels} columns={columns} mobileRow={mobileRow} /></div>
-      {editing ? <ChannelDialog key={editing.type} channel={editing} codeUsers={codeUsers} onClose={() => setEditing(null)} onSaved={(thenTest) => { setEditing(null); if (thenTest) runTest(editing.type) }} /> : null}
+      {editing ? <ChannelDialog key={editing.type} channel={editing} codeUsers={codeUsers} onClose={() => setEditing(null)} onSaved={(thenTest) => { setEditing(null); if (thenTest) runTest(editing.type) }}
+        onSwitch={(ty) => setEditing(channels.find((c) => c.type === ty) ?? null)} /> : null}
       <Dialog open={removing !== null} onOpenChange={(o) => { if (!o) setRemoving(null) }}>
         {removing ? (
           <DialogContent title={t('channels.removeTitle', { name: t(`ch.${removing.type}`) })} description={t('channels.removeBody')}>

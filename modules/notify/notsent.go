@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -385,10 +386,35 @@ func (s *Service) notSentNotices(ctx context.Context, q dbtx, since time.Time) (
 	if err != nil {
 		return nil, err
 	}
+	cache := map[string]findingNow{}
 	for _, r := range list {
 		sev := Severity(r.sev)
 		var ns NotSent
 		w, f := queue[r.id], failed[r.id]
+		// Not sent lists what still needs telling: a notice whose findings were all handled since, are no longer urgent, or were told
+		// by another message that arrived (a later rise, a summary, Send now of another row) leaves the list, as Send now would refuse it.
+		// One still waiting in the queue stays: the queue drops it itself when its findings are handled.
+		what := noticeWhat(r.title, r.event, r.product, r.cves)
+		if w == nil && s.cfg.Findings != nil {
+			ids, err := noticeFindings(ctx, q, r.id)
+			if err != nil {
+				return nil, err
+			}
+			keep, infos, _, err := s.untold(ctx, q, r.id, ids, cache)
+			if err != nil {
+				return nil, err
+			}
+			if len(ids) > 0 && len(keep) == 0 {
+				continue
+			}
+			// A notice written before titles were kept names its product and CVE only: the device it is on is added, so two rows of
+			// one CVE on two devices read differently.
+			if r.title == "" && len(keep) > 0 && NoticeEvent(r.event) != NoticeFirstRun {
+				if d := joinDevices(infos[keep[0]].Devices); d != "" {
+					what = noticeWhatOn(r.product, r.cves, d)
+				}
+			}
+		}
 		switch {
 		case w != nil && w.now != "":
 			ns = noticeNotSent(UnsentQueued, sev, "", "", "", loc)
@@ -410,7 +436,7 @@ func (s *Service) notSentNotices(ctx context.Context, q dbtx, since time.Time) (
 		default: // written by a build that kept no reason
 			ns = noticeNotSent(UnsentUnknown, sev, "", "", "", loc)
 		}
-		out = append(out, UnsentNotice{ID: r.id, At: r.at, What: noticeWhat(r.title, r.event, r.product, r.cves), Link: noticeLink(r.event, r.finding), NotSent: ns})
+		out = append(out, UnsentNotice{ID: r.id, At: r.at, What: what, Link: noticeLink(r.event, r.finding), NotSent: ns})
 	}
 	return out, nil
 }
@@ -431,6 +457,17 @@ func noticeWhat(title, event, product, cves string) string {
 		what = "First-run summary: " + what
 	}
 	return strings.TrimSuffix(strings.TrimSpace(what), ":")
+}
+
+// noticeWhatOn is the line of a notice written before titles were kept, with the device it is on: "<product> on <device>: <CVEs>".
+func noticeWhatOn(product, cves, device string) string {
+	var list []string
+	_ = json.Unmarshal([]byte(cves), &list)
+	what := cmp.Or(strings.TrimSpace(product), "A finding") + " on " + device
+	if c := strings.Join(list, ", "); c != "" {
+		what += ": " + c
+	}
+	return what
 }
 
 // noticeLink is where a notice of the History opens: its finding, or the urgent findings for a summary.

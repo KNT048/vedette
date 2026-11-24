@@ -331,14 +331,26 @@ func (b Batch) Message() (channel.Message, error) {
 		title = fmt.Sprintf("%s: %d vulnerabilities need patching", first.Product, len(b.Notices))
 		what = fmt.Sprintf("%d vulnerabilities in %s match your devices.", len(b.Notices), first.Product)
 	}
+	// One "What to do first" for every finding the message names: the action they share, else the way to each one's fix (a
+	// finding's action names its own fixed release, which may leave the others open).
+	action := first.Action
+	for _, n := range b.Notices {
+		if n.Action != first.Action {
+			action = groupedAction
+			break
+		}
+	}
 	return channel.Message{
 		ID: first.ID, Kind: first.Kind, Severity: string(b.Severity()),
 		Title:  title,
 		Device: joinDevices(devices), Devices: deviceRefs(devices, nil),
 		What:   what,
-		Action: first.Action, Items: items, More: more, Link: cmp.Or(b.link, first.Link),
+		Action: action, Items: items, More: more, Link: cmp.Or(b.link, first.Link),
 	}, nil
 }
+
+// groupedAction is the "What to do first" of a message of several findings of one product whose fixes differ.
+const groupedAction = "Open the findings in Vedette: each one names the release that fixes it."
 
 // itemLine is the line a message gives one finding's notice among others: "[<product>: ]<CVE> on <device>[: <change>] — <reasons> ·
 // <verification>", at most channel.MaxItemRunes long. withProduct names the product first (a digest of several products, a summary).

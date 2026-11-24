@@ -32,6 +32,15 @@ const (
 	PruneEvery  = 24 * time.Hour       // how often the core job "run-prune" runs
 )
 
+// The log lines the dispatcher and a person's resume write. They are also read back: Asked finds a person's latest ask and the turn
+// that began after it, and Run.RunningSince is the latest turn of a running run.
+const (
+	LineStarted     = "Started"     // the dispatcher started a run that never ran before
+	LineResumed     = "Resumed"     // the dispatcher started again a run that ran before
+	lineResumedBy   = "Resumed by " // a person resumed the run (Resume): followed by who
+	lineQueuedAgain = "Queued again"
+)
+
 // The reasons the box itself writes.
 const (
 	RestartReason   = "Vedette restarted"
@@ -100,6 +109,10 @@ type Result struct {
 	Status     Status // Done (the zero value means Done), Partial, Failed or Waiting
 	WaitingFor string // with Waiting: what it waits for, e.g. "the scan window (opens 23:00)"
 	Error      string // with Failed or Partial: what went wrong, in words
+	// NotBegun, with Waiting, says the run waits before it did any work (the scan worker had not reported yet): on its first turn
+	// the run is then not started (no started time, no "Started" line), so its Started time, its elapsed time and the estimates
+	// count from the turn that really works, not from a turn that only found it had to wait. A run that began before keeps its start.
+	NotBegun bool
 }
 
 // Subject is what a run is about: a device, an exposure target, a scope.

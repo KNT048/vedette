@@ -95,6 +95,9 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 			d.ScanSource, d.SNMPSource = SourceOff, SourceOff
 		}
 		d.Software, d.Services = []Software{}, []ServiceRow{}
+		if d.IsBox { // the box is the machine running Vedette: always just seen, on the list, its page and every other reader alike
+			d.LastSeen = s.now()
+		}
 		out = append(out, d)
 	}
 	if err := rows.Err(); err != nil {
@@ -253,7 +256,7 @@ func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err err
 
 // filtered reads the devices f keeps (limit 0 = all), newest first, each with its finding count, summary and, when withSources, its
 // sources (a source filter reads them in any case) and, when withRisk, its risk marker (a risk filter needs withRisk); the box is
-// always just seen and never marked. riskOK is false when the markers could not be read: the rows have none and a risk filter is not
+// never marked (loadDevices has it always just seen). riskOK is false when the markers could not be read: the rows have none and a risk filter is not
 // applied (DeviceList.RiskUnavailable says so); with a risk filter that is 503 risk_unavailable instead (never every device).
 func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limit int, withSources, withRisk bool) (items []Device, riskOK bool, err error) {
 	counts, err := s.findingCounts(ctx)
@@ -293,7 +296,6 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	if items == nil {
 		items = []Device{}
 	}
-	now := s.now()
 	for i := range items {
 		d := &items[i]
 		d.FindingsCount = counts[d.ID]
@@ -305,9 +307,6 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 			if d.Sources = sources[d.ID]; d.Sources == nil {
 				d.Sources = []string{}
 			}
-		}
-		if d.IsBox {
-			d.LastSeen = now // the box is the machine running Vedette: always just seen
 		}
 	}
 	return items, riskOK, nil

@@ -163,7 +163,8 @@ export default function DataSection() {
 }
 
 /** Download backup (S-CORE-1): a dialog that offers a password, on by default. With one the box encrypts the file as it sends
- * it (age, .tar.gz.age), so a copy left on a laptop or a share gives nothing away; the dialog says plainly that a lost password
+ * it (age, .tar.gz.age) and puts the decryption key inside it, so a new box gets every saved secret back and a copy left on a
+ * laptop or a share gives nothing away; the dialog says plainly that a lost password
  * cannot be recovered. Without one it says what the plain file holds. The box makes a full backup before the first byte comes
  * (up to a minute on a large box): the dialog stays open and says so meanwhile, then the new Manual row shows in the list. */
 function BackupDownload({ disabled, title }: { disabled: boolean; title?: string }) {
@@ -211,6 +212,7 @@ function BackupDownload({ disabled, title }: { disabled: boolean; title?: string
               <Field label={t('data.backup.ask.again')} htmlFor="backup-again" error={errors.again}>
                 <Input id="backup-again" type="password" autoComplete="new-password" value={again} aria-invalid={!!errors.again} disabled={dl.isPending} onChange={(e) => setAgain(e.target.value)} />
               </Field>
+              <p className="text-meta">{t('data.backup.ask.carriesKey')}</p>
               <Notice tone="warn" role="note" className="mb-0" title={t('data.backup.ask.lostTitle')}>{t('data.backup.ask.lost')}</Notice>
               <p className="text-meta text-muted">{t('data.backup.ask.how')}</p>
             </>

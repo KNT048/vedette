@@ -8,13 +8,13 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	"filippo.io/age"
 
-	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/modules/core"
 )
 
@@ -27,14 +27,15 @@ func withPassword(p string) func(*http.Request) {
 	return func(q *http.Request) { q.Header.Set("X-Backup-Password", base64.StdEncoding.EncodeToString([]byte(p))) }
 }
 
-// sealed encrypts data with password the way the `age -p` tool does, at the given scrypt work factor.
-func sealed(t *testing.T, data []byte, password string, logN int) []byte {
+// sealed encrypts data with password the way the `age -p` tool does, at a cheap scrypt work factor (2^10): the cost of a guess
+// is not what these tests are about.
+func sealed(t *testing.T, data []byte, password string) []byte {
 	t.Helper()
 	rcpt, err := age.NewScryptRecipient(password)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rcpt.SetWorkFactor(logN)
+	rcpt.SetWorkFactor(10)
 	var out bytes.Buffer
 	w, err := age.Encrypt(&out, rcpt)
 	if err != nil {
@@ -86,12 +87,9 @@ func TestBackupDownloadWithAPasswordRestoresOnAnotherBox(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the password does not open the file: %v", err)
 	}
-	members := map[string]bool{}
-	if err := ops.ReadArchive(plain, func(name string, _ []byte) error { members[name] = true; return nil }); err != nil {
-		t.Fatalf("the decrypted file is not the host's archive: %v", err)
-	}
-	if !members["manifest.json"] || !members["vedette.db"] || members["vedette.key"] {
-		t.Fatalf("members = %v", members)
+	// The key entry in front (TestProtectedBackupCarriesTheKeyToABoxWithAnotherKey), then the host's archive as it is.
+	if names, _ := members(t, plain); !slices.Equal(names, []string{"vedette.key", "manifest.json", "vedette.db"}) {
+		t.Fatalf("members = %v", names)
 	}
 	var audit string
 	if err := e.env.DB.Reader().QueryRowContext(t.Context(), "SELECT group_concat(action || ' ' || target || ' ' || coalesce(detail, ''), char(10)) FROM core_audit").Scan(&audit); err != nil {
@@ -156,7 +154,7 @@ func TestBackupUploadPasswordGuessesAreLimited(t *testing.T) {
 	e, _ := newRestoreEnv(t)
 	code := e.openSetup()
 	plain := tarGz(t, member{name: "manifest.json", data: []byte(manifestOK)}, member{name: "vedette.db", data: e.backupDB(nil)})
-	file := sealed(t, plain, backupPassword, 10) // a cheap work factor: the cost of a guess is not what this test is about
+	file := sealed(t, plain, backupPassword)
 
 	wantOK(t, e.upload(code, plain, withPassword("a password for nothing")), 200) // a plain file: the password protects nothing
 	wantOK(t, e.upload(code, file, withPassword(backupPassword)), 200)

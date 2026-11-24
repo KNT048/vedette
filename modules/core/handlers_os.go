@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -785,8 +786,8 @@ func (h *OSHandlers) cancelReboot(ctx context.Context, c caller, why string) err
 const backupLabel = "Downloaded from Settings"
 
 // CoreGetCoreDataBackup implements GET /core/data/backup (admin): a backup of the database WITHOUT the master
-// key, streamed from the host's copy. core writes a snapshot without the key (INV-6: a downloadable backup never
-// holds one), asks for backup.create {manual, include_secrets: false}, deletes the snapshot when that call ends,
+// key, streamed from the host's copy. core writes a snapshot without the key (INV-6: a plain backup never holds one;
+// only a password-protected one carries it, inside its encryption), asks for backup.create {manual, include_secrets: false}, deletes the snapshot when that call ends,
 // and copies the host's file to the response as it reads it; nothing is held whole in memory. Every download
 // makes a full snapshot and a manual backup on the box (the host keeps the latest 10), so: 409 busy while an
 // install runs or another download is being made, 429 within a minute of the last one.
@@ -830,10 +831,25 @@ func (h *OSHandlers) downloadBackup(ctx context.Context, password string) (io.Re
 		secs := int((wait + time.Second - 1) / time.Second)
 		return nil, apierr.New(429, codeRateLimited, "A backup was made a moment ago. Wait a minute before downloading another.").With("retry_after", secs)
 	}
+	// A password-protected file carries the decryption key inside its encryption (keyMember). The key is read before anything
+	// is made: a box whose key file cannot be read says so instead of handing out a file that restores without the secrets.
+	var member []byte
+	if password != "" {
+		key, err := h.loadKey()
+		if err != nil {
+			h.log.ErrorContext(ctx, "core: the key file cannot be read for a password-protected backup", "error", err) // the path, never the bytes
+			return nil, apierr.New(409, codeKeyUnreadable, "The decryption key file cannot be read on this box, so a password-protected backup cannot carry it. Download the backup without a password, or see the box log.")
+		}
+		member, err = keyMember(key, h.now())
+		clear(key)
+		if err != nil {
+			return nil, err
+		}
+	}
 	var backupID string
 	detail := "database without secrets"
 	if password != "" {
-		detail += ", encrypted with a password" // that it is, never the password
+		detail = "database and decryption key, encrypted with a password" // that it is, never the password or the key
 	}
 	err = h.act(ctx, c, true, "data.backup", "backup", detail, func(id, actor string) error {
 		h.lastDL = h.now()
@@ -890,7 +906,11 @@ func (h *OSHandlers) downloadBackup(ctx context.Context, password string) (io.Re
 	}
 	ext := ".tar.gz"
 	if password != "" {
-		enc, encSize, err := encryptBackup(body, size, password)
+		plain := struct {
+			io.Reader
+			io.Closer
+		}{io.MultiReader(bytes.NewReader(member), body), body}
+		enc, encSize, err := encryptBackup(plain, int64(len(member))+size, password)
 		if err != nil {
 			_ = body.Close()
 			h.log.ErrorContext(ctx, "core: could not encrypt a backup download", "error", err) // never the password

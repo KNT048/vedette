@@ -39,21 +39,25 @@ const setupHandlers = [
   http.get(`${API}/core/setup/modules`, () => HttpResponse.json({ modules: modulesStore.get().map(({ id, tier, depends }) => ({ id, tier, depends, available: moduleAvailable(id) })), install: installStore.get().kind, lan: installStore.get().kind === 'appliance' && !orgStore.get().setup_complete ? '192.168.10.0/24' : null })),
 
   // Restore from a backup file on a new box. Mock: any gzip file is a backup of the sample organization, a key is any
-  // 32 bytes, and the restore puts the sample data back at once (the box would restart).
+  // 32 bytes, a password-protected file carries the key (as one the box downloaded does), and the restore puts the sample
+  // data back at once (the box would restart).
   http.post(`${API}/core/setup/restore/upload`, async ({ request }) => {
     if (orgStore.get().setup_complete) return fail(409, 'already_setup', 'This box is already set up. Sign in with the administrator account.')
     if (installStore.get().kind !== 'appliance') return fail(409, 'not_appliance', 'This needs vedette-host, which only the appliance install has.')
     if ((request.headers.get('X-Setup-Code') ?? '').trim() !== MOCK_SETUP_CODE) return fail(403, 'invalid_setup_code', 'The setup code is missing or wrong. Find it in the box\'s log: it is printed there each time Vedette starts while setup is open.')
     const b = new Uint8Array(await request.arrayBuffer())
     const text = new TextDecoder().decode(b.slice(0, 200))
-    if (text.startsWith(AGE_MAGIC)) {
+    const sealed = text.startsWith(AGE_MAGIC)
+    if (sealed) {
       const sent = request.headers.get('X-Backup-Password') ?? ''
       if (!sent) return fail(409, 'backup_password_required', 'This backup is protected with a password. Enter the password that was set when it was downloaded.')
       let password = ''
       try { password = new TextDecoder().decode(Uint8Array.from(atob(sent), (c) => c.charCodeAt(0))) } catch { /* not base64: wrong */ }
       if (text.split('\n')[2] !== await sha256Hex(password)) return fail(400, 'wrong_backup_password', 'The backup password is wrong. Enter the password that was set when the backup was downloaded.')
     } else if (b[0] !== 0x1f || b[1] !== 0x8b) return fail(400, 'not_a_backup', 'This file is not a Vedette backup, or it is damaged or cut short. Choose the .tar.gz file that Download backup saved.')
-    return HttpResponse.json({ id: hex(16), created_at: daysAgo(2), org: 'Acme Manufacturing', users: 4, twofa_users: 1, admins_without_key: 1, secrets: 6 })
+    const id = hex(16)
+    if (sealed) uploadsWithKey.add(id)
+    return HttpResponse.json({ id, created_at: daysAgo(2), org: 'Acme Manufacturing', users: 4, twofa_users: 1, admins_without_key: 1, secrets: 6, key_included: sealed })
   }),
   http.post(`${API}/core/setup/restore`, async ({ request }) => {
     if (orgStore.get().setup_complete) return fail(409, 'already_setup', 'This box is already set up. Sign in with the administrator account.')
@@ -65,7 +69,7 @@ const setupHandlers = [
       let n = 0
       try { n = atob(b.key).length } catch { /* not base64 */ }
       if (n !== 32) return fail(400, 'invalid_key', 'This is not a Vedette decryption key file: the key file is the 32-byte file that Download decryption key saved.')
-    } else if (b.confirm_without_key !== true) return fail(409, 'confirm_required', 'Without the decryption key the saved secrets are lost and users with two-step sign-in cannot sign in. Add the key file, or confirm to restore without it.')
+    } else if (b.confirm_without_key !== true && !uploadsWithKey.has(String(b.upload_id))) return fail(409, 'confirm_required', 'Without the decryption key the saved secrets are lost and users with two-step sign-in cannot sign in. Add the key file, or confirm to restore without it.')
     resetMockDb()
     setDataMode('sample')
     orgStore.update((o) => ({ ...o, setup_complete: true }))
@@ -1070,6 +1074,8 @@ const stamp = () => new Date().toISOString().slice(0, 10)
 
 /** The age header a password-protected backup starts with (age-encryption.org/v1, scrypt). */
 export const AGE_MAGIC = 'age-encryption.org/v1\n'
+/** Uploads of a password-protected file: they carried the decryption key, so step 2 needs no key file. */
+const uploadsWithKey = new Set<string>()
 const sha256Hex = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), (x) => x.toString(16).padStart(2, '0')).join('')
 /** Mock only: a "protected" backup is the age header line, a stanza holding the SHA-256 of the password (the box uses scrypt and
  *  really encrypts) and the archive. The mock upload compares the hash, so a wrong password is refused as on the box. */

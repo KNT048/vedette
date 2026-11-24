@@ -1332,11 +1332,11 @@
     "downloaded": "Downloaded {{file}}",
     "backup": {
       "title": "Backup",
-      "desc": "No AI keys or tokens. Give the file a password, so a copy left on a laptop or a share gives nothing away.",
+      "desc": "Give the file a password: it then also carries the decryption key, so a new box gets the saved secrets back, and a copy left on a laptop or a share gives nothing away.",
       "info": "Settings, users (with their password hashes, never the passwords themselves), modules, devices, findings and the log. The hashes could be attacked offline.",
       "button": "Download backup",
       "plainTitle": "Without a password the file is not encrypted",
-      "plain": "It holds every device, finding and log line, the users' email addresses and password hashes, and the saved secrets in encrypted form without the key that opens them.",
+      "plain": "It holds every device, finding and log line, the users' email addresses and password hashes, and the saved secrets in encrypted form without the key that opens them. On a new box those secrets are lost and two-step users cannot sign in, unless you also keep the decryption key file.",
       "keepsCopy": "Download backup makes a new backup, keeps it on this box (listed below as Manual) and saves it on your computer.",
       "preparing": "Preparing the backup: the box copies its whole database first, which takes up to a minute on a large box.",
       "done": "Downloaded {{file}}. A copy stays on this box, listed below as Manual.",
@@ -1351,6 +1351,7 @@
         "mismatch": "The two passwords are not the same.",
         "lostTitle": "A lost password cannot be recovered",
         "lost": "Nobody can open the file without it, not Vedette and not this box. Keep the password in a password manager, apart from the file.",
+        "carriesKey": "The password also protects the decryption key, which the file carries: on a new box every saved secret (AI and feed keys, alert channel passwords, tokens) and two-step sign-in come back, with no separate key file.",
         "how": "Restoring the file on a new box asks for this password. The file uses the open age format, so the age tool (age -d) also opens it on any computer.",
         "confirm": "Download",
         "busy": "Preparing…"
@@ -1358,8 +1359,8 @@
     },
     "key": {
       "title": "Keep the decryption key apart",
-      "desc": "Without it, a backup on another box loses the saved secrets.",
-      "descInfo": "The backup file has no decryption key. On another box it brings back your devices, findings, users and settings, but not the saved secrets (AI and feed keys, alert channel passwords, tokens), and users with two-step sign-in cannot sign in. Download the key once and keep it somewhere other than your backups, like an emergency kit: with both files a new box comes back whole.",
+      "desc": "Without it, a backup downloaded without a password loses the saved secrets on another box.",
+      "descInfo": "A backup downloaded without a password has no decryption key. On another box it brings back your devices, findings, users and settings, but not the saved secrets (AI and feed keys, alert channel passwords, tokens), and users with two-step sign-in cannot sign in. Download the key once and keep it somewhere other than your backups, like an emergency kit: with both files a new box comes back whole. A backup downloaded with a password already carries the key, protected by that password.",
       "button": "Download decryption key",
       "sso": "Single sign-on accounts cannot confirm this download.",
       "ssoInfo": "You sign in with single sign-on, so there is no Vedette password to confirm this download with. An administrator who signs in with a password can download the key.",
@@ -1392,7 +1393,7 @@
       "withKey": "Included",
       "withoutKey": "Not included",
       "keyLine": "Decryption key: every backup restores whole on this box; it matters only on another box.",
-      "keyExplained": "This box keeps its own key, so any backup restores whole here. On another box, a backup without the key brings back devices, findings, users and settings, but not the saved secrets (AI and feed keys, alert channel passwords, tokens), and users with two-step sign-in cannot sign in. Download the key above to keep that option.",
+      "keyExplained": "This box keeps its own key, so any backup restores whole here. On another box, a backup without the key brings back devices, findings, users and settings, but not the saved secrets (AI and feed keys, alert channel passwords, tokens), and users with two-step sign-in cannot sign in. A backup you downloaded with a password carries the key inside the file; for one downloaded without, download the key above to keep that option.",
       "button": "Restore",
       "ask": {
         "title": "Restore the backup from {{when}}?",
@@ -1769,7 +1770,9 @@
       "fileMissing": "Choose the backup file.",
       "key": "Decryption key file (optional)",
       "keyHint": "The vedette-key-<date>.key file.",
-      "keyInfo": "The file that Download decryption key saved. With it, saved secrets and two-step sign-in come back.",
+      "keyInfo": "The file that Download decryption key saved. With it, saved secrets and two-step sign-in come back. A backup downloaded with a password carries the key, so it needs no key file.",
+      "keyInsideFile": "A backup downloaded with a password carries its decryption key, so no key file is needed.",
+      "keyInside": "The decryption key is inside this backup: the saved secrets and two-step sign-in come back with it.",
       "keyBad": "This is not a Vedette decryption key file.",
       "noKey": {
         "title": "Without the decryption key:",

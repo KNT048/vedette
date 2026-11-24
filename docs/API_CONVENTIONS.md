@@ -395,7 +395,7 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (118 codes)
+#### HTTP 409 (119 codes)
 
 | Code | HTTP | Sample message (EN, from the mock) | Endpoint |
 |---|---|---|---|
@@ -411,6 +411,7 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `already_requested` | 409 | This action already has an open request or has already been carried out. | `POST /response/proposals/{id}/request`; `POST /response/incidents/{id}/request` |
 | `already_running` | 409 | A scan is already running. Wait for it to finish or press Stop now. | `POST /scans/runs` |
 | `already_setup` | 409 | This box is already set up. Sign in with the administrator account. | `POST /core/setup` |
+| `key_unreadable` | 409 | The decryption key file cannot be read on this box. The details are in the box log. | `POST /core/data/key`; `POST /core/data/backup` with a password ("…so a password-protected backup cannot carry it. Download the backup without a password, or see the box log.", before anything is made) |
 | `backup_password_required` | 409 | This backup is protected with a password. Enter the password that was set when it was downloaded. | `POST /core/setup/restore/upload` (an age file sent without `X-Backup-Password`) |
 | `box_device` | 409 | This is the Vedette box itself, so it cannot be deleted. It is always the first device in the list. Its packages come fr | `DELETE /inventory/devices/{id}`; `POST /inventory/devices/{id}/merge`, `POST /inventory/devices/{id}/keep-separate` ("…so it cannot be merged with another device / compared with another device. It is always its own device.") |
 | `circuit_open` | 409 | The circuit breaker is open: too many actions in one hour, so everything is paused. An admin can resume it in Settings, AI response. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); the emergency stop opens it too; `POST /response/incidents/{id}/request` |
@@ -820,7 +821,7 @@ There are **11** operations that return a file (`response: 'file'` in `contract.
 | `GET /core/audit/export` | admin | the filtered audit log as CSV/JSON |
 | `GET /core/logs/export` | admin | **every log of the box** (audit, AI, response, scan probes, alerts, device logs), JSON or CSV, by `categories` |
 | `GET /core/data/export` | admin | an export of the user's data (S-CORE-1) |
-| `GET /core/data/backup` | admin | a consistent backup (`VACUUM INTO`, **without** the master key file unless the admin asks for it; `docs/DATA_MODEL.md` section 7) |
+| `GET /core/data/backup` | admin | a consistent backup (`VACUUM INTO`, **without** the master key file; `POST` with a password encrypts it and carries the key inside the encryption; `docs/DATA_MODEL.md` section 7) |
 | `GET /core/updates/bundle` | operator | the signed offline update bundle |
 | `GET /inventory/export.csv`, `/inventory/import-template.csv` | viewer | the device list; the import template |
 | `GET /scans/probes.csv` | viewer | the probe log (SYS-7) |

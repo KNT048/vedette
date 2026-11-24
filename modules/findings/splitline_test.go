@@ -59,7 +59,7 @@ func (e *env) split(sp lifecycle.Split) {
 func TestContract_ASplitMovesTheFindingToTheLinesNewID(t *testing.T) {
 	t.Parallel()
 	e, id, moves := splitEnv(t)
-	e.split(lifecycle.Split{From: "a-1", Into: "a-2", Actor: "anna", Software: map[string]lifecycle.SplitLine{"s-1": {Into: "s-9", Gone: true}}})
+	e.split(lifecycle.Split{From: "a-1", Into: "a-2", Actor: "anna", IntoName: "camera-02", IntoIP: "192.0.2.42", Software: map[string]lifecycle.SplitLine{"s-1": {Into: "s-9", Gone: true}}})
 
 	f, err := e.svc.Finding(t.Context(), id)
 	if err != nil {
@@ -76,7 +76,8 @@ func TestContract_ASplitMovesTheFindingToTheLinesNewID(t *testing.T) {
 		qAsset != "a-2" || qLine != "s-9" || answer != "linux" {
 		t.Errorf("the question after the split: %s/%s answered %q (%v), want a-2/s-9 with its answer", qAsset, qLine, answer, err)
 	}
-	if want := []lifecycle.FindingMove{{Finding: id, From: "a-1", Into: "a-2"}}; !slices.Equal(*moves, want) {
+	// the participants get the new device's name and address from the split: they cannot read the device inside its write
+	if want := []lifecycle.FindingMove{{Finding: id, From: "a-1", Into: "a-2", IntoName: "camera-02", IntoIP: "192.0.2.42"}}; !slices.Equal(*moves, want) {
 		t.Errorf("lifecycle FindingMoved calls %+v, want %+v", *moves, want)
 	}
 	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.moved_with_line' AND target = 'a-2' AND detail LIKE 'from a-1: 1 findings moved with their software line after the device was split%'`); n != 1 {

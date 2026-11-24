@@ -509,6 +509,7 @@
       "expired": "This link has expired. Ask for a new approval request.",
       "used": "This link was already used.",
       "decided": "This request is already {{status}}.",
+      "withdrawn": "This request was withdrawn without a decision: the device was split and the finding moved to the device split off. Nothing was changed. A new request is asked for that device; open Vedette to decide it.",
       "unknown": "This link is not valid."
     },
     "doneWaiting": "Your approval was recorded. A second, different approver is needed before anything runs. You can close this page.",

@@ -302,7 +302,7 @@ func TestBatchMessageThroughAdapters(t *testing.T) {
 	}
 	text, _ := got["text"].(string)
 	plain := strings.ReplaceAll(text, string(rune(0x200d)), "") // the joiners neutralise auto-links and are invisible
-	for _, want := range []string{"High: <b>Evil</b>: 2 vulnerabilities are being exploited", "- CVE-1 on PC <!channel>", "- CVE-2 on PC2", "Details: https://192.168.10.2/findings/a"} {
+	for _, want := range []string{"<b>Evil</b>: 2 vulnerabilities are being exploited", "- CVE-1 on PC <!channel>", "- CVE-2 on PC2", "Details: https://192.168.10.2/findings/a"} {
 		if !strings.Contains(plain, want) {
 			t.Errorf("telegram text lacks %q:\n%s", want, plain)
 		}
@@ -457,9 +457,10 @@ func TestFriendlyErrorNeverRepeatsTheOtherSide(t *testing.T) {
 	}
 }
 
+// The *_last4 columns keep a mark that a secret is saved, never a character of it, whatever its length.
 func TestLastFour(t *testing.T) {
 	t.Parallel()
-	for in, want := range map[string]string{"": "", "abc": "", "abcd": "abcd", "0123456789abcdef": "cdef", "ключ-секрет": "крет"} {
+	for in, want := range map[string]string{"": "", "abc": "••••", "abcd": "••••", "0123456789abcdef": "••••", "ключ-секрет": "••••"} {
 		if got := lastFour(in); got != want {
 			t.Errorf("lastFour(%q) = %q, want %q", in, got, want)
 		}

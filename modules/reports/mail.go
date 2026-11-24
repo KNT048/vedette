@@ -80,6 +80,30 @@ func HandledLine(h Handled, software string, loc *time.Location) string {
 	return line
 }
 
+// ItemLine is HandledLine of a finding the period lists as handled, with the day it opened again when it is open at the period's end
+// ("…: open again since 24 Nov 2026"), so a reader does not take a reopened finding for one that is done.
+func ItemLine(it HandledItem, loc *time.Location) string {
+	line := HandledLine(it.Handled, it.Product, loc)
+	if it.ReopenedAt != nil {
+		line += "; open again since " + dayOf(*it.ReopenedAt, loc)
+	}
+	return line
+}
+
+// FlowLine is how the open findings moved through the period, in the order the page's chart draws it, so the figures add up: "Open at
+// the start: 0. New: 892. Handled: 11. Reopened: 4. Open now: 885." A change no count names (a finding left out since the start) is
+// "Other changes".
+func FlowLine(s ReportSummary) string {
+	line := fmt.Sprintf("Open at the start: %d. New: %d. Handled: %d.", s.OpenBefore, s.New, s.Handled)
+	if s.Reopened > 0 {
+		line += fmt.Sprintf(" Reopened: %d.", s.Reopened)
+	}
+	if other := s.OpenNow - (s.OpenBefore + s.New - s.Handled + s.Reopened); other != 0 {
+		line += fmt.Sprintf(" Other changes: %+d.", other)
+	}
+	return line + fmt.Sprintf(" Open now: %d.", s.OpenNow)
+}
+
 // versionOrUnknown gives the version, or "?" when it is not known.
 func versionOrUnknown(s *string) string {
 	if s == nil || *s == "" {
@@ -128,7 +152,7 @@ func digest(d Document, sentID string) Mail {
 	var what, items []string
 	if s := d.Summary; s != nil {
 		m.Title = fmt.Sprintf("%s: %d open, %d handled (%s)", d.Title, s.OpenNow, s.Handled, period)
-		what = append(what, fmt.Sprintf("Open now: %d (%d at the start of the period). New: %d. Handled: %d.", s.OpenNow, s.OpenBefore, s.New, s.Handled))
+		what = append(what, FlowLine(*s))
 		var parts []string
 		for _, c := range s.OpenByStatus {
 			parts = append(parts, fmt.Sprintf("%s: %d", statusLabels[c.Status], c.N))
@@ -153,7 +177,7 @@ func digest(d Document, sentID string) Mail {
 					break
 				}
 				// each handled line says it is one, and which CVE: it no longer runs on from the things to do
-				items = append(items, fmt.Sprintf("Handled: %s, %s on %s: %s", it.CVE, it.Product, dev.Device.Name, HandledLine(it.Handled, it.Product, loc)))
+				items = append(items, fmt.Sprintf("Handled: %s, %s on %s: %s", it.CVE, it.Product, dev.Device.Name, ItemLine(it, loc)))
 				n++
 			}
 		}

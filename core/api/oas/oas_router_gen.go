@@ -16900,7 +16900,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = HoneypotPostHoneypotTestHitOperation
-										r.summary = "\"Test trap\": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with that service; not counted in statistics, no alert sent"
+										r.summary = "\"Test trap\": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with that service, and sends the alert a real hit would send, marked Test, to the alert channels that are on; never an incident, not counted in statistics"
 										r.operationID = "honeypot_post_honeypot_test_hit"
 										r.operationGroup = ""
 										r.pathPattern = "/honeypot/test-hit"
@@ -16925,7 +16925,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = HoneypotPostHoneypotTestScanOperation
-										r.summary = "\"Test scan\": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent"
+										r.summary = "\"Test scan\": a labelled test scan from the box across the Trap IPs, with its test alert marked Test; never an incident, not counted"
 										r.operationID = "honeypot_post_honeypot_test_scan"
 										r.operationGroup = ""
 										r.pathPattern = "/honeypot/test-scan"
@@ -17018,7 +17018,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "POST":
 											r.name = HoneypotPostHoneypotTokensIDTestOperation
-											r.summary = "\"Test token\": a labelled test trigger, not counted, no alert sent"
+											r.summary = "\"Test token\": a labelled test trigger, with its test alert marked Test; never an incident, not counted"
 											r.operationID = "honeypot_post_honeypot_tokens_id_test"
 											r.operationGroup = ""
 											r.pathPattern = "/honeypot/tokens/{id}/test"

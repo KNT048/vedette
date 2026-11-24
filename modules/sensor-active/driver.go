@@ -143,7 +143,37 @@ func (s *Service) workerReported() {
 			return // scanning off or the scope not confirmed: the check is refused when it runs; the tick looks again
 		}
 		s.resumePersonsChecks(ctx)
+		s.resumePersonsPass(ctx)
 	}()
+}
+
+// resumePersonsPass queues again a person's pass that waits for the scan worker within its hour (sweepUntil: a person's sweep, or a
+// pass a person asked to go on now) once the worker is available: after a restart the pass meets a worker that has not reported yet,
+// and nothing else wakes it outside the window (the window's driver follows the window's own pass). The person's checks go first: with
+// other work in the nmap lane the pass is marked as one that gave way, and the end of that work resumes it (resumeYielded). It runs
+// when the worker reports and at every tick.
+func (s *Service) resumePersonsPass(ctx context.Context) {
+	sw, err := s.liveRun(ctx, RunSweep)
+	if err != nil || sw == nil || sw.Status != run.Waiting || sw.WaitingFor == nil || *sw.WaitingFor != waitWorker {
+		return
+	}
+	until := s.sweepUntil(*sw)
+	if !s.clock().Before(until) || s.available(ctx) != nil {
+		return
+	}
+	if s.sweepWait(withManualUntil(ctx, until)).Status == run.Waiting {
+		return // the settings no longer allow it: it waits for them
+	}
+	if other, _, err := s.laneBusy(ctx, sw.ID); err != nil {
+		return
+	} else if other != "" {
+		s.setYielded(sw.ID, true)
+		return
+	}
+	s.setYielded(sw.ID, false)
+	if err := s.resumeWaiting(ctx, sw.ID); err != nil && !errors.Is(err, run.ErrNotResumable) {
+		s.log.WarnContext(ctx, "sensoractive: resuming a person's pass once the scan worker reported failed", "run", sw.ID, "error", err)
+	}
 }
 
 // later is the later of a and b.
@@ -171,7 +201,9 @@ const workerReportedFor = 30 * time.Second
 // (workerReported) and at every tick. A check gives up with a plain failure when the worker reports that it has no nmap, or after
 // personWaitMax without the worker.
 func (s *Service) resumePersonsChecks(ctx context.Context) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, queued_at FROM core_run WHERE module = ? AND kind = ? AND trigger = 'manual' AND parent_id IS NULL
+	// updated_at is when it began to wait (the row does not change while it waits): a check queued again after a restart or after the
+	// worker stopped under it counts its wait from then, not from when the person asked.
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT id, updated_at FROM core_run WHERE module = ? AND kind = ? AND trigger = 'manual' AND parent_id IS NULL
 		AND status = 'waiting' AND waiting_for = ? ORDER BY queued_at, rowid`, ModuleID, RunCheck, waitWorker)
 	if err != nil {
 		return
@@ -278,6 +310,7 @@ func (s *Service) Tick(ctx context.Context) error {
 	}
 	s.refreshWaits(ctx, st)
 	s.resumePersonsChecks(ctx)
+	s.resumePersonsPass(ctx)
 	start, _, ok := st.window(s.local())
 	if !ok {
 		s.resumeYielded(ctx, "") // a person's pass that gave way goes on within its hour (after a restart too)
@@ -575,6 +608,9 @@ func (s *Service) runCheck(ctx context.Context, x *run.Exec) (run.Result, error)
 	}
 	if d.Trigger == run.Manual {
 		got, err := s.identifyIn(ctx, id)
+		if s.waitsForWorker(got, err) {
+			return run.Result{Status: run.Waiting, WaitingFor: waitWorker}, nil
+		}
 		return s.checkEnd(ctx, x, d, identResult(got, err))
 	}
 	if d.ParentID != nil { // a device a person's sweep found: checked within that sweep's hour
@@ -584,6 +620,16 @@ func (s *Service) runCheck(ctx context.Context, x *run.Exec) (run.Result, error)
 	}
 	err = s.ScanDevice(ctx, id, "")
 	return s.checkEnd(ctx, x, d, s.scanResult(ctx, err))
+}
+
+// waitsForWorker says a person's check that could not run because of the scan worker waits for it instead of failing: the worker has
+// not reported since core or the scan container started (a check queued again after a restart meets it so), or it stopped under the
+// check and has not reported since (an update restarts the scan container). Both come back by themselves; resumePersonsChecks starts
+// the check when the worker reports and gives up after personWaitMax. A worker that reports (it says nmap is missing, or it is there
+// and the job failed) does not come back by waiting: that fails with words.
+func (s *Service) waitsForWorker(got Identification, err error) bool {
+	gone := got.Why == WhyUnavailable || errors.Is(err, ErrUnavailable) || errors.Is(err, ErrWorkerLost)
+	return gone && s.workerAbsent()
 }
 
 // checkEnd counts the device of a check that ran to its end.

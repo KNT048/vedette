@@ -30,7 +30,7 @@ export function useFixTitle() {
   }
 }
 
-/** The advisory of a fix, when it has one. A fix with no release to install and no advisory link ("No fix data") links its cause's
+/** The advisory of a fix, when it has one. A fix with no release to install and no advisory link (the vendor advisory to see) links its cause's
  *  CVE page instead, where the CVE record's references are: the person always has somewhere to read what the vendor says. */
 export function FixLink({ fix, cve }: { fix: Fix; cve?: string }) {
   const { t } = useTranslation('findings')

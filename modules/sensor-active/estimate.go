@@ -18,9 +18,10 @@ import (
 // every phase, so the raw reports read 8% → 84% → 28% → 20% over one check).
 type runProg struct {
 	u      progress.Update
-	pass   int // which nmap run of the check the report is about (1, 2, ...)
-	passes int // how many nmap runs the check makes; 0 when it is not known
-	jobs   int // nmap runs that reported so far (each opens with NewPass): the pass when the caller did not say it
+	pass   int       // which nmap run of the check the report is about (1, 2, ...)
+	passes int       // how many nmap runs the check makes; 0 when it is not known
+	jobs   int       // nmap runs that reported so far (each opens with NewPass): the pass when the caller did not say it
+	at     time.Time // when the worker last reported, whether or not the report moved the line (the run's "Last report")
 }
 
 // phaseOrder is the order nmap goes through its phases within one run.
@@ -50,7 +51,11 @@ func (k runSink) Report(u progress.Update) {
 		k.s.prog = map[string]runProg{}
 	}
 	old, had := k.s.prog[k.id]
-	next := runProg{u: u, pass: k.pass, passes: k.passes, jobs: old.jobs}
+	now := time.Now()
+	if k.s.clock != nil {
+		now = k.s.clock()
+	}
+	next := runProg{u: u, pass: k.pass, passes: k.passes, jobs: old.jobs, at: now}
 	if u.NewPass || !had {
 		next.jobs++
 	}
@@ -58,7 +63,7 @@ func (k runSink) Report(u progress.Update) {
 		next.pass = next.jobs
 	}
 	if had && !forward(old, next) {
-		old.jobs = next.jobs
+		old.jobs, old.at = next.jobs, now
 		if old.u.Remaining > 0 && u.Remaining > 0 && old.u.Phase == u.Phase && u.Percent < 0 { // a time left without a percent still counts
 			old.u.Remaining = u.Remaining
 		}
@@ -121,44 +126,133 @@ func (s *Service) workerEstimate(_ context.Context, r run.Run) string {
 }
 
 // checkEstimate is the line of a running device check: where its nmap is (progressLine) and the time the check has left as a whole
-// (checkHold: the same figure a run queued behind it adds up), "" for a check that is not running.
+// (checkHold: the same figure a run queued behind it adds up), "" for a check that is not running. A check that already took longer
+// than its checks usually take says so instead of a time left it cannot know ("taking longer than the usual 3 minutes").
 func (s *Service) checkEstimate(ctx context.Context, r run.Run) string {
 	if r.Status != run.Running {
 		return ""
 	}
 	line := ""
-	if p, ok := s.lastProgress(r.ID); ok {
+	p, reported := s.lastProgress(r.ID)
+	if reported {
 		line = progressLine(p)
 	}
-	left := ""
-	if d, ok := s.checkHold(ctx, r); ok {
-		left = leftWords(d)
+	expect := s.expectedCheck(ctx, r)
+	left := expect
+	if elapsed, ok := s.elapsed(r); ok {
+		left = expect - elapsed
 	}
-	return join([]string{line, left})
+	switch {
+	case reported && p.u.Remaining > left && p.u.Remaining >= time.Minute:
+		return join([]string{line, leftWords(p.u.Remaining)})
+	case left <= 0:
+		return join([]string{line, "taking longer than the usual " + roundWords(expect)})
+	}
+	return join([]string{line, leftWords(left)})
 }
 
-// checkHold is how long a device check keeps the nmap lane (run.Kind.Hold): a queued one the time a check takes here (typicalCheck), a
-// running one what is left of that time, or the time the worker says its current phase has left when that is longer, at least a
-// minute while it runs.
+// elapsed is how long running run r has run.
+func (s *Service) elapsed(r run.Run) (time.Duration, bool) {
+	if r.StartedAt == nil {
+		return 0, false
+	}
+	at, err := time.Parse(time.RFC3339Nano, *r.StartedAt)
+	if err != nil {
+		return 0, false
+	}
+	return s.clock().Sub(at), true
+}
+
+// checkHold is how long a device check keeps the nmap lane (run.Kind.Hold): a queued one the time a check of its device takes
+// (expectedCheck), a running one what is left of that time, or the time the worker says its current phase has left when that is
+// longer, at least a minute while it runs.
 func (s *Service) checkHold(ctx context.Context, r run.Run) (time.Duration, bool) {
-	typical := s.typicalCheck(ctx)
+	expect := s.expectedCheck(ctx, r)
 	switch r.Status {
 	case run.Queued:
-		return typical, true
+		return expect, true
 	case run.Running:
 	default:
 		return 0, false
 	}
-	left := typical
-	if r.StartedAt != nil {
-		if at, err := time.Parse(time.RFC3339Nano, *r.StartedAt); err == nil {
-			left = typical - s.clock().Sub(at)
-		}
+	left := expect
+	if elapsed, ok := s.elapsed(r); ok {
+		left = expect - elapsed
 	}
 	if p, ok := s.lastProgress(r.ID); ok && p.u.Remaining > left {
 		left = p.u.Remaining
 	}
 	return max(left, time.Minute), true
+}
+
+// expectedCheck is how long check r is expected to take: as long as the recent checks of its own device took (a device with many open
+// services takes far longer than the box's middle figure: 8 minutes against 3), else how long a check takes on this box (typicalCheck).
+func (s *Service) expectedCheck(ctx context.Context, r run.Run) time.Duration {
+	if r.Subject != nil && r.Subject.Kind == "device" {
+		if d, ok := s.deviceCheck(ctx, r.Subject.ID); ok {
+			return d
+		}
+	}
+	return s.typicalCheck(ctx)
+}
+
+// tookAt is how long a device's recent checks took (ok false: it has none) and when that was read.
+type tookAt struct {
+	d  time.Duration
+	ok bool
+	at time.Time
+}
+
+// deviceSamples is how many of a device's own checks that ended done deviceCheck reads.
+const deviceSamples = 3
+
+// deviceCheck is how long the checks of device id took: the middle one of its last deviceSamples checks that ended done; false when it
+// has none. Read again at most every typicalFor: it is called while the runs are read.
+func (s *Service) deviceCheck(ctx context.Context, id string) (time.Duration, bool) {
+	s.mu.Lock()
+	if t, ok := s.deviceTook[id]; ok && s.clock().Sub(t.at) < typicalFor {
+		s.mu.Unlock()
+		return t.d, t.ok
+	}
+	s.mu.Unlock()
+	took := s.checkTimes(ctx, `AND subject_kind = 'device' AND subject_id = ?`, deviceSamples, id)
+	t := tookAt{at: s.clock()}
+	if len(took) > 0 {
+		t.d, t.ok = took[len(took)/2], true
+	}
+	s.mu.Lock()
+	if s.deviceTook == nil || len(s.deviceTook) > 4096 {
+		s.deviceTook = map[string]tookAt{}
+	}
+	s.deviceTook[id] = t
+	s.mu.Unlock()
+	return t.d, t.ok
+}
+
+// checkTimes is how long the device checks that ended done most recently took (at most n, those that match the extra condition and
+// its arguments), sorted, each at most typicalMax.
+func (s *Service) checkTimes(ctx context.Context, cond string, n int, args ...any) []time.Duration {
+	var took []time.Duration
+	q := `SELECT started_at, ended_at FROM core_run WHERE module = ? AND kind = ? AND status = 'done' AND started_at IS NOT NULL AND ended_at IS NOT NULL ` +
+		cond + ` ORDER BY ended_at DESC LIMIT ?`
+	rows, err := s.db.Reader().QueryContext(ctx, q, append(append([]any{ModuleID, RunCheck}, args...), n)...)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var from, to string
+		if rows.Scan(&from, &to) != nil {
+			continue
+		}
+		a, e1 := time.Parse(time.RFC3339Nano, from)
+		b, e2 := time.Parse(time.RFC3339Nano, to)
+		if e1 == nil && e2 == nil && b.After(a) {
+			took = append(took, min(b.Sub(a), typicalMax))
+		}
+	}
+	slices.Sort(took)
+	return took
 }
 
 // Bounds of typicalCheck.
@@ -190,26 +284,8 @@ func (s *Service) typicalCheck(ctx context.Context) time.Duration {
 }
 
 func (s *Service) readTypicalCheck(ctx context.Context) time.Duration {
-	var took []time.Duration
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT started_at, ended_at FROM core_run WHERE module = ? AND kind = ? AND status = 'done'
-		AND started_at IS NOT NULL AND ended_at IS NOT NULL ORDER BY ended_at DESC LIMIT ?`, ModuleID, RunCheck, typicalSamples)
-	if err == nil {
-		for rows.Next() {
-			var from, to string
-			if rows.Scan(&from, &to) != nil {
-				continue
-			}
-			a, e1 := time.Parse(time.RFC3339Nano, from)
-			b, e2 := time.Parse(time.RFC3339Nano, to)
-			if e1 == nil && e2 == nil && b.After(a) {
-				took = append(took, b.Sub(a))
-			}
-		}
-		_ = rows.Close()
-	}
-	if len(took) >= typicalMin {
-		slices.Sort(took)
-		return min(took[len(took)/2], typicalMax)
+	if took := s.checkTimes(ctx, "", typicalSamples); len(took) >= typicalMin {
+		return took[len(took)/2]
 	}
 	st, err := s.inv.Settings(ctx)
 	if err != nil || st.Rate < 1 {

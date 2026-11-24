@@ -475,14 +475,14 @@ func jobRun(h sensoractive.JobHead) *core.LastRun {
 	}
 	switch h.Kind {
 	case sensoractive.KindSweep:
-		r.Text = fmt.Sprintf("Swept %d addresses, %d new devices", h.Targets, h.NewDevices)
+		r.Text = "Swept " + count(h.Targets, "address", "addresses") + ", " + count(h.NewDevices, "new device", "new devices")
 	case sensoractive.KindDevice:
 		r.Text = "Scanned a device"
 		if h.Reason == "scan_now" {
 			r.Text = "Scanned a device a person picked"
 		}
 	case sensoractive.KindSNMP:
-		r.Text = fmt.Sprintf("Read %d devices over SNMP", h.Targets)
+		r.Text = "Read " + count(h.Targets, "device", "devices") + " over SNMP"
 	}
 	if h.Error != "" && r.Outcome != "ok" {
 		r.Text += ": " + h.Error

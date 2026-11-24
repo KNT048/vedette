@@ -137,6 +137,7 @@ function tokenState(token: string) {
   const t = TOKEN_RE.test(token) ? tokensStore.get().find((x) => x.token === token) : undefined
   const a = t ? actionsStore.get().find((x) => x.id === t.action_id) : undefined
   if (!t || !a) return { state: 'unknown' as ApprovalView['state'] }
+  if (a.status === 'expired' && a.note?.startsWith('Withdrawn: ')) return { state: 'withdrawn' as const, t, a }
   if (t.used_at) return { state: 'used' as const, t, a }
   if (Date.parse(t.expires_at) <= Date.now() || a.status === 'expired') return { state: 'expired' as const, t, a }
   if (a.status !== 'pending') return { state: 'decided' as const, t, a }
@@ -323,7 +324,7 @@ export const handlers = [
     if (b.decision !== 'approve' && b.decision !== 'reject') return fail(400, 'invalid', 'Send decision as approve or reject.')
     const { state, t, a } = tokenState(String(params.token)) as ReturnType<typeof tokenState> & { t?: { token: string; channel: string; user_id: string; address: string }; a?: ActionRequest }
     if (state === 'unknown' || !t || !a) return fail(404, 'unknown', 'This link is not valid.')
-    if (state !== 'ready') return refuse(409, state, state === 'used' ? 'This link was already used.' : state === 'expired' ? 'This link has expired. Ask for a new approval request.' : `This request is already ${a.status.replace('_', ' ')}.`, a.id)
+    if (state !== 'ready') return refuse(409, state, state === 'used' ? 'This link was already used.' : state === 'expired' ? 'This link has expired. Ask for a new approval request.' : state === 'withdrawn' ? `This request was withdrawn without a decision: ${(a.note ?? '').replace(/^Withdrawn: /, '').split('. Nothing was changed.')[0]}. Nothing was changed.` : `This request is already ${a.status.replace('_', ' ')}.`, a.id)
     // Re-check who the link belongs to: still on this channel's approver list, still an active operator or admin.
     const u = userCanApprove(t.user_id)
     if (!linkApproverValid(t) || !u) return refuse(403, 'approver_not_listed', 'This link no longer belongs to a valid approver.', a.id)

@@ -44,9 +44,12 @@ describe('the CVE summary card on a finding', () => {
       'VMware ESXi hypervisor has a flaw of type “Out-of-bounds Write” (CWE-787) that an attacker can use with local access to it, with high privileges and with no action from a user; attackers use it in real attacks.')
     // why it is urgent is the finding's status lines under the title (the words every list says), not a second line from the CVE record
     expect(within(card).queryByTestId('reasons-line')).toBeNull()
-    expect(within(card).getByText(/^Fixed in 8\.0 U3d \(build 24585383\): upgrade/)).toBeInTheDocument()
-    expect(within(card).getByRole('link', { name: /^Vendor advisory \(support\.broadcom\.com\)/ })).toHaveAttribute('href', esxiBrief.references[0]!.url)
-    expect(within(card).getByText('No workaround is published: install the fix.')).toBeInTheDocument()
+    // what to do is the page's one "What to do" section, not a second list in the card
+    expect(within(card).queryByTestId("fixed-in")).toBeNull()
+    const todo = screen.getByRole('heading', { level: 2, name: 'What to do' }).closest('section')!
+    expect(await within(todo).findByText(/^Fixed in 8\.0 U3d \(build 24585383\): upgrade/)).toBeInTheDocument()
+    expect(within(todo).getByRole('link', { name: /^Vendor advisory \(support\.broadcom\.com\)/ })).toHaveAttribute('href', esxiBrief.references[0]!.url)
+    expect(within(todo).getByText('No workaround is published: install the fix.')).toBeInTheDocument()
     expect(within(card).getByRole('link', { name: 'Open CVE-2025-22225 page' })).toHaveAttribute('href', '/cve/CVE-2025-22225')
     // simple by default: the versions table and the sources sit behind one click
     const more = within(card).getByText('Affected versions, sources and score').closest('details')!
@@ -64,7 +67,7 @@ describe('the CVE summary card on a finding', () => {
     await esxiFinding({ ...brief, workaround: 'Turn off the vulnerable service.' })
     renderApp('/findings/f-2')
     expect(await screen.findByText('Turn off the vulnerable service.')).toBeInTheDocument()
-    expect(screen.getByText('If you cannot patch yet:')).toBeInTheDocument()
+    expect(screen.getByText("The vendor's workaround:")).toBeInTheDocument()
     expect(screen.queryByText('No workaround is published: install the fix.')).toBeNull()
   })
 
@@ -86,10 +89,10 @@ describe('the CVE summary card on a finding', () => {
     expect(sentence).not.toHaveTextContent(/The product/)
   })
 
-  it('without a brief (a CVE the data does not hold) the card still gives the device\'s fix and the list\'s vendor link', async () => {
+  it('without a brief (a CVE the data does not hold) the page still gives the list\'s vendor link', async () => {
     renderApp('/findings/f-2')
-    const card = (await screen.findByRole('heading', { name: /^About CVE-/ })).closest('section')!
-    expect(await within(card).findByRole('link', { name: 'Vendor advisory (wordpress.org)' })).toHaveAttribute('href', 'https://wordpress.org/news/2026/10/wordpress-7-1-4')
+    const todo = (await screen.findByRole('heading', { level: 2, name: 'What to do' })).closest('section')!
+    expect(await within(todo).findByRole('link', { name: 'Vendor advisory (wordpress.org)' })).toHaveAttribute('href', 'https://wordpress.org/news/2026/10/wordpress-7-1-4')
   })
 })
 

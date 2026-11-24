@@ -837,26 +837,35 @@ func (s *Service) discoveryUpdate(ctx context.Context) error {
 	return s.cfg.DB.Write(ctx, func(tx *sql.Tx) error { return s.tellDiscovery(ctx, tx, id, count, now) })
 }
 
-// hitEvent opens a trap incident for a honeypot hit (S-HP-1). Every text from the event is data from the
-// network: it is cut to size and rendered as plain text by the adapters.
+// TrapHit is a honeypot hit as notify reads it (the data of honeypot.hit.created). Every text is data from the network: it is cut to
+// size and rendered as plain text by the adapters.
+type TrapHit struct {
+	ID         string `json:"id"`
+	TS         string `json:"ts"`
+	Kind       string `json:"kind"`
+	Service    string `json:"service"`
+	SrcIP      string `json:"src_ip"`
+	Label      string `json:"label"`
+	Decoy      string `json:"decoy"`
+	SrcAssetID string `json:"src_asset_id"`
+	SrcName    string `json:"src_name"`
+}
+
+// hitEvent opens a trap incident for a honeypot hit (S-HP-1).
 func (s *Service) hitEvent(ctx context.Context, data any) error {
-	var e struct {
-		ID         string `json:"id"`
-		TS         string `json:"ts"`
-		Kind       string `json:"kind"`
-		Service    string `json:"service"`
-		SrcIP      string `json:"src_ip"`
-		Label      string `json:"label"`
-		Decoy      string `json:"decoy"`
-		SrcAssetID string `json:"src_asset_id"`
-		SrcName    string `json:"src_name"`
-	}
+	var e TrapHit
 	if err := decode(data, &e); err != nil {
 		return err
 	}
 	if e.ID == "" || e.SrcIP == "" {
 		return nil
 	}
+	_, _, err := s.OpenIncident(ctx, trapIncident(e))
+	return err
+}
+
+// trapIncident is the incident a trap hit opens: the words of its alert, its severity and its key.
+func trapIncident(e TrapHit) IncidentInput {
 	src, label := clip(strings.TrimSpace(e.SrcIP), 45), clip(strings.TrimSpace(e.Label), 120)
 	if label == "" {
 		label = "honeypot"
@@ -886,8 +895,7 @@ func (s *Service) hitEvent(ctx context.Context, data any) error {
 		in.Title = src + " scanned the Trap IPs"
 		in.What = src + " touched several Trap IPs within a minute (" + decoys + "). Nobody uses them, so a machine is mapping your network: often malware looking for its next target, or someone probing."
 	}
-	_, _, err := s.OpenIncident(ctx, in)
-	return err
+	return in
 }
 
 // logEvent opens an incident from a logs event. The logs module sends the description ready-made

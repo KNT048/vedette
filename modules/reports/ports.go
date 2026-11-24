@@ -89,6 +89,7 @@ type DetectionCount struct {
 type Detection struct {
 	Kind, Title, Severity string
 	DeviceID, DeviceName  string
+	Devices               int // how many devices it names; DeviceID is the first
 	At                    time.Time
 }
 

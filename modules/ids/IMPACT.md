@@ -32,3 +32,6 @@
 - findings' urgency pass reads `ReadAttacked(since now − 14 days)` while the module is on; a finding becomes "under attack here" for an
   attack aimed at its device or at any address while the device is affected. The selfcheck reads the same function as of the last pass.
 
+
+## Modifying: `fold` / `keyOf` (one list row per alert across hours)
+- `List`, `Summarize` and `Get` fold the per-hour rows of one alert into one. The overview's "Firewall IPS events" count (`cmd/vedette/detection.go` `ips`, `Summary.Alerts`) is the number of list rows: change both together, or the count and the list disagree. The table keeps one row per hour (INV-3): the announcement budget and the incident key read the stored rows, not the folded ones. `TestOneAlertPerSignatureSourceDestinationAndHour`.

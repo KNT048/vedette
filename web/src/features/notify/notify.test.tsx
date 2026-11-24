@@ -296,10 +296,16 @@ describe('notify: delivery history (S-NOT-1)', () => {
     renderChannels()
     const table = await screen.findByRole('table', { name: 'Sent messages' })
     const before = within(table).getAllByRole('row').length
-    const btn = within(table).getAllByRole('button', { name: 'Send again via Email' })[0]!
+    // each button names its message, so a screen reader tells the rows apart
+    const btns = within(table).getAllByRole('button', { name: /^Send again via Email: .+ \(.+\)$/ })
+    expect(new Set(btns.map((b) => b.getAttribute('aria-label'))).size).toBe(btns.length)
+    const btn = btns[0]!
+    expect(within(table).queryByText(/Sent again/)).not.toBeInTheDocument()
     await waitFor(() => expect(btn).toBeEnabled())
     await userEvent.click(btn)
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Sent messages' })).getAllByRole('row').length).toBe(before + 1))
+    // the copy is marked, so the same words twice read as one message and its resend
+    expect(within(screen.getByRole('table', { name: 'Sent messages' })).getAllByText(/· Sent again$/)).toHaveLength(1)
     expect(auditStore.get().some((e) => e.action === 'notify.resend')).toBe(true)
   })
 
@@ -466,23 +472,24 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await expectNoA11yViolations()
   })
 
-  it('the API never returns a full secret, only the last 4 characters', async () => {
+  it('the API never returns a secret, not even its last characters: a saved one reads as a mark', async () => {
     renderChannels()
     await screen.findByRole('table', { name: 'Alert channels' })
     const res = await getJson('/notify/channels')
     const tg = (res.channels as { type: string; secret_last4: string }[]).find((c) => c.type === 'telegram')!
-    expect(tg.secret_last4).toBe('0000')
+    expect(tg.secret_last4).toBe('••••')
+    expect(JSON.stringify(res)).not.toContain('"0000"')
     expect(JSON.stringify(res)).not.toContain('EXAMPLE_not_a_real')
     expect(JSON.stringify(res)).not.toContain('MatKhauMau')
   })
 
-  it('set up Telegram: a wrong token is refused, a right one is saved with only the last 4 characters shown, then a test is sent', async () => {
+  it('set up Telegram: a wrong token is refused, a right one is saved with none of it shown, then a test is sent', async () => {
     renderChannels()
     await press('Edit Telegram')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Telegram' })
     const secret = within(dlg).getByLabelText('Bot token')
     expect(secret).toHaveAttribute('type', 'password')
-    expect(within(dlg).getByText('Saved, ending in 0000. Leave empty to keep it.')).toBeInTheDocument()
+    expect(within(dlg).getByText('Saved. Leave empty to keep it.')).toBeInTheDocument()
     await userEvent.type(secret, 'not-a-token')
     await userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
     await waitFor(() => expect(secret).toHaveAccessibleDescription(/A bot token looks like 123456789:AAH/))
@@ -492,7 +499,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect((await screen.findAllByText('Channel Telegram saved.')).length).toBeGreaterThan(0)
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     const tg = ((await getJson('/notify/channels')).channels as { type: string; secret_last4: string }[]).find((c) => c.type === 'telegram')!
-    expect(tg.secret_last4).toBe(TOKEN.slice(-4))
+    expect(tg.secret_last4).toBe('••••')
     await userEvent.click(screen.getByRole('button', { name: 'Send test Telegram' }))
     expect((await screen.findAllByText(/Telegram received the test message/)).length).toBeGreaterThan(0)
     expect(auditStore.get().some((e) => e.action === 'notify.channel_test' && e.target === 'telegram')).toBe(true)
@@ -526,6 +533,30 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await waitFor(() => expect(token).toHaveAccessibleDescription(/The bot token is not valid/))
   })
 
+  it('Zalo OA says first who it is for and where each value comes from, and offers Zalo personal instead', async () => {
+    renderChannels()
+    await press('Set up Zalo OA')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Zalo OA' })
+    const guide = within(dlg).getByRole('note', { name: 'Zalo OA: for a business Official Account' })
+    expect(within(guide).getAllByRole('listitem').map((li) => li.textContent?.split(':')[0])).toEqual(['OA ID', 'App ID', 'Secret key', 'Refresh token', 'Recipient ID'])
+    await userEvent.click(within(guide).getByRole('button', { name: 'Use Zalo personal instead' }))
+    expect(await screen.findByRole('dialog', { name: 'Channel Zalo personal' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Channel Zalo OA' })).toBeNull()
+  })
+
+  it('what a channel sends is said in the statuses every screen uses, for the choice made and in the list', async () => {
+    renderChannels()
+    await press('Edit Telegram')
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Telegram' })
+    const pick = within(dlg).getByLabelText('What to send')
+    expect(within(pick).getAllByRole('option').map((o) => o.textContent)).toEqual(['Only the most urgent', 'Every urgent finding, High and Critical incidents', 'Every urgent finding, incidents from Medium (recommended)', 'Everything Vedette alerts for'])
+    await userEvent.selectOptions(pick, 'critical')
+    expect(pick).toHaveAccessibleDescription(/Findings: Under attack here, Exploited in the wild, and any other urgent one with a critical score/)
+    await userEvent.selectOptions(pick, 'medium')
+    expect(pick).toHaveAccessibleDescription(/Public exploit available, Critical on an edge device\. Incidents: Medium and above/)
+    expect(within(dlg).queryByText(/and above$/)).toBeNull()
+  })
+
   it('Zalo OA: App ID, Secret key and refresh token, checked field by field; the box renews the access token', async () => {
     renderChannels()
     await press('Set up Zalo OA')
@@ -552,7 +583,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save and send test' }))
     expect((await screen.findAllByText(/Zalo OA 1234567890 sent the test message to recipient 2468013579/)).length).toBeGreaterThan(0)
     const z = ((await getJson('/notify/channels')).channels as { type: string; configured: boolean; secret_last4: string; fields: Record<string, string> }[]).find((c) => c.type === 'zalo')!
-    expect(z).toMatchObject({ configured: true, secret_last4: 'wxyz', fields: { app_id: '4318650137000000000' } })
+    expect(z).toMatchObject({ configured: true, secret_last4: '••••', fields: { app_id: '4318650137000000000' } })
   })
 
   it('SMTP email: recipients are checked at the boundary', async () => {
@@ -752,27 +783,27 @@ describe('notify: alert channels (S-NOT-1)', () => {
     }
   })
 
-  it('webhook URL is a secret (SYS-4): only scheme://host/… and its last 4 characters come back, and an empty URL keeps it', async () => {
+  it('webhook URL is a secret (SYS-4): only scheme://host/… comes back, and an empty URL keeps it', async () => {
     const first = renderChannels()
     await screen.findByRole('table')
     const put = (b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/webhook`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
     const token = ['tok', 'path', '7f3a9c'].join('-')
     const base = { enabled: true, min_severity: 'low', secret: 'abcdefgh-1234567890' }
     const saved = await (await put({ ...base, fields: { url: `https://hooks.acme.example/vedette/${token}?key=9f8e` } })).json() as { fields: Record<string, string> }
-    expect(saved.fields.url).toBe('https://hooks.acme.example/…9f8e')
+    expect(saved.fields.url).toBe('https://hooks.acme.example/…')
     const webhook = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string> }[]).find((c) => c.type === 'webhook')!
     expect(JSON.stringify(await webhook())).not.toContain(token)
     // an empty URL, or the masked one the API showed, keeps the saved one; nothing else is saved
     expect((await put({ ...base, secret: undefined, fields: { url: '' } })).status).toBe(200)
     expect((await put({ ...base, secret: undefined, fields: { url: saved.fields.url } })).status).toBe(200)
-    expect((await webhook()).fields.url).toBe('https://hooks.acme.example/…9f8e')
+    expect((await webhook()).fields.url).toBe('https://hooks.acme.example/…')
     // the dialog starts with an empty URL field and says what is saved
     first.unmount()
     renderChannels()
     await press('Edit Webhook')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
     expect(within(dlg).getByLabelText('Webhook URL')).toHaveValue('')
-    expect(within(dlg).getByText(/Saved: https:\/\/hooks\.acme\.example\/…9f8e \(the rest stays hidden\)\. Leave empty to keep it\./)).toBeInTheDocument()
+    expect(within(dlg).getByText(/Saved: https:\/\/hooks\.acme\.example\/… \(the rest stays hidden\)\. Leave empty to keep it\./)).toBeInTheDocument()
     expect(dlg.textContent).not.toContain(token)
   })
 
@@ -1149,7 +1180,7 @@ describe('notify: email providers (S-NOT-1)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     const em = await emailOf()
     expect(em.fields).toMatchObject({ provider: 'microsoft365', host: 'smtp.office365.com', tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47', username: 'alerts@acme.example' })
-    expect(em.secret_last4).toBe('-123')
+    expect(em.secret_last4).toBe('••••')
   })
 
   it('Google Workspace: the key is a file; a file that is not a key is refused before saving; a key file saves', async () => {
@@ -1190,10 +1221,10 @@ describe('notify: email providers (S-NOT-1)', () => {
   it('the dialog says the saved password is kept only while server, port and method stay; OAuth presets lock the server', async () => {
     const dlg = await openEmail()
     const secret = within(dlg).getByLabelText('SMTP password')
-    expect(secret).toHaveAccessibleDescription(/m3Tz/) // the saved one, for this server
+    expect(secret).toHaveAccessibleDescription(/^Saved\. Leave empty to keep it\./) // the saved one, for this server: none of it shown
     const host = within(dlg).getByLabelText('SMTP server')
     await userEvent.type(host, 'x')
-    expect(secret).not.toHaveAccessibleDescription(/m3Tz/)
+    expect(secret).not.toHaveAccessibleDescription(/^Saved\. Leave empty/)
     await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'google-workspace')
     expect(within(dlg).getByLabelText('SMTP server')).toHaveAttribute('readonly')
     expect(within(dlg).getByLabelText('SMTP server')).toHaveValue('smtp.gmail.com')

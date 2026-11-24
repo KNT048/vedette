@@ -42,6 +42,10 @@ func IDFrom(ctx context.Context) string {
 	return id
 }
 
+// ShuttingDown says the work of ctx ends because Vedette is stopping, not because the run was stopped: the run is left running and the
+// next start records it as stopped by the restart (Recover), so the work writes no stop line of its own.
+func ShuttingDown(ctx context.Context) bool { return errors.Is(context.Cause(ctx), errShutdown) }
+
 // starting is a run the dispatcher moved to running, to hand to its Kind.
 type starting struct {
 	id      string

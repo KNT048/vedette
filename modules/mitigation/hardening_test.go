@@ -39,6 +39,8 @@ func TestContract_INV8_ChecksArePerFamilyAndClaimNothingAboutTheCVE(t *testing.T
 		{"router", "Cisco", "IOS XE Software", "Cisco IOS", "show control-plane host open-ports"},
 		{"firewall", "Palo Alto Networks", "PAN-OS", "Network device", "Compare the running configuration"},
 		{"nas", "QNAP", "Photo Station", "General", "software's own user list"},
+		{"server", "VMware", "ESXi", "VMware ESXi", "esxcli software vib signature verify"},
+		{"nas", "Synology", "DiskStation Manager (DSM)", "Synology DSM", "Task Scheduler"},
 	}
 	for _, c := range cases {
 		h := generalHardening(hardeningRow("10.0.0.9", c.kind, c.vendor, c.product))
@@ -109,5 +111,49 @@ func TestContract_INV8_FindingWithoutPackShowsGeneralChecksOnly(t *testing.T) {
 		if _, ok := h[gone]; ok {
 			t.Errorf("hardening still has %q: %v", gone, h)
 		}
+	}
+}
+
+// The class "Have I been hit? does not know the software": the findings of one test round (six vendors, three of them on no exploited
+// list) and the family and software name their general checks get. Before, ESXi, DSM and vCenter fell to the catch-all family, and
+// the three findings on no list (nginx, Java, the Linux kernel) were "General checks for the software". Now only the products no
+// family is written for stay General, and every one names its software.
+func TestHardeningCount_EveryWalkedFindingNamesItsSoftware(t *testing.T) {
+	t.Parallel()
+	type walked struct{ kind, vendor, product, known, family string }
+	cases := []walked{
+		{"server", "VMware", "ESXi", "", "VMware ESXi"},
+		{"switch", "Juniper", "Junos OS", "", "Juniper Junos OS"},
+		{"nas", "Synology", "DiskStation Manager (DSM)", "", "Synology DSM"},
+		{"server", "VMware", "vCenter Server", "", "General"},
+		{"server", "", "", "nginx", "Web server"},
+		{"server", "", "", "Eclipse Temurin JRE", "General"},
+		{"server", "", "", "Linux kernel", "Linux"},
+	}
+	general, unnamed := 0, 0
+	for _, c := range cases {
+		r := findings.Row{ID: "f-1", CVE: "CVE-2026-0001", Asset: &findings.AssetView{ID: "a-1", Name: "dev", Kind: c.kind}}
+		if c.vendor != "" {
+			r.Kev = &findings.KevInfo{Vendor: c.vendor, Product: c.product}
+		} else {
+			r.Known = &findings.KnownVersion{Software: c.known, Version: "1.0", Source: findings.VersionByAgent}
+		}
+		h := generalHardening(r)
+		if h.Family == "General" {
+			general++
+		}
+		if h.Software == "the software" {
+			unnamed++
+		}
+		if h.Family != c.family {
+			t.Errorf("%s%s: family %q, want %q", c.product, c.known, h.Family, c.family)
+		}
+		if c.known != "" && h.Software != c.known {
+			t.Errorf("%s: software %q, want the finding's software line", c.known, h.Software)
+		}
+	}
+	t.Logf("walked findings %d: General family %d (before 6), \"the software\" %d (before 3)", len(cases), general, unnamed)
+	if general != 2 || unnamed != 0 {
+		t.Errorf("General %d, unnamed %d; want 2 and 0", general, unnamed)
 	}
 }

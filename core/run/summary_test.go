@@ -236,3 +236,30 @@ func TestTheWordsOfALongLine(t *testing.T) {
 		}
 	}
 }
+
+// A running run of one item reads as its kind's estimate alone: "0 of 1 devices" says nothing the estimate does not; with no estimate
+// the count stays.
+func TestTheLineOfARunningRunOfOneItem(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	est := ""
+	check := g.kind("sensor-active", "device_check", "nmap", false)
+	check.Unit = "devices"
+	check.Estimate = func(context.Context, run.Run) string { return est }
+	p := b.process(nil, check)
+	p.start(t)
+	s := spec("sensor-active", "device_check", "Check of printer")
+	s.Steps = []run.StepPlan{{Name: "printer", Total: 1}}
+	id := create(t, p, s)
+	g.waitStarted(t)
+	if r := b.get(p, id); r.Summary != "0 of 1 devices" {
+		t.Fatalf("no estimate: %q", r.Summary)
+	}
+	est = "finding open ports, 41%; about 3 minutes left"
+	if r := b.get(p, id); r.Summary != est {
+		t.Fatalf("with an estimate: %q", r.Summary)
+	}
+	g.release <- run.Result{}
+	p.waitEnded(t, id)
+}

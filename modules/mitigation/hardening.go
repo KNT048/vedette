@@ -34,9 +34,13 @@ func generalHardening(r findings.Row) findings.Hardening {
 	return h
 }
 
-// softwareName is the software as the page names it (the KEV entry's plain name).
+// softwareName is the software as the page names it: the KEV entry's plain name, else (a finding on no exploited list) the software
+// line the finding is on, as the device names it.
 func softwareName(r findings.Row) string {
 	if r.Kev == nil {
+		if r.Known != nil && strings.TrimSpace(r.Known.Software) != "" {
+			return strings.TrimSpace(r.Known.Software)
+		}
 		return "the software"
 	}
 	if r.Kev.Display != "" {
@@ -65,6 +69,8 @@ func familyOf(r findings.Row) family {
 	var vendor, product string
 	if r.Kev != nil {
 		vendor, product = strings.ToLower(r.Kev.Vendor), strings.ToLower(r.Kev.Product)
+	} else if r.Known != nil {
+		product = strings.ToLower(r.Known.Software) // a finding on no exploited list: the name of its software line ("nginx", "Linux kernel")
 	}
 	vp := vendor + " " + product
 	kind := ""
@@ -78,6 +84,10 @@ func familyOf(r findings.Row) family {
 		return family{label: "Fortinet FortiOS", checks: fortiosChecks}
 	case vendor == "mikrotik" && strings.Contains(product, "routeros"): //nolint:misspell // RouterOS is the product name
 		return family{label: "MikroTik RouterOS", checks: routerosChecks}
+	case (vendor == "vmware" || vendor == "broadcom" || vendor == "") && strings.Contains(product, "esxi"):
+		return family{label: "VMware ESXi", checks: esxiChecks}
+	case (vendor == "synology" && !hasAny(product, "srm", "router")) || vendor == "" && hasAny(product, "synology", "diskstation manager", "dsm "):
+		return family{label: "Synology DSM", checks: dsmChecks}
 	case vendor == "juniper" && strings.Contains(product, "junos"):
 		return family{label: "Juniper Junos OS", checks: junosChecks}
 	case vendor == "cisco" && (strings.HasPrefix(product, "ios") || strings.Contains(product, " ios")) && !strings.Contains(product, "xr"): // r1 L4: IOS XR differs
@@ -109,7 +119,7 @@ func familyOf(r findings.Row) family {
 // ---- "Have I been hit?": general signs per family (text only, INV-6, INV-8) ----
 
 // familyProduct is the product name that alone says a vendor's family, for a KEV display name without the vendor ("Junos OS").
-var familyProduct = map[string]string{"Juniper Junos OS": "Junos", "Fortinet FortiOS": "FortiOS", "MikroTik RouterOS": "RouterOS", "Cisco IOS": "IOS"}
+var familyProduct = map[string]string{"VMware ESXi": "ESXi", "Synology DSM": "DSM", "Juniper Junos OS": "Junos", "Fortinet FortiOS": "FortiOS", "MikroTik RouterOS": "RouterOS", "Cisco IOS": "IOS"}
 
 // summaryFor names the family after the software only when the software's name does not already say it ("General checks for
 // Juniper Junos OS (Juniper Junos OS)"), and never the catch-all "General" family, which says nothing more.
@@ -225,6 +235,43 @@ func webChecks(software, cve string) findings.CompromiseCheck {
 	}
 	// r1 M5: the OS is often unknown (ColdFusion, WebLogic run on both), so the commands name their OS.
 	return check("Web server", software, cve, append(web, linuxIndicators...)...)
+}
+
+// esxiChecks: the ESXi Shell and esxcli commands are from Broadcom's ESXCLI reference and its KB 89619 ("Mitigation and Threat
+// Hunting Guidance for Unsigned vSphere Installation Bundles"), the backdoor VIBs Mandiant described for ESXi hosts; the log files are
+// ESXi's own (/var/log/auth.log, shell.log, hostd.log).
+func esxiChecks(software, cve string) findings.CompromiseCheck {
+	return check("VMware ESXi", software, cve,
+		findings.Indicator{Kind: "log", Title: "Sign-ins and shell commands", Detail: "SSH or ESXi Shell sign-ins from addresses you do not know, and commands nobody in your team ran. SSH and the ESXi Shell turned on although you keep them off (Host Client: Host, Manage, Services).",
+			Commands: []findings.Command{
+				cmd("ESXi Shell: sign-ins", "grep -E 'Accepted|Failed' /var/log/auth.log | tail -n 50"),
+				cmd("ESXi Shell: commands run in the shell", "tail -n 100 /var/log/shell.log"),
+			}},
+		findings.Indicator{Kind: "file", Title: "Accounts and installed bundles (VIBs)", Detail: "Local accounts and permissions nobody created, and installed bundles (VIBs) you did not install or whose signature does not check out: intruders have kept ESXi hosts with backdoor VIBs installed with --force.",
+			Commands: []findings.Command{
+				cmd("ESXi Shell: local accounts", "esxcli system account list"),
+				cmd("ESXi Shell: permissions", "esxcli system permission list"),
+				cmd("ESXi Shell: installed bundles with their acceptance level", "esxcli software vib list"),
+				cmd("ESXi Shell: bundles whose signature does not verify", "esxcli software vib signature verify"),
+				cmd("ESXi Shell: the lowest acceptance level the host allows", "esxcli software acceptance get"),
+			}},
+		findings.Indicator{Kind: "process", Title: "Connections and virtual machines", Detail: "Listening ports and connections the host has no reason for, and virtual machines nobody in your team created.",
+			Commands: []findings.Command{
+				cmd("ESXi Shell: network connections", "esxcli network ip connection list"),
+				cmd("ESXi Shell: registered virtual machines", "vim-cmd vmsvc/getallvms"),
+			}},
+	)
+}
+
+// dsmChecks: DSM's own screens (Synology Knowledge Center: Log Center, Control Panel, Package Center, Security Advisor); no shell
+// commands, which DSM leaves off by default.
+func dsmChecks(software, cve string) findings.CompromiseCheck {
+	return check("Synology DSM", software, cve,
+		findings.Indicator{Kind: "log", Title: "Sign-ins", Detail: "In Log Center, Logs: sign-ins (connection logs) from addresses you do not know, above all from the internet, and many failed sign-ins in a row."},
+		findings.Indicator{Kind: "file", Title: "Accounts", Detail: "In Control Panel, User & Group: users nobody created, members of the administrators group you do not know, and the admin or guest account turned on again."},
+		findings.Indicator{Kind: "process", Title: "Scheduled tasks and packages", Detail: "In Control Panel, Task Scheduler: tasks nobody added (a script run as root keeps an intruder in). In Package Center: packages nobody installed."},
+		findings.Indicator{Kind: "file", Title: "Malware scan and access from the internet", Detail: "Run Security Advisor's scan. In Control Panel, External Access: QuickConnect and router port forwarding nobody in your team turned on."},
+	)
 }
 
 func junosChecks(software, cve string) findings.CompromiseCheck {

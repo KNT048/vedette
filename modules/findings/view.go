@@ -329,7 +329,7 @@ type fixJS struct {
 }
 
 // knownFixKinds are the fix kinds the API names; a stored kind it does not know reads as unknown.
-var knownFixKinds = []FixKind{FixUpdate, FixDistroUpdate, FixOSUpdate, FixFeatureUpdate, FixNoneYet, FixUnknown}
+var knownFixKinds = []FixKind{FixUpdate, FixDistroUpdate, FixOSUpdate, FixFeatureUpdate, FixRestart, FixNoneYet, FixUnknown}
 
 // fixOf is a fix as the API shows it: key is the group it is listed under (a finding's own fix key, or a block's combined one).
 func fixOf(key string, fx Fix, product string) fixJS {

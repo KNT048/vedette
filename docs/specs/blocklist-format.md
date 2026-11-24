@@ -1,6 +1,6 @@
 # Block list: a block list that the firewall pulls by itself
 
-Status: draft (docs-first), 2026-11-09. Field names, formats and paths are in English.
+Status: implemented in `response` (written 2026-11-09 before the code). Where this spec and the code or `modules/response/CONTRACT.md` differ, those win. Field names, formats and paths are in English.
 Traceability: design requirements (pull preferred; the `blocklist_add` action, TTL, undo); story S-RESP-3; GUI mock `web/src/features/response` (`BlocklistTab.tsx`, `guides.ts`, `mocks.ts`, `contract.ts`).
 
 ## 1. Purpose

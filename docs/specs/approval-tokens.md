@@ -1,6 +1,6 @@
 # Approval tokens: approving actions from email, Slack, Telegram, Zalo
 
-Status: draft (docs-first), 2026-11-09; updated: §7.1 reply-code hashing and test vectors, §14 open questions answered. Field names, messages and paths are in English.
+Status: implemented in `response` and `notify` (written 2026-11-09 before the code; §7.1 reply-code hashing and test vectors and §14 were settled later). Where this spec and the code or a module's `CONTRACT.md` differ, those win. Field names, messages and paths are in English.
 Traceability: design requirements (approver, expiry, one action per approval; approval inside each channel; Slack Socket Mode, Telegram long polling; every action needs approval, 2 people for high risk, high-risk AI actions must be approved in the app with a two-step code; two-step verification; hash log); stories S-RESP-2, S-NOT-2; GUI mock `web/src/features/response` (`ApprovePage.tsx`, `state.ts`, `mocks.ts`) and `web/src/features/notify` (`Approver`, `ChannelInput`).
 
 ## 1. Purpose

@@ -1,6 +1,6 @@
 # osquery intake: the box is osquery's TLS server, and pulls Wazuh through its API
 
-Status: draft (docs-first), 2026-11-09. Field names, messages and paths are in English.
+Status: implemented in `agent-intake` (written 2026-11-09 before the code). Where this spec and the code or `modules/agent-intake/CONTRACT.md` differ, those win. Field names, messages and paths are in English.
 Traceability: story S-INV-4; GUI mock `web/src/features/inventory` (`contract.ts`, `installScripts.ts`, `agentConfig.ts`, `scripts/osquery.{sh,ps1}`). The paths `/api/v1/install/*` and `/api/v1/intake/*` are the mock's names; this spec fixes them, and the backend must match.
 
 ## 1. Purpose

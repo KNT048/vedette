@@ -1,6 +1,6 @@
 # Update manifest: release, signing, rollout, revocation, rollback
 
-Status: draft (docs-first), 2026-11-09. Field names, formats and paths are in English.
+Status: implemented in `internal/release`, `modules/core` and `host/` (written 2026-11-09 before the code). Where this spec and the code differ, the code wins. Field names, formats and paths are in English.
 Traceability: design requirements (signing, cohort, A/B, revocation, SBOM; GitHub publishes only signed software updates, with the content packs that go with them; OS updates, the box being the first device; appliance container, cosign, batches, rollback with an old tag, two install modes; ghcr, cosign with a key, offline verification; signature check in code, cosign in the manifest; the `scan` image is a base image, nmap is installed on the box at build time; pull, start, rollback, revocation); `docs/UPDATES.md`; stories S-CORE-2, S-CORE-7; GUI mock `web/src/features/core` (`UpdatesSection.tsx`, `OsUpdates.tsx`, `bundles.ts`, `contract.ts`).
 
 ## 1. Purpose

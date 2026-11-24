@@ -120,13 +120,15 @@ type extraAddr struct {
 	ip, mac          sql.NullString
 	source           string
 	firstSeen, lastS string
+	// mainCard: the device's main card answers at this address too (inv_asset_address.main_card, claimIP's second address)
+	mainCard bool
 }
 
-const extraCols = `id, asset_id, ip, mac, source, first_seen, last_seen`
+const extraCols = `id, asset_id, ip, mac, source, first_seen, last_seen, main_card = 1`
 
 func scanExtra(sc interface{ Scan(...any) error }) (extraAddr, error) {
 	var x extraAddr
-	err := sc.Scan(&x.id, &x.assetID, &x.ip, &x.mac, &x.source, &x.firstSeen, &x.lastS)
+	err := sc.Scan(&x.id, &x.assetID, &x.ip, &x.mac, &x.source, &x.firstSeen, &x.lastS, &x.mainCard)
 	return x, err
 }
 
@@ -335,7 +337,8 @@ func (s *Service) atExtraMAC(ctx context.Context, tx *sql.Tx, o *outbox, x extra
 func (s *Service) atExtraIP(ctx context.Context, tx *sql.Tx, x extraAddr, c cleanObs, cutoff string) (id string, done bool, err error) {
 	fresh := x.lastS >= cutoff
 	if c.mac != "" {
-		if x.mac.Valid || !fresh {
+		// a row the main card answers at is that card's: another MAC there is another machine, which takes the address (claimIP)
+		if x.mac.Valid || !fresh || x.mainCard {
 			return "", false, nil
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset_address SET mac = ? WHERE id = ?`, c.mac, x.id); err != nil {
@@ -343,9 +346,11 @@ func (s *Service) atExtraIP(ctx context.Context, tx *sql.Tx, x extraAddr, c clea
 		}
 		return x.assetID, true, touchExtra(ctx, tx, x.id, c.source, c.seenAt)
 	}
-	if !x.mac.Valid {
+	if !x.mac.Valid && !x.mainCard {
 		return x.assetID, true, touchExtra(ctx, tx, x.id, c.source, c.seenAt)
 	}
+	// an interface with a MAC, or an address of the main card: by the rules of the main address, a sighting by address only confirms
+	// nothing
 	if fresh {
 		return x.assetID, true, nil
 	}
@@ -424,6 +429,11 @@ func (s *Service) addresses(ctx context.Context, q querier, id string) ([]Addres
 	for _, x := range extras {
 		out = append(out, Address{IP: nullPtr(x.ip), MAC: nullPtr(x.mac), Source: x.source, FirstSeen: x.firstSeen, LastSeen: x.lastS,
 			Agent: agent.has(x.ip, x.mac)})
+		// the main card answers at another address too: the main row says when the main address itself last answered, not when the card
+		// was last seen anywhere, so a person sees which of the two answers
+		if x.mainCard && len(out) > 0 && out[0].Main && confirmed.Valid && !isBox {
+			out[0].LastSeen = confirmed.String
+		}
 	}
 	return out, nil
 }
@@ -448,6 +458,19 @@ func addExtra(ctx context.Context, tx *sql.Tx, assetID string, ip, mac sql.NullS
 		return "", fmt.Errorf("inventory: store an address: %w", err)
 	}
 	return id, nil
+}
+
+// addCardAddress records ip as an other address of device assetID that its main card answers at too (main_card): claimIP's second
+// address. The address is no other device's (claimIP frees it first).
+func addCardAddress(ctx context.Context, tx *sql.Tx, assetID string, ip netip.Addr, source, first, last string) error {
+	if !validAddrSource(source) || source == addrMerge {
+		source = "manual" // a person's statement (declared)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset_address (id, asset_id, ip, mac, source, first_seen, last_seen, main_card) VALUES (?, ?, ?, NULL, ?, ?, ?, 1)`,
+		store.NewID("ad"), assetID, ip.String(), source, first, last); err != nil {
+		return fmt.Errorf("inventory: store an address: %w", err)
+	}
+	return nil
 }
 
 // otherAddressHits lists the devices one of whose other addresses holds the search text: an IP fragment, or a MAC fragment in any

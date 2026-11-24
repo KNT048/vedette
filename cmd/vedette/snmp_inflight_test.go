@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -71,9 +72,20 @@ func (w *heldWorker) Probe(ctx context.Context, argv []string) (sensoractive.Out
 
 // midRun is what happens on the wire while a job for the device at ip (MAC mac) is held: another machine takes the address, or the
 // device itself moves to another one (it then left the address, which another machine may take next without any device losing it).
-var midRun = map[string]func(s *stack, t *testing.T, ip, mac string){
-	"another device takes the address": func(s *stack, t *testing.T, ip, _ string) { s.seen(t, ip, "3c:22:fb:00:09:99", "") },
-	"the device moves":                 func(s *stack, t *testing.T, _, mac string) { s.seen(t, "192.168.10.77", mac, "") },
+// A card seen at a second address within minutes of its main one is a second address, not a move, so the move comes later (later
+// moves the stack's clock past that window).
+var midRun = map[string]func(s *stack, t *testing.T, ip, mac string, later func()){
+	"another device takes the address": func(s *stack, t *testing.T, ip, _ string, _ func()) { s.seen(t, ip, "3c:22:fb:00:09:99", "") },
+	"the device moves": func(s *stack, t *testing.T, _, mac string, later func()) {
+		later()
+		s.seen(t, "192.168.10.77", mac, "")
+	},
+}
+
+// stepClock is a stack clock that starts at start and moves 20 minutes forward each time later is called.
+func stepClock(start time.Time) (now func() time.Time, later func()) {
+	var off atomic.Int64
+	return func() time.Time { return start.Add(time.Duration(off.Load())) }, func() { off.Add(int64(20 * time.Minute)) }
 }
 
 // #874, through the real inventory, bus and sensor-active: while a Check now of the approved switch at .205 waits
@@ -86,7 +98,8 @@ func TestWiringSNMPStopsWhenTheDeviceLeavesTheAddress(t *testing.T) {
 	for name, happen := range midRun {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			s := newStack(t)
+			now, later := stepClock(time.Now().UTC().Truncate(time.Second))
+			s := newStackWith(t, func(d *deps) { d.Clock = now })
 			w := newHeldWorker()
 			svc, err := newSensorActive(context.Background(), *s.d, w, nil)
 			if err != nil {
@@ -111,7 +124,7 @@ func TestWiringSNMPStopsWhenTheDeviceLeavesTheAddress(t *testing.T) {
 				done <- out{res, err}
 			}()
 			<-w.started
-			happen(s, t, ip, mac)
+			happen(s, t, ip, mac, later)
 			close(w.proceed)
 			got := <-done
 			var ae *apierr.Error
@@ -136,8 +149,8 @@ func TestWiringNmapStopsWhenTheDeviceLeavesTheAddress(t *testing.T) {
 	for name, happen := range midRun {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			s := newStack(t)
-			s.d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) } // Monday 02:00, inside 01:00-05:00
+			now, later := stepClock(time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone)) // Monday 02:00, inside 01:00-05:00
+			s := newStackWith(t, func(d *deps) { d.Clock = now })
 			w := newHeldWorker()
 			svc, err := newSensorActive(context.Background(), *s.d, w, nil)
 			if err != nil {
@@ -149,7 +162,7 @@ func TestWiringNmapStopsWhenTheDeviceLeavesTheAddress(t *testing.T) {
 			done := make(chan error, 1)
 			go func() { done <- svc.ScanDevice(context.Background(), srv, "test") }()
 			<-w.started
-			happen(s, t, ip, mac)
+			happen(s, t, ip, mac, later)
 			close(w.proceed)
 			if err := <-done; !errors.Is(err, sensoractive.ErrStopped) {
 				t.Fatalf("the held scan ended with %v; want ErrStopped", err)

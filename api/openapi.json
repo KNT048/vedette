@@ -53424,6 +53424,73 @@
                                   "type": "integer",
                                   "minimum": 1,
                                   "maximum": 9007199254740991
+                                },
+                                "others": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 400,
+                                        "description": "The \"By fix\" group (the same key on every device the same fix applies to); opaque"
+                                      },
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "update",
+                                          "distro_update",
+                                          "os_update",
+                                          "feature_update",
+                                          "restart",
+                                          "none_yet",
+                                          "unknown"
+                                        ],
+                                        "description": "update = install `version` of the software or later; distro_update = install the distribution's package release `version` or later; os_update = install the operating system update `ref` (a KB number) or build `version`; feature_update = no update of this release fixes it, move to release `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data"
+                                      },
+                                      "product": {
+                                        "type": "string",
+                                        "description": "The product the fix is for, as people name it (\"OpenSSH\")"
+                                      },
+                                      "version": {
+                                        "description": "update, distro_update, feature_update: the version or release to install; os_update: the build when known; restart: the installed kernel's package release the device runs after the restart",
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "ref": {
+                                        "description": "os_update: the KB number; none_yet: the advisory id when known",
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "url": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "format": "uri"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ],
+                                        "description": "The vendor advisory or release notes"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "kind",
+                                      "product",
+                                      "version",
+                                      "ref",
+                                      "url"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "description": "The fixes of the other steps for the same software line on this device, the most findings first: a line is in several steps only when no single release is known to fix all of its CVEs (or some name no release). Empty when this step is the line's only one"
                                 }
                               },
                               "required": [
@@ -53431,7 +53498,8 @@
                                 "software",
                                 "status",
                                 "severity",
-                                "findings"
+                                "findings",
+                                "others"
                               ],
                               "additionalProperties": false
                             },

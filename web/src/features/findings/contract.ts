@@ -329,6 +329,7 @@ export const FixDevice = z.object({
   status: OpenStatus,
   severity: SeverityCounts,
   findings: z.number().int().min(1),
+  others: z.array(Fix).describe('The fixes of the other steps for the same software line on this device, the most findings first: a line is in several steps only when no single release is known to fix all of its CVEs (or some name no release). Empty when this step is the line\'s only one'),
 })
 export const FixCard = z.object({
   fix: Fix,

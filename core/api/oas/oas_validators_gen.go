@@ -52516,6 +52516,34 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) Validate() error {
 		})
 	}
 	if err := func() error {
+		if s.Others == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Others {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "others",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if err := s.Severity.Validate(); err != nil {
 			return err
 		}
@@ -52743,6 +52771,73 @@ func (s FindingsGetFindingsFixesOKItemsItemItemsItemDeviceKind) Validate() error
 	case "web":
 		return nil
 	case "cloud_service":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     400,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Key)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "key",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) Validate() error {
+	switch s {
+	case "update":
+		return nil
+	case "distro_update":
+		return nil
+	case "os_update":
+		return nil
+	case "feature_update":
+		return nil
+	case "restart":
+		return nil
+	case "none_yet":
 		return nil
 	case "unknown":
 		return nil

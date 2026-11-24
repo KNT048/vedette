@@ -280,3 +280,40 @@ func TestRelease_ReadsTheNamesThisPackageWrites(t *testing.T) {
 		}
 	}
 }
+
+// Class count: fixed releases, in every notation a scheme reads from a vendor, whose name as this package writes it (Version.Display, the
+// form a finding's fix is stored in) does not read back to the same release. A stored fix that does not read back cannot be ordered with
+// the other fixes of its line, so the line's fixes no longer combine into one update. Before a security-only ESXi patch with two letters
+// was read back: 2 of 23 ("7.0 U3si", "8.0 U3se"). After: 0.
+func TestRelease_Count_WrittenNamesThatDoNotReadBack(t *testing.T) {
+	t.Parallel()
+	dsm, _ := Lookup("synology-dsm")
+	corpus := map[*Scheme][]string{
+		VMwareESXi: {"ESXi80U3d-24585383", "ESXi70U3s-24585291", "ESXi80b-21203435", "ESXi80-20513097", "ESXi70U3si-20841705",
+			"ESXi80U3se-24659227", "ESXi80U3k-25595708", "ESXi-9.0.2.0100-25595025"},
+		dsm:         {"7.2.1-69057-6", "7.2-64570-4", "7.2.2-72806-1"},
+		NetScaler:   {"14.1-73.37", "13.1-37.247 FIPS"},
+		LinuxKernel: {"6.1.149", "6.6.30"},
+		Java:        {"1.8.0_441", "17.0.14"},
+		Junos:       {"21.4R3-S7", "21.4R3-S7.2", "15.1X49-D240", "22.4R3-S2-EVO", "19.1R3-S9", "23.2R2-S7.7"},
+	}
+	n, bad := 0, 0
+	for s, texts := range corpus {
+		for _, text := range texts {
+			v, ok := s.Parse(text)
+			if !ok || v.LineStart {
+				t.Fatalf("%s: %q does not read as a release", s.Name, text)
+			}
+			n++
+			again, ok := s.Release(v.Display)
+			if c, same := Compare(again, v); !ok || !same || c != 0 || !sameTrain(again, v) {
+				bad++
+				t.Logf("%s %q writes %q, which reads back as %+v (%v)", s.Name, text, v.Display, again, ok)
+			}
+		}
+	}
+	t.Logf("written names that do not read back: %d of %d", bad, n)
+	if bad != 0 {
+		t.Errorf("%d of %d written release names do not read back", bad, n)
+	}
+}

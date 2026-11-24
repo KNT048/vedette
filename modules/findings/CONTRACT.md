@@ -93,7 +93,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   notation (ESXi's "8.0 U3d (build 24585383)", DSM's "7.2.1-69057 Update 6") is ordered by the product's version scheme and judged
   with the vendor's rows, so one line names one release (`TestCumulativeTarget_Count_LinesWithSeveralUpdatesOfOneProduct`). A block is
   keyed by the catalogue's product, so one product read under two names (Oracle Java SE, Eclipse Temurin) is one By fix row
-  (`TestBlockKey_Count_ByFixCardsWithARepeatedTitle`). `ListedFix` is one finding's listed fix, for its own page. The Needs your input queue is computed from
+  (`TestBlockKey_Count_ByFixCardsWithARepeatedTitle`). A fix version no order reads stays its own block without keeping the line's
+  other fixes from combining (`orderable`), and every release name a scheme writes reads back (`TestRelease_Count_WrittenNamesThatDoNotReadBack`),
+  so a line is in one By fix step whenever one release clears all its CVEs (`TestOneStep_Count_LinesSplitWhereOneReleaseCoversAll`); when
+  it is in several, each step's device row names the others (`FixDevice.others`). `ListedFix` is one finding's listed fix, for its own page. The Needs your input queue is computed from
   rows, never stored, and searched like the other lists (`q`: the device's name or address, the software, the CVE id); a device not
   added yet is also found by the CVE ids and software names of its open findings, which its item does not show (read only when `q`
   is set); a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).

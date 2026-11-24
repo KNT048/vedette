@@ -191,7 +191,12 @@ export function fixCards(p: URLSearchParams): FixCards {
   const l = filtered(p)
   const cards = [...groupBy(l, (r) => r.fix.key).values()].map((g): FixCard => {
     const top = mostUrgent(g)
-    const items = [...groupBy(g, (r) => r.asset_id).values()].map((d): FixDevice => ({ device: deviceRef(d[0]!.asset), software: mostUrgent(d).software, status: OPEN_STATUSES[mostUrgent(d).layer - 1]!, severity: severityCounts(d), findings: d.length }))
+    const others = (d: typeof g) => { // the line's other steps, the most findings first, as the backend's otherSteps
+      const sw = mostUrgent(d).software?.id
+      const rest = sw ? l.filter((r) => r.asset_id === d[0]!.asset_id && r.software?.id === sw && r.fix.key !== top.fix.key) : []
+      return [...groupBy(rest, (r) => r.fix.key).values()].sort((a, b) => b.length - a.length || a[0]!.fix.key.localeCompare(b[0]!.fix.key)).map((x) => ({ ...x[0]!.fix }))
+    }
+    const items = [...groupBy(g, (r) => r.asset_id).values()].map((d): FixDevice => ({ device: deviceRef(d[0]!.asset), software: mostUrgent(d).software, status: OPEN_STATUSES[mostUrgent(d).layer - 1]!, severity: severityCounts(d), findings: d.length, others: others(d) }))
       .sort((a, b) => byUrgency({ layer: layerOf(a.status), n: a.findings, name: a.device.name }, { layer: layerOf(b.status), n: b.findings, name: b.device.name }))
     return { fix: { ...top.fix }, status: OPEN_STATUSES[top.layer - 1]!, cause: top.cve, devices: items.length, findings: g.length, severity: severityCounts(g), items }
   }).sort((a, b) => byUrgency({ layer: layerOf(a.status), n: a.findings, name: a.fix.product }, { layer: layerOf(b.status), n: b.findings, name: b.fix.product }))

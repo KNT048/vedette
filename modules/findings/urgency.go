@@ -258,7 +258,12 @@ func ClassOf(f Finding) productid.Class {
 func ProductOf(f Finding) (productid.Product, bool) {
 	v, rest, _ := strings.Cut(f.FixKey, "|")
 	p, _, _ := strings.Cut(rest, "|")
-	key := v + "|" + p
+	return productOfKey(v + "|" + p)
+}
+
+// productOfKey is the catalogue's product of a line's product key ("vmware|esxi"); false when the catalogue does not know it.
+func productOfKey(key string) (productid.Product, bool) {
+	v, p, _ := strings.Cut(key, "|")
 	if pr, ok := productid.ByKey(key); ok {
 		return pr, true
 	}

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // The release a block names must clear every CVE the block lists. The newest of the findings' own fixes does not always: a CVE fixed
@@ -47,7 +49,7 @@ func (j *releaseJudge) ends(g lineGroup) []string {
 // each CVE judged by its ranges.
 func (j *releaseJudge) clears(g lineGroup, x string) bool {
 	if x != g.Fix.Version {
-		if c, ok := compareFix(g.Fix.Kind, x, g.Fix.Version); !ok || c < 0 {
+		if c, ok := compareFix(g.Fix.Kind, g.Product, x, g.Fix.Version); !ok || c < 0 {
 			return false
 		}
 	}
@@ -75,14 +77,14 @@ func planReleases(gs []lineGroup, is []int, product string, j *releaseJudge) {
 	}
 	cands = slices.DeleteFunc(cands, func(x string) bool { // only releases that compare with every stored fix can be ordered with them
 		for _, v := range stored {
-			if _, ok := compareFix(kind, x, v); !ok && x != v {
+			if _, ok := compareFix(kind, product, x, v); !ok && x != v {
 				return true
 			}
 		}
 		return false
 	})
 	slices.SortStableFunc(cands, func(a, b string) int {
-		c, _ := compareFix(kind, a, b)
+		c, _ := compareFix(kind, product, a, b)
 		return c
 	})
 	cands = slices.Compact(cands)
@@ -217,13 +219,13 @@ func (s *Service) releaseJudge(ctx context.Context, gs []lineGroup, rows string,
 }
 
 // rangeParts are the ranges of v that apply to line s of device a when FixOf reads v's fix on it from them (the nearest release
-// outside every one of them); nil when it reads it otherwise (the vendor's notation, Microsoft's release data, the distribution's
-// package) or reads none.
+// outside every one of them), or the vendor's rows in its notation when FixOf reads the fix from those (schemeParts); nil when it
+// reads it otherwise (Microsoft's release data, the distribution's package) or reads none.
 func rangeParts(a Asset, s Software, v Vuln) *fixedParts {
-	if _, ok := schemeFix(a, s, v); ok {
-		return nil
-	}
 	in := newSWInfo(s, a.OS)
+	if _, ok := schemeFix(a, s, v); ok {
+		return schemeParts(a, s, in, v)
+	}
 	if _, ok := windowsFixedIn(in, v); ok {
 		return nil
 	}
@@ -235,5 +237,27 @@ func rangeParts(a Asset, s Software, v Vuln) *fixedParts {
 		return nil
 	}
 	p := fixedPartsOf(in, v, key)
+	return &p
+}
+
+// schemeParts reads the vendor's rows of v for line s the way the matcher does (schemeJudge): a release clears the CVE when the vendor's
+// word on it is "not affected" from a row that ends in the release's own train (a train the vendor is silent on proves nothing), and
+// the rows' fixed releases are candidates for the block's release. So a block of ESXi 8.0 Update 2 CVEs whose fixes are U2d, U2e and
+// the U3 releases of CVEs that only Update 3 fixes names the one release that clears them all (8.0 U3k), and DSM's updates of one build
+// combine into the newest one the CVEs need.
+func schemeParts(a Asset, s Software, in swInfo, v Vuln) *fixedParts {
+	scheme, spans, _, _ := schemedSpans(a, s, in, v)
+	if scheme == nil {
+		return nil
+	}
+	p := fixedParts{outside: func(x string) bool {
+		rel, ok := scheme.Release(x)
+		return ok && endsInTrain(spans, rel) && versionscheme.Judge(rel, spans).State == versionscheme.NotAffected
+	}}
+	for _, sp := range spans {
+		if sp.End != nil && !sp.EndIncl && !sp.End.LineStart {
+			p.usable = append(p.usable, fixedEntry{r: VersionRange{EndExcl: releaseName(*sp.End)}})
+		}
+	}
 	return &p
 }

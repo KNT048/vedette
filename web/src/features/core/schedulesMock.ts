@@ -1,5 +1,6 @@
 // Mock API: schedules (core/schedule). One model for every schedule a person can set; the box computes every time (Next in Go),
-// this mock only approximates it for the dev server: it follows the rule's zone but not every edge of summer time.
+// this mock only approximates it for the dev server: it follows the box's zone but not every edge of summer time. Every schedule
+// follows the box's zone (Settings › General): a tz a client sends is ignored, as the box does.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard } from '@/mocks/http'
 import { collection, nowIso } from '@/mocks/db'
@@ -58,8 +59,6 @@ const limitsOf = (o: Owner): Limits => ({ freqs: o.limits.freqs ?? FREQS, min_ev
 
 // ---- time in a zone (approximate: the offset at the instant) ----
 const orgZone = () => orgStore.get().timezone || 'Asia/Ho_Chi_Minh'
-const zoneName = (tz: string) => (tz === 'org' ? orgZone() : tz)
-const validZone = (tz: string) => { try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true } catch { return false } }
 function wall(t: number, tz: string) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short' })
     .formatToParts(new Date(t)).map((x) => [x.type, x.value]))
@@ -90,7 +89,7 @@ function windowOpen(r: Rule, t: number, tz: string): number {
 
 /** When a rule next comes due after `after` (ms); null when never. */
 function next(r: Rule, after: number): number | null {
-  const tz = zoneName(r.tz)
+  const tz = orgZone()
   const at = hm(r.at_time)
   let t: number | null = null
   const firstDay = (ok: (wd: number) => boolean) => {
@@ -147,7 +146,7 @@ function view(key: string, o: Owner): View {
   const due = s.enabled ? next(s.rule, ref(s)) : null
   const up = due === null ? [] : upcoming(s.rule, due, now)
   return {
-    owner_key: key, module: o.module, saved: !!saved, enabled: s.enabled, paused_until: s.paused_until, rule: s.rule, zone: zoneName(s.rule.tz),
+    owner_key: key, module: o.module, saved: !!saved, enabled: s.enabled, paused_until: s.paused_until, rule: { ...s.rule, tz: 'org' }, zone: orgZone(),
     next_due_at: due === null ? null : new Date(due).toISOString(), upcoming: up,
     waiting_for: due !== null && due <= now && s.rule.window === 'global' && up[0] && Date.parse(up[0]) > now ? 'The scan window to open' : null,
     last_due_at: s.last_due_at, last_run_id: s.last_run_id, last_skip_reason: s.last_skip_reason, last_skip_at: s.last_skip_at,
@@ -160,8 +159,7 @@ const invalid = (field: string, message: string) => fail(400, 'invalid', message
 /** The rule normalized, or the 400 the box answers. */
 function check(raw: Partial<Rule> | undefined, o: Owner | null): Rule | Response {
   if (!raw || !FREQS.includes(raw.freq as Freq)) return invalid('freq', 'Choose how often: every N minutes, hours or days, daily, weekly, monthly or once.')
-  const r: Rule = { ...base, freq: raw.freq!, tz: raw.tz || 'org', window: raw.window || 'none' }
-  if (r.tz !== 'org' && !validZone(r.tz)) return invalid('tz', 'Choose a time zone from the list, such as Europe/Berlin.')
+  const r: Rule = { ...base, freq: raw.freq!, tz: 'org', window: raw.window || 'none' }
   const needAt = r.freq === 'daily' || r.freq === 'weekly' || r.freq === 'monthly' || (r.freq === 'interval' && raw.at_time)
   if (needAt) {
     if (!raw.at_time) return invalid('at_time', 'Choose the time of day.')
@@ -220,7 +218,7 @@ export const schedulesHandlers = [
     const r = check(b.rule, o); if (r instanceof Response) return r
     const now = Date.now()
     const first = next(r, Math.max(now, b.paused_until ? Date.parse(b.paused_until) : 0))
-    return HttpResponse.json({ zone: zoneName(r.tz), upcoming: first === null ? [] : upcoming(r, first, now) })
+    return HttpResponse.json({ zone: orgZone(), upcoming: first === null ? [] : upcoming(r, first, now) })
   }),
   http.get(`${API}/schedules/:owner_key`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied

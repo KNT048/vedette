@@ -3,7 +3,7 @@ import { api, ApiError, download } from '@/lib/api'
 import type { InstallKind, ModuleId } from '@/lib/modules'
 import type { Role } from '@/lib/session'
 import type {
-  Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, McpState, McpTokenCreated, OidcConfig, OidcSave, PrivacyState, SetupModule, SetupPayload, SetupStatus, TermsState, TotpStart, EmailCodeSent,
+  Account, AdminUser, AuditQuery, AuditResult, AuthOptions, GeneralSettings, GeneralView, McpState, McpTokenCreated, OidcConfig, OidcSave, PrivacyState, SetupModule, SetupPayload, SetupStatus, TermsState, TotpStart, EmailCodeSent,
   UpdateChannel, UpdatesState, MaintenanceWindow, OsRebootBody, OsRun, OsState,
   BoxBackups, RestoreRun, BackupUpload, DataBackupUpload, SetupRestoreRun,
   NetworkState, IfaceRole, ManagementBody, SpanConfig, SpanStatus, NtpConfig, Connector, ConnectorInput, ConnectorTestResult,
@@ -51,11 +51,11 @@ export const useSetupRestoreRun = (enabled: boolean) => useQuery({
 export const useAuthOptions = () => useQuery({ queryKey: ['core', 'auth-options'], queryFn: () => api.get<AuthOptions>('/core/auth-options'), retry: false })
 
 // ---- chung ----
-export const useGeneral = () => useQuery({ queryKey: ['core', 'general'], queryFn: () => api.get<GeneralSettings>('/core/general') })
+export const useGeneral = () => useQuery({ queryKey: ['core', 'general'], queryFn: () => api.get<GeneralView>('/core/general') })
 export const useTerms = () => useQuery({ queryKey: ['core', 'terms'], queryFn: () => api.get<TermsState>('/core/terms') })
 export function useSaveGeneral() {
   const qc = useQueryClient()
-  return useMutation({ mutationFn: (v: GeneralSettings) => api.put<GeneralSettings>('/core/general', v), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['core', 'general'] }); void qc.invalidateQueries({ queryKey: ['me'] }) } })
+  return useMutation({ mutationFn: (v: GeneralSettings) => api.put<GeneralView>('/core/general', { name: v.name, timezone: v.timezone }), onSuccess: () => { void qc.invalidateQueries({ queryKey: ['core', 'general'] }); void qc.invalidateQueries({ queryKey: ['me'] }) } })
 }
 
 // ---- module ----

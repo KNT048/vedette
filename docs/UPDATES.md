@@ -24,8 +24,8 @@ wherever it comes from; TLS only protects the transfer.
   flow 6). The box sends only its current version.
 - **Channels**: `stable` and `beta` (Settings → Updates → Software channel). A box installed from a beta release follows the beta
   channel.
-- **Rollout**: each channel of the index names a rollout percentage; a box takes an automatic update only when its cohort is inside it.
-  A person can always install by hand.
+- **Rollout**: each channel of the index names a rollout percentage; a box is offered the release, by hand or automatically, only when
+  its cohort is inside it. Until then the Updates page says the box is not in the rollout yet.
 - **Mode**: manual (the default: the page offers the release and asks before it starts) or automatic (installs inside the maintenance
   window, never while another run is busy).
 - **Run**: `vedette-host` updates itself first, then backs up the database, pulls each image by digest after checking its signature,

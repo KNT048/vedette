@@ -120,7 +120,7 @@ func TestHandlersRolesAndShapes(t *testing.T) {
 	// save
 	a.want("PUT", "/notify/channels/telegram", "admin", `{"enabled":true,"fields":{"chat_id":"x"},"secret":"`+tgToken+`","min_severity":"medium"}`, 400, "bad_chat_id")
 	got, saved, raw := a.do("PUT", "/notify/channels/telegram", "admin", tgBody)
-	if got != 200 || strings.Contains(raw, tgSecret) || saved["secret_last4"] != tgToken[len(tgToken)-4:] || saved["configured"] != true || saved["last_test"] != nil {
+	if got != 200 || strings.Contains(raw, tgSecret) || saved["secret_last4"] != "••••" || saved["configured"] != true || saved["last_test"] != nil {
 		t.Fatalf("save = %d %s", got, raw)
 	}
 	a.want("PUT", "/notify/channels/fax", "admin", tgBody, 400, "invalid") // the mock says 404 not_found: ogen checks the enum first

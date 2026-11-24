@@ -431,3 +431,34 @@ func TestWakeRunsNowUnlessOffOrRunning(t *testing.T) {
 		}
 	})
 }
+
+// slowRecorder is a database writer busy for busy before it takes the row (the box's start keeps it busy: migrations, recovery, pulls).
+type slowRecorder struct {
+	recorder
+	busy time.Duration
+}
+
+func (r *slowRecorder) Record(ctx context.Context, run jobs.Run) error {
+	select {
+	case <-time.After(r.busy):
+		return r.recorder.Record(ctx, run)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// A run's history row is kept when the writer is busy for a while (at start): it is not given up on after a few seconds.
+func TestARunIsRecordedWhileTheWriterIsBusy(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		rec := &slowRecorder{busy: 20 * time.Second}
+		s := jobs.New(quiet(), newGate("feeds"), nil, jobs.WithRecorder(rec))
+		_ = s.Add(jobs.Job{Module: "feeds", Name: "pull", Every: time.Hour, Run: func(context.Context) error { return nil }})
+		stop := start(s)
+		defer stop()
+		advance(30 * time.Second)
+		if got := rec.statuses(); len(got) != 1 || got[0] != jobs.StatusOK {
+			t.Fatalf("history after a busy writer: %v, want the run recorded", got)
+		}
+	})
+}

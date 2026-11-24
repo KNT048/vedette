@@ -31,6 +31,25 @@ export function actionLabel(t: TFunction<'core'>, action: string): string {
   return t(`audit.action.${action}`, { defaultValue: fallback })
 }
 
+/** An action code as the box stores it (core.general, findings.question_answered). */
+const ACTION_CODE = /^[a-z][a-z0-9_-]*(\.[a-z0-9_-]+)+$/
+/** The box searches the stored codes; the screen shows labels. The codes whose label holds the search text go with it, so a search
+ *  for "synced" finds the lines shown as "Software list synced". At most 400 (the box's limit; there are about 330 labels). */
+export function actionsLabelled(labels: unknown, q: string): string {
+  const needle = q.trim().toLowerCase()
+  if (needle.length < 2 || !labels || typeof labels !== 'object') return ''
+  const out: string[] = []
+  const walk = (o: Record<string, unknown>, path: string) => {
+    for (const [k, v] of Object.entries(o)) {
+      const code = path ? `${path}.${k}` : k
+      if (v && typeof v === 'object') walk(v as Record<string, unknown>, code)
+      else if (typeof v === 'string' && v.toLowerCase().includes(needle) && ACTION_CODE.test(code)) out.push(code)
+    }
+  }
+  walk(labels as Record<string, unknown>, '')
+  return out.slice(0, 400).join(',')
+}
+
 /** Device (a-…) and finding (f-…) ids in a target or detail. */
 const ID_RE = /\b[af]-[a-z0-9]{1,64}\b/g // the same as auditIDRE in modules/core/handlers_audit.go
 
@@ -42,16 +61,17 @@ function Named({ text, names }: { text: string; names: Record<string, string> })
 }
 
 export default function AuditSection() {
-  const { t } = useTranslation('core')
+  const { t, i18n } = useTranslation('core')
   // The box pages the log (offset, limit) and searches it (q): the text and the page are in the URL (audit.q, audit.page, audit.size)
   const list = useListParams('audit')
   const [other, setOther] = useState<Omit<AuditQuery, 'q'>>({ user: '', group: '', from: '', to: '', actor: '' })
-  const f: AuditQuery = { ...other, q: list.q }
+  const actions = actionsLabelled((i18n.getResourceBundle(i18n.resolvedLanguage ?? 'en', 'core') as { audit?: { action?: unknown } } | undefined)?.audit?.action, list.q)
+  const f: AuditQuery = { ...other, q: list.q, actions }
   const deferred = useDeferredValue(other)
   const size = list.size ?? AUDIT_PAGE
-  const q = useAudit({ ...deferred, q: list.q }, { offset: list.page * size, limit: size })
+  const q = useAudit({ ...deferred, q: list.q, actions }, { offset: list.page * size, limit: size })
   const set = (patch: Partial<Omit<AuditQuery, 'q'>>) => { setOther({ ...other, ...patch }); if (list.page) list.set({ page: 0 }) }
-  const filtered = Object.values(f).some(Boolean)
+  const filtered = Object.entries(f).some(([k, v]) => k !== 'actions' && !!v)
   const clear = () => { setOther({ user: '', group: '', from: '', to: '', actor: '' }); list.set({ q: '', page: 0 }) }
 
 

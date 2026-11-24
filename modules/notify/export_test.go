@@ -104,3 +104,12 @@ func (s *Service) SetZaloSaveFaultForTest(f func() error) { s.zaloSaveFault = f 
 
 // IncidentsLimitForTest is incidentsLimit, the most rows GET /notify/incidents returns.
 const IncidentsLimitForTest = incidentsLimit
+
+// SavedSecretForTest opens the saved secret of a channel: the API returns only that one is saved, so a test of a rotation reads it here.
+func (s *Service) SavedSecretForTest(ctx context.Context, t channel.Type) (string, error) {
+	c, err := loadChannel(ctx, s.cfg.DB.Reader(), t)
+	if err != nil {
+		return "", err
+	}
+	return s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID)
+}

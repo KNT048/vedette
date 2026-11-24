@@ -28,9 +28,11 @@ type DeviceRef struct {
 	IP       string  // "—" when unknown, like the API
 	MAC      string  // "" when unknown
 	Vendor   string  // the current vendor value, "" when none
-	Kind     string
-	Display  string // the first software's display name, else the kind (DisplayName's product of a declared device, notify)
-	OS       string // the current operating system value ("Microsoft Windows Server 2025 10.0.26100.1742"), "" when unknown (#905)
+	// VendorSource is the source of the vendor observation; nmap and passive name the network card's maker only (CardVendor).
+	VendorSource string
+	Kind         string
+	Display      string // the first software's display name, else the kind (DisplayName's product of a declared device, notify)
+	OS           string // the current operating system value ("Microsoft Windows Server 2025 10.0.26100.1742"), "" when unknown (#905)
 	// OSSource is the source of the OS observation the ranking chose for OS (INV-44: manual, agent, snmp, passive, nmap, scan); ""
 	// when there is none. "nmap" means the page shows the scan's OS guess; any other source means a better one won over it.
 	OSSource string
@@ -41,6 +43,12 @@ type DeviceRef struct {
 	Origin   string // "discovered" or "manual"
 	// ApprovedAt is when a person or osquery enrolment approved it; nil when not approved, declared by hand, or approved before approval times were recorded.
 	ApprovedAt *time.Time
+}
+
+// NameFacts is what the naming rule reads of the device (DisplayName), with product as its first software.
+func (r DeviceRef) NameFacts(product string) NameFacts {
+	return NameFacts{UserName: deref(r.UserName), Hostname: deref(r.Hostname), Vendor: r.Vendor, Model: r.Model, CardVendor: CardVendor(r.VendorSource),
+		OS: NamingOS(r.OS, r.OSSource, r.OSBasis), IP: r.IP, Origin: r.Origin, Product: product}
 }
 
 // DeviceRefs returns the devices with these ids; unknown ids are absent. An ignored device is present (INV-38): findings' reconcile
@@ -55,6 +63,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		}
 		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.user_name, a.is_box, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at, a.os, a.ignored_at IS NOT NULL,
 			(SELECT o.source FROM inv_observation o WHERE o.id = a.os_obs_id),
+			(SELECT o.source FROM inv_observation o WHERE o.id = a.vendor_obs_id),
 			`+firstSoftware+`
 			FROM inv_asset a WHERE a.id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
 		if err != nil {
@@ -62,12 +71,13 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		}
 		for rows.Next() {
 			var d DeviceRef
-			var host, userName, ip, mac, vendor, model, approvedAt, osName, osSource, display sql.NullString
-			if err := rows.Scan(&d.ID, &host, &userName, &d.IsBox, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &d.Ignored, &osSource, &display); err != nil {
+			var host, userName, ip, mac, vendor, model, approvedAt, osName, osSource, vendorSource, display sql.NullString
+			if err := rows.Scan(&d.ID, &host, &userName, &d.IsBox, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &d.Ignored, &osSource, &vendorSource, &display); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("inventory: read devices: %w", err)
 			}
 			d.Hostname, d.UserName, d.IP, d.MAC, d.Vendor, d.Display, d.Model, d.OS, d.OSSource = ptr(host), ptr(userName), noIP, mac.String, vendor.String, d.Kind, model.String, osName.String, osSource.String
+			d.VendorSource = vendorSource.String
 			if osName.Valid {
 				d.OSBasis = osBasis(osName.String, osSource.String, mac.String)
 			}

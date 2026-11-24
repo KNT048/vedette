@@ -208,10 +208,11 @@ function HandleDialog({ ids, subject, onClose, opener }: { ids: string[]; subjec
   const needNote = NOTE_REQUIRED.includes(resolution)
   function submit() {
     const badUntil = accept && !untilOk(until)
+    const badNote = needNote && note.trim().length < 3
     setUntilError(badUntil ? t('handle.untilRequired') : undefined)
-    if (needNote && note.trim().length < 3) { setError(t('handle.noteRequired')); return }
-    if (badUntil) return
-    setError(undefined)
+    setError(badNote ? t('handle.noteRequired') : undefined)
+    // the first field to fix gets the focus, so its reason is in view
+    if (badUntil || badNote) { document.getElementById(badUntil ? 'ex-handle-until' : 'ex-handle-note')?.focus(); return }
     handle.mutate({ ids, resolution, note: note.trim(), ...(accept ? { accepted_until: until } : {}) }, {
       onSuccess: (r) => { toast.success(t('handle.done', { count: r.handled }) + (r.skipped ? ` ${t('handle.skipped', { count: r.skipped })}` : '')); onClose() },
       onError: (e) => {

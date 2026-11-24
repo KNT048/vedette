@@ -277,6 +277,66 @@ func TestNotSentOfAnOldNoticeAndOfALineLeftOut(t *testing.T) {
 	}
 }
 
+// Not sent lists only what still needs telling, each row on its device: two notices of one CVE an earlier build wrote (no title) read
+// "<product> on <device>: <CVE>"; the one whose finding was handled since leaves the list, and so does the other once another message
+// that arrived told its finding at that status. Rows before and after are counted.
+func TestNotSentDropsHandledAndToldAndNamesTheDevice(t *testing.T) {
+	dir := &liveFindings{}
+	e := newEnv(t, func(c *notify.Config) { c.Findings = dir })
+	at := e.clock.Now().Add(-time.Hour).UTC().Format("2006-01-02T15:04:05.000Z")
+	dir.at("f-esx", 2, finding("Example Hypervisor", "CVE-2026-41709", "esxi-01", notify.Low))
+	dir.at("f-hp", 2, finding("Example Hypervisor", "CVE-2026-41709", "hp-01", notify.Low))
+	e.write(func(tx *sql.Tx) error {
+		for _, f := range []string{"f-esx", "f-hp"} {
+			if _, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_notice (id, event, created_at, product, cves) VALUES (?, 'created', ?, 'Example Hypervisor', '["CVE-2026-41709"]')`, "nt-"+f+"-created", at); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_notice_finding (notice_id, finding_id, layer) VALUES (?, ?, 2)`, "nt-"+f+"-created", f); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	rows := func() map[string]string {
+		t.Helper()
+		h, err := e.svc.History(e.ctx())
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]string{}
+		for _, n := range h.NotSent {
+			out[n.ID] = n.What
+		}
+		return out
+	}
+	before := rows()
+	if len(before) != 2 || before["nt-f-esx-created"] != "Example Hypervisor on esxi-01: CVE-2026-41709" || before["nt-f-hp-created"] != "Example Hypervisor on hp-01: CVE-2026-41709" {
+		t.Fatalf("rows = %v, want both, each on its device", before)
+	}
+	dir.handle("f-esx")
+	if got := rows(); len(got) != 1 || got["nt-f-hp-created"] == "" {
+		t.Fatalf("after the esxi-01 finding was handled: %v, want only hp-01", got)
+	}
+	// another message that arrived told f-hp at its status (a summary, a later notice)
+	e.write(func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_notice (id, event, created_at, product, cves) VALUES ('nt-sum', 'first_run', ?, '', '[]')`, at); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_notice_finding (notice_id, finding_id, layer) VALUES ('nt-sum', 'f-hp', 2)`); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_send (id, kind, ref_id, channel, "to", at, ok, what, link, message) VALUES ('sd-sum', 'vuln', 'nt-sum', 'email', 'a@example.com', ?, 1, 'summary', '/findings', '{}')`, at); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_send_notice (send_id, notice_id) VALUES ('sd-sum', 'nt-sum')`)
+		return err
+	})
+	if got := rows(); len(got) != 0 {
+		t.Fatalf("after another message told hp-01: %v, want none", got)
+	}
+	t.Logf("Not sent rows: %d before, %d after", len(before), len(rows()))
+}
+
 // A waiting summary that already lists as many findings as a notice holds still takes the next pass's findings: they are counted, never
 // dropped as "nothing new".
 func TestFirstRunSummaryPastItsListLimitStillCountsNewFindings(t *testing.T) {

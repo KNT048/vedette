@@ -100,15 +100,19 @@ func TestSameDevice_AHandAddedRowWithoutAnAddressAndAFoundDeviceOfOneOS(t *testi
 	for _, p := range got {
 		ids = append(ids, p.ID)
 		// the release is named once, as the banner states it, not again as the version the line was filed under
-		if want := "Both run " + esxiBanner + ": the same OS, version and build. esxi-01 was added by hand without an address, and Hewlett Packard is the only device found running it, so they may be one machine."; p.Reason != inventory.ReasonSameOS || p.Why != want {
+		if want := "Both run " + esxiBanner + ": the same OS, version and build. esxi-01 was added by hand without an address, and VMware ESXi is the only device found running it, so they may be one machine."; p.Reason != inventory.ReasonSameOS || p.Why != want {
 			t.Errorf("offer %+v", p)
 		}
 	}
 	if !slices.Equal(ids, []string{hand}) {
 		t.Fatalf("offered for the found host: %v, want only %s (not %s, %s)", ids, hand, other, twin)
 	}
-	if back := e.sameAs(hand); len(back) != 1 || back[0].ID != host || back[0].Reason != inventory.ReasonSameOS {
+	if back := e.sameAs(hand); len(back) != 1 || back[0].ID != host || back[0].Reason != inventory.ReasonSameOS || back[0].NeverSeen {
 		t.Errorf("offered for the hand-added row: %+v", back)
+	}
+	// the hand-added row nothing has seen is not "seen" at the time it was added: the host's page says it was never seen
+	if got := e.sameAs(host); len(got) != 1 || !got[0].NeverSeen {
+		t.Errorf("the hand-added row as the found host's page shows it: %+v", got)
 	}
 	pairs, err := e.svc.PossibleSamePairs(e.ctx())
 	if err != nil {

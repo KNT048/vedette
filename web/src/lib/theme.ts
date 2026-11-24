@@ -21,6 +21,14 @@ function apply() {
 export function initTheme() {
   apply()
   if (typeof matchMedia !== 'undefined') matchMedia('(prefers-color-scheme: dark)').addEventListener('change', apply)
+  // A choice made in another tab of this browser applies here too: every open page shows the one theme the person chose, not the
+  // one this tab read when it opened.
+  window.addEventListener('storage', (e) => {
+    if (e.key !== KEY && e.key !== null) return
+    pref = read()
+    apply()
+    listeners.forEach((l) => l())
+  })
 }
 
 export function setTheme(p: ThemePref) {

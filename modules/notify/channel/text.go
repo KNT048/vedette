@@ -144,8 +144,16 @@ func Listed(t Type, m Message) int {
 	return len(n.Items)
 }
 
-// head is the first line of a text rendering: "High: title".
-func (m Message) head() string { return severityLabel[m.Severity] + ": " + m.Title }
+// head is the first line of a text rendering (and the email subject): "High: title" for an incident or an approval. A vulnerability
+// notice is its title alone: the title names the finding's status ("exploited in the wild", "public exploit available"), the words
+// every screen uses, while the severity a channel judges it at is a routing level (an exploited flaw is Critical whatever its CVSS
+// score), so "Critical:" over a finding the app shows as Low 2.7 would contradict the app. A test message is its title too.
+func (m Message) head() string {
+	if m.Kind == "vuln" || m.Kind == "test" {
+		return m.Title
+	}
+	return severityLabel[m.Severity] + ": " + m.Title
+}
 
 // lines is the plain-text layout shared by chat channels (and, with a greeting,
 // email): what happened, where, what to do first, the detail lines and the link.

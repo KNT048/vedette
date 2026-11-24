@@ -164,25 +164,27 @@ func auditOf(f Finding, e Event) (user, action, detail string) {
 	return user, action, detail
 }
 
+// auditAction is the audit line of a finding's event: its action and a detail in words. The audit page and its CSV export show the
+// detail as written, so every stored code (resolution, way, reason, basis) is said in words here, never as its code.
 func auditAction(f Finding, e Event) (action, detail string) {
 	d := e.Detail
 	switch e.Kind {
 	case EvCreated:
-		return "findings.created", f.CVE + ", basis " + string(f.Basis)
+		return "findings.created", f.CVE + ": found, " + auditBasisWords(f.Basis)
 	case EvHandled:
-		detail = f.CVE + ": " + string(d.Resolution) + " via " + string(d.Via)
-		if d.FromVersion != "" {
-			detail += " (" + d.FromVersion + " → " + d.ToVersion + ")"
-		}
+		detail = f.CVE + ": " + resolutionWords(d.Resolution)
 		if d.AcceptedUntil != "" {
 			detail += " until " + d.AcceptedUntil
+		}
+		if w := viaWords(d); w != "" {
+			detail += " (" + w + ")"
 		}
 		if d.Note != "" {
 			detail += ": " + d.Note
 		}
 		return "findings.status", detail
 	case EvReopened:
-		detail = f.CVE + ": reopened (" + d.Why + ")"
+		detail = f.CVE + ": reopened (" + whyWords(d.Why) + ")"
 		if d.Note != "" {
 			detail += ": " + d.Note
 		}
@@ -199,6 +201,107 @@ func auditAction(f Finding, e Event) (action, detail string) {
 		}
 	}
 	return "", ""
+}
+
+// codeWords says an unknown code (an open vocabulary may grow) as words: "some_new_way" → "some new way".
+func codeWords(code string) string { return strings.ReplaceAll(code, "_", " ") }
+
+// auditBasisWords says what a new finding rests on, for its audit line.
+func auditBasisWords(b DetectionBasis) string {
+	switch b {
+	case DetectScan:
+		return "a safe check confirmed it"
+	case DetectDeviceVersion:
+		return "from the version the device reports"
+	case DetectPackage:
+		return "from the distribution package release"
+	case DetectBannerVersion:
+		return "from a version in a network banner"
+	case DetectStatement:
+		return "from a version a person entered"
+	case DetectPerson:
+		return "a person said it is affected"
+	}
+	return "from " + codeWords(string(b))
+}
+
+func resolutionWords(r Resolution) string {
+	switch r {
+	case ResolutionPatched:
+		return "patched"
+	case ResolutionMitigated:
+		return "mitigated"
+	case ResolutionAccepted:
+		return "risk accepted"
+	case ResolutionFalsePositive:
+		return "a false positive"
+	case ResolutionNotRelevant:
+		return "not relevant"
+	}
+	return codeWords(string(r))
+}
+
+// viaWords says how a finding was handled; "" when a person marked it (the audit line's user names them).
+func viaWords(d EventDetail) string {
+	switch d.Via {
+	case ViaPerson, "":
+		return ""
+	case ViaVersionMoved:
+		if d.FromVersion != "" {
+			return "the version moved from " + d.FromVersion + " to " + d.ToVersion
+		}
+		return "the version moved past the affected ones"
+	case ViaSoftwareRemoved:
+		return "the software is gone from the device"
+	case ViaDistroFixed:
+		return "the distribution says the installed package is fixed"
+	case ViaScanClear:
+		return "a safe check came back clear"
+	case ViaDataCorrected:
+		return "Vedette corrected its match; nothing changed on the device"
+	case ViaNotInstalled:
+		return "a person said the software is not installed"
+	}
+	return codeWords(string(d.Via))
+}
+
+func whyWords(why string) string {
+	switch why {
+	case WhyStillDetected:
+		return "a newer reading still shows the affected version"
+	case WhyDetectedAgain:
+		return "found again after Vedette had closed it"
+	case WhyAcceptanceExpired:
+		return "the accepted risk reached its last day"
+	case WhyPerson:
+		return "a person reopened it"
+	}
+	return codeWords(why)
+}
+
+func questionWords(k QuestionKind) string {
+	switch k {
+	case QuestionVersionNeeded:
+		return "which version the software runs"
+	case QuestionPlatform:
+		return "which platform the device runs"
+	case QuestionPackageRelease:
+		return "which package release is installed"
+	case QuestionNotComparable:
+		return "its version cannot be compared with the affected versions"
+	case QuestionNoRangeData:
+		return "the CVE names the product but gives no affected versions"
+	}
+	return codeWords(string(k))
+}
+
+// questionAuditDetail is the detail of the audit line of a question: which CVE on which device, what happened to it, and the question.
+func questionAuditDetail(x Question, what string) string {
+	detail := "on " + x.AssetID + ": " + what + " (the question: " + questionWords(x.Kind) + ")"
+	if x.CVE != "" {
+		detail = x.CVE + " " + detail
+	}
+	return detail
 }
 
 // Get returns one finding in the older read model, or an error wrapping ErrNotFound.

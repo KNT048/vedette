@@ -478,7 +478,7 @@ function Body() {
     <>
       {/* Nothing to export before the first device */}
       {withExport && all > 0 ? <DownloadButton variant="ghost" path="/inventory/export.csv" filename="vedette-devices.csv" onError={(e) => toast.error(errMsg(e))}><Download />{t('export')}</DownloadButton> : null}
-      {canAdmin ? <Link to="/devices/setup" aria-label={t('setup.linkLabel')} title={t('setup.linkLabel')} className={cn(buttonVariants({ variant: 'ghost' }))}><Settings2 />{t('setup.link')}</Link> : null}
+      {canAdmin ? <Link to="/devices/setup" title={t('setup.linkLabel')} className={cn(buttonVariants({ variant: 'ghost' }))}><Settings2 />{t('setup.title')}</Link> : null}
       <Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdd('manual')}><Plus />{t('add.open')}</Button>
     </>
   )

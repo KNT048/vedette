@@ -40,46 +40,13 @@ func (s *Service) SendNow(ctx context.Context, actor, id string) (UnsentNotice, 
 	if s.cfg.Findings == nil {
 		return UnsentNotice{}, apierr.New(http.StatusConflict, "nothing_to_send", "Vedette cannot read the findings of this alert now.")
 	}
-	var ids []string
-	rows, err := db.QueryContext(ctx, `SELECT finding_id FROM notify_notice_finding WHERE notice_id = ? ORDER BY rowid`, id)
+	ids, err := noticeFindings(ctx, db, id)
 	if err != nil {
-		return UnsentNotice{}, fmt.Errorf("notify: read alert findings: %w", err)
+		return UnsentNotice{}, err
 	}
-	for rows.Next() {
-		var f string
-		if err := rows.Scan(&f); err != nil {
-			_ = rows.Close()
-			return UnsentNotice{}, fmt.Errorf("notify: read alert findings: %w", err)
-		}
-		ids = append(ids, f)
-	}
-	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
-		return UnsentNotice{}, fmt.Errorf("notify: read alert findings: %w", err)
-	}
-	infos := map[string]FindingInfo{}
-	var keep []string
-	urgent := 0
-	for _, f := range ids {
-		info, ok, err := s.cfg.Findings.Finding(ctx, f)
-		if err != nil {
-			return UnsentNotice{}, err
-		}
-		if !ok || !info.Open || info.Layer < 1 || info.Layer >= layerUpdate {
-			continue
-		}
-		urgent++
-		// One alert per finding: one a message that arrived already told at this status or a more urgent one (a later rise) is not
-		// told again.
-		var told int
-		if err := db.QueryRowContext(ctx, `SELECT count(*) FROM notify_notice_finding nf JOIN notify_send_notice sn ON sn.notice_id = nf.notice_id
-			JOIN notify_send d ON d.id = sn.send_id WHERE nf.finding_id = ? AND nf.notice_id <> ? AND nf.layer BETWEEN 1 AND ? AND d.ok = 1`,
-			f, id, info.Layer).Scan(&told); err != nil {
-			return UnsentNotice{}, fmt.Errorf("notify: read what a finding was told at: %w", err)
-		}
-		if told == 0 {
-			infos[f] = info
-			keep = append(keep, f)
-		}
+	keep, infos, urgent, err := s.untold(ctx, db, id, ids, nil)
+	if err != nil {
+		return UnsentNotice{}, err
 	}
 	if urgent > 0 && len(keep) == 0 {
 		return UnsentNotice{}, apierr.New(http.StatusConflict, "already_sent", "A message that arrived since already told its findings at this status. Use Send again on that message instead.")
@@ -163,4 +130,69 @@ func (s *Service) SendNow(ctx context.Context, actor, id string) (UnsentNotice, 
 func noticeLinkOf(n Notice) string {
 	_, _, link := refOf(n)
 	return link
+}
+
+// noticeFindings are the findings a notice tells, in the order it was written with.
+func noticeFindings(ctx context.Context, db dbtx, id string) ([]string, error) {
+	var ids []string
+	rows, err := db.QueryContext(ctx, `SELECT finding_id FROM notify_notice_finding WHERE notice_id = ? ORDER BY rowid`, id)
+	if err != nil {
+		return nil, fmt.Errorf("notify: read alert findings: %w", err)
+	}
+	for rows.Next() {
+		var f string
+		if err := rows.Scan(&f); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("notify: read alert findings: %w", err)
+		}
+		ids = append(ids, f)
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("notify: read alert findings: %w", err)
+	}
+	return ids, nil
+}
+
+// untold reads the findings of notice id as findings shows them now and keeps those still worth telling: open at an urgent status
+// (1-4) and not told at that status or a more urgent one by another message that arrived (one alert per finding). urgent counts the
+// open urgent ones, told or not. cache, when not nil, keeps what a finding read so a list reads each finding once.
+func (s *Service) untold(ctx context.Context, db dbtx, id string, ids []string, cache map[string]findingNow) (keep []string, infos map[string]FindingInfo, urgent int, err error) {
+	infos = map[string]FindingInfo{}
+	for _, f := range ids {
+		now, ok := cache[f]
+		if !ok {
+			info, found, err := s.cfg.Findings.Finding(ctx, f)
+			if err != nil {
+				return nil, nil, 0, err
+			}
+			now = findingNow{info: info, found: found}
+			if cache != nil {
+				cache[f] = now
+			}
+		}
+		info := now.info
+		if !now.found || !info.Open || info.Layer < 1 || info.Layer >= layerUpdate {
+			continue
+		}
+		urgent++
+		// One alert per finding: one a message that arrived already told at this status or a more urgent one (a later rise) is not
+		// told again.
+		var told int
+		if err := db.QueryRowContext(ctx, `SELECT count(*) FROM notify_notice_finding nf JOIN notify_send_notice sn ON sn.notice_id = nf.notice_id
+			JOIN notify_send d ON d.id = sn.send_id WHERE nf.finding_id = ? AND nf.notice_id <> ? AND nf.layer BETWEEN 1 AND ? AND d.ok = 1`,
+			f, id, info.Layer).Scan(&told); err != nil {
+			return nil, nil, 0, fmt.Errorf("notify: read what a finding was told at: %w", err)
+		}
+		if told == 0 {
+			infos[f] = info
+			keep = append(keep, f)
+		}
+	}
+	return keep, infos, urgent, nil
+}
+
+// findingNow is a finding as the directory read it during one request.
+type findingNow struct {
+	info  FindingInfo
+	found bool
 }

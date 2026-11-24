@@ -14,6 +14,7 @@ import (
 
 	"github.com/knt048/vedette/core/apkver"
 	"github.com/knt048/vedette/core/debver"
+	"github.com/knt048/vedette/core/versionscheme"
 )
 
 // The Findings lists: By device and By fix are two GROUP BYs of the same open rows, so their totals are equal by construction (open
@@ -248,7 +249,7 @@ func combine(gs []lineGroup, j *releaseJudge) {
 	}
 	idx := map[bucket][]int{}
 	for i := range gs {
-		gs[i].Block, gs[i].BlockFix = gs[i].Key, gs[i].Fix
+		gs[i].Block, gs[i].BlockFix = blockKey(gs[i].Product, gs[i].Fix), gs[i].Fix
 		if gs[i].Fix.Version == "" {
 			continue
 		}
@@ -262,7 +263,7 @@ func combine(gs []lineGroup, j *releaseJudge) {
 		top := is[0]
 		ok := true
 		for _, i := range is[1:] {
-			c, same := compareFix(b.kind, gs[i].Fix.Version, gs[top].Fix.Version)
+			c, same := compareFix(b.kind, b.product, gs[i].Fix.Version, gs[top].Fix.Version)
 			if !same {
 				ok = false
 				break
@@ -279,16 +280,29 @@ func combine(gs []lineGroup, j *releaseJudge) {
 			continue
 		}
 		fx := gs[top].Fix
-		key := FixKey(b.product, fx)
+		key := blockKey(b.product, fx)
 		for _, i := range is {
 			gs[i].Block, gs[i].BlockFix = key, fx
 		}
 	}
 }
 
-// compareFix orders two fix versions of one kind; false when they do not compare (two strings the order calls equal do not either:
-// "7.0.0 build 1234" and "7.0.0" are not one release to install).
-func compareFix(kind FixKind, a, b string) (int, bool) {
+// blockKey is the key a block of product's fix is listed under: the fix key of the catalogue's product, so lines that name one product
+// in two ways (Oracle's Java SE and Eclipse Temurin are both Java) are one row of By fix, as their one title says ("Update Java to
+// 21.0.13.1"). A product the catalogue does not know keeps the line's own key.
+func blockKey(product string, fx Fix) string {
+	if p, ok := productOfKey(product); ok && p.Key != "" {
+		product = p.Key
+	}
+	return FixKey(product, fx)
+}
+
+// compareFix orders two fix versions of one kind of product (a line's product key); false when they do not compare (two strings the
+// order calls equal do not either: "7.0.0 build 1234" and "7.0.0" are not one release to install). An update the generic order cannot
+// read is a release in the vendor's notation ("8.0 U3d (build 24585383)", "7.2.1-69057 Update 6"): the product's version scheme
+// orders it (schemeOrder). Whether a later release also clears a CVE is not read from the order: the vendor's rows decide it
+// (releaseJudge).
+func compareFix(kind FixKind, product, a, b string) (int, bool) {
 	if a == b {
 		return 0, true
 	}
@@ -306,7 +320,36 @@ func compareFix(kind FixKind, a, b string) (int, bool) {
 		return 0, false
 	}
 	c, ok := CompareVersions(a, b)
+	if (!ok || c == 0) && kind == FixUpdate {
+		return schemeOrder(product, a, b)
+	}
 	return c, ok && c != 0
+}
+
+// schemeOrder orders two releases of product's version scheme in release order (line, train, place inside the train), read as their
+// names; false without a scheme or for a name it does not read.
+func schemeOrder(product, a, b string) (int, bool) {
+	s := productScheme(product)
+	if s == nil {
+		return 0, false
+	}
+	va, okA := s.Release(a)
+	vb, okB := s.Release(b)
+	if !okA || !okB {
+		return 0, false
+	}
+	c, ok := versionscheme.Compare(va, vb)
+	return c, ok && c != 0
+}
+
+// productScheme is the version scheme the catalogue declares for a line's product key; nil when none.
+func productScheme(product string) *versionscheme.Scheme {
+	p, ok := productOfKey(product)
+	if !ok || p.Scheme == "" {
+		return nil
+	}
+	s, _ := versionscheme.Lookup(p.Scheme)
+	return s
 }
 
 // blockOf maps a (device, line, stored fix key) to the block it is listed under and the fix the block names.
@@ -589,9 +632,6 @@ func (s *Service) deviceCards(ctx context.Context, f ListFilter, assets []string
 			continue
 		}
 		c := DeviceCardJS{Device: deviceRef(devices[a]), Status: statuses[a], Counts: *counts[a], Findings: found[a], CVEs: len(cves[a])}
-		if devices[a].Box { // the Vedette box itself never carries a badge, as on the Devices list
-			c.Status = nil
-		}
 		for _, k := range byAsset[a] {
 			c.Blocks = append(c.Blocks, block(k.key, fixes[k], groups[k]))
 		}
@@ -611,7 +651,7 @@ func (s *Service) deviceCards(ctx context.Context, f ListFilter, assets []string
 	return out, nil
 }
 
-// noFix reports whether a fix names no release to install: the block says "No fix known yet" or "No fix data", and its link is the
+// noFix reports whether a fix names no release to install: the block says "No fix known yet" or "See the vendor advisory", and its link is the
 // vendor's advisory.
 func noFix(kind string) bool { return kind == string(FixNoneYet) || kind == string(FixUnknown) }
 
@@ -970,4 +1010,29 @@ func (s *Service) ListedFixes(ctx context.Context) (map[string]ListedFix, error)
 		return nil
 	})
 	return out, err
+}
+
+// ListedFix is the listed fix of one open finding (its block's release, as By device and By fix name it), read from its device's
+// groups only, so the finding's own page can name the release the lists name; ok is false for a finding that is not open or is on a
+// device a person ignored.
+func (s *Service) ListedFix(ctx context.Context, id string) (lf ListedFix, ok bool, err error) {
+	err = s.readTx(ctx, func(ctx context.Context) error {
+		fs, err := selectFindings(ctx, s.rd(ctx), `id = ? AND state = 'open'`, id)
+		if err != nil || len(fs) == 0 {
+			return err
+		}
+		f := fs[0]
+		gs, err := s.lineGroups(ctx, ListFilter{Device: f.AssetID})
+		if err != nil {
+			return err
+		}
+		m := blocksOf(gs)
+		if _, in := m[[3]string{f.AssetID, f.SoftwareID, f.FixKey}]; !in { // an ignored device: no list names it
+			return nil
+		}
+		key, fx := m.of(f)
+		lf, ok = ListedFix{Key: clipBytes(key, 400), Fix: fx}, true
+		return nil
+	})
+	return lf, ok, err
 }

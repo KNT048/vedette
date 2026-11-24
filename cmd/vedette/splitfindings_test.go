@@ -89,9 +89,21 @@ func TestWiringSplitMovesTheFindingWithItsLine(t *testing.T) {
 		s.exec(`INSERT INTO resp_actions (id, source, proposal_id, finding_id, cve, asset_id, asset_name, title, risk, status, requested_at, expires_at, requires_approvals, items)
 			VALUES (?, 'ai', 'p', ?, 'CVE-2026-1001', ?, 'fw', 'Block', 'low', ?, '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z', 1, '[]')`, r[0], id, vm, r[1])
 	}
+	// and a finding event the response rules have not run on yet
+	s.exec(`INSERT INTO resp_events (id, trigger, ts, summary, fields, device_kind, asset_id, finding_id, cve, processed)
+		VALUES ('ev-waiting', 'finding', '2026-01-01T00:00:00.000Z', 's', '{"device":"vm","ip":"10.0.10.2","cve":"CVE-2026-1001"}', 'server', ?, ?, 'CVE-2026-1001', 0)`, vm, id)
 	back, err := s.d.Inventory.Split(ctx, "it@acme.example", vm, "10.0.10.1")
 	if err != nil {
 		t.Fatal(err)
+	}
+	// the waiting event names the restored device and its address, which the split passes to the participants: the response rules
+	// run on it as on an event made for that device (its kind is read when they do)
+	if n := s.count(`SELECT count(*) FROM resp_events WHERE id = 'ev-waiting' AND asset_id = ? AND fields ->> '$.ip' = '10.0.10.1'
+		AND fields ->> '$.device' = 'fw-hq' AND device_kind IS NULL`, back); n != 1 {
+		t.Error("the waiting finding event does not name the restored device and its address")
+	}
+	if n := s.count(`SELECT count(*) FROM resp_actions WHERE id = 'r-pending' AND note LIKE 'Withdrawn: the finding moved to fw-hq after a device split.%'`); n != 1 {
+		t.Error("the withdrawn request does not name the device the finding moved to")
 	}
 	// its items hold the kept device's address: approving it would act there under the restored device's name, so it is withdrawn
 	if n := s.count(`SELECT count(*) FROM resp_actions WHERE id = 'r-pending' AND asset_id = ? AND status = 'expired' AND note LIKE 'Withdrawn:%'`, vm); n != 1 {

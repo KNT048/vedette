@@ -129,7 +129,7 @@ describe('Devices list: select rows and merge them', () => {
     // one row is not a merge: the button is there, off, and says why
     expect(screen.getByRole('button', { name: 'Merge the 1 selected devices' })).toBeDisabled()
     expect(screen.getByText(/Select two or more devices to merge them/)).toBeInTheDocument()
-    await user.click(screen.getByRole('checkbox', { name: 'Select Fortinet, Inc.' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Fortinet, Inc. device' }))
     await user.click(screen.getByRole('button', { name: 'Merge the 2 selected devices' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Merge 2 devices' }, T)
@@ -141,7 +141,7 @@ describe('Devices list: select rows and merge them', () => {
     expect(within(dialog).getByText('Keeps Fortinet')).toBeInTheDocument() // the maker follows the sources: no choice
     // only fw-edge states a type: the type row says so, with the device that has none
     expect(within(dialog).getByRole('radiogroup', { name: 'Type' })).toBeInTheDocument()
-    expect(within(dialog).getByText('None on Fortinet, Inc.')).toBeInTheDocument()
+    expect(within(dialog).getByText('None on Fortinet, Inc. device')).toBeInTheDocument()
     expect(within(dialog).queryByText('Model')).toBeNull()
     expect(within(dialog).getByTestId('merge-moves')).toHaveTextContent('1 open port')
     expect(within(dialog).getByTestId('merge-moves')).toHaveTextContent('address 192.0.2.254')
@@ -151,7 +151,7 @@ describe('Devices list: select rows and merge them', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), T)
     // the list stays where it was: same search, the device that went is gone from it, nothing selected any more
     expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('192.0.2')
-    await waitFor(() => expect(screen.queryByRole('checkbox', { name: 'Select Fortinet, Inc.' })).toBeNull(), T)
+    await waitFor(() => expect(screen.queryByRole('checkbox', { name: 'Select Fortinet, Inc. device' })).toBeNull(), T)
     expect(screen.queryByRole('button', { name: /^Merge the/ })).toBeNull()
     expect(assetsStore.get().some((a) => a.id === 'a-dm-if2')).toBe(false)
 

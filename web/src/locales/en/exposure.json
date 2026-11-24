@@ -144,7 +144,9 @@
     "deepNotDisruptive": "Disruptive checks are not included.",
     "deepDisruptive": "Disruptive checks are included.",
     "deepDisruptiveInfo": "Denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read.",
-    "noticeTitle": "Pressing Scan now records this confirmation",
+    "noticeFirst": "The first Scan now asks you to confirm that you own this target and may scan it.",
+    "confirmTitle": "Confirm and scan {{value}}",
+    "confirmButton": "Confirm and scan",
     "noticeChanged": "The confirmation text changed: an administrator confirms once with the next Scan now.",
     "noticeChangedInfo": "It now names service identification, safe checks for known exploited vulnerabilities and a passive web scan.",
     "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",
@@ -508,11 +510,15 @@
   },
   "scope": {
     "label": "What to scan",
-    "thisName": "this name",
     "option": {
       "all": "{{name}} and every name found under it",
       "self": "Only {{name}}",
       "selected": "{{name}} and the names I choose"
+    },
+    "optionNoName": {
+      "all": "This name and every name found under it",
+      "self": "Only this name",
+      "selected": "This name and the names I choose"
     },
     "hint": {
       "all": "Names come from certificate logs, DNS records and a list of common names. A name that is its own target is scanned there.",
@@ -754,6 +760,7 @@
   },
   "schedule": {
     "name": "Scans of {{value}}",
-    "needsTerms": "Scheduled scans run only once the testing terms are accepted (Ownership), and never with the disruptive checks."
+    "needsTerms": "Paused until the testing terms are accepted (Ownership tab).",
+    "neverDisruptive": "Scheduled scans never run the disruptive checks."
   }
 }

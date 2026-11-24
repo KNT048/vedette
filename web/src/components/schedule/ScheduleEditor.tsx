@@ -33,15 +33,16 @@ export function ScheduleTextOf({ ownerKey }: { ownerKey: string }) {
  * exposure.target:<id> …); `name` says what it starts, for the dialog's title. `runNow={false}` where the place already has its
  * own button that starts the same work.
  */
-export function ScheduleEditor({ ownerKey, name, runNow = true }: { ownerKey: string; name: string; runNow?: boolean }) {
+/** `blocked`: why the owner does not let the schedule start now (for example terms not accepted yet); it replaces the next start. */
+export function ScheduleEditor({ ownerKey, name, runNow = true, blocked }: { ownerKey: string; name: string; runNow?: boolean; blocked?: string }) {
   const { t } = useTranslation('schedule')
   const q = useSchedule(ownerKey)
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   if (!q.data) return <p role="status" className="text-meta text-muted">{t('loading')}</p>
-  return <Summary s={q.data} name={name} runNow={runNow} />
+  return <Summary s={q.data} name={name} runNow={runNow} blocked={blocked} />
 }
 
-function Summary({ s, name, runNow }: { s: Schedule; name: string; runNow: boolean }) {
+function Summary({ s, name, runNow, blocked }: { s: Schedule; name: string; runNow: boolean; blocked?: string }) {
   const { t } = useTranslation('schedule')
   const navigate = useNavigate()
   const can = useCan(s.edit_role)
@@ -53,6 +54,7 @@ function Summary({ s, name, runNow }: { s: Schedule; name: string; runNow: boole
   const paused = !!s.paused_until && Date.parse(s.paused_until) > Date.now()
   const when = (iso: string) => fmtInZone(iso, s.zone)
   const next = !s.enabled ? null
+    : blocked ? blocked
     : paused ? t('next.paused', { date: when(s.paused_until!) })
     : s.waiting_for ? t('next.waiting', { what: s.waiting_for })
     : s.upcoming[0] ? t('next.at', { time: when(s.upcoming[0]) }) : t('next.none')
@@ -78,7 +80,7 @@ function Summary({ s, name, runNow }: { s: Schedule; name: string; runNow: boole
           {runNow ? <Button size="sm" disabled={!can} title={locked} busy={run.isPending} busyLabel={t('common:busy.starting')} aria-label={t('run.label', { name })} onClick={startNow}><Play />{t('run.short')}</Button> : null}
         </span>
       </div>
-      {next ? <p className="text-meta text-muted">{next}</p> : null}
+      {next ? <p className={blocked && s.enabled ? 'text-meta text-warn' : 'text-meta text-muted'}>{next}</p> : null}
       {s.last_skip_reason ? <p className="text-meta text-warn">{t('skipped', { time: s.last_skip_at ? when(s.last_skip_at) : '', reason: s.last_skip_reason })}</p> : null}
       {s.upcoming.length > 1 || s.last_run_id || s.updated_by ? (
         <div className="grid gap-1.5">
@@ -87,7 +89,7 @@ function Summary({ s, name, runNow }: { s: Schedule; name: string; runNow: boole
           </Button>
           {details ? (
             <div id={panel} className="grid gap-2 border-l-2 border-rule pl-4 text-sm">
-              {s.enabled && !paused && s.upcoming.length ? (
+              {s.enabled && !paused && !blocked && s.upcoming.length ? (
                 <div className="grid gap-0.5">
                   <p className="font-medium">{t('preview.title')}</p>
                   <ol className="grid gap-0.5">{s.upcoming.map((u) => <li key={u}>{when(u)}</li>)}</ol>

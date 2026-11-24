@@ -51,7 +51,6 @@ function OsqueryMethod({ onCreated }: { onCreated: (on: boolean) => void }) {
   return (
     <div className="grid min-w-0 gap-3">
       <AgentInstall tokenName={t('addDialog.osquery.tokenName', { day })} onCreated={onCreated} />
-      <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('addDialog.osquery.noMac')}</p><InfoTip topic={t('addDialog.osquery.noMacTopic')}>{t('addDialog.osquery.noMacInfo')}</InfoTip></div>
     </div>
   )
 }

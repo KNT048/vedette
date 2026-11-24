@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/content/devicetypes"
@@ -344,10 +345,25 @@ type Detail struct {
 	SuspectedWhy *string `json:"suspected_why"`
 }
 
+// suspectedClause ends the evidence sentence the matcher stores for a version match: true while the finding is suspected only.
+const suspectedClause = "; no scan has confirmed it yet, so this is only suspected."
+
+// evidenceForStatus is the stored evidence as the page shows it for the finding's status now. The sentence is written when the match
+// is made; once a person, a safe check or the device itself confirmed the finding (or it was handled), "this is only suspected" no
+// longer holds and would contradict the status beside it, so the clause is dropped and the sentence ends at the facts it states.
+func evidenceForStatus(e *evidenceDoc, st Status) *evidenceDoc {
+	if e == nil || st == StatusSuspected || !strings.HasSuffix(e.Summary, suspectedClause) {
+		return e
+	}
+	c := *e
+	c.Summary = strings.TrimSuffix(e.Summary, suspectedClause) + "."
+	return &c
+}
+
 func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	row := Row{
 		ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: r.Status, Severity: r.Severity, Confidence: r.ShownConfidence(), Basis: r.Basis, Urgency: r.Row.Urgency,
-		Evidence: apiEvidence(r.Evidence), FirstSeen: r.FirstSeen.UTC(), LastSeen: r.LastSeen.UTC(),
+		Evidence: evidenceForStatus(apiEvidence(r.Evidence), r.Status), FirstSeen: r.FirstSeen.UTC(), LastSeen: r.LastSeen.UTC(),
 		History: make([]historyDoc, 0, len(r.History)), Asset: a, Kev: k, CVSS: c,
 	}
 	if r.ResolvedBy != "" {

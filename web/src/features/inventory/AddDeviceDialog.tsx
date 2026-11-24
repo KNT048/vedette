@@ -26,6 +26,7 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
   const [name, setName] = useState('')
   const [ip, setIp] = useState('')
   const [ipErr, setIpErr] = useState<string | null>(null)
+  const [productErr, setProductErr] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dup, setDup] = useState<{ id: string; name: string; ignored?: boolean } | null>(null)
   const devices = useDevices()
@@ -36,7 +37,11 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    if (!product) return
+    // Add is never off without a reason: sent without a product, the form says what is missing where it is missing
+    const bad = mode === 'device' ? (!ip.trim() && !name.trim() ? t('add.needAddress') : ip.trim() && !IPV4_RE_UI.test(ip.trim()) ? t('add.ipBad') : null) : null
+    if (mode === 'device') setIpErr(bad)
+    setProductErr(product ? null : t(mode === 'device' ? 'add.needProductDevice' : 'add.needProduct'))
+    if (!product || bad) return
     setError(null)
     if (mode === 'software' && deviceId) {
       addSoftware.mutate({ ...productFields(product), version: version.trim() || undefined }, {
@@ -45,19 +50,15 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
       })
       return
     }
-    if (mode === 'device') {
-      const v = ip.trim()
-      const bad = !v && !name.trim() ? t('add.needAddress') : v && !IPV4_RE_UI.test(v) ? t('add.ipBad') : null
-      setIpErr(bad)
-      if (bad) return
-    }
     const where = mode === 'device' ? { name: name.trim() || undefined, ip: ip.trim() || undefined } : {}
     setDup(null)
     addDevice.mutate({ ...productFields(product), version: version.trim() || undefined, ...where }, {
       onSuccess: (r) => {
+        // a device is named as the list names it (the name typed, else its address), with the product it runs
+        const device = name.trim() || ip.trim()
         const msg = mode === 'declared'
           ? (r.kev_cves > 0 ? t('declaredPage.doneKev', { name: r.display, count: r.kev_cves }) : t('declaredPage.done', { name: r.display }))
-          : (r.kev_cves > 0 ? t('add.doneKev', { name: r.display, count: r.kev_cves }) : t('add.done', { name: r.display }))
+          : (r.kev_cves > 0 ? t('add.doneDeviceKev', { name: device, product: r.display, count: r.kev_cves }) : t('add.doneDevice', { name: device, product: r.display }))
         toast.success(msg, mode === 'declared' ? undefined : { action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${r.id}`) } })
         onDone()
       },
@@ -91,7 +92,7 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
           </Field>
         </div>
       ) : null}
-      <ProductPicker value={product} onChange={setProduct} label={mode === 'device' ? t('add.productRuns') : t('add.product')} listOpenRef={listOpenRef} />
+      <ProductPicker value={product} onChange={(p) => { setProduct(p); if (p) setProductErr(null) }} label={mode === 'device' ? t('add.productRuns') : t('add.product')} listOpenRef={listOpenRef} error={productErr} />
       <Field label={t('add.version')} htmlFor="add-version" hint={product?.version_hint || t('add.versionHint')}>
         <Input id="add-version" value={version} onChange={(e) => setVersion(e.target.value)} placeholder={t('add.versionPlaceholder')} maxLength={40} />
       </Field>
@@ -99,7 +100,7 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
         actions={dup ? <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t(dup.ignored ? 'add.openIgnored' : 'add.openExisting', { name: dup.name })}</Link> : undefined} /> : null}
       <DialogFooter>
         <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-        <Button type="submit" variant="primary" disabled={!product} busy={pending} busyLabel={t('common:busy.adding')}>{t('add.submit')}</Button>
+        <Button type="submit" variant="primary" busy={pending} busyLabel={t('common:busy.adding')}>{t('add.submit')}</Button>
       </DialogFooter>
     </form>
   )

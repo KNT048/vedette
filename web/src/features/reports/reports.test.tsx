@@ -26,7 +26,7 @@ describe('reports: the security report (S-REP-1)', () => {
     renderApp('/reports')
     expect(await screen.findByRole('heading', { level: 1, name: "8 findings are open; 6 handled in this report's period" })).toBeInTheDocument()
     const doc = await report()
-    expect(within(doc).getByText(/^8 findings are open\. 5 need action now\. 6 were handled in this period\.$/)).toBeInTheDocument()
+    expect(within(doc).getByText(/^8 findings are open\. 6 are urgent to handle\. 6 were handled in this period\.$/)).toBeInTheDocument()
     expect(within(doc).getAllByRole('heading', { level: 3 }).map((h) => h.textContent?.replace(/^\d+/, ''))).toEqual(['Summary', 'Handled this period', 'Still open', 'New this period', 'External exposure', 'Detections', 'Coverage'])
     const handled = within(doc).getByRole('region', { name: 'Handled this period' })
     expect(within(handled).getAllByText(/^By Vedette: version moved 6\.24 → 7\.23/)).toHaveLength(2)
@@ -56,12 +56,17 @@ describe('reports: the security report (S-REP-1)', () => {
     renderApp('/reports')
     const exp = within(await report()).getByRole('region', { name: 'External exposure' })
     expect(within(exp).getAllByText('example.com').length).toBeGreaterThan(0)
-    expect(within(exp).getAllByText('Ownership proved')).toHaveLength(2)
+    expect(within(exp).getAllByText('Ownership proved')).toHaveLength(3)
     expect(within(exp).getByText('Covered by example.com')).toBeInTheDocument()
     expect(within(exp).getByText('Opened')).toBeInTheDocument()
     expect(within(exp).getByText('Closed')).toBeInTheDocument()
     expect(within(exp).getByText(/^Expires /)).toBeInTheDocument() // the certificate that ends in 12 days
     expect(within(exp).getByText('ZAP')).toBeInTheDocument()
+    // a target not scanned yet claims no count of ports or issues
+    const unscanned = within(exp).getByText('198.51.100.30').closest('.report-block') as HTMLElement
+    expect(within(unscanned).getByText('Not scanned yet')).toBeInTheDocument()
+    expect(within(unscanned).queryByText(/open port/i)).toBeNull()
+    expect(within(unscanned).queryByText('No open issue')).toBeNull()
   })
 
   it('Handled says how many not-relevant closures it leaves out, so its count is not read as a smaller Findings › Handled', async () => {
@@ -98,6 +103,22 @@ describe('reports: the security report (S-REP-1)', () => {
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
     expect(screen.queryByText('Report settings saved')).toBeNull()
     server.events.removeAllListeners()
+  })
+
+  it('Settings: while the schedule sends the report, the period follows it (each report covers the time since the one before)', async () => {
+    renderApp('/reports?tab=settings', { role: 'admin' })
+    const period = await screen.findByLabelText('Period')
+    await enabled(period)
+    await userEvent.selectOptions(period, 'Last 30 days')
+    await userEvent.click(await screen.findByRole('button', { name: 'Change the schedule of the security report' }))
+    const dlg = await screen.findByRole('dialog')
+    const on = within(dlg).getByRole('switch', { name: 'Run on a schedule' })
+    if (on.getAttribute('aria-checked') !== 'true') await userEvent.click(on)
+    await userEvent.selectOptions(within(dlg).getByLabelText('Repeat'), 'Every month')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.getByLabelText('Period')).toBeDisabled())
+    expect(screen.getByLabelText('Period')).toHaveValue('calendar_month')
+    expect(screen.getByText('Follows the schedule: each report covers the time since the one before it.')).toBeInTheDocument()
   })
 
   it('Settings: sections, grouping, not relevant and charts change the next report; the saved settings stay', async () => {

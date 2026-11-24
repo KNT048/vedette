@@ -137,6 +137,7 @@ export const ReportFinding = z.object({
 export const HandledItem = z.object({
   finding_id: z.string(), cve: z.string(), product: z.string().max(200), severity: CveSeverity.nullable(),
   handled: Handled,
+  reopened_at: iso.optional().describe('It opened again after this handling, inside the period, and is open at its end (listed in Still open too); absent otherwise and in reports sent before it existed'),
 }).describe('One finding handled in the period')
 export const PeriodKind = z.enum(['last_7_days', 'last_30_days', 'calendar_month'])
   .describe('calendar_month = the last whole calendar month in the organisation time zone')
@@ -164,7 +165,8 @@ export const ReportSummary = z.object({
   open_now: z.number().int().describe('Open at the end of the period'),
   open_before: z.number().int().describe('Open at the start of the period'),
   new: z.number().int().describe('Findings first seen in the period, whether still open or handled since (the New section counts the same)'),
-  handled: z.number().int().describe('Findings handled in the period (the Handled section counts the same). open_before + new - handled differs from open_now only by other changes: a device removed, a finding reopened'),
+  handled: z.number().int().describe('Findings handled in the period (the Handled section counts the same). open_before + new - handled + reopened differs from open_now only by other changes: a finding left out since the start'),
+  reopened: z.number().int().optional().describe('Findings open at the end that opened again in the period after a handling; absent when none and in reports sent before it existed'),
   first: z.array(z.object({
     status: OpenStatus, cve: z.string(), finding_id: z.string().describe('Its most urgent finding'), product: z.string().max(200),
     severity: CveSeverity.nullable(), fix: Fix, devices: z.array(DeviceRef).max(3), device_count: z.number().int(), finding_count: z.number().int(),
@@ -207,7 +209,9 @@ export const ReportExposure = z.object({
 export const ReportDetections = z.object({
   module_on: z.boolean().describe('False when detection is off'),
   by_kind: z.array(z.object({ kind: DetectionKind, n: z.number().int(), last_at: iso })),
-  top: z.array(z.object({ kind: DetectionKind, title: z.string().max(200), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), device: DeviceRef.nullable(), at: iso })).max(5),
+  top: z.array(z.object({ kind: DetectionKind, title: z.string().max(200), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), device: DeviceRef.nullable(),
+    device_count: z.number().int().min(2).optional().describe('How many devices the incident names when more than one (device is the first); absent for one device and in reports sent before it existed'),
+    at: iso })).max(5),
 })
 export const ReportCoverage = z.object({
   devices: z.number().int(), with_agent: z.number().int(), not_added: z.number().int(),

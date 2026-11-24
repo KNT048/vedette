@@ -68,13 +68,14 @@ export default function History() {
   const can = useCan('operator')
   const resend = useResend()
   const where = (r: HistoryItem) => t('history.via', { channel: t(`ch.${r.channel}`), to: r.to })
-  const what = (r: HistoryItem) => <div className="grid"><Link to={r.link} className="text-accent underline-offset-4 hover:underline">{r.what}</Link><span className="text-caption text-muted">{t(`history.kind.${r.kind}`)}</span></div>
+  // A copy sent with Send again says so: two rows with the same words are one message and its resend, not two alerts.
+  const what = (r: HistoryItem) => <div className="grid"><Link to={r.link} className="text-accent underline-offset-4 hover:underline">{r.what}</Link><span className="text-caption text-muted">{t(`history.kind.${r.kind}`)}{r.resent ? ` · ${t('history.resent')}` : ''}</span></div>
   const result = (r: HistoryItem) => (
     <div className="grid justify-items-start gap-1">{r.ok ? <Chip tone="ok">{t('history.ok')}</Chip> : r.delayed ? <Chip tone="accent">{t('history.delayed')}</Chip> : <Chip tone="warn">{t('history.failed')}</Chip>}{r.error ? <span className="min-w-[10rem] max-w-[48ch] text-meta">{r.error}</span> : null}</div>
   )
   // A delayed message is sent again by the box itself once the provider's wait is over: no Send again.
   const again = (r: HistoryItem) => (r.delayed ? null : <>
-    <Button size="sm" disabled={!can || resend.isPending} busy={resend.isPending && resend.variables === r.id} busyLabel={t('common:busy.sending')} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} aria-label={t('history.resendFor', { channel: t(`ch.${r.channel}`) })}
+    <Button size="sm" disabled={!can || resend.isPending} busy={resend.isPending && resend.variables === r.id} busyLabel={t('common:busy.sending')} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} aria-label={t('history.resendFor', { channel: t(`ch.${r.channel}`), what: r.what, time: fmtDateTime(r.at) })}
       onClick={() => resend.mutate(r.id, { onSuccess: (res) => { if (res.ok) toast.success(t('history.resendOk', { channel: t(`ch.${r.channel}`) })); else toast.error(res.error ?? t('history.failed')) }, onError: (e) => toast.error(e instanceof ApiError ? e.message : String(e)) })}>
       {t('history.resend')}
     </Button>

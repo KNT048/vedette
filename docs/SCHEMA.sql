@@ -1308,7 +1308,7 @@ CREATE TABLE notify_send (
     message TEXT    NOT NULL CHECK (json_valid(message) AND length(message) <= 16384),
     -- Who the message went to when it went to one person (an approver's address): a resend goes to the same person, not to the alert list.
     recipient TEXT  CHECK (recipient IS NULL OR length(recipient) BETWEEN 1 AND 254)
-, delayed INTEGER NOT NULL DEFAULT 0 CHECK (delayed IN (0, 1)));
+, delayed INTEGER NOT NULL DEFAULT 0 CHECK (delayed IN (0, 1)), resend_of TEXT);
 
 CREATE TABLE notify_send_notice (
     send_id   TEXT NOT NULL REFERENCES notify_send (id) ON DELETE CASCADE,
@@ -1616,7 +1616,7 @@ CREATE TABLE "resp_actions" (
     pre_approved       BOOLEAN NOT NULL DEFAULT 0 CHECK (pre_approved IN (0, 1)),
     ai                 TEXT    CHECK (ai IS NULL OR json_valid(ai)),
     items              TEXT    NOT NULL CHECK (json_valid(items))
-);
+, end_reason TEXT);
 
 CREATE INDEX resp_plans_finding_ix ON resp_plans (finding_id);
 

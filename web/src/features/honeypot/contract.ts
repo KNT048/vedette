@@ -37,6 +37,17 @@ export const HpOverview = z.object({
 
 export const HitKind = z.enum(['service', 'token', 'scan']).describe('service = a connection to a trap port; token = a honey token was used; scan = a sweep or port scan touched the Trap IPs')
 
+export const TestAlertResult = z.object({
+  channel: z.string().describe('The channel type: telegram, slack, zalo, zalo-personal, email, webhook'),
+  name: z.string().describe('Its name as the Alert channels page shows it'),
+  ok: z.boolean().describe('The channel delivered the test alert'),
+  skipped: z.boolean().describe('Not sent: this channel would not send the real alert either (what it sends excludes it)'),
+  detail: z.string().describe('One sentence: the provider\'s receipt, why it failed, or why it was skipped'),
+})
+export const TestAlertSent = z.object({
+  channels: z.array(TestAlertResult).describe('One per alert channel that is on; empty when none is on (a real hit would only show in Vedette)'),
+})
+
 // Stored rows in collection hp_hits also carry source_ip (same value as src_ip) for the response module, which reads them with peek.
 export const Hit = z.object({
   id: z.string(),
@@ -52,6 +63,7 @@ export const Hit = z.object({
   excerpt: z.string(),
   trap_ip: z.string().describe('The Trap IP that was touched; for a scan the Trap IPs it touched, comma-separated; for a token its value'),
   trap_hostname: z.string().describe('Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for a probe without names): the Trap IP column of the hit list'),
+  test_alert: TestAlertSent.optional().describe('Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did with the test alert'),
 })
 
 export const HitEvent = z.object({ ts: z.iso.datetime(), source: z.enum(['honeypot', 'firewall', 'dhcp', 'ad', 'vedette']), text: z.string(), mark: z.boolean() })
@@ -108,15 +120,15 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/honeypot', summary: 'Trap IP counts, services across the Trap IPs, the box-wide SMB name and HTTP page, hit summary and the excluded scanner', stories: ['S-HP-1'], role: 'viewer', response: HpOverview },
   { method: 'get', path: '/honeypot/hits', summary: 'Trap hits, newest first; filtered by source device when asset is given', stories: ['S-HP-1'], role: 'viewer', query: z.object({ asset: z.string().optional() }), response: z.object({ items: z.array(Hit) }) },
   { method: 'get', path: '/honeypot/hits/{id}', summary: 'One trap hit with the log events in the hour around it', stories: ['S-HP-1'], role: 'viewer', params: z.object({ id: z.string() }), response: HitDetail, example: { params: { id: 'hit-seed-1' } } },
-  { method: 'post', path: '/honeypot/test-hit', summary: '"Test trap": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with that service; not counted in statistics, no alert sent', stories: ['S-HP-1'], role: 'operator', body: z.object({ service: HpService }), response: Hit },
+  { method: 'post', path: '/honeypot/test-hit', summary: '"Test trap": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with that service, and sends the alert a real hit would send, marked Test, to the alert channels that are on; never an incident, not counted in statistics', stories: ['S-HP-1'], role: 'operator', body: z.object({ service: HpService }), response: Hit },
   { method: 'get', path: '/honeypot/trap-ips', summary: 'Trap IPs with their state, suggestions from the inventory and addresses not seen yet', stories: ['S-HP-1', 'S-HP-2'], role: 'viewer', response: TrapIPsResponse },
   { method: 'post', path: '/honeypot/trap-ips', status: 201, summary: 'Add a Trap IP: name, address, preset, vendor and services. Rejects an address of a device, of the box or outside the box network, and a name in use', stories: ['S-HP-1', 'S-HP-2'], role: 'admin', body: TrapIPInput, response: TrapIP },
   { method: 'put', path: '/honeypot/trap-ips/{id}', summary: 'Change a Trap IP: name, address, preset, vendor and services, with the same checks as adding one', stories: ['S-HP-1', 'S-HP-2'], role: 'admin', params: z.object({ id: z.string() }), body: TrapIPInput, response: TrapIP },
   { method: 'patch', path: '/honeypot/trap-ips/{id}', summary: 'Turn a Trap IP on or off', stories: ['S-HP-1', 'S-HP-2'], role: 'admin', params: z.object({ id: z.string() }), body: z.object({ enabled: z.boolean() }), response: TrapIP },
   { method: 'delete', path: '/honeypot/trap-ips/{id}', summary: 'Delete a Trap IP; the address stops answering, its hits stay', stories: ['S-HP-1', 'S-HP-2'], role: 'admin', params: z.object({ id: z.string() }), response: null },
-  { method: 'post', path: '/honeypot/test-scan', summary: '"Test scan": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent', stories: ['S-HP-2'], role: 'operator', response: Hit },
+  { method: 'post', path: '/honeypot/test-scan', summary: '"Test scan": a labelled test scan from the box across the Trap IPs, with its test alert marked Test; never an incident, not counted', stories: ['S-HP-2'], role: 'operator', response: Hit },
   { method: 'get', path: '/honeypot/tokens', summary: 'Honey tokens with last triggered time', stories: ['S-HP-2'], role: 'viewer', response: z.object({ items: z.array(Token) }) },
   { method: 'post', path: '/honeypot/tokens', status: 201, summary: 'Create a honey token (decoy file, fake credentials or URL); a DNS token is refused', stories: ['S-HP-2'], role: 'admin', body: TokenInput, response: Token },
   { method: 'delete', path: '/honeypot/tokens/{id}', summary: 'Delete a honey token; the planted copy stops alerting', stories: ['S-HP-2'], role: 'admin', params: z.object({ id: z.string() }), response: null },
-  { method: 'post', path: '/honeypot/tokens/{id}/test', summary: '"Test token": a labelled test trigger, not counted, no alert sent', stories: ['S-HP-2'], role: 'operator', params: z.object({ id: z.string() }), response: Hit },
+  { method: 'post', path: '/honeypot/tokens/{id}/test', summary: '"Test token": a labelled test trigger, with its test alert marked Test; never an incident, not counted', stories: ['S-HP-2'], role: 'operator', params: z.object({ id: z.string() }), response: Hit },
 ])

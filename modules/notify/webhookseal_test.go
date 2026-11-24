@@ -23,7 +23,7 @@ var (
 	whQuery  = strings.Join([]string{"qk", "91d2e8"}, "-")
 	whURL    = "https://hooks.company.com/vedette/" + whToken + "?key=" + whQuery
 	whURL2   = "https://hooks.company.com/other/" + strings.Join([]string{"tok", "second", "5b1d44"}, "-")
-	whMasked = "https://hooks.company.com/…" + "1d44" // masked form of whURL2 with its last 4 characters
+	whMasked = "https://hooks.company.com/…" // masked form of whURL2: scheme and host, nothing of the path
 )
 
 type lockedBuf struct {
@@ -98,7 +98,7 @@ func (e *env) dbHolds(marker string) string {
 func TestContract_SYS4_WebhookURLIsSealedAndOnlyItsMaskIsReturned(t *testing.T) {
 	e, logs := webhookEnv(t)
 	saved := saveWebhook(e, whURL)
-	if saved.Fields["url"] != "https://hooks.company.com/…"+whURL[len(whURL)-4:] {
+	if saved.Fields["url"] != whMasked {
 		t.Fatalf("PUT shows %q", saved.Fields["url"])
 	}
 	view, err := e.svc.Channels(e.ctx())
@@ -218,7 +218,7 @@ func TestWebhookURLSavedBeforeSealingIsMaskedThenSealed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := v.Channels[5].Fields["url"]; got != "https://hooks.company.com/…"+whURL[len(whURL)-4:] {
+	if got := v.Channels[5].Fields["url"]; got != whMasked {
 		t.Fatalf("shows %q", got)
 	}
 	e.flush() // the deliver job seals it

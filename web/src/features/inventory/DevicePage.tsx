@@ -26,6 +26,7 @@ import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/d
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useAgentReport, useAskReport, useDevice, useDeviceAction } from './api'
 import { DetectedNotice } from './DetectedNotice'
+import { UncheckableNotice } from './Uncheckable'
 import { useScanning } from '@/features/scanning/api'
 import { scanRefusal } from '@/features/scanning/canScan'
 import type { Scanning } from '@/features/scanning/types'
@@ -535,6 +536,7 @@ function Body() {
       {a.ignored_at ? <IgnoredNotice d={d} /> : !a.approved ? <Approval d={d} /> : null}
       {a.private_mac ? <div data-testid="private-mac-note"><InfoLine className="text-meta text-muted" topic={t('privateMac.note')} info={t('privateMac.noteInfo')}>{t('privateMac.note')}</InfoLine></div> : null}
       {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}
+      <UncheckableNotice a={a} onAdd={() => setAdding(true)} />
       <PageTabs label={t('detail.tabs.label')} tabs={[
         { id: 'overview', label: t('detail.tabs.overview'), panel: (
           <>

@@ -139,6 +139,8 @@ type Service struct {
 	// typical and typicalAt: how long a device check takes on this box and when that was read (typicalCheck), under mu.
 	typical   time.Duration
 	typicalAt time.Time
+	// deviceTook is, by device, how long its own recent checks took and when that was read (deviceCheck), under mu.
+	deviceTook map[string]tookAt
 
 	mu      sync.Mutex
 	cur     *running // the job holding runMu, for SettingsChanged
@@ -449,6 +451,9 @@ func (s *Service) startJob(ctx context.Context, kind, _ string, targets int) (st
 
 // finishJob says the work of a run ended (sensor.scan.finished) and writes the line of its log; core/run records the run's end.
 func (s *Service) finishJob(ctx context.Context, id, status string, targets, newDevices int, errText string) {
+	if run.ShuttingDown(ctx) {
+		errText = "" // Vedette is stopping: the next start says the restart stopped it ("Stopped: Vedette restarted")
+	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
 	if x := execOf(ctx); x != nil && errText != "" {

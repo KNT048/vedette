@@ -19,7 +19,8 @@ export const productFields = (p: ChosenProduct) => (p.custom ? { vendor: p.vendo
  * A scrolling list shows only after typing; the server returns at most 30 rows, the rest is reported as "N more match". If it is not found, type the vendor + product.
  * A standard ARIA combobox: up/down/Enter on the keyboard, the number of results is readable by a screen reader.
  */
-export function ProductPicker({ value, onChange, label, listOpenRef }: { value: ChosenProduct | null; onChange: (v: ChosenProduct | null) => void; label: string; listOpenRef?: RefObject<boolean> }) {
+/** `error`: why the form cannot be sent without a product (shown under the field, which is marked invalid); null or absent when none. */
+export function ProductPicker({ value, onChange, label, listOpenRef, error }: { value: ChosenProduct | null; onChange: (v: ChosenProduct | null) => void; label: string; listOpenRef?: RefObject<boolean>; error?: string | null }) {
   const { t } = useTranslation('inventory')
   const uid = useId()
   const inputId = `${uid}-input`
@@ -66,6 +67,7 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
           <Label htmlFor={`${uid}-product`}>{t('picker.product')}</Label>
           <Input id={`${uid}-product`} value={product} maxLength={64} placeholder={t('picker.productPlaceholder')} autoComplete="off" onChange={(e) => setCustomValue(vendor, e.target.value)} />
         </div>
+        {error && !value ? <p className="text-meta text-danger">{error}</p> : null}
         <div className="flex items-center gap-1"><p className="text-meta text-muted" role="status">{t('picker.customNote')}</p><InfoTip>{t('picker.customNoteInfo')}</InfoTip></div>
         <div><Button size="sm" onClick={() => { setCustom(false); setVendor(''); setProduct(''); onChange(null) }}>{t('picker.backToList')}</Button></div>
       </div>
@@ -80,6 +82,7 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
           id={inputId} role="combobox" aria-expanded={open && !value} aria-autocomplete="list" aria-controls={open && !value ? listId : undefined}
           aria-activedescendant={open && !value && items[active] ? `${uid}-opt-${active}` : undefined}
           autoComplete="off" readOnly={!!value} placeholder={t('picker.placeholder')}
+          aria-invalid={error ? true : undefined} aria-describedby={error ? `${uid}-error` : undefined}
           value={value ? value.display : q}
           onChange={(e) => { setQ(e.target.value); setOpen(true); setActive(0) }}
           onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} onKeyDown={onKey}
@@ -111,6 +114,7 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
           </div>
         ) : null}
       </div>
+      {error && !value ? <p id={`${uid}-error`} className="text-meta text-danger">{error}</p> : null}
       <div className="text-meta text-muted" role="status">
         {value ? t('picker.chosen', { hint: value.hint }) : open && typed && !res.isPending && items.length === 0 ? t('picker.none') : t('picker.hint')}
       </div>

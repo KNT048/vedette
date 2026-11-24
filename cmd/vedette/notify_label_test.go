@@ -29,7 +29,7 @@ func TestDeviceStateOfANewDevice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]notify.DeviceState{sw: {Name: "Juniper Networks", Address: sw}, cam: {Name: "192.168.142.254", Address: "192.168.142.254"}}
+	want := map[string]notify.DeviceState{sw: {Name: "Juniper Networks device", Address: sw}, cam: {Name: "192.168.142.254", Address: "192.168.142.254"}}
 	ids := map[string]string{}
 	for _, d := range l.Items {
 		if d.MAC != nil && want[*d.MAC].Name != "" {
@@ -65,7 +65,8 @@ func TestRefNameOfADeclaredDeviceWhoseProductIsItsKind(t *testing.T) {
 }
 
 // A vulnerability notice and a log incident name the device as the Devices page does: a PC with no host name is
-// "Hon Hai Precision Ind. Co.,Ltd.", not its bare IP; the notice adds the address, like the new-device incident.
+// "Hon Hai Precision Ind. Co.,Ltd. device" (the maker of its network card), not its bare IP; the notice adds the address, like the
+// new-device incident.
 func TestFindingAndLogIncidentsUseTheDevicesName(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -80,12 +81,12 @@ func TestFindingAndLogIncidentsUseTheDevicesName(t *testing.T) {
 	if err != nil || len(l.Items) != 1 {
 		t.Fatalf("devices %+v %v", l, err)
 	}
-	id, want := l.Items[0].ID, "Hon Hai Precision Ind. Co.,Ltd. ("+ip+")"
+	id, want := l.Items[0].ID, "Hon Hai Precision Ind. Co.,Ltd. device ("+ip+")"
 	if name, ok, err := (notifyDevices{s.d.Inventory}).DeviceName(ctx, id); err != nil || !ok || name != want {
 		t.Errorf("notice name %q %v %v, want %q", name, ok, err, want)
 	}
 	got, err := logsInventory{inv: s.d.Inventory}.DevicesAt(ctx, []string{ip, "192.168.142.9"})
-	if err != nil || len(got) != 1 || len(got[ip]) != 1 || got[ip][0].ID != id || got[ip][0].Name != "Hon Hai Precision Ind. Co.,Ltd." || got[ip][0].Via != logs.ViaListedIP {
+	if err != nil || len(got) != 1 || len(got[ip]) != 1 || got[ip][0].ID != id || got[ip][0].Name != "Hon Hai Precision Ind. Co.,Ltd. device" || got[ip][0].Via != logs.ViaListedIP {
 		t.Errorf("log device %+v %v, want %s and the Devices name", got, err, id)
 	}
 	// The address the device's SNMP is read from is the device too, and says so; the same device at its listed IP is not said twice.

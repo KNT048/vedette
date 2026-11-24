@@ -125,7 +125,8 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
             <span className="font-medium">{ours.label}</span>
             <Link to={runHref(ours.id)} className="text-meta text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link>
           </div>
-          <JobProgress progress={ours.progress} />
+          {/* not started yet: the line of what it waits for and when it starts, no step, bar, clock or last report */}
+          {ours.queued ? <p className="text-meta text-muted">{ours.progress?.message ?? t('scanNow.queued')}</p> : <JobProgress progress={ours.progress} />}
         </Card>
       ) : null}
     </div>

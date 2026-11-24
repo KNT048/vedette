@@ -222,6 +222,7 @@ type IncidentTop struct {
 	LastSeen   time.Time
 	DeviceID   string
 	DeviceName string
+	Devices    int // how many devices the incident names (DeviceID is the first by name)
 }
 
 // IncidentPeriod is the incidents with activity in a period: how many of each kind (all of them, however many there are, with the
@@ -258,7 +259,8 @@ func (s *Service) IncidentsIn(ctx context.Context, from, to time.Time, top int) 
 	}
 	rows, err = db.QueryContext(ctx, `SELECT i.kind, i.severity, i.title, i.last_seen,
 			ifnull((SELECT d.asset_id FROM notify_incident_device d WHERE d.incident_id = i.id ORDER BY d.name, d.asset_id LIMIT 1), ''),
-			ifnull((SELECT d.name FROM notify_incident_device d WHERE d.incident_id = i.id ORDER BY d.name, d.asset_id LIMIT 1), '')
+			ifnull((SELECT d.name FROM notify_incident_device d WHERE d.incident_id = i.id ORDER BY d.name, d.asset_id LIMIT 1), ''),
+			(SELECT count(*) FROM notify_incident_device d WHERE d.incident_id = i.id)
 		FROM notify_incident i WHERE i.last_seen > ? AND i.first_seen <= ?
 		ORDER BY CASE i.severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, i.last_seen DESC, i.id LIMIT ?`, f, t, top)
 	if err != nil {
@@ -267,7 +269,7 @@ func (s *Service) IncidentsIn(ctx context.Context, from, to time.Time, top int) 
 	for rows.Next() {
 		var x IncidentTop
 		var k, sev, at string
-		if err := rows.Scan(&k, &sev, &x.Title, &at, &x.DeviceID, &x.DeviceName); err != nil {
+		if err := rows.Scan(&k, &sev, &x.Title, &at, &x.DeviceID, &x.DeviceName, &x.Devices); err != nil {
 			_ = rows.Close()
 			return p, fmt.Errorf("notify: top incidents: %w", err)
 		}
@@ -520,7 +522,7 @@ func (s *Service) HandleIncident(ctx context.Context, actor, id string, status I
 func (s *Service) History(ctx context.Context) (HistoryView, error) {
 	db := s.cfg.DB.Reader()
 	v := HistoryView{Items: []HistoryItem{}, NotSent: []UnsentNotice{}}
-	rows, err := db.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, delayed, kind, what, link FROM notify_send ORDER BY at DESC, rowid DESC LIMIT ?`, historyLimit)
+	rows, err := db.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, delayed, kind, what, link, resend_of IS NOT NULL FROM notify_send ORDER BY at DESC, rowid DESC LIMIT ?`, historyLimit)
 	if err != nil {
 		return v, fmt.Errorf("notify: read history: %w", err)
 	}
@@ -529,7 +531,7 @@ func (s *Service) History(ctx context.Context) (HistoryView, error) {
 		var h HistoryItem
 		var ch string
 		var e sql.NullString
-		if err := rows.Scan(&h.ID, &ch, &h.To, &h.At, &h.OK, &e, &h.Delayed, &h.Kind, &h.What, &h.Link); err != nil {
+		if err := rows.Scan(&h.ID, &ch, &h.To, &h.At, &h.OK, &e, &h.Delayed, &h.Kind, &h.What, &h.Link, &h.Resent); err != nil {
 			return v, fmt.Errorf("notify: read history: %w", err)
 		}
 		h.Channel, h.Error = channel.Type(ch), e.String
@@ -645,6 +647,9 @@ func (s *Service) Resend(ctx context.Context, actor, id string) (HistoryItem, er
 		if err := insertSend(ctx, tx, rec, old.kind, old.ref, old.what, old.link, old.recipient.String, msg); err != nil {
 			return err
 		}
+		if _, err := tx.ExecContext(ctx, `UPDATE notify_send SET resend_of = ? WHERE id = ?`, id, rec.ID); err != nil {
+			return fmt.Errorf("notify: mark resend: %w", err)
+		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_send_notice (send_id, notice_id) SELECT ?, notice_id FROM notify_send_notice WHERE send_id = ?`, rec.ID, id); err != nil {
 			return fmt.Errorf("notify: link resend to notices: %w", err)
 		}
@@ -660,7 +665,7 @@ func (s *Service) Resend(ctx context.Context, actor, id string) (HistoryItem, er
 	}
 	s.flush(ctx, ob)
 	return HistoryItem{SendView: SendView{ID: rec.ID, Channel: rec.Channel, To: rec.To, At: store.FormatTS(rec.At), OK: rec.OK, Error: clip(rec.Error, 1000)},
-		Kind: old.kind, What: old.what, Link: old.link}, nil
+		Kind: old.kind, What: old.what, Link: old.link, Resent: true}, nil
 }
 
 // FindingNotices lists who was told about a finding, oldest first (GET /notify/findings/{id}/notices).

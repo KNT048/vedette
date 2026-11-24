@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -17,6 +18,8 @@ import (
 	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
+	"github.com/knt048/vedette/modules/notify"
+	"github.com/knt048/vedette/modules/notify/channel"
 )
 
 // The two folders under -honeypot-dir: core writes ConfigDir (opencanary.conf, honeytokens.json; WP-08 mounts it read-only
@@ -45,6 +48,7 @@ func newHoneypot(d *deps) (*honeypot.Service, error) {
 	if d.Reg != nil {
 		cfg.Modules = d.Reg
 	}
+	cfg.TestAlert = honeypotTestAlerts{d}
 	if d.Bus != nil {
 		cfg.Events = honeypot.PublisherFunc(func(ctx context.Context, e honeypot.Event) error {
 			return d.Bus.Publish(ctx, events.Event{Name: e.Name, Data: e.Data})
@@ -239,4 +243,30 @@ func orgTimeZone(d *deps) orgtime.Source {
 		}
 		return loc
 	}
+}
+
+// honeypotTestAlerts implements honeypot.TestAlerter with notify: a test hit sends the alert its real hit would send, marked Test,
+// through the alert channels that are on, and says what each did. notify is read when asked (it may be built after honeypot); with the
+// notify module off no channel sends anything, as for a real hit.
+type honeypotTestAlerts struct{ d *deps }
+
+// testAlertChannelNames are the channels' names as the Alert channels page shows them.
+var testAlertChannelNames = map[channel.Type]string{channel.Telegram: "Telegram", channel.Slack: "Slack", channel.Zalo: "Zalo OA",
+	channel.ZaloPersonal: "Zalo personal", channel.Email: "Email", channel.Webhook: "Webhook"}
+
+func (a honeypotTestAlerts) TestAlert(ctx context.Context, h honeypot.HitEventData) ([]honeypot.TestAlertResult, error) {
+	if a.d.DB == nil || a.d.Reg != nil && !a.d.Reg.Enabled("notify") {
+		return nil, nil
+	}
+	res, err := newNotify(a.d).SendTrapTest(ctx, notify.TrapHit{ID: h.ID, TS: h.TS, Kind: string(h.Kind), Service: h.Service, SrcIP: h.SrcIP,
+		Label: h.Label, Decoy: h.Decoy})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]honeypot.TestAlertResult, 0, len(res))
+	for _, r := range res {
+		out = append(out, honeypot.TestAlertResult{Channel: string(r.Channel), Name: cmp.Or(testAlertChannelNames[r.Channel], string(r.Channel)),
+			OK: r.OK, Skipped: r.Skipped, Detail: r.Detail})
+	}
+	return out, nil
 }

@@ -461,10 +461,7 @@ func (s *Service) AnswerQuestion(ctx context.Context, id, answer, note, user str
 			answer, user, store.FormatTS(now), x.ID); err != nil {
 			return fmt.Errorf("findings: answering a question: %w", err)
 		}
-		detail := string(x.Kind) + " on " + x.AssetID + ": " + strings.ReplaceAll(answer, "_", " ")
-		if x.CVE != "" {
-			detail = x.CVE + " " + detail
-		}
+		detail := questionAuditDetail(x, "answered "+strings.ReplaceAll(answer, "_", " "))
 		if note != "" {
 			detail += ": " + note
 		}

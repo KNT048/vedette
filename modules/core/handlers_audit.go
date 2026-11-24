@@ -34,6 +34,7 @@ const (
 	auditPageRows    = 200  // GET /core/audit returns at most this many rows
 	auditExportPage  = 1000 // rows the export reads per query
 	auditMaxNeedle   = 200  // longest text filter (q, user, group), in bytes
+	auditMaxActions  = 400  // most action codes a search names (the screen has about 330 labels)
 	auditMaxDetail   = 1000 // longest detail of the audit row of an export
 	tsLayout         = "2006-01-02T15:04:05.000Z"
 	dateLayout       = "2006-01-02"
@@ -57,6 +58,7 @@ var dateOnlyRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 // auditFilter is the SQL form of the query of GET /core/audit and /core/audit/export: nil or a string each.
 type auditFilter struct {
 	from, to, who, grp, needle, people any
+	actions                            any    // with needle: ",code,code," of the actions whose label holds it, or nil
 	text                               string // the filters as typed, for the audit row of an export
 }
 
@@ -101,7 +103,29 @@ func parseAuditBound(s string, loc *time.Location, end bool) (string, bool) {
 	return store.FormatTS(t), true
 }
 
-func (h *APIHandlers) auditFilter(ctx context.Context, q, user, group, from, to oas.OptString, people bool) (auditFilter, error) {
+// auditActionRE is one action code: a group and what was done, lower case (core.general, findings.question_answered).
+var auditActionRE = regexp.MustCompile(`^[a-z][a-z0-9_-]*(\.[a-z0-9_-]+)+$`)
+
+// auditActions reads the actions of a search: the codes whose label on the screen holds the search text, comma-separated. It
+// returns ",a,b," for the query, or nil when there are none.
+func auditActions(v oas.OptString) (any, error) {
+	s := strings.TrimSpace(v.Or(""))
+	if s == "" {
+		return nil, nil
+	}
+	codes := strings.Split(s, ",")
+	if len(codes) > auditMaxActions {
+		return nil, apierr.Invalid(fmt.Sprintf("The search names too many actions (at most %d).", auditMaxActions))
+	}
+	for _, c := range codes {
+		if len(c) > 100 || !auditActionRE.MatchString(c) {
+			return nil, apierr.Invalid("The search names an action that is not an action code, like core.general.")
+		}
+	}
+	return "," + s + ",", nil
+}
+
+func (h *APIHandlers) auditFilter(ctx context.Context, q, actions, user, group, from, to oas.OptString, people bool) (auditFilter, error) {
 	var f auditFilter
 	var parts []string
 	if people { // Leave out the automatic lines (user "system" or "system:<part>")
@@ -120,6 +144,11 @@ func (h *APIHandlers) auditFilter(ctx context.Context, q, user, group, from, to 
 			return f, apierr.Invalid("The search text is too long (at most 200 characters).")
 		}
 		f.needle = strings.ToLower(s)
+		a, err := auditActions(actions)
+		if err != nil {
+			return f, err
+		}
+		f.actions = a
 	}
 	if s := set("user", user); s != "" {
 		if len(s) > auditMaxNeedle {
@@ -159,7 +188,7 @@ func (h *APIHandlers) auditFilter(ctx context.Context, q, user, group, from, to 
 }
 
 func (f auditFilter) list(ctx context.Context, q *coredb.Queries, before, skip, limit int64) ([]coredb.ListAuditFilteredRow, error) {
-	return q.ListAuditFiltered(ctx, coredb.ListAuditFilteredParams{BeforeSeq: before, FromTs: f.from, ToTs: f.to, Who: f.who, Grp: f.grp, People: f.people, Needle: f.needle, SkipRows: skip, MaxRows: limit})
+	return q.ListAuditFiltered(ctx, coredb.ListAuditFilteredParams{BeforeSeq: before, FromTs: f.from, ToTs: f.to, Who: f.who, Grp: f.grp, People: f.people, Needle: f.needle, Actions: f.actions, SkipRows: skip, MaxRows: limit})
 }
 
 // auditPage reads offset and limit of GET /core/audit (the contract allows digits only): the rows to skip and the rows of the page,
@@ -178,7 +207,7 @@ func auditPage(offset, limit oas.OptString) (skip, rows int64) {
 // CoreGetCoreAudit implements GET /core/audit (admin): one page of the rows that match, newest first, at most 200 (offset and
 // limit), with the total number of matches and the users and groups present in the log (for the filter lists).
 func (h *APIHandlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCoreAuditParams) (*oas.CoreGetCoreAuditOK, error) {
-	f, err := h.auditFilter(ctx, params.Q, params.User, params.Group, params.From, params.To, params.Actor.Set && params.Actor.Value == oas.CoreGetCoreAuditActorPeople)
+	f, err := h.auditFilter(ctx, params.Q, params.Actions, params.User, params.Group, params.From, params.To, params.Actor.Set && params.Actor.Value == oas.CoreGetCoreAuditActorPeople)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +227,7 @@ func (h *APIHandlers) CoreGetCoreAudit(ctx context.Context, params oas.CoreGetCo
 	if err != nil {
 		return nil, fmt.Errorf("core: list audit: %w", err)
 	}
-	total, err := q.CountAuditFiltered(ctx, coredb.CountAuditFilteredParams{UptoSeq: top, FromTs: f.from, ToTs: f.to, Who: f.who, Grp: f.grp, People: f.people, Needle: f.needle})
+	total, err := q.CountAuditFiltered(ctx, coredb.CountAuditFilteredParams{UptoSeq: top, FromTs: f.from, ToTs: f.to, Who: f.who, Grp: f.grp, People: f.people, Needle: f.needle, Actions: f.actions})
 	if err != nil {
 		return nil, fmt.Errorf("core: count audit: %w", err)
 	}
@@ -234,7 +263,7 @@ func (h *APIHandlers) CoreGetCoreAuditExport(ctx context.Context, params oas.Cor
 	if err != nil {
 		return oas.CoreGetCoreAuditExportOK{}, err
 	}
-	f, err := h.auditFilter(ctx, params.Q, params.User, params.Group, params.From, params.To, params.Actor.Set && params.Actor.Value == oas.CoreGetCoreAuditExportActorPeople)
+	f, err := h.auditFilter(ctx, params.Q, params.Actions, params.User, params.Group, params.From, params.To, params.Actor.Set && params.Actor.Value == oas.CoreGetCoreAuditExportActorPeople)
 	if err != nil {
 		return oas.CoreGetCoreAuditExportOK{}, err
 	}

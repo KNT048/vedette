@@ -1,6 +1,7 @@
 package versionscheme
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -244,5 +245,36 @@ func TestSpan_LineNotAffected(t *testing.T) {
 	}
 	if _, ok := SynologyDSM.Span("7.2.1", "7.2.2", ""); ok {
 		t.Error("an end at another line's start reads")
+	}
+}
+
+// A fixed release stored as its name reads back to the same place, so two fixes of one train can be ordered.
+func TestRelease_ReadsTheNamesThisPackageWrites(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		scheme *Scheme
+		text   string
+		train  string
+		build  []int
+	}{
+		{VMwareESXi, "8.0 U3d (build 24585383)", "8.0 U3", []int{24585383}},
+		{VMwareESXi, "ESXi80U3d-24585383", "8.0 U3", []int{24585383}},
+		{VMwareESXi, "9.0.2.0100 (build 25595025)", "9.0.2", []int{25595025}},
+		{SynologyDSM, "7.2.1-69057 Update 6", "7.2.1", []int{69057, 6}},
+		{SynologyDSM, "7.2.1-69057-13", "7.2.1", []int{69057, 13}},
+		{Junos, "21.4R3-S5", "21.4", []int{3, 5, 0}},
+	} {
+		v, ok := c.scheme.Release(c.text)
+		if !ok || v.Train != c.train || !slices.Equal(v.Build, c.build) {
+			t.Errorf("%s Release(%q) = %+v, %v; want train %q build %v", c.scheme.Name, c.text, v, ok, c.train, c.build)
+		}
+		if again, ok := c.scheme.Release(v.Display); !ok || !sameTrain(again, v) || !slices.Equal(again.Build, v.Build) {
+			t.Errorf("%s Release(%q) does not read its own name back: %+v", c.scheme.Name, v.Display, again)
+		}
+	}
+	for _, text := range []string{"8.0", "7.2.1", "", "8.0 U3d (build 12)"} {
+		if v, ok := VMwareESXi.Release(text); ok {
+			t.Errorf("Release(%q) = %+v, want no release", text, v)
+		}
 	}
 }

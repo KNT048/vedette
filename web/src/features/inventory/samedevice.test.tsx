@@ -42,7 +42,7 @@ describe('Device page: possibly the same device', () => {
     const box = await notice()
     expect(box).toHaveTextContent('Possibly the same device as iPhone.lan')
     expect(box).toHaveTextContent('Same name "iPhone", never online at the same time')
-    expect(box).toHaveTextContent(/Added, seen 2 days ago/)
+    expect(box).toHaveTextContent(/iPhone\.lan is added, last seen 2 days ago/) // the other device's state, named, never read as this page's
     expect(within(box).getByRole('link', { name: 'iPhone.lan' })).toHaveAttribute('href', '/devices/a-ph1')
     // above the approval notice: merging answers the approval too
     expect(box.compareDocumentPosition(screen.getAllByRole('button', { name: 'Add device' })[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -87,11 +87,22 @@ describe('Device page: possibly the same device', () => {
     expect(assetsStore.get().some((a) => a.id === 'a-ph1')).toBe(false)
   })
 
+  it('a device added by hand that nothing has seen is never said to be seen at the time it was added', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const detail = (await (await fetch(`${BASE}/devices/a-ph2`)).json()) as { possible_same: { never_seen: boolean }[] }
+    detail.possible_same = detail.possible_same.map((p) => ({ ...p, never_seen: true }))
+    server.use(http.get(`${BASE}/devices/a-ph2`, () => HttpResponse.json(detail)))
+    renderApp('/devices/a-ph2', { role: 'admin' })
+    const box = await notice()
+    expect(box).toHaveTextContent(/iPhone\.lan was added by hand .+ and never seen on the network/)
+    expect(box).not.toHaveTextContent(/last seen/)
+  })
+
   it('Keep separate asks first, naming both devices; then the pair is not offered again', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-ph1', { role: 'admin' })
     const box = await notice()
-    expect(box).toHaveTextContent(/Not added yet, seen/)
+    expect(box).toHaveTextContent(/iPhone is not added yet, last seen/)
     // #876: one click by mistake must not split the phone for good
     await user.click(within(box).getByRole('button', { name: 'Keep separate' }))
     let dialog = await screen.findByRole('dialog', { name: 'Keep iPhone.lan and iPhone separate?' }, T)

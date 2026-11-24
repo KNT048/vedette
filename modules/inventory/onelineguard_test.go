@@ -55,6 +55,7 @@ var readingsDecls = map[string]bool{
 	// a catalogue update: every reading is identified again from what its source sent and moves to its line (a write path)
 	"modules/inventory/reidentify.go:deviceSoftware":  true,
 	"modules/inventory/reidentify.go:applyIdentities": true,
+	"modules/inventory/reidentify.go:bareBannerNames": true, // a write job: a scan reading's stored name loses the version it repeats
 	// a self-check (read-only, vedette selfcheck): a finding's matched version must be one its line runs, and the matcher also matches
 	// a line's other live readings (an older second install), so the check reads them as the matcher's input does
 	"modules/findings/selfcheck.go:catalogueInvariants": true,

@@ -135,7 +135,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await expectNoA11yViolations() // combobox is open
     await user.click(option) // click 2
     await user.click(screen.getByRole('button', { name: 'Add' })) // click 3
-    expect(await screen.findByText(/Added FortiGate/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText(/^Added 192\.168\.30\.9, running FortiGate/, undefined, T)).toBeInTheDocument()
     expect(assetsStore.get()).toHaveLength(before + 1)
     const a = assetsStore.get()[0]!
     expect(a.origin).toBe('manual')
@@ -187,7 +187,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(assetsStore.get()).toHaveLength(before)
   })
 
-  it('free entry: "Can\'t find it?" switches to Maker and Product inputs; incomplete input cannot be submitted', async () => {
+  it('free entry: "Can\'t find it?" switches to Maker and Product inputs; incomplete input says what is missing; the toast names the device', async () => {
     const user = userEvent.setup()
     const before = assetsStore.get().length
     renderApp('/devices')
@@ -197,11 +197,13 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(screen.getByRole('dialog')).queryByRole('combobox')).not.toBeInTheDocument()
     await user.type(screen.getByLabelText('Host name'), 'branch-fw')
     await user.type(screen.getByLabelText('Maker'), 'Fortinet')
-    expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled() // product is still empty
-    await user.type(screen.getByLabelText('Product'), 'FortiGate')
-    expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled()
+    // Add is never off without a reason: sent with the product still empty, the form says what is missing and adds nothing
     await user.click(screen.getByRole('button', { name: 'Add' }))
-    expect(await screen.findByText(/Added Fortinet FortiGate/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText(/Pick the product this device runs, or enter its maker and product yourself/, undefined, T)).toBeInTheDocument()
+    expect(assetsStore.get()).toHaveLength(before)
+    await user.type(screen.getByLabelText('Product'), 'FortiGate')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText(/^Added branch-fw, running Fortinet FortiGate\./, undefined, T)).toBeInTheDocument()
     expect(assetsStore.get()).toHaveLength(before + 1)
     const sw = assetsStore.get()[0]!.software[0]!
     expect(sw).toMatchObject({ vendor: 'Fortinet', product: 'FortiGate', source: 'manual' })
@@ -330,12 +332,33 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     renderApp('/devices?add=osquery')
     const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
     expect(within(dlg).getByRole('radio', { name: /^osquery/, checked: true })).toBeInTheDocument()
-    expect(within(dlg).getByText(/macOS is not supported/)).toBeInTheDocument()
+    expect(await within(dlg).findByText(/macOS is not supported/, undefined, T)).toBeInTheDocument()
     await user.click(await within(dlg).findByRole('button', { name: 'Linux' }, T))
     await user.click(await within(dlg).findByRole('button', { name: 'Create install command' }, T))
     expect(await within(dlg).findByText(/^vdt_osquery_/, undefined, T)).toBeInTheDocument()
     expect(within(dlg).queryByRole('radiogroup', { name: 'How to add it' })).toBeNull() // the only copy of the secret stays on screen
     expect(within(dlg).getByRole('button', { name: 'Windows' })).toBeInTheDocument()
+  })
+
+  it('osquery: an install command made earlier and never used is said before a new one is made, and can be revoked there', async () => {
+    const user = userEvent.setup()
+    enableModule('agent-intake', true)
+    renderApp('/devices?add=osquery')
+    const first = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.click(await within(first).findByRole('button', { name: 'Linux' }, T))
+    expect(within(first).queryByText(/has no machine yet/)).toBeNull()
+    await user.click(within(first).getByRole('button', { name: 'Create install command' }))
+    await within(first).findByText(/^vdt_osquery_/, undefined, T)
+    await user.click(within(first).getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await user.click(screen.getByRole('button', { name: 'Add a device' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.click(within(dlg).getByRole('radio', { name: /^osquery/ }))
+    await user.click(await within(dlg).findByRole('button', { name: 'Linux' }, T))
+    expect(within(dlg).getByText(/An install command made .* has no machine yet\./)).toBeInTheDocument()
+    await user.click(within(dlg).getByRole('button', { name: 'Revoke it' }))
+    expect(await screen.findByText('Unused install command revoked')).toBeInTheDocument()
+    await waitFor(() => expect(within(dlg).queryByText(/has no machine yet/)).toBeNull())
   })
 
   it('the operator role gets the add button enabled and the setup link hidden (admin only)', async () => {
@@ -356,8 +379,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
   it('the admin gets a link to the setup page (agents included) next to "Add a device" (item 26b)', async () => {
     renderApp('/devices')
     await deviceTable()
-    const link = screen.getByRole('link', { name: 'Device discovery settings' })
-    expect(link).toHaveTextContent('Settings')
+    // the link is named as the page it opens
+    const link = screen.getByRole('link', { name: 'Sensor and agents' })
     expect(link).toHaveAttribute('href', '/devices/setup')
     expect(link.nextElementSibling).toBe(screen.getByRole('button', { name: 'Add a device' }))
   })
@@ -372,7 +395,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const bar = add.parentElement!.parentElement!.parentElement!
     expect(within(bar).getByRole('combobox', { name: 'Search devices' })).toBeInTheDocument()
     expect(within(bar).getByRole('button', { name: 'Export CSV' })).toBeInTheDocument()
-    expect(within(bar).getByRole('link', { name: 'Device discovery settings' })).toBeInTheDocument()
+    expect(within(bar).getByRole('link', { name: 'Sensor and agents' })).toBeInTheDocument()
     expect(within(bar).getByText(/not added yet/)).toBeInTheDocument()
     // primary = the accent-filled button; Export, Filters and Settings are quiet or outlined
     const primary = within(bar).getAllByRole('button').filter((b) => b.className.includes('bg-accent text-accent-ink'))
@@ -422,7 +445,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const user = userEvent.setup()
     renderApp('/devices')
     await deviceTable()
-    await user.click(screen.getByRole('link', { name: 'Device discovery settings' }))
+    await user.click(screen.getByRole('link', { name: 'Sensor and agents' }))
     expect(await screen.findByRole('tab', { name: /^Sensor/ }, T)).toBeInTheDocument()
   })
 
@@ -1526,7 +1549,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(within(dialog).getByText('Expected SHA-256 of the script:').parentElement).toHaveTextContent(sha)
     expect(within(dialog).getByText('What this script does')).toBeInTheDocument()
     expect(within(dialog).getByText('Download and install manually')).toBeInTheDocument()
-    expect(within(dialog).getByText('Remove osquery from the server again')).toBeInTheDocument()
+    expect(within(dialog).getByText('Remove osquery later').closest('details')).not.toHaveAttribute('open') // a later job: folded
     // Direct downloads from this origin, one row per Linux package, with what it is for, its size and its SHA-256
     const pkgs = (await call('GET', '/agents')).json!.install.packages as OsqueryPackage[]
     const downloads = () => within(within(dialog).getByRole('table', { name: 'osquery packages this box serves' })).getAllByRole('link')
@@ -2173,10 +2196,12 @@ describe('inventory: form matrix', () => {
     expect(within(dlg).getByRole('button', { name: 'Add' })).toBeEnabled()
     await user.click(within(dlg).getByRole('button', { name: 'Back to the list' }))
     await user.click(within(dlg).getByRole('button', { name: NOT_LISTED }))
-    // the fields do not look filled while the form holds nothing: they start empty, and Add stays locked until both are typed
+    // the fields do not look filled while the form holds nothing: they start empty, and Add says a product is missing until both are typed
     expect(within(dlg).getByLabelText('Maker')).toHaveValue('')
     expect(within(dlg).getByLabelText('Product')).toHaveValue('')
-    expect(within(dlg).getByRole('button', { name: 'Add' })).toBeDisabled()
+    await user.type(within(dlg).getByLabelText('IP address'), '192.0.2.77')
+    await user.click(within(dlg).getByRole('button', { name: 'Add' }))
+    expect(await within(dlg).findByText(/Pick the product this device runs/, undefined, T)).toBeInTheDocument()
   })
 
   it('the server refuses active scanning without the scope confirmation', async () => {

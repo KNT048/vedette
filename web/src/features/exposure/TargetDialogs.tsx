@@ -29,7 +29,7 @@ function ScopeChoice({ id, value, onChange, name }: { id: string; value: ScopeMo
         {SCOPES.map((s) => (
           <div key={s} className="flex items-start gap-2.5">
             <RadioItem id={`${id}-${s}`} value={s} className="mt-1" />
-            <label htmlFor={`${id}-${s}`} className="grid text-sm"><span className="font-medium">{t(`scope.option.${s}`, { name: name || t('scope.thisName') })}</span><span className="text-meta text-muted">{t(`scope.hint.${s}`)}</span></label>
+            <label htmlFor={`${id}-${s}`} className="grid text-sm"><span className="font-medium">{name ? t(`scope.option.${s}`, { name }) : t(`scope.optionNoName.${s}`)}</span><span className="text-meta text-muted">{t(`scope.hint.${s}`)}</span></label>
           </div>
         ))}
       </RadioGroup>

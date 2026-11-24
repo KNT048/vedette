@@ -7458,6 +7458,10 @@ func (s *Server) handleCoreGetCoreAuditRequest(args [0]string, argsEscaped bool,
 					In:   "query",
 				}: params.Q,
 				{
+					Name: "actions",
+					In:   "query",
+				}: params.Actions,
+				{
 					Name: "user",
 					In:   "query",
 				}: params.User,
@@ -7626,6 +7630,10 @@ func (s *Server) handleCoreGetCoreAuditExportRequest(args [0]string, argsEscaped
 					Name: "q",
 					In:   "query",
 				}: params.Q,
+				{
+					Name: "actions",
+					In:   "query",
+				}: params.Actions,
 				{
 					Name: "user",
 					In:   "query",
@@ -29244,7 +29252,8 @@ func (s *Server) handleHoneypotPatchHoneypotTrapIpsIDRequest(args [1]string, arg
 // handleHoneypotPostHoneypotTestHitRequest handles honeypot_post_honeypot_test_hit operation.
 //
 // "Test trap": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with
-// that service; not counted in statistics, no alert sent.
+// that service, and sends the alert a real hit would send, marked Test, to the alert channels that are
+// on; never an incident, not counted in statistics.
 //
 // POST /honeypot/test-hit
 func (s *Server) handleHoneypotPostHoneypotTestHitRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29328,7 +29337,7 @@ func (s *Server) handleHoneypotPostHoneypotTestHitRequest(args [0]string, argsEs
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    HoneypotPostHoneypotTestHitOperation,
-			OperationSummary: "\"Test trap\": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with that service; not counted in statistics, no alert sent",
+			OperationSummary: "\"Test trap\": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with that service, and sends the alert a real hit would send, marked Test, to the alert channels that are on; never an incident, not counted in statistics",
 			OperationID:      "honeypot_post_honeypot_test_hit",
 			Body:             request,
 			RawBody:          rawBody,
@@ -29385,7 +29394,8 @@ func (s *Server) handleHoneypotPostHoneypotTestHitRequest(args [0]string, argsEs
 
 // handleHoneypotPostHoneypotTestScanRequest handles honeypot_post_honeypot_test_scan operation.
 //
-// "Test scan": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent.
+// "Test scan": a labelled test scan from the box across the Trap IPs, with its test alert marked Test;
+// never an incident, not counted.
 //
 // POST /honeypot/test-scan
 func (s *Server) handleHoneypotPostHoneypotTestScanRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29454,7 +29464,7 @@ func (s *Server) handleHoneypotPostHoneypotTestScanRequest(args [0]string, argsE
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    HoneypotPostHoneypotTestScanOperation,
-			OperationSummary: "\"Test scan\": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent",
+			OperationSummary: "\"Test scan\": a labelled test scan from the box across the Trap IPs, with its test alert marked Test; never an incident, not counted",
 			OperationID:      "honeypot_post_honeypot_test_scan",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -29652,7 +29662,8 @@ func (s *Server) handleHoneypotPostHoneypotTokensRequest(args [0]string, argsEsc
 
 // handleHoneypotPostHoneypotTokensIDTestRequest handles honeypot_post_honeypot_tokens_id_test operation.
 //
-// "Test token": a labelled test trigger, not counted, no alert sent.
+// "Test token": a labelled test trigger, with its test alert marked Test; never an incident, not
+// counted.
 //
 // POST /honeypot/tokens/{id}/test
 func (s *Server) handleHoneypotPostHoneypotTokensIDTestRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29731,7 +29742,7 @@ func (s *Server) handleHoneypotPostHoneypotTokensIDTestRequest(args [1]string, a
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    HoneypotPostHoneypotTokensIDTestOperation,
-			OperationSummary: "\"Test token\": a labelled test trigger, not counted, no alert sent",
+			OperationSummary: "\"Test token\": a labelled test trigger, with its test alert marked Test; never an incident, not counted",
 			OperationID:      "honeypot_post_honeypot_tokens_id_test",
 			Body:             nil,
 			RawBody:          rawBody,

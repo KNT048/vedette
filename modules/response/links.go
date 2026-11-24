@@ -267,10 +267,13 @@ func (s *Service) linkRecord(ctx context.Context, token string) (rec tokenRow, o
 	return rec, true, nil
 }
 
-// linkState is what a link and its request say: used, expired, decided or ready (same order as the mock).
+// linkState is what a link and its request say: withdrawn, used, expired, decided or ready. A request a device split withdrew says so
+// first, even to the approver who already used the link for the first of two approvals.
 func (s *Service) linkState(rec tokenRow, r request) string {
 	now := s.now()
 	switch {
+	case isWithdrawn(r):
+		return "withdrawn"
 	case rec.used:
 		return "used"
 	case !rec.expires.After(now) || r.Status == StatusExpired || (r.Status == StatusPending && !parseTS(r.ExpiresAt).After(now)):
@@ -371,14 +374,13 @@ func (s *Service) DecideByLink(ctx context.Context, token, decision, from string
 	}
 	withID := func(e *apierr.Error) *apierr.Error { return e.With("request_id", r.ID) }
 	// A refusal of a link that is known is logged like any refusal (INV-19, the mock does the same), with the request and the address.
-	switch state := s.linkState(rec, r); state {
-	case "used", "expired":
+	switch state := s.linkState(rec, r); {
+	case state == "used" || (state == "expired" && r.Status == StatusPending): // the link ran out, not the request: a new one is asked for
 		return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusConflict, state, linkMsg(state))), r.ID, rec.address)
-	case "decided":
-		if s.linkUsed(ctx, rec.hash) { // the winner of two POSTs at once burned it after we read it: say so
-			return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusConflict, "used", linkMsg("used"))), r.ID, rec.address)
-		}
-		return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusConflict, "decided", "This request is already "+strings.ReplaceAll(string(r.Status), "_", " ")+".")), r.ID, rec.address)
+	case state == "decided" && s.linkUsed(ctx, rec.hash): // the winner of two POSTs at once burned it after we read it: say so
+		return ActionRequest{}, s.refuse(ctx, withID(fail(http.StatusConflict, "used", linkMsg("used"))), r.ID, rec.address)
+	case state != "ready": // the request ended (withdrawn, expired, decided): the same answer as a chat button or the app
+		return ActionRequest{}, s.refuse(ctx, withID(outsideApp(s.endedAnswer(ctx, s.cfg.DB.Reader(), r))), r.ID, rec.address)
 	}
 	st, err := loadSettings(ctx, s.cfg.DB.Reader())
 	if err != nil {
@@ -420,16 +422,23 @@ func (s *Service) DecideByLink(ctx context.Context, token, decision, from string
 		out, err = s.reject(ctx, who, r.ID, "through an email link", RememberNone, lk)
 	}
 	if ae, ok := apierr.As(err); ok && ae.Status == http.StatusConflict {
-		if ae.Code == "not_pending" { // decided between the check above and the transaction
-			code := "decided"
-			if s.linkUsed(ctx, rec.hash) {
-				code = "used"
-			}
-			ae = fail(http.StatusConflict, code, ae.Message)
+		if ae.Code == "not_pending" && s.linkUsed(ctx, rec.hash) { // decided between the check above and the transaction, by this link
+			ae = fail(http.StatusConflict, "used", linkMsg("used"))
 		}
-		return ActionRequest{}, withID(ae)
+		return ActionRequest{}, withID(outsideApp(ae))
 	}
 	return out, err
+}
+
+// outsideApp is the answer to a chat button, reply code or email link for a request that is no longer pending: the app's not_pending
+// is "decided" there (notify and the link page branch on it); every other answer is passed as it is.
+func outsideApp(e *apierr.Error) *apierr.Error {
+	if e.Code != "not_pending" {
+		return e
+	}
+	c := *e
+	c.Code = "decided"
+	return &c
 }
 
 // linkOpt is what a decision that did not come from the app adds to approve and reject: the hash of the token, burned in the decision

@@ -18,6 +18,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/logexport"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
@@ -199,7 +200,11 @@ func (h *APIHandlers) CoreGetCoreDataExport(ctx context.Context) (oas.CoreGetCor
 	started = true
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		hd := x.W.Header()
-		hd.Set("Content-Disposition", fmt.Sprintf("attachment; filename=vedette-export-%s.json", h.now().UTC().Format(dateLayout)))
+		loc, lerr := h.orgLocation(ctx) // the day in the name is the organization's, as on every page
+		if lerr != nil {
+			loc = time.UTC
+		}
+		hd.Set("Content-Disposition", fmt.Sprintf("attachment; filename=vedette-export-%s.json", orgtime.ISODay(h.now(), loc)))
 		hd.Set("Cache-Control", "no-store")
 		x.SetContentType("application/json") // L3: the generated file encoder says octet-stream; this puts the right type back
 		b.rc = http.NewResponseController(x.W)

@@ -1059,7 +1059,11 @@ func (h *OSHandlers) CorePostCoreDataKey(ctx context.Context, req *oas.CorePostC
 	}
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		hd := x.W.Header()
-		hd.Set("Content-Disposition", `attachment; filename="vedette-key-`+h.now().UTC().Format("2006-01-02")+`.key"`)
+		loc, lerr := h.location(ctx) // the day in the name is the organization's, as on every page
+		if lerr != nil {
+			loc = time.UTC
+		}
+		hd.Set("Content-Disposition", `attachment; filename="vedette-key-`+orgtime.ISODay(h.now(), loc)+`.key"`)
 		hd.Set("Content-Length", strconv.Itoa(len(key)))
 	}
 	return oas.CorePostCoreDataKeyOK{Data: bytes.NewReader(key)}, nil

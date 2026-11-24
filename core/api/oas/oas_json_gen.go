@@ -29531,14 +29531,19 @@ func (s *CoreGetCoreGeneralOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.Name)
 	}
 	{
+		e.FieldStart("os_time_zone")
+		s.OsTimeZone.Encode(e)
+	}
+	{
 		e.FieldStart("timezone")
 		e.Str(s.Timezone)
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreGeneralOK = [2]string{
+var jsonFieldsNameOfCoreGetCoreGeneralOK = [3]string{
 	0: "name",
-	1: "timezone",
+	1: "os_time_zone",
+	2: "timezone",
 }
 
 // Decode decodes CoreGetCoreGeneralOK from json.
@@ -29562,8 +29567,18 @@ func (s *CoreGetCoreGeneralOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
-		case "timezone":
+		case "os_time_zone":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.OsTimeZone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"os_time_zone\"")
+			}
+		case "timezone":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Timezone = string(v)
@@ -29584,7 +29599,7 @@ func (s *CoreGetCoreGeneralOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -29626,6 +29641,174 @@ func (s *CoreGetCoreGeneralOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CoreGetCoreGeneralOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CoreGetCoreGeneralOKOsTimeZone) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetCoreGeneralOKOsTimeZone) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("message")
+		s.Message.Encode(e)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("zone")
+		s.Zone.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCoreGetCoreGeneralOKOsTimeZone = [3]string{
+	0: "message",
+	1: "state",
+	2: "zone",
+}
+
+// Decode decodes CoreGetCoreGeneralOKOsTimeZone from json.
+func (s *CoreGetCoreGeneralOKOsTimeZone) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreGeneralOKOsTimeZone to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "message":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Message.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"message\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "zone":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Zone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"zone\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetCoreGeneralOKOsTimeZone")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetCoreGeneralOKOsTimeZone) {
+					name = jsonFieldsNameOfCoreGetCoreGeneralOKOsTimeZone[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetCoreGeneralOKOsTimeZone) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreGeneralOKOsTimeZone) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CoreGetCoreGeneralOKOsTimeZoneState as json.
+func (s CoreGetCoreGeneralOKOsTimeZoneState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetCoreGeneralOKOsTimeZoneState from json.
+func (s *CoreGetCoreGeneralOKOsTimeZoneState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreGeneralOKOsTimeZoneState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetCoreGeneralOKOsTimeZoneState(v) {
+	case CoreGetCoreGeneralOKOsTimeZoneStateInSync:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStateInSync
+	case CoreGetCoreGeneralOKOsTimeZoneStatePending:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStatePending
+	case CoreGetCoreGeneralOKOsTimeZoneStateFailed:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStateFailed
+	case CoreGetCoreGeneralOKOsTimeZoneStateNotManaged:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStateNotManaged
+	default:
+		*s = CoreGetCoreGeneralOKOsTimeZoneState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetCoreGeneralOKOsTimeZoneState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreGeneralOKOsTimeZoneState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -40706,8 +40889,10 @@ func (s *CoreGetSchedulesOwnerKeyOKRule) encodeFields(e *jx.Encoder) {
 		s.OnceAt.Encode(e, json.EncodeDateTime)
 	}
 	{
-		e.FieldStart("tz")
-		e.Str(s.Tz)
+		if s.Tz.Set {
+			e.FieldStart("tz")
+			s.Tz.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("weekdays")
@@ -40821,11 +41006,9 @@ func (s *CoreGetSchedulesOwnerKeyOKRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"once_at\"")
 			}
 		case "tz":
-			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				v, err := d.Str()
-				s.Tz = string(v)
-				if err != nil {
+				s.Tz.Reset()
+				if err := s.Tz.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -40926,7 +41109,7 @@ func (s *CoreGetSchedulesOwnerKeyOKRule) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111111,
+		0b11011111,
 		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
@@ -60217,9 +60400,15 @@ func (s *CorePostCoreSetupReq) encodeFields(e *jx.Encoder) {
 			s.SetupCode.Encode(e)
 		}
 	}
+	{
+		if s.Timezone.Set {
+			e.FieldStart("timezone")
+			s.Timezone.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfCorePostCoreSetupReq = [9]string{
+var jsonFieldsNameOfCorePostCoreSetupReq = [10]string{
 	0: "accept_terms",
 	1: "admin",
 	2: "bundle",
@@ -60229,6 +60418,7 @@ var jsonFieldsNameOfCorePostCoreSetupReq = [9]string{
 	6: "org",
 	7: "sample",
 	8: "setup_code",
+	9: "timezone",
 }
 
 // Decode decodes CorePostCoreSetupReq from json.
@@ -60344,6 +60534,16 @@ func (s *CorePostCoreSetupReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"setup_code\"")
+			}
+		case "timezone":
+			if err := func() error {
+				s.Timezone.Reset()
+				if err := s.Timezone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"timezone\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -76736,8 +76936,10 @@ func (s *CorePostSchedulesPreviewReqRule) encodeFields(e *jx.Encoder) {
 		s.OnceAt.Encode(e, json.EncodeDateTime)
 	}
 	{
-		e.FieldStart("tz")
-		e.Str(s.Tz)
+		if s.Tz.Set {
+			e.FieldStart("tz")
+			s.Tz.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("weekdays")
@@ -76851,11 +77053,9 @@ func (s *CorePostSchedulesPreviewReqRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"once_at\"")
 			}
 		case "tz":
-			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				v, err := d.Str()
-				s.Tz = string(v)
-				if err != nil {
+				s.Tz.Reset()
+				if err := s.Tz.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -76956,7 +77156,7 @@ func (s *CorePostSchedulesPreviewReqRule) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111111,
+		0b11011111,
 		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
@@ -78607,14 +78807,19 @@ func (s *CorePutCoreGeneralOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.Name)
 	}
 	{
+		e.FieldStart("os_time_zone")
+		s.OsTimeZone.Encode(e)
+	}
+	{
 		e.FieldStart("timezone")
 		e.Str(s.Timezone)
 	}
 }
 
-var jsonFieldsNameOfCorePutCoreGeneralOK = [2]string{
+var jsonFieldsNameOfCorePutCoreGeneralOK = [3]string{
 	0: "name",
-	1: "timezone",
+	1: "os_time_zone",
+	2: "timezone",
 }
 
 // Decode decodes CorePutCoreGeneralOK from json.
@@ -78638,8 +78843,18 @@ func (s *CorePutCoreGeneralOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
-		case "timezone":
+		case "os_time_zone":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.OsTimeZone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"os_time_zone\"")
+			}
+		case "timezone":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Timezone = string(v)
@@ -78660,7 +78875,7 @@ func (s *CorePutCoreGeneralOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -78702,6 +78917,174 @@ func (s *CorePutCoreGeneralOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePutCoreGeneralOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePutCoreGeneralOKOsTimeZone) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePutCoreGeneralOKOsTimeZone) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("message")
+		s.Message.Encode(e)
+	}
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+	{
+		e.FieldStart("zone")
+		s.Zone.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfCorePutCoreGeneralOKOsTimeZone = [3]string{
+	0: "message",
+	1: "state",
+	2: "zone",
+}
+
+// Decode decodes CorePutCoreGeneralOKOsTimeZone from json.
+func (s *CorePutCoreGeneralOKOsTimeZone) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreGeneralOKOsTimeZone to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "message":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Message.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"message\"")
+			}
+		case "state":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "zone":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Zone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"zone\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePutCoreGeneralOKOsTimeZone")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePutCoreGeneralOKOsTimeZone) {
+					name = jsonFieldsNameOfCorePutCoreGeneralOKOsTimeZone[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePutCoreGeneralOKOsTimeZone) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreGeneralOKOsTimeZone) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePutCoreGeneralOKOsTimeZoneState as json.
+func (s CorePutCoreGeneralOKOsTimeZoneState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePutCoreGeneralOKOsTimeZoneState from json.
+func (s *CorePutCoreGeneralOKOsTimeZoneState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePutCoreGeneralOKOsTimeZoneState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePutCoreGeneralOKOsTimeZoneState(v) {
+	case CorePutCoreGeneralOKOsTimeZoneStateInSync:
+		*s = CorePutCoreGeneralOKOsTimeZoneStateInSync
+	case CorePutCoreGeneralOKOsTimeZoneStatePending:
+		*s = CorePutCoreGeneralOKOsTimeZoneStatePending
+	case CorePutCoreGeneralOKOsTimeZoneStateFailed:
+		*s = CorePutCoreGeneralOKOsTimeZoneStateFailed
+	case CorePutCoreGeneralOKOsTimeZoneStateNotManaged:
+		*s = CorePutCoreGeneralOKOsTimeZoneStateNotManaged
+	default:
+		*s = CorePutCoreGeneralOKOsTimeZoneState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePutCoreGeneralOKOsTimeZoneState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePutCoreGeneralOKOsTimeZoneState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -90898,8 +91281,10 @@ func (s *CorePutSchedulesOwnerKeyOKRule) encodeFields(e *jx.Encoder) {
 		s.OnceAt.Encode(e, json.EncodeDateTime)
 	}
 	{
-		e.FieldStart("tz")
-		e.Str(s.Tz)
+		if s.Tz.Set {
+			e.FieldStart("tz")
+			s.Tz.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("weekdays")
@@ -91013,11 +91398,9 @@ func (s *CorePutSchedulesOwnerKeyOKRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"once_at\"")
 			}
 		case "tz":
-			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				v, err := d.Str()
-				s.Tz = string(v)
-				if err != nil {
+				s.Tz.Reset()
+				if err := s.Tz.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -91118,7 +91501,7 @@ func (s *CorePutSchedulesOwnerKeyOKRule) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111111,
+		0b11011111,
 		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
@@ -91411,8 +91794,10 @@ func (s *CorePutSchedulesOwnerKeyReqRule) encodeFields(e *jx.Encoder) {
 		s.OnceAt.Encode(e, json.EncodeDateTime)
 	}
 	{
-		e.FieldStart("tz")
-		e.Str(s.Tz)
+		if s.Tz.Set {
+			e.FieldStart("tz")
+			s.Tz.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("weekdays")
@@ -91526,11 +91911,9 @@ func (s *CorePutSchedulesOwnerKeyReqRule) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"once_at\"")
 			}
 		case "tz":
-			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				v, err := d.Str()
-				s.Tz = string(v)
-				if err != nil {
+				s.Tz.Reset()
+				if err := s.Tz.Decode(d); err != nil {
 					return err
 				}
 				return nil
@@ -91631,7 +92014,7 @@ func (s *CorePutSchedulesOwnerKeyReqRule) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11111111,
+		0b11011111,
 		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {

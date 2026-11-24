@@ -109,6 +109,15 @@ func lockstep(cur, prev string) api.ContainersState {
 	return st
 }
 
+// StateTime and OSTimezoneSet: this fake is a helper older than the time zone command (the alignment at start leaves it alone).
+func (f *updHost) StateTime(context.Context) (api.TimeState, error) {
+	return api.TimeState{}, &hostclient.Error{Status: http.StatusNotFound, Code: api.CodeUnknownCommand, Message: "unknown command"}
+}
+
+func (f *updHost) OSTimezoneSet(context.Context, string, string, string) (api.Run, error) {
+	return api.Run{}, &hostclient.Error{Status: http.StatusNotFound, Code: api.CodeUnknownCommand, Message: "unknown command"}
+}
+
 func (f *updHost) svc(name string) *api.ContainerState {
 	for i := range f.st.Services {
 		if f.st.Services[i].Service == name {

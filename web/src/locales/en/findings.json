@@ -599,6 +599,7 @@
     "caption": "What needs your input",
     "empty": "Nothing needs your input",
     "emptyBody": "Vedette settles everything else by itself.",
+    "notAdded_zero": "Nobody added this device yet. It has no open finding.",
     "notAdded_one": "Nobody added this device yet. It has {{count}} open finding.",
     "notAdded_other": "Nobody added this device yet. It has {{count}} open findings.",
     "safeCheck": "Run the safe check",

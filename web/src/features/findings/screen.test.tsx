@@ -173,7 +173,11 @@ describe('Findings: Needs your input', () => {
   it('a device not added yet is in the queue with Add device, and leaves it once added', async () => {
     renderApp('/findings?tab=input')
     const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
-    const add = await within(table).findByRole('button', { name: /^Add device / }, T)
+    // every device nobody added is a card, findings or not: the ones with findings first, then the rest with "no open finding"
+    const adds = await within(table).findAllByRole('button', { name: /^Add device / }, T)
+    expect(adds.length).toBeGreaterThan(1)
+    expect(within(table).getAllByText('Nobody added this device yet. It has no open finding.').length).toBeGreaterThan(0)
+    const add = adds[0]!
     const name = add.getAttribute('aria-label')!.replace('Add device ', '')
     await userEvent.click(add)
     await waitFor(() => expect(within(table).queryByRole('button', { name: `Add device ${name}` })).toBeNull(), T)

@@ -468,3 +468,50 @@ func TestModelAPI_NeedsYourInputReadsSearchTermsOnlyForASearch(t *testing.T) {
 		t.Fatalf("the queue: %d items, first %+v; want the device not added first with its 2 open findings", all.Total, all.Items[0])
 	}
 }
+
+// Every device nobody added yet is in the queue with Add device and Ignore, findings or not: a device discovery found that has no
+// finding yet (it was never matched, or nothing on it is exploited) still waits for a person to say whether it is theirs. The ones
+// with findings come first; a device leaves when it is added or ignored, and the box is never asked about.
+func TestModelAPI_EveryDeviceNotAddedNeedsInput(t *testing.T) {
+	e := modelEnv(t)
+	e.inv.mu.Lock()
+	e.inv.assets["a-cam"] = AssetView{ID: "a-cam", Name: "cam-02", IP: "192.0.2.80", Kind: "camera"}
+	e.inv.assets["a-box"] = AssetView{ID: "a-box", Name: "vedette", IP: "192.0.2.2", Kind: "server", Box: true}
+	e.inv.match = map[string]Asset{"a-nas": {}, "a-fw": {}, "a-new": {}, "a-cam": {}, "a-box": {}}
+	e.inv.mu.Unlock()
+	notAdded := func() (ids []string, findings []int) {
+		in := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input", "viewer", "")
+		for _, it := range in.Items {
+			if it.Type == "device_not_added" {
+				ids = append(ids, it.FindingsGetFindingsInput1DeviceNotAdded.ID)
+				findings = append(findings, it.FindingsGetFindingsInput1DeviceNotAdded.Findings)
+			}
+		}
+		return ids, findings
+	}
+	ids, n := notAdded()
+	if !slices.Equal(ids, []string{"device:a-new", "device:a-cam"}) || !slices.Equal(n, []int{1, 0}) {
+		t.Fatalf("devices not added in the queue: %v with %v findings; want printer-07 (1) then cam-02 (0)", ids, n)
+	}
+	if one := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?device=a-cam", "viewer", ""); one.Total != 1 {
+		t.Errorf("the queue of cam-02 alone: %d items, want its Add device card", one.Total)
+	}
+	if q := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q=cam-02", "viewer", ""); q.Total != 1 {
+		t.Errorf("search cam-02: %d items", q.Total)
+	}
+	e.inv.mu.Lock()
+	a := e.inv.assets["a-cam"]
+	a.Approved = true
+	e.inv.assets["a-cam"] = a
+	e.inv.mu.Unlock()
+	if ids, _ := notAdded(); !slices.Equal(ids, []string{"device:a-new"}) {
+		t.Fatalf("after cam-02 was added: %v", ids)
+	}
+	e.inv.mu.Lock()
+	e.inv.ignored["a-new"] = true
+	delete(e.inv.match, "a-new")
+	e.inv.mu.Unlock()
+	if ids, _ := notAdded(); len(ids) != 0 {
+		t.Fatalf("after printer-07 was ignored: %v", ids)
+	}
+}

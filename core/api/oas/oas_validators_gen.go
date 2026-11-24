@@ -56708,7 +56708,7 @@ func (s *FindingsGetFindingsInput1DeviceNotAdded) Validate() error {
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           1,
+			Min:           0,
 			MaxSet:        true,
 			Max:           9007199254740991,
 			MinExclusive:  false,

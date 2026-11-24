@@ -111,6 +111,10 @@ function inputItems(): InputItem[] {
       const layer = Math.min(...l.map((r) => r.layer))
       return { kind: 'device_not_added', id: `device:${l[0]!.asset_id}`, device: deviceRef(l[0]!.asset), status: { code: OPEN_STATUSES[layer - 1]!, count: new Set(l.filter((r) => r.layer === layer).map((r) => r.cve)).size }, findings: l.length }
     })
+  // every device nobody added yet is a card, findings or not (after the ones with findings), as the server lists them
+  const withFindings = new Set(notAdded.map((i) => i.device.id))
+  notAdded.push(...assetsStore.get().filter((a) => !a.approved && a.id !== BOX_ID && visible(a.id) && !withFindings.has(a.id))
+    .map((a): InputItem => ({ kind: 'device_not_added', id: `device:${a.id}`, device: deviceRef(a), status: null, findings: 0 })))
   const unconfirmed = all.filter((r) => r.state === 'open' && r.layer <= 4 && r.verified === 'no' && visible(r.asset_id)).sort((a, b) => a.layer - b.layer || bySeverity(a, b))
     .map((r): InputItem => ({ kind: 'unconfirmed', id: r.id, cve: r.cve, device: deviceRef(r.asset), software: r.software, status: OPEN_STATUSES[r.layer - 1] as 'exploited',
       severity: severityOf(r.cve), basis: r.basis, safe_check: SAFE_CHECKS.has(r.cve) }))

@@ -103001,12 +103001,13 @@ func (s *FindingsGetFindingsIDViewOKVerificationVerified) UnmarshalText(data []b
 	}
 }
 
-// A device nobody added has open findings: Add device (POST /inventory/devices/{id}/approve) or Ignore
-// (POST /inventory/devices/{id}/ignore).
+// A device nobody added yet, with or without open findings (the ones with findings first): Add device
+// (POST /inventory/devices/{id}/approve) or Ignore (POST /inventory/devices/{id}/ignore).
 // Ref: #/components/schemas/findings_get_findings_input_1_device_not_added
 type FindingsGetFindingsInput1DeviceNotAdded struct {
-	Device   FindingsGetFindingsInput1DeviceNotAddedDevice `json:"device"`
-	Findings int                                           `json:"findings"`
+	Device FindingsGetFindingsInput1DeviceNotAddedDevice `json:"device"`
+	// Its open findings; 0 for a device nothing is matched on yet.
+	Findings int `json:"findings"`
 	// The item: "device:".
 	ID   string `json:"id"`
 	Kind string `json:"kind"`

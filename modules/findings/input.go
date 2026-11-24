@@ -16,7 +16,7 @@ import (
 )
 
 // Input is the Needs your input queue: what Vedette cannot settle without a person, in one list. Four kinds of item, each with its one
-// action: a device nobody added that has open findings (Add device, Ignore), a watched device Vedette knows nothing to check by (say
+// action: a device nobody added yet, with or without open findings (Add device, Ignore; the ones with findings first), a watched device Vedette knows nothing to check by (say
 // what runs there: its firmware, SNMP read access or an agent), an urgent finding (layers 1 to 4) not confirmed yet (Run the safe
 // check, Confirm vulnerability, Not affected), and a question (fnd_question) not answered yet. Devices a person ignored are left out. An item leaves the moment it is answered or stops being true: the queue is read from the current rows, never stored.
 
@@ -65,6 +65,9 @@ func (it InputItemJS) MarshalJSON() ([]byte, error) {
 		if _, ok := m[k]; !ok {
 			m[k] = nil
 		}
+	}
+	if _, ok := m["findings"]; !ok && it.Kind == "device_not_added" { // a device not added yet with no finding says 0
+		m["findings"] = 0
 	}
 	if it.Kind == "question" {
 		for _, k := range []string{"choices", "cve_list", "fixes"} {
@@ -157,6 +160,17 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 	for id := range counts {
 		assets[id] = true
 	}
+	// every device that is not ignored is a candidate for "not added yet", findings or not: a device discovery found waits for a
+	// person to add or ignore it even when nothing on it is matched yet
+	all, err := s.cfg.Inventory.AssetIDs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("findings: needs your input: reading the devices: %w", err)
+	}
+	for _, id := range all {
+		if device == "" || id == device {
+			assets[id] = true
+		}
+	}
 	for _, x := range qs {
 		assets[x.AssetID] = true
 		if x.SoftwareID != "" {
@@ -169,8 +183,8 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 	}
 	var out []InputItemJS
 	var notAdded []string
-	for id := range counts {
-		if a, ok := ref.assets[id]; ok && !a.Approved {
+	for id := range assets {
+		if a, ok := ref.assets[id]; ok && !a.Approved && !a.Box && !a.Ignored {
 			notAdded = append(notAdded, id)
 		}
 	}

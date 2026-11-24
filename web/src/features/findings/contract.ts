@@ -350,8 +350,8 @@ export const InputItem = z.discriminatedUnion('kind', [
     id: z.string().describe('The item: "device:<device id>"'),
     device: DeviceRef,
     status: DeviceStatus,
-    findings: z.number().int().min(1),
-  }).describe('A device nobody added has open findings: Add device (POST /inventory/devices/{id}/approve) or Ignore (POST /inventory/devices/{id}/ignore)'),
+    findings: z.number().int().min(0).describe('Its open findings; 0 for a device nothing is matched on yet'),
+  }).describe('A device nobody added yet, with or without open findings (the ones with findings first): Add device (POST /inventory/devices/{id}/approve) or Ignore (POST /inventory/devices/{id}/ignore)'),
   z.object({
     kind: z.literal('device_unchecked'),
     id: z.string().describe('The item'),

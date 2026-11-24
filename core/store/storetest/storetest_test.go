@@ -127,3 +127,42 @@ func TestMigratedCopiesATemplatePerList(t *testing.T) {
 		t.Fatalf("tables %q, want m_a", got)
 	}
 }
+
+// A column added to an existing table with CHECK or REFERENCES is refused (the release would be unsafe to roll back); the same
+// constraint on a new table, a plain added column, and the word in a comment pass.
+func TestAssertAddedColumnsUnconstrained(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name, sql, wantMsg string
+	}{
+		{"plain added column", "ALTER TABLE feeds_a ADD COLUMN y TEXT NOT NULL DEFAULT '';", ""},
+		{"constraint on a new table", "CREATE TABLE feeds_b (x TEXT CHECK (x <> ''), a TEXT REFERENCES feeds_a(x));", ""},
+		{"word in a comment", "-- no CHECK here: validated in Go\nALTER TABLE feeds_a ADD COLUMN y TEXT; /* REFERENCES none */", ""},
+		{"check on an added column", "ALTER TABLE feeds_a ADD COLUMN y TEXT CHECK (y IN ('a', 'b'));", "adds a column with CHECK"},
+		{"reference on an added column", "ALTER TABLE feeds_a ADD y TEXT REFERENCES feeds_b(x);", "adds a column with REFERENCES"},
+		{"lower case", "alter table feeds_a add column y integer check (y > 0);", "validate its values in Go"},
+	}
+	for _, tc := range tests {
+		f := &fakeTB{TB: t}
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			storetest.AssertAddedColumnsUnconstrained(f, "feeds", fstest.MapFS{"0002_x.sql": {Data: []byte("-- +goose Up\n" + tc.sql)}})
+		}()
+		<-done
+		got := strings.Join(f.msgs, "\n")
+		if tc.wantMsg == "" && got != "" || tc.wantMsg != "" && !strings.Contains(got, tc.wantMsg) {
+			t.Errorf("%s: want %q, got %q", tc.name, tc.wantMsg, got)
+		}
+	}
+}
+
+// A file of a published release that already adds a constrained column is never edited, so it is let through by name.
+func TestAssertAddedColumnsUnconstrainedLetsReleasedFilesStand(t *testing.T) {
+	t.Parallel()
+	f := &fakeTB{TB: t}
+	storetest.AssertAddedColumnsUnconstrained(f, "notify", fstest.MapFS{"0002_notify_notice_unsent.sql": {Data: []byte("-- +goose Up\nALTER TABLE notify_notice ADD COLUMN title TEXT CHECK (title IS NULL);")}})
+	if len(f.msgs) != 0 {
+		t.Fatalf("a released file was refused: %v", f.msgs)
+	}
+}

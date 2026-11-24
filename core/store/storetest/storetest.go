@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -93,6 +94,65 @@ func AssertMigrationsUsePrefix(t testing.TB, module string, fsys fs.FS, prefix s
 	}
 	if created == 0 {
 		t.Fatalf("storetest: migrations of %s created nothing (prefix %q)", module, prefix)
+	}
+	AssertAddedColumnsUnconstrained(t, module, fsys)
+}
+
+// releasedConstrainedColumns are migration files already in a published release that add a column with CHECK or REFERENCES.
+// A released file is never edited (the release history check), so they stay; no file joins this list.
+var releasedConstrainedColumns = map[string]bool{
+	"inventory/0002_inventory_catalogue.sql": true,
+	"notify/0002_notify_notice_unsent.sql":   true,
+}
+
+var (
+	lineComment  = regexp.MustCompile(`--[^\n]*`)
+	blockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	alterAdd     = regexp.MustCompile(`(?is)^\s*ALTER\s+TABLE\s+\S+\s+ADD\b`)
+	constraintKW = regexp.MustCompile(`(?i)\b(CHECK|REFERENCES)\b`)
+)
+
+// head is the start of a statement on one line, for a failure message.
+func head(stmt string) string {
+	s := strings.Join(strings.Fields(stmt), " ")
+	if r := []rune(s); len(r) > 80 {
+		return string(r[:80]) + "..."
+	}
+	return s
+}
+
+// AssertAddedColumnsUnconstrained refuses a column added to an existing table (ALTER TABLE ... ADD COLUMN) with a CHECK or a
+// REFERENCES constraint (docs/DATA_MODEL.md section 6, rule 10). The previous release keeps writing that table after a rollback
+// without knowing the new column, and a constraint on it can refuse those writes, so the release builder must then declare
+// rollback.safe=false and a rollback restores the database from the copy taken before the update. A new table may carry any
+// constraint. It reads the statement text (comments removed) and fails closed: the word CHECK or REFERENCES anywhere in the
+// statement counts.
+func AssertAddedColumnsUnconstrained(t testing.TB, module string, fsys fs.FS) {
+	t.Helper()
+	names, err := fs.Glob(fsys, "*.sql")
+	if err != nil {
+		t.Fatalf("storetest: list migrations of %s: %v", module, err)
+	}
+	for _, name := range names {
+		if releasedConstrainedColumns[module+"/"+name] {
+			continue
+		}
+		b, err := fs.ReadFile(fsys, name)
+		if err != nil {
+			t.Fatalf("storetest: read %s/%s: %v", module, name, err)
+		}
+		text := lineComment.ReplaceAllString(blockComment.ReplaceAllString(string(b), " "), "")
+		for stmt := range strings.SplitSeq(text, ";") {
+			if !alterAdd.MatchString(stmt) {
+				continue
+			}
+			if m := constraintKW.FindString(stmt); m != "" {
+				t.Errorf("migration %s/%s: %q adds a column with %s, which makes every release that carries it unsafe to roll back "+
+					"(rollback.safe=false: a rollback restores the database and loses what was written since the update). Add the "+
+					"column plain (a type, NULL or a DEFAULT) and validate its values in Go where the module writes it; put the "+
+					"constraint on a new table instead when it must be in SQL", module, name, head(stmt), strings.ToUpper(m))
+			}
+		}
 	}
 }
 

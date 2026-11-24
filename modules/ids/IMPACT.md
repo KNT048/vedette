@@ -12,6 +12,9 @@
 ## Modifying: the event `ids.alert.detected` (`AlertEvent`)
 - **notify** (`modules/notify/events.go` `intrusionEvent`): reads through the JSON `source, target, title, what, action, severity, link, at, devices`; `link` must start with `/detection/`. Changing `IncidentKey` → the old incident is no longer counted further and the alert's `incident` read (notify `IncidentOf`) loses its link.
 
+## Modifying: `announce`'s hourly dedupe, `Incidents.ResolvedSince`
+- `cmd/vedette/ids.go` `idsIncidents.ResolvedSince` → `incidentResolvedSince` → notify `ResolvedSince(ids.alert.detected, ev, since)`, false while notify is off. A key told in the hour is asked once a flush (only when a repeat of it arrives) with the time it was announced; true → it is announced again within `AlertEventsPerHour`. The summary is asked with the time it was last announced. A failed read keeps the repeat held back. Removing the check brings back "resolved, attacked again, nothing sent" within the hour.
+
 ## Modifying: `Findings.Linked` (the merge gate: device → CVE)
 - Installed in `idsFindings` (`cmd/vedette/ids.go`), reads `findings.Service.List` of each device.
 - Called once per page, per `Summarize` and per flush (not per device); the `idsFindings` adapter reads `Attacked` once per call.

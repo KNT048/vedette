@@ -269,6 +269,17 @@ func (w *hitRows) Write(p []byte) (int, error) {
 // listen on 127.0.0.1, which notify refuses as an SMTP server (in a container loopback is core itself).
 var notifySMTPLoopback bool
 
+// incidentResolvedSince is notify's ResolvedSince for a module that holds back repeats of an incident key (ids, logs, honeypot): whether the
+// incident an event would count on was resolved at or after since with none of its key open. False while notify is off.
+func incidentResolvedSince(d *deps) func(ctx context.Context, event string, data any, since time.Time) (bool, error) {
+	return func(ctx context.Context, event string, data any, since time.Time) (bool, error) {
+		if d.Reg != nil && !d.Reg.Enabled(notify.ModuleID) {
+			return false, nil
+		}
+		return newNotify(d).ResolvedSince(ctx, event, data, since)
+	}
+}
+
 func newNotify(d *deps) *notify.Service {
 	notifyMu.Lock()
 	defer notifyMu.Unlock()

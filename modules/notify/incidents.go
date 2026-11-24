@@ -66,6 +66,18 @@ func dedupeKey(in IncidentInput) string {
 	return hex.EncodeToString(h[:])
 }
 
+// mergeKeys are the dedupe keys a repeat of in counts on, in order: first is the key whose open incident it joins before one of its own
+// (for an attempt, the open connection of the same source and target), key is its own.
+func mergeKeys(in IncidentInput) (first, key string) {
+	key = dedupeKey(in)
+	if !in.Attempt {
+		return key, key
+	}
+	conn := in
+	conn.Attempt = false
+	return dedupeKey(conn), key
+}
+
 // OpenIncident records an incident (PRE-2, POST-2, INV-10). The same kind, source and target while
 // the incident is not resolved only raises its count and last_seen; a new incident is queued for the
 // channels and announced as notify.incident.created. Repeats are not sent again. In the first-run window a
@@ -84,13 +96,7 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 		at = now
 	}
 	ts := store.FormatTS(at)
-	key := dedupeKey(in)
-	first := key // a repeat counts on an open incident of this key before one of its own: for an attempt, the open connection
-	if in.Attempt {
-		conn := in
-		conn.Attempt = false
-		first = dedupeKey(conn)
-	}
+	first, key := mergeKeys(in)
 	held := false // INV-23: a low or medium bad-connection or log incident of the first-run window waits for the hourly summary
 	if heldKind(in.Kind) && in.Severity.rank() <= Medium.rank() {
 		if held, err = s.firstDiscovery(ctx); err != nil {
@@ -781,6 +787,41 @@ func (s *Service) IncidentOf(ctx context.Context, kind IncidentKind, source, tar
 	}
 	r.Status = IncidentStatus(status)
 	return r, true, nil
+}
+
+// ResolvedSince says whether a producer must let a repeat through although it already announced the event's key at since: no
+// incident the event would count on is open (OpenIncident would open a new one) and one of them was resolved, by a person or by
+// Vedette, at or after since. A producer that holds back repeats of a key (the ids hourly announcement dedupe, the logs dedupe time
+// of a bad connection or of failed logins, the honeypot hit window) asks it before holding one back: a repeat after the incident was
+// resolved is a new incident and must reach notify (the producer's hourly budget still applies). False while an incident of the key is
+// open (notify only counts the repeat), when none was resolved since the producer's announcement (the producer's budget held it, or
+// notify was off), for an event that opens no incident, and while the module is off.
+func (s *Service) ResolvedSince(ctx context.Context, event string, data any, since time.Time) (bool, error) {
+	if !s.on() {
+		return false, nil
+	}
+	in, ok, err := incidentOf(event, data)
+	if err != nil || !ok {
+		return false, err
+	}
+	first, key := mergeKeys(in)
+	var n int
+	// The open incident of a key is unique (notify_incident_open_uq): this reads the index.
+	if err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM notify_incident WHERE dedupe_key IN (?, ?) AND status <> 'resolved'`, first, key).Scan(&n); err != nil {
+		return false, fmt.Errorf("notify: find an open incident: %w", err)
+	}
+	if n > 0 {
+		return false, nil
+	}
+	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT 1 FROM notify_incident WHERE status = 'resolved' AND dedupe_key IN (?, ?) AND handled_at >= ? LIMIT 1`,
+		first, key, store.FormatTS(since)).Scan(&n)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("notify: find a resolved incident: %w", err)
+	}
+	return true, nil
 }
 
 // KindCount is how many incidents of a kind had activity in a window, and how many of them nobody acknowledged or resolved yet.

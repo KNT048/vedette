@@ -131,7 +131,7 @@ func (s *Service) OpenURLToken(ctx context.Context, o URLTokenOpen) error {
 	wctx, cancel := context.WithTimeout(ctx, urlTokenWriteWait)
 	defer cancel()
 	err = s.db.Write(wctx, func(tx *sql.Tx) error {
-		env.newHits, env.st = nil, Stats{}
+		env.newHits, env.st, env.asked, env.shownSrc = nil, Stats{}, nil, shown
 		return s.upsert(wctx, tx, env, h, line, "")
 	})
 	if err != nil {

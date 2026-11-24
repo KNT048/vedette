@@ -195,6 +195,10 @@ type ingestEnv struct {
 	newHits []HitEventData
 	ignored int
 	st      Stats
+	// asked is the windows (conn_key) of the batch in progress whose hit's incident was already asked about (resolvedAfter); shownSrc,
+	// when set, is the source address the event carries instead of the stored one (a URL token behind a proxy).
+	asked    map[string]bool
+	shownSrc string
 }
 
 func (s *Service) newIngest(ctx context.Context) (*ingestEnv, error) {
@@ -237,7 +241,7 @@ func (s *Service) newIngest(ctx context.Context) (*ingestEnv, error) {
 // hits it made (core/events: after the commit, a rolled-back hit is never announced).
 func (s *Service) ingestBatch(ctx context.Context, env *ingestEnv, batch []tailItem, pos tailPos) error {
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
-		env.newHits, env.ignored, env.st, env.batchUDP = nil, 0, Stats{}, 0
+		env.newHits, env.ignored, env.st, env.batchUDP, env.asked = nil, 0, Stats{}, 0, nil
 		for _, it := range batch {
 			if err := s.ingestOne(ctx, tx, env, it.rec); err != nil {
 				return err
@@ -759,8 +763,16 @@ func hasEvent(evs []HitEvent, ts, text string) bool {
 // nothing); excerpt, when not empty, is added to the excerpt of the hit. A new hit past the per-poll or per-hour cap is
 // counted as suppressed and not stored.
 func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h storedHit, line, excerptAdd string) error {
-	var id, excerpt, evJSON string
-	err := tx.QueryRowContext(ctx, `SELECT id, excerpt, events FROM hp_hits WHERE conn_key = ?`, h.connKey).Scan(&id, &excerpt, &evJSON)
+	var id, excerpt, evJSON, ts string
+	err := tx.QueryRowContext(ctx, `SELECT id, excerpt, events, ts FROM hp_hits WHERE conn_key = ?`, h.connKey).Scan(&id, &excerpt, &evJSON, &ts)
+	if err == nil && s.resolvedAfter(ctx, env, h, id, ts) {
+		// The window's hit had an incident that was resolved since: this connection starts a new hit (and a new incident). The old hit
+		// gives up the window's key, so the later connections of the window go to the new one.
+		if _, err := tx.ExecContext(ctx, `UPDATE hp_hits SET conn_key = ? WHERE id = ?`, connKey(h.connKey, id), id); err != nil {
+			return fmt.Errorf("honeypot: retire hit: %w", err)
+		}
+		err = sql.ErrNoRows
+	}
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		listener := len(env.newHits) - env.batchUDP
@@ -781,23 +793,10 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 		if err := s.insertHit(ctx, tx, h); err != nil {
 			return err
 		}
-		d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.TrapHostname, Unconfirmed: h.NoHandshake}
 		if h.NoHandshake {
 			env.batchUDP++
 		}
-		if d.Decoy == "" {
-			d.Decoy = h.TrapIP
-		}
-		if dev := env.w.byIP(h.SrcIP); dev != nil { // INV-8: the source device as the inventory knows it now
-			d.SrcAssetID, d.SrcName = dev.ID, clean(dev.Name, 120)
-		}
-		if h.Service != nil {
-			d.Service = string(*h.Service)
-		}
-		if h.Port != nil {
-			d.Port = *h.Port
-		}
-		env.newHits = append(env.newHits, d)
+		env.newHits = append(env.newHits, env.eventOf(h))
 		return nil
 	case err != nil:
 		return fmt.Errorf("honeypot: find hit: %w", err)
@@ -828,6 +827,52 @@ func (s *Service) upsert(ctx context.Context, tx *sql.Tx, env *ingestEnv, h stor
 		return fmt.Errorf("honeypot: update hit: %w", err)
 	}
 	return nil
+}
+
+// eventOf is the honeypot.hit.created of a stored hit.
+func (env *ingestEnv) eventOf(h storedHit) HitEventData {
+	d := HitEventData{ID: h.ID, TS: h.TS, Kind: h.Kind, SrcIP: h.SrcIP, Label: h.Label, Decoy: h.TrapHostname, Unconfirmed: h.NoHandshake}
+	if d.Decoy == "" {
+		d.Decoy = h.TrapIP
+	}
+	if dev := env.w.byIP(h.SrcIP); dev != nil { // INV-8: the source device as the inventory knows it now
+		d.SrcAssetID, d.SrcName = dev.ID, clean(dev.Name, 120)
+	}
+	if h.Service != nil {
+		d.Service = string(*h.Service)
+	}
+	if h.Port != nil {
+		d.Port = *h.Port
+	}
+	return d
+}
+
+// resolvedAfter says whether the incident of the window's hit (id, stored at ts) was resolved since that hit with none of its key open
+// (Config.Incidents): then a later connection of the window is a new hit. Each window is asked once a batch: the new hit's event is
+// published after the commit, and until then its incident does not exist. A test hit never had an incident.
+func (s *Service) resolvedAfter(ctx context.Context, env *ingestEnv, h storedHit, id, ts string) bool {
+	if s.cfg.Incidents == nil || h.IsTest || env.asked[h.connKey] {
+		return false
+	}
+	if env.asked == nil {
+		env.asked = map[string]bool{}
+	}
+	env.asked[h.connKey] = true
+	since, err := time.Parse(time.RFC3339Nano, ts)
+	if err != nil {
+		return false
+	}
+	d := env.eventOf(h)
+	d.ID = id
+	if env.shownSrc != "" {
+		d.SrcIP = env.shownSrc
+	}
+	ok, err := s.cfg.Incidents(ctx, EventHitCreated, d, since)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "honeypot: reading whether a hit's incident was resolved", "error", err)
+		return false
+	}
+	return ok
 }
 
 // Prune removes what the retention allows (DATA_MODEL 4.7): test hits after 7 days, real hits after 365, the daily

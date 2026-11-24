@@ -71,10 +71,31 @@ func (f fakeFindings) Linked(_ context.Context, byDevice map[string][]string) (m
 	return out, nil
 }
 
-type fakeIncidents struct{}
+// fakeIncidents answers as notify does: every key has an open incident, except the keys a test resolved (at that time).
+type fakeIncidents struct {
+	mu       sync.Mutex
+	resolved map[[2]string]time.Time
+}
 
-func (fakeIncidents) Intrusion(_ context.Context, source, target string, _ time.Time) (IncidentRef, bool, error) {
+func (*fakeIncidents) Intrusion(_ context.Context, source, target string, _ time.Time) (IncidentRef, bool, error) {
 	return IncidentRef{ID: "in-" + source + "|" + target, Status: "new"}, true, nil
+}
+
+func (f *fakeIncidents) ResolvedSince(_ context.Context, ev AlertEvent, since time.Time) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	at, ok := f.resolved[[2]string{ev.Source, ev.Target}]
+	return ok && !at.Before(since), nil
+}
+
+// resolve is a person resolving the incident of a key at a time.
+func (f *fakeIncidents) resolve(source, target string, at time.Time) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.resolved == nil {
+		f.resolved = map[[2]string]time.Time{}
+	}
+	f.resolved[[2]string{source, target}] = at
 }
 
 type recorder struct {
@@ -102,20 +123,21 @@ type env struct {
 	now  time.Time
 	ev   *recorder
 	mods *switchModules
+	inc  *fakeIncidents
 }
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "inventory", FS: inventory.Migrations},
 		storetest.Migration{Module: "ids", FS: Migrations})
-	e := &env{t: t, db: db, now: time.Date(2026, 11, 20, 10, 30, 0, 0, time.UTC), ev: &recorder{}, mods: &switchModules{}}
+	e := &env{t: t, db: db, now: time.Date(2026, 11, 20, 10, 30, 0, 0, time.UTC), ev: &recorder{}, mods: &switchModules{}, inc: &fakeIncidents{}}
 	ts := store.FormatTS(e.now.Add(-48 * time.Hour))
 	for ip, d := range testDevices {
 		e.exec(`INSERT INTO inv_asset (id, ip, kind, origin, first_seen, last_seen) VALUES (?, ?, 'server', 'manual', ?, ?)`, d.id, ip, ts, ts)
 	}
 	e.exec(`INSERT INTO inv_asset (id, kind, origin, first_seen, last_seen) VALUES ('a-other', 'server', 'manual', ?, ?)`, ts, ts)
 	svc, err := NewService(Config{DB: db, Inventory: fakeInventory{}, Findings: fakeFindings{open: map[[2]string]string{{"a-nas", "CVE-2021-44228"}: "f-nas-log4j"}, calls: &atomic.Int32{}},
-		Incidents: fakeIncidents{}, Events: e.ev, Modules: e.mods, Clock: func() time.Time { return e.now }})
+		Incidents: e.inc, Events: e.ev, Modules: e.mods, Clock: func() time.Time { return e.now }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -498,6 +520,77 @@ func TestARepeatAtAnAffectedDeviceRaisesTheIncident(t *testing.T) {
 	}
 	if !slices.Equal(sev, []string{"medium", "critical"}) || e2.ev.got[0].Target != e2.ev.got[1].Target {
 		t.Fatalf("across flushes: %v %+v", sev, e2.ev.got)
+	}
+}
+
+// A person resolved the intrusion incident and the attacker goes on in the same clock hour: the repeat is announced again (notify opens a
+// new incident and sends it), once; while that new incident is open the repeats wait again. Without the resolve nothing more is
+// announced in the hour.
+func TestARepeatAfterItsIncidentWasResolvedIsAnnouncedAgain(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.offer(time.Minute, fortiLine("198.51.100.9", "10.0.10.5"))
+	e.now = e.now.Add(5 * time.Second)
+	e.offer(0, fortiLine("198.51.100.9", "10.0.10.5"))
+	if len(e.ev.got) != 1 {
+		t.Fatalf("%d announced while the incident is open, want 1", len(e.ev.got))
+	}
+	first := e.ev.got[0]
+	e.now = e.now.Add(5 * time.Second)
+	e.inc.resolve(first.Source, first.Target, e.now)
+	e.now = e.now.Add(5 * time.Second)
+	e.offer(0, fortiLine("198.51.100.9", "10.0.10.5"), fortiLine("198.51.100.9", "10.0.10.6"))
+	if len(e.ev.got) != 2 || e.ev.got[1].Source != first.Source || e.ev.got[1].Target != first.Target {
+		t.Fatalf("after the resolve: %d announced %+v, want the repeat announced once", len(e.ev.got), e.ev.got)
+	}
+	e.now = e.now.Add(5 * time.Second)
+	e.offer(0, fortiLine("198.51.100.9", "10.0.10.5"))
+	if len(e.ev.got) != 2 {
+		t.Fatalf("%d announced while the new incident is open, want 2", len(e.ev.got))
+	}
+	if n := e.count(`SELECT sum(count) FROM ids_alert`); n != 5 {
+		t.Fatalf("%d events counted, want 5", n)
+	}
+}
+
+// The hourly budget holds for a repeat after a resolve: once AlertEventsPerHour announcements are spent, the repeat goes into the hour's
+// summary like any other alert. A summary a person resolved while the flood goes on is announced again (a new incident), once per
+// resolve.
+func TestTheBudgetHoldsForARepeatAfterAResolveAndAResolvedSummaryComesBack(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	var flood [][2]string
+	for i := range AlertEventsPerHour {
+		flood = append(flood, fortiLine("198.51.100."+strconv.Itoa(i+1), "10.0.10.150"))
+	}
+	e.offer(2*time.Minute, flood...)
+	if len(e.ev.got) != AlertEventsPerHour {
+		t.Fatalf("%d announced, want the whole budget", len(e.ev.got))
+	}
+	e.now = e.now.Add(time.Second)
+	e.inc.resolve(e.ev.got[0].Source, e.ev.got[0].Target, e.now)
+	e.now = e.now.Add(time.Second)
+	e.offer(0, fortiLine("198.51.100.1", "10.0.10.150"))
+	if n := len(e.ev.got); n != AlertEventsPerHour+1 || e.ev.got[n-1].Source != "ids" {
+		t.Fatalf("%d announced, last %+v: want the repeat in the hour's summary", n, e.ev.got[n-1])
+	}
+	summary := e.ev.got[AlertEventsPerHour]
+	e.now = e.now.Add(time.Second)
+	e.offer(0, fortiLine("198.51.100.201", "10.0.10.150"))
+	if n := len(e.ev.got); n != AlertEventsPerHour+1 {
+		t.Fatalf("%d announced: the open summary is announced again", n)
+	}
+	e.now = e.now.Add(time.Second)
+	e.inc.resolve(summary.Source, summary.Target, e.now)
+	e.now = e.now.Add(time.Second)
+	e.offer(0, fortiLine("198.51.100.202", "10.0.10.150"))
+	if n := len(e.ev.got); n != AlertEventsPerHour+2 || e.ev.got[n-1].Target != summary.Target || !strings.HasPrefix(e.ev.got[n-1].Title, "At least 3 more") {
+		t.Fatalf("%d announced, last %+v: want the resolved summary announced again", n, e.ev.got[n-1])
+	}
+	e.now = e.now.Add(time.Second)
+	e.offer(0, fortiLine("198.51.100.203", "10.0.10.150"))
+	if n := len(e.ev.got); n != AlertEventsPerHour+2 {
+		t.Fatalf("%d announced: the new summary is open, nothing more", n)
 	}
 }
 

@@ -57,10 +57,11 @@ func logsService(d deps) *logs.Service {
 	if cfg.Syslog.TLS == nil {
 		cfg.Syslog.TLS = syslogTestTLS
 	}
-	cfg.NeverCount = logsNeverCount(&d) // TopAddresses never counts the box, its gateway or a decoy
-	cfg.Feeds = logsFeeds{&d}           // L4: destinations are looked up in the indicators of the feeds module (off: no hits)
-	cfg.Hostname = d.BoxName.Name       // the HOSTNAME of SIEM records: the machine's name, not the container's (#471)
-	cfg.Received = idsReceived(d)       // the stored lines go to the ids module, which reads the IPS events among them (while it is on)
+	cfg.NeverCount = logsNeverCount(&d)       // TopAddresses never counts the box, its gateway or a decoy
+	cfg.Feeds = logsFeeds{&d}                 // L4: destinations are looked up in the indicators of the feeds module (off: no hits)
+	cfg.Hostname = d.BoxName.Name             // the HOSTNAME of SIEM records: the machine's name, not the container's (#471)
+	cfg.Received = idsReceived(d)             // the stored lines go to the ids module, which reads the IPS events among them (while it is on)
+	cfg.Incidents = incidentResolvedSince(&d) // a repeat inside a dedupe time after its incident was resolved is a new one
 	svc, err := logs.NewService(cfg)
 	if err != nil { // a missing dependency: a programming error in serve
 		panic("vedette: " + err.Error())

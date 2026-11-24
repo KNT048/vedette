@@ -23,7 +23,9 @@ import { useFindingAgentGone } from './agentNow'
 import { basisLabel, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
 import { canConfirm, canUndo, ConfirmButton, ConfirmDialog, ConfirmWays, UndoButton } from './Confirm'
-import { AskAi, NoPack, PackView } from './Recommendation'
+import { AskAi, PackView } from './Recommendation'
+import { FixGuide, FixLineOf } from './WhatToDo'
+import { useCve } from '@/features/feeds/api'
 import { GeneralChecks } from './Hardening'
 import { FindingStatusLines, ReopenedLine, SeverityBadge } from '@/components/common/status'
 import type { FindingDetail } from './types'
@@ -78,6 +80,31 @@ function Evidence({ f, confirm }: { f: FindingDetail; confirm?: ReactNode }) {
   )
 }
 
+/**
+ * S-MIT-3 without a confirmed pack: Vedette holds no signs specific to the CVE, and says so. The reports of the attacks it does hold
+ * (an exploitation source's write-up, a technical description the record lists) are where such signs are published, so they are linked.
+ */
+function AttackReports({ f }: { f: FindingDetail }) {
+  const { t } = useTranslation('findings')
+  const feedsOn = useModuleEnabled('feeds') !== false
+  const b = useCve(feedsOn ? f.cve : '').data
+  if (!b) return null
+  const urls = [...new Set([
+    ...b.signals.filter((s) => s.kind === 'exploited' && s.qualifies && s.url && !/cisa\.gov|nvd\.nist\.gov/i.test(s.url)).map((s) => s.url!),
+    ...b.references.filter((r) => r.group === 'technical-description' || r.group === 'mitigation').map((r) => r.url),
+  ])].slice(0, 5)
+  return (
+    <div className="grid gap-1.5" data-testid="attack-reports">
+      <p className="max-w-3xl text-sm">{t(urls.length ? 'compromise.reports' : 'compromise.noReports', { cve: f.cve })}</p>
+      {urls.length ? (
+        <ul className="grid gap-0.5 text-sm">
+          {urls.map((u) => <li key={u}><a href={u} target="_blank" rel="noopener noreferrer" className="break-all text-accent underline-offset-4 hover:underline">{u}</a></li>)}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
 function Compromise({ f }: { f: FindingDetail }) {
   const { t } = useTranslation('findings')
   const c = f.compromise
@@ -101,7 +128,7 @@ function Compromise({ f }: { f: FindingDetail }) {
           </div>
         </Card>
       ) : f.hardening?.checks ? (
-        <Card><GeneralChecks finding={f} /></Card>
+        <Card className="grid gap-4"><AttackReports f={f} /><GeneralChecks finding={f} /></Card>
       ) : (
         <EmptyState title={t('compromise.none')} info={t('compromise.noneInfo')} />
       )}
@@ -178,7 +205,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
     <>
       <Evidence f={f} confirm={<ConfirmButton f={f} buttonRef={confirmOpener} onClick={() => setConfirming(true)} />} />
       <Section id="mitigation" title={t('rec.title')} description={t('rec.description')} info={t('rec.descriptionInfo')} stories={['S-MIT-1']}>
-        <RequireModule module="mitigation">{f.pack ? <PackView finding={f} /> : <NoPack finding={f} />}</RequireModule>
+        {f.pack ? <RequireModule module="mitigation"><PackView finding={f} fix={<FixLineOf f={f} />} /></RequireModule> : <FixGuide f={f} />}
       </Section>
       <Compromise f={f} />
     </>
@@ -187,7 +214,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
     <>
       <PageHeader
         breadcrumbs={crumbs}
-        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${agentHeadline ? (agentGone ? 'agentLast' : 'agent') : f.status === 'confirmed' ? `confirmed_${f.urgency}` : f.status === 'suspected' && !canConfirm(f) ? 'suspected_update' : f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
+        title={<span className="[overflow-wrap:anywhere]">{t(`headline.${agentHeadline ? (agentGone ? 'agentLast' : 'agent') : f.status === 'confirmed' ? `confirmed_${f.urgency}` : f.status === 'suspected' && f.urgency === 1 ? 'suspected_1' : f.status === 'suspected' && !canConfirm(f) ? 'suspected_update' : f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">

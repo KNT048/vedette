@@ -30,7 +30,7 @@ export function BriefFacts({ b, product = false }: { b: CveBrief; product?: bool
         {b.cwe.map((c) => <a key={c.id} className={cn('w-fit', link)} href={`https://cwe.mitre.org/data/definitions/${c.id.slice(4)}.html`} target="_blank" rel="noopener noreferrer">{c.name ? `${c.id}: ${c.name}` : c.id}</a>)}
       </span>
     ) }] : []),
-    ...(b.epss ? [{ label: t('brief.facts.epss'), value: t('brief.epssValue', { score: fmtPercent(b.epss.score), percentile: fmtPercent(b.epss.percentile, 0) }) }] : []),
+    ...(b.epss ? [{ label: t('brief.facts.epss'), value: t('brief.epssValue', { score: fmtPercent(b.epss.score), percentile: fmtPercent(Math.floor(b.epss.percentile * 100) / 100, 0) }) }] : []), // a percentile is floored: 0.999 is "higher than 99%", never 100%
     ...(b.published ? [{ label: t('brief.facts.published'), value: fmtDate(b.published) }] : []),
     ...(b.modified ? [{ label: t('brief.facts.modified'), value: fmtDate(b.modified) }] : []),
     ...(b.nvd_status ? [{ label: t('brief.facts.nvd'), value: b.nvd_status }] : []),

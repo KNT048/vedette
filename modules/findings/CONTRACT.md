@@ -167,7 +167,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **PRE-2 / POST-2** `ConfirmFromScan` (scan module): the template evidence is checked and cut like any untrusted answer; the
   finding of the line the matcher reads the CVE on is detected with `basis=scan`, `verified=scan`. A person's decision holds.
 - **PRE-3 / POST-3** `GET /findings/{id}`: 404 for an unknown id; "What to do" comes from an optional `findings.Guidance` provider
-  (mitigation registers it; it is skipped while mitigation is off).
+  (mitigation registers it; it is skipped while mitigation is off). The stored evidence sentence keeps its last clause "no scan has
+  confirmed it yet, so this is only suspected" only while the finding is suspected (`evidenceForStatus`; the stored row is unchanged).
+  `known_version` comes from the row the exploited-list entry matches, or, for a finding on no exploited list, from the finding's
+  stored software line. Every history action has a label on the page; urgency_changed and fix_changed carry a note naming the new
+  status or fix. Tests: `TestFindingPage_EvidenceFollowsTheStatus`, `TestFindingPage_FindingOnNoListKeepsItsSoftware`,
+  `TestFindingPage_EveryHistoryActionHasALabel`.
 - **PRE-4 / POST-4** handle and reopen (operator), verify and unverify (admin): handle answers how many it handled and skipped and
   is all or nothing.
 

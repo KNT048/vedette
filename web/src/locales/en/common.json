@@ -258,8 +258,8 @@
     },
     "mitigation": {
       "name": "Mitigation",
-      "summary": "Patch steps, temporary fixes and config snippets for a finding.",
-      "summaryInfo": "Confirmed recommendations add them to the finding."
+      "summary": "Checks to see whether a finding's device was hit, and firewall configuration from a confirmed pack or your AI.",
+      "summaryInfo": "The fix and the vendor's workaround show without it. A confirmed pack adds step-by-step firewall configuration; without one, your own AI can write it."
     },
     "exposure": {
       "name": "External exposure",

@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { toast } from 'sonner'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { AiBlock } from '@/components/common/AiBlock'
 import { Chip } from '@/components/common/StatusChip'
-import { Notice } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
 import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
@@ -16,14 +16,11 @@ import { fmtDate, fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
 import { useApplied, useAskAi } from './api'
-import type { AiAnswer, AiResult, ApplyItem, CodeStep, FindingDetail, FirewallGuide, FirewallVendor, KevInfo } from './types'
+import type { AiAnswer, AiResult, ApplyItem, CodeStep, FindingDetail, FirewallGuide, FirewallVendor } from './types'
 import { AiAnswerKey } from './contract'
 
 const ANSWER_ORDER = AiAnswerKey.options
 import { isOpen } from './basis'
-import { softwareFor, useDeviceSoftware } from './rematch'
-import { overdue } from './accept'
-import { useFindingAgentGone } from './agentNow'
 
 function SideEffect({ text }: { text: string }) {
   const { t } = useTranslation('findings')
@@ -169,7 +166,7 @@ function Checklist({ items }: { items: string[] }) {
 }
 
 /** A confirmed Vedette recommendation: always says who confirmed it, on what date, and "drafted with AI". */
-export function PackView({ finding }: { finding: FindingDetail }) {
+export function PackView({ finding, fix }: { finding: FindingDetail; fix?: ReactNode }) {
   const { t } = useTranslation('findings')
   const p = finding.pack!
   return (
@@ -181,8 +178,8 @@ export function PackView({ finding }: { finding: FindingDetail }) {
       <AiBlock origin="project" model={p.drafted_with} citations={p.sources}>
         <section aria-labelledby="rec-patch" className="grid gap-2">
           <H3 id="rec-patch">{t('rec.patchTitle')}</H3>
+          {fix ?? <FixedInNote finding={finding} />}
           <p>{p.patch.summary}</p>
-          <FixedInNote finding={finding} />
           <p className="text-meta"><span className="font-medium">{t('rec.fixedVersion')}</span> {p.patch.fixed}</p>
           <ol className="grid list-decimal gap-1 pl-5">{p.patch.steps.map((s) => <li key={s}>{s}</li>)}</ol>
           <SideEffect text={p.patch.side_effect} />
@@ -293,83 +290,32 @@ export function AskAi({ finding, skill, result, label, hint }: { finding: Findin
 
 
 /**
- * "Steps you can take now" without a pack. M2-3: a version the box has (any source: agent, SNMP, LLDP, a scan, a person) is
- * said, never asked for, and step 3 names how the new version reaches Vedette. M2-5: the controls named are the page's own
- * ("Mark as handled", then Patched or False positive; "I updated <software>" for a typed row, "I updated it" otherwise). `agentGone`:
- * no agent reports the device now (agentNow), so an agent's version is its last list and no new one arrives by itself.
+ * What the box knows about the version now, and how a new version reaches Vedette, for the steps of a finding without a pack. M2-3: a
+ * version the box has (any source: agent, SNMP, LLDP, a scan, a person) is said, never asked for, and `verify` names how the new version
+ * reaches Vedette. M2-5: the controls named are the page's own ("Mark as handled", then Patched or False positive; "I updated
+ * <software>" for a typed row, "I updated it" otherwise). `agentGone`: no agent reports the device now (agentNow), so an agent's version
+ * is its last list and no new one arrives by itself.
  */
-export function NowSteps({ finding, kev, updatable, manual, today, agentGone = false }: { finding: FindingDetail; kev: KevInfo; updatable: boolean; manual?: string; today?: Date; agentGone?: boolean }) {
-  const { t } = useTranslation('findings')
+export function nowParts(t: TFunction<'findings'>, finding: FindingDetail, o: { product: string; updatable: boolean; manual?: string; agentGone?: boolean }): { known: string; verify: ReactNode } {
   const device = finding.asset?.name || t('removedDevice')
-  const product = kev.display || t('rec.theSoftware')
   const known = finding.known_version
-  const due = kev.due_date
-  const step2 = !due ? t('rec.step2') : overdue(due, today) ? t('rec.step2Overdue', { date: fmtDate(due) }) : t('rec.step2Due', { date: fmtDate(due) })
+  const agentGone = o.agentGone ?? false
   // review r1 L4: the button is named as the page shows it, the typed row's own display
-  let step3: ReactNode = updatable ? (manual ? t('rec.step3Manual', { device, software: manual }) : t('rec.step3', { device })) : t('rec.step3Mark')
+  let verify: ReactNode = o.updatable ? (o.manual ? t('rec.step3Manual', { device, software: o.manual }) : t('rec.step3', { device })) : t('rec.step3Mark')
   // How the new version reaches Vedette, by who gave the old one; a closed finding keeps the plain step (review r1 L6), and a typed
   // version keeps "I updated <software>"
   const via = isOpen(finding.status) && known?.source !== 'manual' ? known?.source : undefined
-  if (via === 'agent') step3 = t(agentGone ? 'rec.step3AgentGone' : 'rec.step3Agent', { device })
-  else if (via === 'stated') step3 = t('rec.step3Stated', { device })
-  else if (via === 'scan') step3 = t('rec.step3Scan', { device })
+  if (via === 'agent') verify = t(agentGone ? 'rec.step3AgentGone' : 'rec.step3Agent', { device })
+  else if (via === 'stated') verify = t('rec.step3Stated', { device })
+  else if (via === 'scan') verify = t('rec.step3Scan', { device })
   else if (via === 'snmp') {
     // docs/UI.md §0: the exact place, the device page that has the button
-    step3 = finding.asset
+    verify = finding.asset
       ? <>{t('rec.step3Snmp', { device })} <Link to={`/devices/${encodeURIComponent(finding.asset.id)}`} className="text-accent underline underline-offset-4">{t('evidence.openDevice')}</Link></>
       : t('rec.step3Snmp', { device })
   }
-  return (
-    <div className="grid gap-2">
-      <h3 className="text-sm font-semibold">{t('rec.stepsTitle')}</h3>
-      <ol className="grid max-w-3xl list-decimal gap-1 pl-5 text-sm">
-        <li>{known ? t('rec.step1Known', { device, software: known.software, version: known.version, from: t(`rec.from.${known.source === 'agent' && agentGone ? 'agentLast' : known.source}`) }) : t('rec.step1', { device, product })}</li>
-        <li>{step2}</li>
-        <li>{step3}</li>
-      </ol>
-    </div>
-  )
-}
-
-/**
- * No confirmed pack yet (S-MIT-1): say everything the box knows and invent no measure: CISA's requirement and due date,
- * the vendor advisory and the NVD text from the KEV note, the steps to check the version, then "Ask my AI". The box has no data on the
- * fixed version yet (it needs a new feed), so the page says plainly where to get it.
- */
-export function NoPack({ finding }: { finding: FindingDetail }) {
-  const { t } = useTranslation('findings')
-  const k: KevInfo | null = finding.kev
-  const vc = k?.source === 'vulncheck-kev'
-  // Step 3 points to "I updated" when the page shows it (the software the CVE was matched to is known).
-  const sw = useDeviceSoftware(finding.asset?.id)
-  const rows = softwareFor(sw.data?.asset.software, finding.cve)
-  const updatable = isOpen(finding.status) && rows.length > 0
-  // an agent's version is its last list once no agent reports the device: the steps say so, as the title and "I updated it" do
-  const agentGone = useFindingAgentGone(finding)
-  return (
-    <div className="grid gap-5">
-      <Notice tone="warn" title={t('rec.noPack')} className="mb-0" info={<><p>{t('rec.noPackBodyInfo')}</p><p>{t('rec.noPackAi')}</p></>}>{t('rec.noPackBody')}</Notice>
-      {k ? (
-        <>
-          <div className="grid gap-2">
-            <h3 className="text-sm font-semibold">{t(vc ? 'rec.vulncheckTitle' : 'rec.cisaTitle')}</h3>
-            <p className="text-meta text-muted">{t(vc ? 'rec.sourceHintVulnCheck' : 'rec.sourceHint', { date: fmtDate(k.date_added) })}</p>
-            <blockquote lang="en" className="max-w-3xl border-l-2 border-rule pl-3 text-sm">{k.required_action}</blockquote>
-            {k.due_date ? <p className="text-sm font-medium">{t(overdue(k.due_date) ? 'rec.dueDatePassed' : 'rec.dueDate', { date: fmtDate(k.due_date) })}</p> : null}
-            {k.ransomware ? <p className="text-meta">{t('rec.ransomware')}</p> : null}
-          </div>
-          <NowSteps finding={finding} kev={k} updatable={updatable} manual={rows.find((r) => r.source === 'manual')?.display} agentGone={agentGone} />
-        </>
-      ) : (
-        <div className="flex items-center gap-1 text-sm text-muted">
-          <p>{t('rec.noKev')}</p>
-          <InfoTip topic={t('rec.title')}>{t('rec.noKevInfo')}</InfoTip>
-        </div>
-      )}
-      <div className="grid gap-2">
-        <h3 className="text-sm font-semibold">{t('rec.askTitle')}</h3>
-        <AskAi finding={finding} skill="mitigation-config" result={finding.ai.config} label={t('rec.askAi')} />
-      </div>
-    </div>
-  )
+  const line = known
+    ? t('rec.step1Known', { device, software: known.software, version: known.version, from: t(`rec.from.${known.source === 'agent' && agentGone ? 'agentLast' : known.source}`) })
+    : t('rec.step1', { device, product: o.product })
+  return { known: line, verify }
 }

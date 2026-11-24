@@ -63,7 +63,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `findings.line_on_its_device`). A row that still does (stored by a match write that read its device before the split committed, or
   left by an older split) moves at the next match write of either device (`followLines`, when inventory's word on both devices
   agrees). Before a finding moves, the modules that keep a device id next to its id are told (lifecycle `FindingMoved`, in the same
-  write). Ignoring a device changes no finding;
+  write; a split also passes the device split off as Devices names it and its address, `IntoName`/`IntoIP` from `lifecycle.Split`). Ignoring a device changes no finding;
   lists, Home, the AI context and reports leave its findings out.
 - **M-7 One match pass.** Reconcile reads every device and asks feeds once for the match set (`Feeds.MatchSet`). A CVE that matches
   with version evidence is a finding whatever its urgency. Every finding whose CVE is in the set and that the pass no longer detects

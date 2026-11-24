@@ -163,7 +163,7 @@ var exportPolicy = map[string]tablePolicy{
 	"rep_definition":         {export: "id name kind updated_at updated_by send_due_at send_by", json: "options recipients"},
 	"rep_history":            {export: "id definition_id ts title period_from period_to trigger status error sent_by", json: "recipients document"},
 	"rep_pdpl":               {export: "id", json: "org report"},
-	"resp_actions":           {export: "seq id source proposal_id rule_id rule_name trigger trigger_summary finding_id cve asset_id asset_name title risk status requested_at expires_at decided_at requires_approvals two_because note pre_approved", json: "approvals sent_to ai items"},
+	"resp_actions":           {export: "seq id source proposal_id rule_id rule_name trigger trigger_summary finding_id cve asset_id asset_name title risk status requested_at expires_at decided_at requires_approvals two_because note pre_approved end_reason", json: "approvals sent_to ai items"},
 	"resp_ai_notes":          {export: "id ts kind title why confidence action_id target evidence"},
 	"resp_allowlist":         {export: "value label"},
 	"resp_block_entries":     {export: "value request_id item_id source reason added_at expires_at"},

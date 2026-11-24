@@ -230,3 +230,19 @@ func TestShippedPacks_FindingPageShowsTheFourSteps(t *testing.T) {
 		t.Fatalf("the pack's own signs must replace the general checks: compromise=%v hardening=%v", b["compromise"], b["hardening"])
 	}
 }
+
+// Junos names the interface list of web-management http and https "interface" (CLI reference: http and https (Web Management));
+// an older page's "interfaces" is a syntax error on the releases these packs are for, so a customer could not apply the workaround.
+func TestShippedPacks_JunosWebManagementUsesTheInterfaceKeyword(t *testing.T) {
+	t.Parallel()
+	bad := regexp.MustCompile(`web-management https? interfaces\b`)
+	for cve, p := range shippedPacks(t) {
+		b, err := json.Marshal(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if m := bad.FindString(string(b)); m != "" {
+			t.Errorf("%s: %q: the Junos statement is \"interface [ interface-names ]\"", cve, m)
+		}
+	}
+}

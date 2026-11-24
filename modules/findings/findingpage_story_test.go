@@ -107,3 +107,21 @@ func TestFindingPage_EveryHistoryActionHasALabel(t *testing.T) {
 		}
 	}
 }
+
+// Every fix kind a fix_changed event can move to has its own words in the history note: a kind that falls through to the generic
+// "update to … or later" tells a person to install something that is not the fix (a restart into a kernel that is already installed).
+func TestFindingPage_EveryFixKindHasItsOwnHistoryNote(t *testing.T) {
+	t.Parallel()
+	generic := fixChangeNote("p|" + string(FixUpdate) + "|7.0.0-44.44")
+	for _, k := range knownFixKinds {
+		if k == FixUpdate {
+			continue
+		}
+		if got := fixChangeNote("ubuntu|linux kernel|" + string(k) + "|7.0.0-44.44"); got == generic || got == "" {
+			t.Errorf("fix kind %q: history note %q is the generic update sentence", k, got)
+		}
+	}
+	if got, want := fixChangeNote("ubuntu|linux kernel|restart|7.0.0-44.44"), "Now: restart the device to run the installed 7.0.0-44.44."; got != want {
+		t.Errorf("restart note = %q, want %q", got, want)
+	}
+}

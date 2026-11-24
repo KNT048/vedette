@@ -118,10 +118,10 @@ func TestContract_INV8_FindingWithoutPackShowsGeneralChecksOnly(t *testing.T) {
 // list) and the family and software name their general checks get. Before, ESXi, DSM and vCenter fell to the catch-all family, and
 // the three findings on no list (nginx, Java, the Linux kernel) were "General checks for the software". Now only the products no
 // family is written for stay General, and every one names its software.
-func TestHardeningCount_EveryWalkedFindingNamesItsSoftware(t *testing.T) {
+func TestHardeningCount_EveryTestRoundFindingNamesItsSoftware(t *testing.T) {
 	t.Parallel()
-	type walked struct{ kind, vendor, product, known, family string }
-	cases := []walked{
+	type roundCase struct{ kind, vendor, product, known, family string }
+	cases := []roundCase{
 		{"server", "VMware", "ESXi", "", "VMware ESXi"},
 		{"switch", "Juniper", "Junos OS", "", "Juniper Junos OS"},
 		{"nas", "Synology", "DiskStation Manager (DSM)", "", "Synology DSM"},
@@ -152,7 +152,7 @@ func TestHardeningCount_EveryWalkedFindingNamesItsSoftware(t *testing.T) {
 			t.Errorf("%s: software %q, want the finding's software line", c.known, h.Software)
 		}
 	}
-	t.Logf("walked findings %d: General family %d (before 6), \"the software\" %d (before 3)", len(cases), general, unnamed)
+	t.Logf("test-round findings %d: General family %d (before 6), \"the software\" %d (before 3)", len(cases), general, unnamed)
 	if general != 2 || unnamed != 0 {
 		t.Errorf("General %d, unnamed %d; want 2 and 0", general, unnamed)
 	}

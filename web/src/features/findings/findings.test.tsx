@@ -202,6 +202,11 @@ describe('findings: f-2, f-3 have no confirmed recommendation yet', () => {
     expect(screen.getByText('Source: Ubuntu security data.')).toBeInTheDocument()
     expect(screen.queryByText(/backports|If you installed|Ubuntu Pro/)).not.toBeInTheDocument()
     u.unmount()
+    // A kernel whose fixed release is installed but not running yet: the restart, not another install
+    const k = render(<FixedInNote finding={{ asset: { name: 'boxanna' }, kev: { display: 'Linux kernel' }, fixed_in: { ...src, kind: 'distro', version: '7.0.0-43.43', fixed: '', distro: 'Ubuntu', distro_fixed: '7.0.0-44.44', distro_release: '26.04', restart_into: '7.0.0-44.44', source: 'Ubuntu security data' } } as unknown as FindingDetail} />)
+    expect(screen.getByText('Fixed in 7.0.0-44.44 for Ubuntu 26.04: the fixed kernel 7.0.0-44.44 is already installed on boxanna, but it still runs Linux kernel 7.0.0-43.43. Restart boxanna so it runs the installed kernel.')).toBeInTheDocument()
+    expect(screen.queryByText(/apt upgrade/)).not.toBeInTheDocument()
+    k.unmount()
     const pro = note({ ...src, kind: 'distro', version: '1:2.25.1-1ubuntu3.14', fixed: '', distro: 'Ubuntu', distro_fixed: '1:2.25.1-1ubuntu3.14+esm6', distro_release: '20.04', distro_pro: true, source: 'Ubuntu security data' })
     expect(screen.getByText(/Ubuntu Pro \(ESM\) only/)).toBeInTheDocument()
     pro.unmount()

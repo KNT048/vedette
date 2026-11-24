@@ -36,7 +36,10 @@ type FixedIn struct {
 	DistroFixed   string `json:"distro_fixed"`
 	DistroRelease string `json:"distro_release"`
 	DistroPro     bool   `json:"distro_pro"`
-	Source        string `json:"source"` // FixedInSource, FixedInSourceCVEOrg, or DistroSource when DistroFixed is set
+	// RestartInto (kind distro on a distribution kernel only): the installed kernel's package release the device runs after a
+	// restart, at or above DistroFixed, so a restart alone fixes it (restartInto); "" otherwise.
+	RestartInto string `json:"restart_into,omitempty"`
+	Source      string `json:"source"` // FixedInSource, FixedInSourceCVEOrg, or DistroSource when DistroFixed is set
 }
 
 // FixedBranch is the fix of one release line, the line named by the start of its range ("7.4" -> "7.4.3"); Branch is
@@ -105,7 +108,7 @@ func (d *devRows) fixedInFor(v Vuln) *FixedIn {
 			if f, ok := windowsFixedIn(in, v); ok {
 				return f
 			}
-			return fixedInSoftware(in, v, nil)
+			return d.withRestart(s, fixedInSoftware(in, v, nil))
 		}
 	}
 	key := keyIDs(v)
@@ -141,11 +144,22 @@ func (d *devRows) fixedInFor(v Vuln) *FixedIn {
 			}
 			continue
 		}
-		if f := fixedInSoftware(in, v, key); rank(f) > rank(best) {
+		if f := d.withRestart(d.sws[i], fixedInSoftware(in, v, key)); rank(f) > rank(best) {
 			best = f
 		}
 	}
 	return best
+}
+
+// withRestart is f with RestartInto set when it is the distribution's fix of a kernel whose fixed release is installed and not running
+// yet (restartInto).
+func (d *devRows) withRestart(s Software, f *FixedIn) *FixedIn {
+	if f != nil && f.Kind == "distro" && f.DistroFixed != "" {
+		if k, ok := restartInto(d.a, s, f.DistroFixed); ok {
+			f.RestartInto = k
+		}
+	}
+	return f
 }
 
 // nvdRows is, by CVE, the software row the matcher matches an entry of vulns on when no KEV key of that row reaches it (viaNVD,

@@ -17,7 +17,9 @@ import (
 //     fixed release of the device's train (versionscheme.Judge), when the device's version and build place it in a train;
 //   - a Windows release row: the monthly update whose build the range ends at (os_update, the build, its KB when Microsoft's release
 //     data lists it), or the later release that has the fix when the device's release no longer gets one (feature_update);
-//   - a distribution's package: the distribution's fixed package release (distro_update; "" when its data names none yet);
+//   - a distribution's package: the distribution's fixed package release (distro_update; "" when its data names none yet), or, on a
+//     distribution kernel whose fixed release is installed and not running yet, a restart into the installed kernel (restart, its
+//     package release: installedKernel);
 //   - otherwise the nearest release outside every range of the CVE that applies to the line (update);
 //   - no range that applies has an end: no fix yet (none_yet);
 //   - anything else (the ranges do not say, the version cannot be read): unknown.
@@ -40,6 +42,9 @@ func FixOf(a Asset, s Software, v Vuln) Fix {
 		case "fixed":
 			return Fix{Kind: FixUpdate, Version: f.Fixed}
 		case "distro":
+			if k, ok := restartInto(a, s, f.DistroFixed); ok { // the fixed kernel is installed: the device runs it after a restart
+				return Fix{Kind: FixRestart, Version: k}
+			}
 			return Fix{Kind: FixDistroUpdate, Version: f.DistroFixed}
 		}
 		return Fix{Kind: FixUnknown}

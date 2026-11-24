@@ -185,6 +185,8 @@
     "scan": "Confirmation scan",
     "kev": "CISA KEV",
     "catalogue": "NVD vulnerability data",
+    "ubuntu-security": "Ubuntu security data",
+    "debian-tracker": "Debian Security Tracker",
     "vulncheck-kev": "VulnCheck KEV",
     "epss": "FIRST EPSS",
     "nuclei": "nuclei-templates",

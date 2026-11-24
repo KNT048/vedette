@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import i18n from 'i18next'
+import { loadNamespaces } from '@/lib/i18n'
 import { toast } from 'sonner'
 import { api, ApiError } from '@/lib/api'
 import type { CredTarget, ProbeEntry, RescanEvent, ScanConfig, ScanConfigResponse, ScanRun, ScanTarget } from './types'
@@ -55,6 +56,7 @@ export function useSaveConfig() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['scan'] }),
     onError: async (e) => {
       if (e instanceof ApiError && e.code === 'safety_changed') {
+        await loadNamespaces('scan') // the form may be on another feature's page: its words before the toast
         toast.error(i18n.t('scan:safety.changedElsewhere'))
         await qc.invalidateQueries({ queryKey: ['scan', 'config'] })
       }

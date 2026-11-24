@@ -75,10 +75,19 @@ export function useDismissSnmpNotices() {
   return useMutation({ mutationFn: () => api.post('/inventory/snmp/notices/dismiss'), onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'snmp'] }) })
 }
 
-/** After every device change: refresh the list, the detail and the other module pages that read assets (feeds, findings). */
-function useInvalidate() {
+/** After every device change: refresh the list, the detail and the other module pages that read assets (feeds, findings). The
+ *  caller's own callback (its toast, closing its dialog) waits only for the device the change was made on (`id`), read again so its
+ *  row shows the new value as the toast appears; the lists and the other modules' pages are read again in the background and never
+ *  hold the answer back (the box's page with hundreds of lines and the findings pages take seconds to read). */
+function useInvalidate(id?: string) {
   const qc = useQueryClient()
-  return () => Promise.all([qc.invalidateQueries({ queryKey: ['inventory'] }), qc.invalidateQueries({ queryKey: ['feeds'] }), qc.invalidateQueries({ queryKey: ['findings'] })])
+  return () => {
+    const own = (q: { queryKey: readonly unknown[] }) => !!id && q.queryKey.length === 3 && q.queryKey[1] === 'device' && q.queryKey[2] === id
+    void qc.invalidateQueries({ queryKey: ['inventory'], predicate: (q) => !own(q) })
+    void qc.invalidateQueries({ queryKey: ['feeds'] })
+    void qc.invalidateQueries({ queryKey: ['findings'] })
+    return id ? qc.invalidateQueries({ queryKey: ['inventory', 'device', id], exact: true }) : Promise.resolve()
+  }
 }
 
 export function useAddDevice() {
@@ -109,7 +118,7 @@ export function useApproveAll() {
   })
 }
 export function useDeviceAction(id: string) {
-  const inv = useInvalidate()
+  const inv = useInvalidate(id)
   const base = `/inventory/devices/${encodeURIComponent(id)}`
   return {
     approve: useMutation({ mutationFn: () => api.post(`${base}/approve`), onSuccess: inv }),
@@ -132,7 +141,7 @@ export function useDeviceAction(id: string) {
 }
 /** Turn the network scan or the SNMP reads of one device on or off (admin); the answer is both, the default resolved. */
 export function useDeviceSources(id: string) {
-  const inv = useInvalidate()
+  const inv = useInvalidate(id)
   return useMutation({
     mutationFn: (b: SourcesInput) => api.put<SourcesState>(`/inventory/devices/${encodeURIComponent(id)}/sources`, b), onSuccess: inv,
   })
@@ -183,7 +192,7 @@ export function useSameDevice() {
 }
 /** Split one address off a device (admin): that interface becomes a device of its own; the answer is the new device. */
 export function useSplitAddress(id: string) {
-  const inv = useInvalidate()
+  const inv = useInvalidate(id)
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (address: string) => api.post<{ id: string }>(`/inventory/devices/${encodeURIComponent(id)}/split`, { address } satisfies SplitInput),

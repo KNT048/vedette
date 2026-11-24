@@ -17,7 +17,7 @@
     "col": {
       "channel": "Channel",
       "dest": "Sent to",
-      "min": "Send from severity",
+      "min": "What it sends",
       "status": "Status",
       "test": "Last test",
       "actions": "Actions"
@@ -33,7 +33,6 @@
       "slack": "Slack webhook",
       "zaloPersonal": "Zalo, recipient {{id}}"
     },
-    "min": "{{sev}} and above",
     "testNever": "Not tested",
     "testOk": "Tested {{time}}: success",
     "testFail": "Tested {{time}}: failed",
@@ -52,9 +51,9 @@
     "dialogTitle": "Channel {{name}}",
     "dialogDesc": "Enter the details, save, then send a test message.",
     "enabled": "Turn this channel on",
-    "minSeverity": "Send from severity",
-    "minSeverityHint": "Alerts below this severity are not sent through this channel. A vulnerability attackers are using counts as Critical, any other urgent one as at least High.",
-    "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
+    "minSeverity": "What to send",
+    "minSeverityHint": "Findings are sent by their status, the words every screen uses; incidents by their severity. Update recommended is never sent.",
+    "secretSaved": "Saved. Leave empty to keep it.",
     "urlSaved": "Saved: {{url}} (the rest stays hidden). Leave empty to keep it.",
     "generate": "Generate random",
     "err": {
@@ -118,7 +117,17 @@
         "helpTitle": "Zalo OA tokens",
         "help": "Set up once: Vedette renews the Zalo access token itself.",
         "helpInfo": "Vedette renews the Zalo access token by itself with the refresh token, the App ID and the Secret key, so you set this up once, not every day. Get the OA's refresh token once in Zalo Developers; only if Vedette cannot reach Zalo for about 3 months does it run out, and then you save a new one.",
-        "doc": "Zalo's guide to OA access and refresh tokens"
+        "doc": "Zalo's guide to OA access and refresh tokens",
+        "guideTitle": "Zalo OA: for a business Official Account",
+        "guideWho": "This channel sends from a Zalo Official Account through an app on Zalo Developers. To get alerts on your own Zalo account, Zalo personal is simpler: you sign in with a QR code.",
+        "usePersonal": "Use Zalo personal instead",
+        "steps": {
+          "s1": "OA ID: shown on the OA management page (oa.zalo.me), or in your app on Zalo Developers.",
+          "s2": "App ID: on Zalo Developers (developers.zalo.me), open your app (create one if needed) and link it to the Official Account. The App ID is next to the app name.",
+          "s3": "Secret key: in the same app, Settings.",
+          "s4": "Refresh token: on Zalo Developers, API Explorer, OA access token: copy the refresh token. Vedette renews it by itself after that.",
+          "s5": "Recipient ID: the Zalo ID of the person who receives alerts. They must follow the OA or have messaged it."
+        }
       },
       "email": {
         "provider": {
@@ -327,7 +336,31 @@
     "turnOffTitle": "Turn off the email channel?",
     "turnOffConfirm": "Turn off anyway",
     "keepEditing": "Keep editing",
-    "keepSaved": "Saved. Leave empty to keep it."
+    "keepSaved": "Saved. Leave empty to keep it.",
+    "level": {
+      "critical": {
+        "option": "Only the most urgent",
+        "sends": "Findings: Under attack here, Exploited in the wild, and any other urgent one with a critical score. Incidents: Critical only, such as a trap touched."
+      },
+      "high": {
+        "option": "Every urgent finding, High and Critical incidents",
+        "sends": "Findings: Under attack here, Exploited in the wild, Public exploit available, Critical on an edge device. Incidents: High and Critical."
+      },
+      "medium": {
+        "option": "Every urgent finding, incidents from Medium (recommended)",
+        "sends": "Findings: Under attack here, Exploited in the wild, Public exploit available, Critical on an edge device. Incidents: Medium and above, such as an unknown device."
+      },
+      "low": {
+        "option": "Everything Vedette alerts for",
+        "sends": "Findings: Under attack here, Exploited in the wild, Public exploit available, Critical on an edge device. Incidents: all of them, Low included."
+      }
+    },
+    "levelShort": {
+      "critical": "Under attack and exploited findings, critical incidents",
+      "high": "Urgent findings, high and critical incidents",
+      "medium": "Urgent findings, incidents from medium",
+      "low": "Urgent findings, every incident"
+    }
   },
   "rules": {
     "quiet": {
@@ -623,7 +656,8 @@
     "failed": "Failed",
     "resend": "Send again",
     "resendWaiting": "Sending the message again… this can take up to a minute.",
-    "resendFor": "Send again via {{channel}}",
+    "resendFor": "Send again via {{channel}}: {{what}} ({{time}})",
+    "resent": "Sent again",
     "resendOk": "Sent again via {{channel}}.",
     "emptyTitle": "Nothing sent yet",
     "emptyBody": "Messages appear here once a channel is on and something happens.",

@@ -144,8 +144,8 @@ function ScanSchedule({ node }: { node: TargetNode }) {
   const { t } = useTranslation('exposure')
   return (
     <section aria-label={t('schedule.name', { value: node.value })} className="grid gap-1">
-      <ScheduleEditor ownerKey={node.schedule_key} name={t('schedule.name', { value: node.value })} runNow={false} />
-      {!node.deep ? <p className="text-meta text-muted">{t('schedule.needsTerms')}</p> : null}
+      <ScheduleEditor ownerKey={node.schedule_key} name={t('schedule.name', { value: node.value })} runNow={false} blocked={node.deep ? undefined : t('schedule.needsTerms')} />
+      {node.deep ? <p className="text-meta text-muted">{t('schedule.neverDisruptive')}</p> : null}
     </section>
   )
 }

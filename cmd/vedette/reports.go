@@ -40,6 +40,15 @@ func reportsService(d deps) *reports.Service {
 	cfg := reports.Config{DB: d.DB, Audit: d.Audit, Inventory: reportsInventory{d.Inventory}, Findings: reportsFindings{d.Findings},
 		Views: reportsViews{d.Findings}, KEV: reportsKEV{&d}, Exposure: reportsExposure{&d}, Detections: reportsDetections{&d}, Feeds: reportsFeeds{&d},
 		AI: reportsAI{d.AI}, OrgName: d.Core.OrgName, Zone: orgZone(&d), Log: d.Log, Clock: d.Clock}
+	if sch := d.Schedules; sch != nil {
+		cfg.Every = func(ctx context.Context) string {
+			v, err := sch.Get(ctx, reports.ScheduleKey(reports.DefinitionID))
+			if err != nil || !v.Enabled {
+				return ""
+			}
+			return string(v.Rule.Freq)
+		}
+	}
 	mailer := &reportsMailer{svc: newNotify(&d)}
 	cfg.Mail = mailer
 	if d.Reg != nil { // a nil *modreg.Registry inside the interface would not compare equal to nil
@@ -434,7 +443,7 @@ func (a reportsDetections) Period(ctx context.Context, from, to time.Time, top i
 	}
 	var tops []reports.Detection
 	for _, x := range p.Top {
-		tops = append(tops, reports.Detection{Kind: string(x.Kind), Title: x.Title, Severity: string(x.Severity), DeviceID: x.DeviceID, DeviceName: x.DeviceName, At: x.LastSeen})
+		tops = append(tops, reports.Detection{Kind: string(x.Kind), Title: x.Title, Severity: string(x.Severity), DeviceID: x.DeviceID, DeviceName: x.DeviceName, Devices: x.Devices, At: x.LastSeen})
 	}
 	return counts, tops, nil
 }

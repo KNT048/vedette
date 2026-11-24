@@ -28,13 +28,14 @@ import type { AgentNode, AgentToken, AgentsResponse, CreateTokenResult, OsqueryP
 /** Only the preview build with the mock API: the "Send sample data" button simulates one agent report (the real build does not have it). */
 const MOCK_BUILD = import.meta.env.DEV || import.meta.env.VITE_API_MOCK !== 'off'
 
-function Steps({ items, ns }: { items: { key: string; file: string; code: string }[]; ns: string }) {
+/** Numbered commands; `within` numbers them as the sub-steps of that step (1a, 1b …) when they sit under a numbered step. */
+function Steps({ items, ns, within }: { items: { key: string; file: string; code: string }[]; ns: string; within?: number }) {
   const { t } = useTranslation('inventory')
   return (
     <ol className="grid min-w-0 gap-4 [&>*]:min-w-0">
       {items.map((s, i) => (
         <li key={s.key} className="grid gap-1.5">
-          <p className="text-sm font-medium">{i + 1}. {t(`${ns}.${s.key}`)}</p>
+          <p className="text-sm font-medium">{within ? `${within}${String.fromCharCode(97 + i)}` : i + 1}. {t(`${ns}.${s.key}`)}</p>
           <CodeBlock label={s.file} code={s.code} />
         </li>
       ))}
@@ -174,10 +175,11 @@ export function InstallPanel({ data, token, platform: fixed }: { data: AgentsRes
         <p className="my-2 text-meta text-muted">{t('agents.install.readFirstBody')}</p>
         <CodeBlock label={inst.url} code={inst.script} />
       </details>
-      <div className="grid gap-1.5">
-        <p className="text-sm font-medium">{t('agents.install.uninstall')}</p>
-        <CodeBlock label={t(`agents.install.${platform}Label`)} code={one(box, inst.sha256, token, 'uninstall')} />
-      </div>
+      {/* Removing the agent is a later job: folded, so the uninstall command is never copied for the install one */}
+      <details className="rounded-md border border-rule p-3">
+        <summary className="cursor-pointer text-sm font-medium">{t('agents.install.uninstall')}</summary>
+        <div className="mt-2"><CodeBlock label={t(`agents.install.${platform}UninstallLabel`)} code={one(box, inst.sha256, token, 'uninstall')} /></div>
+      </details>
       <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('agents.install.security')}</p><InfoTip>{t('agents.install.securityInfo')}</InfoTip></div>
       {/* The manual way (package download, then the enrollment steps) stays folded until the person opens it. */}
       <details className="rounded-md border border-rule p-3">
@@ -308,7 +310,7 @@ export function WazuhForm({ current, onSaved }: { current: WazuhConnection | nul
           <details className="rounded-md border border-rule p-3" open={!current}>
             <summary className="cursor-pointer text-sm font-medium">{t('agents.wazuh.stepsTitle')}</summary>
             <div className="my-2 flex items-center gap-1"><p className="text-meta text-muted">{t('agents.wazuh.stepsBody')}</p><InfoTip topic={t('agents.wazuh.stepsTitle')}>{t('agents.wazuh.stepsBodyInfo')}</InfoTip></div>
-            <Steps items={wazuhReaderSteps()} ns="agents.wazuh.steps" />
+            <Steps items={wazuhReaderSteps()} ns="agents.wazuh.steps" within={1} />
           </details>
           <form onSubmit={submit} className="grid gap-4" noValidate>
             <p className="text-sm font-medium">{t('agents.wazuh.connectTitle')}</p>

@@ -25,8 +25,9 @@ type Config struct {
 	Secrets   *secrets.Store // the bait password of a credential token, the key of the HTTPS trap (core_secret)
 	Inventory Inventory
 	Host      Host
-	Logs      Logs      // optional: other sources' lines around a hit (the logs module)
-	Events    Publisher // optional: nil publishes nothing
+	Logs      Logs        // optional: other sources' lines around a hit (the logs module)
+	Events    Publisher   // optional: nil publishes nothing
+	TestAlert TestAlerter // optional: nil sends no test alert for a test hit
 	Modules   ModuleGate
 
 	// ConfigDir is the folder core writes opencanary.conf and honeytokens.json into. It belongs to core: the honeypot

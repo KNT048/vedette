@@ -95,6 +95,9 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 			d.ScanSource, d.SNMPSource = SourceOff, SourceOff
 		}
 		d.Software, d.Services = []Software{}, []ServiceRow{}
+		if d.IsBox { // the box is the machine running Vedette: always just seen, on the list, its page and every other reader alike
+			d.LastSeen = s.now()
+		}
 		out = append(out, d)
 	}
 	if err := rows.Err(); err != nil {
@@ -253,7 +256,7 @@ func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err err
 
 // filtered reads the devices f keeps (limit 0 = all), newest first, each with its finding count, summary and, when withSources, its
 // sources (a source filter reads them in any case) and, when withRisk, its risk marker (a risk filter needs withRisk); the box is
-// always just seen and never marked. riskOK is false when the markers could not be read: the rows have none and a risk filter is not
+// marked like any device (loadDevices has it always just seen). riskOK is false when the markers could not be read: the rows have none and a risk filter is not
 // applied (DeviceList.RiskUnavailable says so); with a risk filter that is 503 risk_unavailable instead (never every device).
 func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limit int, withSources, withRisk bool) (items []Device, riskOK bool, err error) {
 	counts, err := s.findingCounts(ctx)
@@ -293,11 +296,10 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	if items == nil {
 		items = []Device{}
 	}
-	now := s.now()
 	for i := range items {
 		d := &items[i]
 		d.FindingsCount = counts[d.ID]
-		if withRisk && !d.IsBox { // the box's own updates are in To fix; the box is never marked
+		if withRisk { // the box is marked like any device: its findings are findings like any other's
 			d.Risk = risks[d.ID]
 		}
 		d.Summary = summaryOf(d)
@@ -305,9 +307,6 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 			if d.Sources = sources[d.ID]; d.Sources == nil {
 				d.Sources = []string{}
 			}
-		}
-		if d.IsBox {
-			d.LastSeen = now // the box is the machine running Vedette: always just seen
 		}
 	}
 	return items, riskOK, nil
@@ -476,32 +475,87 @@ func (s *Service) kevIndex(ctx context.Context) (func(keys []string) []string, e
 // declared ("Microsoft Office (no device)"), never a nameless row.
 const NoDevice = " (no device)"
 
-// DisplayName is the one naming rule of every page and module (web/src/features/inventory/nameOf.ts is the same):
-// the name a person gave the device in Vedette (user_name) whenever it is set; then the host name (a name typed when the device
-// was added by hand is one); then a device added by hand is named after its first product, with NoDevice when it has no IP either;
-// any other device after its make and model, then its IP. "" when none of these is known: the caller adds the kind, the IP
-// placeholder or the id.
-func DisplayName(name, hostname, vendor, model, ip, origin, product string) string {
-	if n := strings.TrimSpace(name); n != "" {
+// NameFacts is what the naming rule (DisplayName) reads of a device.
+type NameFacts struct {
+	UserName string // the name a person gave the device in Vedette
+	Hostname string
+	// Vendor and Model are the device's current maker and model. CardVendor says the maker is only the one of its network card: the
+	// IEEE prefix of its MAC, which a network scan and the passive sensor report (CardVendor). That names who made the card, not what
+	// the device is: an ESXi host on an HPE server card, a firewall and a switch of one maker.
+	Vendor, Model string
+	CardVendor    bool
+	// OS is the operating system or firmware the device states, or that an agent, SNMP or a person's correction gives (NamingOS):
+	// never a network scan's fingerprint guess, never the OS row a person declared.
+	OS      string
+	IP      string
+	Origin  string
+	Product string // the first software a device added by hand runs
+}
+
+// DisplayName is the one naming rule of every page and module (web/src/features/inventory/nameOf.ts is the same): the name a person
+// gave the device in Vedette whenever it is set; then the host name (a name typed when the device was added by hand is one); then a
+// device added by hand is named after its first product, with NoDevice when it has no IP either; any other device after its make
+// and model, unless the maker is only its network card's and no model is known; then the product of the OS or firmware it states
+// (OSProduct: "VMware ESXi"); then "<card maker> device" (MakerDevice); then its IP. "" when none of these is known: the caller adds
+// the kind, the IP placeholder or the id.
+func DisplayName(f NameFacts) string {
+	if n := strings.TrimSpace(f.UserName); n != "" {
 		return n
 	}
-	if h := strings.TrimSpace(hostname); h != "" {
+	if h := strings.TrimSpace(f.Hostname); h != "" {
 		return h
 	}
-	hasIP := ip != "" && ip != noIP
-	if p := strings.TrimSpace(product); origin == "manual" && p != "" {
+	hasIP := f.IP != "" && f.IP != noIP
+	if p := strings.TrimSpace(f.Product); f.Origin == "manual" && p != "" {
 		if hasIP {
 			return p
 		}
 		return p + NoDevice
 	}
-	if hw := strings.TrimSpace(strings.TrimSpace(vendor) + " " + strings.TrimSpace(model)); hw != "" {
-		return hw
+	vendor, model := strings.TrimSpace(f.Vendor), strings.TrimSpace(f.Model)
+	if model != "" || vendor != "" && !f.CardVendor {
+		return strings.TrimSpace(vendor + " " + model)
+	}
+	if os := OSProduct(f.OS); os != "" {
+		return os
+	}
+	if vendor != "" {
+		return vendor + MakerDevice
 	}
 	if hasIP {
-		return ip
+		return f.IP
 	}
 	return ""
+}
+
+// MakerDevice ends the name of a device known only by the maker of its network card ("Fortinet device").
+const MakerDevice = " device"
+
+// CardVendor says a vendor observation of this source names only the maker of the network card: a network scan and the passive
+// sensor read it from the MAC's IEEE prefix. SNMP, an agent and a person state the device's own maker.
+func CardVendor(source string) bool { return source == "nmap" || source == "passive" }
+
+// NamingOS is the OS text the naming rule may use (NameFacts.OS): "" for a network scan's fingerprint guess (basis guess) and for the
+// OS row a person declared (source declared), else value.
+func NamingOS(value, source, basis string) string {
+	if source == sourceDeclared || basis == basisGuess {
+		return ""
+	}
+	return strings.TrimSpace(value)
+}
+
+// OSProduct is the product an OS or firmware text names, without its release: the words before the first one that starts with a
+// digit or a bracket ("VMware ESXi 8.0 Update 3 (build 24022510)" is "VMware ESXi", "MikroTik RouterOS 7.2 - 7.5" is "MikroTik
+// RouterOS", "JUNOS 15.1R7.9" is "JUNOS"). "" when the text starts with its release.
+func OSProduct(os string) string {
+	var words []string
+	for _, w := range strings.Fields(os) {
+		if c := w[0]; c >= '0' && c <= '9' || c == '(' || c == '[' || c == '-' {
+			break
+		}
+		words = append(words, w)
+	}
+	return strings.Join(words, " ")
 }
 
 // nameOrHost is the name a person gave a device when set, else its host name; nil when neither is known.
@@ -535,29 +589,57 @@ func (d Device) Name() string {
 	if d.observedHW != nil {
 		vendor, model = d.observedHW[0], d.observedHW[1]
 	}
-	return DisplayName(deref(d.UserName), deref(d.Hostname), vendor, model, d.IP, d.Origin, product)
+	card := d.Vendor != nil && d.Vendor.SoftwareID == "" && CardVendor(d.Vendor.Source)
+	os := ""
+	if d.OS != nil {
+		os = NamingOS(d.OS.Value, d.OS.Source, d.OS.Basis)
+	}
+	return DisplayName(NameFacts{UserName: deref(d.UserName), Hostname: deref(d.Hostname), Vendor: vendor, Model: model, CardVendor: card, OS: os, IP: d.IP,
+		Origin: d.Origin, Product: product})
 }
 
 // firstSoftware selects the display name of a device's first software, in the order the pages list it; never an nmap
 // OS guess the device does not use (hiddenGuess), never a line a person said is not installed.
 var firstSoftware = `(SELECT s.display FROM inv_software s WHERE s.asset_id = a.id AND s.state = 'present' AND NOT ` + hiddenGuess + ` ORDER BY s.display, s.id LIMIT 1)`
 
+// nameColumns are the columns of inv_asset a that the naming rule reads (scanName): the vendor's and the OS's sources come from their
+// observations (v, o of nameFrom).
+var nameColumns = `a.user_name, a.hostname, a.vendor, v.source, a.model, a.os, o.source, a.mac, a.ip, a.origin, ` + firstSoftware
+
+// nameFrom joins the vendor and OS observations nameColumns reads.
+const nameFrom = ` FROM inv_asset a LEFT JOIN inv_observation v ON v.id = a.vendor_obs_id LEFT JOIN inv_observation o ON o.id = a.os_obs_id`
+
+// scanName reads the nameColumns of one row (after the columns before them, extra) and gives its DisplayName.
+func scanName(sc interface{ Scan(...any) error }, extra ...any) (string, error) {
+	var name, host, vendor, vendorSrc, model, osName, osSrc, mac, ip, product sql.NullString
+	var origin string
+	if err := sc.Scan(append(extra, &name, &host, &vendor, &vendorSrc, &model, &osName, &osSrc, &mac, &ip, &origin, &product)...); err != nil {
+		return "", err
+	}
+	os := ""
+	if osName.Valid {
+		os = NamingOS(osName.String, osSrc.String, osBasis(osName.String, osSrc.String, mac.String))
+	}
+	return DisplayName(NameFacts{UserName: name.String, Hostname: host.String, Vendor: vendor.String, Model: model.String, CardVendor: CardVendor(vendorSrc.String),
+		OS: os, IP: ip.String, Origin: origin, Product: product.String}), nil
+}
+
 // Names maps device ids to the name to show (DisplayName; the id when nothing is known) for findings, notify, honeypot
 // and reports.
 func (s *Service) Names(ctx context.Context) (map[string]string, error) {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.user_name, a.hostname, a.vendor, a.model, a.ip, a.origin, `+firstSoftware+` FROM inv_asset a`)
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, `+nameColumns+nameFrom)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read names: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	out := map[string]string{}
 	for rows.Next() {
-		var id, origin string
-		var name, host, vendor, model, ip, product sql.NullString
-		if err := rows.Scan(&id, &name, &host, &vendor, &model, &ip, &origin, &product); err != nil {
+		var id string
+		n, err := scanName(rows, &id)
+		if err != nil {
 			return nil, fmt.Errorf("inventory: read names: %w", err)
 		}
-		if out[id] = DisplayName(name.String, host.String, vendor.String, model.String, ip.String, origin, product.String); out[id] == "" {
+		if out[id] = n; n == "" {
 			out[id] = id
 		}
 	}
@@ -576,16 +658,11 @@ func assetExists(ctx context.Context, q querier, id string) (bool, error) {
 // deviceName is how audit rows, the matcher's evidence (MatchInput) and messages name a device: as the pages do
 // (DisplayName), else the id.
 func deviceName(ctx context.Context, q querier, id string) string {
-	var name, host, vendor, model, ip, product sql.NullString
-	var origin string
-	if err := q.QueryRowContext(ctx, `SELECT a.user_name, a.hostname, a.vendor, a.model, a.ip, a.origin, `+firstSoftware+` FROM inv_asset a WHERE a.id = ?`, id).
-		Scan(&name, &host, &vendor, &model, &ip, &origin, &product); err != nil {
+	n, err := scanName(q.QueryRowContext(ctx, `SELECT `+nameColumns+nameFrom+` WHERE a.id = ?`, id))
+	if err != nil || n == "" {
 		return id
 	}
-	if n := DisplayName(name.String, host.String, vendor.String, model.String, ip.String, origin, product.String); n != "" {
-		return n
-	}
-	return id
+	return n
 }
 
 // DevicesPage is Devices narrowed by the Devices search (#849) with the guesses of the identification rules: GET
@@ -611,10 +688,8 @@ func (s *Service) DetailPage(ctx context.Context, id string) (Detail, error) {
 		return d, err
 	}
 	s.addGuesses(ctx, []*AssetCore{&d.Asset.AssetCore})
-	risks, ok := s.risks(ctx) // the marker next to the title (the box never has one)
-	if !d.Asset.IsBox {
-		d.Risk = risks[id]
-	}
+	risks, ok := s.risks(ctx) // the marker next to the title, the box's too
+	d.Risk = risks[id]
 	d.RiskUnavailable = !ok
 	return d, nil
 }

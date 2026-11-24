@@ -1399,15 +1399,15 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		if v.Ransomware || v.EPSS >= 0.5 {
 			m.Severity = SeverityCritical
 		}
-		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()))
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s)"+suspectedClause, name, sw, v.CVE, clean(within.String()))
 		if schemed {
 			m.Evidence.Summary = schemeAffectedNote(a, s, in, v, within)
 		}
 		if pinned != "" {
-			m.Evidence.Summary = fmt.Sprintf("%s runs %s. NVD lists %s for %s only; Vedette cannot tell which one this is, but the version is inside the affected range of each (%s); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, pinned, clean(within.String()))
+			m.Evidence.Summary = fmt.Sprintf("%s runs %s. NVD lists %s for %s only; Vedette cannot tell which one this is, but the version is inside the affected range of each (%s)"+suspectedClause, name, sw, v.CVE, pinned, clean(within.String()))
 		}
 		if w.via != "" {
-			m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s, read with the range NVD gives %s, which takes the same monthly update); no scan has confirmed it yet, so this is only suspected.", name, sw, v.CVE, clean(within.String()), w.via)
+			m.Evidence.Summary = fmt.Sprintf("%s runs %s. Its version is inside the range affected by %s (%s, read with the range NVD gives %s, which takes the same monthly update)"+suspectedClause, name, sw, v.CVE, clean(within.String()), w.via)
 		}
 		// The device's own agent reports what is installed; a detection, not a guess. Not when NVD gives no end to the range
 		// (every version: no fix to name). A platform condition still open is no match at all (outQuestion).
@@ -1423,7 +1423,7 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		}
 	case every && (!in.given || !versionKnown(in.ver)): // the version does not matter (#939: also one Vedette cannot read)
 		m.every = true
-		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists every version of it as affected by %s; no scan has confirmed it yet, so this is only suspected.", name, sw, v.rangesBy(true), v.CVE)
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists every version of it as affected by %s"+suspectedClause, name, sw, v.rangesBy(true), v.CVE)
 	case multi:
 		m.Confidence = ConfVendorOnly
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists this flaw for several %s products; check the advisory to see whether yours is one of them.", name, sw, v.listName(), clean(v.Vendor))

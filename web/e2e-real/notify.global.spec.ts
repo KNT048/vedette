@@ -25,7 +25,8 @@ const SLACK_BOT = ['xoxb', '0000000001', '0000000002', 'notarealbottoken0002'].j
 const ZALO_TOKEN = 'zalo-e2e-not-a-real-token-ZL01'
 const WEBHOOK_KEY = 'e2e-webhook-signing-key-WH01'
 const SMTP_PASSWORD = 'e2e-smtp-password-not-real-SM01'
-const last4 = (s: string) => s.slice(-4)
+// A saved secret comes back as a mark, never a character of it.
+const last4 = (_s: string) => '••••'
 const generatedKeys: string[] = [] // keys the form made at random: also never to come back
 /** No response of the box holds all but the last 4 characters of any secret of this file (INV-1). */
 function noSecretIn(text: string, what: string) {
@@ -171,20 +172,20 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       const row = chanRow(page, now)
       await expect(row).toContainText('Chat -1001234567890')
       await expect(row).toContainText('Off')
-      await expect(row).toContainText('Medium and above')
+      await expect(row).toContainText('Urgent findings, incidents from medium')
       await expect(row).toContainText('Not tested')
       await noEcho(page, TG_GUI)
 
       // edit: the key is not typed again and stays; the severity changes
       await row.getByRole('button', { name: 'Edit Telegram', exact: true }).click()
       const e = dialog(page)
-      await expect(e.getByText(`Saved, ending in ${last4(TG_GUI)}. Leave empty to keep it.`)).toBeVisible()
+      await expect(e.getByText('Saved. Leave empty to keep it.')).toBeVisible()
       await expect(e.getByLabel('Bot token', { exact: true })).toHaveValue('')
       await expect(e.getByLabel('Chat ID', { exact: true })).toHaveValue('-1001234567890')
-      await e.getByLabel('Send from severity', { exact: true }).selectOption('high')
+      await e.getByLabel('What to send', { exact: true }).selectOption('high')
       const edited = await saveOk(page, e, 'telegram')
       expect(edited).toMatchObject({ configured: true, enabled: false, secret_last4: last4(TG_GUI), min_severity: 'high', fields: { chat_id: '-1001234567890' } })
-      await expect(chanRow(page, edited)).toContainText('High and above')
+      await expect(chanRow(page, edited)).toContainText('Urgent findings, high and critical incidents')
 
       // remove: Cancel keeps it, Delete removes it and its key
       await chanRow(page, edited).getByRole('button', { name: 'Remove channel Telegram', exact: true }).click()
@@ -353,9 +354,9 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
       expect(generated, 'a random key is 24 bytes in hex').toMatch(/^[0-9a-f]{48}$/)
       expect((await channel('webhook')).configured, 'a refused save saved something').toBe(false)
       const saved = await saveOk(page, d, 'webhook')
-      expect(saved).toMatchObject({ type: 'webhook', configured: true, enabled: false, fields: { url: 'https://hooks.e2e.invalid/…ette' }, secret_last4: last4(generated), min_severity: 'medium', approvals: false, approvers: [] })
+      expect(saved).toMatchObject({ type: 'webhook', configured: true, enabled: false, fields: { url: 'https://hooks.e2e.invalid/…' }, secret_last4: last4(generated), min_severity: 'medium', approvals: false, approvers: [] })
       await toast(page, 'Channel Webhook saved.')
-      await expect(chanRow(page, saved)).toContainText('https://hooks.e2e.invalid/…ette') // sealed (SYS-4, #426): scheme://host/… and the last 4 characters
+      await expect(chanRow(page, saved)).toContainText('https://hooks.e2e.invalid/…') // sealed (SYS-4, #426): scheme://host/… and the last 4 characters
       await noEcho(page, generated)
 
       // an edit to an address on this machine is refused too (by the form), and the saved channel stays as it was
@@ -495,9 +496,9 @@ test.describe('the box refuses forbidden webhook addresses, and keeps the rest (
       expect(await newAudit(c, before), 'a refusal wrote an audit row').toEqual([])
       // an internal SIEM on plain http (RFC 1918) and a public https name are fine: saved (turned off, so nothing is ever sent)
       const ok1 = await call<Ch>(c, 'PUT', '/notify/channels/webhook', body('http://10.99.99.99:9/hook'))
-      expect(ok1, 'private http').toMatchObject({ status: 200, body: { configured: true, fields: { url: 'http://10.99.99.99:9/…hook' }, secret_last4: last4(WEBHOOK_KEY) } })
+      expect(ok1, 'private http').toMatchObject({ status: 200, body: { configured: true, fields: { url: 'http://10.99.99.99:9/…' }, secret_last4: last4(WEBHOOK_KEY) } })
       const ok2 = await call<Ch>(c, 'PUT', '/notify/channels/webhook', body('https://hooks.e2e.invalid/hook'))
-      expect(ok2, 'public https').toMatchObject({ status: 200, body: { configured: true, fields: { url: 'https://hooks.e2e.invalid/…hook' } } })
+      expect(ok2, 'public https').toMatchObject({ status: 200, body: { configured: true, fields: { url: 'https://hooks.e2e.invalid/…' } } })
       await auditHasNo(c, WEBHOOK_KEY)
     } finally { await c.dispose() }
   })
@@ -761,7 +762,7 @@ test.describe('a real send that fails: the record in History, the finding and th
       await expect(rows).toHaveCount(2)
       for (const text of ['Email', 'it@e2e.test', 'Vulnerability', 'Failed', ERR_UNREACHABLE]) await expect(rows.first()).toContainText(text)
       await expect(rows.first().getByRole('link', { name: row.what, exact: true })).toBeVisible()
-      const [res] = await Promise.all([page.waitForResponse((r) => /\/api\/v1\/notify\/history\/[^/]+\/resend$/.test(r.url())), rows.first().getByRole('button', { name: 'Send again via Email', exact: true }).click()])
+      const [res] = await Promise.all([page.waitForResponse((r) => /\/api\/v1\/notify\/history\/[^/]+\/resend$/.test(r.url())), rows.first().getByRole('button', { name: /^Send again via Email: / }).click()])
       expect(res.status()).toBe(200)
       expect(await res.json()).toMatchObject({ ok: false, error: ERR_UNREACHABLE, what: row.what })
       await toast(page, ERR_UNREACHABLE)

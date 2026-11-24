@@ -582,6 +582,9 @@ func (s *Service) evaluateOne(ctx context.Context, ev Det, sum *RunSummary) erro
 		// The trigger's history only when a rule of that trigger is on: a flood of a trigger no rule watches (spoofed scans) would
 		// otherwise read up to maxEvents events for each event of it.
 		if !read {
+			if err := s.deviceOfEvent(ctx, &ev); err != nil { // a moved event whose device was not readable then
+				return err
+			}
 			if all, err = loadEvents(ctx, rdb, `WHERE trigger = ?`, maxEvents, ev.Trigger); err != nil {
 				return err
 			}

@@ -143,7 +143,7 @@ var exportPolicy = map[string]tablePolicy{
 	"notify_notice":          {export: "id event created_at product title severity unsent unsent_floor unsent_channel", json: "cves"},
 	"notify_notice_finding":  {export: "notice_id finding_id layer"},
 	"notify_pending":         {export: "id channel notice_id reason due_at state claimed_at created_at attempts", json: "notice"},
-	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient delayed", json: "message", url: "to"},
+	"notify_send":            {export: "id kind ref_id channel at ok error what link recipient delayed resend_of", json: "message", url: "to"},
 	"intake_agent_tokens":    {export: "id name kind last4 created_at expires_at last_received created_by first_enrolled_at device_id", skip: "token_hash"},                                                                                                                                                                                          // the hash never leaves (agent-intake INV-3)
 	"intake_wazuh":           {export: "id username password_last4 tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"},                                                                                                                     // the password stays in core_secret (agent-intake INV-6)
 	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_call_at last_result_at bound_ip bound_mac reported approved_at kernel win_name win_version win_target report_asked_at software_taken_at os_taken_at call_every_s call_gap_s report_every_s", skip: "node_key_hash"}, // the key hash never leaves
@@ -163,7 +163,7 @@ var exportPolicy = map[string]tablePolicy{
 	"rep_definition":         {export: "id name kind updated_at updated_by send_due_at send_by", json: "options recipients"},
 	"rep_history":            {export: "id definition_id ts title period_from period_to trigger status error sent_by", json: "recipients document"},
 	"rep_pdpl":               {export: "id", json: "org report"},
-	"resp_actions":           {export: "seq id source proposal_id rule_id rule_name trigger trigger_summary finding_id cve asset_id asset_name title risk status requested_at expires_at decided_at requires_approvals two_because note pre_approved", json: "approvals sent_to ai items"},
+	"resp_actions":           {export: "seq id source proposal_id rule_id rule_name trigger trigger_summary finding_id cve asset_id asset_name title risk status requested_at expires_at decided_at requires_approvals two_because note pre_approved end_reason", json: "approvals sent_to ai items"},
 	"resp_ai_notes":          {export: "id ts kind title why confidence action_id target evidence"},
 	"resp_allowlist":         {export: "value label"},
 	"resp_block_entries":     {export: "value request_id item_id source reason added_at expires_at"},

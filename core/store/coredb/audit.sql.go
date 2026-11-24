@@ -18,7 +18,8 @@ WHERE seq <= ?1
   AND (?4 IS NULL OR user = ?4)
   AND (?5 IS NULL OR substr(action, 1, instr(action, '.') - 1) = ?5)
   AND (?6 IS NULL OR (user <> 'system' AND substr(user, 1, 7) <> 'system:'))
-  AND (?7 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?7) > 0)
+  AND (?7 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?7) > 0
+       OR instr(COALESCE(?8, ''), ',' || action || ',') > 0)
 `
 
 type CountAuditFilteredParams struct {
@@ -29,6 +30,7 @@ type CountAuditFilteredParams struct {
 	Grp     interface{}
 	People  interface{}
 	Needle  interface{}
+	Actions interface{}
 }
 
 func (q *Queries) CountAuditFiltered(ctx context.Context, arg CountAuditFilteredParams) (int64, error) {
@@ -40,6 +42,7 @@ func (q *Queries) CountAuditFiltered(ctx context.Context, arg CountAuditFiltered
 		arg.Grp,
 		arg.People,
 		arg.Needle,
+		arg.Actions,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -160,9 +163,10 @@ WHERE seq < ?1
   AND (?4 IS NULL OR user = ?4)
   AND (?5 IS NULL OR substr(action, 1, instr(action, '.') - 1) = ?5)
   AND (?6 IS NULL OR (user <> 'system' AND substr(user, 1, 7) <> 'system:'))
-  AND (?7 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?7) > 0)
+  AND (?7 IS NULL OR instr(lower(action || ' ' || target || ' ' || COALESCE(detail, '') || ' ' || user), ?7) > 0
+       OR instr(COALESCE(?8, ''), ',' || action || ',') > 0)
 ORDER BY seq DESC
-LIMIT ?9 OFFSET ?8
+LIMIT ?10 OFFSET ?9
 `
 
 type ListAuditFilteredParams struct {
@@ -173,6 +177,7 @@ type ListAuditFilteredParams struct {
 	Grp       interface{}
 	People    interface{}
 	Needle    interface{}
+	Actions   interface{}
 	SkipRows  int64
 	MaxRows   int64
 }
@@ -189,8 +194,9 @@ type ListAuditFilteredRow struct {
 
 // The audit screen and its CSV export (GET /core/audit, /core/audit/export): newest first, keyset on seq
 // (seq < before_seq), every filter optional; the screen pages with skip_rows (the export reads with 0). The text filter is a case-insensitive substring over the
-// same four columns the screen shows; lower() folds ASCII only. The group is the part of the action before
-// the first dot. people, when set, leaves out the automatic lines: user "system" or "system:<part>".
+// same four columns the screen shows; lower() folds ASCII only. actions (",code,code,") are the actions whose label on the screen
+// holds the search text: a line of one of them matches too, since the screen shows the label and the table stores the code. The
+// group is the part of the action before the first dot. people, when set, leaves out the automatic lines: user "system" or "system:<part>".
 func (q *Queries) ListAuditFiltered(ctx context.Context, arg ListAuditFilteredParams) ([]ListAuditFilteredRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAuditFiltered,
 		arg.BeforeSeq,
@@ -200,6 +206,7 @@ func (q *Queries) ListAuditFiltered(ctx context.Context, arg ListAuditFilteredPa
 		arg.Grp,
 		arg.People,
 		arg.Needle,
+		arg.Actions,
 		arg.SkipRows,
 		arg.MaxRows,
 	)

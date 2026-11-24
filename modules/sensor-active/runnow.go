@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/run"
+	"github.com/knt048/vedette/core/store"
 )
 
 // ---- Scan the LAN now and Check this device now (#850, INV-21) ----
@@ -108,28 +109,52 @@ func (s *Service) Manual(ctx context.Context) *ManualRun {
 // Persons is every run a person started that is queued or going now, oldest first (the order they run in): each one says what
 // it waits for. A pass a person asked to go on now counts while it goes on within their hour.
 func (s *Service) Persons(ctx context.Context) []ManualRun {
-	ids, err := s.personRunIDs(ctx)
+	runs, err := s.personRuns(ctx)
 	if err != nil {
 		return nil
 	}
-	var out []ManualRun
-	for _, id := range ids {
-		r, err := s.runs.Read(ctx, id)
-		if err != nil || r.Status.Ended() {
-			continue
-		}
+	out := make([]ManualRun, 0, len(runs))
+	for _, r := range runs {
 		out = append(out, *s.manualOf(ctx, r))
-	}
-	if sw, err := s.liveRun(ctx, RunSweep); err == nil && sw != nil && sw.Trigger != run.Manual && (sw.Status.Live() || sw.Status == run.Queued) &&
-		s.clock().Before(s.sweepUntil(*sw)) {
-		out = append(out, *s.manualOf(ctx, *sw))
 	}
 	return out
 }
 
-// personLive is the SQL condition of a person's run of the nmap lane that is not over: queued or going, or a check that waits for
-// the scan worker (asked while it had not reported).
-const personLive = `trigger = 'manual' AND parent_id IS NULL AND (status IN ('queued', 'running', 'stopping') OR (kind = '` + RunCheck + `' AND status = 'waiting'))`
+// personRuns is every run of the nmap lane a person started that is not over, oldest first: personRunIDs as stored now, a person's pass
+// that waits counted only while it goes on by itself (goesOnByItself), and then a pass a person asked to go on now, within their hour.
+func (s *Service) personRuns(ctx context.Context) ([]run.Run, error) {
+	ids, err := s.personRunIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []run.Run
+	for _, id := range ids {
+		r, err := s.runs.Read(ctx, id)
+		if err != nil || r.Status.Ended() || (r.Kind == RunSweep && r.Status == run.Waiting && !s.goesOnByItself(r)) {
+			continue
+		}
+		out = append(out, r)
+	}
+	if sw, err := s.liveRun(ctx, RunSweep); err == nil && sw != nil && sw.Trigger != run.Manual && !sw.Status.Ended() &&
+		s.clock().Before(s.sweepUntil(*sw)) && (sw.Status != run.Waiting || s.goesOnByItself(*sw)) {
+		out = append(out, *sw)
+	}
+	return out, nil
+}
+
+// goesOnByItself says waiting pass r goes on by itself within its person's hour: it gave way to other work in the nmap lane, or waits
+// for the scan worker (after a restart, until it reports). A pass that waits for the settings, or for the window once the hour is over,
+// waits for a person or the window and is not a person's run going on.
+func (s *Service) goesOnByItself(r run.Run) bool {
+	if !s.clock().Before(s.sweepUntil(r)) {
+		return false
+	}
+	return s.isYielded(r.ID) || (r.WaitingFor != nil && *r.WaitingFor == waitWorker)
+}
+
+// personLive is the SQL condition of a person's run of the nmap lane that is not over: queued or going, or waiting (a check waits for
+// the scan worker when asked while it had not reported; a sweep waits for the run it gave way to, or for the worker after a restart).
+const personLive = `trigger = 'manual' AND parent_id IS NULL AND status IN ('queued', 'waiting', 'running', 'stopping')`
 
 // personRunIDs are the runs of the nmap lane a person started (not steps of another module's run) that are not over (personLive),
 // oldest first.
@@ -170,30 +195,34 @@ func (s *Service) manualOf(ctx context.Context, r run.Run) *ManualRun {
 		}
 	}
 	m.Progress = runView(r)
+	if r.Kind != RunSweep { // one device: its count ("0 of 1") says nothing, and its step is where its nmap is, not "finding the device"
+		m.Progress.Done, m.Progress.Total, m.Progress.Unit = nil, nil, nil
+	}
+	if p, ok := s.lastProgress(r.ID); ok && r.Status.Live() {
+		if !p.at.IsZero() { // the worker reports while the row stays as it is: "Last report" is the worker's
+			m.Progress.UpdatedAt = store.FormatTS(p.at)
+		}
+		if r.Kind != RunSweep && phaseOrder[p.u.Phase] > 0 {
+			m.Progress.Phase = p.u.Phase
+		}
+	}
 	m.Queued = waits(r)
 	return m
 }
 
-// manualLive is the newest run of the nmap lane a person started (not a step of another module's run) that is not over (personLive).
+// manualLive is the newest run of the nmap lane a person started (not a step of another module's run) that is not over (personRuns).
 func (s *Service) manualLive(ctx context.Context) (*run.Run, error) {
-	var id string
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT id FROM core_run WHERE module = ? AND lane = ? AND `+personLive+`
-		ORDER BY queued_at DESC, rowid DESC LIMIT 1`, ModuleID, laneNmap).Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) { // a pass a person asked to go on now is theirs while it goes on within their hour
-		sw, err := s.liveRun(ctx, RunSweep)
-		if err != nil || sw == nil || !sw.Status.Live() && sw.Status != run.Queued || !s.clock().Before(s.sweepUntil(*sw)) {
-			return nil, err
-		}
-		return sw, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("sensoractive: read the runs: %w", err)
-	}
-	r, err := s.runs.Read(ctx, id)
-	if err != nil {
+	runs, err := s.personRuns(ctx)
+	if err != nil || len(runs) == 0 {
 		return nil, err
 	}
-	return &r, nil
+	newest := runs[0]
+	for _, r := range runs[1:] {
+		if r.QueuedAt >= newest.QueuedAt {
+			newest = r
+		}
+	}
+	return &newest, nil
 }
 
 // StartManual checks a person's run and queues it (INV-21): no targets sweeps the whole scope now, with the window counted open for

@@ -14,13 +14,13 @@ export const Channel = z.object({
   type: ChannelType,
   configured: z.boolean(),
   enabled: z.boolean(),
-  fields: z.record(z.string(), z.string()).describe('Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)'),
-  secret_last4: z.string().nullable().describe('Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)'),
+  fields: z.record(z.string(), z.string()).describe('Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group ("true" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)'),
+  secret_last4: z.string().nullable().describe('Secrets (token, password, signing key) are never returned, not even a part: a saved one reads "••••", none is null (SYS-4)'),
   min_severity: RouteSeverity,
   last_test: TestResult.nullable(),
   approvals: z.boolean().describe('Approve actions from this channel (Slack, Telegram, Email, Zalo personal)'),
   approvers: z.array(Approver).describe('Vedette users (operator or admin) allowed to approve from this channel, with their address on it'),
-  approval_last4: z.object({ app_token: z.string().nullable(), bot_token: z.string().nullable() }).describe('Slack Socket Mode tokens (xapp-, xoxb-): only the last 4 characters are returned'),
+  approval_last4: z.object({ app_token: z.string().nullable(), bot_token: z.string().nullable() }).describe('Slack Socket Mode tokens (xapp-, xoxb-): "••••" when saved, null when not; never a character of the token'),
 })
 export const ChannelInput = z.object({
   enabled: z.boolean(),
@@ -101,6 +101,7 @@ export const HistoryItem = z.object({
   id: z.string(), at: iso, channel: ChannelType, to: z.string(), ok: z.boolean(), error: z.string().optional(),
   delayed: z.boolean().describe('A "Delayed (rate limited)" row: the message is sent again by itself after the wait the provider asked for'),
   kind: z.enum(['incident', 'vuln', 'approval']), what: z.string(), link: z.string(),
+  resent: z.boolean().describe('A copy a person sent with Send again: same words as the message it copies, not a new alert'),
 })
 export const UnsentNotice = z.object({
   id: z.string(), at: iso.describe('When the notice was made'), what: z.string().describe('Its title: "<product> on <device>: <status> (<CVE>)"'),

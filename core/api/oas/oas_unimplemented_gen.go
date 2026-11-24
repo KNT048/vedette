@@ -2161,7 +2161,8 @@ func (UnimplementedHandler) HoneypotPatchHoneypotTrapIpsID(ctx context.Context, 
 // HoneypotPostHoneypotTestHit implements honeypot_post_honeypot_test_hit operation.
 //
 // "Test trap": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with
-// that service; not counted in statistics, no alert sent.
+// that service, and sends the alert a real hit would send, marked Test, to the alert channels that are
+// on; never an incident, not counted in statistics.
 //
 // POST /honeypot/test-hit
 func (UnimplementedHandler) HoneypotPostHoneypotTestHit(ctx context.Context, req *HoneypotPostHoneypotTestHitReq) (r *HoneypotPostHoneypotTestHitOK, _ error) {
@@ -2170,7 +2171,8 @@ func (UnimplementedHandler) HoneypotPostHoneypotTestHit(ctx context.Context, req
 
 // HoneypotPostHoneypotTestScan implements honeypot_post_honeypot_test_scan operation.
 //
-// "Test scan": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent.
+// "Test scan": a labelled test scan from the box across the Trap IPs, with its test alert marked Test;
+// never an incident, not counted.
 //
 // POST /honeypot/test-scan
 func (UnimplementedHandler) HoneypotPostHoneypotTestScan(ctx context.Context) (r *HoneypotPostHoneypotTestScanOK, _ error) {
@@ -2188,7 +2190,8 @@ func (UnimplementedHandler) HoneypotPostHoneypotTokens(ctx context.Context, req 
 
 // HoneypotPostHoneypotTokensIDTest implements honeypot_post_honeypot_tokens_id_test operation.
 //
-// "Test token": a labelled test trigger, not counted, no alert sent.
+// "Test token": a labelled test trigger, with its test alert marked Test; never an incident, not
+// counted.
 //
 // POST /honeypot/tokens/{id}/test
 func (UnimplementedHandler) HoneypotPostHoneypotTokensIDTest(ctx context.Context, params HoneypotPostHoneypotTokensIDTestParams) (r *HoneypotPostHoneypotTokensIDTestOK, _ error) {

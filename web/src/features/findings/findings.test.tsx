@@ -149,7 +149,8 @@ describe('findings: f-2, f-3 have no confirmed recommendation yet', () => {
     expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()
     expect(screen.getByText(/Apply mitigations in accordance with vendor instructions/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Vendor advisory (wordpress.org)' })).toHaveAttribute('href', 'https://wordpress.org/news/2026/10/wordpress-7-1-4')
-    expect(screen.getByText('Steps you can take now')).toBeInTheDocument() // What the box knows, without a pack
+    // the same four steps a confirmed pack has, from the box's data
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(expect.arrayContaining(['1. Install the patch', '2. Temporary workaround if you cannot update yet', '3. Firewall configuration to cut off access', '4. Check that it is fixed']))
     expect(screen.queryByText(/No confirmed exploitation signs/)).not.toBeInTheDocument() // general checks instead (INV-8)
     expect(screen.getByTestId('general-checks')).toBeInTheDocument()
     await expectNoA11yViolations()
@@ -508,7 +509,7 @@ describe('findings: as a customer', () => {
   it('a device with no IP is named, says "No IP address" and offers no rescan', async () => {
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01' ? { ...a, ip: '—', hostname: null } : a)))
     renderApp('/findings/f-2')
-    expect(await screen.findByRole('heading', { level: 1, name: /^VMware may be affected/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /^Ubuntu may be affected/ })).toBeInTheDocument()
     expect(screen.getAllByText('No IP address').length).toBeGreaterThan(0)
     expect(screen.queryByRole('link', { name: 'Rescan this device' })).not.toBeInTheDocument()
     expect(screen.queryByText(/a-web01/)).not.toBeInTheDocument()
@@ -532,6 +533,7 @@ describe('findings: accept risk until a day (S-MIT-1)', () => {
     expect(await within(dlg).findByText(/^Say why \(at least 3 characters\)/)).toBeInTheDocument()
     expect(within(dlg).getByText('Choose a date from tomorrow up to one year from today.')).toBeInTheDocument()
     const date = within(dlg).getByLabelText('Accept until')
+    expect(date).toHaveFocus() // the first field to fix takes the focus, so its reason is in view in a long dialog
     expect(date).toHaveAttribute('min', untilBounds().min)
     expect(date).toHaveAttribute('max', untilBounds().max)
     await userEvent.click(within(dlg).getByRole('button', { name: '90 days' }))
@@ -805,7 +807,7 @@ describe('findings: a closed finding opens with why it was closed (S-MIT-1)', ()
     const n = await screen.findByTestId('closed-notice')
     expect(n).toHaveTextContent(/^Risk accepted until 12 Feb 2027 by admin@acme\.example on /)
     expect(n).toHaveTextContent('No patch window before March')
-    expect(n).toHaveTextContent('It reopens by itself after that day')
+    expect(n).toHaveTextContent('It reopens by itself after that day.')
   })
 
   it('an open finding is unchanged: no notice, blocks not folded', async () => {

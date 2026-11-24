@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { InfoTip } from '@/components/common/InfoTip'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { QueryState } from '@/components/common/States'
@@ -45,7 +46,7 @@ export function AgentInstall({ tokenName, known = null, deviceId, onCreated }: {
 
 function InstallFlow({ data, tokenName, known, deviceId, onCreated }: { data: AgentsResponse; tokenName: string; known: KnownOs | null; deviceId?: string; onCreated?: (on: boolean) => void }) {
   const { t } = useTranslation('inventory')
-  const { create } = useAgentActions()
+  const { create, revoke } = useAgentActions()
   const [platform, setPlatform] = useState<PickOs | null>(known && known !== 'unsupported' ? known : null)
   const [changing, setChanging] = useState(false)
   const [token, setToken] = useState<CreateTokenResult | null>(null)
@@ -59,6 +60,17 @@ function InstallFlow({ data, tokenName, known, deviceId, onCreated }: { data: Ag
       onSuccess: (r) => { setToken(r); onCreated?.(true) },
       onError: setError,
     })
+  }
+
+  // Install commands made earlier for the same use (any machine, or this device) that no machine enrolled with yet: each click
+  // makes a new token, so say so and offer to revoke them instead of leaving a trail until they expire.
+  const [opened] = useState(() => Date.now())
+  const unused = data.tokens.filter((k) => k.kind === 'osquery' && k.hosts === 0 && (k.device_id ?? undefined) === deviceId && (!k.expires_at || Date.parse(k.expires_at) > opened))
+  const revokeUnused = async () => {
+    try {
+      for (const k of unused) await revoke.mutateAsync(k.id)
+      toast.success(t('agents.unused.revoked', { count: unused.length }))
+    } catch (e) { setError(e) }
   }
 
   if (known === 'unsupported' && !platform) {
@@ -79,9 +91,15 @@ function InstallFlow({ data, tokenName, known, deviceId, onCreated }: { data: Ag
           {token ? null : <Button size="sm" onClick={() => setChanging(true)}>{t('agents.platform.change')}</Button>}
         </p>
       ) : <OsPicker platform={platform} onChange={setPlatform} />}
-      {run ? <p className="text-meta text-muted">{t('agents.serverOnly')}</p> : null}
+      <p className="text-meta text-muted">{t('agents.serverOnly')}</p>
       {error ? <TokenError error={error} onRemoved={() => setError(null)} /> : null}
       <BusyNote busy={create.isPending}>{t('agents.install.preparing')}</BusyNote>
+      {run && !token && unused.length ? (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-muted">
+          {t('agents.unused.line', { count: unused.length, when: fmtRelative(unused[0]!.created_at) })}
+          <Button size="sm" variant="ghost" busy={revoke.isPending} busyLabel={t('common:busy.removing')} onClick={() => void revokeUnused()}>{t('agents.unused.revoke', { count: unused.length })}</Button>
+        </p>
+      ) : null}
       {run && !token ? <Button variant="primary" className="justify-self-start" busy={create.isPending} busyLabel={t('common:busy.creating')} onClick={make}>{t('agents.createCommand')}</Button> : null}
       {token && run ? (
         <>

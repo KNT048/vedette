@@ -118,20 +118,20 @@ test.describe('notify: incidents (S-ALERT-3)', () => {
     await expect(table.getByText('Approval request').first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'About History' })).toHaveAccessibleDescription(/Vedette only alerts for products you own/) // #824: the rule is behind the section's ⓘ
     const rows = await rowsOf().count()
-    await table.getByRole('button', { name: 'Send again via Email' }).first().click()
+    await table.getByRole('button', { name: /^Send again via Email: / }).first().click()
     await expect(page.getByText('Sent again via Email.').first()).toBeVisible()
     await expect(rowsOf()).toHaveCount(rows + 1)
   })
 })
 
 test.describe('notify: alert channels (S-NOT-1)', () => {
-  test('Telegram: wrong input points at the right field, right input saves and tests, still there after reload, secret shows only 4 characters', async ({ page }) => {
+  test('Telegram: wrong input points at the right field, right input saves and tests, still there after reload, none of the secret is shown', async ({ page }) => {
     const errors = collectErrors(page)
     await startWithSample(page)
     await page.goto('/settings/channels')
     await page.getByRole('button', { name: 'Edit Telegram' }).click()
     const d = page.getByRole('dialog')
-    await expect(d.getByText(/Saved, ending in/)).toBeVisible()
+    await expect(d.getByText('Saved. Leave empty to keep it.')).toBeVisible()
     await expect(d.getByRole('button', { name: 'About Chat ID' })).toHaveAccessibleDescription(/getUpdates/) // #824: the how-to is behind the field's ⓘ
     await d.getByLabel('Chat ID', { exact: true }).fill('abc')
     await d.getByLabel('Chat ID', { exact: true }).press('Enter')

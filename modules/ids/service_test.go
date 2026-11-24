@@ -284,12 +284,35 @@ func TestOneAlertPerSignatureSourceDestinationAndHour(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM ids_alert`); n != 2 {
 		t.Fatalf("%d alerts after another hour", n)
 	}
+	// The list folds the hours of one alert into one row with every event counted; the overview counts the same rows, and the
+	// alert page shows the folded alert whichever hour its id names.
 	v, err := e.svc.List(t.Context(), Query{Window: "24h", Sort: "count"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v.Total != 2 || v.Items[0].Count != 4 || v.Items[1].Count != 1 {
-		t.Fatalf("by count %+v", v.Items)
+	if v.Total != 1 || len(v.Items) != 1 || v.Items[0].Count != 5 || v.Items[0].FirstSeen >= v.Items[0].LastSeen {
+		t.Fatalf("folded %+v", v.Items)
+	}
+	sum, err := e.svc.Summarize(t.Context(), e.now.Add(-24*time.Hour))
+	if err != nil || sum.Alerts != v.Total {
+		t.Fatalf("summary %+v (%v), list %d rows", sum, err, v.Total)
+	}
+	var older string
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT id FROM ids_alert ORDER BY last_ts LIMIT 1`).Scan(&older); err != nil {
+		t.Fatal(err)
+	}
+	a, err := e.svc.Get(t.Context(), older)
+	if err != nil || a.Count != 5 || a.ID != v.Items[0].ID || a.FirstSeen != v.Items[0].FirstSeen {
+		t.Fatalf("get %+v %v", a, err)
+	}
+	// another destination is another alert
+	other := strings.Replace(l.Line, "-> 10.0.10.5:", "-> 10.0.10.99:", 1)
+	if other == l.Line {
+		t.Fatal("the fixture line names another destination")
+	}
+	e.offer(time.Minute, [2]string{l.Kind, other})
+	if v, _ = e.svc.List(t.Context(), Query{Window: "24h"}); v.Total != 2 {
+		t.Fatalf("%d rows for two destinations", v.Total)
 	}
 }
 

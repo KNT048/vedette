@@ -2,6 +2,7 @@ package core_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -57,6 +58,37 @@ func TestContract_INV17_AuditPagesAndSearchesTheWholeLog(t *testing.T) {
 	for _, bad := range []string{"offset=-1", "limit=abc", "offset=1e3"} {
 		if r := admin.get("/core/audit?" + bad); r.Code != 400 {
 			t.Fatalf("%s = %d", bad, r.Code)
+		}
+	}
+}
+
+// The screen shows each action by its label and the table stores its code, so a search for a word of a label ("synced") names the
+// actions whose label holds it: their lines match, with the rest of the search unchanged; the list, its total and the export agree.
+func TestAuditSearchMatchesTheActionsTheScreenNames(t *testing.T) {
+	t.Parallel()
+	w := newWorld(t)
+	admin := w.setupAdmin()
+	w.auditRows(3, "bot@acme.example", "inventory.software_sync")
+	w.auditRows(2, "bot@acme.example", "scan.run")
+
+	if r := admin.get("/core/audit?q=synced&user=bot@acme.example"); r.JSON["total"] != float64(0) {
+		t.Fatalf("without the actions the code does not hold the word: %s", r.Raw)
+	}
+	r := admin.get("/core/audit?q=synced&actions=inventory.software_sync,core.general&user=bot@acme.example")
+	wantOK(t, r, 200)
+	if r.JSON["total"] != float64(3) || len(r.JSON["items"].([]any)) != 3 {
+		t.Fatalf("search by label: %s", r.Raw)
+	}
+	if exp := admin.get("/core/audit/export?q=synced&actions=inventory.software_sync&user=bot@acme.example"); exp.Code != 200 || strings.Count(exp.Raw, "inventory.software_sync") != 3 {
+		t.Fatalf("export of the search by label = %d: %s", exp.Code, exp.Raw)
+	}
+	// Without a search text the actions change nothing; a value that is not an action code is refused
+	if r := admin.get("/core/audit?actions=inventory.software_sync&user=bot@acme.example"); r.JSON["total"] != float64(5) {
+		t.Fatalf("actions without q: %s", r.Raw)
+	}
+	for _, bad := range []string{"x", "inventory.software_sync,%27%29%20OR%201%3D1", "INVENTORY.SYNC"} {
+		if r := admin.get("/core/audit?q=s&actions=" + bad); r.Code != 400 {
+			t.Fatalf("actions=%s = %d", bad, r.Code)
 		}
 	}
 }

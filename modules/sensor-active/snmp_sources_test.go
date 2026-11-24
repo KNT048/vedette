@@ -1,11 +1,11 @@
 package sensoractive_test
 
 import (
-	"errors"
+	"context"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
@@ -73,13 +73,14 @@ func TestSNMPSourcesAndScope(t *testing.T) {
 	}
 }
 
-// Turning a device's network scan off while the sweep's batch probes its address stops the batch (nmap cannot drop
-// one host mid-run); the next pass reads the protected list again.
+// Turning a device's network scan off while the sweep's batch probes its address stops the batch (nmap cannot drop one host mid-run);
+// the pass reads the protected list again and sweeps the batch again from its cursor without that address, and its log says why.
 func TestSweepStopsWhenADeviceItProbesIsTurnedOff(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 1})
-	done := make(chan error, 1)
-	go func() { _, err := e.svc.DiscoverRanges(e.ctx()); done <- err }()
+	ctx, cancel := context.WithCancel(e.ctx())
+	defer cancel()
+	go func() { _, _ = e.svc.DiscoverRanges(ctx) }()
 	waitFor(t, "the fake nmap to start", func() bool { return len(e.nm.calls(t)) > 0 })
 	if err := e.svc.AssetChanged(e.ctx(), "a-far"); err != nil { // outside the batch: nothing stops
 		t.Fatal(err)
@@ -90,12 +91,13 @@ func TestSweepStopsWhenADeviceItProbesIsTurnedOff(t *testing.T) {
 	if err := e.svc.AssetChanged(e.ctx(), "a-web"); err != nil {
 		t.Fatal(err)
 	}
-	select {
-	case err := <-done:
-		if !errors.Is(err, sa.ErrStopped) {
-			t.Fatalf("err = %v, want ErrStopped", err)
-		}
-	case <-time.After(15 * time.Second):
-		t.Fatal("the sweep went on probing a device whose scan was turned off")
+	waitFor(t, "the batch to be swept again", func() bool { return len(e.nm.calls(t)) > 1 })
+	calls := e.nm.calls(t)
+	if !slices.Contains(targetsOf(calls[0]), "192.168.10.20") || slices.Contains(targetsOf(calls[1]), "192.168.10.20") {
+		t.Fatalf("nmap ran %q, want the batch again without the device turned off", calls)
+	}
+	runs := sweepRuns(e)
+	if len(runs) != 1 || !strings.Contains(logOf(t, e, runs[0].ID), "A batch was stopped because a device in the batch may no longer be scanned; it is swept again") {
+		t.Fatalf("the pass does not say why its batch stopped: %+v", runs)
 	}
 }

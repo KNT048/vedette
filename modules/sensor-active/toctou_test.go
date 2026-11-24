@@ -158,8 +158,7 @@ func TestContract_INV1_SweepExclusionSavedBetweenCheckAndExecSendsNothing(t *tes
 	}
 }
 
-// INV-4 / L4: lowering the rate stops the running job (it restarts at the new rate at the next tick); raising it
-// does not.
+// INV-4 / L4: lowering the rate stops the running batch, which is sent again at once at the new rate; raising it does not stop it.
 func TestContract_INV4_LoweringTheRateStopsTheRunningJob(t *testing.T) {
 	t.Parallel()
 	for name, c := range map[string]struct {
@@ -169,25 +168,29 @@ func TestContract_INV4_LoweringTheRateStopsTheRunningJob(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			e := newEnv(t, fakeOpts{slowFrom: 1})
-			done := make(chan error, 1)
-			go func() { _, err := e.svc.DiscoverRanges(e.ctx()); done <- err }()
+			ctx, cancel := context.WithCancel(e.ctx())
+			defer cancel()
+			go func() { _, _ = e.svc.DiscoverRanges(ctx) }()
 			waitFor(t, "the fake nmap to start", func() bool { return len(e.nm.calls(t)) > 0 })
 			e.inv.set(func(s *sa.Settings) { s.Rate = c.rate })
 			if err := e.svc.SettingsChanged(e.ctx()); err != nil {
 				t.Fatal(err)
 			}
-			select {
-			case err := <-done:
-				if !c.stopped {
-					t.Fatalf("the run ended (%v) although the rate went up", err)
+			if !c.stopped {
+				deadline := time.After(3 * time.Second)
+				for len(e.nm.calls(t)) == 1 {
+					select {
+					case <-deadline:
+						return // still the first batch: not stopped
+					case <-time.After(50 * time.Millisecond):
+					}
 				}
-				if !errors.Is(err, sa.ErrStopped) {
-					t.Fatalf("err = %v, want ErrStopped", err)
-				}
-			case <-time.After(3 * time.Second):
-				if c.stopped {
-					t.Fatal("the run was not stopped by the lower rate")
-				}
+				t.Fatalf("nmap ran again (%q) although the rate went up", e.nm.calls(t))
+			}
+			waitFor(t, "the batch to be sent again", func() bool { return len(e.nm.calls(t)) > 1 })
+			again := e.nm.calls(t)[1]
+			if i := slices.Index(again, "--max-rate"); i < 0 || again[i+1] != "20" {
+				t.Fatalf("the batch sent again: %q, want it at the lowered rate", again)
 			}
 		})
 	}

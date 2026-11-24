@@ -250,3 +250,40 @@ func TestWiringUnmatchedExploitedIsReadFromTheSignals(t *testing.T) {
 		t.Fatalf("after a finding matched one of them: %d, want 1", n)
 	}
 }
+
+// "What to do first" of a finding's alert is the fix the finding page shows when it names a release, not the generic action of the
+// exploited list; with no release known it falls back to the list's action.
+func TestWiringNoticeActionIsTheFindingsFix(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.kev("CVE-2026-4011", "Fortinet", "FortiOS")
+	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_kev SET required_action = ? WHERE cve = 'CVE-2026-4011'`, "Apply mitigations per vendor instructions (see URL in Notes).")
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	id := s.addFortiGate()
+	recs, _ := s.d.Findings.List(t.Context(), id)
+	if len(recs) != 1 {
+		t.Fatalf("findings: %v", recs)
+	}
+	info, _, err := notifyFindings{s.d}.Finding(t.Context(), recs[0].ID)
+	if err != nil || info.Action != "Apply mitigations per vendor instructions (see URL in Notes)." {
+		t.Fatalf("no release known: action %q %v", info.Action, err)
+	}
+	if err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE fnd_finding SET fix_kind = 'update', fix_version = '7.2.9' WHERE id = ?`, recs[0].ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	v, err := s.d.Findings.View(t.Context(), recs[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, _, err = notifyFindings{s.d}.Finding(t.Context(), recs[0].ID)
+	if err != nil || info.Action != v.FixText() || !strings.Contains(info.Action, "7.2.9") || strings.Contains(info.Action, "vendor instructions") {
+		t.Fatalf("a release known: action %q, the page's fix %q (%v)", info.Action, v.FixText(), err)
+	}
+}

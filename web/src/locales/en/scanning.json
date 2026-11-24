@@ -453,6 +453,7 @@
     "deviceFilter": "Device",
     "anyDevice": "Every device",
     "empty": "No run yet. A run appears here as soon as a sweep, a check or a scan is queued.",
+    "queuedAt": "Not started (queued {{time}})",
     "col": {
       "what": "Run",
       "state": "State",

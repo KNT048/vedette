@@ -27,7 +27,8 @@ export type OidcStart = z.infer<typeof C.OidcStart>
 
 export type AuditRow = z.infer<typeof C.AuditRow>
 export type AuditResult = z.infer<typeof C.AuditResult>
-export type AuditQuery = { q: string; user: string; group: string; from: string; to: string; actor: '' | 'people' }
+/** `actions`: with q, the action codes whose label on the screen holds q, comma-separated (the box stores codes, the screen shows labels). */
+export type AuditQuery = { q: string; actions?: string; user: string; group: string; from: string; to: string; actor: '' | 'people' }
 
 export type UpdateChannel = z.infer<typeof C.UpdateChannel>
 export type UpdateComponent = z.infer<typeof C.UpdateComponent>

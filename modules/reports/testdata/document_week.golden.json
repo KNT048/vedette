@@ -6,7 +6,7 @@
     "org": "Acme Ltd",
     "period": {
       "kind": "last_7_days",
-      "from": "2026-11-04T10:00:00.000Z",
+      "from": "2026-11-05T00:00:00.000Z",
       "to": "2026-11-11T10:00:00.000Z",
       "tz": "UTC"
     },
@@ -45,6 +45,7 @@
       "open_before": 4,
       "new": 2,
       "handled": 3,
+      "reopened": 1,
       "first": [
         {
           "status": "under_attack",
@@ -656,8 +657,8 @@
     "ai_summary": null
   },
   "mail": {
-    "Title": "Security report: 4 open, 3 handled (4 Nov to 11 Nov 2026)",
-    "What": "Open now: 4 (4 at the start of the period). New: 2. Handled: 3.\nUnder attack here: 1, Exploited in the wild: 2, Update recommended: 1.\nDetections: 3 incidents.",
+    "Title": "Security report: 4 open, 3 handled (5 Nov to 11 Nov 2026)",
+    "What": "Open at the start: 4. New: 2. Handled: 3. Reopened: 1. Open now: 4.\nUnder attack here: 1, Exploited in the wild: 2, Update recommended: 1.\nDetections: 3 incidents.",
     "Action": "Under attack here: CVE-2021-41773 in Apache HTTP Server on web-01: update to 2.4.51",
     "Items": [
       "Then: Exploited in the wild: CVE-2023-23397 in Microsoft Outlook on ws-accounting-07: update to 16.0.2",

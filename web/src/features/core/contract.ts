@@ -94,7 +94,9 @@ export const OidcTest = z.object({ ok: z.literal(true), endpoints: z.record(z.st
 
 // ---- audit ----
 export const AuditRow = z.object({ id: z.string(), ts, user: z.string(), action: z.string(), target: z.string(), detail: z.string().optional() })
-export const AuditQuery = z.object({ q: z.string().optional(), user: z.string().optional(), group: z.string().optional(), from: z.string().optional(), to: z.string().optional(),
+export const AuditQuery = z.object({ q: z.string().optional(),
+  actions: z.string().optional().describe('With q: comma-separated action codes whose label on the screen contains the search text; a line of one of these actions matches q too (the box stores codes, the screen shows labels). At most 400 codes'),
+  user: z.string().optional(), group: z.string().optional(), from: z.string().optional(), to: z.string().optional(),
   actor: z.enum(['people']).optional().describe('people: leave out the automatic lines (user "system" or "system:<part>"), so what people and tools did stands out') })
 export const AuditListQuery = AuditQuery.extend({
   offset: z.string().regex(/^[0-9]{1,7}$/).optional().describe('Matching rows to skip, newest first (default 0): the page of the list'),

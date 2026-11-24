@@ -295,6 +295,10 @@ func TestContract_INV11_TestAndResend(t *testing.T) {
 	if l, _ := e.svc.FindingNotices(e.ctx(), "f-rs"); len(l) != 2 {
 		t.Fatalf("finding notices after resend = %+v", l)
 	}
+	// The History marks the copy, so two rows with the same words read as one message and its resend.
+	if h2, _ := e.svc.History(e.ctx()); len(h2.Items) != 2 || !it.Resent || !h2.Items[0].Resent || h2.Items[0].ID != it.ID || h2.Items[1].Resent || h2.Items[0].What != h2.Items[1].What {
+		t.Fatalf("history after resend = %+v", h2.Items)
+	}
 	e.net.failTelegram(500)
 	if it, err = e.svc.Resend(e.ctx(), "it@acme.example", h.Items[0].ID); err != nil || it.OK || it.Error == "" {
 		t.Fatalf("failed resend = %+v, %v (a failed send is a record, not an API error)", it, err)

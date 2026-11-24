@@ -394,7 +394,7 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (116 codes)
+#### HTTP 409 (117 codes)
 
 | Code | HTTP | Sample message (EN, from the mock) | Endpoint |
 |---|---|---|---|
@@ -454,7 +454,8 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `not_publishable` | 409/400 | 192.168.1.5 is not a public address (private, loopback, link-local, carrier-grade NAT 100.64.0.0/10, multicast or reserved). The block list only carries public addresses, so your firewall never blocks your own network. … Nothing was changed. (not `not_public`, which is exposure's 400 for the box's own address) | 409: rule runs and manual runs (resp_log; only that action is dropped, the rule's others go ahead); `POST /response/proposals/{id}/request`; AI proposals; `POST /response/actions/{id}/approve` (a `blocklist_add` item made before the check is refused right before it runs). 400: `POST /response/rules`, `PUT /response/rules/{id}`, `POST /response/rules/simulate` (a fixed address in a block list action) |
 | `not_executed` | 409 | Only an executed action can be rolled back. | module response (shared validator) |
 | `not_on` | 409 | Two-step sign-in is already off for this user. | `POST /core/users/{id}/2fa/reset` |
-| `not_pending` | 409 | This request is already ${a.status.replace('_', ' ')}. One approval covers one request. | module response (shared validator) |
+| `not_pending` | 409 | This request is already ${a.status.replace('_', ' ')}. This decision changed nothing. | module response (shared validator); `decided` with the same message from a chat button, Zalo reply code or email link |
+| `withdrawn` | 409 | This request was withdrawn without a decision: the finding moved to … after a device split. Nothing was changed. A new request for it is waiting for a decision: … (`new_request_id`) / A new plan is written for the finding on its new device; ask again from that plan in Vedette. | `POST /response/actions/{id}/approve`, `POST /response/actions/{id}/reject`, `POST /response/approve/{token}`, chat decisions (response INV-25) |
 | `nothing_to_rerun` | 409 | The newest scan of this target has no OpenVAS step that was stopped or did not finish, so there is nothing to run again. Run a deep scan instead. | `POST /exposure/targets/{id}/openvas` |
 | `not_running` | 409 | This scan has already ended, so there is nothing to stop. Also: No scan is running now. | `POST /scans/runs/{id}/stop`; `POST /runs/{id}/stop` ("This run has already ended, so there is nothing to stop."); `POST /exposure/scan/stop` |
 | `not_resumable` | 409 | This run cannot be resumed: it has no work left, or its engine cannot go on from where it stopped. | `POST /runs/{id}/resume` |

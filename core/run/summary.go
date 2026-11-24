@@ -43,7 +43,11 @@ func (m *Manager) summary(ctx context.Context, r Run) string {
 		if count == "" {
 			return "Running"
 		}
-		return join(count, estimate())
+		est := estimate()
+		if r.Total == 1 && r.Done == 0 && est != "" { // one item under way: "0 of 1 devices" says nothing its estimate does not
+			return est
+		}
+		return join(count, est)
 	case Stopping:
 		return join("Stopping: "+deref(r.StopReason, "a stop was asked"), count)
 	case Done:

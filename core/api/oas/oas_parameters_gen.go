@@ -1674,14 +1674,15 @@ func decodeCoreDeleteCoreMcpTokensIDParams(args [1]string, argsEscaped bool, r *
 
 // CoreGetCoreAuditParams is parameters of core_get_core_audit operation.
 type CoreGetCoreAuditParams struct {
-	Q      OptString                `json:",omitempty,omitzero"`
-	User   OptString                `json:",omitempty,omitzero"`
-	Group  OptString                `json:",omitempty,omitzero"`
-	From   OptString                `json:",omitempty,omitzero"`
-	To     OptString                `json:",omitempty,omitzero"`
-	Actor  OptCoreGetCoreAuditActor `json:",omitempty,omitzero"`
-	Offset OptString                `json:",omitempty,omitzero"`
-	Limit  OptString                `json:",omitempty,omitzero"`
+	Q       OptString                `json:",omitempty,omitzero"`
+	Actions OptString                `json:",omitempty,omitzero"`
+	User    OptString                `json:",omitempty,omitzero"`
+	Group   OptString                `json:",omitempty,omitzero"`
+	From    OptString                `json:",omitempty,omitzero"`
+	To      OptString                `json:",omitempty,omitzero"`
+	Actor   OptCoreGetCoreAuditActor `json:",omitempty,omitzero"`
+	Offset  OptString                `json:",omitempty,omitzero"`
+	Limit   OptString                `json:",omitempty,omitzero"`
 }
 
 func unpackCoreGetCoreAuditParams(packed middleware.Parameters) (params CoreGetCoreAuditParams) {
@@ -1692,6 +1693,15 @@ func unpackCoreGetCoreAuditParams(packed middleware.Parameters) (params CoreGetC
 		}
 		if v, ok := packed[key]; ok {
 			params.Q = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "actions",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Actions = v.(OptString)
 		}
 	}
 	{
@@ -1799,6 +1809,47 @@ func decodeCoreGetCoreAuditParams(args [0]string, argsEscaped bool, r *http.Requ
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "q",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: actions.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "actions",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotActionsVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotActionsVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Actions.SetTo(paramsDotActionsVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "actions",
 			In:   "query",
 			Err:  err,
 		}
@@ -2164,12 +2215,13 @@ func decodeCoreGetCoreAuditParams(args [0]string, argsEscaped bool, r *http.Requ
 
 // CoreGetCoreAuditExportParams is parameters of core_get_core_audit_export operation.
 type CoreGetCoreAuditExportParams struct {
-	Q     OptString                      `json:",omitempty,omitzero"`
-	User  OptString                      `json:",omitempty,omitzero"`
-	Group OptString                      `json:",omitempty,omitzero"`
-	From  OptString                      `json:",omitempty,omitzero"`
-	To    OptString                      `json:",omitempty,omitzero"`
-	Actor OptCoreGetCoreAuditExportActor `json:",omitempty,omitzero"`
+	Q       OptString                      `json:",omitempty,omitzero"`
+	Actions OptString                      `json:",omitempty,omitzero"`
+	User    OptString                      `json:",omitempty,omitzero"`
+	Group   OptString                      `json:",omitempty,omitzero"`
+	From    OptString                      `json:",omitempty,omitzero"`
+	To      OptString                      `json:",omitempty,omitzero"`
+	Actor   OptCoreGetCoreAuditExportActor `json:",omitempty,omitzero"`
 }
 
 func unpackCoreGetCoreAuditExportParams(packed middleware.Parameters) (params CoreGetCoreAuditExportParams) {
@@ -2180,6 +2232,15 @@ func unpackCoreGetCoreAuditExportParams(packed middleware.Parameters) (params Co
 		}
 		if v, ok := packed[key]; ok {
 			params.Q = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "actions",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Actions = v.(OptString)
 		}
 	}
 	{
@@ -2269,6 +2330,47 @@ func decodeCoreGetCoreAuditExportParams(args [0]string, argsEscaped bool, r *htt
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "q",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: actions.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "actions",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotActionsVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotActionsVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Actions.SetTo(paramsDotActionsVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "actions",
 			In:   "query",
 			Err:  err,
 		}

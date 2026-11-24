@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/modules/response"
@@ -136,7 +138,7 @@ func TestFindingMovedWithdrawsThePendingRequest(t *testing.T) {
 		t.Error("the withdrawal has no audit row")
 	}
 	_, err := e.svc.Approve(e.ctx(), oper, id, nil, "")
-	wantCode(t, err, 409, "expired")
+	wantCode(t, err, 409, "withdrawn")
 	if e.exec.count() != 0 {
 		t.Fatal("approving the withdrawn request reached a device")
 	}
@@ -242,4 +244,150 @@ func TestFindingMovedRetiresThePlanAndANewOneIsWritten(t *testing.T) {
 		e.count(`SELECT count(*) FROM resp_actions WHERE id = ? AND items LIKE '%192.0.2.42%'`, req.ID) != 1 {
 		t.Fatalf("the request from the new plan is not about the new device: %+v", req)
 	}
+}
+
+// A split moves a finding to the device it creates, inside the write that creates it, where response cannot read that device. The
+// split names it (lifecycle.FindingMove IntoName, IntoIP), so the finding's waiting event takes the new device's name and address
+// there, and nothing of the old device's; its kind, which the split does not carry, is read when the rules come to the event, after
+// the split committed. The automatic response then runs on the new device exactly as on an event made for it: a rule that tests the
+// device type and names the device and its address makes its request about the device split off.
+func TestASplitGivesTheMovedFindingEventItsDeviceAndTheResponseRuns(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.turnOn()
+	e.rule("Tell me about camera findings", "finding", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "{{trigger.device}} {{trigger.ip}}"}}},
+		func(in *response.RuleInput) {
+			in.Conditions = []response.Condition{{Op: "device_type", Value: "camera"}}
+		})
+	e.exec1(`INSERT INTO resp_events (id, trigger, ts, summary, fields, device_kind, asset_id, finding_id, cve, processed) VALUES
+		('ev-f1','finding','2026-11-09T09:00:00.000Z','s','{"device":"nvr-01","ip":"192.0.2.10","cve":"CVE-2024-0001"}','nvr','a-old','f1','CVE-2024-0001',0)`)
+
+	// inside the split's write: the directory does not know a-split yet
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		return e.svc.FindingMoved(e.ctx(), tx, lifecycle.FindingMove{Finding: "f1", From: "a-old", Into: "a-split", IntoName: "camera-02", IntoIP: "192.0.2.42"})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM resp_events WHERE id = 'ev-f1' AND asset_id = 'a-split' AND processed = 0 AND device_kind IS NULL
+		AND fields ->> '$.device' = 'camera-02' AND fields ->> '$.ip' = '192.0.2.42'`); n != 1 {
+		t.Fatal("the waiting event did not take the name and address of the device split off, or kept the old device's kind")
+	}
+
+	// the split committed: the directory knows the new device and its kind
+	e.dir.devices["a-split"] = response.DeviceInfo{ID: "a-split", Name: "camera-02", IP: "192.0.2.42", Kind: "camera"}
+	_, err := e.svc.Evaluate(e.ctx())
+	e.must(err)
+	e.svc.WaitSendsForTest()
+	if n := e.count(`SELECT count(*) FROM resp_events WHERE id = 'ev-f1' AND device_kind = 'camera' AND processed = 1`); n != 1 {
+		t.Error("the event did not take the kind of the device split off before the rules ran")
+	}
+	if n := e.count(`SELECT count(*) FROM resp_actions WHERE finding_id = 'f1' AND asset_id = 'a-split' AND items LIKE '%camera-02 192.0.2.42%'`); n != 1 {
+		t.Fatal("the automatic response did not run on the device split off")
+	}
+	if n := e.count(`SELECT count(*) FROM resp_actions WHERE items LIKE '%192.0.2.10%' OR items LIKE '%nvr-01%'`); n != 0 {
+		t.Fatal("a request names the device the finding left")
+	}
+}
+
+// Every way a request can end answers its Approve and Reject the same plain way, whichever way the decision comes (the app, a Slack
+// or Telegram button, a Zalo reply code, an email link), and changes nothing: a request a device split withdrew says so and points
+// to the request made for the finding on the device split off; an expired one says it expired; a decided one says how it was decided.
+func TestEveryEndedRequestAnswersItsButtonsTheSameWay(t *testing.T) {
+	t.Parallel()
+	type answer struct{ code, msg string }
+	ask := func(t *testing.T, c *chatEnv, id string) map[string]answer {
+		t.Helper()
+		c.mintCodeRaw(id, "A-7KQ2MX", true) // alive now, as a code sent before the request ended would be
+		link := c.mintRaw(id, "u-op", "it@acme.example")
+		got := map[string]answer{}
+		for way, call := range map[string]func() error{
+			"app":      func() error { _, err := c.svc.Approve(c.ctx(), oper, id, nil, ""); return err },
+			"slack":    func() error { _, err := c.button("slack", slackOp, id, true); return err },
+			"telegram": func() error { _, err := c.button("telegram", tgOp, id, false); return err },
+			"zalo":     func() error { _, err := c.typed(zlOp, "A-7KQ2MX", true); return err },
+			"link":     func() error { _, err := c.decide(link, "approve"); return err },
+		} {
+			ae, ok := apierr.As(call())
+			if !ok || ae.Status != 409 {
+				t.Fatalf("%s: answered %v, want a 409", way, ae)
+			}
+			got[way] = answer{ae.Code, ae.Message}
+		}
+		if c.exec.count() != 0 || c.tokenUsed() != 0 {
+			t.Fatal("a decision on an ended request reached a device or burned a token")
+		}
+		return got
+	}
+	same := func(t *testing.T, got map[string]answer, app, outside string) string {
+		t.Helper()
+		msg := got["app"].msg
+		for way, a := range got {
+			want := outside
+			if way == "app" {
+				want = app
+			}
+			if a.code != want || a.msg != msg {
+				t.Errorf("%s answered %s %q, want %s %q", way, a.code, a.msg, want, msg)
+			}
+		}
+		return msg
+	}
+
+	t.Run("withdrawn by a split", func(t *testing.T) {
+		t.Parallel()
+		c := newChatEnv(t)
+		a := c.pending()
+		c.exec1(`UPDATE resp_actions SET finding_id = 'f1', asset_id = 'a-old' WHERE id = ?`, a.ID)
+		c.must(c.db.Write(c.ctx(), func(tx *sql.Tx) error {
+			return c.svc.FindingMoved(c.ctx(), tx, lifecycle.FindingMove{Finding: "f1", From: "a-old", Into: "a-split", IntoName: "camera-02", IntoIP: "192.0.2.42"})
+		}))
+		if n := c.count(`SELECT count(*) FROM resp_actions WHERE id = ? AND end_reason = 'split'`, a.ID); n != 1 {
+			t.Fatal("the withdrawn request does not store why it ended")
+		}
+		// the split committed: the finding is on the device split off
+		c.dir.devices["a-split"] = response.DeviceInfo{ID: "a-split", Name: "camera-02", IP: "192.0.2.42", Kind: "camera"}
+		c.dir.findings["f1"] = response.FindingInfo{ID: "f1", AssetID: "a-split", CVE: "CVE-2024-0001", Severity: "high", Status: "confirmed"}
+		msg := same(t, ask(t, c, a.ID), "withdrawn", "withdrawn")
+		for _, want := range []string{"withdrawn without a decision", "moved to camera-02 after a device split", "Nothing was changed", "ask again from that plan"} {
+			if !strings.Contains(msg, want) {
+				t.Errorf("the answer %q does not say %q", msg, want)
+			}
+		}
+		// the request made since for the finding on the device split off is named
+		c.exec1(`INSERT INTO resp_actions (id, source, proposal_id, finding_id, cve, asset_id, asset_name, title, risk, status, requested_at, expires_at, requires_approvals, items)
+			VALUES ('r-new', 'rule', 'p', 'f1', 'CVE-2024-0001', 'a-split', 'camera-02', 'Block the camera-02 web port', 'low', 'pending', ?, '2099-01-01T00:00:00.000Z', 1, '[]')`,
+			c.clock.Now().Add(time.Minute).UTC().Format("2006-01-02T15:04:05.000Z"))
+		_, err := c.button("slack", slackOp, a.ID, true)
+		ae, _ := apierr.As(err)
+		if ae == nil || ae.Code != "withdrawn" || !strings.Contains(ae.Message, "A new request for it is waiting for a decision: Block the camera-02 web port.") || ae.Extra["new_request_id"] != "r-new" {
+			t.Fatalf("the answer %v does not point to the new request", ae)
+		}
+		if n := c.count(`SELECT count(*) FROM resp_actions WHERE id = ? AND status = 'expired' AND approvals = '[]'`, a.ID); n != 1 {
+			t.Fatal("the withdrawn request was decided")
+		}
+		v := c.view(c.mintRaw(a.ID, "u-op", "it@acme.example"))
+		if v.State != "withdrawn" || len(v.Items) != 0 {
+			t.Errorf("the link page shows %s with %d items, want withdrawn and nothing of the request", v.State, len(v.Items))
+		}
+	})
+	t.Run("expired", func(t *testing.T) {
+		t.Parallel()
+		c := newChatEnv(t)
+		a := c.pending()
+		c.clock.Advance(16 * time.Minute)
+		c.must(c.svc.Sweep(c.ctx()))
+		if msg := same(t, ask(t, c, a.ID), "expired", "expired"); !strings.Contains(msg, "expired") || !strings.Contains(msg, "Nothing was changed") {
+			t.Errorf("the answer %q does not say the request expired and nothing changed", msg)
+		}
+	})
+	t.Run("decided", func(t *testing.T) {
+		t.Parallel()
+		c := newChatEnv(t)
+		a := c.pending()
+		_, err := c.svc.Reject(c.ctx(), oper2, a.ID, "", response.RememberNone)
+		c.must(err)
+		if msg := same(t, ask(t, c, a.ID), "not_pending", "decided"); !strings.Contains(msg, "already rejected") || !strings.Contains(msg, "changed nothing") {
+			t.Errorf("the answer %q does not say the request was rejected and this changed nothing", msg)
+		}
+	})
 }

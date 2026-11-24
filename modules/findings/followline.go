@@ -128,7 +128,7 @@ func (s *Service) followLines(ctx context.Context, tx *sql.Tx, a Asset) error {
 	})
 	movedBy := map[[2]string][]string{} // (from, to): the CVEs of the findings that moved
 	for _, m := range moves {
-		cves, err := s.moveLine(ctx, tx, m.from, m.line, m.to, m.line)
+		cves, err := s.moveLine(ctx, tx, m.from, m.line, lifecycle.FindingMove{Into: m.to}, m.line)
 		if err != nil {
 			return err
 		}
@@ -154,7 +154,7 @@ func (s *Service) DeviceSplit(ctx context.Context, tx *sql.Tx, sp lifecycle.Spli
 		if !l.Gone || l.Into == "" {
 			continue
 		}
-		moved, err := s.moveLine(ctx, tx, sp.From, old, sp.Into, l.Into)
+		moved, err := s.moveLine(ctx, tx, sp.From, old, lifecycle.FindingMove{Into: sp.Into, IntoName: sp.IntoName, IntoIP: sp.IntoIP}, l.Into)
 		if err != nil {
 			return err
 		}
@@ -163,10 +163,11 @@ func (s *Service) DeviceSplit(ctx context.Context, tx *sql.Tx, sp lifecycle.Spli
 	return s.settleMoved(ctx, tx, map[[2]string][]string{{sp.From, sp.Into}: cves}, " after the device was split")
 }
 
-// moveLine gives the findings and questions of device from on software line line to device to, on its line toLine (the same line when
-// inventory moved it with its id), and returns the CVEs of the findings that moved. A question already asked on to's line keeps that
-// row (and its answer); the others move.
-func (s *Service) moveLine(ctx context.Context, tx *sql.Tx, from, line, to, toLine string) ([]string, error) {
+// moveLine gives the findings and questions of device from on software line line to device to.Into, on its line toLine (the same line
+// when inventory moved it with its id), and returns the CVEs of the findings that moved. A question already asked on that line keeps
+// its row (and its answer); the others move. to.IntoName and to.IntoIP are the device's name and address when the caller knows them
+// (a split, whose new device the ordinary reads do not see yet); they reach the FindingMoved participants.
+func (s *Service) moveLine(ctx context.Context, tx *sql.Tx, from, line string, to lifecycle.FindingMove, toLine string) ([]string, error) {
 	fs, err := queryFindings(ctx, tx, `asset_id = ? AND software_id = ?`, from, line)
 	if err != nil {
 		return nil, err
@@ -179,10 +180,10 @@ func (s *Service) moveLine(ctx context.Context, tx *sql.Tx, from, line, to, toLi
 		cves = append(cves, f.CVE)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_question WHERE asset_id = ?1 AND software_id = ?2 AND EXISTS (SELECT 1 FROM fnd_question o
-		WHERE o.asset_id = ?3 AND o.software_id = ?4 AND o.cve IS fnd_question.cve AND o.kind = fnd_question.kind)`, from, line, to, toLine); err != nil {
+		WHERE o.asset_id = ?3 AND o.software_id = ?4 AND o.cve IS fnd_question.cve AND o.kind = fnd_question.kind)`, from, line, to.Into, toLine); err != nil {
 		return nil, fmt.Errorf("findings: moving the questions of a software line: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET asset_id = ?3, software_id = ?4 WHERE asset_id = ?1 AND software_id = ?2`, from, line, to, toLine); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET asset_id = ?3, software_id = ?4 WHERE asset_id = ?1 AND software_id = ?2`, from, line, to.Into, toLine); err != nil {
 		return nil, fmt.Errorf("findings: moving the questions of a software line: %w", err)
 	}
 	return cves, nil
@@ -216,14 +217,17 @@ func (s *Service) settleMoved(ctx context.Context, tx *sql.Tx, movedBy map[[2]st
 	return nil
 }
 
-// moveFinding gives finding f to device to, on its line line. When to already holds a finding of the same (CVE, line), the two fold
-// into the one that ranks higher (a person's decision, else a confirmed one, else the one that was there). The modules that keep a
-// device id next to a finding id are told first (lifecycle FindingMoved), so a fold that follows moves rows that are already on to.
-func (s *Service) moveFinding(ctx context.Context, tx *sql.Tx, f Finding, to, line string) error {
-	if err := s.cfg.Lifecycle.FindingMoved(ctx, tx, lifecycle.FindingMove{Finding: f.ID, From: f.AssetID, Into: to}); err != nil {
+// moveFinding gives finding f to device to.Into, on its line line. When that device already holds a finding of the same (CVE, line),
+// the two fold into the one that ranks higher (a person's decision, else a confirmed one, else the one that was there). The modules
+// that keep a device id next to a finding id are told first (lifecycle FindingMoved, with what to says of the device), so a fold that
+// follows moves rows that are already on it.
+func (s *Service) moveFinding(ctx context.Context, tx *sql.Tx, f Finding, to lifecycle.FindingMove, line string) error {
+	mv := to
+	mv.Finding, mv.From = f.ID, f.AssetID
+	if err := s.cfg.Lifecycle.FindingMoved(ctx, tx, mv); err != nil {
 		return err
 	}
-	held, err := queryFindings(ctx, tx, `asset_id = ? AND cve = ? AND software_id IS ? AND id <> ?`, to, f.CVE, nullString(line), f.ID)
+	held, err := queryFindings(ctx, tx, `asset_id = ? AND cve = ? AND software_id IS ? AND id <> ?`, to.Into, f.CVE, nullString(line), f.ID)
 	if err != nil {
 		return err
 	}
@@ -236,7 +240,7 @@ func (s *Service) moveFinding(ctx context.Context, tx *sql.Tx, f Finding, to, li
 			return nil
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET asset_id = ?, software_id = ? WHERE id = ?`, to, nullString(line), f.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET asset_id = ?, software_id = ? WHERE id = ?`, to.Into, nullString(line), f.ID); err != nil {
 		return fmt.Errorf("findings: moving a finding with its software line: %w", err)
 	}
 	return nil

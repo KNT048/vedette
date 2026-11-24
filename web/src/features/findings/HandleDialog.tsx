@@ -61,7 +61,11 @@ export function HandleDialog({ device, rows, fix, software, complete = false, re
     const badNote = needNote && note.trim().length < 3
     setError(badNote ? t('handle.noteRequired') : undefined)
     setHowError(resolution ? undefined : t('handle.pickHow'))
-    if (noPick || tooMany || badUntil || badNote || !resolution) return
+    // The first field to fix gets the focus, so the reason is in view however long the dialog is (a Save that seems to do nothing
+    // was a field error below the fold).
+    const first = noPick || tooMany ? `${id}-${rows[0]!.id}` : !resolution ? `${id}-r-${resolutions[0]}` : badUntil ? `${id}-until` : badNote ? `${id}-note` : null
+    if (first) document.getElementById(first)?.focus()
+    if (first || !resolution) return
     const target = fix && complete && all ? { device: device.id, fix, ...(software ? { software } : {}) } : { ids: chosen.map((r) => r.id) }
     const body: HandleInput = { ...target, resolution, note: note.trim(), ...(accept ? { until } : {}) }
     handle.mutate(body, {

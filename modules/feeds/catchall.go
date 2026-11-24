@@ -8,7 +8,8 @@ import "slices"
 // with no end, next to the note that end-of-support versions are not evaluated). Read literally, that row says the fixed releases the
 // same record names are affected, so no release would ever fix the flaw and a device stays affected after the update. The row is cut
 // where the lowest bounded row above its start begins: 1.25.0 before 1.30.0. Versions below the first evaluated train stay affected
-// with no fix named; the evaluated trains keep their own rows and fixes.
+// with no fix named; the evaluated trains keep their own rows and fixes. A cut row's default status is unknown: a version above the
+// cut that no bounded row names was called affected by the record, so outside the rows proves nothing (a question, never closed).
 //
 // Only the rows of a CVE record (origin cna or adp) are read so; NVD writes its own ranges. Rows of one product are those of one
 // origin, part, vendor, product and CPE. A row is open-ended when it has a start and no end; a bounded row has a start and an end that
@@ -43,6 +44,10 @@ func CutCatchAll(rows []Range) []Range {
 			out = slices.Clone(rows)
 		}
 		out[i].EndExcl = cut
+		// The record called every version from the start affected: a version above the cut that no bounded row names (a train the
+		// record lists no fix for) is not proved unaffected. The cut row says nothing about unlisted versions, so the product's list
+		// is partial: outside its rows stays a question, never a closed finding.
+		out[i].DefaultStatus = DefaultUnknown
 	}
 	if out == nil {
 		return rows

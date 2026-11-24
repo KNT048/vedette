@@ -71,7 +71,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   A record's open-ended row ("from 1.25.0, every later version") of a product whose bounded rows above its start name fixed
   releases is read as ending where the lowest of those rows starts (`CutCatchAll`, when the match set and the exploited-list view
   read the rows; the stored rows are as the record states them): the vendor's evaluated trains keep their own fixes, versions below
-  them stay affected with no fix named. F5's NGINX records list each train with its fix next to such a row for the trains it no
+  them stay affected with no fix named, and the cut row's default status is unknown (a version above the cut that no row
+  names is a question, never proved unaffected). F5's NGINX records list each train with its fix next to such a row for the trains it no
   longer evaluates; read literally, no release would ever fix the flaw. `TestCount_RecordFixesCalledAffectedByACatchAllRow`.
   VMware's records that state ESXi's versions in words ("8.0 prior to ESXi80a-20842819", "7.0 before ESXi70U1c-17325551") give one
   row per clause from the line's start to the fixed build (`esxiTextRows`, version_type `vendor:record-text`); a line any clause states

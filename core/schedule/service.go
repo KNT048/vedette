@@ -356,7 +356,7 @@ func (s *Service) scanWindow(ctx context.Context) (*Window, *time.Location, erro
 	if err != nil {
 		return nil, nil, err
 	}
-	return &w, zoneOf(OrgZone, name), nil
+	return &w, boxZone(name), nil
 }
 
 // fire starts one due schedule and records its due time.
@@ -377,7 +377,7 @@ func (s *Service) fire(ctx context.Context, key string, now time.Time) error {
 			return err
 		}
 		// A pause that has ended stays stored: an interval paused until a time keeps the asked times that start at its end.
-		last, merged := started(r.Rule, *r.NextDueAt, now, r.UpdatedAt, r.PausedUntil, zoneOf(r.Rule.TZ, org))
+		last, merged := started(r.Rule, *r.NextDueAt, now, r.UpdatedAt, r.PausedUntil, boxZone(org))
 		skip, runID, held := "", "", false
 		o, subject, ok := s.owner(key)
 		switch {
@@ -393,7 +393,7 @@ func (s *Service) fire(ctx context.Context, key string, now time.Time) error {
 				return err
 			}
 			if since != nil {
-				skip = "The run it started at " + orgtime.Stamp(*since, zoneOf(OrgZone, org)) + " had not ended."
+				skip = "The run it started at " + orgtime.Stamp(*since, boxZone(org)) + " had not ended."
 				break
 			}
 			runID, skip, held, err = s.start(ctx, tx, o, Fire{ScheduleID: r.ID, OwnerKey: key, Subject: subject, Trigger: run.Schedule, By: run.System, DueAt: *r.NextDueAt, Rule: r.Rule, First: r.LastDueAt == nil})

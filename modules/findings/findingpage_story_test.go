@@ -97,9 +97,9 @@ func TestFindingPage_EveryHistoryActionHasALabel(t *testing.T) {
 		t.Errorf("urgency note = %q", h.Note)
 	}
 	for to, want := range map[string]string{
-		"qnap|photo station|update|6.1.2":      "Now: update to 6.1.2 or later.",
-		"qnap|photo station|none_yet|":         "Now: no fix from the vendor yet.",
-		"qnap|photo station|unknown|":          "Now: Vedette's data names no fixed release.",
+		"qnap|photo station|update|6.1.2":       "Now: update to 6.1.2 or later.",
+		"qnap|photo station|none_yet|":          "Now: no fix from the vendor yet.",
+		"qnap|photo station|unknown|":           "Now: Vedette's data names no fixed release.",
 		"ubuntu|openssl|distro_update|3.0.13-0": "Now: install the distribution's package 3.0.13-0 or later.",
 	} {
 		if h := historyEntry(Event{Kind: EvFixChanged, Detail: EventDetail{To: to}}); h.Note != want {

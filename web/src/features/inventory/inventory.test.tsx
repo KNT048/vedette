@@ -480,7 +480,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     renderApp('/devices?tab=all&show=recent')
     const table = await deviceTable()
     await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2), T) // header + the device just approved
-    expect(within(within(table).getAllByRole('row')[1]!).getByRole('link')).toHaveAttribute('href', `/devices/${approved}`)
+    // its first link opens it (a device Vedette knows nothing to check by also has its "Needs your input" badge)
+    expect(within(within(table).getAllByRole('row')[1]!).getAllByRole('link')[0]).toHaveAttribute('href', `/devices/${approved}`)
     expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('approved:24h')
   })
 

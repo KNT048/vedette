@@ -1,7 +1,8 @@
 // Needs your input: one queue of what only a person can settle, each item with its one action in place (forms open as dialogs).
-// Devices nobody added yet that have findings (Add device, Ignore); urgent findings not confirmed yet (Run the safe check first when
-// one exists, then Confirm vulnerability or Not affected…); questions (the version, the platform, the package release, "possibly
-// affected: check the version"). An item leaves the queue the moment it is answered or stops being true (GET /findings/input).
+// Devices nobody added yet that have findings (Add device, Ignore); devices Vedette cannot check (Add its firmware, SNMP, an agent);
+// urgent findings not confirmed yet (Run the safe check first when one exists, then Confirm vulnerability or Not affected…);
+// questions (the version, the platform, the package release, "possibly affected: check the version", a release line the vendor names
+// no fix for). An item leaves the queue the moment it is answered or stops being true (GET /findings/input).
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -16,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { fmtDate } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useDeviceAction } from '@/features/inventory/api'
+import { AddDeviceDialog } from '@/features/inventory/AddDeviceDialog'
 import { useStartRun } from '@/features/scan/api'
 import { useAnswer, useAnswered, useInputList, useUnanswer, useVerify } from './api'
 import { AskDialog, type Ask } from './AskDialog'
@@ -52,6 +54,29 @@ function NotAddedItem({ i, link }: { i: Item<'device_not_added'>; link: boolean 
         <span className="text-meta text-muted">{t('queue.notAdded', { count: i.findings })}</span>
       </div>
       <NotAdded asset={asAsset(i.device)} findings={i.findings} />
+    </div>
+  )
+}
+
+/** A device a person added that Vedette cannot check (no software, firmware or OS it can match): its empty findings say nothing. The
+ *  ways to say what runs there, the first in place: its firmware version (the software dialog), SNMP read access, an agent. */
+function UncheckedItem({ i, link }: { i: Item<'device_unchecked'>; link: boolean }) {
+  const { t } = useTranslation('findings')
+  const r = useRoles()
+  const [adding, setAdding] = useState(false)
+  const words = { device: i.device.name }
+  return (
+    <div className="grid gap-2">
+      <p className="text-sm">{t('queue.unchecked', words)}</p>
+      <DeviceLine device={i.device} badge={false} link={link} />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button size="sm" variant="primary" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.uncheckedAddOf', words)} onClick={() => setAdding(true)}>
+          {t('queue.uncheckedAdd')}
+        </Button>
+        <Link to={`/devices/${encodeURIComponent(i.device.id)}?tab=overview#sources`} className="text-meta text-accent underline-offset-4 hover:underline">{t('queue.uncheckedSnmp')}</Link>
+        <Link to="/devices/setup?tab=agents" className="text-meta text-accent underline-offset-4 hover:underline">{t('queue.uncheckedAgent')}</Link>
+      </div>
+      <AddDeviceDialog open={adding} onOpenChange={setAdding} deviceId={i.device.id} />
     </div>
   )
 }
@@ -110,6 +135,7 @@ function QuestionDialog({ i, asking, onClose }: { i: Item<'question'>; asking: A
   const unanswer = useUnanswer()
   const sw = i.software
   const words = { software: sw?.name ?? t('queue.theSoftware'), version: sw?.version ?? '', device: i.device.name, count: i.cves, cve: i.cve ?? '' }
+  const lineWords = { ...words, line: i.line ?? sw?.version ?? '' }
   if (asking.kind === 'version') {
     return (
       <AskDialog title={t('queue.versionTitle', words)} submit={t('queue.saveVersion')} done={t('queue.versionSaved', words)} onClose={onClose}
@@ -133,9 +159,11 @@ function QuestionDialog({ i, asking, onClose }: { i: Item<'question'>; asking: A
   const a = asking.answer
   // "not affected" leaves the queue and no finding records it: the toast can take it back (the answer is also listed below the queue)
   const undo = a === 'not_affected' ? { label: t('queue.undo'), done: t('queue.askedAgain', words), run: () => unanswer.mutateAsync({ id: i.id }) } : undefined
+  const line = i.question === 'older_line' // one answer for every CVE of the line
   return (
-    <AskDialog title={t(`queue.${a}Title`, words)} submit={t(`queue.${a}`)} done={t(a === 'not_affected' ? 'queue.notAffectedSaved' : 'queue.answerSaved', words)} undo={undo} onClose={onClose}
-      fields={[{ name: 'note', label: t(a === 'affected' ? 'queue.confirmNote' : 'queue.notAffectedNote'), min: a === 'not_affected' ? 3 : undefined, required: a === 'not_affected', max: 500, long: true }]}
+    <AskDialog title={line ? t('queue.lineTitle', lineWords) : t(`queue.${a}Title`, words)} submit={t(`queue.${a}`)}
+      done={line ? t('queue.lineSaved', words) : t(a === 'not_affected' ? 'queue.notAffectedSaved' : 'queue.answerSaved', words)} undo={undo} onClose={onClose}
+      fields={[{ name: 'note', label: line ? t('queue.lineNote', lineWords) : t(a === 'affected' ? 'queue.confirmNote' : 'queue.notAffectedNote'), min: a === 'not_affected' ? 3 : undefined, required: a === 'not_affected', max: 500, long: true }]}
       onSend={(v) => answer.mutateAsync({ id: i.id, answer: a, note: v.note ?? '' })} />
   )
 }
@@ -146,17 +174,29 @@ function QuestionItem({ i, link }: { i: Item<'question'>; link: boolean }) {
   const act = useDeviceAction(i.device.id)
   const [asking, setAsking] = useState<Asking | null>(null)
   const sw = i.software
-  const words = { software: sw?.name ?? t('queue.theSoftware'), version: sw?.version ?? '', device: i.device.name, count: i.cves, cve: i.cve ?? '' }
+  const words = { software: sw?.name ?? t('queue.theSoftware'), version: sw?.version ?? '', device: i.device.name, count: i.cves, cve: i.cve ?? '',
+    line: i.line ?? sw?.version ?? '', fixes: i.fixes.join(', ') }
   const typed = i.question === 'version_needed' || i.question === 'not_comparable'
+  // what the question says: the CVE lists versions, just none that decides this one; the vendor names fixes only on newer lines
+  const text = i.question === 'no_range_data' && i.versions_listed ? 'queue.q.no_range_data_listed'
+    : i.question === 'older_line' && !i.fixes.length ? 'queue.q.older_line_none' : `queue.q.${i.question}`
   return (
     <div className="grid gap-2">
-      <p className="text-sm">{t(`queue.q.${i.question}`, words)}</p>
+      <p className="text-sm">{t(text, words)}</p>
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <DeviceLine device={i.device} badge={false} link={link} />
         {i.cve ? <Link to={`/cve/${encodeURIComponent(i.cve)}`} className="text-meta text-accent underline-offset-4 hover:underline">{i.cve}</Link> : null}
         {/* the link says what it is: NVD's entry is not the vendor's advisory */}
         {i.url ? <a href={i.url} target="_blank" rel="noopener noreferrer" className="text-meta text-accent underline-offset-4 hover:underline">{linkLabels(t, [i.url])[0]}</a> : null}
       </span>
+      {i.question === 'older_line' && i.cve_list.length ? (
+        <details className="text-meta">
+          <summary className="w-fit cursor-pointer text-accent">{t('queue.showCves', { count: i.cve_list.length })}</summary>
+          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+            {i.cve_list.map((c) => <li key={c}><Link to={`/cve/${encodeURIComponent(c)}`} className="text-accent underline-offset-4 hover:underline">{c}</Link></li>)}
+          </ul>
+        </details>
+      ) : null}
       {i.command && !i.choices.some((c) => c.ask?.includes('pkg_version')) ? <p className="text-meta text-muted">{t('queue.command')} <code className="font-mono">{i.command}</code></p> : null}
       <div className="flex flex-wrap items-center gap-2">
         {typed && sw ? <Button size="sm" variant="primary" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'version' })}>{t('queue.addVersion')}</Button> : null}
@@ -175,6 +215,12 @@ function QuestionItem({ i, link }: { i: Item<'question'>; link: boolean }) {
             <Button size="sm" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'answer', answer: 'not_affected' })}>{t('queue.not_affected')}</Button>
           </>
         ) : null}
+        {i.question === 'older_line' ? (
+          <>
+            {sw ? <Link to={`/devices/${encodeURIComponent(i.device.id)}?tab=software`} className="text-meta text-accent underline underline-offset-4">{t('queue.openSoftware')}</Link> : null}
+            <Button size="sm" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'answer', answer: 'not_affected' })}>{t('queue.not_affected')}</Button>
+          </>
+        ) : null}
       </div>
       {asking ? <QuestionDialog i={i} asking={asking} onClose={() => setAsking(null)} /> : null}
     </div>
@@ -184,6 +230,7 @@ function QuestionItem({ i, link }: { i: Item<'question'>; link: boolean }) {
 /** One item of the queue. linkDevice false names its device without a link: an earlier item of the page links to its page. */
 export function QueueItem({ i, linkDevice = true }: { i: InputItem; linkDevice?: boolean }) {
   return i.kind === 'device_not_added' ? <NotAddedItem i={i} link={linkDevice} />
+    : i.kind === 'device_unchecked' ? <UncheckedItem i={i} link={linkDevice} />
     : i.kind === 'unconfirmed' ? <UnconfirmedItem i={i} link={linkDevice} /> : <QuestionItem i={i} link={linkDevice} />
 }
 

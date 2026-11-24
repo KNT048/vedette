@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
-import { fmtDate, fmtDateTime } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtPeriodEnd } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useSentList } from './api'
 import type { SentReportItem } from './types'
@@ -28,7 +28,7 @@ export default function HistoryTab() {
               <Link to={sentPath(row.original.id)} onClick={(e) => e.stopPropagation()} aria-label={t('history.openLabel', { time: fmtDateTime(row.original.sent_at) })}
                 className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{fmtDateTime(row.original.sent_at)}</Link>
             ) },
-            { id: 'period', header: t('history.col.period'), accessorFn: (r: Row) => r.period.from, cell: ({ row }: { row: { original: Row } }) => <span className="whitespace-nowrap">{fmtDate(row.original.period.from)} – {fmtDate(row.original.period.to)}</span> },
+            { id: 'period', header: t('history.col.period'), accessorFn: (r: Row) => r.period.from, cell: ({ row }: { row: { original: Row } }) => <span className="whitespace-nowrap">{fmtDate(row.original.period.from)} – {fmtPeriodEnd(row.original.period.to)}</span> },
             { id: 'trigger', header: t('history.col.trigger'), accessorFn: (r: Row) => (r.trigger === 'schedule' ? t('history.trigger.schedule') : r.sent_by ? t('history.trigger.manual', { by: r.sent_by }) : t('history.trigger.manualUnnamed')) },
             { id: 'to', header: t('history.col.to'), accessorFn: (r: Row) => r.recipients.length, cell: ({ row }: { row: { original: Row } }) => <span title={row.original.recipients.join(', ')}>{t('history.people', { count: row.original.recipients.length })}</span> },
             { id: 'status', header: t('history.col.status'), accessorKey: 'status', cell: ({ row }: { row: { original: Row } }) => row.original.status === 'sent'

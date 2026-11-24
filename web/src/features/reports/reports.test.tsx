@@ -230,6 +230,17 @@ describe('reports: the security report (S-REP-1)', () => {
     print.mockRestore()
   })
 
+  it('History: a period that ends at midnight names its last whole day, not the day after', async () => {
+    // a weekly report sent Wednesday 11 November covers 4 – 10 November in the organisation's zone (Ho Chi Minh City, UTC+7, in tests)
+    const item = { id: 'rh-week', definition_id: 'security', title: 'Security report', sent_at: '2026-11-11T01:00:00.000Z',
+      period: { from: '2026-11-03T17:00:00.000Z', to: '2026-11-10T17:00:00.000Z' }, trigger: 'schedule', recipients: ['it@acme.example'], status: 'sent' }
+    server.use(http.get('*/api/v1/reports/history', () => HttpResponse.json({ items: [item] })))
+    renderApp('/reports?tab=history')
+    const table = await screen.findByRole('table', { name: 'Reports sent' })
+    expect(table).toHaveTextContent('4 Nov 2026 – 10 Nov 2026')
+    expect(table).not.toHaveTextContent('11 Nov 2026 –')
+  })
+
   it('a sent report that is not in the history says so', async () => {
     renderApp('/reports/sent/rh-missing')
     expect(await screen.findByText('This report is not in the history.')).toBeInTheDocument()

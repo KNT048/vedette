@@ -57,23 +57,26 @@ func layerOf(code string) int {
 
 var resolutionOrder = []string{"patched", "mitigated", "accepted", "false_positive", "not_relevant"}
 
-// periodFollows is the period a report covers when its schedule sends it every week or every month: the last 7 days, or the last
-// calendar month, so each report covers the time since the one before it and a monthly report never covers only a week. A schedule
-// that is off leaves the period chosen in Settings (for a report sent by hand or printed).
-func periodFollows(period, every string) string {
+// periodFollows is the period a report covers when its schedule sends it every week or every month: the 7 days before the send day,
+// or the last calendar month, so each report covers the time since the one before it and a monthly report never covers only a week.
+// whole is true when the schedule decides: the period is whole days ending at midnight of the send day, so consecutive reports meet
+// with no gap or overlap. A schedule that is off leaves the period chosen in Settings (for a report sent by hand or printed).
+func periodFollows(period, every string) (kind string, whole bool) {
 	switch every {
 	case "weekly":
-		return PeriodLast7
+		return PeriodLast7, true
 	case "monthly":
-		return PeriodMonth
+		return PeriodMonth, true
 	}
-	return period
+	return period, false
 }
 
-// periodOf is the time a document made at now covers: the last 7 or 30 days in loc, today included (from the start of the day 6 or 29
-// days before today up to now, so "Last 7 days" names 7 dates, 18 – 24 Nov, as people count them), or the last whole calendar month.
-func periodOf(kind string, now time.Time, loc *time.Location) (from, to time.Time) {
+// periodOf is the time a document made at now covers, in loc: the last whole calendar month; or the last 7 or 30 days, either today
+// included (from the start of the day 6 or 29 days before today up to now, so "Last 7 days" names 7 dates, 18 – 24 Nov, as people
+// count them) or, when whole, the 7 or 30 whole days before today (up to midnight this morning). Every period is [from, to).
+func periodOf(kind string, whole bool, now time.Time, loc *time.Location) (from, to time.Time) {
 	n := now.In(loc)
+	today := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, loc)
 	days := 7
 	switch kind {
 	case PeriodMonth:
@@ -82,12 +85,16 @@ func periodOf(kind string, now time.Time, loc *time.Location) (from, to time.Tim
 	case PeriodLast30:
 		days = 30
 	}
-	return time.Date(n.Year(), n.Month(), n.Day()-(days-1), 0, 0, 0, 0, loc).UTC(), now
+	if whole {
+		return today.AddDate(0, 0, -days).UTC(), today.UTC()
+	}
+	return today.AddDate(0, 0, -(days - 1)).UTC(), now
 }
 
 // docInput is everything the document reads, already fetched.
 type docInput struct {
 	def      Definition
+	whole    bool // the schedule decides the period: whole days up to midnight of today (periodOf)
 	org      string
 	now      time.Time
 	loc      *time.Location
@@ -265,7 +272,7 @@ func byUrgency(a, b row) int {
 // what the sections list: open now = Still open's total, new = New's total, handled = Handled's total.
 func buildDocument(in docInput) Document {
 	o := in.def.Options
-	from, to := periodOf(o.Period, in.now, in.loc)
+	from, to := periodOf(o.Period, in.whole, in.now, in.loc)
 	inPeriod := func(t time.Time) bool { return t.After(from) && !t.After(to) }
 	doc := Document{DefinitionID: in.def.ID, Title: clip(in.def.Name, 120), GeneratedAt: ts(in.now), Org: clip(in.org, 120),
 		Period: DocPeriod{Kind: o.Period, From: ts(from), To: ts(to), TZ: clip(in.loc.String(), 64)}, Options: o}

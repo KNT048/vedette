@@ -94391,10 +94391,61 @@ func (s *FindingsGetFindingsFixesOKItemsItemStatus) UnmarshalText(data []byte) e
 	}
 }
 
+// True: also list the findings Vedette closed because it corrected its own match (never a flaw that
+// was handled); default false: leave them out, as the report does.
+type FindingsGetFindingsHandledCorrections string
+
+const (
+	FindingsGetFindingsHandledCorrectionsTrue  FindingsGetFindingsHandledCorrections = "true"
+	FindingsGetFindingsHandledCorrectionsFalse FindingsGetFindingsHandledCorrections = "false"
+)
+
+// AllValues returns all FindingsGetFindingsHandledCorrections values.
+func (FindingsGetFindingsHandledCorrections) AllValues() []FindingsGetFindingsHandledCorrections {
+	return []FindingsGetFindingsHandledCorrections{
+		FindingsGetFindingsHandledCorrectionsTrue,
+		FindingsGetFindingsHandledCorrectionsFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsHandledCorrections) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsHandledCorrectionsTrue:
+		return []byte(s), nil
+	case FindingsGetFindingsHandledCorrectionsFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsHandledCorrections) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsHandledCorrections(data) {
+	case FindingsGetFindingsHandledCorrectionsTrue:
+		*s = FindingsGetFindingsHandledCorrectionsTrue
+		return nil
+	case FindingsGetFindingsHandledCorrectionsFalse:
+		*s = FindingsGetFindingsHandledCorrectionsFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsGetFindingsHandledOK struct {
+	// Findings Vedette closed itself because it corrected its own match (via data_corrected, by Vedette)
+	// that the same filters select: left out unless corrections=true, counted here either way.
+	Corrections int `json:"corrections"`
 	// The newest handling first.
 	Items []FindingsGetFindingsHandledOKItemsItem `json:"items"`
 	Total int                                     `json:"total"`
+}
+
+// GetCorrections returns the value of Corrections.
+func (s *FindingsGetFindingsHandledOK) GetCorrections() int {
+	return s.Corrections
 }
 
 // GetItems returns the value of Items.
@@ -94405,6 +94456,11 @@ func (s *FindingsGetFindingsHandledOK) GetItems() []FindingsGetFindingsHandledOK
 // GetTotal returns the value of Total.
 func (s *FindingsGetFindingsHandledOK) GetTotal() int {
 	return s.Total
+}
+
+// SetCorrections sets the value of Corrections.
+func (s *FindingsGetFindingsHandledOK) SetCorrections(val int) {
+	s.Corrections = val
 }
 
 // SetItems sets the value of Items.
@@ -204135,6 +204191,52 @@ func (o OptFindingsGetFindingsDevicesIgnored) Or(d FindingsGetFindingsDevicesIgn
 	return d
 }
 
+// NewOptFindingsGetFindingsHandledCorrections returns new OptFindingsGetFindingsHandledCorrections with value set to v.
+func NewOptFindingsGetFindingsHandledCorrections(v FindingsGetFindingsHandledCorrections) OptFindingsGetFindingsHandledCorrections {
+	return OptFindingsGetFindingsHandledCorrections{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptFindingsGetFindingsHandledCorrections is optional FindingsGetFindingsHandledCorrections.
+type OptFindingsGetFindingsHandledCorrections struct {
+	Value FindingsGetFindingsHandledCorrections
+	Set   bool
+}
+
+// IsSet returns true if OptFindingsGetFindingsHandledCorrections was set.
+func (o OptFindingsGetFindingsHandledCorrections) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptFindingsGetFindingsHandledCorrections) Reset() {
+	var v FindingsGetFindingsHandledCorrections
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptFindingsGetFindingsHandledCorrections) SetTo(v FindingsGetFindingsHandledCorrections) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptFindingsGetFindingsHandledCorrections) Get() (v FindingsGetFindingsHandledCorrections, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptFindingsGetFindingsHandledCorrections) Or(d FindingsGetFindingsHandledCorrections) FindingsGetFindingsHandledCorrections {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptFindingsGetFindingsIDOKEvidenceSource returns new OptFindingsGetFindingsIDOKEvidenceSource with value set to v.
 func NewOptFindingsGetFindingsIDOKEvidenceSource(v FindingsGetFindingsIDOKEvidenceSource) OptFindingsGetFindingsIDOKEvidenceSource {
 	return OptFindingsGetFindingsIDOKEvidenceSource{
@@ -210814,6 +210916,9 @@ type ReportsGetReportsDocumentOKNew struct {
 	// Found in the period, with their status now (open or how it was handled).
 	Items []ReportsGetReportsDocumentOKNewItemsItem `json:"items"`
 	More  int                                       `json:"more"`
+	// Of total, the findings still open at the end of the period, listed or not; absent in reports sent
+	// before it was counted.
+	Open OptInt `json:"open"`
 	// Findings first seen in the period, open or handled since; equals summary.new.
 	Total int `json:"total"`
 }
@@ -210826,6 +210931,11 @@ func (s *ReportsGetReportsDocumentOKNew) GetItems() []ReportsGetReportsDocumentO
 // GetMore returns the value of More.
 func (s *ReportsGetReportsDocumentOKNew) GetMore() int {
 	return s.More
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsDocumentOKNew) GetOpen() OptInt {
+	return s.Open
 }
 
 // GetTotal returns the value of Total.
@@ -210841,6 +210951,11 @@ func (s *ReportsGetReportsDocumentOKNew) SetItems(val []ReportsGetReportsDocumen
 // SetMore sets the value of More.
 func (s *ReportsGetReportsDocumentOKNew) SetMore(val int) {
 	s.More = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsDocumentOKNew) SetOpen(val OptInt) {
+	s.Open = val
 }
 
 // SetTotal sets the value of Total.
@@ -211786,6 +211901,9 @@ type ReportsGetReportsDocumentOKOpenGroupsItem struct {
 	Label string `json:"label"`
 	// The most urgent status in the group.
 	Status ReportsGetReportsDocumentOKOpenGroupsItemStatus `json:"status"`
+	// Every open finding of the group, listed or not (items stops at the 100 rows a report lists); absent
+	// in reports sent before it was counted.
+	Total OptInt `json:"total"`
 }
 
 // GetItems returns the value of Items.
@@ -211808,6 +211926,11 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItem) GetStatus() ReportsGetReport
 	return s.Status
 }
 
+// GetTotal returns the value of Total.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItem) GetTotal() OptInt {
+	return s.Total
+}
+
 // SetItems sets the value of Items.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItem) SetItems(val []ReportsGetReportsDocumentOKOpenGroupsItemItemsItem) {
 	s.Items = val
@@ -211826,6 +211949,11 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItem) SetLabel(val string) {
 // SetStatus sets the value of Status.
 func (s *ReportsGetReportsDocumentOKOpenGroupsItem) SetStatus(val ReportsGetReportsDocumentOKOpenGroupsItemStatus) {
 	s.Status = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ReportsGetReportsDocumentOKOpenGroupsItem) SetTotal(val OptInt) {
+	s.Total = val
 }
 
 type ReportsGetReportsDocumentOKOpenGroupsItemItemsItem struct {
@@ -216022,6 +216150,9 @@ type ReportsGetReportsHistoryIDOKDocumentNew struct {
 	// Found in the period, with their status now (open or how it was handled).
 	Items []ReportsGetReportsHistoryIDOKDocumentNewItemsItem `json:"items"`
 	More  int                                                `json:"more"`
+	// Of total, the findings still open at the end of the period, listed or not; absent in reports sent
+	// before it was counted.
+	Open OptInt `json:"open"`
 	// Findings first seen in the period, open or handled since; equals summary.new.
 	Total int `json:"total"`
 }
@@ -216034,6 +216165,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNew) GetItems() []ReportsGetReports
 // GetMore returns the value of More.
 func (s *ReportsGetReportsHistoryIDOKDocumentNew) GetMore() int {
 	return s.More
+}
+
+// GetOpen returns the value of Open.
+func (s *ReportsGetReportsHistoryIDOKDocumentNew) GetOpen() OptInt {
+	return s.Open
 }
 
 // GetTotal returns the value of Total.
@@ -216049,6 +216185,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNew) SetItems(val []ReportsGetRepor
 // SetMore sets the value of More.
 func (s *ReportsGetReportsHistoryIDOKDocumentNew) SetMore(val int) {
 	s.More = val
+}
+
+// SetOpen sets the value of Open.
+func (s *ReportsGetReportsHistoryIDOKDocumentNew) SetOpen(val OptInt) {
+	s.Open = val
 }
 
 // SetTotal sets the value of Total.
@@ -216994,6 +217135,9 @@ type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem struct {
 	Label string `json:"label"`
 	// The most urgent status in the group.
 	Status ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus `json:"status"`
+	// Every open finding of the group, listed or not (items stops at the 100 rows a report lists); absent
+	// in reports sent before it was counted.
+	Total OptInt `json:"total"`
 }
 
 // GetItems returns the value of Items.
@@ -217016,6 +217160,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) GetStatus() Reports
 	return s.Status
 }
 
+// GetTotal returns the value of Total.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) GetTotal() OptInt {
+	return s.Total
+}
+
 // SetItems sets the value of Items.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) SetItems(val []ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem) {
 	s.Items = val
@@ -217034,6 +217183,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) SetLabel(val string
 // SetStatus sets the value of Status.
 func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) SetStatus(val ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemStatus) {
 	s.Status = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) SetTotal(val OptInt) {
+	s.Total = val
 }
 
 type ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItem struct {

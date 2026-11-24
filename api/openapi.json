@@ -53330,6 +53330,19 @@
             }
           },
           {
+            "name": "corrections",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "true: also list the findings Vedette closed because it corrected its own match (never a flaw that was handled); default false: leave them out, as the report does",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -53694,11 +53707,18 @@
                       "type": "integer",
                       "minimum": 0,
                       "maximum": 9007199254740991
+                    },
+                    "corrections": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Findings Vedette closed itself because it corrected its own match (via data_corrected, by Vedette) that the same filters select: left out unless corrections=true, counted here either way"
                     }
                   },
                   "required": [
                     "items",
-                    "total"
+                    "total",
+                    "corrections"
                   ],
                   "additionalProperties": false
                 }
@@ -77322,6 +77342,12 @@
                                   ],
                                   "additionalProperties": false
                                 }
+                              },
+                              "total": {
+                                "description": "Every open finding of the group, listed or not (items stops at the 100 rows a report lists); absent in reports sent before it was counted",
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
                               }
                             },
                             "required": [
@@ -77357,6 +77383,12 @@
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
                           "description": "Findings first seen in the period, open or handled since; equals summary.new"
+                        },
+                        "open": {
+                          "description": "Of total, the findings still open at the end of the period, listed or not; absent in reports sent before it was counted",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
                         },
                         "items": {
                           "type": "array",
@@ -79501,6 +79533,12 @@
                                       ],
                                       "additionalProperties": false
                                     }
+                                  },
+                                  "total": {
+                                    "description": "Every open finding of the group, listed or not (items stops at the 100 rows a report lists); absent in reports sent before it was counted",
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
                                   }
                                 },
                                 "required": [
@@ -79536,6 +79574,12 @@
                               "minimum": -9007199254740991,
                               "maximum": 9007199254740991,
                               "description": "Findings first seen in the period, open or handled since; equals summary.new"
+                            },
+                            "open": {
+                              "description": "Of total, the findings still open at the end of the period, listed or not; absent in reports sent before it was counted",
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
                             },
                             "items": {
                               "type": "array",

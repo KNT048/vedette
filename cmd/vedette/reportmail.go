@@ -180,7 +180,7 @@ func reportMailDoc(d reports.Document) *channel.Doc {
 	}
 	if s := d.Summary; s != nil {
 		sec := channel.DocSection{Title: "Summary"}
-		sec.Paragraphs = append(sec.Paragraphs, fmt.Sprintf("Open now: %d (%d at the start of the period). New this period: %d. Handled this period: %d.", s.OpenNow, s.OpenBefore, s.New, s.Handled))
+		sec.Paragraphs = append(sec.Paragraphs, reports.FlowLine(*s))
 		if h := d.Handled; h != nil && h.MedianDays != nil {
 			sec.Paragraphs = append(sec.Paragraphs, fmt.Sprintf("Median days to fix: %s.", strconv.FormatFloat(*h.MedianDays, 'f', -1, 64)))
 		}
@@ -217,7 +217,7 @@ func reportMailDoc(d reports.Document) *channel.Doc {
 		for _, dv := range h.Devices {
 			for _, it := range dv.Items {
 				n++
-				t.Rows = append(t.Rows, []string{reportDevice(dv.Device), it.CVE + " · " + it.Product, reports.HandledLine(it.Handled, it.Product, loc)})
+				t.Rows = append(t.Rows, []string{reportDevice(dv.Device), it.CVE + " · " + it.Product, reports.ItemLine(it, loc)})
 			}
 		}
 		if n == 0 {

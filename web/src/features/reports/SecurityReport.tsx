@@ -26,8 +26,8 @@ const BAR: Record<OpenStatus | HandledStatus, string> = {
   under_attack: 'bg-danger', exploited: 'bg-danger/70', public_exploit: 'bg-warn', critical_edge: 'bg-warn/70', update_recommended: 'bg-warn/40',
   patched: 'bg-ok', mitigated: 'bg-ok/60', accepted: 'bg-off/60', not_relevant: 'bg-off/40', false_positive: 'bg-off/30',
 }
-/** The statuses whose meaning says "now" (the words of the badges). */
-const NOW: OpenStatus[] = ['under_attack', 'exploited', 'critical_edge']
+/** The urgent statuses: the four layers the Findings badge in the menu counts, so the report's urgent count is that badge's number. */
+const NOW: OpenStatus[] = ['under_attack', 'exploited', 'public_exploit', 'critical_edge']
 
 const th = 'py-1.5 pr-3 text-left text-caption font-medium text-muted'
 const td = 'py-2 pr-3 align-top'
@@ -136,7 +136,7 @@ function Summary({ s, handled, charts, n }: { s: ReportSummary; handled?: Report
       </dl>
       {charts && (s.open_by_status.length || s.open_before || s.handled) ? (
         <div className="report-block mb-6 grid gap-6 sm:grid-cols-2">
-          <OpenFlow start={s.open_before} added={s.new} handled={s.handled} end={s.open_now} />
+          <OpenFlow start={s.open_before} added={s.new} handled={s.handled} reopened={s.reopened} end={s.open_now} />
           {s.open_by_status.length ? (
             <div className="grid content-start gap-2">
               <p className="text-meta font-medium text-muted">{t('sr.byStatus')}</p>
@@ -224,7 +224,8 @@ function Handled({ h, charts, n }: { h: ReportHandled; charts: boolean; n: numbe
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><CveLink cve={i.cve} finding={i.finding_id} /><SeverityBadge severity={i.severity} compact /></div>
                         <div className="text-meta text-muted">{i.product}</div>
                       </td>
-                      <td className={td}><div className="flex flex-wrap items-center gap-2"><StatusBadge code={i.handled.resolution} until={i.handled.accepted_until} /></div><HandledLine underBadge handled={i.handled} software={i.product} className="mt-1 block" /></td>
+                      <td className={td}><div className="flex flex-wrap items-center gap-2"><StatusBadge code={i.handled.resolution} until={i.handled.accepted_until} /></div><HandledLine underBadge handled={i.handled} software={i.product} className="mt-1 block" />
+                        {i.reopened_at ? <span className="mt-1 block text-meta font-medium text-warn">{t('sr.reopenedSince', { day: fmtDate(i.reopened_at) })}</span> : null}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -141,6 +141,9 @@ type HandledItem struct {
 	Product   string       `json:"product"`
 	Severity  *CveSeverity `json:"severity"`
 	Handled   Handled      `json:"handled"`
+	// ReopenedAt: the finding opened again after this handling, inside the period, and is open at its end (it is in Still open too).
+	// Absent otherwise, and in documents sent before it existed.
+	ReopenedAt *string `json:"reopened_at,omitempty"`
 }
 
 // DocPeriod is the time a document covers, in the zone it was read in.
@@ -177,7 +180,10 @@ type ReportSummary struct {
 	OpenBefore   int           `json:"open_before"`
 	New          int           `json:"new"`
 	Handled      int           `json:"handled"`
-	First        []FirstThing  `json:"first"`
+	// Reopened: findings open at the end that opened again in the period after a handling (handled in the period, or before it), so
+	// open_now = open_before + new - handled + reopened. Absent when none, and in documents sent before it existed.
+	Reopened int          `json:"reopened,omitempty"`
+	First    []FirstThing `json:"first"`
 }
 
 // HandledTotal is how many findings were handled one way.

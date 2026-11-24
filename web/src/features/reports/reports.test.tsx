@@ -26,7 +26,7 @@ describe('reports: the security report (S-REP-1)', () => {
     renderApp('/reports')
     expect(await screen.findByRole('heading', { level: 1, name: "8 findings are open; 6 handled in this report's period" })).toBeInTheDocument()
     const doc = await report()
-    expect(within(doc).getByText(/^8 findings are open\. 5 need action now\. 6 were handled in this period\.$/)).toBeInTheDocument()
+    expect(within(doc).getByText(/^8 findings are open\. 6 are urgent to handle\. 6 were handled in this period\.$/)).toBeInTheDocument()
     expect(within(doc).getAllByRole('heading', { level: 3 }).map((h) => h.textContent?.replace(/^\d+/, ''))).toEqual(['Summary', 'Handled this period', 'Still open', 'New this period', 'External exposure', 'Detections', 'Coverage'])
     const handled = within(doc).getByRole('region', { name: 'Handled this period' })
     expect(within(handled).getAllByText(/^By Vedette: version moved 6\.24 → 7\.23/)).toHaveLength(2)

@@ -207532,9 +207532,12 @@ type ReportsGetReportsDocumentOKHandledDevicesItemItemsItem struct {
 	Cve       string `json:"cve"`
 	FindingID string `json:"finding_id"`
 	// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
-	Handled  ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled     `json:"handled"`
-	Product  string                                                            `json:"product"`
-	Severity NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity `json:"severity"`
+	Handled ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled `json:"handled"`
+	Product string                                                        `json:"product"`
+	// It opened again after this handling, inside the period, and is open at its end (listed in Still open
+	// too); absent otherwise and in reports sent before it existed.
+	ReopenedAt OptDateTime                                                       `json:"reopened_at"`
+	Severity   NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity `json:"severity"`
 }
 
 // GetCve returns the value of Cve.
@@ -207555,6 +207558,11 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetHandled() Re
 // GetProduct returns the value of Product.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetProduct() string {
 	return s.Product
+}
+
+// GetReopenedAt returns the value of ReopenedAt.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetReopenedAt() OptDateTime {
+	return s.ReopenedAt
 }
 
 // GetSeverity returns the value of Severity.
@@ -207580,6 +207588,11 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetHandled(val 
 // SetProduct sets the value of Product.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetProduct(val string) {
 	s.Product = val
+}
+
+// SetReopenedAt sets the value of ReopenedAt.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetReopenedAt(val OptDateTime) {
+	s.ReopenedAt = val
 }
 
 // SetSeverity sets the value of Severity.
@@ -210440,8 +210453,8 @@ func (s *ReportsGetReportsDocumentOKPeriodKind) UnmarshalText(data []byte) error
 type ReportsGetReportsDocumentOKSummary struct {
 	// The three things to do first, most urgent first.
 	First []ReportsGetReportsDocumentOKSummaryFirstItem `json:"first"`
-	// Findings handled in the period (the Handled section counts the same). open_before + new - handled
-	// differs from open_now only by other changes: a device removed, a finding reopened.
+	// Findings handled in the period (the Handled section counts the same). open_before + new - handled +
+	// reopened differs from open_now only by other changes: a finding left out since the start.
 	Handled int `json:"handled"`
 	// Findings first seen in the period, whether still open or handled since (the New section counts the
 	// same).
@@ -210452,6 +210465,9 @@ type ReportsGetReportsDocumentOKSummary struct {
 	OpenByStatus []ReportsGetReportsDocumentOKSummaryOpenByStatusItem `json:"open_by_status"`
 	// Open at the end of the period.
 	OpenNow int `json:"open_now"`
+	// Findings open at the end that opened again in the period after a handling; absent when none and in
+	// reports sent before it existed.
+	Reopened OptInt `json:"reopened"`
 }
 
 // GetFirst returns the value of First.
@@ -210484,6 +210500,11 @@ func (s *ReportsGetReportsDocumentOKSummary) GetOpenNow() int {
 	return s.OpenNow
 }
 
+// GetReopened returns the value of Reopened.
+func (s *ReportsGetReportsDocumentOKSummary) GetReopened() OptInt {
+	return s.Reopened
+}
+
 // SetFirst sets the value of First.
 func (s *ReportsGetReportsDocumentOKSummary) SetFirst(val []ReportsGetReportsDocumentOKSummaryFirstItem) {
 	s.First = val
@@ -210512,6 +210533,11 @@ func (s *ReportsGetReportsDocumentOKSummary) SetOpenByStatus(val []ReportsGetRep
 // SetOpenNow sets the value of OpenNow.
 func (s *ReportsGetReportsDocumentOKSummary) SetOpenNow(val int) {
 	s.OpenNow = val
+}
+
+// SetReopened sets the value of Reopened.
+func (s *ReportsGetReportsDocumentOKSummary) SetReopened(val OptInt) {
+	s.Reopened = val
 }
 
 type ReportsGetReportsDocumentOKSummaryFirstItem struct {
@@ -212680,9 +212706,12 @@ type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem struct {
 	Cve       string `json:"cve"`
 	FindingID string `json:"finding_id"`
 	// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
-	Handled  ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled     `json:"handled"`
-	Product  string                                                                     `json:"product"`
-	Severity NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity `json:"severity"`
+	Handled ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled `json:"handled"`
+	Product string                                                                 `json:"product"`
+	// It opened again after this handling, inside the period, and is open at its end (listed in Still open
+	// too); absent otherwise and in reports sent before it existed.
+	ReopenedAt OptDateTime                                                                `json:"reopened_at"`
+	Severity   NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity `json:"severity"`
 }
 
 // GetCve returns the value of Cve.
@@ -212703,6 +212732,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetHan
 // GetProduct returns the value of Product.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetProduct() string {
 	return s.Product
+}
+
+// GetReopenedAt returns the value of ReopenedAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetReopenedAt() OptDateTime {
+	return s.ReopenedAt
 }
 
 // GetSeverity returns the value of Severity.
@@ -212728,6 +212762,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetHan
 // SetProduct sets the value of Product.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetProduct(val string) {
 	s.Product = val
+}
+
+// SetReopenedAt sets the value of ReopenedAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetReopenedAt(val OptDateTime) {
+	s.ReopenedAt = val
 }
 
 // SetSeverity sets the value of Severity.
@@ -215588,8 +215627,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentPeriodKind) UnmarshalText(data []by
 type ReportsGetReportsHistoryIDOKDocumentSummary struct {
 	// The three things to do first, most urgent first.
 	First []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem `json:"first"`
-	// Findings handled in the period (the Handled section counts the same). open_before + new - handled
-	// differs from open_now only by other changes: a device removed, a finding reopened.
+	// Findings handled in the period (the Handled section counts the same). open_before + new - handled +
+	// reopened differs from open_now only by other changes: a finding left out since the start.
 	Handled int `json:"handled"`
 	// Findings first seen in the period, whether still open or handled since (the New section counts the
 	// same).
@@ -215600,6 +215639,9 @@ type ReportsGetReportsHistoryIDOKDocumentSummary struct {
 	OpenByStatus []ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem `json:"open_by_status"`
 	// Open at the end of the period.
 	OpenNow int `json:"open_now"`
+	// Findings open at the end that opened again in the period after a handling; absent when none and in
+	// reports sent before it existed.
+	Reopened OptInt `json:"reopened"`
 }
 
 // GetFirst returns the value of First.
@@ -215632,6 +215674,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummary) GetOpenNow() int {
 	return s.OpenNow
 }
 
+// GetReopened returns the value of Reopened.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) GetReopened() OptInt {
+	return s.Reopened
+}
+
 // SetFirst sets the value of First.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetFirst(val []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) {
 	s.First = val
@@ -215660,6 +215707,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetOpenByStatus(val []Repo
 // SetOpenNow sets the value of OpenNow.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetOpenNow(val int) {
 	s.OpenNow = val
+}
+
+// SetReopened sets the value of Reopened.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetReopened(val OptInt) {
+	s.Reopened = val
 }
 
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem struct {

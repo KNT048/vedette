@@ -103,7 +103,7 @@ func TestDocumentSummaryAgreesWithTheSections(t *testing.T) {
 	if s.OpenNow != doc.Open.Total || s.New != doc.New.Total || s.Handled != countHandled(doc.Handled) {
 		t.Fatalf("summary %+v vs open %d, new %d, handled %d", s, doc.Open.Total, doc.New.Total, countHandled(doc.Handled))
 	}
-	if s.OpenBefore != 4 || s.New != 2 || s.Handled != 3 || s.OpenNow != 4 { // 4 + 2 - 3 = 3; the Outlook acceptance ran out: 4
+	if s.OpenBefore != 4 || s.New != 2 || s.Handled != 3 || s.Reopened != 1 || s.OpenNow != 4 { // 4 + 2 - 3 + 1 reopened (the Outlook acceptance ran out) = 4
 		t.Fatalf("summary = %+v", s)
 	}
 	if doc.Handled.MedianDays == nil || *doc.Handled.MedianDays != 20 { // WinRAR took 19.96 days twice, Log4j 5
@@ -208,6 +208,48 @@ func TestDocumentReopenedAfterACorrectionStaysOpen(t *testing.T) {
 	}
 	if doc.Summary.Handled != 0 || len(doc.Handled.Devices) != 0 {
 		t.Fatalf("a not-relevant handling is listed with include not relevant off: %+v", doc.Handled)
+	}
+}
+
+// A finding handled in the period and opened again before its end is listed under Handled with the day it opened again, counted as
+// reopened in the summary, and the figures add up in the page's chart and in the mail.
+func TestDocumentHandledThenReopenedSaysSo(t *testing.T) {
+	t.Parallel()
+	f := FindingView{ID: "f-back", CVE: "CVE-2026-97205", Device: devWeb, Product: "nginx", Status: "update_recommended", Urgency: 5, Severity: sev("high", 7.5),
+		Verification: byBanner, Fix: fix("update", "nginx", "1.30.7"), FirstSeen: at("2026-10-01T09:00:00Z"),
+		Events: []FindingEvent{created("2026-10-01T09:00:00Z"),
+			handledEv("2026-11-07T09:00:00Z", "patched", "version_moved", "ana@acme.example", nil, sp("1.30.5"), sp("1.30.6"), nil),
+			{At: at("2026-11-08T09:00:00Z"), Kind: "reopened"}}}
+	done := FindingView{ID: "f-done", CVE: "CVE-2026-97206", Device: devWeb, Product: "nginx", Status: "patched", Urgency: 5, Severity: sev("high", 7.5),
+		Verification: byBanner, Fix: fix("update", "nginx", "1.30.7"), FirstSeen: at("2026-11-06T09:00:00Z"),
+		Events: []FindingEvent{created("2026-11-06T09:00:00Z"), handledEv("2026-11-07T09:00:00Z", "patched", "person", "ana@acme.example", nil, nil, nil, nil)}}
+	doc := buildDocument(docInput{def: defaultDefinition(), now: t0, loc: time.UTC, findings: []FindingView{f, done}})
+	s := doc.Summary
+	if s.OpenBefore != 1 || s.New != 1 || s.Handled != 2 || s.Reopened != 1 || s.OpenNow != 1 {
+		t.Fatalf("summary = %+v, want 1 + 1 new - 2 handled + 1 reopened = 1", s)
+	}
+	var items []HandledItem
+	for _, d := range doc.Handled.Devices {
+		items = append(items, d.Items...)
+	}
+	if len(items) != 2 {
+		t.Fatalf("handled items = %+v", items)
+	}
+	for _, it := range items {
+		switch {
+		case it.FindingID == "f-back" && (it.ReopenedAt == nil || *it.ReopenedAt != ts(at("2026-11-08T09:00:00Z"))):
+			t.Errorf("the reopened finding does not say when it opened again: %+v", it)
+		case it.FindingID == "f-done" && it.ReopenedAt != nil:
+			t.Errorf("a finding still handled says it opened again: %+v", it)
+		}
+		if it.FindingID == "f-back" {
+			if got := ItemLine(it, time.UTC); !strings.HasSuffix(got, "; open again since 8 Nov 2026") {
+				t.Errorf("ItemLine = %q", got)
+			}
+		}
+	}
+	if got, want := FlowLine(*s), "Open at the start: 1. New: 1. Handled: 2. Reopened: 1. Open now: 1."; got != want {
+		t.Errorf("FlowLine = %q, want %q", got, want)
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-//, slice R2, L4: the server's annotations can only take trust away. A tool that says destructiveHint, or readOnlyHint false,
+// The server's annotations can only take trust away. A tool that says destructiveHint, or readOnlyHint false,
 // can never be marked read; one that starts to say so after it was marked read is not called.
 func TestADestructiveMCPToolCanNeverBeMarkedRead(t *testing.T) {
 	t.Parallel()

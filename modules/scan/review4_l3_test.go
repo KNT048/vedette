@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// L3: an event whose scanner never becomes ready does not wait for ever: after the same 7 days as an event whose
+// an event whose scanner never becomes ready does not wait for ever: after the same 7 days as an event whose
 // template never came, it is dropped.
 func TestReview4_L3_AnEventDoesNotWaitForEverForTheScanner(t *testing.T) {
 	t.Parallel()

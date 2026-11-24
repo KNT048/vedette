@@ -461,7 +461,7 @@ func TestContract_INV8_UnclassifiedDevicesAreScannedOnceGently(t *testing.T) {
 	}
 }
 
-// M2: ProtectedIPs lists, by address, what a sweep must not probe: the box, devices declared by hand, devices
+// ProtectedIPs lists, by address, what a sweep must not probe: the box, devices declared by hand, devices
 // with regular_scan=never, and fragile or unclassified devices after their gentle scan; not a fragile device that
 // has not had its gentle scan, nor an ordinary device.
 func TestContract_INV8_ProtectedIPs(t *testing.T) {

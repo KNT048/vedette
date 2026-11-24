@@ -41,7 +41,7 @@ func TestApproveSummaryIsOneCleanLine(t *testing.T) {
 	}
 }
 
-// L2: names are quoted and a quote inside cannot close the quotes, so a name cannot add a sentence or a second risk.
+// names are quoted and a quote inside cannot close the quotes, so a name cannot add a sentence or a second risk.
 func TestApproveSummaryNamesCannotSpeakForTheRequest(t *testing.T) {
 	t.Parallel()
 	r := request{ActionRequest: ActionRequest{AssetName: `FW-01" risk low, "x`, Risk: RiskHigh}, recs: recsOf(`Cut" . Low-risk AI request: "`)}

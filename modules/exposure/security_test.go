@@ -25,7 +25,7 @@ func (e *env) ipTargets() []TargetView {
 	return out
 }
 
-// L1: the clock was ahead (a wrong RTC, then NTP corrected it). A time stored in the future must not keep an IP
+// the clock was ahead (a wrong RTC, then NTP corrected it). A time stored in the future must not keep an IP
 // valid for longer than 30 days, and must not stop the job.
 func TestContract_INV4_ClockThatWasAhead(t *testing.T) {
 	t.Parallel()
@@ -57,7 +57,7 @@ func TestContract_INV4_ClockThatWasAhead(t *testing.T) {
 	}
 }
 
-// L3: the audit trail records changes, not every run (last_run covers the routine ones).
+// the audit trail records changes, not every run (last_run covers the routine ones).
 func TestContract_INV11_AuditOnlyChanges(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -143,7 +143,7 @@ func TestContract_INV11_RefusedAddressIsAuditedOnce(t *testing.T) {
 	}
 }
 
-// L4: verifying an IP probes the network and writes the same rows as a detection, so it waits for one in progress.
+// verifying an IP probes the network and writes the same rows as a detection, so it waits for one in progress.
 func TestVerifyOfAnIPWaitsForTheDetectionInProgress(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -329,7 +329,7 @@ func TestContract_INV13_NoProbeBeforeTheOtherConditions(t *testing.T) {
 	}
 }
 
-// L5: the TXT re-check before a scan is recorded as the person (or module) that asked, and only when it changes something.
+// the TXT re-check before a scan is recorded as the person (or module) that asked, and only when it changes something.
 func TestContract_INV1_TXTRecheckIsAttributedAndAuditedOnChange(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

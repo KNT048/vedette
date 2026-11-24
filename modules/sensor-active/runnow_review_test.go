@@ -81,7 +81,7 @@ func probed(calls [][]string, ip string) bool {
 	return slices.ContainsFunc(calls, func(c []string) bool { return slices.Contains(targetsOf(c), ip) })
 }
 
-// L12: the sweep's hour runs out after its first batch: no further batch; the pass waits for the scan window and goes on there.
+// the sweep's hour runs out after its first batch: no further batch; the pass waits for the scan window and goes on there.
 func TestReview857_TheSweepStopsWhenItsHourIsOver(t *testing.T) {
 	t.Parallel()
 	d := newDriven(t)
@@ -102,7 +102,7 @@ func TestReview857_TheSweepStopsWhenItsHourIsOver(t *testing.T) {
 	}
 }
 
-// L12: discovery turned off, or an exclusion added, while a person's sweep runs: the next batch reads the settings again.
+// discovery turned off, or an exclusion added, while a person's sweep runs: the next batch reads the settings again.
 func TestReview857_ASweepFollowsTheSettingsWhileItRuns(t *testing.T) {
 	t.Parallel()
 	off := newDriven(t)
@@ -142,7 +142,7 @@ func TestReview857_ASweepFollowsTheSettingsWhileItRuns(t *testing.T) {
 	}
 }
 
-// L12: each device of a person's check is its own run, checked again right before nmap: a device that moved out of the scope while the
+// each device of a person's check is its own run, checked again right before nmap: a device that moved out of the scope while the
 // others ran is refused by its own check and nothing is sent to it.
 func TestReview857_ADeviceCheckHasAnHourAndRechecksEachDevice(t *testing.T) {
 	t.Parallel()
@@ -162,8 +162,8 @@ func TestReview857_ADeviceCheckHasAnHourAndRechecksEachDevice(t *testing.T) {
 	}
 }
 
-// L1: the module turned off after the checks and before the claim refuses the run (the sticky off flag); turned on again, it runs.
-// L4: a second sweep within SweepGap
+// the module turned off after the checks and before the claim refuses the run (the sticky off flag); turned on again, it runs.
+// a second sweep within SweepGap
 // is refused with the time to wait. M2: a record that fails starts nothing.
 func TestReview857_RefusalsBeforeAnythingStarts(t *testing.T) {
 	t.Parallel()
@@ -207,7 +207,7 @@ func TestReview857_RefusalsBeforeAnythingStarts(t *testing.T) {
 	waitManual(t, d.env)
 }
 
-// L3: the box's own addresses and its decoys are refused whatever the device row says, even a passive-only one.
+// the box's own addresses and its decoys are refused whatever the device row says, even a passive-only one.
 func TestReview857_TheBoxIsNeverChecked(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, outsideWindow, func(e *env) {

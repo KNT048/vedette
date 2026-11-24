@@ -142,7 +142,7 @@ func TestBodiesInFlightAreBoundedPerRole(t *testing.T) {
 	})
 }
 
-// M1: a result for a job that is not running is 404 without its body being read; a malformed id is 400 without it either.
+// a result for a job that is not running is 404 without its body being read; a malformed id is 400 without it either.
 func TestResultForAnUnknownJobIsRefusedBeforeTheBody(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})
@@ -191,7 +191,7 @@ func TestMaxConnsIsThePendingPoolPlusTheRoleShares(t *testing.T) {
 	}
 }
 
-// L5: Serve is the limit listener plus the TLS and timeouts of HTTPServer, and a handshake the server refuses goes to the log
+// Serve is the limit listener plus the TLS and timeouts of HTTPServer, and a handshake the server refuses goes to the log
 // (ErrorLog is routed to slog) and not to stderr.
 func TestServeAndErrorLog(t *testing.T) {
 	t.Parallel()

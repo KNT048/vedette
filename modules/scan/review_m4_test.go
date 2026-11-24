@@ -10,7 +10,7 @@ import (
 
 type jobsJob = jobs.Job
 
-// M4: core/run records a run a restart left live as stopped; the module's recover job then closes its open probe rows. A shutdown
+// core/run records a run a restart left live as stopped; the module's recover job then closes its open probe rows. A shutdown
 // leaves the live run as it is, for the next start to record.
 func TestReview_M4_RecoverJobAndShutdown(t *testing.T) {
 	t.Parallel()

@@ -181,7 +181,7 @@ func TestNoSourceAndUnknownIncident(t *testing.T) {
 	wantCode(t, err, http.StatusNotFound, "not_found")
 }
 
-// M1 (review of #702): a scan made only of attempts can carry a forged source, so nothing is offered or asked for it; a scan whose
+// a scan made only of attempts can carry a forged source, so nothing is offered or asked for it; a scan whose
 // source also completed a connection is offered, and its request says why the source is trusted.
 func TestAForgeableScanSourceIsNeverBlocked(t *testing.T) {
 	t.Parallel()
@@ -208,7 +208,7 @@ func TestAForgeableScanSourceIsNeverBlocked(t *testing.T) {
 	}
 }
 
-// L2: a resolved incident offers nothing and says why; asking is refused.
+// a resolved incident offers nothing and says why; asking is refused.
 func TestAResolvedIncidentOffersNothing(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
@@ -222,7 +222,7 @@ func TestAResolvedIncidentOffersNothing(t *testing.T) {
 	wantCode(t, err, http.StatusConflict, "incident_resolved")
 }
 
-// L1: a maintenance window and an open circuit breaker are shown as the reason an option is not ready.
+// a maintenance window and an open circuit breaker are shown as the reason an option is not ready.
 func TestMaintenanceAndBreakerAreReasons(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
@@ -241,7 +241,7 @@ func TestMaintenanceAndBreakerAreReasons(t *testing.T) {
 	}
 }
 
-// M2: a person's request is neither an AI nor a rule request in the metrics.
+// a person's request is neither an AI nor a rule request in the metrics.
 func TestMetricsDoNotCountAPersonAsARule(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)

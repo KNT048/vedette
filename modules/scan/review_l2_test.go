@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// L2: the consent is audited in full: one row per picked device, and the start row counts and hashes the whole list.
+// the consent is audited in full: one row per picked device, and the start row counts and hashes the whole list.
 func TestReview_L2_PicksAuditedInFull(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)

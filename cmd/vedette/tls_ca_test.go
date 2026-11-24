@@ -790,7 +790,7 @@ func TestIntakeTrustAnchor(t *testing.T) {
 	if blk == nil || blk.Type != "CERTIFICATE" || len(bytes.TrimSpace(rest)) != 0 || !bytes.Equal(blk.Bytes, sealedCert(t, dir).Raw) {
 		t.Fatalf("self-made anchor is not the CA certificate alone:\n%s", got)
 	}
-	// L3: a CA that does not sign the leaf in use (replaced, the new leaf not written yet) is not handed out; the next check
+	// a CA that does not sign the leaf in use (replaced, the new leaf not written yet) is not handed out; the next check
 	// re-issues the leaf and the new CA is served.
 	if err := testCA(t, dir).db.Write(t.Context(), func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(t.Context(), `DELETE FROM core_secret WHERE purpose = ?`, boxCAPurpose)
@@ -959,7 +959,7 @@ func TestBoxCAUpgradeKeepsTheOldLeafWhenOnlyTheLeafWriteFails(t *testing.T) {
 	}
 }
 
-// L1: the legacy files are sealed and removed whatever the TLS mode: a box on -tls-cert or on loopback HTTP keeps no plaintext CA
+// the legacy files are sealed and removed whatever the TLS mode: a box on -tls-cert or on loopback HTTP keeps no plaintext CA
 // key on disk; a box without files gets no CA.
 func TestBoxCALegacyFilesAreSealedWithoutSelfSignedTLS(t *testing.T) {
 	t.Parallel()

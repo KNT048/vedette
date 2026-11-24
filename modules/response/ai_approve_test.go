@@ -498,7 +498,7 @@ func inStepUp() bool {
 	}
 }
 
-// L1: aiStepUp skips the code when it sees the request past its expiry ("the transaction answers"), but the
+// aiStepUp skips the code when it sees the request past its expiry ("the transaction answers"), but the
 // transaction reads the clock again and does not know the code was skipped. When the wall clock steps back between the
 // two reads (NTP step, manual change, VM resume), the transaction finds the request still pending and records an
 // approval of a high-risk AI request without any two-step code (fail open). The transaction should refuse an
@@ -593,7 +593,7 @@ func TestContract_INV16_TwoPeopleRaceEachCountsOnce(t *testing.T) {
 	}
 }
 
-// L2: the line sent with the code puts the asset name (a device name from an event, an inventory hostname, or the
+// the line sent with the code puts the asset name (a device name from an event, an inventory hostname, or the
 // name the AI planner wrote, plans.go) inside the sentence without quoting it, so a hostile name can state a risk the
 // request does not have: "AI request: ... on FW-01, risk low, risk high".
 func TestContract_INV16_SummaryRiskCannotBeSpoofedByTheAssetName(t *testing.T) {
@@ -608,7 +608,7 @@ func TestContract_INV16_SummaryRiskCannotBeSpoofedByTheAssetName(t *testing.T) {
 	}
 }
 
-// L3: a rejection reason kept as a hint keeps invisible format characters (bidi overrides, Unicode tag
+// a rejection reason kept as a hint keeps invisible format characters (bidi overrides, Unicode tag
 // characters that a person cannot see but a model reads), unlike the summary, which strips them. Hints are shown as
 // advice and "memory" hints are meant for the AI later (13b-10).
 func TestContract_INV18_HintAndRejectNoteHaveNoInvisibleCharacters(t *testing.T) {

@@ -133,7 +133,7 @@ func mcpTool(desc, schema string) conntest.MCPTool {
 
 const zoneSchema = `{"type":"object","properties":{"zone":{"type":"string"}}}`
 
-// M1: the tool an administrator set to read is the tool as the first Test saw it. A server that describes it differently loses it.
+// the tool an administrator set to read is the tool as the first Test saw it. A server that describes it differently loses it.
 func TestMCPToolIdentityIsPinned(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -243,7 +243,7 @@ func TestListReadTools_MCPSchemaIsTheEnforcedSubset(t *testing.T) {
 	}
 }
 
-// L7: a tool with no schema, a schema that is not an object, or one over 8 KiB is listed with no arguments allowed.
+// a tool with no schema, a schema that is not an object, or one over 8 KiB is listed with no arguments allowed.
 func TestListReadTools_MCPToolWithoutAUsableSchemaTakesNoArguments(t *testing.T) {
 	t.Parallel()
 	huge := `{"type":"object","properties":{"zone":{"type":"string"}},"x":"` + strings.Repeat("a", 9000) + `"}`
@@ -265,7 +265,7 @@ func TestListReadTools_MCPToolWithoutAUsableSchemaTakesNoArguments(t *testing.T)
 	}
 }
 
-// M2: a secret that a device echoes JSON-escaped or URL-encoded does not get out.
+// a secret that a device echoes JSON-escaped or URL-encoded does not get out.
 func TestCallRead_EchoedSecretInOtherFormsNeverLeaves(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -333,7 +333,7 @@ func TestCallRead_MCPTextIsCutAfterRedactionAndMarked(t *testing.T) {
 	}
 }
 
-// M4: a hanging MCP server costs one budget per listing, not one per try, and what a server said is remembered.
+// a hanging MCP server costs one budget per listing, not one per try, and what a server said is remembered.
 func TestListReadTools_BudgetAndCache(t *testing.T) {
 	t.Parallel()
 	if read.ListBudget != 8*time.Second || read.CacheTTL != 60*time.Second {
@@ -432,7 +432,7 @@ func receive[T any](t *testing.T, ch <-chan T) T {
 	return zero
 }
 
-// M4: a listing does not wait for the connection's turn, and a call does not wait for a listing.
+// a listing does not wait for the connection's turn, and a call does not wait for a listing.
 func TestListReadTools_DoesNotTakeTheConnectionsTurn(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -460,7 +460,7 @@ func TestListReadTools_DoesNotTakeTheConnectionsTurn(t *testing.T) {
 	}
 }
 
-// M5: a pager is answered with a space; the whole output is read.
+// a pager is answered with a space; the whole output is read.
 func TestCallRead_SSHFollowsAPager(t *testing.T) {
 	t.Parallel()
 	for _, pager := range []string{"--More--", "-- More --", "<--- More --->", "--more--"} {
@@ -483,7 +483,7 @@ func TestCallRead_SSHFollowsAPager(t *testing.T) {
 	}
 }
 
-// M5: a pager that never ends is cut at the cap and marked.
+// a pager that never ends is cut at the cap and marked.
 func TestCallRead_SSHPagerEndsAtTheCap(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -502,7 +502,7 @@ func TestCallRead_SSHPagerEndsAtTheCap(t *testing.T) {
 	}
 }
 
-// M5: on a read, a line that begins like an error is output.
+// on a read, a line that begins like an error is output.
 func TestCallRead_SSHErrorLineIsOutput(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -514,7 +514,7 @@ func TestCallRead_SSHErrorLineIsOutput(t *testing.T) {
 	}
 }
 
-// M5: the AI is offered the exact commands that can run.
+// the AI is offered the exact commands that can run.
 func TestListReadTools_SSHOffersTheRunnableCommands(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -551,7 +551,7 @@ func TestListReadTools_SSHDropsALegacyEntryWithAShellCharacter(t *testing.T) {
 	}
 }
 
-// L2: a connection edited between opening the credential and dialling is not dialled.
+// a connection edited between opening the credential and dialling is not dialled.
 func TestCallRead_ConnectionEditedWhileTheCredentialWasOpenIsNotDialled(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -569,7 +569,7 @@ func TestCallRead_ConnectionEditedWhileTheCredentialWasOpenIsNotDialled(t *testi
 	}
 }
 
-// L3: 30 calls a minute for one connection; the next is refused like an unavailable tool, with a log outcome of its own.
+// 30 calls a minute for one connection; the next is refused like an unavailable tool, with a log outcome of its own.
 func TestCallRead_RateCapPerConnection(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -596,7 +596,7 @@ func TestCallRead_RateCapPerConnection(t *testing.T) {
 	}
 }
 
-// L3: closing a session ends with the call's budget, and at least a floor of one second from when it starts. The rule is checked on the
+// closing a session ends with the call's budget, and at least a floor of one second from when it starts. The rule is checked on the
 // fake clock of a synctest bubble, where every deadline is exact.
 func TestCloseDeadlineIsTheEndOfTheBudget(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {

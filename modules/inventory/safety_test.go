@@ -381,7 +381,7 @@ func TestContract_INV32_FullSavesNeverDropAnInlineAdd(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.confirmScope("10.142.0.0/24")
-	opened := e.version()                                                                          // the page loads
+	opened := e.version()                                                                       // the page loads
 	if _, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", "10.142.0.40"); err != nil { // another tab excludes the PLC
 		t.Fatal(err)
 	}

@@ -162,7 +162,7 @@ func TestAllowFetchTableIsCapped(t *testing.T) {
 	}
 }
 
-// L9: every built-in action that can be undone has a rollback that differs from its run step (a rollback that repeats the run
+// every built-in action that can be undone has a rollback that differs from its run step (a rollback that repeats the run
 // is no undo); an action with no rollback says so by having none, so it cannot be pre-approved.
 func TestBuiltinRollbackDiffersFromRun(t *testing.T) {
 	t.Parallel()

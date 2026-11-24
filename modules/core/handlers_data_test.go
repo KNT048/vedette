@@ -275,7 +275,7 @@ func TestContract_INV14_PurgeBringsBackAFreshInstall(t *testing.T) {
 	if seen := <-w.wipeSeen; seen["core_user"] != 1 || seen["tm_child"] != 1 {
 		t.Errorf("BeforeWipe saw %v: it must run before the wipe", seen)
 	}
-	// M5: nothing can write between the commit and the restart.
+	// nothing can write between the commit and the restart.
 	if err := w.env.DB.Write(t.Context(), func(*sql.Tx) error { return nil }); !errors.Is(err, store.ErrFrozen) {
 		t.Errorf("a write after the purge = %v, want ErrFrozen", err)
 	}
@@ -409,7 +409,7 @@ func TestContract_INV14_WrongNameDeletesNothing(t *testing.T) {
 	}
 }
 
-// M3: the files are moved into the trash before the commit and moved back when it does not happen. Here the step after the moves
+// the files are moved into the trash before the commit and moved back when it does not happen. Here the step after the moves
 // fails (the compaction marker cannot be written because a directory has its name): every row, every file and the key are as they
 // were, the database is not frozen, and the trash and the staged key are gone.
 func TestContract_INV14_FailureAfterTheMovesPutsEverythingBack(t *testing.T) {
@@ -871,7 +871,7 @@ func TestData_StartSweepsWhatAPurgeLeft(t *testing.T) {
 	}
 }
 
-// L4: the compaction a purge asked for is done at the next start, and when it fails the marker stays so the next start tries again.
+// the compaction a purge asked for is done at the next start, and when it fails the marker stays so the next start tries again.
 func TestData_CompactionIsRetriedUntilItWorks(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

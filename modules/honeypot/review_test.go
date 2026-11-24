@@ -189,7 +189,7 @@ func TestEnsureOffOnAHostThatIsNotAnApplianceIsDone(t *testing.T) {
 	}
 }
 
-// M1: an Apply that gets the lock after the module was switched off must not bring the traps back.
+// an Apply that gets the lock after the module was switched off must not bring the traps back.
 func TestApplyDoesNothingWhileTheModuleIsOff(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -203,7 +203,7 @@ func TestApplyDoesNothingWhileTheModuleIsOff(t *testing.T) {
 	}
 }
 
-// M1: an address the host accepted while core was stopping (the context was cancelled) is still on record, so the teardown can remove it.
+// an address the host accepted while core was stopping (the context was cancelled) is still on record, so the teardown can remove it.
 func TestApplyRecordsAnAddressTheHostTookWhileTheContextWasCancelled(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -313,7 +313,7 @@ func TestApplyTreatsOnlyARefusalAsARefusal(t *testing.T) {
 	}
 }
 
-// M1: after an unknown outcome the Apply asks the host for no further address.
+// after an unknown outcome the Apply asks the host for no further address.
 func TestApplyStopsAskingAfterAnUnknownOutcome(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -335,7 +335,7 @@ func TestApplyStopsAskingAfterAnUnknownOutcome(t *testing.T) {
 	}
 }
 
-// M2: a host that answers but cannot run the container (its unit is missing) still has its decoy addresses removed when
+// a host that answers but cannot run the container (its unit is missing) still has its decoy addresses removed when
 // the module is switched off; done only when they are all gone.
 func TestEnsureOffRemovesAddressesWhenTheContainerIsNotAvailable(t *testing.T) {
 	t.Parallel()

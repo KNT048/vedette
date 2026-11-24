@@ -69,7 +69,7 @@ func TestContract_Bootstrap_TheKeyCoreReadsIsTheKeyTheHostBacksUp(t *testing.T) 
 	}
 }
 
-// M1: a recovery whose unit pins another release than versions.current records what the unit pins, or keeps the journal.
+// a recovery whose unit pins another release than versions.current records what the unit pins, or keeps the journal.
 func TestContract_Restore_RecoveryReconcilesTheVersionsWithTheUnit(t *testing.T) {
 	t.Parallel()
 	setup := func(t *testing.T) (*updEnv, string) {
@@ -119,7 +119,7 @@ func TestContract_Restore_RecoveryReconcilesTheVersionsWithTheUnit(t *testing.T)
 	})
 }
 
-// M2: an existing core_data is vetted, not trusted.
+// an existing core_data is vetted, not trusted.
 func TestContract_Bootstrap_AnExistingCoreDataIsVetted(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
@@ -158,7 +158,7 @@ func TestContract_Bootstrap_AnEmptyDirectoryOfAnotherOwnerIsGivenToCore(t *testi
 	}
 }
 
-// L1: core_data is made relative to its vetted parent; a parent that is a link, or missing, is refused.
+// core_data is made relative to its vetted parent; a parent that is a link, or missing, is refused.
 func TestContract_Bootstrap_CoreDataIsNotMadeThroughALinkedOrMissingParent(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
@@ -184,7 +184,7 @@ func TestContract_Bootstrap_CoreDataIsNotMadeThroughALinkedOrMissingParent(t *te
 	e.bsUntouched(t, "refused core_data")
 }
 
-// L2: one lock for the daemon and the bootstrap; two bootstraps never run together.
+// one lock for the daemon and the bootstrap; two bootstraps never run together.
 func TestContract_Bootstrap_OneHolderOfTheStateLockAtATime(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
@@ -294,7 +294,7 @@ func TestContract_Bootstrap_ACallerThatHoldsTheLockSaysSo(t *testing.T) {
 	}
 }
 
-// L3: the bootstrap writes to the audit chain the daemon uses: the index it stored, and one line per service.
+// the bootstrap writes to the audit chain the daemon uses: the index it stored, and one line per service.
 func TestContract_Bootstrap_WritesTheAuditChain(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
@@ -364,7 +364,7 @@ func TestContract_Bootstrap_WritesTheAuditChain(t *testing.T) {
 	}
 }
 
-// L4: a subset run does not put a release beside services that run another one.
+// a subset run does not put a release beside services that run another one.
 func TestContract_Bootstrap_ASubsetDoesNotMixReleases(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)

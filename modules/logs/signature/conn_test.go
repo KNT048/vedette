@@ -141,7 +141,7 @@ func TestConnMikroTik(t *testing.T) {
 		t.Error("a new connection lost its connection")
 	}
 	for name, line := range map[string]string{
-		// M2: only the first packet of a connection (TCP with the SYN flag alone, and not marked as an established connection) is the device's own
+		// only the first packet of a connection (TCP with the SYN flag alone, and not marked as an established connection) is the device's own
 		// connection; a reply from a port-forwarded server to a listed scanner is not.
 		"syn+ack":        strings.Replace(base, "(SYN)", "(SYN,ACK)", 1),
 		"ack+psh":        strings.Replace(base, "(SYN)", "(ACK,PSH)", 1),
@@ -232,7 +232,7 @@ func FuzzConn(f *testing.F) {
 	})
 }
 
-// M6: only traffic and utm lines have a connection; an event line (an SSL-VPN login failure carries a user name that an attacker writes) never does, whatever
+// only traffic and utm lines have a connection; an event line (an SSL-VPN login failure carries a user name that an attacker writes) never does, whatever
 // fields it has or an injected name gives it.
 func TestConnFortiGateEventLinesHaveNone(t *testing.T) {
 	set := shipped(t)

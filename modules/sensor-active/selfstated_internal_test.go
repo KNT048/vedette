@@ -144,7 +144,7 @@ func TestESXiBuildsCoverTheKB(t *testing.T) {
 	}
 }
 
-// M1: an OS value of nmap's fingerprint that starts like a statement is a guess, never the device's own words.
+// an OS value of nmap's fingerprint that starts like a statement is a guess, never the device's own words.
 func TestFingerprintNamesAreNotSelfStatements(t *testing.T) {
 	t.Parallel()
 	for _, v := range []string{"VMware ESXi 5.5 - 6.7", "VMware ESXi 6.x", "VMware ESXi 8.0.3", "HPE iLO 4", "Grandstream GXP1610 VoIP phone"} {

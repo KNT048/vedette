@@ -309,7 +309,7 @@ func TestVersionOrdering(t *testing.T) {
 	}
 }
 
-// L3: VerifyImage only trusts a Manifest that VerifyManifest produced.
+// VerifyImage only trusts a Manifest that VerifyManifest produced.
 func TestVerifyImageRefusesUnverifiedManifest(t *testing.T) {
 	e := newEnv(t)
 	im := e.image("core", "1.4.0", digestCore)

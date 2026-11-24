@@ -156,7 +156,7 @@ func TestContract_Scan_AFailedBuildKeepsThePreviousImageAndReportsScanBuildFaile
 	}
 }
 
-// L6: a first build (nothing to put back) that fails the nmap check leaves no image, no tag and no record.
+// a first build (nothing to put back) that fails the nmap check leaves no image, no tag and no record.
 func TestContract_Scan_AFirstBuildThatFailsTheCheckLeavesNothingBehind(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
@@ -174,7 +174,7 @@ func TestContract_Scan_AFirstBuildThatFailsTheCheckLeavesNothingBehind(t *testin
 	}
 }
 
-// L1: the host never removes an image that a unit, record or container names, even when it is the one a failed build made.
+// the host never removes an image that a unit, record or container names, even when it is the one a failed build made.
 func TestContract_Scan_AFailedBuildDoesNotRemoveAnImageTheUnitPins(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
@@ -252,7 +252,7 @@ func TestContract_Scan_StartAndRollbackUseTheLocallyBuiltImage(t *testing.T) {
 	if !e.m.ImagePresent(id1) {
 		t.Fatal("the previous built image is gone")
 	}
-	// L5: the switch wrote the credential volume units (a start); a rollback only puts the previous unit back and does not write them.
+	// the switch wrote the credential volume units (a start); a rollback only puts the previous unit back and does not write them.
 	for _, role := range []string{"passive", "active"} {
 		p := filepath.Join(e.m.UnitsDir(), "vedette-creds-"+role+".volume")
 		if _, err := os.Stat(p); err != nil {
@@ -355,7 +355,7 @@ func TestContract_Bootstrap_AScanRefusalComesBeforeTheFirstWrite(t *testing.T) {
 	}
 }
 
-// M2: a box that cannot build the scan image (no Debian mirror) still gets core, sensor and honeypot; scan is skipped with a line, no
+// a box that cannot build the scan image (no Debian mirror) still gets core, sensor and honeypot; scan is skipped with a line, no
 // unit, no version, no record, and the bootstrap succeeds. Running it again once the build works installs scan.
 func TestContract_Bootstrap_AFailedScanBuildSkipsScanAndInstallsTheRest(t *testing.T) {
 	t.Parallel()
@@ -450,7 +450,7 @@ func TestContract_Bootstrap_ABadVolumeFileIsRefusedBeforeAnyUnitIsWritten(t *tes
 	}
 }
 
-// L6: the step that puts the tag back on the previous image is run (with that image's ID), fails, and the pull still ends as
+// the step that puts the tag back on the previous image is run (with that image's ID), fails, and the pull still ends as
 // scan_build_failed with the previous image kept and the record untouched.
 func TestContract_Scan_TheTagBackStepRunsAndItsFailureIsSurvived(t *testing.T) {
 	t.Parallel()

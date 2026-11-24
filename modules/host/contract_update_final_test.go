@@ -12,7 +12,7 @@ import (
 
 // The last review of slice 3-8a: M1, L1, L2, L3.
 
-// M1: only an unsafe unit directory or a missing/mismatched .prev is unrecoverable; an I/O error is retried.
+// only an unsafe unit directory or a missing/mismatched .prev is unrecoverable; an I/O error is retried.
 func TestContract_Update_ATransientErrorPuttingTheUnitBackIsNotMarkedUnrecoverable(t *testing.T) {
 	t.Parallel()
 	c := setupCoreUnsafe(t)
@@ -59,7 +59,7 @@ func (e *updEnv) startOnly(t *testing.T) *noteRecorder {
 	return rec
 }
 
-// L1: a run whose put-back fails for a reason no retry cures marks it at once, and does not start a retry.
+// a run whose put-back fails for a reason no retry cures marks it at once, and does not start a retry.
 func TestContract_Update_ARunWhosePutBackIsUnrecoverableMarksItAtOnceAndAuditsOnce(t *testing.T) {
 	t.Parallel()
 	c := setupCoreUnsafe(t)
@@ -77,7 +77,7 @@ func TestContract_Update_ARunWhosePutBackIsUnrecoverableMarksItAtOnceAndAuditsOn
 	e.refused(t, api.CmdContainerStart, api.ContainerStartArgs{Service: "core", Restart: true}, 412, api.CodeTransitionPending)
 }
 
-// L2: a run that failed before AfterReady stored the lock starts no retry itself; AfterReady finds the journal.
+// a run that failed before AfterReady stored the lock starts no retry itself; AfterReady finds the journal.
 func TestContract_Update_AFailedRevertBeforeAfterReadyIsPickedUpByAfterReady(t *testing.T) {
 	t.Parallel()
 	c := setupCoreUnsafe(t)
@@ -94,7 +94,7 @@ func TestContract_Update_AFailedRevertBeforeAfterReadyIsPickedUpByAfterReady(t *
 	}
 }
 
-// L3: quarantined entries are named with the host's clock.
+// quarantined entries are named with the host's clock.
 func TestContract_Update_AQuarantinedEntryIsNamedWithTheHostsClock(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)

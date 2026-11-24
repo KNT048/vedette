@@ -593,7 +593,7 @@ test('phone width: the Logs page with a source and lines fits a 390 px screen: n
   } finally { await ctx.close(); await c.dispose() }
 })
 
-// L4: the box matches a connection that a firewall line names against the indicators of the feeds module (S-LOG-2, S-LOG-4, INV-7, POST-2). No public
+// the box matches a connection that a firewall line names against the indicators of the feeds module (S-LOG-2, S-LOG-4, INV-7, POST-2). No public
 // address is touched: the feed is a custom one pulled from a loopback server (like feeds.spec.ts) and lists a domain under a made-up TLD, so only this feed lists
 // it; the line is one FortiGate DNS-filter line sent over loopback UDP, from the LAN address 192.168.100.23, which is not in the inventory.
 test('bad connections: a LAN device that asks for a domain a feed lists is in the digest and on the page (S-LOG-2, S-LOG-4, INV-7, POST-2)', async ({ page }) => {

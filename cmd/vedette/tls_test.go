@@ -371,7 +371,7 @@ func hostStatus(t *testing.T, h http.Handler, host string) int {
 	return rec.Code
 }
 
-// Review (L2): the master key file and the database are refused unless their mode is 0600,
+// The master key file and the database are refused unless their mode is 0600,
 // and the TLS private key is held to the same rule: a key readable by other local users lets them impersonate
 // the box to every administrator.
 func TestLoadTLSRefusesAGroupOrWorldReadableKey(t *testing.T) {
@@ -410,7 +410,7 @@ func TestLoadTLSRefusesAGroupOrWorldReadableKey(t *testing.T) {
 	}
 }
 
-// Review (L3): with a certificate the owner supplies and no -hosts, the Host allowlist is the names of the
+// With a certificate the owner supplies and no -hosts, the Host allowlist is the names of the
 // certificate; a wildcard name (*.corp.example) matches one label like the certificate does, so the box does
 // not answer 421 to the very name its certificate is for.
 func TestWildcardCertificateDefaultAllowlist(t *testing.T) {

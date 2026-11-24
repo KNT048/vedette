@@ -180,7 +180,7 @@ func TestTelegramButtonRemovalRetriesAFewTimes(t *testing.T) {
 	}
 }
 
-// L1 (#198 review): button removal runs inside the deliver job, so a Telegram that fails or does not answer must cost one edit per run,
+// button removal runs inside the deliver job, so a Telegram that fails or does not answer must cost one edit per run,
 // not one per marked message (20 × 15 s held alert delivery for about 5 minutes). The rest wait for the next run, as on Slack.
 func TestTelegramButtonRemovalStopsAtTheFirstFailure(t *testing.T) {
 	te := newTGEnv(t)
@@ -207,7 +207,7 @@ func TestTelegramButtonRemovalStopsAtTheFirstFailure(t *testing.T) {
 	}
 }
 
-// L3 (#198 review): sending the same request again must not orphan the keyboard of the message already shown. The re-send carries no
+// sending the same request again must not orphan the keyboard of the message already shown. The re-send carries no
 // buttons; the first message keeps them, stays tracked and is the one cleared. A first send that never reached Telegram left no message,
 // so a re-send then carries buttons.
 func TestTelegramResendKeepsTheShownKeyboard(t *testing.T) {

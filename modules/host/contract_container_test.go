@@ -411,7 +411,7 @@ func TestContract_Container_AnUnsafeQuadletDirectoryIsRefusedBeforeAnythingRuns(
 	}
 }
 
-// L2: "ours" means identical bytes. A unit with one extra line, other ids, or an older template is read
+// "ours" means identical bytes. A unit with one extra line, other ids, or an older template is read
 // by nothing: the commands refuse it and the state does not call it installed.
 func TestContract_Container_AUnitThatDiffersByOneByteIsNotOurs(t *testing.T) {
 	t.Parallel()
@@ -1110,7 +1110,7 @@ func mustJSONBytes(v any) []byte {
 	return b
 }
 
-// M3: a journal that has not been recovered blocks that service only, in both commands, and an
+// a journal that has not been recovered blocks that service only, in both commands, and an
 // old or overwritten journal is never silently reused by a new change.
 func TestContract_Container_AJournalOfOneServiceRefusesItsCommandsOnly(t *testing.T) {
 	t.Parallel()
@@ -1132,7 +1132,7 @@ func TestContract_Container_AJournalOfOneServiceRefusesItsCommandsOnly(t *testin
 	}
 }
 
-// M3: the fast path (a healthy service that only gets its [Install] back) is journaled too.
+// the fast path (a healthy service that only gets its [Install] back) is journaled too.
 func TestContract_Container_TheFastPathWritesAJournalAndClearsIt(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
@@ -1148,7 +1148,7 @@ func TestContract_Container_TheFastPathWritesAJournalAndClearsIt(t *testing.T) {
 	}
 }
 
-// M1: a persist-stopped service whose enabling fails stays stopped (SYS-5); one that was running is restarted.
+// a persist-stopped service whose enabling fails stays stopped (SYS-5); one that was running is restarted.
 func TestContract_Container_AFailedStartReturnsTheServiceToTheStateItHad(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
@@ -1200,7 +1200,7 @@ func TestContract_Container_ATimeoutIsFollowedByARevert(t *testing.T) {
 	}
 }
 
-// M2: a unit that failed has nothing running: it counts as stopped, in the check and in the effect.
+// a unit that failed has nothing running: it counts as stopped, in the check and in the effect.
 func TestContract_Container_AFailedUnitCountsAsStopped(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)

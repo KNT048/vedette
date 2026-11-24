@@ -822,7 +822,7 @@ func boxItem(field, value string, mac string, ip string) sensorlink.ObservationI
 	return sensorlink.ObservationItem{MAC: mac, IP: ip, Field: field, Value: value, Confidence: 0.6, SeenAt: pktgen.T0}
 }
 
-// M2: core refuses what a sensor says about the box, by the cards the host reports (not by a heartbeat), and the box record does
+// core refuses what a sensor says about the box, by the cards the host reports (not by a heartbeat), and the box record does
 // not change. A sensor that does not know its own MAC gets no further than core's check.
 func TestItemsAboutTheBoxAreRefused(t *testing.T) {
 	t.Parallel()
@@ -962,7 +962,7 @@ func TestASensorThatDoesNotKnowTheBoxIsStillRefused(t *testing.T) {
 	}
 }
 
-// M4: one MAC that claims many addresses is over budget after four.
+// one MAC that claims many addresses is over budget after four.
 func TestBudgetStopsOneMACWithManyAddresses(t *testing.T) {
 	t.Parallel()
 	backendOnly(t)
@@ -982,7 +982,7 @@ func TestBudgetStopsOneMACWithManyAddresses(t *testing.T) {
 	}
 }
 
-// M5: an observation written in the last quarter of an hour is acknowledged and not written again; a flood of repeats costs the
+// an observation written in the last quarter of an hour is acknowledged and not written again; a flood of repeats costs the
 // store nothing; after the TTL it is written again.
 func TestARepeatFloodDoesNotWrite(t *testing.T) {
 	t.Parallel()
@@ -1034,7 +1034,7 @@ func TestARepeatFloodDoesNotWrite(t *testing.T) {
 	}
 }
 
-// M5: core takes at most 6000 items a minute from the passive role, whatever they say; the rest is over budget without being read.
+// core takes at most 6000 items a minute from the passive role, whatever they say; the rest is over budget without being read.
 func TestItemsPerMinuteAreCapped(t *testing.T) {
 	t.Parallel()
 	backendOnly(t)
@@ -1064,7 +1064,7 @@ func TestItemsPerMinuteAreCapped(t *testing.T) {
 	}
 }
 
-// L3: a batch the listener let in just before the module was turned off is not recorded (SYS-5).
+// a batch the listener let in just before the module was turned off is not recorded (SYS-5).
 func TestAModuleThatIsOffRecordsNothing(t *testing.T) {
 	t.Parallel()
 	backendOnly(t)
@@ -1084,7 +1084,7 @@ func TestAModuleThatIsOffRecordsNothing(t *testing.T) {
 	}
 }
 
-// L4: the row of the sensor is created once, not on every poll of the config or every read.
+// the row of the sensor is created once, not on every poll of the config or every read.
 func TestTheSensorRowIsCreatedOnce(t *testing.T) {
 	t.Parallel()
 	backendOnly(t)
@@ -1109,7 +1109,7 @@ func TestTheSensorRowIsCreatedOnce(t *testing.T) {
 	}
 }
 
-// L6: after a restart the devices of the inventory are known to the budget: a flood that spends the minute does not make them new.
+// after a restart the devices of the inventory are known to the budget: a flood that spends the minute does not make them new.
 func TestTheBudgetKnowsTheDevicesTheInventoryHas(t *testing.T) {
 	t.Parallel()
 	backendOnly(t)
@@ -1137,7 +1137,7 @@ func TestTheBudgetKnowsTheDevicesTheInventoryHas(t *testing.T) {
 	}
 }
 
-// L9: a counter this core does not know is ignored and said once, so that a newer sensor's heartbeat is not refused; what is not
+// a counter this core does not know is ignored and said once, so that a newer sensor's heartbeat is not refused; what is not
 // a counter is still refused by the listener.
 func TestUnknownDropCountersAreIgnoredAndLoggedOnce(t *testing.T) {
 	t.Parallel()

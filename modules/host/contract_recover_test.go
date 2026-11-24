@@ -229,7 +229,7 @@ func recoverProgress(phase string) func(j map[string]any) {
 	}
 }
 
-// M1: the states a stopped run really leaves (the order of the code: everything aside first, the database last)
+// the states a stopped run really leaves (the order of the code: everything aside first, the database last)
 // are finished by the same command and lose nothing: the old WAL that was put back is never set aside again.
 func TestContract_Recover_AStoppedRunIsFinishedAndLosesNothing(t *testing.T) {
 	t.Parallel()
@@ -347,7 +347,7 @@ func TestContract_Recover_NeverPutsAWALBackWithoutTheDatabaseCopy(t *testing.T) 
 	}
 }
 
-// M2: the copies are the data of the release the rollback moved away from; a unit that pins another one is not put
+// the copies are the data of the release the rollback moved away from; a unit that pins another one is not put
 // under them.
 func TestContract_Recover_RollbackNeedsTheUnitOfTheReleaseTheCopiesBelongTo(t *testing.T) {
 	t.Parallel()
@@ -364,7 +364,7 @@ func TestContract_Recover_RollbackNeedsTheUnitOfTheReleaseTheCopiesBelongTo(t *t
 	}
 }
 
-// M3: what core names is data: nothing of it reaches the operator's terminal raw.
+// what core names is data: nothing of it reaches the operator's terminal raw.
 func TestContract_Recover_NamesFromCoreNeverReachTheTerminalRaw(t *testing.T) {
 	t.Parallel()
 	e := startRecover(t)
@@ -389,7 +389,7 @@ type failingAudit struct{}
 
 func (failingAudit) Note(string, string, map[string]any) error { return os.ErrPermission }
 
-// M4: a change that cannot be recorded is not made.
+// a change that cannot be recorded is not made.
 func TestContract_Recover_AChangeTheAuditLogCannotRecordIsNotMade(t *testing.T) {
 	t.Parallel()
 	e := startRecover(t)

@@ -149,7 +149,7 @@ func TestWiringSensorDefaultCardIsTheDefaultRouteCard(t *testing.T) {
 	}
 }
 
-// M1: a container-only install (no socket configured) never takes the core container's own interfaces for the
+// a container-only install (no socket configured) never takes the core container's own interfaces for the
 // box's cards: Interfaces gives none and no error (the cards come from the sensor's heartbeat), and SpanOptions has its
 // defaults before the first save.
 func TestWiringWithoutAHostCoreDoesNotReadItsOwnInterfaces(t *testing.T) {
@@ -164,7 +164,7 @@ func TestWiringWithoutAHostCoreDoesNotReadItsOwnInterfaces(t *testing.T) {
 	}
 }
 
-// M1: HostCards says "no host" (ok=false, no error) only when core runs without a host socket. A configured
+// HostCards says "no host" (ok=false, no error) only when core runs without a host socket. A configured
 // host that gives no list (socket absent, or failing with nothing cached) is an error, so the sensor's heartbeat never
 // decides on an appliance; Interfaces fails the same way (no fallback to the core container's own cards).
 func TestWiringHostCardsFailClosedWhenAConfiguredHostGivesNoList(t *testing.T) {

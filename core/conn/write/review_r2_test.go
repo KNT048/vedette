@@ -12,9 +12,8 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-//, slice R2.
-
-// L5: a step that is cancelled while it is being sent (the emergency stop) sends no further line. Lines 3 and 4 never reach the device and the
+// Tests from an independent review.
+// a step that is cancelled while it is being sent (the emergency stop) sends no further line. Lines 3 and 4 never reach the device and the
 // outcome is "unknown": line 1 and 2 were accepted.
 func TestACancelledSSHStepSendsNoFurtherLine(t *testing.T) {
 	t.Parallel()
@@ -35,7 +34,7 @@ func TestACancelledSSHStepSendsNoFurtherLine(t *testing.T) {
 	wantStatus(t, res, write.StatusUnknown)
 }
 
-// L4: the writer holds an MCP tool to the identity the administrator vouched for, as the reader does: a server that changed the tool since the
+// the writer holds an MCP tool to the identity the administrator vouched for, as the reader does: a server that changed the tool since the
 // Test is not called.
 func TestWriterRefusesAnMCPToolTheServerChanged(t *testing.T) {
 	t.Parallel()

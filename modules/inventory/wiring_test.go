@@ -602,7 +602,7 @@ func (e *env) exec(query string, args ...any) {
 	}
 }
 
-// L12: a software name with an invisible character drops that item only; the rest of the device's list is kept. Another bad item is
+// a software name with an invisible character drops that item only; the rest of the device's list is kept. Another bad item is
 // still refused.
 func TestUpsertSoftwareDropsOnlyTheItemWithAnInvisibleCharacter(t *testing.T) {
 	t.Parallel()

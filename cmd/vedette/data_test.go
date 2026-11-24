@@ -540,7 +540,7 @@ func TestRunPurgeBringsBackAFreshBoxAndStops(t *testing.T) {
 	}
 }
 
-// M4: secrets are planted in every secret-bearing table and column of the real schema (all modules), and inside JSON columns at several
+// secrets are planted in every secret-bearing table and column of the real schema (all modules), and inside JSON columns at several
 // depths, then the export of a real signed-in administrator is searched for them. Every planted secret contains "PLANT", and no value
 // that is meant to be exported does, so one search covers them all; the values that must survive are checked too.
 func TestExport_PlantedSecretsNeverLeave(t *testing.T) {

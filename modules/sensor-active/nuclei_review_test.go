@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-// M1: the pack the request needs is compared with the pack the worker's heartbeat reports before anything goes out: a different
+// the pack the request needs is compared with the pack the worker's heartbeat reports before anything goes out: a different
 // pack is its own error, naming both, and is not "the scanner is unavailable, try again".
 func TestRunNucleiComparesThePackWithTheHeartbeatBeforeDispatch(t *testing.T) {
 	t.Parallel()

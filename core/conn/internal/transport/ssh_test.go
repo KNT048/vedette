@@ -292,7 +292,7 @@ func TestSSHRunRefusesControlCharacters(t *testing.T) {
 	}
 }
 
-// M5 (review of 13b-6): a write that waits for window the device never grants blocks inside the library, where no deadline reaches it. The end
+// a write that waits for window the device never grants blocks inside the library, where no deadline reaches it. The end
 // of the context closes the socket under it, so the line returns within the step's time instead of waiting for ever.
 func TestSSHWriteThatNeverGetsWindowEndsWithTheContext(t *testing.T) {
 	t.Parallel()

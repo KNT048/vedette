@@ -124,7 +124,7 @@ func TestOffGuardStopsWithItsContext(t *testing.T) {
 	})
 }
 
-// M2: every attempt has its own timeout; a teardown that hangs until its context ends does not block the next attempt or Wait.
+// every attempt has its own timeout; a teardown that hangs until its context ends does not block the next attempt or Wait.
 func TestOffGuardCutsAHangingAttemptAndTriesAgain(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestOffGuardTrustsTheRegistryNotTheArgument(t *testing.T) {
 	})
 }
 
-// M3: the OnGuard is the mirror: a module that is on at start gets its func at once, retried until it succeeds; a module
+// the OnGuard is the mirror: a module that is on at start gets its func at once, retried until it succeeds; a module
 // that is off is left alone; a switch-on starts it and a switch-off cancels a func that is still failing.
 func TestOnGuardRunsWhileTheModuleIsOn(t *testing.T) {
 	t.Parallel()

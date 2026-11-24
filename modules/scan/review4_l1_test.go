@@ -30,7 +30,7 @@ func TestReview4_L1_NoReadsWhileARunIsLive(t *testing.T) {
 	r.wait()
 }
 
-// L1: one pass of the rescan job handles at most a page of the queue.
+// one pass of the rescan job handles at most a page of the queue.
 func TestReview4_L1_OnePassHandlesAPage(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)

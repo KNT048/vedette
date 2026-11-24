@@ -334,7 +334,7 @@ func TestSelfStatedFirmwareRowGetsKevKeysFromItsCPE(t *testing.T) {
 	}
 }
 
-// M1: nmap's fingerprint name of a hypervisor that starts like a statement is a guess: it is not marked stated, and it does not
+// nmap's fingerprint name of a hypervisor that starts like a statement is a guess: it is not marked stated, and it does not
 // outrank another scan guess or hide its rows.
 func TestFingerprintNamedEsxiStaysAGuess(t *testing.T) {
 	e := newEnv(t)

@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-//, slice R2: the execution path.
+// The execution path.
 
 // L1: when the second approval completes a request, the first approver is read again. A first approver who was disabled since does not count:
 // the second approval stays one approval and the request waits for another person.

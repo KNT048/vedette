@@ -92,7 +92,7 @@ func TestMapErrorNamesTheFullFieldPath(t *testing.T) {
 	}
 }
 
-// M3 (response FORBID-4): a panic on a route whose path is a credential does not put the credential in the log, not in the path, the panic
+// a panic on a route whose path is a credential does not put the credential in the log, not in the path, the panic
 // text or anywhere else; a path without one is logged as it is.
 func TestPanicLogHasNoPathCredential(t *testing.T) {
 	t.Parallel()

@@ -72,7 +72,7 @@ func TestRollbackGuardSpansReleases(t *testing.T) {
 	}
 }
 
-// M6: the published index is the only thing a release builds on: a stable hotfix after a beta continues from the index that
+// the published index is the only thing a release builds on: a stable hotfix after a beta continues from the index that
 // holds both channels, and a previous release that was revoked does not block the next one.
 func TestHotfixAfterBetaAndRevokedPrevious(t *testing.T) {
 	r := newRig(t)
@@ -115,7 +115,7 @@ func writeIndex(t *testing.T, r *rig, dir string, x release.Index) {
 	must(t, os.WriteFile(filepath.Join(dir, indexFile+".minisig"), r.active.SignComment(b, "t"), 0o600))
 }
 
-// M5: the weekly refresh of the index has no manifest: it is signed and verified like a release.
+// the weekly refresh of the index has no manifest: it is signed and verified like a release.
 func TestRefreshIndexSignsAndVerifies(t *testing.T) {
 	r := newRig(t)
 	pub, err := r.build(buildOpts{version: "0.1.0", channel: "stable", cur: addOnlyTree})
@@ -262,7 +262,7 @@ func (f *failingSigner) SignFile(ctx context.Context, path, sigPath, tc string) 
 	return f.inner.SignFile(ctx, path, sigPath, tc)
 }
 
-// M5: any error removes every signature written in the run, so a directory never holds the signature of the index
+// any error removes every signature written in the run, so a directory never holds the signature of the index
 // without the signature of the manifest.
 func TestSignFailureRemovesTheRunsSignatures(t *testing.T) {
 	r := newRig(t)
@@ -294,7 +294,7 @@ func TestIndexRulesOfRound2(t *testing.T) {
 	}
 	var prev release.Index
 	must(t, json.Unmarshal(base[0].Data, &prev))
-	// L1: the same latest with other manifest bytes is a changed release
+	// the same latest with other manifest bytes is a changed release
 	other := []byte(`{"version":"1.0.0","notes":"changed"}`)
 	if _, err := BuildIndex(&prev, IndexParams{Now: t1, Rollout: -1, Channel: "stable", ManifestVersion: "1.0.0", ManifestRaw: other}); err == nil || !strings.Contains(err.Error(), "immutable") {
 		t.Errorf("a changed manifest under the same version: %v", err)
@@ -302,7 +302,7 @@ func TestIndexRulesOfRound2(t *testing.T) {
 	if _, err := BuildIndex(&prev, IndexParams{Now: t1, Rollout: -1, Channel: "stable", ManifestVersion: "1.0.0", ManifestRaw: man}); err != nil {
 		t.Errorf("the same bytes again: %v", err)
 	}
-	// L2: an explicit sequence may step ahead a little, not far
+	// an explicit sequence may step ahead a little, not far
 	for seq, ok := range map[uint64]bool{2: true, 11: true, 12: false, 1000: false} {
 		_, err := BuildIndex(&prev, IndexParams{Now: t1, Rollout: -1, Sequence: seq})
 		if (err == nil) != ok {
@@ -319,7 +319,7 @@ func TestIndexRulesOfRound2(t *testing.T) {
 	}
 }
 
-// L4: only "does not exist" means the backup signature is absent.
+// only "does not exist" means the backup signature is absent.
 func TestUnreadableBackupSignatureIsAnError(t *testing.T) {
 	r := newRig(t)
 	dir, err := r.build(buildOpts{version: "0.1.0", channel: "stable", cur: addOnlyTree})
@@ -342,7 +342,7 @@ func TestUnreadableBackupSignatureIsAnError(t *testing.T) {
 	}
 }
 
-// L5: a legacy index is a document of a schema this build cannot parse; until a verifier for its schema is registered next to
+// a legacy index is a document of a schema this build cannot parse; until a verifier for its schema is registered next to
 // the writer, a directory holding one does not verify.
 func TestLegacyIndexNeedsAVerifier(t *testing.T) {
 	r := newRig(t)
@@ -385,7 +385,7 @@ func fakeMinisign(t *testing.T) (bin, argvFile string) {
 	return bin, argvFile
 }
 
-// L6: the key must stay out of the repository (its root, not the working directory), and the tool gets the resolved path.
+// the key must stay out of the repository (its root, not the working directory), and the tool gets the resolved path.
 func TestKeyPlacement(t *testing.T) {
 	bin, argvFile := fakeMinisign(t)
 	repo, outside := t.TempDir(), t.TempDir()
@@ -588,7 +588,7 @@ func TestManifestCommandReadsGit(t *testing.T) {
 	} else if raw, _ := os.ReadFile(filepath.Join(out, manifestFile)); !strings.Contains(string(raw), `"db_schema": 2`) {
 		t.Errorf("db_schema must be the count at -ref v0.2.0:\n%s", raw)
 	}
-	// M4: a migration edited in the working tree, or added and not committed, refuses the build
+	// a migration edited in the working tree, or added and not committed, refuses the build
 	put("0003_a.sql", "DROP TABLE b;")
 	if code, msg, _ := manifest("0.3.0", "0.2.0", true); code != 1 || !strings.Contains(msg, "uncommitted") {
 		t.Errorf("an edited migration passed: %d %s", code, msg)
@@ -599,7 +599,7 @@ func TestManifestCommandReadsGit(t *testing.T) {
 		t.Errorf("an untracked migration passed: %d %s", code, msg)
 	}
 	gitT(t, repo, "clean", "-q", "-fd", "modules")
-	// L2: a time far from the clock is refused
+	// a time far from the clock is refused
 	if code, msg, _ := manifest("0.3.0", "0.2.0", true, "-now", "2020-01-01T00:00:00Z"); code != 1 || !strings.Contains(msg, "clock") {
 		t.Errorf("-now far from the clock: %d %s", code, msg)
 	}

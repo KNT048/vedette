@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-//, slice R1: header values never reach a reader, an approver reads the whole change.
+// header values never reach a reader, an approver reads the whole change.
 
 // keyedRequest makes one open request whose API call carries the header "X-Trace: abc123secret".
 func keyedRequest(t *testing.T) *env {
@@ -42,7 +42,7 @@ func actionsJSON(t *testing.T, e *env, role routes.Role) string {
 	return string(b)
 }
 
-// M1: GET /response/actions is a viewer's call. A viewer reads header names only; the people who approve (operators, administrators) read
+// GET /response/actions is a viewer's call. A viewer reads header names only; the people who approve (operators, administrators) read
 // every value of what they approve, except a credential's.
 func TestViewerReadsActionsWithoutHeaderValues(t *testing.T) {
 	t.Parallel()
@@ -189,7 +189,7 @@ func sshRequest(t *testing.T, e *env, run string, risk response.Risk, undo ...st
 	return e.only()
 }
 
-// M2: a high-risk, ten-line change reaches the approver in full and with no button.
+// a high-risk, ten-line change reaches the approver in full and with no button.
 func TestHighRiskMultiLineChangeIsInFullWithoutButtons(t *testing.T) {
 	t.Parallel()
 	e := telegramEnv(t)
@@ -236,7 +236,7 @@ func TestLowRiskChangeOverTheLimitHasNoButtons(t *testing.T) {
 	}
 }
 
-// L6: an AI request carries the label in the message and on the page of the link.
+// an AI request carries the label in the message and on the page of the link.
 func TestAIRequestCarriesTheLabel(t *testing.T) {
 	t.Parallel()
 	e, _, _ := propEnv(t, true)

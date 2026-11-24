@@ -215,7 +215,7 @@ func TestMinisignBackupKey(t *testing.T) {
 	}
 }
 
-// M4: minisign's own default trusted comment is "timestamp:<ts>\tfile:<name>\thashed" (default_trusted_comment
+// minisign's own default trusted comment is "timestamp:<ts>\tfile:<name>\thashed" (default_trusted_comment
 // in minisign.c), so a release signed with a plain `minisign -Sm index.json` must verify. Every other
 // control byte stays refused.
 func TestMinisignTrustedCommentAllowsTabsOnly(t *testing.T) {

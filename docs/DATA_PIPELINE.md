@@ -1,120 +1,109 @@
 # Data pipeline: the box fetches its own feeds
 
-> **Current model:** each box **pulls and parses by itself** feeds directly from the sources (CISA KEV, FIRST EPSS, NVD, vendor advisories, IOC feeds, the customer's custom feeds). **There is no central builder any more, and no data is distributed through GitHub/Cloudflare.** GitHub now has **one job: publishing signed software updates** (`docs/UPDATES.md`); the confirmed recommendation packs (§5b) ship with that update. Sections 1, 4, 5 below are the old model (2026-11-06), kept for historical reference; sections 2 (sources) and 3 (normalisation, scoring) now run **on the box**.
+Each box pulls every feed **directly from its publisher**, parses it on the box and keeps one vulnerability catalogue plus the signals
+that make a CVE urgent. No feed data goes through the project's repository or a server of the project: there is none. GitHub has one
+job, publishing signed software updates ([UPDATES.md](UPDATES.md)), and the confirmed recommendation packs ship inside them (§4).
+The rules the code holds to are in [`modules/feeds/CONTRACT.md`](../modules/feeds/CONTRACT.md); every host a pull reaches, and what it
+sends, is flow 1 of [PRIVACY.md](../PRIVACY.md).
 
-## 0. The current flow
+## 1. The flow
 
 ```
-feed sources (cisa.gov, api.first.org, services.nvd.nist.gov, vendor RSS/advisories, abuse.ch..., custom feeds)
-     │  the box pulls each feed on a schedule (ETag/If-Modified-Since, size + time limits)
+publishers (cisa.gov, NVD, the CVE Program, FIRST, Canonical, Debian, OSV.dev, vendor advisories, exploit indexes, indicator lists, custom feeds)
+     │  a GET of each feed on its schedule (conditional on ETag / Last-Modified where the source supports it; size, row and time limits)
      ▼
-the parser on the box (fail closed; field mapping/regex adjusted by the customer for their own feeds)
+parser on the box (fails closed: a bad row is dropped and counted by reason, never stored)
      ▼
-normalise → deduplicate → score (section 3) → feeds_* → match against the device store → findings/alerts
+catalogue: CVEs, affected ranges by origin, exploited-list entries, signals, indicators  (feeds_* tables)
+     ▼
+inventory and findings: match against the devices the box knows → findings → alerts (notify)
 ```
 
-- Each feed source is an outbound data flow (only a download request, no customer data is sent) → listed in `PRIVACY.md` and Settings → Privacy; a custom feed the customer adds shows its host name in the same list.
-- A source blocked by geography/rate limits: the box backs off and shows the error in Settings → Feeds; the user changes the address to a mirror.
+- A pull sends no customer data: only the request a public file needs, with `User-Agent: Vedette/<version>`.
+- A pull never connects to Vedette itself, to link-local or to cloud metadata addresses; redirects stay on the same host.
+- A failing pull records its error, backs off (5 minutes, doubling, never past the feed's interval) and shows the error in
+  Settings → Feeds. A built-in feed cannot be deleted, only switched off or pointed at a mirror.
+- A new box loads older exploitation claims from the seed shipped in the release (`content/signals/seed.json`) without a request.
 
-## Old model (2026-11-06, replaced)
+## 2. Built-in sources
 
-The old decision: one builder VM (located in Vietnam) only to **prepare** data; stored on GitHub; distributed through Cloudflare; everything static; no per-customer state.
+The list is `builtinSources` in [`modules/feeds/sources.go`](../modules/feeds/sources.go); this table follows it.
 
-## 1. Flow
+### Vulnerabilities and fixed versions
 
-```
-source feeds ──► vedette-builder (Go, builder VM; GitHub Actions as a fallback)
-                 │ pull (ETag/git pull) → normalise → deduplicate → score → sign
-                 ▼
-            data repo (an orphan branch `data`, squashed monthly)
-            Releases (a daily snapshot, large files)  ·  R2 (files >25 MiB)
-                 ▼
-            Cloudflare Pages (a static site + small files) + a custom domain
-                 ▼
-            customer box: GET index.json (ETag, 30-60 minutes) → download the changed parts → verify the signature → write feeds_*
-```
+| Feed | Source | Interval | What the box keeps |
+|---|---|---|---|
+| CISA KEV | `www.cisa.gov`, and CISA's GitHub copy of the same file (the newer plausible list wins) | 1 hour | the exploited list: CVE, product, date added, ransomware use, required action |
+| EPSS, every CVE | FIRST's daily file on `epss.empiricalsecurity.com` | daily | the score and percentile of every CVE (an EPSS of 10 % or more marks a recommended update as likely to be exploited) |
+| NVD affected versions | NVD CVE API 2.0, `?hasKev` | daily | affected CPE entries and version ranges of the exploited CVEs |
+| NVD, CVEs of the last 12 months | NVD CVE API 2.0, by publication and change date | daily | date, status, CVSS and affected ranges of recent CVEs |
+| CVE records | the CVE Program's `CVEProject/cvelistV5` on GitHub: the whole list once, then the daily change files | 1 hour | vendor (CNA and ADP) affected ranges, descriptions, references |
+| VulnCheck KEV | `api.vulncheck.com`, only with the customer's own free key (off until then) | 6 hours | a second exploited list, shown as "VulnCheck KEV" |
+| Ubuntu fixed versions, Ubuntu not affected | Canonical's OSV and VEX files | daily | fixed package versions per Ubuntu release (backports) |
+| Debian security tracker | `security-tracker.debian.org` | daily | fixed package versions per Debian release |
+| Alpine fixed versions | OSV.dev's Alpine file, only while a device states Alpine Linux | daily | fixed package releases per Alpine release |
+| Windows releases | Microsoft's Windows release information pages | daily | builds, dates and monthly security updates of Windows 10, 11 and Server |
 
-Free limits measured 2026-11-06: GitHub Actions is unlimited for a public repo; Releases has no size/bandwidth limit; the repo should stay <1 GB, files >100 MiB are blocked; Pages 500 builds/month, 25 MiB/file, 20k files; R2 10 GB, free egress.
+After its first fill, a distribution feed is pulled only while a device runs that distribution.
 
-## 2. Sources
+### Signals: public exploits and vendors' word on exploitation (facts only, never exploit code)
 
-### 2a. Flaws being exploited (merged centrally, redistributed)
+| Feed | Source | Interval |
+|---|---|---|
+| nuclei-templates | ProjectDiscovery's CVE list on GitHub (a check exists) | daily |
+| Metasploit modules, Exploit-DB, PoC-in-GitHub | the public indexes of each (date, link, and for GitHub proofs of concept star and author counts) | daily |
+| Microsoft exploited CVEs | MSRC Security Update Guide, "Exploited: Yes" | 6 hours |
+| Cisco and Fortinet PSIRT advisories | the vendors' advisory feeds and CSAF documents | 6 hours |
+| Chrome Releases, Android Security Bulletins, Rapid7 blog, Google Threat Intelligence blog | the publishers' feeds and bulletin pages (date and link of the claim, never the text) | 6 hours |
 
-| Source | How it is pulled | Interval | Licence | Signal |
-|---|---|---|---|---|
-| CISA KEV | JSON, ETag + If-Modified-Since (304 when unchanged) | 1 hour (default) | CC0 | exploited, ransomware flag, dueDate |
-| cisagov/vulnrichment | git | hourly | CC0 | SSVC, CWE, extra CPE |
-| CVE.org cvelistV5 | git pull | hourly | public | the fastest record, `affected[]` |
-| FIRST EPSS | daily CSV | daily | credit the source | epss, 7-day delta |
-| **FIRST EPSS, every CVE (in use, feed `epss-all`)** | the daily gzip CSV file `epss.empiricalsecurity.com`, one conditional GET (~2.8 MB, 406,543 CVEs on 2026-11-14) | daily | credit the source | the score + percentile of every CVE → tier 2 (EPSS ≥ 0.1) |
-| nuclei-templates | git log | hourly | MIT | a new template = a check exists; the `kev,vkev` subset goes into the content pack |
-| GHSA, OSV | git/API | hourly | CC-BY / Apache | PURL for packages |
-| NVD 2.0 | API key | 2 hours | free | extra CPE/CVSS (slow) |
-| **NVD 2.0 `?hasKev` (in use, feed `nvd-kev`)** | an API without a key, 100 CVEs/request, 6 s/request; complete the first time (~18 requests, ~19 MB), then `lastModStartDate` | daily (and right after a new KEV CVE) | public domain + the sentence NVD requires | the `vulnerable` CPE entries + version ranges of every CVE in KEV → findings that compare versions |
-| **NVD 2.0 CVEs of 12 months (in use, feed `nvd-recent`)** | an API without a key, 1,000 CVEs/request, 6 s/request; the first time by a 120-day `pubStartDate` window (~105 requests, ~60 MB, ~25 minutes, split over several pulls with a cursor), then `lastModStartDate` (~2 requests/day) | daily | public domain + the sentence NVD requires | the date, status, CVSS level and `vulnerable` CPE entries of every CVE published in 12 months → tier 3 |
-| PSIRT: MSRC CSAF, Cisco openVuln, Fortinet RSS, Synology RSS, PAN CSAF, QNAP/Ivanti RSS | poll | hourly | free | "exploited in the wild" earlier than KEV |
-| NCSC VN (alert.khonggianmang.vn), chongluadao | HTML, **needs a VN IP** | weekly/daily | none | Vietnam context |
-| VulnCheck KEV Community | the **project's** API key | hourly | ⚠ redistribution not confirmed → for now the box pulls it with the customer's key | earlier than CISA, canary, PoC |
+Apple's word on exploitation is read from the descriptions of Apple's CVE records the box already holds, with no request of its own.
 
-### 2b. IOC (merged centrally, redistributed)
+### Indicators (known-bad addresses and domains)
 
-Spamhaus DROP (⚠ ask about embedding), ET Open block/compromised (BSD), IPsum level≥3 (Unlicense), hagezi TIF mini/medium (GPL-3, with its licence), Tor exit, Cymru bogons, CINS/Blocklist.de/GreenSnow (inbound direction), abuse.ch Feodo (CC0), Phishing.Database (MIT), a whitelist of Umbrella top-1M + Majestic + the AWS/Google/Azure/Cloudflare cloud ranges + the VN ISP ranges (APNIC delegated).
+| Feed | Source | Interval |
+|---|---|---|
+| IPsum (level 3) | `stamparm/ipsum` on GitHub | 6 hours |
+| ET Open compromised IPs | `rules.emergingthreats.net` | 6 hours |
+| abuse.ch Feodo Tracker | `feodotracker.abuse.ch` | 6 hours |
+| Tor exit list | `check.torproject.org` (informational) | 6 hours |
+| hagezi TIF (mini) | `hagezi/dns-blocklists` on GitHub, unmodified | 6 hours |
 
-### 2c. BYOK feeds (the box pulls with the customer's key, not through the central side)
+Indicators are matched against what the logs and the mirror port see; Vedette alerts and never blocks traffic.
 
-VulnCheck Community, AbuseIPDB, VirusTotal, GreyNoise, Shodan, OTX, urlscan, OpenPhish, Censys, abuse.ch ThreatFox/URLhaus (Auth-Key). Each source: a key field, a test button, a request limit, off by default.
+### Custom feeds
 
-## 3. Normalisation and scoring
+An administrator can add a feed of their own in Settings → Feeds: JSON, CSV, RSS, STIX or one entry per line, with a field mapping
+tested on a sample before saving (`POST /feeds/parse-test` writes nothing and calls nothing). The same limits apply: `https` (plain
+`http` only to an internal host), 5,000,000 bytes, 50,000 rows and 60 seconds a pull.
 
-- Key: CVE → (vendor, product, version_ranges) from the CNA `affected[]` + NVD CPE + PURL; the `vendor_product_slug` table maps CPE vendor ↔ PSIRT name ↔ Nuclei tag ↔ the Vietnamese commercial name (for example "Synology DSM").
-- `hot_score(vendor,product,7d) = w1·new KEV + w2·VulnCheck/canary + w3·max ΔEPSS + w4·Nuclei commits + w5·exploited sightings + w6·PSIRT says exploited + w7·hits from the fleet (opt-in)`, multiplied by a VN exposure factor (the anonymous fleet inventory, if any).
-- IOC: `score = Σ source_weight × e^(−age/τ)`; τ is 7 days for scanners, 30 days for C2/phish, ∞ for DROP; `block` when ≥2 independent sources or 1 source of DROP/CC0 grade; `alert` when 1 source; minus the whitelist **by domain** (not by CDN IP); never a /24.
-- The Vietnamese sentence for S-FEED-2 is generated from a template (no AI needed): "`<Product>` `<version>` is being exploited by `<group/ransomware>` (KEV `<date>`). If you use it: `<short action>`."
+## 3. What the catalogue keeps
 
-## 4. Distribution format
+- A CVE stays while it was published in the last 365 days, has an exploited-list entry or a qualifying signal, or an open finding
+  pins it. Pulls store only what this rule keeps.
+- Affected ranges are kept per origin (NVD, the CNA, ADP); NVD's rows win when read, and a vendor row that no version scheme can order
+  is shown, never matched.
+- A distribution's own fixed version (Ubuntu, Debian, Alpine) decides a package on that distribution; without it the upstream ranges
+  apply.
+- Urgency comes from these facts: under attack (an IDS hit on the device), exploited (on an exploited list or a vendor's claim),
+  public exploit, critical on an edge device, then update recommended. See `modules/findings/CONTRACT.md`.
+- **Display names**: a vendor and product pair of the exploited list is shown by the name a person recognises ("Synology NAS (DSM)"),
+  from `displaySlugs` in `modules/feeds/display.go`; a pair not listed reads "Vendor Product".
+- **Indicator verdict** (`Judge` in `modules/feeds/verdict.go`, computed on read): a whitelisted domain, or a value that is not a public
+  IP address or domain, gets no verdict; otherwise `block` for two independent sources or one block-class source, `alert` below that.
+  An informational source (the Tor exit list) never counts toward `block`, and an aggregate list (IPsum) never blocks alone. `block`
+  is a confidence level for alerts and for the firewall block list a person chooses to publish; Vedette itself blocks nothing.
 
-```
-index.json            { generated_at, builder_version, files: [{path, sha256, size, kind, since}], revoked: [...], signature }
-feeds/vulns.json      feeds_vuln records (zstd compressed, daily delta versions)
-feeds/hot.json        the 7-day hot board + the Vietnamese sentence
-feeds/ioc/block-ip.txt (≤50k), alert-ip.txt, domains-mini.txt, domains-medium.txt, ja3.txt
-feeds/slug.json       vendor_product_slug
-content-packs/<name>-<ver>.tar.zst   skill, mitigation pack, nuclei subset, recog DB, parser log, rule pack
-```
+## 4. Confirmed recommendation packs
 
-- Signed with **minisign** (the private key only on the builder VM, with a YubiKey as a fallback); the public key is in the Vedette source; `revoked[]` withdraws a bad bundle.
-- The box: `If-None-Match`; downloads files whose sha256 changed; verifies the signature before writing; keeps the previous version for rollback.
+A recommendation pack is the "What to do" of a CVE: the fix, a workaround and vendor-specific mitigation steps. Packs live in
+[`content/mitigation/packs/`](../content/mitigation/packs/) as one JSON file per CVE.
 
-## 5. Builder
+1. A pack starts as a draft: research from public sources (the exploited-list entry, the CVE record, vendor advisories), every step
+   cited in `sources`; how it was drafted is recorded in `drafted_with`.
+2. A maintainer checks every step, sets `status: confirmed`, `confirmed_by` and `confirmed_at`, and merges it through a reviewed pull
+   request.
+3. The release accepts only confirmed packs; they ship inside the signed software update.
 
-- `cmd/vedette-builder` (Go, the same code repo): `fetch` → `normalize` → `score` → `render` → `sign` → `publish`. Each step is idempotent and writes `build.log` + metrics into `status.json` (public: the last run, which sources failed).
-- Runs on the builder VM (cron every 30 minutes, a VN IP for geo-fenced sources) **and** on GitHub Actions (cron every 60 minutes, publishes only when the VM is more than 3 hours late); both places share the public key but have different private keys (`builder-vn`, `builder-gh`), and both are in the box's trust list.
-- The public web = static Pages: the hot board, CVE/IP/domain lookup, the pipeline status. No server, no accounts.
-
-## 5b. Mitigation recommendations: drafted with AI by the project, confirmed by a maintainer through GitHub (S-MIT-4). Still applies; since the central builder was dropped, confirmed packs ship with the **signed software update**, not through the builder
-
-```
-new KEV (high hot_score, no pack yet) ─► vedette-author draft <CVE>   (CLI, the project's AI key, the mitigation-config skill)
-   │  gathers KEV + cvelist + vendor advisories (public data) → content/mitigation/<CVE>.yaml  status: draft
-   ▼
-a maintainer edits, sets confirmed_by / confirmed_at, status: confirmed → PR → CODEOWNERS approve → merge
-   ▼
-release: accepts only status: confirmed → packed into the signed update (GitHub Releases) → the customer box
-```
-
-- A pack records `drafted_with` (the model), `confirmed_by`, `confirmed_at`, `sources[]`; the UI shows "Confirmed by Vedette, drafted with AI".
-- On the box: a CVE with no confirmed pack → "No confirmed recommendation yet" + the original information + "Ask my AI" (the `mitigation-config` skill runs with the customer's key, labelled "AI generated").
-- No customer data is in this flow; `PRIVACY.md` does not change.
-- Simplest option: `content/` in the code repo + CODEOWNERS; upgrade: split out a vedette-content repo when content PRs become numerous.
-
-## 6. Decisions
-
-1. **No** shared Vedette instance is hosted. The central side is static data only; customers host it themselves or hire someone to deploy their own instance. Review when the project grows well.
-2. **The anonymous fleet signal: on by default**, can be turned off with one click. Every hour the box sends to `telemetry.vedette.<domain>` (a small service of the project, not through GitHub) a package with **no customer name, no internal IP, no raw logs**:
-   ```json
-   {"install_id": "<a random sha256 made at install>", "country": "VN", "version": "1.2.0",
-    "hits": [{"kind": "honeypot/smb", "count": 1}, {"kind": "ioc/ip", "count": 3}, {"kind": "suricata/CVE-2026-109618", "count": 7}],
-    "inventory_counts": {"synology:dsm:7.1": 12, "fortinet:fortios:7.2": 1}}
-   ```
-   Used for: the "being hit in VN" column on the hot board; the `hot_score` weights by what VN SMBs really use; detecting a bad data rollout by cohort. The exact payload is shown in Settings → Share signal; the README and `PRIVACY.md` state it plainly. The central side keeps **aggregates** and deletes raw records after 30 days.
-3. Spamhaus DROP/CINS/ThreatView: the central side or the box pulls them: waiting for Spamhaus to answer.
+On the box, a CVE with a confirmed pack shows it as "Confirmed by Vedette". A CVE without one shows "No confirmed recommendation yet",
+the original information, and, when the `ai` module is on, "Ask my AI" (the `mitigation-config` job with the customer's own key,
+labelled AI-generated). No customer data is in this flow.

@@ -3,7 +3,7 @@
 > **This is a library of action TEMPLATES in the form of data, not code.** The Vedette core has only generic connection kinds (HTTP API, SSH/CLI, NETCONF/RESTCONF, automation platforms such as Ansible AWX/n8n, MCP, block lists). Each entry below is an example template shipped with an update; customers can edit/add them, and the AI can draft one for another device for a person to approve. Vendor names are only examples.
 
 
-Status: draft, written 2026-11-09. Basis: the current GUI catalogue in `web/src/features/response/data.ts`, `logic.ts`, `CatalogEditor.tsx`. Block lists that a firewall pulls: `docs/specs/blocklist-format.md` (a separate spec).
+Status: written 2026-11-09 before the code of `response` (a module not offered in v1); where this spec and the code or `modules/response/CONTRACT.md` differ, those win. Basis: the current GUI catalogue in `web/src/features/response/data.ts`, `logic.ts`, `CatalogEditor.tsx`. Block lists that a firewall pulls: `docs/specs/blocklist-format.md` (a separate spec).
 
 This document is the backend's contract for the `response` module: each action has an exact command/API, typed parameters, rollback, re-check, minimum permission and risk. GUI changes listed in section 12 need the maintainer's approval (the GUI-first rule) and are not made on their own.
 

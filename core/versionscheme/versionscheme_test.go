@@ -87,6 +87,8 @@ func TestESXi_Notations(t *testing.T) {
 		"ESXi80U3d-24585383":       {Train: "8.0 U3", Label: "8.0 U3d", Display: "8.0 U3d (build 24585383)"},
 		"ESXi70U3s-24585291":       {Train: "7.0 U3", Label: "7.0 U3s", Display: "7.0 U3s (build 24585291)"},
 		"ESXi80b-21203435":         {Train: "8.0", Label: "8.0b", Display: "8.0b (build 21203435)"},
+		"ESXi70U3si-20841705":      {Train: "7.0 U3", Label: "7.0 U3si", Display: "7.0 U3si (build 20841705)"},
+		"ESXi80a-20842819":         {Train: "8.0", Label: "8.0a", Display: "8.0a (build 20842819)"},
 		"ESXi-9.0.2.0100-25595025": {Train: "9.0.2", Label: "9.0.2.0100", Display: "9.0.2.0100 (build 25595025)"},
 		"9.0.x.x":                  {Train: "9.0", Label: "9.0.x.x", Display: "9.0.x.x", LineStart: true},
 	} {

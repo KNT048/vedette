@@ -68,6 +68,14 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   every line the list names gets no row (a question, never a finding, never "not affected"): a fix the vendor ships on that line for
   another CVE does not say this one leaves it unaffected.
   NVD's rows of a product NVD writes in the vendor's notation (DSM) are read in the scheme too (`SchemeRangesOf`).
+  VMware's records that state ESXi's versions in words ("8.0 prior to ESXi80a-20842819", "7.0 before ESXi70U1c-17325551") give one
+  row per clause from the line's start to the fixed build (`esxiTextRows`, version_type `vendor:record-text`); a line any clause states
+  in another form (a patch bulletin with no build, "fix pending") gets no such row, and words inside ESXi's list that are no clause
+  give none at all. When read (`SchemeRangesOf`), an update of the line that began after every stated fix (its first build in
+  `esxi-builds.json` later than each fix, its update number higher) gets the row "line before its first release": not affected. A
+  line on which a generic row (NVD's, CISA's) states a release affected that these rows call not affected, or states one that cannot
+  be placed, keeps none of them: the affected side wins. NVD's exact `esxi:8.0:-` (GA) entry alone never says a later update is not
+  affected.
 - **INV-28** A CVSS score is stored per assessor and version and chosen only by `PickCVSS`, banded only by `Severity`.
 - **BRIEF-1** `Store.Brief` is the one read model of a CVE (the CVE page, the finding page, the AI context, MCP). Its product name is
   the exploited list's, else the catalogue product most of its counted rows and the rows a product's version scheme reads from the

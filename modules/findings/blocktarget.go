@@ -66,45 +66,75 @@ func (j *releaseJudge) clears(g lineGroup, x string) bool {
 }
 
 // planReleases sets the blocks of the groups is of one device, line and product, each with an update to a release that compares with
-// every other (combine checked it), as the comment at the top of this file says.
+// every other (combine checked it), as the comment at the top of this file says. A line can list hundreds of CVEs whose ranges name
+// thousands of releases, so the candidates are deduplicated before they are ordered, only those at or above the highest fix of the
+// groups left are tried for the release that clears them all (no lower one can), stopping at the first group one leaves open, and
+// each (group, release) is judged once.
 func planReleases(gs []lineGroup, is []int, product string, j *releaseJudge) {
 	kind := gs[is[0]].Fix.Kind
-	var stored, cands []string
+	stored, cands := map[string]bool{}, map[string]bool{}
 	for _, i := range is {
-		stored = append(stored, gs[i].Fix.Version)
-		cands = append(cands, gs[i].Fix.Version)
-		cands = append(cands, j.ends(gs[i])...)
-	}
-	cands = slices.DeleteFunc(cands, func(x string) bool { // only releases that compare with every stored fix can be ordered with them
-		for _, v := range stored {
-			if _, ok := compareFix(kind, product, x, v); !ok && x != v {
-				return true
-			}
+		stored[gs[i].Fix.Version] = true
+		cands[gs[i].Fix.Version] = true
+		for _, x := range j.ends(gs[i]) {
+			cands[x] = true
 		}
-		return false
-	})
-	slices.SortStableFunc(cands, func(a, b string) int {
+	}
+	order := func(a, b string) int {
 		c, _ := compareFix(kind, product, a, b)
 		return c
-	})
-	cands = slices.Compact(cands)
+	}
+	var list []string
+	fixes := keys(stored)
+	for x := range cands { // only releases that compare with every stored fix can be ordered with them
+		if stored[x] || !slices.ContainsFunc(fixes, func(v string) bool { _, ok := compareFix(kind, product, x, v); return !ok }) {
+			list = append(list, x)
+		}
+	}
+	slices.Sort(list) // a fixed order before the stable sort by release, so equal releases keep one order run to run
+	slices.SortStableFunc(list, order)
+	memo := map[int]map[string]bool{}
+	clears := func(i int, x string) bool {
+		m := memo[i]
+		if m == nil {
+			m = map[string]bool{}
+			memo[i] = m
+		}
+		ok, seen := m[x]
+		if !seen {
+			ok = j.clears(gs[i], x)
+			m[x] = ok
+		}
+		return ok
+	}
 	left := slices.Clone(is)
 	for len(left) > 0 {
-		best, set, most := "", []int(nil), 0
-		for _, x := range cands {
-			var cleared []int
-			n := 0
-			for _, i := range left {
-				if j.clears(gs[i], x) {
-					cleared, n = append(cleared, i), n+gs[i].All
-				}
+		top := gs[left[0]].Fix.Version
+		for _, i := range left[1:] {
+			if order(gs[i].Fix.Version, top) > 0 {
+				top = gs[i].Fix.Version
 			}
-			if len(cleared) == len(left) { // the lowest release that clears them all
-				best, set = x, cleared
+		}
+		best, set := "", []int(nil)
+		for _, x := range list[slices.Index(list, top):] { // the lowest release that clears them all
+			if !slices.ContainsFunc(left, func(i int) bool { return !clears(i, x) }) {
+				best, set = x, slices.Clone(left)
 				break
 			}
-			if n > most { // else the lowest that clears the most findings
-				best, set, most = x, cleared, n
+		}
+		if set == nil { // else the lowest that clears the most findings
+			most := 0
+			for _, x := range list {
+				var cleared []int
+				n := 0
+				for _, i := range left {
+					if clears(i, x) {
+						cleared, n = append(cleared, i), n+gs[i].All
+					}
+				}
+				if n > most {
+					best, set, most = x, cleared, n
+				}
 			}
 		}
 		if len(set) == 0 {

@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
+import { useSchedule } from '@/components/schedule/api'
 import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -23,6 +24,8 @@ const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2
 const EMAIL_MAX = 120
 const MAX_RECIPIENTS = 20
 const PERIODS: ReportOptions['period'][] = ['last_7_days', 'last_30_days', 'calendar_month']
+/** The period a report covers while its schedule sends it (modules/reports periodFollows): the time since the one before it. */
+const FOLLOWS: Partial<Record<string, ReportOptions['period']>> = { weekly: 'last_7_days', monthly: 'calendar_month' }
 const SECTIONS: (keyof ReportOptions['sections'])[] = ['summary', 'handled', 'open', 'new', 'exposure', 'detections', 'coverage']
 
 const input = (d: ReportDefinition): ReportDefinitionInput => ({ name: d.name, options: structuredClone(d.options), recipients: [...d.recipients] })
@@ -38,6 +41,8 @@ function SettingsForm({ def }: { def: ReportDefinition }) {
   const admin = useCan('admin')
   const save = useSaveDefinition()
   const [f, setF] = useState<ReportDefinitionInput>(() => input(def))
+  const sched = useSchedule(def.schedule_key)
+  const follows = sched.data?.enabled ? FOLLOWS[sched.data.rule.freq] : undefined
   const [email, setEmail] = useState('')
   const [emailErr, setEmailErr] = useState('')
   const [nameErr, setNameErr] = useState('')
@@ -89,8 +94,8 @@ function SettingsForm({ def }: { def: ReportDefinition }) {
                 <Input id="rep-name" value={f.name} maxLength={80} disabled={!admin} aria-invalid={shownNameErr ? true : undefined}
                   onChange={(e) => { setF((p) => ({ ...p, name: e.target.value })); setNameErr(''); save.reset() }} />
               </Field>
-              <Field label={t('settings.period')} htmlFor="rep-period">
-                <Select id="rep-period" value={f.options.period} disabled={!admin} title={reason} onChange={(e) => opt('period', e.target.value as ReportOptions['period'])}>
+              <Field label={t('settings.period')} htmlFor="rep-period" hint={follows ? t('settings.periodFollows') : undefined}>
+                <Select id="rep-period" value={follows ?? f.options.period} disabled={!admin || !!follows} title={follows ? undefined : reason} onChange={(e) => opt('period', e.target.value as ReportOptions['period'])}>
                   {PERIODS.map((p) => <option key={p} value={p}>{t(`settings.periods.${p}`)}</option>)}
                 </Select>
               </Field>

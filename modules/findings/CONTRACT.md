@@ -86,7 +86,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   By device and By fix group the same open rows in SQL, so their totals always agree. The fixes of one product on one line combine
   into one block (`combine`), read the same way by By device, By fix, Home, the report (`ListedFixes`) and the handling of a block:
   an update block names the lowest release the CVEs' ranges name that clears every CVE it lists on that line, and splits when no
-  such release clears them all (`blocktarget.go`, `TestBlockTarget_Count_TargetsThatLeaveAListedCVEOpen`). The Needs your input queue is computed from
+  such release clears them all (`blocktarget.go`, `TestBlockTarget_Count_TargetsThatLeaveAListedCVEOpen`). A release in a vendor's
+  notation (ESXi's "8.0 U3d (build 24585383)", DSM's "7.2.1-69057 Update 6") is ordered by the product's version scheme and judged
+  with the vendor's rows, so one line names one release (`TestCumulativeTarget_Count_LinesWithSeveralUpdatesOfOneProduct`). A block is
+  keyed by the catalogue's product, so one product read under two names (Oracle Java SE, Eclipse Temurin) is one By fix row
+  (`TestBlockKey_Count_ByFixCardsWithARepeatedTitle`). `ListedFix` is one finding's listed fix, for its own page. The Needs your input queue is computed from
   rows, never stored, and searched like the other lists (`q`: the device's name or address, the software, the CVE id); a device not
   added yet is also found by the CVE ids and software names of its open findings, which its item does not show (read only when `q`
   is set); a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).
@@ -154,7 +158,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-12** A device is named as on the Devices page, never by an internal id.
 - **INV-22** Every finding row carries the CVE's base CVSS as feeds picks it (`Feeds.CVSS`).
 - **INV-23** `GET /findings/overview` is Home in one read; its totals equal By device's. `devices.affected` counts every device with an
-  open finding (the Vedette box included, which carries no badge); the trend starts at `trend_start`, the day this box began keeping
+  open finding (the Vedette box included, with its badge like any device: one rule on Devices, By device and Home); the trend starts at `trend_start`, the day this box began keeping
   findings when that is inside the 30 days. `first_run_summary` is notify's first-run summary of the newest load made in the last 7
   days (`HomeSources.FirstRun`, a notice, never an incident): shown on Home even when no channel took it; `null` when there is none or
   notify is off.

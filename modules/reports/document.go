@@ -16,8 +16,6 @@ const MaxRows = 100
 // maxTop is how many incidents the Detections section names.
 const maxTop = 5
 
-const day = 24 * time.Hour
-
 // tsLayout is the one time format of the API and the database: UTC, milliseconds.
 const tsLayout = "2006-01-02T15:04:05.000Z"
 
@@ -59,18 +57,32 @@ func layerOf(code string) int {
 
 var resolutionOrder = []string{"patched", "mitigated", "accepted", "false_positive", "not_relevant"}
 
-// periodOf is the time a document made at now covers: the last 7 or 30 days up to now, or the last whole calendar month in loc.
+// periodFollows is the period a report covers when its schedule sends it every week or every month: the last 7 days, or the last
+// calendar month, so each report covers the time since the one before it and a monthly report never covers only a week. A schedule
+// that is off leaves the period chosen in Settings (for a report sent by hand or printed).
+func periodFollows(period, every string) string {
+	switch every {
+	case "weekly":
+		return PeriodLast7
+	case "monthly":
+		return PeriodMonth
+	}
+	return period
+}
+
+// periodOf is the time a document made at now covers: the last 7 or 30 days in loc, today included (from the start of the day 6 or 29
+// days before today up to now, so "Last 7 days" names 7 dates, 18 – 24 Nov, as people count them), or the last whole calendar month.
 func periodOf(kind string, now time.Time, loc *time.Location) (from, to time.Time) {
+	n := now.In(loc)
+	days := 7
 	switch kind {
 	case PeriodMonth:
-		n := now.In(loc)
 		to = time.Date(n.Year(), n.Month(), 1, 0, 0, 0, 0, loc)
 		return to.AddDate(0, -1, 0).UTC(), to.UTC()
 	case PeriodLast30:
-		return now.Add(-30 * day), now
-	default:
-		return now.Add(-7 * day), now
+		days = 30
 	}
+	return time.Date(n.Year(), n.Month(), n.Day()-(days-1), 0, 0, 0, 0, loc).UTC(), now
 }
 
 // docInput is everything the document reads, already fetched.
@@ -100,8 +112,9 @@ type detectionsIn struct {
 type history struct {
 	openAtFrom, openAtTo bool
 	existsAtFrom         bool
-	handled              *Handled // the last handling in (from, to]
-	handledAtTo          *Handled // the handling in force at to; nil when open at to
+	handled              *Handled  // the last handling in (from, to]
+	handledAtTo          *Handled  // the handling in force at to; nil when open at to
+	reopenedAt           time.Time // open at to again after a handling, opened in (from, to]; zero otherwise
 }
 
 // historyOf replays a finding's state events. A finding exists from its first sighting; a handled event closes it unless it only adds a
@@ -144,6 +157,9 @@ func historyOf(f FindingView, from, to time.Time) history {
 		}
 		switch e.Kind {
 		case "created", "reopened", "acceptance_expired":
+			if !open && e.Kind != "created" && inPeriod(e.At) {
+				h.reopenedAt = e.At
+			}
 			open, cur = true, nil
 		case "handled":
 			if e.Handled == nil {
@@ -163,6 +179,7 @@ func historyOf(f FindingView, from, to time.Time) history {
 			}
 			x := *e.Handled
 			open, cur = false, &x
+			h.reopenedAt = time.Time{}
 			if inPeriod(e.At) {
 				h.handled = cur
 			}
@@ -175,6 +192,9 @@ func historyOf(f FindingView, from, to time.Time) history {
 	h.openAtTo = open && !f.FirstSeen.After(to)
 	if !open {
 		h.handledAtTo = cur
+	}
+	if !h.openAtTo {
+		h.reopenedAt = time.Time{}
 	}
 	return h
 }
@@ -252,7 +272,7 @@ func buildDocument(in docInput) Document {
 
 	var open, fresh, handled []row
 	leftOut := 0 // closed as not relevant in the period, left out by the option
-	before := 0
+	before, reopened := 0, 0
 	for _, f := range in.findings {
 		if !o.IncludeNotAdded && !f.Device.Added {
 			continue
@@ -266,13 +286,16 @@ func buildDocument(in docInput) Document {
 				leftOut++
 				continue
 			}
-			r.h.handled = nil
+			r.h.handled, r.h.reopenedAt = nil, time.Time{} // never handled for the report, so never reopened either
 		}
 		if r.h.openAtFrom {
 			before++
 		}
 		if r.h.openAtTo {
 			open = append(open, r)
+		}
+		if !r.h.reopenedAt.IsZero() {
+			reopened++
 		}
 		if inPeriod(f.FirstSeen) {
 			fresh = append(fresh, r)
@@ -320,6 +343,7 @@ func buildDocument(in docInput) Document {
 
 	if s.Summary {
 		doc.Summary = summaryOf(open, len(fresh), len(handled), before)
+		doc.Summary.Reopened = reopened
 	}
 	if s.Handled {
 		doc.Handled = handledOf(handled)
@@ -440,8 +464,12 @@ func handledOf(rows []row) *ReportHandled {
 			at[d.ID] = i
 			out.Devices = append(out.Devices, HandledDevice{Device: d, Items: []HandledItem{}})
 		}
-		out.Devices[i].Items = append(out.Devices[i].Items, HandledItem{FindingID: r.f.ID, CVE: clip(r.f.CVE, 40), Product: r.product(),
-			Severity: r.f.Severity, Handled: *r.h.handled})
+		it := HandledItem{FindingID: r.f.ID, CVE: clip(r.f.CVE, 40), Product: r.product(), Severity: r.f.Severity, Handled: *r.h.handled}
+		if !r.h.reopenedAt.IsZero() {
+			at := ts(r.h.reopenedAt)
+			it.ReopenedAt = &at
+		}
+		out.Devices[i].Items = append(out.Devices[i].Items, it)
 	}
 	if len(days) > 0 {
 		slices.Sort(days)
@@ -506,6 +534,9 @@ func detectionsOf(in docInput, o Options) *ReportDetections {
 			sev = "info"
 		}
 		d := TopDetection{Kind: t.Kind, Title: clip(t.Title, 200), Severity: sev, At: ts(t.At)}
+		if t.Devices > 1 {
+			d.DeviceCount = t.Devices
+		}
 		if t.DeviceID != "" {
 			dev, known := devs[t.DeviceID]
 			ref := DeviceRef{ID: t.DeviceID, Name: clip(cmp.Or(dev.Name, t.DeviceName, t.DeviceID), 200), Added: !known || dev.Approved}

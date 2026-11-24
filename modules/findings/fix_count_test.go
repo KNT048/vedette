@@ -174,7 +174,7 @@ func TestFixCount_ListAndPageReadTheStoredFix(t *testing.T) {
 						pageVsRow++
 					}
 					if bv := ptrOr(b.Fix.Version); b.Fix.Key != v.Finding.FixKey {
-						if c, ok := compareFix(stored.Kind, stored.Version, bv); !ok || c > 0 {
+						if c, ok := compareFix(stored.Kind, productPart(v.Finding), stored.Version, bv); !ok || c > 0 {
 							blockShort++
 							t.Logf("block %q does not reach %s's own fix %q", bv, r.CVE, stored.Version)
 						}

@@ -321609,6 +321609,12 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) encodeFields(e *jx.Encode
 		s.Device.Encode(e)
 	}
 	{
+		if s.DeviceCount.Set {
+			e.FieldStart("device_count")
+			s.DeviceCount.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -321622,12 +321628,13 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) encodeFields(e *jx.Encode
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKDetectionsTopItem = [5]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKDetectionsTopItem = [6]string{
 	0: "at",
 	1: "device",
-	2: "kind",
-	3: "severity",
-	4: "title",
+	2: "device_count",
+	3: "kind",
+	4: "severity",
+	5: "title",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKDetectionsTopItem from json.
@@ -321661,8 +321668,18 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Decode(d *jx.Decoder) err
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"device\"")
 			}
+		case "device_count":
+			if err := func() error {
+				s.DeviceCount.Reset()
+				if err := s.DeviceCount.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device_count\"")
+			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -321672,7 +321689,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -321682,7 +321699,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -321703,7 +321720,7 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) Decode(d *jx.Decoder) err
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -323384,17 +323401,24 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) encodeFields(e 
 		e.Str(s.Product)
 	}
 	{
+		if s.ReopenedAt.Set {
+			e.FieldStart("reopened_at")
+			s.ReopenedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
 		e.FieldStart("severity")
 		s.Severity.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItem = [5]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKHandledDevicesItemItemsItem = [6]string{
 	0: "cve",
 	1: "finding_id",
 	2: "handled",
 	3: "product",
-	4: "severity",
+	4: "reopened_at",
+	5: "severity",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKHandledDevicesItemItemsItem from json.
@@ -323452,8 +323476,18 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Decode(d *jx.De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"product\"")
 			}
+		case "reopened_at":
+			if err := func() error {
+				s.ReopenedAt.Reset()
+				if err := s.ReopenedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reopened_at\"")
+			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -323472,7 +323506,7 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) Decode(d *jx.De
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00101111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -328151,15 +328185,22 @@ func (s *ReportsGetReportsDocumentOKSummary) encodeFields(e *jx.Encoder) {
 		e.FieldStart("open_now")
 		e.Int(s.OpenNow)
 	}
+	{
+		if s.Reopened.Set {
+			e.FieldStart("reopened")
+			s.Reopened.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKSummary = [6]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKSummary = [7]string{
 	0: "first",
 	1: "handled",
 	2: "new",
 	3: "open_before",
 	4: "open_by_status",
 	5: "open_now",
+	6: "reopened",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKSummary from json.
@@ -328254,6 +328295,16 @@ func (s *ReportsGetReportsDocumentOKSummary) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_now\"")
+			}
+		case "reopened":
+			if err := func() error {
+				s.Reopened.Reset()
+				if err := s.Reopened.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reopened\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -330987,6 +331038,12 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) encodeFields(e *
 		s.Device.Encode(e)
 	}
 	{
+		if s.DeviceCount.Set {
+			e.FieldStart("device_count")
+			s.DeviceCount.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -331000,12 +331057,13 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) encodeFields(e *
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentDetectionsTopItem = [5]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentDetectionsTopItem = [6]string{
 	0: "at",
 	1: "device",
-	2: "kind",
-	3: "severity",
-	4: "title",
+	2: "device_count",
+	3: "kind",
+	4: "severity",
+	5: "title",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem from json.
@@ -331039,8 +331097,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Decode(d *jx.Dec
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"device\"")
 			}
+		case "device_count":
+			if err := func() error {
+				s.DeviceCount.Reset()
+				if err := s.DeviceCount.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device_count\"")
+			}
 		case "kind":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -331050,7 +331118,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -331060,7 +331128,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Decode(d *jx.Dec
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -331081,7 +331149,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) Decode(d *jx.Dec
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -332762,17 +332830,24 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) encode
 		e.Str(s.Product)
 	}
 	{
+		if s.ReopenedAt.Set {
+			e.FieldStart("reopened_at")
+			s.ReopenedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
 		e.FieldStart("severity")
 		s.Severity.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem = [5]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem = [6]string{
 	0: "cve",
 	1: "finding_id",
 	2: "handled",
 	3: "product",
-	4: "severity",
+	4: "reopened_at",
+	5: "severity",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem from json.
@@ -332830,8 +332905,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Decode
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"product\"")
 			}
+		case "reopened_at":
+			if err := func() error {
+				s.ReopenedAt.Reset()
+				if err := s.ReopenedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reopened_at\"")
+			}
 		case "severity":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Severity.Decode(d); err != nil {
 					return err
@@ -332850,7 +332935,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) Decode
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00101111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -337529,15 +337614,22 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummary) encodeFields(e *jx.Encoder
 		e.FieldStart("open_now")
 		e.Int(s.OpenNow)
 	}
+	{
+		if s.Reopened.Set {
+			e.FieldStart("reopened")
+			s.Reopened.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentSummary = [6]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentSummary = [7]string{
 	0: "first",
 	1: "handled",
 	2: "new",
 	3: "open_before",
 	4: "open_by_status",
 	5: "open_now",
+	6: "reopened",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentSummary from json.
@@ -337632,6 +337724,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummary) Decode(d *jx.Decoder) erro
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"open_now\"")
+			}
+		case "reopened":
+			if err := func() error {
+				s.Reopened.Reset()
+				if err := s.Reopened.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reopened\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

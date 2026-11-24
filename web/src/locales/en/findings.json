@@ -506,7 +506,7 @@
     "restart": "Restart to run the installed {{product}} {{to}}",
     "restartAny": "Restart to run the installed {{product}}",
     "noneYet": "No fix known yet for {{product}}",
-    "unknown": "No fix data for {{product}}",
+    "unknown": "See the vendor advisory for the fixed release of {{product}}",
     "advisory": "Vendor advisory",
     "advisories": "Advisories for {{cve}}",
     "notes": "Release notes"

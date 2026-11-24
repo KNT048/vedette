@@ -26,8 +26,8 @@ const BAR: Record<OpenStatus | HandledStatus, string> = {
   under_attack: 'bg-danger', exploited: 'bg-danger/70', public_exploit: 'bg-warn', critical_edge: 'bg-warn/70', update_recommended: 'bg-warn/40',
   patched: 'bg-ok', mitigated: 'bg-ok/60', accepted: 'bg-off/60', not_relevant: 'bg-off/40', false_positive: 'bg-off/30',
 }
-/** The statuses whose meaning says "now" (the words of the badges). */
-const NOW: OpenStatus[] = ['under_attack', 'exploited', 'critical_edge']
+/** The urgent statuses: the four layers the Findings badge in the menu counts, so the report's urgent count is that badge's number. */
+const NOW: OpenStatus[] = ['under_attack', 'exploited', 'public_exploit', 'critical_edge']
 
 const th = 'py-1.5 pr-3 text-left text-caption font-medium text-muted'
 const td = 'py-2 pr-3 align-top'
@@ -136,7 +136,7 @@ function Summary({ s, handled, charts, n }: { s: ReportSummary; handled?: Report
       </dl>
       {charts && (s.open_by_status.length || s.open_before || s.handled) ? (
         <div className="report-block mb-6 grid gap-6 sm:grid-cols-2">
-          <OpenFlow start={s.open_before} added={s.new} handled={s.handled} end={s.open_now} />
+          <OpenFlow start={s.open_before} added={s.new} handled={s.handled} reopened={s.reopened} end={s.open_now} />
           {s.open_by_status.length ? (
             <div className="grid content-start gap-2">
               <p className="text-meta font-medium text-muted">{t('sr.byStatus')}</p>
@@ -224,7 +224,8 @@ function Handled({ h, charts, n }: { h: ReportHandled; charts: boolean; n: numbe
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><CveLink cve={i.cve} finding={i.finding_id} /><SeverityBadge severity={i.severity} compact /></div>
                         <div className="text-meta text-muted">{i.product}</div>
                       </td>
-                      <td className={td}><div className="flex flex-wrap items-center gap-2"><StatusBadge code={i.handled.resolution} until={i.handled.accepted_until} /></div><HandledLine underBadge handled={i.handled} software={i.product} className="mt-1 block" /></td>
+                      <td className={td}><div className="flex flex-wrap items-center gap-2"><StatusBadge code={i.handled.resolution} until={i.handled.accepted_until} /></div><HandledLine underBadge handled={i.handled} software={i.product} className="mt-1 block" />
+                        {i.reopened_at ? <span className="mt-1 block text-meta font-medium text-warn">{t('sr.reopenedSince', { day: fmtDate(i.reopened_at) })}</span> : null}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -353,6 +354,8 @@ function Target({ x, at }: { x: ExposureTarget; at: string }) {
   const open = x.services.filter((s) => s.change !== 'closed')
   const closed = x.services.length - open.length
   const issues = x.issues.filter((i) => i.open > 0)
+  // never scanned and nothing found: no count of ports or issues to claim, only that it was not scanned yet
+  const unchecked = !x.last_scan_at && !x.services.length && !issues.length
   const proofTone = x.proof === 'proven' || x.proof === 'covered' ? 'ok' : x.proof === 'not_current' ? 'warn' : 'danger'
   return (
     <div className="report-block grid gap-3 rounded-md border border-rule bg-surface p-4">
@@ -361,13 +364,13 @@ function Target({ x, at }: { x: ExposureTarget; at: string }) {
           <p className="flex flex-wrap items-baseline gap-2"><span className="font-mono text-sm font-semibold">{x.value}</span>{x.parent ? <span className="text-meta text-muted">{t('sr.under', { parent: x.parent })}</span> : null}</p>
           <p className="text-meta text-muted">
             {x.last_scan_at ? t('sr.lastScan', { time: fmtDateTime(x.last_scan_at) }) : t('sr.neverScanned')}
-            {' · '}{open.length ? t('sr.ports', { count: open.length }) : t('sr.portsNone')}
+            {unchecked ? null : <>{' · '}{open.length ? t('sr.ports', { count: open.length }) : t('sr.portsNone')}</>}
             {closed ? ` · ${t('sr.closedCount', { count: closed })}` : ''}
           </p>
         </div>
         <Chip tone={proofTone}>{x.proof === 'covered' ? (x.parent ? t('sr.proof.covered', { parent: x.parent }) : t('sr.proof.coveredNoParent')) : t(`sr.proof.${x.proof}`)}</Chip>
       </div>
-      <div className="grid gap-1">
+      {unchecked ? null : <div className="grid gap-1">
         <p className="text-meta font-medium">{t('sr.issues')}</p>
         {issues.length ? (
           <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
@@ -381,7 +384,7 @@ function Target({ x, at }: { x: ExposureTarget; at: string }) {
             ))}
           </ul>
         ) : <p className="text-meta text-muted">{t('sr.issuesNone')}</p>}
-      </div>
+      </div>}
       {x.services.length ? (
         <Scroll>
           <table className="w-full border-collapse text-meta">
@@ -444,7 +447,7 @@ function Detections({ d, charts, n }: { d: ReportDetections; charts: boolean; n:
                   {d.top.map((x, i) => (
                     <li key={i} className="report-block grid gap-0.5 border-l-2 border-rule pl-3">
                       <span className="flex min-w-0 flex-wrap items-center gap-2"><SeverityBadge severity={x.severity} compact /><span className="min-w-0 font-medium">{x.title}</span></span>
-                      <span className="text-meta text-muted">{[t(`sr.dkind.${x.kind}`), x.device?.name, fmtDateTime(x.at)].filter(Boolean).join(' · ')}</span>
+                      <span className="text-meta text-muted">{[t(`sr.dkind.${x.kind}`), x.device_count ? t('sr.devicesN', { count: x.device_count }) : x.device?.name, fmtDateTime(x.at)].filter(Boolean).join(' · ')}</span>
                     </li>
                   ))}
                 </ul>

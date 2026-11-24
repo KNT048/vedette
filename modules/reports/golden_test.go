@@ -103,7 +103,7 @@ func TestDocumentSummaryAgreesWithTheSections(t *testing.T) {
 	if s.OpenNow != doc.Open.Total || s.New != doc.New.Total || s.Handled != countHandled(doc.Handled) {
 		t.Fatalf("summary %+v vs open %d, new %d, handled %d", s, doc.Open.Total, doc.New.Total, countHandled(doc.Handled))
 	}
-	if s.OpenBefore != 4 || s.New != 2 || s.Handled != 3 || s.OpenNow != 4 { // 4 + 2 - 3 = 3; the Outlook acceptance ran out: 4
+	if s.OpenBefore != 4 || s.New != 2 || s.Handled != 3 || s.Reopened != 1 || s.OpenNow != 4 { // 4 + 2 - 3 + 1 reopened (the Outlook acceptance ran out) = 4
 		t.Fatalf("summary = %+v", s)
 	}
 	if doc.Handled.MedianDays == nil || *doc.Handled.MedianDays != 20 { // WinRAR took 19.96 days twice, Log4j 5
@@ -211,6 +211,48 @@ func TestDocumentReopenedAfterACorrectionStaysOpen(t *testing.T) {
 	}
 }
 
+// A finding handled in the period and opened again before its end is listed under Handled with the day it opened again, counted as
+// reopened in the summary, and the figures add up in the page's chart and in the mail.
+func TestDocumentHandledThenReopenedSaysSo(t *testing.T) {
+	t.Parallel()
+	f := FindingView{ID: "f-back", CVE: "CVE-2026-97205", Device: devWeb, Product: "nginx", Status: "update_recommended", Urgency: 5, Severity: sev("high", 7.5),
+		Verification: byBanner, Fix: fix("update", "nginx", "1.30.7"), FirstSeen: at("2026-10-01T09:00:00Z"),
+		Events: []FindingEvent{created("2026-10-01T09:00:00Z"),
+			handledEv("2026-11-07T09:00:00Z", "patched", "version_moved", "ana@acme.example", nil, sp("1.30.5"), sp("1.30.6"), nil),
+			{At: at("2026-11-08T09:00:00Z"), Kind: "reopened"}}}
+	done := FindingView{ID: "f-done", CVE: "CVE-2026-97206", Device: devWeb, Product: "nginx", Status: "patched", Urgency: 5, Severity: sev("high", 7.5),
+		Verification: byBanner, Fix: fix("update", "nginx", "1.30.7"), FirstSeen: at("2026-11-06T09:00:00Z"),
+		Events: []FindingEvent{created("2026-11-06T09:00:00Z"), handledEv("2026-11-07T09:00:00Z", "patched", "person", "ana@acme.example", nil, nil, nil, nil)}}
+	doc := buildDocument(docInput{def: defaultDefinition(), now: t0, loc: time.UTC, findings: []FindingView{f, done}})
+	s := doc.Summary
+	if s.OpenBefore != 1 || s.New != 1 || s.Handled != 2 || s.Reopened != 1 || s.OpenNow != 1 {
+		t.Fatalf("summary = %+v, want 1 + 1 new - 2 handled + 1 reopened = 1", s)
+	}
+	var items []HandledItem
+	for _, d := range doc.Handled.Devices {
+		items = append(items, d.Items...)
+	}
+	if len(items) != 2 {
+		t.Fatalf("handled items = %+v", items)
+	}
+	for _, it := range items {
+		switch {
+		case it.FindingID == "f-back" && (it.ReopenedAt == nil || *it.ReopenedAt != ts(at("2026-11-08T09:00:00Z"))):
+			t.Errorf("the reopened finding does not say when it opened again: %+v", it)
+		case it.FindingID == "f-done" && it.ReopenedAt != nil:
+			t.Errorf("a finding still handled says it opened again: %+v", it)
+		}
+		if it.FindingID == "f-back" {
+			if got := ItemLine(it, time.UTC); !strings.HasSuffix(got, "; open again since 8 Nov 2026") {
+				t.Errorf("ItemLine = %q", got)
+			}
+		}
+	}
+	if got, want := FlowLine(*s), "Open at the start: 1. New: 1. Handled: 2. Reopened: 1. Open now: 1."; got != want {
+		t.Errorf("FlowLine = %q, want %q", got, want)
+	}
+}
+
 // The email writes its dates in the organisation's zone, as the pages do: the last calendar month in Ho Chi Minh City is 1 to 31
 // October, and a handling at 20:00 UTC on 8 Nov is on 9 Nov there.
 func TestDigestWritesDatesInTheOrganisationZone(t *testing.T) {
@@ -314,5 +356,56 @@ func TestHandledNotInstalledKeepsItsOwnCount(t *testing.T) {
 	out := handledOf([]row{{h: history{handled: &ni}}})
 	if len(out.Totals) != 1 || out.Totals[0].Via != "not_installed" || out.Totals[0].N != 1 {
 		t.Errorf("totals = %+v, want one not_installed", out.Totals)
+	}
+}
+
+// While the schedule sends the report, the schedule decides the period: every week the last 7 days, every month the last calendar
+// month, whatever Settings says (a monthly report never covers one week). Off, the period of Settings stands.
+func TestDocumentPeriodFollowsTheSchedule(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ every, set, want string }{
+		{"", PeriodLast30, PeriodLast30},
+		{"weekly", PeriodLast30, PeriodLast7},
+		{"monthly", PeriodLast7, PeriodMonth},
+	} {
+		e := newEnv(t)
+		e.seed()
+		e.every = c.every
+		d, _ := e.svc.Definition(e.ctx())
+		o := d.Options
+		o.Period = c.set
+		_, err := e.svc.SaveDefinition(e.ctx(), "admin@acme.example", DefinitionInput{Name: d.Name, Options: o, Recipients: []string{}})
+		mustNoErr(t, err)
+		doc, err := e.svc.Document(e.ctx())
+		mustNoErr(t, err)
+		if doc.Period.Kind != c.want || doc.Options.Period != c.want {
+			t.Errorf("schedule %q, settings %s: the document covers %s (options %s), want %s", c.every, c.set, doc.Period.Kind, doc.Options.Period, c.want)
+		}
+	}
+}
+
+// An incident that names many devices (12 new devices found at once) is listed with their number, not with the first device's name
+// as if it were the only one.
+func TestDocumentDetectionOfManyDevicesSaysHowMany(t *testing.T) {
+	t.Parallel()
+	in := docInput{def: defaultDefinition(), now: t0, loc: time.UTC, devices: []Device{{ID: "a-dell", Name: "Dell", Approved: false}},
+		detections: detectionsIn{on: true, counts: []DetectionCount{{Kind: "unknown_device", N: 1, LastAt: at("2026-11-10T09:00:00Z")}},
+			top: []Detection{
+				{Kind: "unknown_device", Title: "12 new devices on the network", Severity: "medium", DeviceID: "a-dell", DeviceName: "Dell", Devices: 12, At: at("2026-11-10T09:00:00Z")},
+				{Kind: "trap", Title: "Trap touched", Severity: "high", DeviceID: "a-dell", DeviceName: "Dell", Devices: 1, At: at("2026-11-10T10:00:00Z")},
+			}}}
+	doc := buildDocument(in)
+	top := doc.Detections.Top
+	if len(top) != 2 {
+		t.Fatalf("top = %+v", top)
+	}
+	for _, d := range top {
+		want := 0
+		if d.Kind == "unknown_device" {
+			want = 12
+		}
+		if d.DeviceCount != want {
+			t.Errorf("%s: device count %d, want %d", d.Kind, d.DeviceCount, want)
+		}
 	}
 }

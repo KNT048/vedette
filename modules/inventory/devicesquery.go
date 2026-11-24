@@ -202,11 +202,11 @@ func (f DeviceFilter) where(sources map[string][]string, risks map[string]*Risk)
 				ids = append(ids, id)
 			}
 		}
-		// the box is never marked, so it has none here either (the Devices page's chip reads the same status)
+		// the box is read like any device (the Devices page's chip reads the same status)
 		if *f.HasFindings {
-			add("(a.is_box = 0 AND a.id IN (SELECT value FROM json_each(?)))", jsonList(ids))
+			add("a.id IN (SELECT value FROM json_each(?))", jsonList(ids))
 		} else {
-			add("(a.is_box = 1 OR a.id NOT IN (SELECT value FROM json_each(?)))", jsonList(ids))
+			add("a.id NOT IN (SELECT value FROM json_each(?))", jsonList(ids))
 		}
 	}
 	if len(f.Risks) > 0 { // none is every device without a marker, so it is the complement of the marked ones not asked
@@ -218,11 +218,11 @@ func (f DeviceFilter) where(sources map[string][]string, risks map[string]*Risk)
 				out = append(out, id)
 			}
 		}
-		// the box is never marked: it is "none" whatever findings say of it
+		// the box is marked like any device
 		if slices.Contains(f.Risks, RiskNone) {
-			add("(a.is_box = 1 OR a.id NOT IN (SELECT value FROM json_each(?)))", jsonList(out))
+			add("a.id NOT IN (SELECT value FROM json_each(?))", jsonList(out))
 		} else {
-			add("(a.is_box = 0 AND a.id IN (SELECT value FROM json_each(?)))", jsonList(in))
+			add("a.id IN (SELECT value FROM json_each(?))", jsonList(in))
 		}
 	}
 	if f.Q != "" {

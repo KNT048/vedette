@@ -15,6 +15,7 @@ package versionscheme
 
 import (
 	"cmp"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -149,6 +150,27 @@ func (s *Scheme) Parse(text string) (Version, bool) {
 		return Version{}, false
 	}
 	return s.parse(text)
+}
+
+// buildNamed is a release written with its build after it, as Version.Display writes it ("8.0 U3d (build 24585383)").
+var buildNamed = regexp.MustCompile(`^(.*?)\s*\(build ([0-9]{5,9})\)$`)
+
+// Release reads a release as this package writes it back (Version.Label or Version.Display: "8.0 U3d (build 24585383)",
+// "7.2.1-69057 Update 6", "21.4R3-S5"), so a fixed release stored as its name can be ordered with another of the same scheme. A line's
+// start is no release (ok false).
+func (s *Scheme) Release(text string) (Version, bool) {
+	if v, ok := s.Parse(text); ok {
+		return v, !v.LineStart
+	}
+	m := buildNamed.FindStringSubmatch(strings.TrimSpace(text))
+	if m == nil {
+		return Version{}, false
+	}
+	ver := m[1]
+	if sv, _, ok := s.Stated(strings.TrimSpace(text), ""); ok {
+		ver = sv
+	}
+	return s.Installed(ver, m[2])
 }
 
 // Installed reads what a device reports: its version and, for a scheme that needs it (ESXi), its build. A version that does not say

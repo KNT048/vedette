@@ -235,7 +235,7 @@ func TestModelAPI_OneBlockPerLineWithTheNewestRelease(t *testing.T) {
 	for _, r := range b.Findings {
 		v := conform[oas.FindingsGetFindingsIDViewOK](t, e, "GET", "/findings/"+r.ID+"/view", "viewer", "")
 		own, _ := v.Fix.Version.Get()
-		if c, ok := compareFix(FixUpdate, own, "10.6"); !ok || c > 0 {
+		if c, ok := compareFix(FixUpdate, "", own, "10.6"); !ok || c > 0 {
 			t.Errorf("%s: own fix %s beyond the block's 10.6", r.ID, own)
 		}
 	}

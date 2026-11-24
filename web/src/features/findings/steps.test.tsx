@@ -3,21 +3,27 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { renderApp } from '@/test/render'
 import { assetsStore } from '@/mocks/stores'
-import { FixedInNote, NowSteps } from './Recommendation'
+import { useTranslation } from 'react-i18next'
+import { FixedInNote, nowParts } from './Recommendation'
 import { overdue } from './accept'
-import type { FindingDetail, KevInfo } from './types'
+import type { FindingDetail } from './types'
 
-// What "Steps you can take now" and "Fixed version" say on a finding without a confirmed pack.
-const today = new Date(2026, 10, 16)
-const kev = (due: string | null) => ({ display: 'Juniper Junos OS', due_date: due }) as KevInfo
+// What the steps of a finding without a confirmed pack say about the version the box has (step 1) and how a new one reaches Vedette
+// (the last item of "Check that it is fixed"), and what "Fixed version" says.
+function Parts({ f, updatable, manual, agentGone }: { f: FindingDetail; updatable: boolean; manual?: string; agentGone?: boolean }) {
+  const { t } = useTranslation('findings')
+  const p = nowParts(t, f, { product: 'Juniper Junos OS', updatable, manual, agentGone })
+  return <ol><li>{p.known}</li><li>{p.verify}</li></ol>
+}
 const finding = (known: Omit<NonNullable<FindingDetail['known_version']>, 'seen_at'> | null, name = 'Juniper Networks EX4200-48T', status = 'suspected') =>
   ({ asset: { id: 'a-ex', name }, known_version: known && { ...known, seen_at: null }, status }) as FindingDetail
-const steps = (f: FindingDetail, opts: { due?: string | null; updatable?: boolean; manual?: string } = {}) => {
-  render(<MemoryRouter><NowSteps finding={f} kev={kev(opts.due ?? null)} updatable={opts.updatable ?? false} manual={opts.manual} today={today} /></MemoryRouter>)
-  return screen.getAllByRole('listitem').map((li) => li.textContent)
+const steps = (f: FindingDetail, opts: { updatable?: boolean; manual?: string } = {}) => {
+  render(<MemoryRouter><Parts f={f} updatable={opts.updatable ?? false} manual={opts.manual} /></MemoryRouter>)
+  const [known, verify] = screen.getAllByRole('listitem').map((li) => li.textContent)
+  return [known, undefined, verify]
 }
 
-describe('NowSteps', () => {
+describe('nowParts', () => {
   it('a version from SNMP is said, not asked for; step 3 names "Read with SNMP now" and links the device', () => {
     const [s1, , s3] = steps(finding({ software: 'Juniper Junos OS', version: '15.1R7.9', source: 'snmp' }))
     expect(s1).toBe('Nothing to look up: Juniper Networks EX4200-48T runs Juniper Junos OS 15.1R7.9 (Vedette read it over SNMP).')
@@ -41,8 +47,8 @@ describe('NowSteps', () => {
 
   it('a version an agent last reported, with no agent reporting the device now: said as the last report, no promise it arrives', () => {
     const f = finding({ software: 'Windows Server 2025', version: '10.0.26100.1742', source: 'agent' }, 'Windows Server 2025 host')
-    render(<MemoryRouter><NowSteps finding={f} kev={kev(null)} updatable today={today} agentGone /></MemoryRouter>)
-    const [s1, , s3] = screen.getAllByRole('listitem').map((li) => li.textContent)
+    render(<MemoryRouter><Parts f={f} updatable agentGone /></MemoryRouter>)
+    const [s1, s3] = screen.getAllByRole('listitem').map((li) => li.textContent)
     expect(s1).toBe('Nothing to look up: Windows Server 2025 host runs Windows Server 2025 10.0.26100.1742 (an agent last reported it; no agent reports it now).')
     expect(s3).toMatch(/^No agent reports Windows Server 2025 host to Vedette now, so the new version does not arrive by itself: install its agent again so it reports the new one\. .*choose Patched\.$/)
     expect(s3).not.toMatch(/by itself, usually within two hours/)
@@ -63,14 +69,6 @@ describe('NowSteps', () => {
     expect(s1).toBe('Find which version of Juniper Junos OS runs on Juniper Networks EX4200-48T, and add it to the device on the Devices page so Vedette can compare it.')
     expect(s3).toBe('Then press "Mark as handled" at the top of this page and choose Patched. If the version was already fixed, choose False positive and write the version in the note.')
   })
-
-  it('a CISA deadline in the past is "passed on … update now"; a future one stays "by"', () => {
-    expect(steps(finding(null), { due: '2023-11-17' })[1]).toBe("If it is older than the fixed version in the advisory, update it now: CISA's deadline passed on 17 Nov 2023.")
-  })
-
-  it('a future CISA deadline stays "update it by"', () => {
-    expect(steps(finding(null), { due: '2026-12-01' })[1]).toBe('If it is older than the fixed version in the advisory, update it by 1 Dec 2026.')
-  })
 })
 
 describe('FixedInNote end_listed', () => {
@@ -84,7 +82,7 @@ describe('FixedInNote end_listed', () => {
 })
 
 describe('finding page with a typed version', () => {
-  it('NoPack wires the typed row: step 1 says the version, step 3 names the button the page shows; the header says a past deadline passed', async () => {
+  it('the steps wire the typed row: step 1 says the version, the check names the button the page shows; a past deadline is said', async () => {
     assetsStore.update((l) => l.map((a) => (a.id === 'a-web01'
       ? { ...a, software: a.software.map((x) => (x.id === 's-web01-wp' ? { ...x, display: 'WordPress', version: '7.1.3', source: 'manual' as const } : x)) }
       : a)))
@@ -94,5 +92,6 @@ describe('finding page with a typed version', () => {
     expect(await screen.findByRole('button', { name: 'I updated WordPress' })).toBeInTheDocument()
     expect(screen.getByText(/^Nothing to look up: WordPress 7\.1\.3 was entered for WEB01 on the Devices page \(Evidence above\)/)).toBeInTheDocument() // mock of knownRecheck
     expect(screen.getByText(overdue('2026-11-06') ? "CISA's deadline passed on 6 Nov 2026." : 'CISA requires action by 6 Nov 2026.')).toBeInTheDocument()
+    expect(screen.getByText(overdue('2026-11-06') ? "CISA's deadline for US federal agencies passed on 6 Nov 2026: update now." : "CISA's deadline for US federal agencies: 6 Nov 2026. Use it as your own deadline.")).toBeInTheDocument() // in step 1
   })
 })

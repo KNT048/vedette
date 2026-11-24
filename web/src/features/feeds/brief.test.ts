@@ -41,6 +41,12 @@ describe('the CVE brief, read for the screens', () => {
     // NVD states no fixed release, only the version a range ends before: that version is the row's fix, as written
     const nvd = { ...esxiBrief.ranges[0]!, vendor: 'apache', product: 'http_server', end_excluding: '2.4.58', versions: 'from 2.0 before 2.4.58' }
     expect(fixRows({ ...esxiBrief, fixes: [], ranges: [nvd] }).map((r) => [r.product, r.fixed])).toEqual([['apache http server', '2.4.58']])
+    // Junos: "before 20.4", then 20.4R1 and 20.4R2 listed one by one: 20.4 is no fix, as the finding page says (end_listed)
+    const base = { ...esxiBrief.ranges[0]!, vendor: 'juniper', product: 'junos', origin: 'nvd' as const, counts: true, fixed: '', fixed_release: '', train: '', start_including: '', start_excluding: '', end_including: '', end_excluding: '' }
+    const before = { ...base, end_excluding: '20.4', versions: 'before 20.4' }
+    const r1 = { ...base, cpe: 'cpe:2.3:o:juniper:junos:20.4:r1:*:*:*:*:*:*', versions: '20.4 r1' }
+    const after = { ...base, end_excluding: '21.2', start_including: '21.1', versions: 'from 21.1 before 21.2' }
+    expect(fixRows({ ...esxiBrief, fixes: [], ranges: [before, r1, after] }).map((r) => r.fixed)).toEqual(['21.2'])
     const b = briefOfVuln(vuln, null)
     b.references = []
     b.lists[0]!.links = ['https://acme.example.com/sa-1', 'javascript:alert(1)']

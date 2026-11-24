@@ -156,6 +156,7 @@ type Ops struct {
 	runner *vexec.Runner
 
 	installing *atomic.Bool // true while os.install runs (shared with Deps.Installing so a test can raise it)
+	tzMu       sync.Mutex   // one os.timezone.set at a time (it takes no shared write lock)
 
 	mu       sync.Mutex // guards the notifier and the export sweep timer
 	notifier Notifier

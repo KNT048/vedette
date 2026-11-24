@@ -47,6 +47,7 @@ var rules = []rule{
 	{"web/src/features/inventory/scripts/osquery.sh", Result{true, true}},  // the same test renders the GUI template
 	{"web/src/features/inventory/scripts/osquery.ps1", Result{true, true}}, // the same
 	{"web/src/locales/en/core.json", Result{true, true}},                   // modules/core/auditlabels_test.go: every audit action has a label
+	{"web/src/lib/zoneNames.ts", Result{true, true}},                       // core/orgtime/zonenames_test.go: the web's zone aliases equal CanonicalZone's
 	{"web/src/locales/en/common.json", Result{true, true}},                 // modules/manifests_test.go: every module has a display name
 	{"web/src/locales/en/findings.json", Result{true, true}},               // modules/findings/findingpage_story_test.go: the finding page story reads its own texts
 	{"web/src/features/honeypot/presets.ts", Result{true, true}},           // modules/honeypot/presets_test.go: presets.go equals the GUI's presets and vendors

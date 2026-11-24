@@ -71,7 +71,10 @@ func (o *Ops) checkZoneFile(name string) error {
 // cmdTimezoneSet is os.timezone.set (spec 6.15).
 func (o *Ops) cmdTimezoneSet() server.Command {
 	return server.Define(server.Spec[api.OSTimezoneArgs]{
-		Name: api.CmdOSTimezoneSet, Write: true, Timeout: time.Minute,
+		// Not a write command: it takes no shared write lock, so a person's update, backup or network change is never refused busy
+		// because core aligned the zone at that moment (as zap.baseline). It touches only /etc/localtime, which no other command
+		// writes; apt may (the tzdata package), so it waits for no install and holds no dpkg lock. tzMu keeps one at a time.
+		Name: api.CmdOSTimezoneSet, Write: false, Timeout: time.Minute,
 		Validate: func(a *api.OSTimezoneArgs) error {
 			if !api.ValidZoneName(a.Zone) {
 				return server.Invalid("zone", "must be an IANA time zone name such as Europe/Berlin or UTC")
@@ -79,6 +82,12 @@ func (o *Ops) cmdTimezoneSet() server.Command {
 			return nil
 		},
 		Check: func(ctx context.Context, a api.OSTimezoneArgs) error {
+			if o.installing.Load() {
+				return refuse409(api.CodeInstallInProgress, "An operating system install is running; the time zone is set after it ends.")
+			}
+			if o.dpkgLocked() {
+				return lockedRefusal()
+			}
 			if err := o.checkZoneFile(a.Zone); err != nil {
 				o.log.InfoContext(ctx, "os.timezone.set: zone refused", "zone", a.Zone, "error", err.Error())
 				return refuse412(api.CodeZoneUnknown, "The operating system does not know the time zone "+a.Zone+".")
@@ -86,6 +95,8 @@ func (o *Ops) cmdTimezoneSet() server.Command {
 			return nil
 		},
 		Run: func(ctx context.Context, rc *server.RunContext, a api.OSTimezoneArgs) (any, error) {
+			o.tzMu.Lock()
+			defer o.tzMu.Unlock()
 			if cur := o.readZone(); cur == a.Zone {
 				rc.Log("The operating system already uses " + a.Zone + ".")
 				return api.OSTimezoneResult{Zone: a.Zone}, nil

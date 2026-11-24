@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/knt048/vedette/core/exec/exectest"
 	"github.com/knt048/vedette/host/api"
 )
 
@@ -109,4 +110,37 @@ func TestContract_Timezone_TheEffectIsReadBack(t *testing.T) {
 			t.Fatalf("state/time = %+v", st)
 		}
 	})
+}
+
+// os.timezone.set takes no shared write lock: while another write command runs (here an os.check whose apt-get waits), core can
+// still align the zone, and nothing a person starts at that moment is refused busy because of it. While apt installs (tzdata may
+// rewrite /etc/localtime) it is refused and core tries again.
+func TestContract_Timezone_NeverHoldsOrWaitsForTheWriteLock(t *testing.T) {
+	t.Parallel()
+	e := startSys(t)
+	release := filepath.Join(e.m.Rec, "release-apt")
+	exectest.WriteScript(t, filepath.Join(e.m.Bin, "apt-get"), "#!/bin/sh\nwhile [ ! -e '"+release+"' ]; do sleep 0.02; done\nexit 0\n")
+	check, err := e.h.Client.Run(context.Background(), api.CmdOSCheck, nil, e.id(), "admin@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := e.ok(t, api.CmdOSTimezoneSet, api.OSTimezoneArgs{Zone: "Europe/Berlin"})
+	if res := result[api.OSTimezoneResult](t, r); !res.Changed {
+		t.Fatalf("result = %+v", res)
+	}
+	if err := os.WriteFile(release, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	waitDone(t, e.h.Client, check.RunID)
+	for _, c := range e.o.Commands() {
+		if c.Name() == api.CmdOSTimezoneSet && c.Write() {
+			t.Fatal("os.timezone.set is a write command: it would take the shared lock")
+		}
+	}
+	e.installing.Store(true)
+	e.refused(t, api.CmdOSTimezoneSet, api.OSTimezoneArgs{Zone: "Asia/Ho_Chi_Minh"}, http.StatusConflict, api.CodeInstallInProgress)
+	e.installing.Store(false)
+	if st, _ := e.h.Client.StateTime(context.Background()); st.Timezone != "Europe/Berlin" {
+		t.Fatalf("state/time = %+v", st)
+	}
 }

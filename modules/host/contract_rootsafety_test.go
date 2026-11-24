@@ -194,7 +194,6 @@ func (e *sysEnv) writeRequests() map[string]string {
 		"os.check":             `{"args":{}}`,
 		"os.install":           `{"args":{"scope":"all","snapshot":"` + snap + `"}}`,
 		"os.auto_security.set": `{"args":{"enabled":true}}`,
-		"os.timezone.set":      `{"args":{"zone":"Europe/Berlin"}}`,
 		"os.reboot":            `{"args":{"when":"now"}}`,
 		"os.reboot.cancel":     `{"args":{}}`,
 		"backup.create":        `{"args":{"kind":"manual","snapshot":"` + snap + `"}}`,

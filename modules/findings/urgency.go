@@ -166,7 +166,7 @@ func Tell(f Finding, r Rating, now time.Time, loads Loads) (Telling, string) {
 
 // Urgency is the one function that rates a finding: the most urgent layer whose rule holds.
 //   - 1 under attack here: an intrusion alert in the last AttackWindow named the CVE, aimed at this device, or at any address while
-//     the device is affected.
+//     the device is affected, and the flaw can be exploited over the network (not AV:L or AV:P: needsLocalAccess).
 //   - 2 exploited in the wild: a qualifying signal of kind exploited (an exploited list's entry is one).
 //   - 3 public exploit available: a qualifying signal of kind public_exploit.
 //   - 4 critical on an edge device: CVSS of 9 or more, attack over the network, no privileges, SSVC automatable not "no", on a product
@@ -176,8 +176,9 @@ func Tell(f Finding, r Rating, now time.Time, loads Loads) (Telling, string) {
 // attacks may hold other CVEs' attacks: only c's count. now bounds the attack window.
 func Urgency(cve string, c CVEFacts, t Target, attacks []Attack, now time.Time) Rating {
 	var rs []Reason
+	wire := !needsLocalAccess(c.CVSS)
 	for _, a := range attacks {
-		if a.CVE != cve || now.Sub(a.LastSeen) > AttackWindow || a.LastSeen.After(now) {
+		if !wire || a.CVE != cve || now.Sub(a.LastSeen) > AttackWindow || a.LastSeen.After(now) {
 			continue
 		}
 		if a.AssetID == t.AssetID && t.AssetID != "" || t.Affected {
@@ -225,12 +226,7 @@ func criticalEdge(c CVEFacts, t Target) bool {
 // networkNoLogin says whether a CVSS vector is an attack over the network that needs no privileges: AV:N and PR:N (3.x, 4.0), AV:N
 // and Au:N (2.0).
 func networkNoLogin(vector string) bool {
-	m := map[string]string{}
-	for _, part := range strings.Split(vector, "/") {
-		if k, v, ok := strings.Cut(part, ":"); ok {
-			m[k] = v
-		}
-	}
+	m := vectorMetrics(vector)
 	if m["AV"] != "N" {
 		return false
 	}
@@ -591,4 +587,26 @@ func AttacksByCVE(as []Attack) map[string][]Attack {
 		out[a.CVE] = append(out[a.CVE], a)
 	}
 	return out
+}
+
+// needsLocalAccess says whether the flaw can only be exploited with local or physical access (AV:L or AV:P in CVSS 2.0, 3.x and 4.0).
+// An intrusion alert is traffic seen on the network: it may carry such an exploit (a file, a download) but cannot be its exploitation,
+// so it never makes the finding under attack here. A missing score is not local.
+func needsLocalAccess(c *CVSS) bool {
+	if c == nil {
+		return false
+	}
+	av := vectorMetrics(c.Vector)["AV"]
+	return av == "L" || av == "P"
+}
+
+// vectorMetrics splits a CVSS vector into its metrics ("AV" → "N"); the version prefix of 3.x and 4.0 is one more entry.
+func vectorMetrics(vector string) map[string]string {
+	m := map[string]string{}
+	for _, part := range strings.Split(vector, "/") {
+		if k, v, ok := strings.Cut(part, ":"); ok {
+			m[k] = v
+		}
+	}
+	return m
 }

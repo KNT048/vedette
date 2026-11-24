@@ -74,7 +74,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **M-8 One fix resolver.** `FixOf(device, line, CVE)` is the only reading of what fixes a finding; the match write stores it with
   `fix_key` and `range_origin`.
 - **M-9 One urgency.** `Urgency(cve, facts, target, attacks, now)` is the only rule of a finding's layer: 1 an intrusion alert in
-  the last 14 days named the CVE; 2 a qualifying exploited signal; 3 a qualifying public-exploit signal; 4 CVSS ≥ 9, network, no
+  the last 14 days named the CVE of a flaw exploitable over the network (an AV:L or AV:P flaw is never under attack from network
+  traffic); 2 a qualifying exploited signal; 3 a qualifying public-exploit signal; 4 CVSS ≥ 9, network, no
   privileges, automatable, on an edge product class; 5 the rest. Only the urgency pass stores it. Each rise of an open finding into
   layers 1–4 is one `findings.finding.urgency_raised`, told once by `Tell` (news, a first-run summary line, or backlog). A device a
   person ignored is not rated. A finding above layer 2 is never called exploited.

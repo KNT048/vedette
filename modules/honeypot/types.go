@@ -160,6 +160,9 @@ type Hit struct {
 	// column of the hit list.
 	TrapIP       string `json:"trap_ip"`
 	TrapHostname string `json:"trap_hostname"`
+	// TestAlert is what each alert channel did with the test alert of a test hit, in the answer of the test that made it (test-hit,
+	// test-scan, tokens/{id}/test); absent elsewhere. The hit's events keep the same lines.
+	TestAlert *TestAlertSent `json:"test_alert,omitempty"`
 	// NoHandshake: a UDP service hit (TFTP, NTP, SIP). UDP has no handshake, so its source can be forged like a scan's: it never
 	// confirms a source (SourceConnected) and response holds it from pre-approved rules. Not part of the API: the
 	// excerpt says it.
@@ -427,6 +430,27 @@ type Event struct {
 // Publisher sends events on the bus, after the transaction committed.
 type Publisher interface {
 	Publish(ctx context.Context, e Event) error
+}
+
+// TestAlerter sends, for a test hit, the alert a real hit would send, marked Test, and says what each alert channel did (notify, wired
+// in cmd/vedette): the person sees the path from the trap to their phone work. A test alert is never an incident and counts nowhere.
+type TestAlerter interface {
+	TestAlert(ctx context.Context, hit HitEventData) ([]TestAlertResult, error)
+}
+
+// TestAlertSent is what the alert channels did with the test alert of a test hit; Channels is empty when no channel is on.
+type TestAlertSent struct {
+	Channels []TestAlertResult `json:"channels"`
+}
+
+// TestAlertResult is what one alert channel did with a test alert: delivered (OK), skipped because the real alert would not go
+// through it either (Skipped), or failed; Detail says it in a sentence.
+type TestAlertResult struct {
+	Channel string `json:"channel"` // the channel type (email, telegram, …)
+	Name    string `json:"name"`    // its name as people read it ("Email", "Zalo OA")
+	OK      bool   `json:"ok"`
+	Skipped bool   `json:"skipped"`
+	Detail  string `json:"detail"`
 }
 
 // PublisherFunc adapts a function to Publisher.

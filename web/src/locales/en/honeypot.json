@@ -100,7 +100,7 @@
     "testLabel": "Test trap {{service}}",
     "test": "Test trap",
     "testToast": "Recorded a test hit on the {{service}} trap",
-    "testNote": "Test a trap to confirm it records hits. The test comes from the Vedette box itself, is labelled as a test, is not counted as a hit and sends no alert.",
+    "testNote": "Test a trap to check the whole path to an alert. The test comes from the Vedette box itself, is labelled as a test and is not counted as a hit; the alert it sends to your alert channels says Test and opens no incident.",
     "testConflictReason": "Every Trap IP with this service clashes with a real device. Change its address before testing.",
     "limitsTitle": "One box, one share name and one login page",
     "smbName": "Every Trap IP with SMB shows the share name {{name}}.",
@@ -510,5 +510,11 @@
       }
     },
     "note": "Traps catch an intruder who is already inside and touches something. They do not stop a break-in. More varied bait in more places gives better odds."
+  },
+  "testAlert": {
+    "sent": "Test alert sent by {{channels}}: check that it arrived.",
+    "failed": "{{channel}} did not deliver it: {{detail}}",
+    "skipped": "{{channel}} skipped it: {{detail}}",
+    "none": "No alert channel is on, so no test alert was sent: a real touch would only show in Vedette. Set one up in Settings, Alert channels."
   }
 }

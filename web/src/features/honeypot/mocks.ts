@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, boxInfo } from '@/mocks/stores'
 import { boxAddress, networkStore } from '@/mocks/network'
-import { collection, daysAgo, newId, nowIso } from '@/mocks/db'
+import { collection, daysAgo, newId, nowIso, peek } from '@/mocks/db'
 import { PRESETS, SERVICE_PORT, VENDORS } from './presets'
 import { HP_SERVICES, type Hit, type HitDetail, type HitEvent, type HitKind, type HpOverview, type HpService, type Token, type TokenType, type Trap, type TrapIP, type TrapIPInput, type TrapPreset, type TrapState, type TrapSuggestion, type TrapVendor } from './types'
 
@@ -270,6 +270,27 @@ export function hitSource(id: string): { ip: string; asset_id: string | null; ki
   return { ip: h.src_ip, asset_id: h.src_asset_id, kind, confirmed }
 }
 
+const CHANNEL_NAME: Record<string, string> = { telegram: 'Telegram', slack: 'Slack', zalo: 'Zalo OA', 'zalo-personal': 'Zalo personal', email: 'Email', webhook: 'Webhook' }
+const SEV_RANK: Record<string, number> = { low: 1, medium: 2, high: 3, critical: 4 }
+/** The test alert of a test hit, as the box sends it through notify: to every alert channel that is on (read from the notify mock's
+ *  channels without seeding them), skipped where the channel would not send the real alert (a scan is high, a touch critical). */
+function testAlertOf(h: Stored): { channels: { channel: string; name: string; ok: boolean; skipped: boolean; detail: string }[] } {
+  const sev = h.kind === 'scan' ? 3 : 4
+  const on = (peek<{ type: string; configured: boolean; enabled: boolean; min_severity: string }[]>('notify_channels') ?? []).filter((c) => c.configured && c.enabled)
+  const ev = (text: string) => h.events.push({ ts: h.ts, source: 'vedette', text, mark: false })
+  if (!on.length) ev('No alert channel is on, so no test alert was sent: a real touch would only show in Vedette. Set one up in Settings, Alert channels.')
+  return { channels: on.map((c) => {
+    const name = CHANNEL_NAME[c.type] ?? c.type
+    if ((SEV_RANK[c.min_severity] ?? 2) > sev) {
+      const detail = `Not sent: this alert is high, and this channel only sends ${c.min_severity} and above, so a real one would not go through it either.`
+      ev(`Test alert not sent by ${name}. ${detail}`)
+      return { channel: c.type, name, ok: false, skipped: true, detail }
+    }
+    ev(`Test alert sent by ${name}.`)
+    return { channel: c.type, name, ok: true, skipped: false, detail: `Sent by ${name}.` }
+  }) }
+}
+
 export const handlers = [
   http.get(`${API}/honeypot`, () => {
     const denied = guard('viewer'); if (denied) return denied
@@ -295,7 +316,7 @@ export const handlers = [
     return HttpResponse.json(detail)
   }),
 
-  // "Try a trap hit": a hit labelled as a test on the first enabled Trap IP that has that service, coming from the box itself (normally excluded), not counted in the figures, no alert sent.
+  // "Try a trap hit": a hit labelled as a test on the first enabled Trap IP that has that service, coming from the box itself (normally excluded), not counted in the figures; its test alert goes to the alert channels that are on.
   http.post(`${API}/honeypot/test-hit`, async ({ request }) => {
     const denied = guard('operator'); if (denied) return denied
     const b = await body<{ service: HpService }>(request)
@@ -311,9 +332,10 @@ export const handlers = [
       excerpt: `[test] The Vedette box connected to ${LABEL[service]} port ${SERVICE_PORT[service]} on ${t.name} itself to check the trap`, trap_ip: t.ip, trap_hostname: t.name,
       events: [{ ts, source: 'vedette', text: `Test started by a user selecting "Test trap" for ${LABEL[service]}. Not an attacker.`, mark: true }],
     }
+    const sent = testAlertOf(h) // before it is stored: the hit keeps a line per channel
     hitsStore.update((l) => [h, ...l])
     audit('honeypot.test_hit', LABEL[service])
-    return HttpResponse.json(hitView(h))
+    return HttpResponse.json({ ...hitView(h), test_alert: sent })
   }),
 
   // --- Trap IPs ---
@@ -383,9 +405,10 @@ export const handlers = [
       excerpt: `[test] The Vedette box simulated a sweep across ${ips.length} Trap IPs`, trap_ip: ips.join(', '), trap_hostname: 'Decoy sweep',
       events: [{ ts, source: 'vedette', text: 'Test started by a user selecting "Test scan". Not an attacker.', mark: true }],
     }
+    const sent = testAlertOf(h) // before it is stored: the hit keeps a line per channel
     hitsStore.update((l) => [h, ...l])
     audit('honeypot.test_scan', `${ips.length} decoys`)
-    return HttpResponse.json(hitView(h))
+    return HttpResponse.json({ ...hitView(h), test_alert: sent })
   }),
 
   // --- S-HP-2: honey tokens ---
@@ -441,8 +464,9 @@ export const handlers = [
       excerpt: `[test] The Vedette box triggered ${label} to check it`, trap_ip: t.value, trap_hostname: label,
       events: [{ ts, source: 'vedette', text: `Test started by a user selecting "Test token" for ${t.name}. Not an attacker.`, mark: true }],
     }
+    const sent = testAlertOf(h) // before it is stored: the hit keeps a line per channel
     hitsStore.update((l) => [h, ...l])
     audit('honeypot.test_token', t.value)
-    return HttpResponse.json(hitView(h))
+    return HttpResponse.json({ ...hitView(h), test_alert: sent })
   }),
 ]

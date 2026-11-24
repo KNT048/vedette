@@ -14,6 +14,7 @@ import { Field, Input, Select } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useAddToken, useDeleteToken, useTestToken, useTokens } from './api'
+import { testAlertToast } from './testAlert'
 import { TOKEN_PRESETS, tokenPresetName, type TokenPreset } from './presets'
 import { TOKEN_TYPES, type OfferedTokenType, type Token } from './types'
 
@@ -65,7 +66,7 @@ function Inner({ items }: { items: Token[] }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" disabled={!operator || test.isPending} busy={test.isPending && test.variables === k.id} busyLabel={t('common:busy.testing')} title={operator ? undefined : t('common:needRole', { role: t('common:role.operator') })} aria-label={t('token.testLabel', { name: k.name })}
-                    onClick={() => test.mutate(k.id, { onSuccess: () => toast.success(t('token.testToast', { name: k.name })), onError: (e) => toast.error(errMsg(e)) })}><FlaskConical />{t('token.test')}</Button>
+                    onClick={() => test.mutate(k.id, { onSuccess: (hit) => testAlertToast(t, t('token.testToast', { name: k.name }), hit), onError: (e) => toast.error(errMsg(e)) })}><FlaskConical />{t('token.test')}</Button>
                   <Button size="sm" variant="ghost" disabled={!admin || del.isPending} busy={del.isPending && del.variables === k.id} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })} aria-label={t('token.deleteLabel', { name: k.name })}
                     onClick={() => del.mutate(k.id, { onSuccess: () => toast.success(t('token.deleted', { name: k.name })), onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
                 </div>

@@ -86,3 +86,6 @@
 - **response**: the event's `unconfirmed: true` makes `honeypotEvent` store field `unconfirmed = "1"`, `heldForAuto` hold the request for a person and the hit draw from `maxScansPerHour`, as a scan. **cmd/vedette `responseIncidents`** sets `IncidentInfo.Unconfirmed` for it unless a TCP connection of the source is near (`SourceConnected`). Dropping the field from the event lets a pre-approved rule run on a forged source.
 - **Budget**: new UDP hits have their own `maxUDPHitsPerHour` (20), never the listener's 500/poll and 2000/hour, so a flood of forged datagrams cannot silence real hits for the hour. **notify** still opens a Critical incident per UDP hit (at most 20 an hour).
 - **core/logs export**: `handshake` is exported (`modules/core/export_policy.go`).
+
+## Modifying: `TestAlerter` / `TestAlertResult` / `Hit.TestAlert` (the test alert of a test hit, INV-4)
+- Implemented by `honeypotTestAlerts` in `cmd/vedette/honeypot.go` over notify `SendTrapTest` (the words of a real trap alert, marked Test). The web shows the answer in the test's toast (`web/src/features/honeypot/testAlert.ts`) and the hit page shows the event lines. The call runs before the hit is stored, so a slow channel delays the answer (each channel is bounded by notify's test timeout, sent in parallel).

@@ -132,8 +132,10 @@
 
 ## Modifying: `DeviceMerged`, `FindingFolded`, `FindingMoved` (`devicelifecycle.go`, core/lifecycle)
 - **inventory** calls them inside its merge transaction (registered in `cmd/vedette/devicelifecycle.go`): `resp_plans`, `resp_events` and `resp_actions` follow the device (and the finding a merge folded) by id and keep the name they stored. A new table with an `asset_id` or `finding_id` must be added here, or its rows point at a device or finding that is gone. A deleted device needs nothing: these rows are a log kept with the stored name.
-- **findings** calls `FindingMoved` inside its match write when a finding follows its software line to another device (`followline.go`
-  `moveFinding`, before a fold): only unprocessed events move (with the new device's name, and for a waiting finding event its kind
+- **findings** calls `FindingMoved` inside inventory's split write (`DeviceSplit`) and inside its own match write (`followLines`) when a
+  finding follows its software line to another device (`followline.go` `moveFinding`, before a fold). In the split's write
+  `Directory.Device` does not see the new device yet: a waiting finding event then drops the old device's name, kind and address, and
+  the withdrawal and retirement notes say "another device". Only unprocessed events move (with the new device's name, and for a waiting finding event its kind
   and `fields.device`/`fields.ip`, read through `Directory.Device`); the finding's plans on the old device are retired
   (`retireMovedPlans`: deleted, logged and audited, so `PlanOpen` writes a new plan for the new device) and its `pending` requests are
   withdrawn on the old device (`withdrawMoved`: expired with the reason, logged and audited), never moved, because both carry the old

@@ -365,6 +365,7 @@
     "content": "Content",
     "name": "Report title",
     "period": "Period",
+    "periodFollows": "Follows the schedule: each report covers the time since the one before it.",
     "periods": {
       "last_7_days": "Last 7 days",
       "last_30_days": "Last 30 days",

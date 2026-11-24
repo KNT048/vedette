@@ -59,6 +59,19 @@ func layerOf(code string) int {
 
 var resolutionOrder = []string{"patched", "mitigated", "accepted", "false_positive", "not_relevant"}
 
+// periodFollows is the period a report covers when its schedule sends it every week or every month: the last 7 days, or the last
+// calendar month, so each report covers the time since the one before it and a monthly report never covers only a week. A schedule
+// that is off leaves the period chosen in Settings (for a report sent by hand or printed).
+func periodFollows(period, every string) string {
+	switch every {
+	case "weekly":
+		return PeriodLast7
+	case "monthly":
+		return PeriodMonth
+	}
+	return period
+}
+
 // periodOf is the time a document made at now covers: the last 7 or 30 days in loc, today included (from the start of the day 6 or 29
 // days before today up to now, so "Last 7 days" names 7 dates, 18 – 24 Nov, as people count them), or the last whole calendar month.
 func periodOf(kind string, now time.Time, loc *time.Location) (from, to time.Time) {

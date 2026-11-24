@@ -100,6 +100,22 @@ describe('reports: the security report (S-REP-1)', () => {
     server.events.removeAllListeners()
   })
 
+  it('Settings: while the schedule sends the report, the period follows it (each report covers the time since the one before)', async () => {
+    renderApp('/reports?tab=settings', { role: 'admin' })
+    const period = await screen.findByLabelText('Period')
+    await enabled(period)
+    await userEvent.selectOptions(period, 'Last 30 days')
+    await userEvent.click(await screen.findByRole('button', { name: 'Change the schedule of the security report' }))
+    const dlg = await screen.findByRole('dialog')
+    const on = within(dlg).getByRole('switch', { name: 'Run on a schedule' })
+    if (on.getAttribute('aria-checked') !== 'true') await userEvent.click(on)
+    await userEvent.selectOptions(within(dlg).getByLabelText('Repeat'), 'Every month')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.getByLabelText('Period')).toBeDisabled())
+    expect(screen.getByLabelText('Period')).toHaveValue('calendar_month')
+    expect(screen.getByText('Follows the schedule: each report covers the time since the one before it.')).toBeInTheDocument()
+  })
+
   it('Settings: sections, grouping, not relevant and charts change the next report; the saved settings stay', async () => {
     const first = renderApp('/reports?tab=settings', { role: 'admin' })
     const save = await screen.findByRole('button', { name: 'Save' })

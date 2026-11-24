@@ -358,3 +358,28 @@ func TestHandledNotInstalledKeepsItsOwnCount(t *testing.T) {
 		t.Errorf("totals = %+v, want one not_installed", out.Totals)
 	}
 }
+
+// While the schedule sends the report, the schedule decides the period: every week the last 7 days, every month the last calendar
+// month, whatever Settings says (a monthly report never covers one week). Off, the period of Settings stands.
+func TestDocumentPeriodFollowsTheSchedule(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ every, set, want string }{
+		{"", PeriodLast30, PeriodLast30},
+		{"weekly", PeriodLast30, PeriodLast7},
+		{"monthly", PeriodLast7, PeriodMonth},
+	} {
+		e := newEnv(t)
+		e.seed()
+		e.every = c.every
+		d, _ := e.svc.Definition(e.ctx())
+		o := d.Options
+		o.Period = c.set
+		_, err := e.svc.SaveDefinition(e.ctx(), "admin@acme.example", DefinitionInput{Name: d.Name, Options: o, Recipients: []string{}})
+		mustNoErr(t, err)
+		doc, err := e.svc.Document(e.ctx())
+		mustNoErr(t, err)
+		if doc.Period.Kind != c.want || doc.Options.Period != c.want {
+			t.Errorf("schedule %q, settings %s: the document covers %s (options %s), want %s", c.every, c.set, doc.Period.Kind, doc.Options.Period, c.want)
+		}
+	}
+}

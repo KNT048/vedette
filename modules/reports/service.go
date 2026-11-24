@@ -38,8 +38,11 @@ type Config struct {
 	Modules    Modules
 	OrgName    func(context.Context) (string, error)
 	Zone       func(context.Context) string // IANA name of the organisation's time zone; "" or an unknown name = UTC
-	Log        *slog.Logger
-	Clock      func() time.Time
+	// Every is how often the report's schedule sends it ("weekly", "monthly") while it is on, "" while it is off or unknown: a sent
+	// report covers the time since the one before it, so the schedule decides the period (periodFollows).
+	Every func(context.Context) string
+	Log   *slog.Logger
+	Clock func() time.Time
 }
 
 // Service owns the rep_ tables. Every mutation runs in one transaction with its core_audit row (SYS-3).
@@ -101,6 +104,9 @@ func (s *Service) Document(ctx context.Context) (Document, error) {
 
 func (s *Service) document(ctx context.Context, def Definition) (Document, error) {
 	now, loc := s.clock(), s.loc(ctx)
+	if s.cfg.Every != nil {
+		def.Options.Period = periodFollows(def.Options.Period, s.cfg.Every(ctx))
+	}
 	in := docInput{def: def, now: now, loc: loc}
 	if s.cfg.OrgName != nil {
 		if n, err := s.cfg.OrgName(ctx); err == nil {

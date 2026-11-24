@@ -1209,16 +1209,16 @@ describe('core: updates (S-CORE-2)', () => {
     const u = user()
     sessionStore.set({ userId: 'u-admin' })
     const base = await (await fetch(`${location.origin}/api/v1/core/updates`)).json() as { available: { component: string; note: string; version: string }[] }
-    const long = `${'Changes in this release. '.repeat(30)}Rolling back restores the database backup taken just bef`
-    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...base, available: base.available.map((a) => (a.component === 'software' ? { ...a, note: long.slice(0, 500) } : a)) })))
+    const long = `${'Changes in this release. '.repeat(60)}Rolling back restores the database backup taken just before.`
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...base, available: base.available.map((a) => (a.component === 'software' ? { ...a, note: long } : a)) })))
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Update Vedette software' }))
     const dlg = await screen.findByRole('dialog', { name: 'Update Vedette to 0.9.4?' })
     expect(dlg).toHaveTextContent('Every part of Vedette restarts')
     expect(dlg).toHaveTextContent(/about 4 minutes/)
     expect(dlg).toHaveTextContent(/backed up first/)
-    // the notes the box cut end at a word and link to the release page where the whole text is
-    expect(dlg).not.toHaveTextContent(/just bef/)
+    // the whole note, past 500 characters, to its last word; the release page has the longer text
+    expect(dlg).toHaveTextContent(/taken just before\./)
     expect(within(dlg).getByRole('link', { name: 'Full notes of 0.9.4' })).toHaveAttribute('href', 'https://github.com/KNT048/vedette/releases/tag/v0.9.4')
     await u.click(within(dlg).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeNull()

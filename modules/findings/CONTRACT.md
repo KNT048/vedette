@@ -36,7 +36,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   mitigated, accepted, false positive and not relevant hold while detected; an accepted risk reopens after its last day. "Gone"
   closes an open finding as `patched` when something changed on the device (`version_moved`, `software_removed`, `distro_fixed`,
   `scan_clear`) and as `not_relevant` when only data changed (`data_corrected`) or a person said the software is not installed
-  (`not_installed`). When the match's proof explains Vedette's close (the distribution's fixed package release, its word on the package),
+  (`not_installed`). The Handled list leaves out what Vedette closed by correcting its own match (`data_corrected` by Vedette: never
+  a flaw someone handled) unless asked (`corrections=true`), and counts it under the same filters (`HandledList.corrections`;
+  `TestHandled_LeavesOutVedettesMatchCorrections`). When the match's proof explains Vedette's close (the distribution's fixed package release, its word on the package),
   the proof's sentence is the closing note, so the handled line says the real reason; the proof is that of the finding's own CVE and
   software line, so of two lines of one product each closes with its own sentence. A safe check's or a person's confirmation is undone only by a newer reading of the device, never by range data.
 - **M-4 Invariants.** Held by database CHECKs, `Finding.Validate` and `vedette selfcheck`: open exactly when there is no

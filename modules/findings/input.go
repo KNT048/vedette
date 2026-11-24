@@ -349,6 +349,10 @@ type HandledFilter struct {
 	Resolutions []Resolution
 	Device      string
 	From, To    time.Time // zero: no bound
+	// Corrections lists the findings Vedette closed itself because it corrected its own match (via data_corrected, by Vedette): a
+	// match that was wrong, never a flaw someone handled. Left out by default, as the report leaves out what was not relevant, so a
+	// correction of hundreds of rows (a kernel's package lines) does not bury the people's decisions; HandledList.Corrections counts them.
+	Corrections bool
 }
 
 // HandledRowJS is contract.ts HandledRow.
@@ -364,8 +368,9 @@ type HandledRowJS struct {
 
 // HandledList is contract.ts HandledList.
 type HandledList struct {
-	Items []HandledRowJS `json:"items"`
-	Total int            `json:"total"`
+	Items       []HandledRowJS `json:"items"`
+	Total       int            `json:"total"`
+	Corrections int            `json:"corrections"`
 }
 
 // Handled reads one page of the handled findings of devices nobody ignored, the newest handling first.
@@ -401,8 +406,14 @@ func (s *Service) handled(ctx context.Context, f HandledFilter, p Page) (Handled
 		w, args = w+` AND resolved_at <= ?`, append(args, store.FormatTS(f.To))
 	}
 	out := HandledList{Items: []HandledRowJS{}}
-	if err := s.rd(ctx).QueryRowContext(ctx, `SELECT count(*) FROM fnd_finding WHERE `+w, args...).Scan(&out.Total); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	correction := `(via = ? AND ifnull(resolved_by, '') = ?)`
+	if err := s.rd(ctx).QueryRowContext(ctx, `SELECT count(*), ifnull(sum(CASE WHEN `+correction+` THEN 1 ELSE 0 END), 0) FROM fnd_finding WHERE `+w,
+		append([]any{string(ViaDataCorrected), SystemUser}, args...)...).Scan(&out.Total, &out.Corrections); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return HandledList{}, fmt.Errorf("findings: counting handled findings: %w", err)
+	}
+	if !f.Corrections {
+		out.Total -= out.Corrections
+		w, args = w+` AND NOT `+correction, append(args, string(ViaDataCorrected), SystemUser)
 	}
 	fs, err := selectFindings(ctx, s.rd(ctx), w+` ORDER BY resolved_at DESC, id LIMIT ? OFFSET ?`, append(args, p.Limit, p.Offset)...)
 	if err != nil {

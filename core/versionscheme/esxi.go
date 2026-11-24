@@ -72,8 +72,9 @@ var VMwareESXi = register(&Scheme{
 
 var (
 	// esxiTyped is a release as a host, a scan or a person writes it: "8.0.3 build 24022510", "8.0.3-24022510", "8.0 U3e", "8.0 Update 3
-	// (build 24022510)", "VMware ESXi 8.0b", "8.0" (a line alone, placed only by a build the name states).
-	esxiTyped = regexp.MustCompile(`^(?i:vmware\s+)?(?i:esxi\s+)?([6-8])\.([0-9])(?:\.([0-9]))?(?:\s*(?i:u|update)\s*([1-9]))?([a-z])?(?:\s+(?i:ga))?` +
+	// (build 24022510)", "VMware ESXi 8.0b", "8.0" (a line alone, placed only by a build the name states), and a security-only patch
+	// with its two letters and build ("8.0 U3se (build 24659227)", the name esxiVersion writes for VMware's ESXi80U3se-24659227).
+	esxiTyped = regexp.MustCompile(`^(?i:vmware\s+)?(?i:esxi\s+)?([6-8])\.([0-9])(?:\.([0-9]))?(?:\s*(?i:u|update)\s*([1-9]))?([a-z]{1,2})?(?:\s+(?i:ga))?` +
 		`(?:[\s,;]*\(?\s*(?i:build)?[\s-]*([0-9]{5,9})\s*\)?)?$`)
 	// esxiNamedBuild is the build a name states ("VMware ESXi 8.0 Update 3 (build 24022510)").
 	esxiNamedBuild = regexp.MustCompile(`\(build ([0-9]{5,9})\)`)

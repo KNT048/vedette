@@ -121,7 +121,8 @@ function Runs({ e, d }: { e: Engine; d: Scanning }) {
             {/* only a LAN vulnerability check has a Stop here; the others are stopped where they are seen */}
             {e.id === 'nuclei' && can ? <Button size="sm" variant="danger" className="ml-auto" onClick={() => setStopping(j.id)}>{t('run.stop')}</Button> : null}
           </div>
-          <JobProgress progress={j.progress} />
+          {/* a queued run has not started: its line says what it waits for and when it starts, no step, clock or last report */}
+          {j.queued ? <p className="text-meta text-muted">{j.progress?.message ?? t('scanNow.queued')}</p> : <JobProgress progress={j.progress} />}
         </Card>
       ))}
       <Dialog open={!!stopping} onOpenChange={(v) => { if (!v) setStopping(null) }}>

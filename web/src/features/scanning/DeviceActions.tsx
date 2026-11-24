@@ -144,7 +144,7 @@ function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton
   if (c.pending) return null // the count decides whether a run is offered: wait for it
   // nothing a run could confirm or rule out: no button that runs for nothing; why is behind the info icon of its Last checks row
   if (c.none) return null
-  const what = [t('hint.vuln'), c.counted && c.suspected > 0 ? t('hint.vulnCount', { checkable: c.checkable, count: c.suspected }) : '', c.again > 0 ? t('hint.vulnAgain', { count: c.again }) : ''].filter(Boolean).join(' ')
+  const what = vulnWords(t, c)
   return (
     <span className="inline-flex items-start gap-1">
       <VulnChecksButton targets={[assetId]} describedBy={hint} />
@@ -152,6 +152,18 @@ function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton
       <span id={hint} hidden>{what}</span>
     </span>
   )
+}
+
+/** What "Run vulnerability checks now" will do, in words that follow the count (never "to confirm or rule them out" when no suspected
+ *  finding has a safe check): the suspected findings it confirms or rules out, the confirmed ones it checks again, and, when only the
+ *  latter, that the suspected ones have no check. Not counted: the general sentence. */
+export function vulnWords(t: (k: string, o?: Record<string, unknown>) => string, c: ReturnType<typeof useVulnCheckable>) {
+  const parts = !c.counted ? [t('hint.vulnUncounted')] : [
+    c.checkable === 0 ? '' : c.checkable === c.suspected ? t('hint.vulnConfirmAll', { count: c.checkable }) : t('hint.vulnConfirmSome', { count: c.checkable, total: c.suspected }),
+    c.again > 0 ? t('hint.vulnAgain', { count: c.again }) : '',
+    c.checkable === 0 && c.suspected > 0 ? t('hint.vulnNoneOf', { count: c.suspected }) : '',
+  ]
+  return [...parts, t('hint.vulnTail')].filter(Boolean).join(' ')
 }
 
 /** What a vulnerability check of the device can do: `checkable` of its `suspected` (not confirmed yet) open findings have a safe check

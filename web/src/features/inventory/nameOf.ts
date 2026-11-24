@@ -68,12 +68,13 @@ export const declaredSoftwareOnly = (a: Named) => a.origin === 'manual' && !a.ho
  *  sighting only once it is past first_seen. Such a device reads "Never seen on the network" and "Added by hand", never "Last seen". */
 export const neverSeen = (a: Pick<Asset, 'origin' | 'first_seen' | 'last_seen'>) => a.origin === 'manual' && Date.parse(a.last_seen) <= Date.parse(a.first_seen)
 
-/** Whether the device page shows this device's SNMP card: an admin, active discovery on, a real device (not the box, not ignored,
- *  not declared software only). Last checks reads it too, so its "Set it up in Sources" link never points at no card. */
-/** Whether the device page shows this device's Sources card (where its network scan is switched on): not the box, not ignored,
- *  not declared software only. A pointer to Sources elsewhere on the page links there only when it is shown. */
+/** Whether the device page shows this device's Sources card (where its network scan is switched on): not ignored, not declared
+ *  software only. The box has it too: its rows say what applies to it (not scanned, no SNMP, its own agent with Check now). A pointer
+ *  to Sources elsewhere on the page links there only when it is shown. */
 export const hasSourcesCard = (a: Named & { is_box: boolean; ignored_at?: string | null }) => !a.ignored_at && !declaredSoftwareOnly(a)
 
+/** Whether the device page shows this device's SNMP card: an admin, active discovery on, a real device (not the box, not ignored,
+ *  not declared software only). Last checks reads it too, so its "Set it up in Sources" link never points at no card. */
 export const hasSnmpCard = (a: Named & { is_box: boolean; ignored_at?: string | null }, admin: boolean, on: boolean) => admin && on && !a.is_box && !a.ignored_at && !declaredSoftwareOnly(a)
 
 /** Characters a name in Vedette cannot hold (as the backend's userName, #929): < >, C0 and C1 controls, bidi marks,

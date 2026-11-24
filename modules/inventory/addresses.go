@@ -379,8 +379,9 @@ func addressHolder(ctx context.Context, q querier, ip string) (string, error) {
 func (s *Service) addresses(ctx context.Context, q querier, id string) ([]Address, error) {
 	var ip, mac, origin, first, last, confirmed sql.NullString
 	var macSrc sql.NullString
-	err := q.QueryRowContext(ctx, `SELECT a.ip, a.mac, a.origin, a.first_seen, a.last_seen, a.ip_confirmed_at, m.source FROM inv_asset a
-		LEFT JOIN inv_observation m ON m.id = a.mac_obs_id WHERE a.id = ?`, id).Scan(&ip, &mac, &origin, &first, &last, &confirmed, &macSrc)
+	var isBox bool
+	err := q.QueryRowContext(ctx, `SELECT a.ip, a.mac, a.origin, a.first_seen, a.last_seen, a.ip_confirmed_at, m.source, a.is_box FROM inv_asset a
+		LEFT JOIN inv_observation m ON m.id = a.mac_obs_id WHERE a.id = ?`, id).Scan(&ip, &mac, &origin, &first, &last, &confirmed, &macSrc, &isBox)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, notFoundDevice()
 	}
@@ -409,6 +410,9 @@ func (s *Service) addresses(ctx context.Context, q querier, id string) ([]Addres
 		seen := last.String
 		if confirmed.Valid && !mac.Valid {
 			seen = confirmed.String
+		}
+		if isBox { // the box runs Vedette: its main address is just seen, as the box is on every read (loadDevices)
+			seen = s.now()
 		}
 		out = append(out, Address{IP: nullPtr(ip), MAC: nullPtr(mac), Main: true, Source: src, FirstSeen: first.String, LastSeen: seen,
 			Agent: agent.has(ip, mac)})

@@ -192,6 +192,8 @@ var seedsInvRows = map[string]bool{
 	"../../cmd/vedette/addresses_count_test.go":           true, // the count test of merging and splitting a device's interfaces
 	"../../cmd/vedette/devicelifecycle_test.go":           true,
 	"../../cmd/vedette/softwareline_fixture_test.go":      true,
+	"../../cmd/vedette/splitfindings_test.go":             true, // checks every finding of a split device points at a line of its own device
+	"../../modules/findings/splitline_test.go":            true, // seeds a second device and line, then checks findings follow the moved line
 	"../../modules/findings/findingstest/findingstest.go": true, // creates the device and line rows findings' tests point at (foreign keys)
 	"../../modules/findings/prune_test.go":                true, // deletes lines as the retention does, to see what the foreign key leaves
 	// the intrusion alerts reference devices by a foreign key: the tests seed devices with fixed ids and delete one to see its

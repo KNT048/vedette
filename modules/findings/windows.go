@@ -499,7 +499,7 @@ func winRows(rows []fixedEntry, d winDev, v Vuln) winVerdict {
 		}
 		t, r, b := winEval(e.c, e.r, d)
 		ts = append(ts, t)
-		if t == Yes && (yes == nil || widerEnd(r, *yes)) {
+		if t == Yes && (yes == nil || explainsBetter(r, *yes)) {
 			yes, yesBuild = &r, b
 		}
 	}

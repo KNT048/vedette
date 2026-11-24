@@ -92,13 +92,10 @@ var dottedRe = regexp.MustCompile(`^\d{1,4}(?:\.\d{1,4}){1,3}[a-z]?$`)
 // osScheme is the version scheme of the network OS that NVD configuration c names (its part, vendor and product are a row's
 // cpe), "" when it names none.
 func osScheme(c CPE) string {
-	part, okP := c.Part.Literal()
-	vendor, okV := c.Vendor.Literal()
-	product, okR := c.Product.Literal()
-	if !okP || !okV || !okR {
+	id := cpeProductID(c)
+	if id == "" {
 		return ""
 	}
-	id := strings.ToLower(part + ":" + vendor + ":" + product)
 	for _, d := range osRows {
 		if strings.EqualFold(d.CPE, id) {
 			return d.Scheme
@@ -283,10 +280,7 @@ func osSoftwareID(assetID string) string { return "os:" + assetID }
 // it (it gives what it gives today).
 func deviceOS(a Asset) (os Software, orderable, ok bool) {
 	for _, d := range osRows {
-		text := a.SNMPOS
-		if text == "" && d.LLDPOUI != "" && lldpCard(a.MAC, d.LLDPOUI) {
-			text = a.StatedOS
-		}
+		text := statedText(a, d)
 		m := d.re.FindStringSubmatch(text)
 		if m == nil {
 			continue
@@ -301,7 +295,7 @@ func deviceOS(a Asset) (os Software, orderable, ok bool) {
 			}
 		}
 		os = Software{ID: osSoftwareID(a.ID), Display: d.Display, Vendor: d.Vendor, Product: d.Product, Version: m[1],
-			KevKeys: slices.Clone(d.KevKeys), CPE: d.cpe23()}
+			KevKeys: slices.Clone(d.KevKeys), CPE: d.cpe23(), stated: true}
 		os.SeenAt = a.StatedOSAt
 		if a.SNMPOS != "" && text == a.SNMPOS {
 			os.Source = "snmp" // the device's own SNMP answer (platformOS, knownVersion); an LLDP-stated Junos keeps no source
@@ -310,6 +304,76 @@ func deviceOS(a Asset) (os Software, orderable, ok bool) {
 		return os, orderable, true
 	}
 	return Software{}, false, false
+}
+
+// statedText is what the device states about its OS that row d may read: its answer to Vedette's own SNMP read always, else, for a
+// row with lldp_oui, its LLDP statement when its network card is that vendor's (lldpCard).
+func statedText(a Asset, d osRow) string {
+	if a.SNMPOS == "" && d.LLDPOUI != "" && lldpCard(a.MAC, d.LLDPOUI) {
+		return a.StatedOS
+	}
+	return a.SNMPOS
+}
+
+// statedRow says row s holds the very release of the network OS the device states about itself (statedText, as deviceOS reads it):
+// a row of that OS (its KEV key or its CPE's product) whose version is the stated one, while no agent of the device reports another
+// OS. The passive sensor writes the release of a switch's LLDP statement as a row of its own ("JUNOS 15.1R7.9" gives Junos OS
+// 15.1R7.9); that row, not deviceOS's, is then the one compared, and its version is the device's own word, not a banner's.
+func statedRow(a Asset, s Software) bool {
+	ver := strings.TrimSpace(s.Version)
+	if ver == "" {
+		return false
+	}
+	id := ""
+	if c, err := ParseCPE(s.CPE); s.CPE != "" && err == nil {
+		id = cpeProductID(c)
+	}
+	for _, d := range osRows {
+		if !slices.ContainsFunc(s.KevKeys, d.own) && (id == "" || !strings.EqualFold(id, d.CPE)) {
+			continue
+		}
+		m := d.re.FindStringSubmatch(statedText(a, d))
+		if m == nil || a.AgentOS != "" && !d.re.MatchString(a.AgentOS) {
+			continue
+		}
+		if strings.EqualFold(m[1], ver) {
+			return true
+		}
+	}
+	return false
+}
+
+// cpeProductID is a CPE's part, vendor and product as network-os.json writes them ("o:juniper:junos"), "" when one is not a value.
+func cpeProductID(c CPE) string {
+	part, okP := c.Part.Literal()
+	vendor, okV := c.Vendor.Literal()
+	product, okR := c.Product.Literal()
+	if !okP || !okV || !okR {
+		return ""
+	}
+	return part + ":" + vendor + ":" + product
+}
+
+// withStated is rows with every row that holds the release the device states (statedRow) marked as its own word (Software.stated).
+// rows itself is never changed: a marked copy comes back when one is marked.
+func withStated(a Asset, rows []Software) []Software {
+	if a.SNMPOS == "" && a.StatedOS == "" {
+		return rows
+	}
+	var out []Software
+	for i, s := range rows {
+		if trustedReading(s) || !statedRow(a, s) {
+			continue
+		}
+		if out == nil {
+			out = slices.Clone(rows)
+		}
+		out[i].stated = true
+	}
+	if out == nil {
+		return rows
+	}
+	return out
 }
 
 // deviceSoftware is the software every surface reads for a device: its inventory rows (inventory's MatchInput gives only the
@@ -322,12 +386,13 @@ func deviceSoftware(a Asset) []Software {
 }
 
 func deviceOSSoftware(a Asset) []Software {
+	rows := withStated(a, a.Software)
 	os, orderable, ok := deviceOS(a)
 	if !ok {
-		return a.Software
+		return rows
 	}
-	out := make([]Software, 0, len(a.Software)+1)
-	for _, s := range a.Software {
+	out := make([]Software, 0, len(rows)+1)
+	for _, s := range rows {
 		covered, own := len(s.KevKeys) > 0, false
 		for _, k := range s.KevKeys {
 			k = productid.NormalizeKey(k)

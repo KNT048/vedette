@@ -156,7 +156,7 @@ type line struct {
 // others are readings the resolver keeps for matching), plus the network OS the device states without a line.
 func deviceLines(a Asset) map[string]line {
 	out := map[string]line{}
-	for _, s := range a.Software {
+	for _, s := range withStated(a, a.Software) {
 		if _, ok := out[s.ID]; ok || s.ID == "" {
 			continue
 		}
@@ -195,8 +195,8 @@ func detectionOf(x Match, lines map[string]line) Detection {
 		d.Basis, d.RangeOrigin, d.MatchedVersion = DetectPackage, RangeDistro, pkg
 	case src == "manual":
 		d.Basis = DetectStatement
-	case src == "agent" || src == SourceSNMP:
-		d.Basis = DetectDeviceVersion
+	case src == "agent" || src == SourceSNMP || ok && l.sw.stated && (ev.Read == nil || ev.Read.Version == l.reading.Version):
+		d.Basis = DetectDeviceVersion // the device's own word: its agent, its SNMP answer, the release it states (statedRow)
 	default:
 		d.Basis = DetectBannerVersion
 	}

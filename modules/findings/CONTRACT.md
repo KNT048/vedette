@@ -104,6 +104,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-4e** `Reachability` sorts every exploited-list entry into the first class that explains whether it can reach a device; the
   result of each run is kept in `fnd_reach_run`.
 - **INV-4f** A finding needs version evidence on every path; a product-name-only match is a question.
+- **INV-4g** A question is asked only when an answer can change the verdict. A CVE on no exploited list is compared only with a
+  version the device or a person gives (its agent, its SNMP answer, the network OS release it states over SNMP or LLDP, also when
+  another source recorded that very release, the firmware it states on its management interface, a person's entry); against a
+  version read from the network (a banner, the passive sensor) it is neither compared nor asked. A line NVD names only at exact
+  releases older than its own is not asked either: the release numbers each side starts with decide, whatever update or build
+  follows them (ESXi 8.0.3 is later than `esxi:6.5:update1`, not than `esxi:8.0:update_3`). A version inside a range with an end
+  and an open-ended one is read with the range that has an end. A release the device states is stored as `device_version`.
 - **INV-5** The severity a match reports for a new finding: version evidence is `high` (`critical` with ransomware use or EPSS ≥ 0.5);
   product only is `medium`. The shown severity of a finding is the CVE's CVSS band.
 - **INV-6** Writing a match is idempotent per (device, CVE, line) and goes only through `Transition`.

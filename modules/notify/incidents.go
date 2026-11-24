@@ -191,6 +191,20 @@ func scanIncident(r scanner) (Incident, error) {
 
 // fillIncident adds the devices and the delivery log.
 func fillIncident(ctx context.Context, q dbtx, i *Incident) error {
+	if err := fillDevices(ctx, q, i); err != nil {
+		return err
+	}
+	srows, err := q.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, delayed FROM notify_send WHERE kind = 'incident' AND ref_id = ? ORDER BY at, rowid`, i.ID)
+	if err != nil {
+		return fmt.Errorf("notify: read incident sends: %w", err)
+	}
+	i.Sends, err = scanSends(srows)
+	return err
+}
+
+// fillDevices adds the devices of the incident, in the order it stored them.
+func fillDevices(ctx context.Context, q dbtx, i *Incident) error {
+	i.Devices = []Device{}
 	rows, err := q.QueryContext(ctx, `SELECT asset_id, name FROM notify_incident_device WHERE incident_id = ? ORDER BY rowid`, i.ID)
 	if err != nil {
 		return fmt.Errorf("notify: read incident devices: %w", err)
@@ -206,12 +220,7 @@ func fillIncident(ctx context.Context, q dbtx, i *Incident) error {
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return fmt.Errorf("notify: read incident devices: %w", err)
 	}
-	srows, err := q.QueryContext(ctx, `SELECT id, channel, "to", at, ok, error, delayed FROM notify_send WHERE kind = 'incident' AND ref_id = ? ORDER BY at, rowid`, i.ID)
-	if err != nil {
-		return fmt.Errorf("notify: read incident sends: %w", err)
-	}
-	i.Sends, err = scanSends(srows)
-	return err
+	return nil
 }
 
 // IncidentTop is one incident of an IncidentPeriod: its kind, severity, title, the newest activity and its first device ("" = none).
@@ -257,7 +266,7 @@ func (s *Service) IncidentsIn(ctx context.Context, from, to time.Time, top int) 
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return p, fmt.Errorf("notify: count incidents: %w", err)
 	}
-	rows, err = db.QueryContext(ctx, `SELECT i.kind, i.severity, i.title, i.last_seen,
+	rows, err = db.QueryContext(ctx, `SELECT i.id, i.kind, i.severity, i.title, i.last_seen,
 			ifnull((SELECT d.asset_id FROM notify_incident_device d WHERE d.incident_id = i.id ORDER BY d.name, d.asset_id LIMIT 1), ''),
 			ifnull((SELECT d.name FROM notify_incident_device d WHERE d.incident_id = i.id ORDER BY d.name, d.asset_id LIMIT 1), ''),
 			(SELECT count(*) FROM notify_incident_device d WHERE d.incident_id = i.id)
@@ -266,10 +275,11 @@ func (s *Service) IncidentsIn(ctx context.Context, from, to time.Time, top int) 
 	if err != nil {
 		return p, fmt.Errorf("notify: top incidents: %w", err)
 	}
+	var ids []string
 	for rows.Next() {
 		var x IncidentTop
-		var k, sev, at string
-		if err := rows.Scan(&k, &sev, &x.Title, &at, &x.DeviceID, &x.DeviceName, &x.Devices); err != nil {
+		var id, k, sev, at string
+		if err := rows.Scan(&id, &k, &sev, &x.Title, &at, &x.DeviceID, &x.DeviceName, &x.Devices); err != nil {
 			_ = rows.Close()
 			return p, fmt.Errorf("notify: top incidents: %w", err)
 		}
@@ -279,11 +289,36 @@ func (s *Service) IncidentsIn(ctx context.Context, from, to time.Time, top int) 
 			return p, fmt.Errorf("notify: top incidents: %w", err)
 		}
 		p.Top = append(p.Top, x)
+		ids = append(ids, id)
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return p, fmt.Errorf("notify: top incidents: %w", err)
 	}
-	return p, nil
+	return p, s.topNames(ctx, db, p.Top, ids)
+}
+
+// topNames gives the incidents of a report (top, their ids) the current names of their devices, as the incidents page shows them.
+func (s *Service) topNames(ctx context.Context, db dbtx, top []IncidentTop, ids []string) error {
+	if s.cfg.Devices == nil || len(top) == 0 {
+		return nil
+	}
+	list := make([]Incident, len(top))
+	for k, x := range top {
+		list[k] = Incident{ID: ids[k], Title: x.Title}
+		if err := fillDevices(ctx, db, &list[k]); err != nil {
+			return err
+		}
+	}
+	s.currentNames(ctx, list)
+	for k := range top {
+		top[k].Title = list[k].Title
+		for _, d := range list[k].Devices {
+			if d.ID == top[k].DeviceID {
+				top[k].DeviceName = d.Name
+			}
+		}
+	}
+	return nil
 }
 
 // Incidents lists the incidents for GET /notify/incidents: every open one (new or acknowledged) first, then the resolved ones, each
@@ -356,6 +391,7 @@ func (s *Service) Incidents(ctx context.Context) ([]Incident, error) {
 		return nil, err
 	}
 	s.withConnections(ctx, out)
+	s.currentNames(ctx, out)
 	return out, nil
 }
 
@@ -408,11 +444,13 @@ func (s *Service) IncidentDetail(ctx context.Context, id string) (IncidentDetail
 	return d, err
 }
 
-// detailConnections is withConnections for one incident, called outside any write transaction.
+// detailConnections is withConnections and currentNames for one incident, called outside any write transaction. The previews keep the
+// stored words: they are what each channel received.
 func (s *Service) detailConnections(ctx context.Context, d *IncidentDetail) {
 	one := []Incident{d.Incident}
 	s.withConnections(ctx, one)
-	d.Incident.Count = one[0].Count
+	s.currentNames(ctx, one)
+	d.Incident = one[0]
 }
 
 func (s *Service) incidentDetail(ctx context.Context, q dbtx, id string) (IncidentDetail, error) {

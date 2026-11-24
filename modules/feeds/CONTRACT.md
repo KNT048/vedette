@@ -86,7 +86,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   it: the records still missing are asked by ID, the exploited lists' first and then the newest, within 460 asks by ID a pull in all
   (one hourly pull of a box whose indexes named about 29,000 older CVEs after its first read reads about 450 of them). A record the
   source does not have is remembered and not asked again at the next pulls. A CVE only a custom list, a box-built signal or a finding
-  keeps is never asked by ID.
+  keeps is never asked by ID. When a CVE only a custom list or a box-built signal keeps has no record (and none is published inside the
+  window), the whole list is read again early instead (`recordsOwn`): only once the last whole-list read is finished and its archive is
+  older than the one it would read, at most once per 24 hours (the start time is kept in `feeds_nvd_cursor`, row `cve_record_own`, so a
+  restart does not reset it), through the same download, rate and fetch log as any whole-list read; that read stamps the CVEs the list
+  does not hold, so they start no second one.
 - **INV-28** A CVSS score is stored per assessor and version and chosen only by `PickCVSS`, banded only by `Severity`.
 - **BRIEF-1** `Store.Brief` is the one read model of a CVE (the CVE page, the finding page, the AI context, MCP). Its product name is
   the exploited list's, else the catalogue product most of its counted rows and the rows a product's version scheme reads from the

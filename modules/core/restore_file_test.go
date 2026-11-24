@@ -123,6 +123,12 @@ func TestRestoreFromAProtectedFileOnASetUpBox(t *testing.T) {
 	if d := e.auditDetails("data.restore_import"); len(d) != 1 || !strings.HasSuffix(d[0], "with the key inside the protected backup") {
 		t.Errorf("import detail = %q", d)
 	}
+	// The backup's time is written in the box's zone (Asia/Ho_Chi_Minh before setup names another), as on every page: 08:30Z is 15:30.
+	for _, a := range []string{"data.restore_upload", "data.restore_import", "data.restore"} {
+		if d := e.auditDetails(a); len(d) != 1 || !strings.HasPrefix(d[0], "backup of 1 Nov 2026, 15:30") {
+			t.Errorf("%s detail = %q, want the backup's time in the box's zone", a, d)
+		}
+	}
 	if _, err := os.Stat(filepath.Join(e.m.CoreData, "restore-pending.json")); err != nil {
 		t.Errorf("no pending-restore marker: %v", err)
 	}

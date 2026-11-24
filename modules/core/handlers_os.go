@@ -329,6 +329,16 @@ func (h *OSHandlers) location(ctx context.Context) (*time.Location, error) {
 	return loc, nil
 }
 
+// auditStamp is instant t for an audit line: in the box's zone, as the Audit page and its export write every other time; when the
+// zone cannot be read, in UTC and saying so.
+func (h *OSHandlers) auditStamp(ctx context.Context, t time.Time) string {
+	loc, err := h.location(ctx)
+	if err != nil {
+		return orgtime.StampZone(t, time.UTC)
+	}
+	return orgtime.Stamp(t, loc)
+}
+
 // hostState reads state/os, from the copy younger than stateTTL when there is one, else from the host; callers
 // that arrive during a read share it. It is the read for GET /core/updates/os.
 func (h *OSHandlers) hostState(ctx context.Context) (api.OSState, error) {
@@ -750,8 +760,7 @@ func (h *OSHandlers) rebootPlan(ctx context.Context, req *oas.CorePostCoreUpdate
 	default:
 		return args, "", "", "", apierr.New(400, CodeInvalidWhen, "Choose: now, next maintenance window, or a time inside the window.")
 	}
-	at := when.UTC().Format(time.RFC3339)
-	return api.OSRebootArgs{When: "at", At: at}, "os.reboot_schedule", target, at, nil
+	return api.OSRebootArgs{When: "at", At: when.UTC().Format(time.RFC3339)}, "os.reboot_schedule", target, orgtime.Stamp(when, loc), nil
 }
 
 // CoreDeleteCoreUpdatesOsReboot implements DELETE /core/updates/os/reboot (admin): cancel the scheduled reboot.

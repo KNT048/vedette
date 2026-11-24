@@ -674,6 +674,21 @@ func TestOSRebootWindowAndCustomAreReadInTheOrganizationTimeZone(t *testing.T) {
 	}
 }
 
+// The audit line of a scheduled reboot names its time in the box's zone, as the Audit page writes every other time, never in UTC.
+func TestOSRebootScheduleAuditNamesTheTimeInTheBoxZone(t *testing.T) {
+	t.Parallel()
+	e := newOSEnv(t, osOpts{})
+	e.setZone("Asia/Ho_Chi_Minh")
+	e.checked()
+	wantOK(t, e.admin.patch("/core/updates/os/settings", map[string]any{"window": map[string]any{"mode": "window", "days": []int{1, 2, 3, 4, 5, 6, 7}, "from": "02:00", "to": "05:00"}}), 200)
+	// Host clock: Mon 2026-11-09 12:00Z; the next window opens on Tuesday at 02:00 in Ho Chi Minh City (19:00Z on Monday).
+	wantOK(t, e.admin.post("/core/updates/os/reboot", map[string]any{"when": "window"}), 200)
+	wantOK(t, e.admin.post("/core/updates/os/reboot", map[string]any{"when": "custom", "at": "03:30"}), 200)
+	if d := e.auditDetails("os.reboot_schedule"); !slices.Equal(d, []string{"10 Nov 2026, 02:00", "10 Nov 2026, 03:30"}) {
+		t.Errorf("reboot_schedule details = %q, want the times in the box's zone", d)
+	}
+}
+
 func TestOSRebootWindowNeedsAWindowAndPicksTheDay(t *testing.T) {
 	t.Parallel()
 	e := newOSEnv(t, osOpts{})

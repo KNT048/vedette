@@ -407,8 +407,31 @@ func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, o *outbox) erro
 	for _, f := range o.after {
 		events = append(events, f(ctx)...)
 	}
-	s.publish(ctx, events)
+	s.publish(ctx, oneMatchPerDevice(events))
 	return nil
+}
+
+// oneMatchPerDevice leaves out an inventory.software.changed of a device that the same write also announces in an
+// inventory.match.changed: findings matches the whole device on either, so both made it match the device twice (on a device of 500
+// software lines, seconds a person waits for after saving a version).
+func oneMatchPerDevice(events []Event) []Event {
+	matched := map[string]bool{}
+	for _, e := range events {
+		if m, ok := e.Data.(MatchEvent); ok && e.Name == EventMatchChanged {
+			matched[m.AssetID] = true
+		}
+	}
+	if len(matched) == 0 {
+		return events
+	}
+	out := events[:0:0]
+	for _, e := range events {
+		if a, ok := e.Data.(AssetEvent); ok && e.Name == EventSoftwareChanged && matched[a.AssetID] {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 // markAddressless sets NoAddress on every inventory.asset.discovered of the write whose device has no IPv4 address as the write

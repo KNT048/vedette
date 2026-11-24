@@ -49,16 +49,21 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version they entered themselves (a line that is only their entry) updated the device and said so: `version_moved` with credit,
   handled by that person (`resolved_by`), never by Vedette; setting it back opens the finding again with the person named in the
   reopen event (`detail.by`, View `reopened.by`) and in its audit row (that person's row, detail "the version was set back by
-  <person>"). Inventory's `MatchSoftware` carries no `SetBy`; `cmd/vedette` reads it from
-  inventory's software lines for the lines that are a person's entry (`Software.SetBy`).
-- **M-6 Device lifecycle.** Findings take part in inventory's merge and delete inside inventory's transaction (`lifecycle.go`): a
-  merge moves findings to the kept device and line and folds two findings of one (CVE, line) into one, keeping events; a delete
-  removes findings, events and questions. Lines inventory deletes for good are settled first (`LinesDeleted`). A software line
-  inventory gives to another device with its id (a split gives a merged device its software back whole) takes its findings and
-  questions with it at the next match write of either device (`followline.go`): the same finding id, handling, notes, events and the
-  rows other modules keep by its id, never a handled copy left behind and a new finding opened; two findings of one (CVE, line) fold
-  as in a merge (audit `findings.moved_with_line`; selfcheck `findings.line_on_its_device`). Before a finding moves, the modules that
-  keep a device id next to its id are told (lifecycle `FindingMoved`, inside the match write). Ignoring a device changes no finding;
+  <person>"). The person is inventory's `MatchSoftware.SetBy` of the line, read with the rest of the match input
+  (`Software.SetBy`).
+- **M-6 Device lifecycle.** Findings take part in inventory's merge, split and delete inside inventory's transaction (`lifecycle.go`,
+  `followline.go`): a merge moves findings to the kept device and line and folds two findings of one (CVE, line) into one, keeping
+  events; a delete removes findings, events and questions. Lines inventory deletes for good are settled first (`LinesDeleted`). A
+  split (`DeviceSplit`) moves the findings and questions of every line the device that stays no longer has (`lifecycle.SplitLine.Gone`)
+  to the line of the device split off that holds its readings now: the line itself when it went whole, or a line of a new id when its
+  readings went back as one. The same finding id, handling, notes, events and the rows other modules keep by its id go with it, never
+  a handled copy left behind and a new finding opened; two findings of one (CVE, line) fold as in a merge (audit
+  `findings.moved_with_line`). A line both devices have after the split keeps its findings on the device that stays; the device split
+  off gets its own at its match. So no finding or question names a line of another device once the split commits (selfcheck
+  `findings.line_on_its_device`). A row that still does (stored by a match write that read its device before the split committed, or
+  left by an older split) moves at the next match write of either device (`followLines`, when inventory's word on both devices
+  agrees). Before a finding moves, the modules that keep a device id next to its id are told (lifecycle `FindingMoved`, in the same
+  write). Ignoring a device changes no finding;
   lists, Home, the AI context and reports leave its findings out.
 - **M-7 One match pass.** Reconcile reads every device and asks feeds once for the match set (`Feeds.MatchSet`). A CVE that matches
   with version evidence is a finding whatever its urgency. Every finding whose CVE is in the set and that the pass no longer detects
@@ -134,7 +139,9 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-22** Every finding row carries the CVE's base CVSS as feeds picks it (`Feeds.CVSS`).
 - **INV-23** `GET /findings/overview` is Home in one read; its totals equal By device's. `devices.affected` counts every device with an
   open finding (the Vedette box included, which carries no badge); the trend starts at `trend_start`, the day this box began keeping
-  findings when that is inside the 30 days.
+  findings when that is inside the 30 days. `first_run_summary` is notify's first-run summary of the newest load made in the last 7
+  days (`HomeSources.FirstRun`, a notice, never an incident): shown on Home even when no channel took it; `null` when there is none or
+  notify is off.
 - **INV-30** Findings of a device not yet added show, marked; an ignored device's findings are listed only under Ignored, and readers
   of one finding outside its page answer "not found" for them.
 

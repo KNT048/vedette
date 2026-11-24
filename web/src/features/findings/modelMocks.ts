@@ -228,6 +228,7 @@ export function overview(): Overview {
     first, trend, trend_start: dayOf(new Date(Date.now() - (TREND_DAYS - 1) * 864e5).toISOString()),
     alerts: notifyOn ? { ...sentSince(new Date(Date.now() - 7 * 864e5).toISOString()), days: 7 } : null,
     incidents: notifyOn ? openIncidents() : null,
+    first_run_summary: null, // the sample box has sent no first-run summary
     generated_at: nowIso(),
   }
 }

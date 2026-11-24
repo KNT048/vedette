@@ -286,9 +286,6 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 		return findings.Asset{}, false, err
 	}
 	out := findingsAsset(d)
-	if err := a.enteredBy(ctx, assetID, out.Software); err != nil {
-		return findings.Asset{}, false, err
-	}
 	if d.Name == d.ID { // no hostname and no IP (hand-added, LLDP only): the evidence names it as the Devices page does, never by its id
 		names, err := a.inv.Names(ctx)
 		if err != nil {
@@ -299,34 +296,6 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 		}
 	}
 	return out, true, nil
-}
-
-// enteredBy fills Software.SetBy, who entered the version of each line that is a person's entry, from inventory's software lines
-// (MatchSoftware does not carry it): a finding a person's change of their own entry closes is handled by them, and one it opens
-// again names them. Read only for a device with such a line.
-func (a findingsInventory) enteredBy(ctx context.Context, assetID string, sw []findings.Software) error {
-	if !slices.ContainsFunc(sw, func(s findings.Software) bool { return s.Source == "manual" }) {
-		return nil
-	}
-	lines, err := a.inv.SoftwareLines(ctx, assetID)
-	if errors.Is(err, inventory.ErrNotFound) {
-		return nil // deleted since its match input was read: the next event settles it
-	}
-	if err != nil {
-		return err
-	}
-	by := make(map[string]string, len(lines))
-	for _, l := range lines {
-		if l.Source == "manual" && l.SetBy != "" {
-			by[l.ID] = l.SetBy
-		}
-	}
-	for i := range sw {
-		if sw[i].Source == "manual" {
-			sw[i].SetBy = by[sw[i].ID]
-		}
-	}
-	return nil
 }
 
 // findingsAsset is a device as the matcher reads it. The device page asks the matcher which OS a person's declared row gives it
@@ -358,7 +327,7 @@ func declaredOS(d inventory.MatchDevice, candidates []string) (id, version strin
 func findingsSoftware(s inventory.MatchSoftware) findings.Software {
 	out := findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
 		Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource, ReportedSource: s.ReportedSource, Correction: s.Correction, Superseded: s.Superseded,
-		Key: s.Key, MarkedBy: s.MarkedBy, Guess: s.Guess}
+		Key: s.Key, MarkedBy: s.MarkedBy, Guess: s.Guess, SetBy: s.SetBy}
 	if t, err := time.Parse(time.RFC3339Nano, s.MarkedAt); err == nil {
 		out.MarkedAt = t
 	}
@@ -872,8 +841,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	d.FindingHandlers = findings.NewFindingHandlers(d.Findings, inv, feed, gate)
 	// Home's one read (GET /findings/overview; also the shell's nav badges) carries inventory's device counts and notify's sent
-	// messages and open incidents; findings imports neither.
-	home := findings.HomeSources{Alerts: notifySvc.SentSince, Incidents: notifySvc.OpenIncidents}
+	// messages, open incidents and first-run summary; findings imports neither.
+	home := findings.HomeSources{Alerts: notifySvc.SentSince, Incidents: notifySvc.OpenIncidents, FirstRun: homeFirstRun(notifySvc)}
 	if d.Inventory != nil {
 		home.Devices = d.Inventory.DeviceCounts
 	}

@@ -14,9 +14,12 @@ import (
 )
 
 // A finding is about one software line of one device (fnd_finding.software_id), and the line decides the device: when inventory gives
-// a line to another device with its id (a split gives a merged device its software back whole), the finding and the questions on that
-// line go with it, keeping the finding's id, its handling, its notes and events and the rows other modules keep by its id. Inventory
-// commits the move before it announces the software change, so findings follow at the next match write of either device.
+// a line to another device (a split gives a merged device its software back), the finding and the questions on that line go with it,
+// keeping the finding's id, its handling, its notes and events and the rows other modules keep by its id. A split says where each line
+// went inside its own write (DeviceSplit), so the rows move with the software in the same commit. followLines is the safety net for
+// a row that still names a line of another device after that: one a match write stored from a device read before the split committed,
+// or one left by a split before the split told the lifecycle where its lines went. It moves them at the next match write of either
+// device, when inventory's word on both devices agrees.
 
 // followLines runs at the start of a match write of device a, inside its transaction, before a's findings are read. The findings and
 // questions of another device that name one of a's lines become a's; those of a that name a line another device has now become that
@@ -124,36 +127,88 @@ func (s *Service) followLines(ctx context.Context, tx *sql.Tx, a Asset) error {
 		return strings.Compare(x.from+"\x1f"+x.to+"\x1f"+x.line, y.from+"\x1f"+y.to+"\x1f"+y.line)
 	})
 	movedBy := map[[2]string][]string{} // (from, to): the CVEs of the findings that moved
-	settle := map[string]bool{}
 	for _, m := range moves {
-		fs, err := queryFindings(ctx, tx, `asset_id = ? AND software_id = ?`, m.from, m.line)
+		cves, err := s.moveLine(ctx, tx, m.from, m.line, m.to, m.line)
 		if err != nil {
 			return err
 		}
-		for _, f := range fs {
-			if err := s.moveFinding(ctx, tx, f, m.to); err != nil {
-				return err
-			}
-			movedBy[[2]string{m.from, m.to}] = append(movedBy[[2]string{m.from, m.to}], f.CVE)
-			settle[m.to] = true
-		}
-		// a question already asked on the device the line is on now keeps that row (and its answer); the others move
-		if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_question WHERE asset_id = ?1 AND software_id = ?2 AND EXISTS (SELECT 1 FROM fnd_question o
-			WHERE o.asset_id = ?3 AND o.software_id = ?2 AND o.cve IS fnd_question.cve AND o.kind = fnd_question.kind)`, m.from, m.line, m.to); err != nil {
-			return fmt.Errorf("findings: moving the questions of a software line: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET asset_id = ? WHERE asset_id = ? AND software_id = ?`, m.to, m.from, m.line); err != nil {
-			return fmt.Errorf("findings: moving the questions of a software line: %w", err)
-		}
+		movedBy[[2]string{m.from, m.to}] = append(movedBy[[2]string{m.from, m.to}], cves...)
 	}
-	for _, dev := range slices.Sorted(maps.Keys(settle)) {
-		if _, err := s.settleNoLine(ctx, tx, dev); err != nil {
+	return s.settleMoved(ctx, tx, movedBy, "")
+}
+
+// DeviceSplit is findings' part of a split (core/lifecycle), inside inventory's write: an address of device sp.From is a device of its
+// own, sp.Into, and inventory names every line of From whose readings went to a line of Into. For a line From no longer has (Gone: the
+// line went whole with its id, or its readings went to a new line of Into and From's line is removed), the findings and questions on it
+// go to Into's line, keeping the finding's id, handling, notes, events and the rows other modules keep by its id (lifecycle
+// FindingMoved); two findings of one (CVE, line) on Into fold as in a merge. A line From still has (another source still reads the
+// software there) keeps its findings: Into gets its own at its match after the commit. One audit row findings.moved_with_line, so no
+// finding names a line of another device once the split commits (selfcheck findings.line_on_its_device).
+func (s *Service) DeviceSplit(ctx context.Context, tx *sql.Tx, sp lifecycle.Split) error {
+	if sp.From == "" || sp.Into == "" || sp.From == sp.Into {
+		return nil
+	}
+	var cves []string
+	for _, old := range slices.Sorted(maps.Keys(sp.Software)) {
+		l := sp.Software[old]
+		if !l.Gone || l.Into == "" {
+			continue
+		}
+		moved, err := s.moveLine(ctx, tx, sp.From, old, sp.Into, l.Into)
+		if err != nil {
+			return err
+		}
+		cves = append(cves, moved...)
+	}
+	return s.settleMoved(ctx, tx, map[[2]string][]string{{sp.From, sp.Into}: cves}, " after the device was split")
+}
+
+// moveLine gives the findings and questions of device from on software line line to device to, on its line toLine (the same line when
+// inventory moved it with its id), and returns the CVEs of the findings that moved. A question already asked on to's line keeps that
+// row (and its answer); the others move.
+func (s *Service) moveLine(ctx context.Context, tx *sql.Tx, from, line, to, toLine string) ([]string, error) {
+	fs, err := queryFindings(ctx, tx, `asset_id = ? AND software_id = ?`, from, line)
+	if err != nil {
+		return nil, err
+	}
+	cves := make([]string, 0, len(fs))
+	for _, f := range fs {
+		if err := s.moveFinding(ctx, tx, f, to, toLine); err != nil {
+			return nil, err
+		}
+		cves = append(cves, f.CVE)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_question WHERE asset_id = ?1 AND software_id = ?2 AND EXISTS (SELECT 1 FROM fnd_question o
+		WHERE o.asset_id = ?3 AND o.software_id = ?4 AND o.cve IS fnd_question.cve AND o.kind = fnd_question.kind)`, from, line, to, toLine); err != nil {
+		return nil, fmt.Errorf("findings: moving the questions of a software line: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE fnd_question SET asset_id = ?3, software_id = ?4 WHERE asset_id = ?1 AND software_id = ?2`, from, line, to, toLine); err != nil {
+		return nil, fmt.Errorf("findings: moving the questions of a software line: %w", err)
+	}
+	return cves, nil
+}
+
+// settleMoved finishes the moves of movedBy ((from, to): the CVEs of the findings that moved): each device that took findings folds a
+// finding on no line into the one on a line of the same CVE (settleNoLine), and each pair of devices gets one audit row
+// findings.moved_with_line; why ends its detail.
+func (s *Service) settleMoved(ctx context.Context, tx *sql.Tx, movedBy map[[2]string][]string, why string) error {
+	pairs := slices.SortedFunc(maps.Keys(movedBy), func(x, y [2]string) int { return strings.Compare(x[0]+"\x1f"+x[1], y[0]+"\x1f"+y[1]) })
+	settled := map[string]bool{}
+	for _, k := range pairs {
+		if len(movedBy[k]) == 0 || settled[k[1]] {
+			continue
+		}
+		settled[k[1]] = true
+		if _, err := s.settleNoLine(ctx, tx, k[1]); err != nil {
 			return err
 		}
 	}
-	for _, k := range slices.SortedFunc(maps.Keys(movedBy), func(x, y [2]string) int { return strings.Compare(x[0]+x[1], y[0]+y[1]) }) {
+	for _, k := range pairs {
 		cves := movedBy[k]
-		detail := fmt.Sprintf("from %s: %d findings moved with their software line (%s)", k[0], len(cves), strings.Join(cves, ", "))
+		if len(cves) == 0 {
+			continue
+		}
+		detail := fmt.Sprintf("from %s: %d findings moved with their software line%s (%s)", k[0], len(cves), why, strings.Join(cves, ", "))
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.moved_with_line", Target: k[1], Detail: clipBytes(detail, 1000)}); err != nil {
 			return err
 		}
@@ -161,14 +216,14 @@ func (s *Service) followLines(ctx context.Context, tx *sql.Tx, a Asset) error {
 	return nil
 }
 
-// moveFinding gives finding f to device to, on the same line. When to already holds a finding of the same (CVE, line), the two fold
+// moveFinding gives finding f to device to, on its line line. When to already holds a finding of the same (CVE, line), the two fold
 // into the one that ranks higher (a person's decision, else a confirmed one, else the one that was there). The modules that keep a
 // device id next to a finding id are told first (lifecycle FindingMoved), so a fold that follows moves rows that are already on to.
-func (s *Service) moveFinding(ctx context.Context, tx *sql.Tx, f Finding, to string) error {
+func (s *Service) moveFinding(ctx context.Context, tx *sql.Tx, f Finding, to, line string) error {
 	if err := s.cfg.Lifecycle.FindingMoved(ctx, tx, lifecycle.FindingMove{Finding: f.ID, From: f.AssetID, Into: to}); err != nil {
 		return err
 	}
-	held, err := queryFindings(ctx, tx, `asset_id = ? AND cve = ? AND software_id IS ? AND id <> ?`, to, f.CVE, nullString(f.SoftwareID), f.ID)
+	held, err := queryFindings(ctx, tx, `asset_id = ? AND cve = ? AND software_id IS ? AND id <> ?`, to, f.CVE, nullString(line), f.ID)
 	if err != nil {
 		return err
 	}
@@ -181,7 +236,7 @@ func (s *Service) moveFinding(ctx context.Context, tx *sql.Tx, f Finding, to str
 			return nil
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET asset_id = ? WHERE id = ?`, to, f.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET asset_id = ?, software_id = ? WHERE id = ?`, to, nullString(line), f.ID); err != nil {
 		return fmt.Errorf("findings: moving a finding with its software line: %w", err)
 	}
 	return nil

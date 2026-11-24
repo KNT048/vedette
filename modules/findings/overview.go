@@ -56,6 +56,7 @@ type Overview struct {
 	TrendStart  string            `json:"trend_start"`
 	Alerts      *SummaryAlerts    `json:"alerts"`
 	Incidents   *SummaryIncidents `json:"incidents"`
+	FirstRun    *FirstRunSummary  `json:"first_run_summary"`
 	GeneratedAt string            `json:"generated_at"`
 }
 
@@ -180,6 +181,16 @@ func (h *FindingHandlers) overviewIn(ctx context.Context, src HomeSources, notif
 			return nil, fmt.Errorf("findings: overview: counting alerts: %w", err)
 		}
 		o.Alerts = &SummaryAlerts{Sent: sent, Failed: failed, Days: alertDays}
+	}
+	if src.FirstRun != nil && notifyOn {
+		f, err := src.FirstRun(ctx, now.Add(-firstRunDays*24*time.Hour))
+		if err != nil {
+			return nil, fmt.Errorf("findings: overview: reading the first-run summary: %w", err)
+		}
+		if f != nil && f.Channels == nil {
+			f.Channels = []string{}
+		}
+		o.FirstRun = f
 	}
 	return o, nil
 }

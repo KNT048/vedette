@@ -151,7 +151,8 @@ func TestSoftwareLines_RemovalIsAState(t *testing.T) {
 	}
 }
 
-// A person's version holds against an older reading and lapses on a newer one read after it, with an audit row and a history row.
+// A person's version holds against an older reading (said once, with an audit row and a history row) and lapses on a newer one read
+// after it, with an audit row and a history row.
 func TestSoftwareLines_EntryLapsesOnANewerReading(t *testing.T) {
 	t.Parallel()
 	c := newLineCase(t)
@@ -165,16 +166,45 @@ func TestSoftwareLines_EntryLapsesOnANewerReading(t *testing.T) {
 	if l := c.line("OpenSSH"); ver(l) != "9.6p1" || l.Source != "manual" || l.SetBy != "op@example.com" {
 		t.Fatalf("entry: %+v", l)
 	}
+	c.e.tick(time.Minute)
 	c.send(observe.Nmap, nil, ssh("9.5", "tcp/22")) // older: the entry holds; the older reading still matches
 	if l := c.line("OpenSSH"); ver(l) != "9.6p1" || !l.Differs {
 		t.Fatalf("an older reading keeps the entry: %+v", l)
 	}
+	c.e.tick(time.Minute)
+	c.send(observe.Nmap, nil, ssh("9.5", "tcp/22")) // the same reading again: said once
+	if countOf(c.e.auditActions(), "inventory.software_correction_kept") != 1 || countOf(c.history(id), "entry_kept") != 1 {
+		t.Fatalf("the kept entry is said once: audit %v, history %v", c.e.auditActions(), c.history(id))
+	}
+	c.e.tick(time.Minute)
 	c.send(observe.Nmap, nil, ssh("10.2", "tcp/22"))
 	if l := c.line("OpenSSH"); l.ID != id || ver(l) != "10.2" || l.Source != "nmap" {
 		t.Fatalf("a newer reading ends the entry: %+v", l)
 	}
 	if countOf(c.e.auditActions(), "inventory.software_correction_lapsed") != 1 || !slices.Contains(c.history(id), "entry_lapsed") {
 		t.Fatalf("audit %v, history %v", c.e.auditActions(), c.history(id))
+	}
+}
+
+// A person who sets a version below a scan's reading has seen that reading: the scan reading the same newer release again keeps the
+// entry (it was not first seen after it), and nothing says a reading "not newer" than the entry was kept.
+func TestSoftwareLines_EntryBelowASeenReadingIsNotSaidKept(t *testing.T) {
+	t.Parallel()
+	c := newLineCase(t)
+	c.send(observe.Nmap, nil, ssh("9.6", "tcp/22"))
+	id := c.line("OpenSSH").ID
+	c.e.tick(time.Minute)
+	v := "9.3"
+	if err := c.e.svc.EditSoftware(c.e.ctx(), "op@example.com", c.dev(), id, inventory.SoftwareEdit{Version: &v}); err != nil {
+		t.Fatal(err)
+	}
+	c.e.tick(time.Minute)
+	c.send(observe.Nmap, nil, ssh("9.6", "tcp/22"))
+	if l := c.line("OpenSSH"); ver(l) != "9.3" || l.Source != "manual" {
+		t.Fatalf("the reading the person saw keeps the entry: %+v", l)
+	}
+	if n, h := countOf(c.e.auditActions(), "inventory.software_correction_kept"), countOf(c.history(id), "entry_kept"); n != 0 || h != 0 {
+		t.Fatalf("a newer reading is not one that is not newer: audit %v, history %v", c.e.auditActions(), c.history(id))
 	}
 }
 

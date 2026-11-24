@@ -76,6 +76,12 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   line on which a generic row (NVD's, CISA's) states a release affected that these rows call not affected, or states one that cannot
   be placed, keeps none of them: the affected side wins. NVD's exact `esxi:8.0:-` (GA) entry alone never says a later update is not
   affected.
+- **INV-37** Every CVE the catalogue keeps for a reason every box shares (a public list or signal names it, or it was published within
+  365 days) gets its CVE record once the whole list is read, also when it entered the catalogue after the files that would have brought
+  it: the records still missing are asked by ID, the exploited lists' first and then the newest, within 460 asks by ID a pull in all
+  (one hourly pull of a box whose indexes named about 29,000 older CVEs after its first read reads about 450 of them). A record the
+  source does not have is remembered and not asked again at the next pulls. A CVE only a custom list, a box-built signal or a finding
+  keeps is never asked by ID.
 - **INV-28** A CVSS score is stored per assessor and version and chosen only by `PickCVSS`, banded only by `Severity`.
 - **BRIEF-1** `Store.Brief` is the one read model of a CVE (the CVE page, the finding page, the AI context, MCP). Its product name is
   the exploited list's, else the catalogue product most of its counted rows and the rows a product's version scheme reads from the

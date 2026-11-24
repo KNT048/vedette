@@ -389,6 +389,43 @@ LIMIT ?`, store.FormatTS(now.Add(-recordRecheck)), store.FormatTS(now.AddDate(0,
 	return out, rows.Err()
 }
 
+// recordBacklogSQL is the CVEs every box keeps whose record was never read: those a public list or signal names (publicListedSQL)
+// and the catalogue's CVEs published since the window's start (the first argument). A stamped record (read, not published, waiting)
+// is not one of them; a CVE only a custom list, a box-built signal or a finding keeps never is.
+var recordBacklogSQL = `SELECT i.cve FROM (` + publicListedSQL + ` UNION SELECT cve FROM feeds_cve WHERE published >= ? AND record_at IS NULL) i
+LEFT JOIN feeds_cve c ON c.cve = i.cve WHERE c.record_at IS NULL`
+
+// recordBacklog lists at most limit CVEs of recordBacklogSQL: the exploited lists' first, then the newest IDs (a new CVE before an
+// older one an exploit index names).
+func (s *Store) recordBacklog(ctx context.Context, cutoff time.Time, limit int) ([]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT b.cve FROM (`+recordBacklogSQL+`) b
+ORDER BY b.cve IN (`+missingKEVSQL+`) DESC, substr(b.cve, 5, 4) DESC, length(b.cve) DESC, b.cve DESC LIMIT ?`, store.FormatTS(cutoff), limit)
+	if err != nil {
+		return nil, fmt.Errorf("feeds: CVE records missing: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			return nil, fmt.Errorf("feeds: CVE records missing: %w", err)
+		}
+		if cveRE.MatchString(c) {
+			out = append(out, c)
+		}
+	}
+	return out, rows.Err()
+}
+
+// recordBacklogCount is how many CVEs recordBacklogSQL holds.
+func (s *Store) recordBacklogCount(ctx context.Context, cutoff time.Time) (int, error) {
+	var n int
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM (`+recordBacklogSQL+`)`, store.FormatTS(cutoff)).Scan(&n); err != nil {
+		return 0, fmt.Errorf("feeds: CVE records missing: %w", err)
+	}
+	return n, nil
+}
+
 // recordUnread counts the CVEs a public list or signal names (publicListedSQL, as the NVD twin missingCount) whose record was never
 // read: many of them (a new signal source that names thousands of older CVEs) are read from the daily archive, not one by one.
 func (s *Store) recordUnread(ctx context.Context) (int, error) {

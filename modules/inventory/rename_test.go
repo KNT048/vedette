@@ -25,7 +25,8 @@ func TestDisplayName_TheNameInVedetteWins(t *testing.T) {
 		{"", "fw-core", "Fortinet", "", "192.168.142.1", "discovered", "", "fw-core"},     // empty: the naming rule
 		{" ", "", "", "", "192.168.142.1", "discovered", "", "192.168.142.1"},
 	} {
-		if got := inventory.DisplayName(c.name, c.host, c.vendor, c.model, c.ip, c.origin, c.product); got != c.want {
+		f := inventory.NameFacts{UserName: c.name, Hostname: c.host, Vendor: c.vendor, Model: c.model, IP: c.ip, Origin: c.origin, Product: c.product}
+		if got := inventory.DisplayName(f); got != c.want {
 			t.Errorf("DisplayName(%q, %q, …) = %q, want %q", c.name, c.host, got, c.want)
 		}
 	}

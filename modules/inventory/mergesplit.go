@@ -561,7 +561,9 @@ func (s *Service) mergeDiffers(ctx context.Context, tx *sql.Tx, ids []string) ([
 				if err := tx.QueryRowContext(ctx, `SELECT ip, origin FROM inv_asset WHERE id = ?`, ids[0]).Scan(&ip, &origin); err != nil {
 					return nil, fmt.Errorf("inventory: read device: %w", err)
 				}
-				kept = cmpOr(DisplayName("", best["hostname"].value, best["vendor"].value, best["model"].value, ip.String, origin.String, ""), vals[0].Value)
+				os := best["os"]
+				kept = cmpOr(DisplayName(NameFacts{Hostname: best["hostname"].value, Vendor: best["vendor"].value, Model: best["model"].value, CardVendor: CardVendor(best["vendor"].source),
+					OS: NamingOS(os.value, os.source, osBasis(os.value, os.source, "")), IP: ip.String, Origin: origin.String}), vals[0].Value)
 			}
 		case "kind": // a guess is never the kind: the merged device keeps a stated type, else stays unknown until a person picks one
 			kept = devicetypes.Unknown

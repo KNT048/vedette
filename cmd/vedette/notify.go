@@ -119,21 +119,14 @@ func (a notifyDevices) DeviceStates(ctx context.Context, ids []string) (map[stri
 // declared device names itself after its first software, so a declared device whose Display is its kind is not sure (sure=false):
 // DeviceStates then asks inventory.Names, one light read of every device's name (rare: a product with no device has a name of its own).
 func refName(r inventory.DeviceRef) (name string, sure bool) {
-	var host, user string
-	if r.Hostname != nil {
-		host = *r.Hostname
-	}
-	if r.UserName != nil {
-		user = *r.UserName
-	}
-	product := r.Display
-	if product == r.Kind {
-		if r.Origin == "manual" && strings.TrimSpace(user+host) == "" {
+	f := r.NameFacts(r.Display)
+	if r.Display == r.Kind {
+		if r.Origin == "manual" && strings.TrimSpace(f.UserName+f.Hostname) == "" {
 			return "", false
 		}
-		product = ""
+		f.Product = ""
 	}
-	return inventory.DisplayName(user, host, r.Vendor, r.Model, r.IP, r.Origin, product), true
+	return inventory.DisplayName(f), true
 }
 
 // deviceState is DeviceStates of one device of the inventory, named name (refName).

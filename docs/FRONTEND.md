@@ -4,7 +4,7 @@ Good GUI first; friendly to the people who use it.
 
 ## 1. Stack
 
-React 19 + TypeScript (strict) + Vite + Tailwind v4 + shadcn/ui (Radix) + TanStack Query v5/Table v8 + React Router + react-i18next (English only) + Zod (API schemas) + MSW (mock API for M0/M1) + vitest + Testing Library + Playwright (E2E) + axe-core (a11y in tests). pnpm. No Next.js, no SSR: a SPA embedded in the Go binary.
+React 19 + TypeScript (strict) + Vite + Tailwind v4 + shadcn/ui (Radix) + TanStack Query v5/Table v8 + React Router + react-i18next (English only) + Zod (API schemas) + MSW (the mock API behind `make dev` and the tests) + vitest + Testing Library + Playwright (E2E) + axe-core (a11y in tests). pnpm. No Next.js, no SSR: a SPA embedded in the Go binary.
 
 ## 2. Who uses it, and when
 
@@ -49,7 +49,7 @@ web/src/
   components/ui/  shadcn
   components/common/  StatusChip, SourceBadge, AiBadge, EmptyState, ErrorState, DataTable
   lib/            api client (OpenAPI → types), i18n, format
-  mocks/          MSW handlers + fixtures (M0/M1)
+  mocks/          MSW handlers + fixtures (sample data for `make dev` and tests)
   test/
 ```
 

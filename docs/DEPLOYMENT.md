@@ -1,10 +1,10 @@
 # Deployment
 
-Status: **new, 2026-11-09**, following the appliance + container design and the box's network configuration; network, decoys, Quadlet units and update image verification updated 2026-11-10; the `sensor`/`scan` containers, key volumes and the sensor protocol updated 2026-11-10. There is no code yet; values marked **(proposal)** are design defaults for installers/testers to rely on, **fixed after measuring at M2** (see §14). Everything ships as code: a new machine built from the repo must reach the same state, verified by **effect** (service running, port open, configuration correct), not by exit code.
+This document describes how Vedette is deployed as built for v1. Values marked **(proposal)** are defaults that have not been measured on a real box yet. Everything ships as code: a new machine built from the repo must reach the same state, verified by **effect** (service running, port open, configuration correct), not by exit code.
 
 Related: [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`specs/host-api.md`](specs/host-api.md) (`vedette-host` commands) · `specs/*.md` · [`UPDATES.md`](UPDATES.md) · [`DATA_MODEL.md`](DATA_MODEL.md) · `../PRIVACY.md`.
 
-Shipped file paths in the repo (proposal): `install.sh` (at the repo root; a release carries the version and the sha256 of the `.deb` inside it), `deploy/quadlet/*.tmpl` (units generated from templates), `deploy/compose/compose.yaml`, `deploy/containers/*/Containerfile`.
+Shipped files in the repo: `install.sh` (at the repo root; a release carries the version and the sha256 of the `.deb` inside it), the `vedette-host` package (`deploy/deb/`, `deploy/systemd/`), the Quadlet units that `vedette-host` renders from the constant template in `host/ops/quadlet.go`, `deploy/containers/*/Containerfile`, `deploy/compose/` (the dev profile and the container-only install) and `deploy/greenbone/` (the OpenVAS compose project).
 
 ## 1. Principles
 
@@ -132,7 +132,7 @@ Each integrated tool runs only the part Vedette uses (LEAN-1/2/3). **The rule fo
 
 `core`'s argon2 password-hashing gate (`core/auth/hashgate.go`): the number of concurrent runs = `max(1, GOMAXPROCS/2)`, at most 1/4 of `GOMEMLIMIT` divided by 64 MiB per run. With `--cpus=2` Go 1.26 sets GOMAXPROCS = 2, so on the box only **1 run, 64 MiB** at a time; a second login request queues (queue of 4, waits at most 2 s) and then gets 503 `server_busy` with `Retry-After`. `Config.MaxHashing` is not in `core`'s configuration or flags (`cmd/vedette`), so it cannot be tuned on the box; to allow more concurrent runs, raise `--cpus` in the quadlet.
 
-The total without greenbone is ≈ 3.75 GiB, leaving the rest to the OS and page cache. Swap is off in the containers (`memory-swap` = `memory`). How to measure: `podman stats` in the M2 load test (1,000 devices, 50k IOCs). When a limit is exceeded the container is OOM-killed and `Restart=always` rebuilds it; the event appears on the module health page.
+The total without greenbone is ≈ 3.75 GiB, leaving the rest to the OS and page cache. Swap is off in the containers (`memory-swap` = `memory`). How to measure: `podman stats` in a load test (1,000 devices, 50k IOCs). When a limit is exceeded the container is OOM-killed and `Restart=always` rebuilds it; the event appears on the module health page.
 
 ## 3. `vedette-host`
 
@@ -205,13 +205,13 @@ Rule: an OS outside the table makes `install.sh` stop and say so clearly (no hal
 | `vedette-host` | yes | no |
 | OS updates, reboot (S-CORE-7) | in the GUI | **no**; the GUI says there are none and that it is the customer's own job, no button (S-CORE-7) |
 | Box network: cards, SPAN, secondary IPs, NTP | configured in the GUI | **no**; the customer prepares the SPAN card (promisc, no IP) beforehand; the card list to choose from is the cards the sensor reports in its heartbeat |
-| Vedette self-update | yes, staged, health gate, rollback | **no**; the interface will report a new version and show the `pull`/`up` commands for the customer to run (blocked by the core's new-version check and the container-only installer; currently 501 "not available yet"); an update is a new `vedette.env` file of the release |
+| Vedette self-update | yes, staged, health gate, rollback | **no**; Settings → Updates names the new release and shows the `pull`/`up` commands with its image digests for the customer to run (`INSTALL-CONTAINER.md`); an update is a new `vedette.env` file of the release |
 | cosign verification | `vedette-host` checks it itself (minisign for the index/manifest, cosign in the manifest) before pulling by digest | the customer verifies it: minisign for `vedette.env`, `cosign verify --key` for each image (the signature is pushed to ghcr); the commands are in `INSTALL-CONTAINER.md`, the GUI shows them later |
 | Backup | DB snapshot + rotation by the host | **no** host backup; the master key and the DB both sit in the `data` volume, the customer backs up the volume |
 | SPAN / syslog 514 | available | syslog: add `compose.syslog.yaml` (core listens on 5514, publishes 514 on the address the customer sets); SPAN: add `compose.sensors.yaml` (Linux, root, card already prepared; sensor uid 0 with only `NET_RAW`, scan 65532 with no capability) |
 | Traps on secondary IPs | macvlan in the `vedette-hp` namespace created by the host | **not in the first version**: there is no code path for traps without `vedette-host` (the module says why); the old row "traps on the main IP" is dropped |
 | "This box" (S-INV-5) | the host's dpkg package list | the device exists, named `vedette`, **with no package list** (answers open question A7) |
-| Greenbone | allowed | not in the first version (M7 not built) |
+| OpenVAS (Greenbone) | optional deep scan of External exposure, started by `vedette-host` | **no**: it needs `vedette-host` |
 | In the image/compose | — | `core` and `scan` run `65532:65532`, `sensor` runs uid 0, group 65532 (reads its certificate, 0640), with only `NET_RAW` (Docker grants extra capabilities only to root: measured on Docker 29.1.3 a non-root user gets 0, while Podman 5.7.0 grants them; the fallback is already defined); the data directory is already in the `core` image so a new volume needs no root step |
 | Warning | — | Docker `-p` bypasses the UFW firewall (see §12): bind ports to the right IP |
 
@@ -221,7 +221,7 @@ There is only this one second install kind: Compose, not Quadlet.
 
 ## 6. Example units
 
-The files below are **illustrations**; command-line flags, variable names and paths are fixed at M2. The real `vedette-<service>.container` units (the text here is a template; the constant template in `host/ops/quadlet.go` and the golden files `host/ops/testdata/units/` are the authority) are built **entirely** by `vedette-host` from a constant template in the binary: the only fill-in places are the digest, the `[Install] WantedBy=` line (durable on/off, since a generated unit cannot be `systemctl enable`d/`disable`d), `core_uid`/`core_gid` and `sensor_uid`/`sensor_gid` from `host.conf`; no drop-ins (Podman 4.9 on Ubuntu 24.04 does not document them), no manual edits. Contract tests on the built units: no `--privileged`, capabilities per the §2 table, `Network=host` only for `sensor`/`scan`, honeypot only `ns:/run/netns/vedette-hp`; `sensor`/`scan` have `User=<sensor_uid>:<sensor_gid>`, no `UserNS`, only `NET_RAW`, each mounting only its own role's key volume, read-only.
+The files below are **illustrations**. The real `vedette-<service>.container` units (the text here is a template; the constant template in `host/ops/quadlet.go` and the golden files `host/ops/testdata/units/` are the authority) are built **entirely** by `vedette-host` from a constant template in the binary: the only fill-in places are the digest, the `[Install] WantedBy=` line (durable on/off, since a generated unit cannot be `systemctl enable`d/`disable`d), `core_uid`/`core_gid` and `sensor_uid`/`sensor_gid` from `host.conf`; no drop-ins (Podman 4.9 on Ubuntu 24.04 does not document them), no manual edits. Contract tests on the built units: no `--privileged`, capabilities per the §2 table, `Network=host` only for `sensor`/`scan`, honeypot only `ns:/run/netns/vedette-hp`; `sensor`/`scan` have `User=<sensor_uid>:<sensor_gid>`, no `UserNS`, only `NET_RAW`, each mounting only its own role's key volume, read-only.
 
 ### 6.1 Quadlet (appliance)
 
@@ -528,7 +528,6 @@ services:
   # `deploy/compose/fakes/`), one unprivileged uid, only the UI/API port on 127.0.0.1; `make dev-sensors`, `make dev-sensors-smoke`. Differences from this illustration:
   # its own bridge network, `-sensor-listen 0.0.0.0:8444` inside the bridge (not published), one creds volume per role, built locally from the Containerfile.
   # CI does not run the smoke test yet.
-  # greenbone: profile "greenbone", uses the digest-pinned upstream compose (M7)
 networks:
   lan:
     driver: macvlan
@@ -608,7 +607,7 @@ Replaces the binary A/B slots with **signed images**. Channel overview: `UPDATES
 | Step | Action |
 |---|---|
 | 1. Discovery | `core` (on a schedule or when the user clicks "Check") fetches `index.json` and the release manifest from GitHub Releases (`update-manifest.md`), checks them with `internal/release` and then hands them to `vedette-host`, which checks again independently. The manifest is **minisign-signed** (verifiable offline): `stable`/`beta` channel, each image's digest, rollout percentage, minimum host version, `revoked[]`, migration notes |
-| 2. Cohort | `cohort = hash(install_id) mod 100` (`UPDATES.md` §2). Automatic updates are accepted only when `cohort < rollout`. Rollout 10 → 50 → 100 after 24 hours with no reported error; `stable` after `beta` ≥ 7 days |
+| 2. Cohort | `cohort = SHA-256(install_id ‖ "vedette-cohort")[0:4] mod 100` (`update-manifest.md` §6). A release is offered, by hand or automatically, only when `cohort < rollout`; until then Settings → Updates says the box is not in the rollout yet |
 | 3. Pre-flight | enough disk, no other job running, inside the maintenance window (if automatic), Podman at a sufficient version |
 | 4. Pull | `container.pull` for each service: the host checks the minisign, the revocation and the cosign signature in the manifest **first**, then `podman pull ghcr.io/knt048/vedette-<service>@sha256:…`; a wrong or missing signature stops it, nothing changes |
 | 5. Backup | `core` makes a consistent DB snapshot and passes `snapshot` to `core`'s `container.start`; the host makes a `pre_update` copy within that run |
@@ -636,8 +635,8 @@ Offline (air-gapped network): a signed bundle containing the index, the manifest
 | Item | Design |
 |---|---|
 | Contents | a consistent SQLite snapshot + uploaded RAG documents + configuration generated from the DB. The RAG index can be rebuilt. Quadlet units need **no** backup (regenerated) |
-| Secret key | **by default not** included: the master key `<core_data>/vedette.key` (a backup cannot open the secrets on its own). Restoring without the key means re-entering AI/feed/channel keys (open question A6) |
-| Schedule | daily + before each update; keep the 7 most recent (proposal); stored at `/var/backups/vedette`, optionally an external directory (USB/NFS) the customer mounts. No cloud (every outbound flow must be in `PRIVACY.md`) |
+| Secret key | a backup **downloaded with a password** carries the master key `<core_data>/vedette.key` inside its encryption, so a restore keeps every saved secret and two-step sign-in; a backup downloaded without a password, and the copies the box keeps, never hold it. Restoring without the key means re-entering AI, feed and channel keys |
+| Schedule | before each software update, OS update and restore, and on demand (Download backup); scheduled backups are planned ([#1068](https://github.com/KNT048/vedette/issues/1068)); stored at `/var/backups/vedette`, optionally an external directory (USB/NFS) the customer mounts. No cloud (every outbound flow must be in `PRIVACY.md`) |
 | Export/delete | Settings → Data: export everything (without secrets), delete everything (S-CORE-6) |
 | Restore | a new machine: `install.sh` → upload the backup in the wizard → `vedette-host` puts it into the volume → `core` starts, runs migrations → re-enter secrets if the key is missing |
 | Verification | a "restore drill" in CI/lab: back up → build a new machine → restore → compare device count, findings, and that the audit chain is intact |
@@ -687,7 +686,7 @@ There is no Prometheus-style metrics endpoint: there is no story for it, so it i
 | FE check | `make verify` (tsc, lint, vitest, build then clean up) | |
 | E2E | `make e2e` (Playwright) | |
 | Real KEV/EPSS fixtures | `make fixtures` | |
-| Backend (from M2) | `go test ./...`, `golangci-lint`; `go test ./modules/<id>/... -run Contract` | added to `make verify` once there is Go |
+| Backend | `go test ./...`, `golangci-lint`; `go test ./modules/<id>/... -run Contract` | part of `make verify` (`verify-go`) |
 | The whole container set | `make dev-sensors` (compose profile `dev`: `core` + `sensor` replaying a pcap + `scan` with a fake nmap/nuclei); `make dev-sensors-smoke` checks that a device appears through the API and then tears down | the same Containerfile as the appliance; with no `vedette-host`, `/core/network/*` returns `409 not_appliance` |
 | Container-only install | `make container-only-smoke` (`SMOKE_RUNTIMES=docker` or `podman` picks one); opt-in, slow, not part of `make check` or CI | builds the images locally, builds `deploy/compose/container-only/*` exactly as `docs/INSTALL-CONTAINER.md` describes, checks by effect: core answers on 8443 at the given address, an unknown Host gets 421, `/core/{updates/os,network,data/backup}` return `409 not_appliance`, the data volume has `vedette.key` 65532:65532 0600 and a 0750 directory, ports are published correctly (8443 on the address, 8444 on 127.0.0.1, `ss` agrees), core uid 65532 with no capability, no-new-privileges, syslog 514 → 5514; the sensor (uid 0 gid 65532 with only `NET_RAW`) and scan (65532, no capability) when the engine runs as root; then removes the containers/volumes/networks/images of that very run (prefix `vedette-smoke-<pid>`). Run on an Ubuntu machine: Docker (rootful) with both sensor and syslog: PASS; Podman rootless 5.7 (turns on the user's `podman.socket` itself and then off): PASS, skipping the sensor part (needs root) and syslog (rootless does not publish port 514). Not yet run: rootful Podman. Finding: rootless Podman creates a new volume with `/data` 0755 (buildah does not carry the image directory's mode) → `tightenDataDir` in core lowers it to 0750 at start |
 | Images | `make sensor-image scan-base-image scan-image core-image` (one architecture, for dev); `make images` builds `core`, `sensor`, `scan-base` for `PLATFORMS=linux/amd64,linux/arm64` into one manifest list per image, cross-compiled on the build machine, no qemu, no push; `make images-check` builds each one (the machine's architecture) and checks by effect (`CONTAINER=podman`, the default) | pinned in `deploy/containers/pins.env` |
@@ -710,6 +709,6 @@ Convention: development on macOS uses Docker Desktop/Podman machine: no host net
 | B3 | The 8443 TLS certificate: self-signed + upload (proposal) or an internal ACME? |
 | B4 | Accept rootful Podman on the appliance (§12) or require rootless and bear the extra shim? **Settled for units:** system units, rootful; the PoC on a real machine is still in the lab. |
 | B5 | ~~Blocking the honeypot's egress (macvlan does not pass the host's netfilter)~~ **Settled:** an nft ruleset in the `vedette-hp` namespace itself blocks every new outbound connection (§12). |
-| B6 | The cohort only blocks **automatic** updates; can a user who clicks manually install a version whose cohort has not arrived yet? (proposal: yes, a signed version) |
+| B6 | ~~Does the cohort block only automatic updates?~~ **Settled:** it blocks the offer itself; a box outside the rollout is offered nothing until the percentage reaches it (§9.1 step 2). |
 | B7 | Greenbone management: a GMP socket on a volume or an internal port; pin the digest per `release.json` instead of upstream's cosign? |
 | B8 | The minimum Docker/Podman version for the Container-only kind. **Path settled: `deploy/compose/container-only/`.** Version floor: record the versions tried and then the lab's, no guessing (§5). |

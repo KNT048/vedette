@@ -1,6 +1,6 @@
 # Update manifest: release, signing, rollout, revocation, rollback
 
-Status: draft (docs-first), 2026-11-09. Field names, formats and paths are in English.
+Status: implemented in `internal/release`, `modules/core` and `host/` (written 2026-11-09 before the code). Where this spec and the code differ, the code wins. Field names, formats and paths are in English.
 Traceability: design requirements (signing, cohort, A/B, revocation, SBOM; GitHub publishes only signed software updates, with the content packs that go with them; OS updates, the box being the first device; appliance container, cosign, batches, rollback with an old tag, two install modes; ghcr, cosign with a key, offline verification; signature check in code, cosign in the manifest; the `scan` image is a base image, nmap is installed on the box at build time; pull, start, rollback, revocation); `docs/UPDATES.md`; stories S-CORE-2, S-CORE-7; GUI mock `web/src/features/core` (`UpdatesSection.tsx`, `OsUpdates.tsx`, `bundles.ts`, `contract.ts`).
 
 ## 1. Purpose
@@ -26,7 +26,7 @@ Channel scope: **2. Content packs** (skills, confirmed recommendation packs, log
 
 - The box downloads over HTTPS from GitHub (Releases/API) and the image registry (PRIVACY flow 6: a request carries only the current Vedette version; no customer data).
 - **The source is authenticated by signature, not by TLS.** Every file (index, manifest, image) is rejected if unsigned or wrongly signed, no matter where it comes from (mirror, bundle, USB). TLS only protects against eavesdropping.
-- No token/account is sent to GitHub; while the repository is private, test boxes need a different mechanism before the first public release (open question §14).
+- No token or account is sent to GitHub: the repository and its releases are public.
 
 ## 4. Data definitions
 
@@ -292,10 +292,10 @@ Threats and measures: (a) taking over the GitHub repository/registry → it cann
 
 ## 15. Open questions
 
-1. ~~**Cosign: key or keyless**~~ **Decided:** the box verifies with an embedded, offline cosign key, in the project's own code, with the signature travelling in the manifest; the offline backup minisign key held by the maintainer is embedded together with the active key. Still open: whether CI also publishes a keyless signature for users. The verification code exists (section 5.1); the maintainer still has to create the three offline keys and paste the public parts into `internal/release/keys.go`.
-2. **The image registry and where `index.json` is stored**: the design uses GitHub only to publish software; GHCR is reasonable but not settled. A test box needs a read token while the repository is still private (where does the credential live?). Should `channels.json` + the second mirror of UPDATES §6 be kept now that the builder/Cloudflare has been dropped for data?
-3. ~~**Updating `vedette-host` itself**~~ **Decided:** the `.deb` signed on the GitHub Release, the host upgrades itself; the command is not yet in the allowlist (left for later).
-4. Should there be an "Install anyway" button for a release whose cohort has not arrived (spec: no)?
+1. ~~**Cosign: key or keyless**~~ **Decided:** the box verifies with an embedded, offline cosign key, in the project's own code, with the signature travelling in the manifest; the offline backup minisign key held by the maintainer is embedded together with the active key. Still open: whether CI also publishes a keyless signature for users. The verification code exists (section 5.1) and the three keys were created and embedded in `internal/release/keys.go`.
+2. ~~**The image registry and where `index.json` is stored**~~ **Decided:** the images are on `ghcr.io/knt048/vedette-<service>` and the index and manifests are assets of the GitHub releases of the public repository, so no token is needed. There is no `channels.json` and no second mirror.
+3. ~~**Updating `vedette-host` itself**~~ **Decided:** the `.deb` of the GitHub release, its SHA-256 in the signed manifest; the host upgrades itself (`host.self_update`, the first step of a software run).
+4. ~~An "Install anyway" button for a release whose cohort has not arrived?~~ **Decided:** no; a box outside the rollout is offered nothing.
 5. The key `K_cohort`/`install_id`: it is local only and used for the rollout cohort; no anonymous signal exists, so nothing else shares it.
 6. Automatic `rollback_if_possible` (not built; the builder refuses the action until it is): on by default or always needing an admin?
 7. The health-check time, check frequency and bundle cap are starting points, not measured.

@@ -1,7 +1,11 @@
 # API conventions
 
-Status: **draft spec.** Sources, in order of precedence: the design decisions (spec-first) → `docs/MODULE_CONTRACTS.md` (SYS-1…8) → the current mock API (`web/src/features/*/contract.ts`, `mocks.ts`, `web/src/mocks/*.ts`; the mock is the de facto contract) → `api/openapi.json` (generated from the contracts: **267 operations**, 12 tags) → `docs/ARCHITECTURE.md` §5 (outdated).
-The figures in this file (operation counts, error codes, minimum roles) were **measured from the code on 2026-11-09**, not guessed. Where a choice is a proposal it is marked **[PROPOSED]**; gaps are listed in section 13 ("Open questions"). For data types and DB tables see `docs/DATA_MODEL.md`.
+The conventions below (naming, errors, pagination, concurrency, authentication, rate limits, events, files) are the rules every
+endpoint follows. The source of truth for each operation is its Zod contract in `web/src/features/*/contract.ts`, from which
+`api/openapi.json` is generated (393 operations, 14 tags on 2026-11-24) and the Go handlers are generated in turn; the system
+invariants are in `docs/MODULE_CONTRACTS.md` (SYS-1…8). The tables of error codes and minimum roles were measured from the code on
+2026-11-09 and may lag behind it: when a table and a contract differ, the contract wins. A choice that is a proposal is marked
+**[PROPOSED]**; gaps are listed in section 13 ("Open questions"). For data types and DB tables see `docs/DATA_MODEL.md`.
 Endpoint names, error codes and field names are kept exactly as they appear in the contracts.
 
 ## 1. Resources: naming, methods, status codes

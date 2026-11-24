@@ -249,6 +249,59 @@ func TestOlderLine_AnAnsweredCVEKeepsItsOwnAnswer(t *testing.T) {
 	}
 }
 
+// A person's answer to a CVE holds whatever kind of question it answered (the version could not be compared, the platform was
+// unknown...), as long as it was given for the version the line runs now: an answer given for an older version is asked again.
+func TestOlderLine_AnAnswerOfAnyKindHoldsForItsVersion(t *testing.T) {
+	t.Parallel()
+	e, _ := residueWorld(t)
+	e.exec(`INSERT INTO fnd_question (id, asset_id, software_id, cve, kind, detail, cves, asked_at, answer, answered_by, answered_at) VALUES
+		('q-same', 'nas-01', 's-nas', 'CVE-2026-82001', 'not_comparable', '{"version":"7.2.1-69057-5"}', 1, '2026-11-01T00:00:00.000Z', 'not_affected', 'it@example.com', '2026-11-02T00:00:00.000Z'),
+		('q-older', 'nas-01', 's-nas', 'CVE-2026-82003', 'platform', '{"version":"7.2.1-69057-3"}', 1, '2026-11-01T00:00:00.000Z', 'not_affected', 'it@example.com', '2026-11-02T00:00:00.000Z')`)
+	e.exec(`DELETE FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line'`)
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_question WHERE id = 'q-same' AND answer = 'not_affected'`); n != 1 {
+		t.Error("the answer to CVE-2026-82001 given for the version the line runs was dropped because its question was another kind")
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_question WHERE id = 'q-older'`); n != 0 {
+		t.Error("an answer given for an older version of the line still decides CVE-2026-82003")
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = 'nas-01' AND kind = 'older_line' AND answer IS NULL AND cves = 2
+		AND detail NOT LIKE '%CVE-2026-82001%' AND detail LIKE '%CVE-2026-82003%'`); n != 1 {
+		t.Error("the line question should ask about CVE-2026-82002 and CVE-2026-82003 only")
+	}
+}
+
+// A person's answer to one CVE's own question holds when the question about that CVE changes kind (ranges arrived, so the version is
+// now compared and cannot be): the CVE is not asked again for the same version.
+func TestQuestions_AnAnswerHoldsWhenTheQuestionChangesKind(t *testing.T) {
+	t.Parallel()
+	e, _ := residueWorld(t)
+	var asset, sw, cve, kind, version string
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT asset_id, ifnull(software_id, ''), cve, kind, ifnull(json_extract(detail, '$.version'), '')
+		FROM fnd_question WHERE cve IS NOT NULL ORDER BY rowid LIMIT 1`).Scan(&asset, &sw, &cve, &kind, &version); err != nil {
+		t.Fatal(err)
+	}
+	other := "not_comparable"
+	if kind == other {
+		other = "no_range_data"
+	}
+	e.exec(`DELETE FROM fnd_question WHERE asset_id = '` + asset + `' AND cve = '` + cve + `'`)
+	e.exec(`INSERT INTO fnd_question (id, asset_id, software_id, cve, kind, detail, cves, asked_at, answer, answered_by, answered_at)
+		VALUES ('q-kind', '` + asset + `', nullif('` + sw + `', ''), '` + cve + `', '` + other + `', json_object('version', '` + version + `'), 1,
+		'2026-11-01T00:00:00.000Z', 'not_affected', 'it@example.com', '2026-11-02T00:00:00.000Z')`)
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_question WHERE id = 'q-kind' AND answer = 'not_affected'`); n != 1 {
+		t.Errorf("the answer to %s was dropped when its question became %s", cve, kind)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_question WHERE asset_id = '` + asset + `' AND cve = '` + cve + `' AND answer IS NULL`); n != 0 {
+		t.Errorf("%s is asked again (%d open) although a person answered it for this version", cve, n)
+	}
+}
+
 // A device Vedette knows nothing to check by is one queue item and one badge, only once a person added it, and it cannot be answered
 // "not affected": telling Vedette what runs there (a software line) settles it.
 func TestNothingToCheck_QueueBadgeAndAnswer(t *testing.T) {

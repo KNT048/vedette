@@ -147,7 +147,7 @@ func (s *Service) resumeYielded(ctx context.Context, ending string) {
 	if other, _, err := s.laneBusy(ctx, ending); err != nil || other != "" {
 		return // more work waits for the lane: the last of it resumes the pass
 	}
-	if s.sweepWait(withManualUntil(ctx, s.sweepUntil(*sw))).Status == run.Waiting {
+	if s.sweepWait(withManualUntil(ctx, s.sweepUntil(ctx, *sw))).Status == run.Waiting {
 		return
 	}
 	s.setYielded(sw.ID, false)

@@ -278,13 +278,13 @@ func TestRunsAPersonsSweepGoesOnAfterTheWorkItGaveWayTo(t *testing.T) {
 	}
 }
 
-// "Scan the LAN now" on a pass that waits for the window goes on with that pass from its cursor, under the person's hour: one run,
-// its cursor kept.
+// "Scan the LAN now" on a pass of many windows that waits for the window goes on with that pass from its cursor, under the person's
+// hour: one run, its cursor kept (a scope one hour sweeps whole gets a fresh pass instead: TestScanTheLANNowReplacesAShortWaitingPass).
 func TestRunsScanTheLANNowGoesOnWithTheWaitingPass(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) {
 		e.setBase(local(9, 4, 59).Add(50 * time.Second))
-		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.10.0/25"} })
+		e.inv.set(func(s *sa.Settings) { s.LANRanges = []string{"192.168.0.0/20"} })
 	})
 	held := newHeld(2)
 	e.withProber(held)
@@ -296,7 +296,8 @@ func TestRunsScanTheLANNowGoesOnWithTheWaitingPass(t *testing.T) {
 	if len(before) != 1 || before[0].Status != run.Waiting || before[0].Done != 64 {
 		t.Fatalf("the pass after the window: %+v", before)
 	}
-	e.setClock(local(9, 12, 0)) // noon: no window, the gap since the last sweep is over
+	e.setClock(local(9, 12, 0))                    // noon: no window, the gap since the last sweep is over
+	e.inv.set(func(s *sa.Settings) { s.Rate = 1 }) // one pass of the scope now takes more than an hour
 	again := newHeld()
 	e.withProber(again)
 	m, err := e.svc.StartManual(e.ctx(), "ann@example.com", nil, nil)
@@ -306,13 +307,16 @@ func TestRunsScanTheLANNowGoesOnWithTheWaitingPass(t *testing.T) {
 	if m.ID != before[0].ID {
 		t.Fatalf("Scan the LAN now made run %s, want the waiting pass %s", m.ID, before[0].ID)
 	}
+	if m.Progress == nil || m.Progress.Message == nil || !strings.HasPrefix(*m.Progress.Message, "Goes on with the pass that was waiting, from where it stopped (64 of 4,094 addresses done)") {
+		t.Fatalf("the answer says plainly that the old pass goes on: %+v", m.Progress)
+	}
 	waitManual(t, e)
 	after := sweepRuns(e)
-	if len(after) != 1 || after[0].Status != run.Done || after[0].Done != 126 {
+	if len(after) != 1 || after[0].Status != run.Done || after[0].Done != after[0].Total {
 		t.Fatalf("after Scan the LAN now: %+v, want the same pass done", after)
 	}
-	if calls := again.calls(); len(calls) != 1 || targetsOf(calls[0])[0] != "192.168.10.65" {
-		t.Fatalf("nmap ran %q, want the rest of the pass only", calls)
+	if calls := again.calls(); len(calls) == 0 || targetsOf(calls[0])[0] != "192.168.0.65" {
+		t.Fatalf("nmap ran %q, want the rest of the pass only, from its cursor", calls)
 	}
 }
 

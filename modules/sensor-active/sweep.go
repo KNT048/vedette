@@ -198,7 +198,7 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	// a person's pass runs outside the window for its hour; a stop of the work in progress stops one batch (batchCtx), none before the first
-	cur := &running{cancel: func() {}, runID: x.ID(), until: s.sweepUntil(d.Run)}
+	cur := &running{cancel: func() {}, runID: x.ID(), until: s.sweepUntil(ctx, d.Run)}
 	jctx = withManualUntil(jctx, cur.until)
 	s.setCur(cur)
 	defer s.setCur(nil)
@@ -224,6 +224,8 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 		if cur, err := x.Run(context.WithoutCancel(ctx)); err == nil {
 			done = cur.Done
 		}
+		// a pass that waits before it walked any address (the window closed, the worker away) has not started: core/run keeps it so
+		r.NotBegun = r.Status == run.Waiting && d.Done == 0 && done == 0
 		s.finishJob(ctx, x.ID(), status, done, newDevices, r.Error)
 		return r, nil
 	}

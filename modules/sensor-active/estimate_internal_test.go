@@ -19,11 +19,11 @@ func TestTheWorkersReportIsTheEstimateOfARunningDeviceRun(t *testing.T) {
 		t.Fatalf("before any report: %q", got)
 	}
 	s.runSink("run-1").Report(progress.Update{Phase: progress.PhasePorts, Percent: 41.7, Remaining: 9*time.Minute + 10*time.Second, NewPass: true})
-	if got := s.workerEstimate(t.Context(), r); got != "finding open ports, 41%; about 10 minutes left" {
+	if got := s.workerEstimate(t.Context(), r); got != "finding open ports; 23% of the check done; about 10 minutes left" {
 		t.Fatalf("after a report: %q", got)
 	}
 	s.runSink("run-1").Report(progress.Update{Phase: progress.PhaseServices, Percent: -1, Remaining: 20 * time.Second})
-	if got := s.workerEstimate(t.Context(), r); got != "reading service versions; less than a minute left" {
+	if got := s.workerEstimate(t.Context(), r); got != "reading service versions; 50% of the check done; less than a minute left" {
 		t.Fatalf("no percent, under a minute: %q", got)
 	}
 	if got := s.workerEstimate(t.Context(), run.Run{ID: "run-1", Status: run.Done}); got != "" {
@@ -36,8 +36,8 @@ func TestTheWorkersReportIsTheEstimateOfARunningDeviceRun(t *testing.T) {
 }
 
 // The line of a device check only moves forward. nmap restarts its percent at every phase and the check makes two nmap runs, so the
-// raw reports of one check read 8% → 84% → 28% → 20%; the line names the pass and the phase each percent belongs to, and a report that
-// would move it back (a lower percent of the same phase, an earlier phase) is not shown.
+// raw reports of one check read 8% → 84% → 28% → 20%; the line names the pass and the phase, gives the share of the whole check done
+// (which only grows), and a report that would move it back (a lower percent of the same phase, an earlier phase) is not shown.
 func TestTheLineOfADeviceCheckOnlyMovesForward(t *testing.T) {
 	t.Parallel()
 	s := &Service{}
@@ -49,13 +49,13 @@ func TestTheLineOfADeviceCheckOnlyMovesForward(t *testing.T) {
 		u    progress.Update
 		want string
 	}{
-		{first, progress.Update{Phase: progress.PhasePorts, Percent: 8, NewPass: true}, "pass 1 of 2: finding open ports, 8%"},
-		{first, progress.Update{Phase: progress.PhaseServices, Percent: 84}, "pass 1 of 2: reading service versions, 84%"},
-		{first, progress.Update{Phase: progress.PhasePorts, Percent: 90}, "pass 1 of 2: reading service versions, 84%"},    // an earlier phase
-		{first, progress.Update{Phase: progress.PhaseServices, Percent: 60}, "pass 1 of 2: reading service versions, 84%"}, // lower, same phase
-		{second, progress.Update{Phase: progress.PhasePorts, Percent: 28, NewPass: true}, "pass 2 of 2: finding open ports, 28%"},
-		{second, progress.Update{Phase: progress.PhasePorts, Percent: 20}, "pass 2 of 2: finding open ports, 28%"},
-		{second, progress.Update{Phase: progress.PhaseScripts, Percent: 5}, "pass 2 of 2: running service checks, 5%"},
+		{first, progress.Update{Phase: progress.PhasePorts, Percent: 8, NewPass: true}, "pass 1 of 2: finding open ports; 6% of the check done"},
+		{first, progress.Update{Phase: progress.PhaseServices, Percent: 84}, "pass 1 of 2: reading service versions; 63% of the check done"},
+		{first, progress.Update{Phase: progress.PhasePorts, Percent: 90}, "pass 1 of 2: reading service versions; 63% of the check done"},    // an earlier phase
+		{first, progress.Update{Phase: progress.PhaseServices, Percent: 60}, "pass 1 of 2: reading service versions; 63% of the check done"}, // lower, same phase
+		{second, progress.Update{Phase: progress.PhasePorts, Percent: 28, NewPass: true}, "pass 2 of 2: finding open ports; 83% of the check done"},
+		{second, progress.Update{Phase: progress.PhasePorts, Percent: 20}, "pass 2 of 2: finding open ports; 83% of the check done"},
+		{second, progress.Update{Phase: progress.PhaseScripts, Percent: 5}, "pass 2 of 2: running service checks; 97% of the check done"},
 	}
 	for i, st := range steps {
 		progress.Report(st.ctx, st.u)

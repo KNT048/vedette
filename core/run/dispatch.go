@@ -136,9 +136,9 @@ func (m *Manager) dispatch(ctx context.Context) error {
 			if k.GiveWay != nil {
 				holders[q.lane] = holder{id: q.id, kind: k}
 			}
-			text := "Started"
+			text := LineStarted
 			if q.resumed {
-				text = "Resumed"
+				text = LineResumed
 			}
 			if err := logTx(ctx, tx, q.id, now, Info, text); err != nil {
 				return err
@@ -180,6 +180,7 @@ func (m *Manager) launch(s starting) {
 		}
 		x := &Exec{m: m, id: s.id, Resumed: s.resumed}
 		res, err := m.execute(ctx, s.kind, x)
+		res.NotBegun = res.NotBegun && !s.resumed // a run that began before keeps its start
 		// The executor leaves the live map only once its end is recorded: a stop in between finds it (and its stopping row is
 		// then ended by finish) instead of recording a stop over work that finished.
 		defer func() {
@@ -239,21 +240,40 @@ func (m *Manager) finish(ctx context.Context, id string, res Result, runErr erro
 		if st.Ended() {
 			ended = now
 		}
-		res, err := tx.ExecContext(ctx, `UPDATE core_run SET status = ?, waiting_for = ?, error = ?, ended_at = ?, updated_at = ?,
+		up, err := tx.ExecContext(ctx, `UPDATE core_run SET status = ?, waiting_for = ?, error = ?, ended_at = ?, updated_at = ?,
 			stop_reason = CASE WHEN ? THEN stop_reason ELSE NULL END
 			WHERE id = ? AND status IN (?, ?)`,
 			string(st), nullable(waitingFor, 200), nullable(errText, 1000), ended, now, st == Stopped, id, string(Running), string(Stopping))
 		if err != nil {
 			return err
 		}
-		if n, _ := res.RowsAffected(); n == 0 {
+		if n, _ := up.RowsAffected(); n == 0 {
 			return nil // already recorded (a stop of a run this process did not execute)
 		}
 		if err := settleSteps(ctx, tx, id, st, now); err != nil {
 			return err
 		}
+		if st == Waiting && res.NotBegun {
+			if err := unstart(ctx, tx, id); err != nil {
+				return err
+			}
+		}
 		return logTx(ctx, tx, id, now, levelOf(st), endText(st, waitingFor, errText))
 	})
+}
+
+// unstart takes back the start of a run whose first turn waited before it did any work (Result.NotBegun): it has not started, so it
+// has no started time and its log has no "Started" line; the next turn that really works starts it. Its steps lose the start of that
+// turn too.
+func unstart(ctx context.Context, tx *sql.Tx, id string) error {
+	if _, err := tx.ExecContext(ctx, `UPDATE core_run SET started_at = NULL WHERE id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE core_run_step SET started_at = NULL WHERE run_id = ? AND done = 0`, id); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, `DELETE FROM core_run_log WHERE id = (SELECT max(id) FROM core_run_log WHERE run_id = ? AND text = ?)`, id, LineStarted)
+	return err
 }
 
 // settleSteps gives the steps still running when the run leaves running the run's new state.

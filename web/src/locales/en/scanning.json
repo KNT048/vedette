@@ -497,7 +497,7 @@
       "deep_refused": "deep scan refused before anything was sent",
       "deep_incomplete": "deep scan did not finish"
     },
-    "queuedBehind": "Queued behind",
+    "inItsWay": "Running now:",
     "count": "{{done}} of {{total}}",
     "progressOf": "Progress of {{title}}",
     "bySchedule": "Schedule",

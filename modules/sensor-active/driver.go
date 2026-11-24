@@ -45,7 +45,7 @@ func (s *Service) Enqueue(ctx context.Context, assetID, reason string) error {
 	wait := s.queueWait(ctx, st)
 	lbl := s.deviceLabel(ctx, assetID)
 	parent := ""
-	if sw, err := s.liveRun(ctx, RunSweep); err == nil && sw != nil && sw.Status == run.Running && s.clock().Before(s.sweepUntil(*sw)) {
+	if sw, err := s.liveRun(ctx, RunSweep); err == nil && sw != nil && sw.Status == run.Running && s.clock().Before(s.sweepUntil(ctx, *sw)) {
 		parent = sw.ID // a person's pass: the devices it finds are checked right after it, within its hour
 	}
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
@@ -157,8 +157,12 @@ func (s *Service) resumePersonsPass(ctx context.Context) {
 	if err != nil || sw == nil || sw.Status != run.Waiting || sw.WaitingFor == nil || *sw.WaitingFor != waitWorker {
 		return
 	}
-	until := s.sweepUntil(*sw)
-	if !s.clock().Before(until) || s.available(ctx) != nil {
+	until := s.sweepUntil(ctx, *sw)
+	if !s.clock().Before(until) {
+		s.passToWindow(ctx, *sw)
+		return
+	}
+	if s.available(ctx) != nil {
 		return
 	}
 	if s.sweepWait(withManualUntil(ctx, until)).Status == run.Waiting {
@@ -173,6 +177,23 @@ func (s *Service) resumePersonsPass(ctx context.Context) {
 	s.setYielded(sw.ID, false)
 	if err := s.resumeWaiting(ctx, sw.ID); err != nil && !errors.Is(err, run.ErrNotResumable) {
 		s.log.WarnContext(ctx, "sensoractive: resuming a person's pass once the scan worker reported failed", "run", sw.ID, "error", err)
+	}
+}
+
+// passToWindow makes pass sw, which waits for the scan worker outside any person's hour, say what it really waits for while the window
+// is closed: the window (the window's driver resumes it when the window opens, once the worker reports). Without it a pass left by a
+// person's hour that ended, or by an update that restarted the scan worker, read "Waiting for the scan worker" for hours with nothing
+// in its log. Inside the window it keeps waiting for the worker.
+func (s *Service) passToWindow(ctx context.Context, sw run.Run) {
+	st, err := s.inv.Settings(ctx)
+	if err != nil {
+		return
+	}
+	if _, open := s.windowNow(ctx, st); open {
+		return
+	}
+	if err := s.runs.Rewait(ctx, s.windowWait(st), sw.ID); err != nil {
+		s.log.WarnContext(ctx, "sensoractive: saying a pass waits for the scan window failed", "run", sw.ID, "error", err)
 	}
 }
 
@@ -448,7 +469,7 @@ func (s *Service) followPass(ctx context.Context, id string, turns, resumeOnce b
 		case r.Status.Ended():
 			return r, nil
 		case r.Status == run.Waiting:
-			if s.sweepWait(withManualUntil(ctx, s.sweepUntil(r))).Status == run.Waiting {
+			if s.sweepWait(withManualUntil(ctx, s.sweepUntil(ctx, r))).Status == run.Waiting {
 				return r, nil // the window closed, or the settings do not allow it now
 			}
 			if other, _, err := s.laneBusy(ctx, id); err != nil {
@@ -611,14 +632,14 @@ func (s *Service) runCheck(ctx context.Context, x *run.Exec) (run.Result, error)
 			return run.Result{Status: run.Failed, Error: noteLost}, nil
 		}
 		got, err := s.identifyIn(ctx, id)
-		if s.waitsForWorker(got, err) {
-			return run.Result{Status: run.Waiting, WaitingFor: waitWorker}, nil
+		if s.waitsForWorker(got, err) { // nothing reached the device: the check has not started (its Started time is its real start)
+			return run.Result{Status: run.Waiting, WaitingFor: waitWorker, NotBegun: true}, nil
 		}
 		return s.checkEnd(ctx, x, d, identResult(got, err))
 	}
 	if d.ParentID != nil { // a device a person's sweep found: checked within that sweep's hour
 		if p, err := s.runs.Read(ctx, *d.ParentID); err == nil {
-			ctx = withManualUntil(ctx, s.sweepUntil(p))
+			ctx = withManualUntil(ctx, s.sweepUntil(ctx, p))
 		}
 	}
 	err = s.ScanDevice(ctx, id, "")
@@ -654,19 +675,21 @@ func (s *Service) scanResult(ctx context.Context, err error) run.Result {
 		return run.Result{Status: run.Failed, Error: "The device is no longer in the inventory"}
 	case errors.Is(err, ErrBlocked):
 		return run.Result{Status: run.Failed, Error: "Not checked: the device's safety rules or the scope do not allow it"}
+	// Refused before nmap (the settings, the worker, the window): the check waits without having begun (run.Result.NotBegun).
 	case errors.Is(err, ErrScanningOff):
-		return run.Result{Status: run.Waiting, WaitingFor: "active scanning to be turned on"}
+		return run.Result{Status: run.Waiting, WaitingFor: "active scanning to be turned on", NotBegun: true}
 	case errors.Is(err, ErrScopeNotConfirmed), errors.Is(err, ErrNoRanges):
-		return run.Result{Status: run.Waiting, WaitingFor: "the scan scope to be confirmed"}
+		return run.Result{Status: run.Waiting, WaitingFor: "the scan scope to be confirmed", NotBegun: true}
 	case errors.Is(err, ErrUnavailable):
-		return run.Result{Status: run.Waiting, WaitingFor: waitWorker}
+		return run.Result{Status: run.Waiting, WaitingFor: waitWorker, NotBegun: true}
 	case errors.Is(err, ErrWorkerLost): // the worker restarted under it (an update of Vedette does): the window tries it again
 		return run.Result{Status: run.Waiting, WaitingFor: waitWorkerBack}
 	case errors.Is(err, ErrOutsideWindow), errors.Is(err, errDeadline):
+		before := errors.Is(err, ErrOutsideWindow) && !errors.Is(err, errDeadline) // refused before nmap, not cut by the window's end
 		if st, serr := s.inv.Settings(context.WithoutCancel(ctx)); serr == nil {
-			return run.Result{Status: run.Waiting, WaitingFor: s.windowWait(st)}
+			return run.Result{Status: run.Waiting, WaitingFor: s.windowWait(st), NotBegun: before}
 		}
-		return run.Result{Status: run.Waiting, WaitingFor: "the scan window"}
+		return run.Result{Status: run.Waiting, WaitingFor: "the scan window", NotBegun: before}
 	case errors.Is(err, ErrStopped):
 		if ctx.Err() != nil {
 			return run.Result{Status: run.Partial, Error: "stopped"}

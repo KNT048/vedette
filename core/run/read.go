@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Run is the read model of a run: the Runs tab, the run page and every "Open the run" link read this.
@@ -38,6 +39,9 @@ type Run struct {
 	Summary string `json:"summary"`
 	// BlockedBy is the run that holds the lane a queued run waits for; nil when the run is not queued or its lane is free.
 	BlockedBy *Ref `json:"blocked_by"`
+	// RunningSince is when the current turn of a running (or stopping) run began: the latest start of the dispatcher, so a run resumed
+	// after a restart or a wait counts its elapsed time and its estimates from then, not from its first start. nil otherwise.
+	RunningSince *string `json:"-"`
 }
 
 // Ref names another run.
@@ -109,7 +113,9 @@ const runCols = `r.id, r.module, r.kind, r.lane, r.title, r.trigger, r.trigger_n
 	(SELECT h.id FROM core_run h WHERE r.status = 'queued' AND h.lane = r.lane AND h.status IN ('running', 'stopping') AND h.id <> r.id LIMIT 1),
 	(SELECT h.title FROM core_run h WHERE r.status = 'queued' AND h.lane = r.lane AND h.status IN ('running', 'stopping') AND h.id <> r.id LIMIT 1),
 	(NOT EXISTS (SELECT 1 FROM core_run_step s WHERE s.run_id = r.id)
-	 OR EXISTS (SELECT 1 FROM core_run_step s WHERE s.run_id = r.id AND s.status <> 'done'))`
+	 OR EXISTS (SELECT 1 FROM core_run_step s WHERE s.run_id = r.id AND s.status <> 'done')),
+	CASE WHEN r.status IN ('running', 'stopping') THEN (SELECT l.ts FROM core_run_log l WHERE l.run_id = r.id
+		AND l.text IN ('` + LineStarted + `', '` + LineResumed + `') ORDER BY l.id DESC LIMIT 1) END`
 
 type querier interface {
 	QueryContext(ctx context.Context, q string, args ...any) (*sql.Rows, error)
@@ -134,7 +140,7 @@ func (m *Manager) scanBare(s scanner) (Run, error) {
 	var workLeft bool
 	err := s.Scan(&r.ID, &r.Module, &r.Kind, &r.Lane, &r.Title, &r.Trigger, &r.TriggerNote, &r.RequestedBy, &r.ScheduleID, &subKind,
 		&subID, &subLabel, &r.ParentID, &r.Status, &r.WaitingFor, &r.StopReason, &r.Error, &r.Total, &r.Done, &r.QueuedAt,
-		&r.StartedAt, &r.EndedAt, &r.UpdatedAt, &blockID, &blockTitle, &workLeft)
+		&r.StartedAt, &r.EndedAt, &r.UpdatedAt, &blockID, &blockTitle, &workLeft, &r.RunningSince)
 	if err != nil {
 		return Run{}, err
 	}
@@ -239,6 +245,48 @@ func (m *Manager) getTx(ctx context.Context, q querier, id string) (Run, error) 
 		return Run{}, fmt.Errorf("run: read: %w", err)
 	}
 	return r, nil
+}
+
+// Asked is when a person last asked run r to go now, and when the run then began working: a person's Resume of it (its log line), or,
+// for a run a person started (trigger manual), its queue time when it was not resumed by a person since. began is the first start of
+// the dispatcher after that ask (zero while it has not started since). Both are zero when no person asked for the run. It is read from
+// the database, so it holds across a restart: a kind that lets a person's run go outside its usual hours (a LAN sweep outside the
+// scan window) keeps doing so after the box restarts. A person's ask older than the run's log (MaxLogLines, KeepLog) is not found.
+func (m *Manager) Asked(ctx context.Context, r Run) (asked, began time.Time, err error) {
+	db := m.cfg.DB.Reader()
+	var after int64
+	var ts string
+	err = db.QueryRowContext(ctx, `SELECT id, ts FROM core_run_log WHERE run_id = ? AND substr(text, 1, ?) = ? ORDER BY id DESC LIMIT 1`,
+		r.ID, len(lineResumedBy), lineResumedBy).Scan(&after, &ts)
+	switch {
+	case err == nil:
+		if asked, err = time.Parse(time.RFC3339Nano, ts); err != nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("run: asked: %w", err)
+		}
+	case errors.Is(err, sql.ErrNoRows):
+		if r.Trigger != Manual || r.RequestedBy == System {
+			return time.Time{}, time.Time{}, nil
+		}
+		if asked, err = time.Parse(time.RFC3339Nano, r.QueuedAt); err != nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("run: asked: %w", err)
+		}
+	default:
+		return time.Time{}, time.Time{}, fmt.Errorf("run: asked: %w", err)
+	}
+	err = db.QueryRowContext(ctx, `SELECT ts FROM core_run_log WHERE run_id = ? AND id > ? AND text IN (?, ?) ORDER BY id LIMIT 1`,
+		r.ID, after, LineStarted, LineResumed).Scan(&ts)
+	switch {
+	case errors.Is(err, sql.ErrNoRows) && after == 0 && r.StartedAt != nil: // the start line is past the log's limits: the run's own start
+		ts = *r.StartedAt
+	case errors.Is(err, sql.ErrNoRows):
+		return asked, time.Time{}, nil
+	case err != nil:
+		return time.Time{}, time.Time{}, fmt.Errorf("run: asked: %w", err)
+	}
+	if began, err = time.Parse(time.RFC3339Nano, ts); err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("run: asked: %w", err)
+	}
+	return asked, began, nil
 }
 
 // AdminResume says the run's kind lets only an administrator resume it (Kind.AdminResume); an unknown kind says false.

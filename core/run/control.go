@@ -115,9 +115,9 @@ func (m *Manager) resume(ctx context.Context, id, by string, onlyWaiting bool) e
 		if err := m.requeue(ctx, tx, id, now); err != nil {
 			return err
 		}
-		text := "Resumed by " + by
+		text := lineResumedBy + by
 		if by == System {
-			text = "Queued again" // the dispatcher writes "Resumed" when it really starts again
+			text = lineQueuedAgain // the dispatcher writes "Resumed" when it really starts again
 		}
 		if err := logTx(ctx, tx, id, now, Info, text); err != nil {
 			return err

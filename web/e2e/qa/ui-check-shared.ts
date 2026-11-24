@@ -1,4 +1,4 @@
-// Helpers for the WP-06 independent UI check. Not a spec.
+// Helpers for the independent UI check. Not a spec.
 import { expect, type Page, type TestInfo } from '@playwright/test'
 import { startWithSample } from '../helpers'
 

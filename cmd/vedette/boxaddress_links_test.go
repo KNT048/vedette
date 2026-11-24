@@ -138,13 +138,13 @@ func TestEveryLinkCarriesTheBoxAddress(t *testing.T) {
 			t.Fatalf("Box address %q, want %q", got, addr)
 		}
 	}
-	setBox("192.168.142.141")
-	wantLinks(t, boxLinks(t, s, sink, true), "https://192.168.142.141:8443", allLinks...)
+	setBox("10.142.0.141")
+	wantLinks(t, boxLinks(t, s, sink, true), "https://10.142.0.141:8443", allLinks...)
 
-	setBox("vedette.office.lan", "192.168.142.141") // a save applies to the next link; the earlier address stays answered to
+	setBox("vedette.office.lan", "10.142.0.141") // a save applies to the next link; the earlier address stays answered to
 	links := boxLinks(t, s, sink, false)
 	wantLinks(t, links, "https://vedette.office.lan:8443", "test message", "approval link", "block list URL", "URL token", "install address")
-	if !s.d.BoxAddr.Allows("vedette.office.lan:8443") || !s.d.BoxAddr.Allows("192.168.142.141") || s.d.BoxAddr.Allows("vedette:8443") {
+	if !s.d.BoxAddr.Allows("vedette.office.lan:8443") || !s.d.BoxAddr.Allows("10.142.0.141") || s.d.BoxAddr.Allows("vedette:8443") {
 		t.Error("the Host allowlist does not follow the Box address and the earlier one")
 	}
 }
@@ -156,13 +156,13 @@ func TestEveryLinkCarriesTheDefaultOrTheHostsAddress(t *testing.T) {
 	t.Run("management IPv4", func(t *testing.T) {
 		t.Parallel()
 		s, sink := linkStack(t, true, nil, "0.0.0.0:8443")
-		nh, err := core.NewNetworkHandlers(core.NetworkConfig{DB: s.d.DB, Auth: s.d.Auth, Audit: s.d.Audit, Log: s.d.Log, Host: mgmtHost{"192.168.142.141/24"}})
+		nh, err := core.NewNetworkHandlers(core.NetworkConfig{DB: s.d.DB, Auth: s.d.Auth, Audit: s.d.Audit, Log: s.d.Log, Host: mgmtHost{"10.142.0.141/24"}})
 		if err != nil {
 			t.Fatal(err)
 		}
 		s.d.Network = nh
 		s.d.BoxAddr.Invalidate()
-		wantLinks(t, boxLinks(t, s, sink, true), "https://192.168.142.141:8443", allLinks...)
+		wantLinks(t, boxLinks(t, s, sink, true), "https://10.142.0.141:8443", allLinks...)
 	})
 	t.Run("-hosts, port 443", func(t *testing.T) {
 		t.Parallel()

@@ -39,6 +39,10 @@ type APIHandlers struct {
 	firstRun    sync.Mutex
 	restoring   func(context.Context) bool
 	dropUploads func()
+	// osZone (set by NewOSHandlers before the server serves) is the operating system side of the box's time zone: General shows it,
+	// a save of the zone and the first-run setup ask it to align. nil: no OSHandlers (tests of other parts), the side is not shown
+	// as managed.
+	osZone *OSHandlers
 
 	db      *store.DB
 	auth    *auth.Service

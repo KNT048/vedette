@@ -341,6 +341,16 @@ func (r *runEnv) run(id string) RunView {
 	return v
 }
 
+// giveCheck gives each device a suspected finding that has a safe template (CVE-2023-46805), so a run includes it: a device with
+// nothing to check is left out of every run.
+func (r *runEnv) giveCheck(ids ...string) {
+	r.findings.mu.Lock()
+	defer r.findings.mu.Unlock()
+	for _, id := range ids {
+		r.findings.list = append(r.findings.list, FindingRef{ID: "f-chk-" + id, AssetID: id, CVE: "CVE-2023-46805", Status: "suspected"})
+	}
+}
+
 func rowOf(v RunView, target, result string) *RunRow {
 	for i, row := range v.Results {
 		if row.TargetID == target && (result == "" || row.Result == result) {

@@ -16,9 +16,13 @@ import (
 )
 
 // Input is the Needs your input queue: what Vedette cannot settle without a person, in one list. Four kinds of item, each with its one
-// action: a device nobody added that has open findings (Add device, Ignore), a watched device Vedette knows nothing to check by (say
+// action: a device nobody added yet that has open findings (Add device, Ignore), a watched device Vedette knows nothing to check by (say
 // what runs there: its firmware, SNMP read access or an agent), an urgent finding (layers 1 to 4) not confirmed yet (Run the safe
-// check, Confirm vulnerability, Not affected), and a question (fnd_question) not answered yet. Devices a person ignored are left out. An item leaves the moment it is answered or stops being true: the queue is read from the current rows, never stored.
+// check, Confirm vulnerability, Not affected), and a question (fnd_question) not answered yet; then one card for the devices nobody added yet that have no open finding (Review: the Devices list's To
+// review). Devices a person ignored are left out. An item leaves the moment it is answered or stops being true: the queue is read from the current rows, never stored.
+
+// KindDevicesNotAdded is the queue's one card for every device nobody added yet that has no open finding (its id too).
+const KindDevicesNotAdded = "devices_not_added"
 
 // InputItemJS is one item of contract.ts InputItem (the fields of its kind are set, the others left out).
 type InputItemJS struct {
@@ -27,6 +31,7 @@ type InputItemJS struct {
 	Device   deviceRefJS       `json:"device"`
 	Status   any               `json:"status,omitempty"` // device_not_added: *DeviceStatus (null allowed); unconfirmed: the open status
 	Findings int               `json:"findings,omitempty"`
+	Count    int               `json:"count,omitempty"` // devices_not_added: how many
 	CVE      *string           `json:"cve,omitempty"`
 	Software *softwareRefJS    `json:"software,omitempty"`
 	Severity *cveSeverityJS    `json:"severity,omitempty"`
@@ -65,6 +70,9 @@ func (it InputItemJS) MarshalJSON() ([]byte, error) {
 		if _, ok := m[k]; !ok {
 			m[k] = nil
 		}
+	}
+	if it.Kind == KindDevicesNotAdded { // the grouped card names no device
+		delete(m, "device")
 	}
 	if it.Kind == "question" {
 		for _, k := range []string{"choices", "cve_list", "fixes"} {
@@ -170,7 +178,7 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 	var out []InputItemJS
 	var notAdded []string
 	for id := range counts {
-		if a, ok := ref.assets[id]; ok && !a.Approved {
+		if a, ok := ref.assets[id]; ok && !a.Approved && !a.Box && !a.Ignored {
 			notAdded = append(notAdded, id)
 		}
 	}
@@ -188,6 +196,24 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 		st := statuses[id]
 		out = append(out, InputItemJS{Kind: "device_not_added", ID: "device:" + id, Device: deviceRef(ref.device(id)), Status: st, Findings: counts[id],
 			nullables: []string{"status"}, rank: [3]int{0, statusRank(st), -counts[id]}, terms: terms[id]})
+	}
+	// the devices nobody added yet with no open finding: one card for all of them (Review opens the Devices list's To review), after
+	// the urgent findings and the questions, so a sweep that found hundreds of devices never buries those. Not in a queue read for one
+	// device or by a search: the card names no device.
+	if device == "" && !search {
+		review, err := s.cfg.Inventory.ToReviewIDs(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("findings: needs your input: reading the devices to review: %w", err)
+		}
+		n := 0
+		for _, id := range review {
+			if counts[id] == 0 {
+				n++
+			}
+		}
+		if n > 0 {
+			out = append(out, InputItemJS{Kind: KindDevicesNotAdded, ID: KindDevicesNotAdded, Count: n, rank: [3]int{3, 0, 0}})
+		}
 	}
 	vs, err := s.views(ctx, unconfirmed)
 	if err != nil {

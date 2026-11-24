@@ -354,8 +354,6 @@
     },
     "vuln": {
       "leftOut": "Not in the vulnerability checks: {{list}}.",
-      "button_one": "Run vulnerability checks on selected ({{count}})",
-      "button_other": "Run vulnerability checks on selected ({{count}})",
       "handPick_one": "{{count}} selected device is checked only if you tick it here (fragile, not classified yet, added by hand, or the box itself):",
       "handPick_other": "{{count}} selected devices are checked only if you tick them here (fragile, not classified yet, added by hand, or the box itself):",
       "unapproved_one": "{{count}} not approved yet",
@@ -405,11 +403,17 @@
     "vulnNone_one": "No suspected finding on this device has a safe check: none exists for its suspected CVE, so a run would confirm nothing. Its installed version, read by SNMP or an agent, decides it, or use Confirm on the finding.",
     "vulnNone_other": "No suspected finding on this device has a safe check: none exists for these {{count}} suspected CVEs, so a run would confirm nothing. The installed version, read by SNMP or an agent, decides them, or use Confirm on each finding.",
     "vulnNoneSuspected": "No suspected finding on this device has a safe check: nothing on it is suspected, and no confirmed finding has a check to run again, so a run would do nothing.",
-    "vulnCount": "{{checkable}} of {{count}} suspected findings can be checked.",
-    "vulnAgain_one": "{{count}} confirmed finding can be checked again, to see whether a fix holds.",
-    "vulnAgain_other": "{{count}} confirmed findings can be checked again, to see whether a fix holds.",
-    "identify": "Finds its open ports, services, operating system and software versions. Does not test whether a flaw can be exploited. Usually 1 to 5 minutes.",
-    "vuln": "Tries Vedette’s checks for the exploited flaws this device may have, to confirm or rule them out. Identifies it first; patches nothing. Usually 5 to 15 minutes."
+    "vulnConfirmAll_one": "Runs the safe check of the suspected finding, to confirm or rule it out.",
+    "vulnConfirmAll_other": "Runs the safe checks of the {{count}} suspected findings, to confirm or rule them out.",
+    "vulnConfirmSome_one": "Runs the safe check of {{count}} of the {{total}} suspected findings, to confirm or rule it out.",
+    "vulnConfirmSome_other": "Runs the safe checks of {{count}} of the {{total}} suspected findings, to confirm or rule them out.",
+    "vulnAgain_one": "Runs the safe check of {{count}} confirmed finding again, to see whether a fix holds.",
+    "vulnAgain_other": "Runs the safe checks of {{count}} confirmed findings again, to see whether a fix holds.",
+    "vulnNoneOf_one": "The suspected finding has no safe check.",
+    "vulnNoneOf_other": "None of the {{count}} suspected findings has a safe check.",
+    "vulnUncounted": "Tries Vedette’s safe checks for the exploited flaws this device may have.",
+    "vulnTail": "Identifies the device first; patches nothing. Usually 5 to 15 minutes.",
+    "identify": "Finds its open ports, services, operating system and software versions. Does not test whether a flaw can be exploited. Usually 1 to 5 minutes."
   },
   "lastChecks": {
     "title": "Last checks",
@@ -424,8 +428,8 @@
     },
     "neverIdentify": "“Check this device now” above runs it. Network discovery also checks each new device, and every device weekly, in the scan window.",
     "neverIdentifyRole": "An admin can run it with “Check this device now” above. Network discovery also checks each new device, and every device weekly, in the scan window.",
-    "neverVuln": "“Run vulnerability checks now” above runs it. A newly exploited flaw that matches this device can start one too.",
-    "neverVulnRole": "An operator can run it with “Run vulnerability checks now” above. A newly exploited flaw that matches this device can start one too.",
+    "neverVuln": "“{{button}}” above runs it. A newly exploited flaw that matches this device can start one too.",
+    "neverVulnRole": "An operator can run it with “{{button}}” above. A newly exploited flaw that matches this device can start one too.",
     "vulnWhy": {
       "no_ip": "No IP address yet, so no vulnerability check can run on it. Add its IP on this page.",
       "regular_scan_never": "Set to never scan, or its network scan is off under Sources: no vulnerability check runs on it.",

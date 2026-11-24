@@ -1,4 +1,4 @@
-// Mock API module inventory (S-INV-1..4). Tài sản nằm ở assetsStore dùng chung; bảng riêng của module tiền tố inv_.
+// Mock API for the inventory module. Assets live in the shared assetsStore; the module's own tables are prefixed inv_.
 // An observation is never overwritten (ARCHITECTURE §4): a manual edit only adds one observation with the source "manual".
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
@@ -137,7 +137,7 @@ const rand = (n: number, alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => {
 const LABEL_RE = /^[^<>\u0000-\u001f]{1,64}$/
 const VERSION_RE = /^[\w.\-+() ]{1,40}$/u
 const hasIp = (a: Asset) => a.ip !== '' && a.ip !== '—'
-/** Reads the settings; a range stored with host bits ("192.168.142.5/24") is reduced to the network address. A range without /prefix is kept as is so the UI shows the error on that row and does not block other actions. */
+/** Reads the settings; a range stored with host bits ("10.142.0.5/24") is reduced to the network address. A range without /prefix is kept as is so the UI shows the error on that row and does not block other actions. */
 /** A short hash of a string (FNV-1a), for the mock's versions. */
 export function hashOf(s: string): string {
   let h = 0x811c9dc5
@@ -322,7 +322,7 @@ const scanInfo = (a: Asset) => ({
 /** INV-49: a private (randomised) Wi-Fi address: the locally administered bit is set and the prefix is not a stable virtual one (QEMU/KVM, Docker, VirtualBox). */
 export const isPrivateMac = (mac: string | null) => !!mac && mac.length === 17 && (parseInt(mac.slice(0, 2), 16) & 2) !== 0 && !['52:54:00', '02:42', '0a:00:27'].some((p) => mac.toLowerCase().startsWith(p))
 /** INV-49: not approved but held out of To review: a private-address device with no open service that has not stayed past a day. */
-const isQuiet = (a: Asset) => !a.approved && a.origin === 'discovered' && a.id !== BOX_ID && !metaStore.get()[a.id]?.suspicious && !metaStore.get()[a.id]?.ignored_at && isPrivateMac(a.mac)
+export const isQuiet = (a: Asset) => !a.approved && a.origin === 'discovered' && a.id !== BOX_ID && !metaStore.get()[a.id]?.suspicious && !metaStore.get()[a.id]?.ignored_at && isPrivateMac(a.mac)
   && a.services.length === 0 && new Date(a.last_seen).getTime() - new Date(a.first_seen).getTime() <= 24 * 3600_000
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown. */
 const live = (a: Asset) => ({ ...a, private_mac: isPrivateMac(a.mac), quiet: isQuiet(a), name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null, os: a.os && osGuess(a.os) ? { ...a.os, basis: 'guess' as const } : a.os })
@@ -1475,7 +1475,7 @@ export const handlers = [
     const b = await body<SettingsInput>(request)
     if (b.version && b.version !== safetyVersion()) return fail(409, 'safety_changed', SAFETY_CHANGED)
     const adjusted: { from: string; to: string }[] = []
-    // "192.168.142.5/24" is reduced to "192.168.142.0/24" (the response says what was changed); an address without /prefix is rejected below, not guessed.
+    // "10.142.0.5/24" is reduced to "10.142.0.0/24" (the response says what was changed); an address without /prefix is rejected below, not guessed.
     const ranges = Array.isArray(b.lan_ranges) ? [...new Set(b.lan_ranges.map((x) => { const raw = String(x).trim(); const n = normalizeRange(raw); if (n.value !== raw) adjusted.push({ from: raw, to: n.value }); return n.value }))] : null
     if (!ranges) return fail(400, 'bad_ranges', 'The list of network ranges is missing.')
     if (ranges.length > 16) return fail(400, 'too_many_ranges', 'At most 16 network ranges.')

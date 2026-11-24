@@ -169,7 +169,7 @@ func FuzzValidatePodmanBuild(f *testing.F) {
 	})
 }
 
-// L1: the ID of the built image is read from the file podman wrote, and only an ID is believed.
+// The ID of the built image is read from the file podman wrote, and only an ID is believed.
 func TestReadImageIDReadsOnlyAnID(t *testing.T) {
 	t.Parallel()
 	for content, want := range map[string]string{
@@ -343,7 +343,7 @@ func slicesContain(l []string, s string) bool {
 	return false
 }
 
-// L5: ids that host.conf does not give are host_conf_incomplete, not an unsafe directory.
+// Ids that host.conf does not give are host_conf_incomplete, not an unsafe directory.
 func TestAVolumeWithBadIdsIsHostConfIncomplete(t *testing.T) {
 	t.Parallel()
 	_, err := renderVolume("passive", 0, 10004)

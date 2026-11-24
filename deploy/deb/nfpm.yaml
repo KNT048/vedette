@@ -1,7 +1,7 @@
-# The vedette-host .deb (WP-08g). Built by `make host-deb VERSION=x.y.z [ARCH=amd64|arm64]` with
+# The vedette-host .deb. Built by `make host-deb VERSION=x.y.z [ARCH=amd64|arm64]` with
 # `go tool -modfile=tools/go.mod nfpm pkg`; run from the repository root. VERSION, ARCH, BINARY and LICENSES come from the environment.
 # Nothing here is edited by hand on a box: the package installs the helper and its unit, creates the users and directories the
-# helper expects, and enables the unit without starting it. The installer (WP-08h) writes /etc/vedette/host.conf and starts it.
+# helper expects, and enables the unit without starting it. The installer writes /etc/vedette/host.conf and starts it.
 name: vedette-host
 arch: ${ARCH}
 platform: linux

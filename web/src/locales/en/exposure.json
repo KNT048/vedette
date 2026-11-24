@@ -574,7 +574,7 @@
     "stopping": "Stopping…",
     "stoppedToast": "Stopped the scan of {{value}}.",
     "last": "Last scan {{time}}",
-    "result": "{{services}} open services ({{newServices}} new, {{closed}} closed), {{issues}} open issues ({{newIssues}} new)."
+    "result": "{{services}} open services ({{newServices}} new, {{closed}} no longer seen), {{issues}} open issues ({{newIssues}} new)."
   },
   "seen": {
     "range": "{{first}} – {{last}}"
@@ -666,7 +666,7 @@
     "view": "Show services",
     "views": {
       "open": "Open ({{count}})",
-      "closed": "Closed ({{count}})"
+      "closed": "No longer seen ({{count}})"
     },
     "caption": "Services of {{value}}",
     "col": {
@@ -688,7 +688,7 @@
     "noWeb": "No open service answered HTTP, so the passive web scan had no page to read. Ports checked: {{ports}}.",
     "empty": {
       "open": "No open service",
-      "closed": "No closed service"
+      "closed": "Every service found is still seen."
     },
     "emptyNever": "Run a scan to find the services of this target."
   },

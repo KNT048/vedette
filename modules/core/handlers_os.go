@@ -88,6 +88,8 @@ type OSHandlers struct {
 
 	upd updCheck // the check side of the software update (updates_check.go)
 
+	tz zoneAligner // the operating system side of the box's time zone (boxzone.go)
+
 	fileMu  sync.Mutex   // one restore from a file at a time on a set-up box, from its upload to the start of its restore (restore_upload.go)
 	setup   *APIHandlers // the setup code gate, the first-run lock and the migrations of the first-run restore (restore_upload.go)
 	keyPath string       // the master key file, for its download (POST /core/data/key)
@@ -186,6 +188,12 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 	}
 	h.ctx, h.cancel = context.WithCancel(context.Background())
 	h.urun.retry = c.UpdateRetry
+	h.tz.wake = make(chan struct{}, 1)
+	c.Setup.osZone = h
+	if c.Host != nil {
+		h.wg.Add(1)
+		go h.zoneLoop()
+	}
 	if c.Host != nil {
 		if m, err := h.loadRunMeta(h.ctx); err == nil && (m.Snapshot != "" || !m.Audited) {
 			h.wg.Add(1)
@@ -319,6 +327,16 @@ func (h *OSHandlers) location(ctx context.Context) (*time.Location, error) {
 		return nil, fmt.Errorf("core: organization time zone %q: %w", name, err)
 	}
 	return loc, nil
+}
+
+// auditStamp is instant t for an audit line: in the box's zone, as the Audit page and its export write every other time; when the
+// zone cannot be read, in UTC and saying so.
+func (h *OSHandlers) auditStamp(ctx context.Context, t time.Time) string {
+	loc, err := h.location(ctx)
+	if err != nil {
+		return orgtime.StampZone(t, time.UTC)
+	}
+	return orgtime.Stamp(t, loc)
 }
 
 // hostState reads state/os, from the copy younger than stateTTL when there is one, else from the host; callers
@@ -742,8 +760,7 @@ func (h *OSHandlers) rebootPlan(ctx context.Context, req *oas.CorePostCoreUpdate
 	default:
 		return args, "", "", "", apierr.New(400, CodeInvalidWhen, "Choose: now, next maintenance window, or a time inside the window.")
 	}
-	at := when.UTC().Format(time.RFC3339)
-	return api.OSRebootArgs{When: "at", At: at}, "os.reboot_schedule", target, at, nil
+	return api.OSRebootArgs{When: "at", At: when.UTC().Format(time.RFC3339)}, "os.reboot_schedule", target, orgtime.Stamp(when, loc), nil
 }
 
 // CoreDeleteCoreUpdatesOsReboot implements DELETE /core/updates/os/reboot (admin): cancel the scheduled reboot.

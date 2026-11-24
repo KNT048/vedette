@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { collectErrors, expectAccessible } from '../helpers'
-import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
+import { begin, noHScroll, stepper, THEMES } from './ui-check-shared'
 
-// WP-06 independent check, area 5: "As the owner of a company I want to see exactly what leaves the box, the anonymous signal included."
-// Settings -> Privacy must match PRIVACY.md: 16 flows, payload verbatim, the word IDS nowhere, single sign-on (OIDC) listed.
+// "As the owner of a company I want to see exactly what leaves the box, the anonymous signal included."
+// Settings -> Privacy must match PRIVACY.md: 15 flows (flow 4 is retired), payload verbatim, the word IDS nowhere, single sign-on (OIDC) listed.
 const FLOWS = [
-  /feeds/i, /anonymous signal/i, /AI/, /lookups?|need a key/i, /notifications?/i, /update/i, /SIEM/, /CVE/, /external (exposure|surface)/i, /time sync|NTP/i, /single sign-on|OIDC/i, /connections you add/i, /MCP server/, /Wazuh pull/, /Outside view/, /OpenVAS feed/,
+  /feeds/i, /anonymous signal/i, /AI/, /notifications?/i, /update/i, /SIEM/, /CVE/, /external (exposure|surface)/i, /time sync|NTP/i, /single sign-on|OIDC/i, /connections you add/i, /MCP server/, /Wazuh pull/, /Outside view/, /OpenVAS feed/,
 ]
 
 for (const theme of THEMES) {
@@ -23,7 +23,7 @@ for (const theme of THEMES) {
     const n = await rows.count()
     const names = phone ? await rows.locator('> div > div:first-child > span:first-child').allTextContents() : await rows.locator('td:first-child').allTextContents()
     console.log('FLOWS', JSON.stringify(names))
-    expect(n, 'every flow of PRIVACY.md is on one page (no hidden second page)').toBe(16)
+    expect(n, 'every flow of PRIVACY.md is on one page (no hidden second page)').toBe(15)
     FLOWS.forEach((re, i) => expect(names[i], `flow ${i + 1}`).toMatch(re))
     // flow texts
     const all = await flows.textContent() ?? '' // #824: a long flow text is behind its ⓘ; its full copy stays in the DOM as the button's description

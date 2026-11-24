@@ -51,6 +51,11 @@ function DeviceRow({ d, fixTitle, same, busy, onHandle }: { d: FixDevice; fixTit
           {d.findings > 0 ? <Link to={`/findings?tab=device&device=${encodeURIComponent(d.device.id)}`} className="text-meta text-accent underline-offset-4 hover:underline">{t('byFix.findings', { count: d.findings })}</Link> : null}
           <SeverityLine counts={d.severity} />
         </span>
+        {d.others.length ? (
+          <span className="text-meta text-muted">
+            {t('byFix.otherSteps', { count: d.others.length, product: d.others[0]!.product, fixes: listOf(d.others.map((o) => o.version ?? t(o.kind === 'none_yet' ? 'byFix.otherNoneYet' : 'byFix.otherAdvisory'))) })}
+          </span>
+        ) : null}
         {same.length ? (
           <Link to={`/devices/${encodeURIComponent(d.device.id)}#possible-same`} className="w-fit text-meta text-accent underline-offset-4 hover:underline">
             {t('byFix.sameAs', { names: listOf(same.map((x) => x.name)) })}

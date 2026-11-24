@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// L1: a number that overflows float64 must not stop the repeated-key check, and a field that keeps raw
+// A number that overflows float64 must not stop the repeated-key check, and a field that keeps raw
 // bytes (host/api CommandRequest.Args is a json.RawMessage) must not hide a repeated key behind it.
 func TestRepeatedKeyAfterOverflowingNumberIsFound(t *testing.T) {
 	if Ambiguous([]byte(`{"a":1e400,"b":1,"b":2}`)) != WhyRepeated {
@@ -21,7 +21,7 @@ func TestRepeatedKeyAfterOverflowingNumberIsFound(t *testing.T) {
 	}
 }
 
-// L1: any tokenizer error other than the end of a complete value is reported, never read as clean;
+// Any tokenizer error other than the end of a complete value is reported, never read as clean;
 // and a document nested too deep says so instead of claiming repeated keys.
 func TestAmbiguousFailsClosedAndNamesDepth(t *testing.T) {
 	for _, bad := range []string{`{"a":`, `{"a":1,`, `{"a" 1}`, `{"a":tru}`, `[1,,2]`, `{"a":1}}`[:0] + `{`} {

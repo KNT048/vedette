@@ -168,7 +168,7 @@ func TestResendCodeHonoursTheDeviceCookie(t *testing.T) {
 	}
 }
 
-// amended after the security review of WP-04b part 2: wrong setup codes are counted per client
+// amended after the security review: wrong setup codes are counted per client
 // address like a sign-in, so one guesser cannot keep setup closed for the owner at another address; a right
 // code gives its count back.
 func TestSetupAttemptsAreBoundedPerClient(t *testing.T) {

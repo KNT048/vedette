@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// WP-13b slice 13b-9 (INV-15 (8), INV-16, INV-18): approving a high-risk AI request with the two-step code, the hints a
+// INV-15 (8), INV-16, INV-18: approving a high-risk AI request with the two-step code, the hints a
 // rejection can leave, the quality breaker and the AI state.
 
 // AI thresholds of the contract (INV-15). Propose reads them for the proposal gates.

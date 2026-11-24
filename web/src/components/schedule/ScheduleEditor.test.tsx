@@ -44,7 +44,7 @@ describe('ScheduleEditor', () => {
     await u.click(screen.getByRole('button', { name: 'Change the schedule of Outside scan' }))
     const dlg = within(await screen.findByRole('dialog', { name: 'Schedule: Outside scan' }))
     // the window this rule has is shown at once, the rest of the details stay one click away
-    expect(dlg.getByRole('button', { name: 'Time zone, window, pause' })).toHaveAttribute('aria-expanded', 'true')
+    expect(dlg.getByRole('button', { name: 'Window and pause' })).toHaveAttribute('aria-expanded', 'true')
     await u.selectOptions(dlg.getByLabelText('Repeat'), 'weekly')
     await u.click(within(dlg.getByRole('group', { name: 'On' })).getByLabelText('Thursday'))
     expect((await dlg.findAllByRole('listitem', undefined, T))).toHaveLength(3)
@@ -98,7 +98,7 @@ describe('ScheduleEditor', () => {
     render(<Harness ownerKey="exposure.target:xt-14" />)
     await u.click(await screen.findByRole('button', { name: 'Change the schedule of Outside scan' }, T))
     const dlg = within(await screen.findByRole('dialog'))
-    if (dlg.getByRole('button', { name: 'Time zone, window, pause' }).getAttribute('aria-expanded') !== 'true') await u.click(dlg.getByRole('button', { name: 'Time zone, window, pause' }))
+    if (dlg.getByRole('button', { name: 'Window and pause' }).getAttribute('aria-expanded') !== 'true') await u.click(dlg.getByRole('button', { name: 'Window and pause' }))
     await u.selectOptions(dlg.getByLabelText('When it may start'), 'custom')
     const days = within(dlg.getByRole('group', { name: 'Days' }))
     expect(days.getAllByRole('checkbox').every((c) => c.getAttribute('aria-checked') === 'true' || (c as HTMLInputElement).checked)).toBe(true)
@@ -110,6 +110,23 @@ describe('ScheduleEditor', () => {
     const before = previews
     await new Promise((r) => setTimeout(r, 400))
     expect(previews).toBe(before)
+    server.events.removeAllListeners('request:start')
+  })
+
+  it('has no time zone of its own: every schedule follows the box\'s zone, named above the next starts, and a save names none', async () => {
+    const u = userEvent.setup()
+    let sent: Record<string, unknown> | null = null
+    server.events.on('request:start', async ({ request }) => { if (request.method === 'PUT' && request.url.includes('/schedules/')) sent = (await request.clone().json()) as Record<string, unknown> })
+    render(<Harness ownerKey="exposure.target:xt-14" />)
+    await u.click(await screen.findByRole('button', { name: 'Change the schedule of Outside scan' }, T))
+    const dlg = within(await screen.findByRole('dialog'))
+    if (dlg.getByRole('button', { name: 'Window and pause' }).getAttribute('aria-expanded') !== 'true') await u.click(dlg.getByRole('button', { name: 'Window and pause' }))
+    expect(dlg.queryByLabelText(/time zone/i)).toBeNull()
+    expect(dlg.queryByRole('combobox', { name: /zone/i })).toBeNull()
+    expect(await dlg.findByText('Next starts (Europe/Berlin time)', undefined, T)).toBeInTheDocument()
+    await u.click(dlg.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(sent).not.toBeNull(), T)
+    expect((sent as unknown as { rule: Record<string, unknown> }).rule).not.toHaveProperty('tz')
     server.events.removeAllListeners('request:start')
   })
 
@@ -126,7 +143,7 @@ describe('ScheduleEditor', () => {
     const dlg = within(await screen.findByRole('dialog'))
     // nobody saved this one yet: a target's scans are on by default (weekly), so the fields show at once
     expect(dlg.getByRole('switch', { name: 'Run on a schedule' })).toBeChecked()
-    await u.click(dlg.getByRole('button', { name: 'Time zone, window, pause' }))
+    await u.click(dlg.getByRole('button', { name: 'Window and pause' }))
     fireEvent.change(dlg.getByLabelText('Pause until'), { target: { value: new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10) } })
     await u.click(dlg.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText(/^Paused until /, undefined, T)).toBeInTheDocument()

@@ -558,7 +558,7 @@ func (h *OSHandlers) stageChecked(ctx context.Context, body io.Reader, passwordH
 func (h *OSHandlers) recordUpload(ctx context.Context, c caller, admin bool, up upload) error {
 	id := up.ID
 	time.AfterFunc(uploadMaxAge, func() { h.snaps.dropUpload(id) }) // not kept past the hour step 2 accepts it for
-	if err := h.record(ctx, c, admin, "data.restore_upload", "backup", "backup of "+up.meta.CreatedAt.Format(time.RFC3339)); err != nil {
+	if err := h.record(ctx, c, admin, "data.restore_upload", "backup", "backup of "+h.auditStamp(ctx, up.meta.CreatedAt)); err != nil {
 		up.remove()
 		return err
 	}
@@ -568,9 +568,9 @@ func (h *OSHandlers) recordUpload(ctx context.Context, c caller, admin bool, up 
 // openBackupUpload is the archive of an upload: the body itself, or a password-protected file (age) opened with the password
 // of X-Backup-Password while it is read, so only the plain archive reaches the staging (nothing encrypted is stored). A
 // protected file without a password is 409 password_required; a wrong password is 400 wrong_backup_password and counts as
-// a guess on the setup-code limit of the caller's address (BeginSetupAttempt, given back when the password is right): the
-// upload already needs the setup code, scrypt costs about a second per try, and the limit keeps guessing online slower
-// than guessing on a copy of the file. A plain file with a password is taken as it is (the password protects nothing).
+// a guess on the backup-password limit of the caller's address (BeginBackupPasswordAttempt, its own counter, given back when
+// the password is right): scrypt costs about a second per try, and the limit keeps guessing online slower than guessing on
+// a copy of the file. It is never the sign-in's or the setup code's counter. A plain file with a password is taken as it is (the password protects nothing).
 // A protected file's key member (splitKeyMember) is taken off the front: key is the decryption key it carried, nil for a
 // plain file or a protected one without it. A plain file never yields a key: its archive is read by host/archive's rules,
 // which refuse anything in front of the manifest.
@@ -590,9 +590,9 @@ func (h *OSHandlers) openBackupUpload(ctx context.Context, body io.Reader, heade
 	if err != nil {
 		return nil, nil, err
 	}
-	refund, err := h.auth.BeginSetupAttempt(ip)
+	refund, err := h.auth.BeginBackupPasswordAttempt(ip)
 	if err != nil {
-		return nil, nil, err //nolint:wrapcheck // 429 rate_limited as for the setup code
+		return nil, nil, err //nolint:wrapcheck // 429 rate_limited, "Too many wrong backup passwords"
 	}
 	r, err := decryptBackup(br, password)
 	if ae, ok := apierr.As(err); ok && ae.Code == codeWrongBackupPassword {
@@ -708,7 +708,7 @@ func (h *OSHandlers) importUpload(ctx context.Context, c caller, admin bool, up 
 	}
 	b := api.Backup{CreatedAt: up.meta.CreatedAt}
 	keep := false
-	err := h.act(ctx, c, admin, "data.restore_import", "backup", "backup of "+up.meta.CreatedAt.Format(time.RFC3339)+", "+k.words+extra, func(id, actor string) error {
+	err := h.act(ctx, c, admin, "data.restore_import", "backup", "backup of "+h.auditStamp(ctx, up.meta.CreatedAt)+", "+k.words+extra, func(id, actor string) error {
 		// labelRE of the host: letters, digits, space, : and - (no comma). Before first-run setup the restored organization's
 		// zone is not known yet (a fresh box has only the default), so the time is UTC and says so.
 		label := "Uploaded backup of " + orgtime.ISODay(up.meta.CreatedAt, time.UTC) + " " + orgtime.ClockZone(up.meta.CreatedAt, time.UTC)
@@ -1059,7 +1059,11 @@ func (h *OSHandlers) CorePostCoreDataKey(ctx context.Context, req *oas.CorePostC
 	}
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		hd := x.W.Header()
-		hd.Set("Content-Disposition", `attachment; filename="vedette-key-`+h.now().UTC().Format("2006-01-02")+`.key"`)
+		loc, lerr := h.location(ctx) // the day in the name is the organization's, as on every page
+		if lerr != nil {
+			loc = time.UTC
+		}
+		hd.Set("Content-Disposition", `attachment; filename="vedette-key-`+orgtime.ISODay(h.now(), loc)+`.key"`)
 		hd.Set("Content-Length", strconv.Itoa(len(key)))
 	}
 	return oas.CorePostCoreDataKeyOK{Data: bytes.NewReader(key)}, nil

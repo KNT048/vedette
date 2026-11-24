@@ -1281,9 +1281,9 @@ describe('inventory: catalog', () => {
 
 describe('inventory: range validation helpers', () => {
   it('normalizeRange: only host bits are cleared; a bare address is never guessed', () => {
-    expect(normalizeRange('192.168.142.0')).toEqual({ value: '192.168.142.0', note: null }) // no prefix: kept as typed, reported by rangeProblem
-    expect(normalizeRange('192.168.142.5')).toEqual({ value: '192.168.142.5', note: null })
-    expect(normalizeRange('192.168.142.5/24')).toEqual({ value: '192.168.142.0/24', note: 'network' })
+    expect(normalizeRange('10.142.0.0')).toEqual({ value: '10.142.0.0', note: null }) // no prefix: kept as typed, reported by rangeProblem
+    expect(normalizeRange('10.142.0.5')).toEqual({ value: '10.142.0.5', note: null })
+    expect(normalizeRange('10.142.0.5/24')).toEqual({ value: '10.142.0.0/24', note: 'network' })
     expect(normalizeRange('  10.0.0.0/8 ')).toEqual({ value: '10.0.0.0/8', note: null })
     expect(normalizeRange('abc')).toEqual({ value: 'abc', note: null })
     expect(normalizeRange('10.0.5.0/99')).toEqual({ value: '10.0.5.0/99', note: null })
@@ -1291,8 +1291,8 @@ describe('inventory: range validation helpers', () => {
 
   it('rangeProblem: no prefix, format, host bits, not private, overlap, or fine', () => {
     expect(rangeProblem('abc', [])).toBe('format')
-    expect(rangeProblem('192.168.142.0', [])).toBe('noPrefix')
-    expect(rangeProblem('192.168.142.5/24', [])).toBe('hostBits')
+    expect(rangeProblem('10.142.0.0', [])).toBe('noPrefix')
+    expect(rangeProblem('10.142.0.5/24', [])).toBe('hostBits')
     expect(rangeProblem('8.8.8.0/24', [])).toBe('notPrivate')
     expect(rangeProblem('10.0.0.0/7', [])).toBe('notPrivate')
     expect(rangeProblem('192.168.10.0/25', ['192.168.10.0/24', '192.168.10.0/25'])).toBe('overlap')
@@ -1338,22 +1338,22 @@ describe('inventory: sensors (S-INV-1, admin)', () => {
     asAdmin()
     const got = (await call('GET', '/settings')).json!
     const { adjusted: _a, ...base } = got
-    const bare = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.142.0'], scope_confirmed: true })
+    const bare = await call('PUT', '/settings', { ...base, lan_ranges: ['10.142.0.0'], scope_confirmed: true })
     expect(bare.status).toBe(400)
     expect(bare.json!.error.code).toBe('no_prefix')
-    expect(bare.json!.error.message).toBe('"192.168.142.0" has no prefix length. Add it so Vedette scans the right size of network, for example 192.168.142.0/24 or 192.168.142.0/25.')
-    const put2 = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.142.5/24', '192.168.20.0/24'], scope_confirmed: true })
+    expect(bare.json!.error.message).toBe('"10.142.0.0" has no prefix length. Add it so Vedette scans the right size of network, for example 10.142.0.0/24 or 10.142.0.0/25.')
+    const put2 = await call('PUT', '/settings', { ...base, lan_ranges: ['10.142.0.5/24', '192.168.20.0/24'], scope_confirmed: true })
     expect(put2.status).toBe(200)
-    expect(put2.json!.lan_ranges).toEqual(['192.168.142.0/24', '192.168.20.0/24'])
-    expect(put2.json!.adjusted).toEqual([{ from: '192.168.142.5/24', to: '192.168.142.0/24' }])
-    const put3 = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.142.0/24'], scope_confirmed: true, version: put2.json!.version })
+    expect(put2.json!.lan_ranges).toEqual(['10.142.0.0/24', '192.168.20.0/24'])
+    expect(put2.json!.adjusted).toEqual([{ from: '10.142.0.5/24', to: '10.142.0.0/24' }])
+    const put3 = await call('PUT', '/settings', { ...base, lan_ranges: ['10.142.0.0/24'], scope_confirmed: true, version: put2.json!.version })
     expect(put3.json!.adjusted).toEqual([]) // already normal: nothing adjusted
     // #860: the version the page read is checked when it is sent; an older one is 409 safety_changed
-    const stale = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.142.0/24'], scope_confirmed: true })
+    const stale = await call('PUT', '/settings', { ...base, lan_ranges: ['10.142.0.0/24'], scope_confirmed: true })
     expect(stale.status).toBe(409)
     expect(stale.json!.error.code).toBe('safety_changed')
     const { version: _v, ...noVersion } = base
-    expect((await call('PUT', '/settings', { ...noVersion, lan_ranges: ['192.168.142.0/24'], scope_confirmed: true })).status).toBe(200) // left out: no check
+    expect((await call('PUT', '/settings', { ...noVersion, lan_ranges: ['10.142.0.0/24'], scope_confirmed: true })).status).toBe(200) // left out: no check
   })
 
   it('the server rejects public ranges, bad hours, bad speed, bad exclusions and more', async () => {
@@ -2246,7 +2246,7 @@ describe('inventory: form matrix', () => {
   })
 })
 
-describe('inventory: merging observations follows the source priority (DATA_MODEL §5.1, WP-06)', () => {
+describe('inventory: merging observations follows the source priority (DATA_MODEL §5.1)', () => {
   const T0 = '2026-11-09T01:00:00.000Z'
   const ob = (id: string, source: string, confidence: number, seen_at = T0): StoredObs => ({ id, field: 'os', value: id, source: source as StoredObs['source'], confidence, seen_at })
   const winner = (list: StoredObs[]) => markCurrent(list).find((o) => o.current)!.id

@@ -1,4 +1,4 @@
-// Command noticescheck holds THIRD_PARTY_NOTICES.md to what the project ships (WP-08i). It fails when
+// Command noticescheck holds THIRD_PARTY_NOTICES.md to what the project ships. It fails when
 //   - a Go module linked into a shipped binary (go list -deps of the given commands, linux, no cgo, amd64 and arm64) is not in a
 //     "Version" table of the notices, or is listed with another version;
 //   - a direct production dependency of the web app is not named in the web table;

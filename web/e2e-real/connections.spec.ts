@@ -1,6 +1,6 @@
 // Settings -> Connections on the real backend (S-AI-7). The devices are the loopback fakes of the box process
 // (cmd/vedette/e2edevices_test.go): an HTTPS, an SSH and an MCP server reachable under their own names. The form matrix is that of
-// e2e/qa/wp06-connections.spec.ts; what only a real box shows is new: Test reaches the fake and the fake saw the credential, the first test pins
+// e2e/qa/ui-check-connections.spec.ts; what only a real box shows is new: Test reaches the fake and the fake saw the credential, the first test pins
 // the certificate or host key, a changed key is refused before anything is sent, "Forget pinned key" lets the next test pin again, the real
 // address policy refuses loopback and link-local, the secret never comes back, and a viewer or operator cannot read or change connections.
 // One device per kind is shared and rotated by the pin test, so the tests run in order in one worker.

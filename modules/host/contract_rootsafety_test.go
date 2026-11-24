@@ -1,4 +1,4 @@
-// Contract tests of the security review of WP-07b part 1 and the findings around it: root
+// Contract tests of the security review and the findings around it: root
 // never opens or parses core's data, never touches core's tree by path, refuses writes once a
 // reboot has started, and bounds what logs.export can write. They run on the fake machine (opstest)
 // like the rest of the system-command tests.

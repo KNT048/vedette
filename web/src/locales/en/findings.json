@@ -553,7 +553,11 @@
     "nowOn": "Now on {{versions}}",
     "machines_one": "(possibly {{count}} machine)",
     "machines_other": "(possibly {{count}} machines)",
-    "sameAs": "Possibly the same device as {{names}}"
+    "sameAs": "Possibly the same device as {{names}}",
+    "otherSteps_one": "{{product}} on this device is also in another step ({{fixes}}): no single release is known to fix all of its findings.",
+    "otherSteps_other": "{{product}} on this device is also in {{count}} other steps ({{fixes}}): no single release is known to fix all of its findings.",
+    "otherAdvisory": "see the vendor advisory",
+    "otherNoneYet": "no fix known yet"
   },
   "handle": {
     "title": "Mark as handled",
@@ -599,6 +603,9 @@
     "caption": "What needs your input",
     "empty": "Nothing needs your input",
     "emptyBody": "Vedette settles everything else by itself.",
+    "notAddedGroup_one": "1 device not added yet with no open finding.",
+    "notAddedGroup_other": "{{count}} devices not added yet with no open finding.",
+    "review": "Review",
     "notAdded_one": "Nobody added this device yet. It has {{count}} open finding.",
     "notAdded_other": "Nobody added this device yet. It has {{count}} open findings.",
     "safeCheck": "Run the safe check",

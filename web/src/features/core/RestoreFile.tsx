@@ -62,7 +62,8 @@ export function RestoreFile({ disabled, title }: { disabled: boolean; title?: st
     if (Object.keys(e).length || !file) return
     try { setChecked(await upload.mutateAsync({ file, ...(locked ? { password: filePassword } : {}) })) } catch (err) {
       const c = err instanceof ApiError ? err.code : ''
-      if (c === 'backup_password_required' || c === 'wrong_backup_password') { setLocked(true); setErrors({ filePassword: errMsg(err, t) }) }
+      // The box's wait after too many wrong backup passwords belongs next to that password, as the wrong password does.
+      if (c === 'backup_password_required' || c === 'wrong_backup_password' || (c === 'rate_limited' && locked)) { setLocked(true); setErrors({ filePassword: errMsg(err, t) }) }
       else if (c === 'not_a_backup' || c === 'schema_newer' || c === 'too_large') setErrors({ file: errMsg(err, t) })
       else setErrors({ form: errMsg(err, t) })
     }

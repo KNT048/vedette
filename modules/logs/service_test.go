@@ -944,7 +944,7 @@ func TestIngestUnderTheByteBoundStartsNoPurge(t *testing.T) {
 	}
 }
 
-// L1: device_logs has its own cap: the newest lines up to it, then one marker line that says older lines are left out.
+// Device_logs has its own cap: the newest lines up to it, then one marker line that says older lines are left out.
 func TestExportDeviceLogsIsCappedNewestFirstWithAMarker(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -996,7 +996,7 @@ func TestExportDeviceLogsCannotMakeTheCoreExportTooLarge(t *testing.T) {
 	_ = exp.Close()
 }
 
-// L2: a time outside [now - retention, now] is the receive time, now, and the next purge (an hour later) keeps the line.
+// A time outside [now - retention, now] is the receive time, now, and the next purge (an hour later) keeps the line.
 func TestIngestClampsTheTimeToNow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -1014,7 +1014,7 @@ func TestIngestClampsTheTimeToNow(t *testing.T) {
 	}
 }
 
-// L2: a huge line is cut before the sanitizer walks it (9,000 NULs then text: cut first, nothing but spaces is left; walked
+// A huge line is cut before the sanitizer walks it (9,000 NULs then text: cut first, nothing but spaces is left; walked
 // first, the text would survive behind the spaces).
 func TestSanitizeCutsBeforeItWalks(t *testing.T) {
 	t.Parallel()
@@ -1451,7 +1451,7 @@ func TestFirstJobRunRecountsWithoutHoldingTheWriter(t *testing.T) {
 	}
 }
 
-// L4: the last chunk deletes exactly chunk lines, the next one finds none: the over-counted counter is still recomputed.
+// The last chunk deletes exactly chunk lines, the next one finds none: the over-counted counter is still recomputed.
 func TestPurgeResyncsWhenTheLastChunkIsExactlyFull(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -1474,7 +1474,7 @@ func TestPurgeResyncsWhenTheLastChunkIsExactlyFull(t *testing.T) {
 	}
 }
 
-// M1: an over-counted counter must not make the first purge after a start delete real lines: the purge that Ingest starts
+// An over-counted counter must not make the first purge after a start delete real lines: the purge that Ingest starts
 // recounts first, like the job does.
 func TestFirstPurgeStartedByIngestRecountsBeforeDeleting(t *testing.T) {
 	t.Parallel()
@@ -1507,7 +1507,7 @@ type offGate struct{}
 
 func (offGate) Enabled(string) bool { return false }
 
-// L5: the purge job is housekeeping: with the module off the scheduler still runs it, and it deletes the lines past
+// The purge job is housekeeping: with the module off the scheduler still runs it, and it deletes the lines past
 // the retention.
 func TestThePurgeJobRunsWhileTheModuleIsOff(t *testing.T) {
 	t.Parallel()

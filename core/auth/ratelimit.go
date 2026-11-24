@@ -258,9 +258,19 @@ func (l *limiter) evictLocked(now time.Time) {
 	}
 }
 
-func rateLimited(wait time.Duration) *apierr.Error {
+func rateLimited(wait time.Duration) *apierr.Error { return tooMany("failed sign-in attempts", wait) }
+
+// tooMany is the 429 of a limiter, naming what was guessed: a person who mistyped a backup password must not be told about
+// sign-in attempts they never made.
+func tooMany(what string, wait time.Duration) *apierr.Error {
 	secs := int((wait + time.Second - 1) / time.Second)
-	return apierr.New(429, CodeRateLimited, fmt.Sprintf("Too many failed sign-in attempts. Try again in %s.", humanWait(secs))).With("retry_after", secs)
+	return apierr.New(429, CodeRateLimited, fmt.Sprintf("Too many %s. Try again in %s.", what, humanWait(secs))).With("retry_after", secs)
+}
+
+// retold is a 429 of the limiter told with what (see tooMany), the wait unchanged.
+func retold(e *apierr.Error, what string) *apierr.Error {
+	secs, _ := e.Extra["retry_after"].(int)
+	return tooMany(what, time.Duration(secs)*time.Second)
 }
 
 func humanWait(secs int) string {
@@ -274,6 +284,14 @@ func humanWait(secs int) string {
 	return fmt.Sprintf("%d minutes", m)
 }
 
+// Guesses at something that is not an account (the first-run setup code, the password of an uploaded backup file) are
+// counted on a limiter of their own (Service.guess), each under its own name: they can never lock out a sign-in, nor each
+// other, and their 429 names what was guessed.
+const (
+	guessSetupCode      = "setup-code"
+	guessBackupPassword = "backup-password"
+)
+
 // BeginSetupAttempt counts one guess of the first-run setup code before it is judged: per client
 // address like a sign-in (the address, and for IPv6 its /64, with the same limits and growing wait). There
 // is deliberately no counter for the whole box: any shared ceiling is a lever a stranger with a few dozen
@@ -281,12 +299,24 @@ func humanWait(secs int) string {
 // code needs none to resist guessing. It returns a refund to call when the guess was right (or never
 // judged), or 429 rate_limited.
 func (s *Service) BeginSetupAttempt(ip netip.Addr) (refund func(), err error) {
+	return s.beginGuess(ip, guessSetupCode, "wrong setup codes")
+}
+
+// BeginBackupPasswordAttempt counts one guess of the password of an uploaded backup file before scrypt judges it, per client
+// address with the limits of a sign-in, on its own counter: a mistyped file password never blocks a sign-in or the setup
+// code of that address. Its 429 says "Too many wrong backup passwords". It returns a refund to call when the password was
+// right (or not judged).
+func (s *Service) BeginBackupPasswordAttempt(ip netip.Addr) (refund func(), err error) {
+	return s.beginGuess(ip, guessBackupPassword, "wrong backup passwords")
+}
+
+func (s *Service) beginGuess(ip netip.Addr, name, what string) (refund func(), err error) {
 	if !ip.IsValid() {
 		return nil, errNoIP()
 	}
-	as, e := s.limit.beginAll("code", ipLimitKeys(ip))
+	as, e := s.guess.beginAll(name, ipLimitKeys(ip))
 	if e != nil {
-		return nil, e
+		return nil, retold(e, what)
 	}
 	return func() { refundAll(as) }, nil
 }

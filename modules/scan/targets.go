@@ -34,6 +34,11 @@ type TargetView struct {
 	IP         string  `json:"ip"`
 	Fragile    bool    `json:"fragile"`
 	Findings   int     `json:"findings"`
+	// What a vulnerability check of the device can do (checkCount): its suspected findings, how many of them have a safe check,
+	// and how many confirmed ones have a check to run again. Zero for an external target.
+	Suspected  int     `json:"suspected"`
+	Checkable  int     `json:"checkable"`
+	Again      int     `json:"again"`
 	Selectable bool    `json:"selectable"`
 	PickOnly   bool    `json:"pick_only"` // only a person's tick picks it; the GUI never ticks it for them
 	Box        bool    `json:"box"`       // the Vedette box itself: pick-only, the GUI says so
@@ -224,25 +229,21 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 	return out, nil
 }
 
-// countFindings sets the number of open findings (suspected or confirmed) of each device.
+// countFindings sets the number of open findings (suspected or confirmed) of each device and what a check of it can do.
 func (s *Service) countFindings(ctx context.Context, ts []TargetView) error {
-	if s.cfg.Findings == nil {
-		return nil
-	}
-	all, err := s.cfg.Findings.List(ctx, "")
+	counts, open, err := s.checkCounts(ctx)
 	if err != nil {
-		return fmt.Errorf("scan: reading the findings: %w", err)
-	}
-	n := map[string]int{}
-	for _, f := range all {
-		if f.Status == "confirmed" || f.Status == "suspected" {
-			n[f.AssetID]++
-		}
+		return err
 	}
 	for i := range ts {
-		ts[i].Findings = n[ts[i].ID]
+		c := counts[ts[i].ID]
+		ts[i].Findings, ts[i].Suspected, ts[i].Checkable, ts[i].Again = open[ts[i].ID], c.Suspected, c.Checkable, c.Again
 	}
 	return nil
+}
+
+func (t TargetView) checks() checkCount {
+	return checkCount{Suspected: t.Suspected, Checkable: t.Checkable, Again: t.Again}
 }
 
 // refusal is the 400 out_of_scope of a target that cannot be picked.

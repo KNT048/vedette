@@ -76,7 +76,7 @@ func (h *hostMACs) Get(ctx context.Context) ([]string, error) { return h.get(ctx
 
 // Fresh is Get, but asks the host again (at most every hostMACsFreshEvery) when the answer is older than that: a caller that sees a
 // MAC it does not know at a box address asks before deciding, as a decoy added a moment ago has a macvlan MAC the cached answer
-// lacks (WP-31 M7 review).
+// lacks.
 func (h *hostMACs) Fresh(ctx context.Context) ([]string, error) { return h.get(ctx, true) }
 
 func (h *hostMACs) get(ctx context.Context, fresh bool) ([]string, error) {

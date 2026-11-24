@@ -165,10 +165,10 @@ test.describe('first-run setup', () => {
     await next(page)
     await expect(page.getByText(/"abc" is not a valid range/)).toBeVisible()
     // the owner's case: a bare address
-    await page.getByLabel('Range 1', { exact: true }).fill('192.168.142.0')
+    await page.getByLabel('Range 1', { exact: true }).fill('10.142.0.0')
     await next(page)
-    await expect(page.getByText(/"192\.168\.142\.0" has no prefix length/)).toBeVisible()
-    await page.getByLabel('Range 1', { exact: true }).fill('192.168.142.0/25')
+    await expect(page.getByText(/"10\.142\.0\.0" has no prefix length/)).toBeVisible()
+    await page.getByLabel('Range 1', { exact: true }).fill('10.142.0.0/25')
     await page.getByRole('button', { name: 'Add range' }).click()
     await page.getByLabel('Range 2', { exact: true }).fill('10.1.5.9/16')
     await page.getByLabel('Range 2', { exact: true }).blur()
@@ -195,7 +195,7 @@ test.describe('first-run setup', () => {
     // step 3 -> back keeps data -> next
     await expect(page.getByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeVisible()
     await page.getByRole('button', { name: 'Back' }).click()
-    await expect(page.getByLabel('Range 1', { exact: true })).toHaveValue('192.168.142.0/25')
+    await expect(page.getByLabel('Range 1', { exact: true })).toHaveValue('10.142.0.0/25')
     await expect(page.getByLabel('Range 2', { exact: true })).toHaveValue('10.1.0.0/16')
     await expect(page.getByLabel('Range 3', { exact: true })).toHaveValue('100.66.254.0/24')
     await next(page)
@@ -214,7 +214,7 @@ test.describe('first-run setup', () => {
 
     // scope reached the inventory module
     const inv = await page.evaluate(async () => (await (await fetch('/api/v1/inventory/settings')).json()) as { lan_ranges: string[]; active: { enabled: boolean } })
-    expect(inv.lan_ranges).toEqual(['192.168.142.0/25', '10.1.0.0/16', '100.66.254.0/24'])
+    expect(inv.lan_ranges).toEqual(['10.142.0.0/25', '10.1.0.0/16', '100.66.254.0/24'])
     expect(inv.active.enabled).toBe(true)
 
     // every sidebar page is empty: no trace of sample data
@@ -562,14 +562,14 @@ test.describe('updates: system helper', () => {
 })
 
 test.describe('privacy', () => {
-  test('16 flows, anonymous signal shown as not sent', async ({ page, isMobile }) => {
+  test('15 flows, anonymous signal shown as not sent', async ({ page, isMobile }) => {
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/privacy')
     await expect(h1(page)).toContainText('connects out only for the flows listed below')
     await expectAccessible(page, 'privacy')
     // table on desktop, list on a phone
-    await expect(isMobile ? page.getByRole('list', { name: 'Data flows that leave the box' }).getByRole('listitem') : page.getByRole('table', { name: 'Data flows that leave the box' }).locator('tbody tr')).toHaveCount(16)
+    await expect(isMobile ? page.getByRole('list', { name: 'Data flows that leave the box' }).getByRole('listitem') : page.getByRole('table', { name: 'Data flows that leave the box' }).locator('tbody tr')).toHaveCount(15)
     await expect(page.getByText(/Anonymous signal: not sent\./)).toBeVisible()
     await shot(page, 'core', 'privacy')
     await expect(page.getByRole('switch', { name: 'Send anonymous signal' })).toHaveCount(0)

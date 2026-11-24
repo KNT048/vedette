@@ -1,4 +1,4 @@
-// Shared by the specs that run on the real backend (WP-30): the box manifest, API calls with the CSRF header, sign-in that waits
+// Shared by the specs that run on the real backend: the box manifest, API calls with the CSRF header, sign-in that waits
 // out the box's one-password-at-a-time gate, the storageState files of the seeded roles, unique names.
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -138,7 +138,7 @@ export async function createUser(admin: APIRequestContext, request: APIRequestCo
   expect(changed.status, `password change of ${who.email}: ${JSON.stringify(changed.body)}`).toBe(200)
 }
 
-// ---- the fakes that live in the box process (WP-30 slice 3): the SMTP sink behind the control server of cmd/vedette/e2ebox_test.go ----
+// ---- the fakes that live in the box process: the SMTP sink behind the control server of cmd/vedette/e2ebox_test.go ----
 
 async function control(method: 'GET' | 'POST', path: string, body?: unknown): Promise<Response> {
   const b = box()
@@ -184,7 +184,7 @@ export async function ensureEmailChannel(admin: APIRequestContext): Promise<void
   expect(saved.status, `save the email channel: ${JSON.stringify(saved.body)}`).toBe(200)
 }
 
-// ---- the devices of the box (WP-30 slice 5): an HTTPS, an SSH and an MCP server in the box process, reachable only under their own names ----
+// ---- the devices of the box: an HTTPS, an SSH and an MCP server in the box process, reachable only under their own names ----
 
 export type DeviceKind = 'http' | 'ssh' | 'mcp'
 export const device = (kind: DeviceKind) => {

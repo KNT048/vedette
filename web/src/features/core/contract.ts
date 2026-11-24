@@ -35,6 +35,7 @@ export const SetupPayload = z.object({
   lan: z.array(z.string()).optional(),
   commitment: z.boolean().optional().describe('true = the user confirms the ranges belong to their company and they may scan them actively'),
   bundle: BundleId.optional(),
+  timezone: z.string().optional().describe('The box\'s time zone (an IANA name such as Europe/Berlin): every page, mail, log and schedule reads it, and the operating system is set to it. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh). Absent: Asia/Ho_Chi_Minh. Not a known zone: 400 invalid_timezone'),
   modules: z.array(ModuleId).optional(),
   setup_code: z.string().optional().describe('The one-time setup code the box prints in its log while setup is open. Required to create the first administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated wrong tries'),
   accept_terms: z.boolean().optional().describe('true = the administrator read, understood and agrees to the terms of use (TERMS.md). Required to create the first administrator: anything else gives 400 terms_not_accepted, judged right after the setup code'),
@@ -51,7 +52,13 @@ export const TermsState = z.object({
 })
 
 // ---- chung ----
-export const GeneralSettings = z.object({ name: z.string(), timezone: z.string() })
+export const GeneralSettings = z.object({ name: z.string(), timezone: z.string().describe('The box\'s one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh)') })
+export const OsTimeZone = z.object({
+  state: z.enum(['in_sync', 'pending', 'failed', 'not_managed']).describe('in_sync: the operating system uses the box\'s zone; pending: not yet, the box tries again by itself (the system helper is busy or not answering); failed: the system helper could not set it (message says why); not_managed: this install has no system helper that can set it (a container-only install, or a helper older than this version), so the operating system keeps its own zone'),
+  zone: z.string().nullable().describe('The zone the operating system uses now; null when it could not be read'),
+  message: z.string().nullable().describe('Why it is not in sync, a sentence for the person; null when it is'),
+}).describe('The operating system side of the box\'s time zone')
+export const GeneralView = GeneralSettings.extend({ os_time_zone: OsTimeZone })
 export const AuthOptions = z.object({ oidc: z.boolean() })
 
 // ---- account ----
@@ -215,7 +222,7 @@ export const BundleUpload = z.object({ name: z.string(), size: z.number(), sha25
 // ---- privacy ----
 export const PrivacyFlow = z.object({ id: z.number().int().min(1).max(16), state: z.enum(['on', 'off', 'conditional']), control: z.enum(['switch', 'reason']), configured: z.boolean().optional() })
 export const PrivacyState = z.object({
-  flows: z.array(PrivacyFlow).describe('Exactly the 16 flows listed in PRIVACY.md'),
+  flows: z.array(PrivacyFlow).describe('Exactly the flows listed in PRIVACY.md'),
   telemetry: z.object({ enabled: z.boolean(), last_sent: ts.nullable(), payload: z.record(z.string(), z.unknown()).describe('Anonymous-signal payload verbatim, exactly what will be sent next hour') }),
   update_check: z.boolean(),
 })
@@ -296,7 +303,7 @@ export const ManagementBody = z.object({
 })
 
 // ---- schedules (core/schedule): every schedule a person can set, one model and one editor ----
-const clockTime = z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/).describe('HH:MM, 00:00 to 23:59, in the rule\'s zone')
+const clockTime = z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/).describe('HH:MM, 00:00 to 23:59, in the box\'s time zone')
 const isoWeekday = z.number().int().min(1).max(7).describe('1 = Monday ... 7 = Sunday')
 export const ScheduleFreq = z.enum(['interval', 'daily', 'weekly', 'monthly', 'once']).describe('interval: every every_minutes (with at_time, a whole number of days: every N days at that time); daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at')
 export const ScheduleWindowMode = z.enum(['global', 'none', 'custom']).describe('global: it starts only inside the box\'s scan window (Settings › Scanning › Safety), and a due time outside it waits for it to open; none: at any time; custom: only inside its own days and hours (window_days, window_from, window_to), and a due time outside them moves to their next opening')
@@ -307,7 +314,7 @@ export const ScheduleRule = z.object({
   weekdays: z.array(isoWeekday).min(1).max(7).nullable().describe('weekly only'),
   month_day: z.number().int().min(0).max(31).nullable().describe('monthly only: 1 to 31, a month without that day runs on its last day; 0 = the last day'),
   once_at: ts.nullable().describe('once only'),
-  tz: z.string().max(64).describe('"org" (the organization\'s time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin'),
+  tz: z.string().max(64).optional().describe('Always "org": every schedule reads its times in the box\'s time zone (Settings › General). Kept for clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read as the box\'s'),
   window: ScheduleWindowMode,
   window_days: z.array(isoWeekday).min(1).max(7).nullable().describe('custom window only'),
   window_from: clockTime.nullable().describe('custom window only: when it opens'),
@@ -326,7 +333,7 @@ export const Schedule = z.object({
   enabled: z.boolean(),
   paused_until: ts.nullable().describe('Due times before it are skipped: the next one counts from it'),
   rule: ScheduleRule,
-  zone: z.string().describe('The IANA zone the rule is read in (the organization\'s for tz "org")'),
+  zone: z.string().describe('The IANA zone the rule is read in: the box\'s (Settings › General)'),
   next_due_at: ts.nullable().describe('null while off or when it never comes due again (a once rule that ran)'),
   upcoming: z.array(ts).max(3).describe('The next three start times: a due time in the past starts now, and one outside the scan window when it opens'),
   waiting_for: z.string().nullable().describe('Due, and held: what it waits for ("The scan window to open")'),
@@ -363,7 +370,7 @@ export const endpoints = defineEndpoints([
   { method: 'patch', path: '/modules/{id}', summary: 'Turn a module on or off; turning on with missing dependencies gives 409 missing_dependencies; turning on a module this install cannot run (available false) gives 409 not_appliance', stories: ['S-CORE-1'], role: 'admin',
     params: id, body: z.object({ enabled: z.boolean(), with_dependencies: z.boolean().optional() }), response: ToggleResponse },
   // initial setup
-  { method: 'get', path: '/core/setup/modules', summary: 'Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run', stories: ['S-CORE-1'], role: 'public', response: z.object({ modules: z.array(SetupModule), install: InstallKind, lan: z.string().nullable().describe('The network of the box\'s management address (CIDR, like 192.168.142.0/24), offered as the first range of the network step; null when setup is done, on a container-only install, or when the box has no private IPv4 address') }) },
+  { method: 'get', path: '/core/setup/modules', summary: 'Modules and dependencies for the bundle step (does not reveal what is on), and the install kind for the setup code hint and the modules this install cannot run', stories: ['S-CORE-1'], role: 'public', response: z.object({ modules: z.array(SetupModule), install: InstallKind, lan: z.string().nullable().describe('The network of the box\'s management address (CIDR, like 10.142.0.0/24), offered as the first range of the network step; null when setup is done, on a container-only install, or when the box has no private IPv4 address') }) },
   { method: 'post', path: '/core/setup/restore/upload', summary: 'First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz, or the password-protected .tar.gz.age with X-Backup-Password, as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. A password-protected file carries the decryption key inside its encryption (key_included); a key inside it that opens none of the saved secrets of the backup, or a damaged one, is 400 not_a_backup. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB', stories: ['S-CORE-1'], role: 'public',
     headers: z.object({ 'X-Setup-Code': z.string().optional().describe('The setup code from the box\'s log, as for POST /core/setup'), 'X-Backup-Password': z.string().optional().describe('The password of a backup downloaded with one, as base64 of its UTF-8 bytes. A password-protected file without it is 409 backup_password_required; a wrong one is 400 wrong_backup_password, counted like a wrong setup code (429 rate_limited)') }), body: 'file', response: BackupUpload },
   { method: 'post', path: '/core/setup/restore', status: 202, summary: 'First-run restore, step 2: restore the uploaded backup as the box\'s data, with the setup code. With key (the key file downloaded from Settings -> Data, base64), or without one when the upload carried the key (key_included), the saved secrets and two-step sign-in come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of the backup\'s secrets 400 wrong_key, before anything changes. Without key, a backup that holds secrets needs confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload is gone (older than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for a restore', stories: ['S-CORE-1'], role: 'public',
@@ -375,8 +382,8 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/auth/oidc/callback', summary: 'Finish an SSO sign-in: the page posts the code and state from /sso/callback with its binding; the box exchanges the code, checks the ID token and signs the person in like a password sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403 email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable', stories: ['S-CORE-3'], role: 'public', body: OidcCallback, response: Ok },
   // chung
   { method: 'get', path: '/core/terms', summary: 'The terms of use this box ships and who accepted them, when and which version; the text is TERMS.md, which the interface carries', stories: ['S-CORE-1'], role: 'viewer', response: TermsState },
-  { method: 'get', path: '/core/general', summary: 'Organization name and time zone', stories: ['S-CORE-1'], role: 'viewer', response: GeneralSettings },
-  { method: 'put', path: '/core/general', summary: 'Save organization name and time zone', stories: ['S-CORE-1'], role: 'admin', body: GeneralSettings, response: GeneralSettings },
+  { method: 'get', path: '/core/general', summary: 'Organization name and the box\'s time zone, and whether the operating system uses that zone too', stories: ['S-CORE-1'], role: 'viewer', response: GeneralView },
+  { method: 'put', path: '/core/general', summary: 'Save organization name and the box\'s time zone: the schedules move with it and the box sets the operating system to it (os_time_zone says how that went; the save stands either way)', stories: ['S-CORE-1'], role: 'admin', body: GeneralSettings, response: GeneralView },
   // account
   { method: 'get', path: '/core/account', summary: 'My profile and sign-in sessions', stories: ['S-CORE-3'], role: 'viewer', response: Account },
   { method: 'patch', path: '/core/account', summary: 'Change display name', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ name: z.string() }), response: Ok },
@@ -417,7 +424,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/core/updates/bundle', summary: 'Export a signed offline bundle for an air-gapped box', stories: ['S-CORE-2'], role: 'operator', response: 'file' },
   { method: 'post', path: '/core/updates/bundle', summary: 'Import an offline bundle; a bad signature is rejected', stories: ['S-CORE-2'], role: 'admin', body: BundleUpload, response: z.object({ applied: z.number(), state: UpdatesState }) },
   // privacy
-  { method: 'get', path: '/core/privacy', summary: 'The 14 data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
+  { method: 'get', path: '/core/privacy', summary: 'The data flows leaving the box and the verbatim anonymous-signal payload', stories: ['S-CORE-4'], role: 'viewer', response: PrivacyState },
   { method: 'patch', path: '/core/privacy', summary: 'Turn the anonymous signal and update checks on/off', stories: ['S-CORE-4'], role: 'admin', body: z.object({ telemetry: z.boolean().optional(), update_check: z.boolean().optional() }), response: PrivacyState },
   // MCP
   { method: 'get', path: '/core/connections', summary: 'Connections to devices and services that response actions and the AI use: HTTP API, SSH, RESTCONF, automation platform, MCP server', stories: ['S-AI-7', 'S-RESP-4'], role: 'admin', response: z.object({ items: z.array(Connector) }) },

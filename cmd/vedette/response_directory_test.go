@@ -104,7 +104,7 @@ func TestResponseDirectoryIgnoresARouterOnlyAPassiveFrameClaimed(t *testing.T) {
 	}
 	var passive string
 	for _, d := range l {
-		if err := s.d.Inventory.Approve(ctx, "emily@acme.example", d.ID); err != nil {
+		if err := s.d.Inventory.Approve(ctx, "admin@acme.example", d.ID); err != nil {
 			t.Fatal(err)
 		}
 		if d.IP == "10.7.0.66" {
@@ -115,7 +115,7 @@ func TestResponseDirectoryIgnoresARouterOnlyAPassiveFrameClaimed(t *testing.T) {
 		t.Fatalf("gateways %v: want the approved nmap router and not the approved passive one", got)
 	}
 	r := "router" // the operator vouches for the passive-only router by picking its kind
-	if err := s.d.Inventory.PatchDevice(ctx, "emily@acme.example", passive, inventory.Patch{Kind: &r}); err != nil {
+	if err := s.d.Inventory.PatchDevice(ctx, "admin@acme.example", passive, inventory.Patch{Kind: &r}); err != nil {
 		t.Fatal(err)
 	}
 	if got := ips(); !slices.Contains(got, "10.7.0.66") {

@@ -24,7 +24,7 @@ import (
 	"github.com/knt048/vedette/modules/ai"
 )
 
-// Slice 6 of WP-25: CVE news (S-AI-3, INV-3, INV-6, FORBID-6). The box fetches the public sources itself, from a fixed
+// CVE news (S-AI-3, INV-3, INV-6, FORBID-6). The box fetches the public sources itself, from a fixed
 // list of hosts, through a fake Internet: a TLS server that answers for every host, reached through the fetcher's own dialer with
 // only the final connect replaced.
 

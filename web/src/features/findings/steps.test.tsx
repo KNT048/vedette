@@ -36,10 +36,10 @@ describe('nowParts', () => {
   it.each([
     ['agent', 'its agent reports it', /^The agent reports the new version by itself/],
     ['stated', 'it announces it on the network over LLDP', /states its new version on the network by itself/],
-    ['scan', 'a network scan read it', /^Then rescan 192\.168\.142\.1 with the button under Evidence/],
+    ['scan', 'a network scan read it', /^Then rescan 10\.142\.0\.1 with the button under Evidence/],
   ] as const)('a version from %s: step 1 says who gave it, step 3 how the new one arrives', (source, from, s3want) => {
-    const [s1, , s3] = steps(finding({ software: 'OpenSSH', version: '10.2', source }, '192.168.142.1'))
-    expect(s1).toBe(`Nothing to look up: 192.168.142.1 runs OpenSSH 10.2 (${from}).`)
+    const [s1, , s3] = steps(finding({ software: 'OpenSSH', version: '10.2', source }, '10.142.0.1'))
+    expect(s1).toBe(`Nothing to look up: 10.142.0.1 runs OpenSSH 10.2 (${from}).`)
     expect(s3).toMatch(s3want)
     expect(`${s1} ${s3}`).not.toMatch(/Find which version|mark this finding as Patched/)
     expect(s3).toMatch(/it can prove that version fixes[.;] [Ii]f this one stays open, press "Mark as handled" and choose Patched\.$/)
@@ -60,7 +60,7 @@ describe('nowParts', () => {
   })
 
   it('a closed finding keeps the plain step, not "rescan"', () => {
-    const [, , s3] = steps(finding({ software: 'OpenSSH', version: '10.2', source: 'scan' }, '192.168.142.1', 'patched'))
+    const [, , s3] = steps(finding({ software: 'OpenSSH', version: '10.2', source: 'scan' }, '10.142.0.1', 'patched'))
     expect(s3).toMatch(/^Then press "Mark as handled"/)
   })
 

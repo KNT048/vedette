@@ -10,6 +10,7 @@ import { BOX_ID, inventorySettingsStore, SAFETY_CHANGED, safetyVersion } from '@
 import { displayName } from '@/features/inventory/nameOf'
 import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
 import { mockDeviceProgress } from '@/lib/progress'
+import { checkCounts } from '@/features/findings/modelMocks'
 import type { CredTarget, IdentReason, ProbeEntry, RescanEvent, RunIdentRow, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
 
 
@@ -159,10 +160,10 @@ function targets(): ScanTarget[] {
     const reason = meta[a.id]?.regular_scan === 'never' || scanOff(a) ? 'regular_scan_never' : !a.approved ? 'unapproved' : !a.ip || a.ip === '—' ? 'no_ip' : c.exclusions.some((e) => inCidr(a.ip, e)) ? 'excluded' : !sc.networks.some((n) => inCidr(a.ip, n)) ? 'out_of_scope' : null
     const box = a.id === BOX_ID
     return { id: a.id, kind: 'internal', device_kind: a.kind, label: displayName(a) || a.ip, ip: a.ip, fragile: a.fragile || a.kind === 'unknown', findings: open.get(a.id) ?? 0, selectable: reason === null, pick_only: reason === null && (box || a.fragile || a.kind === 'unknown' || a.origin === 'manual'), box, reason,
-      mac: a.mac, vendor: a.vendor?.value ?? null, approved: a.approved, last_seen: a.last_seen }
+      mac: a.mac, vendor: a.vendor?.value ?? null, approved: a.approved, last_seen: a.last_seen, ...checkCounts(a.id) }
   })
   // External targets are listed but not scanned by this version yet (the GUI says so); ownership problems are named first, since they are what the user can fix.
-  const ext = external.get().map((e): ScanTarget => ({ id: e.id, kind: 'external', device_kind: null, label: e.value, ip: e.ip, fragile: false, findings: 0, selectable: false, pick_only: false, box: false, reason: !e.verified ? 'unverified' : e.expired ? 'expired' : 'not_supported', mac: null, vendor: null, approved: false, last_seen: null }))
+  const ext = external.get().map((e): ScanTarget => ({ id: e.id, kind: 'external', device_kind: null, label: e.value, ip: e.ip, fragile: false, findings: 0, selectable: false, pick_only: false, box: false, reason: !e.verified ? 'unverified' : e.expired ? 'expired' : 'not_supported', mac: null, vendor: null, approved: false, last_seen: null, suspected: 0, checkable: 0, again: 0 }))
   return [...internal, ...ext]
 }
 
@@ -407,14 +408,20 @@ export const handlers = [
     if (b.targets.length > 200) return fail(400, 'too_many', 'A scan can include at most 200 devices.')
     if (engineBusy() || allRuns().some((r) => r.status === 'running' || r.status === 'stopping')) return fail(409, 'already_running', 'A scan is already running. Wait for it to finish or press Stop now.')
     const all = targets()
-    const ids = [...new Set(b.targets.map(String))]
-    for (const id of ids) {
+    const picked = [...new Set(b.targets.map(String))]
+    for (const id of picked) {
       const t = all.find((x) => x.id === id)
       if (!t) return fail(400, 'unknown_target', `There is no target "${id.slice(0, 40)}" in the scan list.`)
       if (!t.selectable) return fail(400, 'out_of_scope', `${t.label} (${t.ip}) ${reasonOf(t.reason)}, so it cannot be scanned.`)
     }
     // External targets are not scanned yet (not_supported above). When they are, exposure's CheckScannable (INV-13, 409 ip_not_current) runs here, right before the scan.
     if (!scannerStore.get().available) return fail(503, 'scanner_unavailable', SCANNER_DOWN)
+    // the box's one rule (scan checkCount): a device with nothing a check could confirm, rule out or check again is not part of the run
+    const ids = picked.filter((id) => { const t = all.find((x) => x.id === id)!; return t.checkable + t.again > 0 })
+    if (!ids.length) {
+      const one = picked.length === 1 ? all.find((x) => x.id === picked[0])!.label : `these ${picked.length} devices`
+      return fail(400, 'nothing_to_check', `Nothing to check on ${one}: no safe check exists for ${picked.length === 1 ? 'its' : 'their'} findings yet, so no vulnerability check started.`)
+    }
     const r = startRun(ids, 'manual', null, who())
     audit('scan.start', r.id, `${ids.length} targets`)
     return HttpResponse.json(strip(r), { status: 201 })

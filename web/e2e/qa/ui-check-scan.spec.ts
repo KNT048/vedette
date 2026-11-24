@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 import { collectErrors, expectAccessible, startWithSample } from '../helpers'
-import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
+import { begin, noHScroll, stepper, THEMES } from './ui-check-shared'
 import { finishClean } from './clean'
 
-// WP-06 independent check, area 3: "As the IT operator I try to scan before confirming I may scan those networks; as the admin I set the weekly schedule."
+// "As the IT operator I try to scan before confirming I may scan those networks; as the admin I set the weekly schedule."
 // #850: Settings › Scanning -> Engines (Nuclei card: schedule) / Safety (window). weekdays 1-7, Monday first. Server refusal: 400 commitment_required.
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']

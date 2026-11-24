@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// M2: one redaction for the Test, the writer and the reader.
+// One redaction for the Test, the writer and the reader.
 func TestRedactCoversEveryFormOfASecret(t *testing.T) {
 	t.Parallel()
 	const secret = "s3cr/et&with+odd=chars%1 x\"y" //nolint:gosec // a fixture

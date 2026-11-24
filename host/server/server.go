@@ -1,7 +1,7 @@
 // Package server is the vedette-host socket server: a unix-socket HTTP/1.1 JSON API with a closed
 // command table, durable runs, one global write lock, a hash-chained audit log and per-connection
-// peer authentication (docs/specs/host-api.md). It is the framework of WP-07a; the system
-// commands live in host/ops (WP-07b) and are handed in through Options.Registry and Options.Readers.
+// peer authentication (docs/specs/host-api.md). It is the framework of; the system
+// commands live in host/ops and are handed in through Options.Registry and Options.Readers.
 //
 // OS assumption: the real peer check needs Linux (SO_PEERCRED, /proc). The server itself is
 // portable so its tests run anywhere with an injected peer.Checker.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs a command (the printed cosign plan) with podman's registry login as cosign's login (WP-08k step 7).
+# Runs a command (the printed cosign plan) with podman's registry login as cosign's login.
 # Why: cosign reads registry credentials the way Docker does, from $DOCKER_CONFIG/config.json or ~/.docker/config.json, and falls back
 # to podman's auth.json only when neither exists. A ~/.docker/config.json without ghcr.io (Docker Desktop, podman's Docker compatibility)
 # hides the `podman login ghcr.io` of the release, and the signature and attestation uploads are refused (seen releasing v0.1.0-beta.1). This points

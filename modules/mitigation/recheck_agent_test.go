@@ -14,7 +14,7 @@ func TestGenericRecheck_AgentVersionIsNotAskedFor(t *testing.T) {
 	row := func(agent bool) findings.Row {
 		var r findings.Row
 		doc := `{"basis":"version","evidence":{"summary":"s","checked_at":"2026-11-15T00:00:00Z","agent":` + map[bool]string{true: "true", false: "false"}[agent] + `},
-			"asset":{"id":"a","name":"WIN-LAB","hostname":"WIN-LAB","ip":"192.168.142.128","kind":"server","display":"Windows"},
+			"asset":{"id":"a","name":"WIN-LAB","hostname":"WIN-LAB","ip":"10.142.0.128","kind":"server","display":"Windows"},
 			"kev":{"display":"Windows","vendor":"Microsoft","product":"Windows","has_template":false}}`
 		if err := json.Unmarshal([]byte(doc), &r); err != nil {
 			t.Fatal(err)
@@ -36,7 +36,7 @@ func TestGenericRecheck_AgentRowProductMatchDoesNotAskForTheVersion(t *testing.T
 	row := func(agentRow bool) findings.Row {
 		var r findings.Row
 		doc := `{"basis":"product","evidence":{"summary":"s","checked_at":"2026-11-15T00:00:00Z","agent_row":` + map[bool]string{true: "true", false: "false"}[agentRow] + `},
-			"asset":{"id":"a","name":"byn","hostname":"byn","ip":"192.168.142.181","kind":"server","display":"OpenSSL"},
+			"asset":{"id":"a","name":"srv01","hostname":"srv01","ip":"10.142.0.181","kind":"server","display":"OpenSSL"},
 			"kev":{"display":"OpenSSL","vendor":"OpenSSL","product":"OpenSSL","has_template":false}}`
 		if err := json.Unmarshal([]byte(doc), &r); err != nil {
 			t.Fatal(err)
@@ -44,7 +44,7 @@ func TestGenericRecheck_AgentRowProductMatchDoesNotAskForTheVersion(t *testing.T
 		return r
 	}
 	got := strings.Join(genericRecheck(row(true), false).Steps, " ")
-	if strings.Contains(got, "About screen") || !strings.Contains(got, "Nothing to look up on byn: its agent reports the installed version of OpenSSL") {
+	if strings.Contains(got, "About screen") || !strings.Contains(got, "Nothing to look up on srv01: its agent reports the installed version of OpenSSL") {
 		t.Fatalf("agent row: %s", got)
 	}
 	if got := strings.Join(genericRecheck(row(false), false).Steps, " "); !strings.Contains(got, "About screen") {
@@ -78,7 +78,7 @@ func TestGenericRecheck_M23_KnownVersionFromEverySource(t *testing.T) {
 		{findings.VersionByManual, "Nothing to look up: Juniper Junos OS 15.1R7.9 was entered for Juniper Networks EX4200-48T on the Devices page", `press "I updated Juniper Junos OS" at the top of this page`},
 		{findings.VersionByAgent, "Nothing to look up: the agent on Juniper Networks EX4200-48T reports Juniper Junos OS 15.1R7.9", "its agent reports the new one by itself"},
 	} {
-		steps := genericRecheck(row("version", "192.168.142.47", true, kv(c.src)), false).Steps
+		steps := genericRecheck(row("version", "10.142.0.47", true, kv(c.src)), false).Steps
 		got := strings.Join(steps, " ")
 		if len(steps) != 3 || !strings.HasPrefix(steps[0], c.first) || !strings.Contains(steps[1], c.again) || !strings.Contains(steps[1], `it can prove that version fixes. If this one stays open, press "Mark as handled" and choose Patched.`) || !strings.Contains(steps[2], `"Rescan this device" to confirm`) {
 			t.Errorf("%s: %q", c.src, steps)
@@ -93,7 +93,7 @@ func TestGenericRecheck_M23_KnownVersionFromEverySource(t *testing.T) {
 		t.Errorf("product, no IP, no template: %q", steps)
 	}
 	// No version known: the old steps, worded without gluing the software to the device.
-	if got := genericRecheck(row("version", "192.168.142.47", false, nil), false).Steps[0]; got != "Check which version of Juniper Junos OS runs on Juniper Networks EX4200-48T (in its settings, its admin page or its About screen)." {
+	if got := genericRecheck(row("version", "10.142.0.47", false, nil), false).Steps[0]; got != "Check which version of Juniper Junos OS runs on Juniper Networks EX4200-48T (in its settings, its admin page or its About screen)." {
 		t.Errorf("unknown version: %q", got)
 	}
 }

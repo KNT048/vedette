@@ -304,7 +304,7 @@ func untrustedAddrs(code string, trusted []netip.Addr) []string {
 		t := code[m[0]:m[1]]
 		host, _, hasBits := strings.Cut(t, "/")
 		a, err := netip.ParseAddr(host)
-		// "<network> <mask>" (Cisco, FortiOS: 192.168.142.0 255.255.255.0 or the wildcard 0.0.0.255) is one network
+		// "<network> <mask>" (Cisco, FortiOS: 10.142.0.0 255.255.255.0 or the wildcard 0.0.0.255) is one network
 		if err == nil && !hasBits && i+1 < len(ms) && strings.TrimSpace(code[m[1]:ms[i+1][0]]) == "" {
 			if mask, merr := netip.ParseAddr(code[ms[i+1][0]:ms[i+1][1]]); merr == nil && isMask(mask) {
 				if p, perr := a.Prefix(maskBits(mask)); perr == nil {

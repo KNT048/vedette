@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-6: an approved item reaches its device through the executor: the check before (read only, may refuse), the run, the
+// An approved item reaches its device through the executor: the check before (read only, may refuse), the run, the
 // read-back; an undo is the rollback and a read-back that must no longer hold the text. The executor here is a fake; the real
 // writer and real servers are in cmd/vedette/response_device_test.go.
 

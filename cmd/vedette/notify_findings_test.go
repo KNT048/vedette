@@ -145,7 +145,7 @@ func TestPlainTextClipsAndFlattens(t *testing.T) {
 	if got := plainText("a\r\n\tb\x00 c", 50); got != "a b c" {
 		t.Fatalf("got %q", got)
 	}
-	if got := plainText("byn\u202egnp.exe\u200b", 50); got != "byngnp.exe" { // a host name from the network
+	if got := plainText("srv01\u202egnp.exe\u200b", 50); got != "srv01gnp.exe" { // a host name from the network
 		t.Fatalf("got %q", got)
 	}
 	if got := plainText(strings.Repeat("é", 30), 10); len([]rune(got)) != 10 {

@@ -114,7 +114,7 @@ func TestWiringIgnoredDeviceClosesItsIncidentButATrapHitStillAlerts(t *testing.T
 	ctx := t.Context()
 	const mac = "c2:31:86:3f:8c:a0" // a phone's private MAC
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{
-		{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr("192.168.142.129")}, Field: observe.Hostname, Value: "iPhone", Source: observe.Passive, Confidence: 0.7},
+		{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr("10.142.0.129")}, Field: observe.Hostname, Value: "iPhone", Source: observe.Passive, Confidence: 0.7},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestWiringIgnoredDeviceClosesItsIncidentButATrapHitStillAlerts(t *testing.T
 		t.Fatalf("the new-device incident stays open for an ignored device: %+v", open)
 	}
 	if err := s.d.Bus.Publish(ctx, events.Event{Name: notify.EventHoneypotHit, Data: map[string]any{
-		"id": "h-1", "kind": "touch", "service": "smb", "src_ip": "192.168.142.129", "label": "File share", "src_asset_id": id, "src_name": "iPhone",
+		"id": "h-1", "kind": "touch", "service": "smb", "src_ip": "10.142.0.129", "label": "File share", "src_asset_id": id, "src_name": "iPhone",
 	}}); err != nil {
 		t.Fatal(err)
 	}

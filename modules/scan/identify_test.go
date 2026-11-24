@@ -39,6 +39,7 @@ func (f *fakeIdentify) askedIDs() []string {
 func TestScanNowInterruptedAndBusyIdentification(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
+	r.giveCheck("a-srv")
 	id := &fakeIdentify{errs: map[string]error{"a-web01": ErrIdentifyInterrupted}, answer: map[string]Identification{"a-srv": {Why: "busy"}}}
 	r.svc.cfg.Identify = id
 	v := r.start("a-web01", "a-srv", "a-nas02")
@@ -72,11 +73,13 @@ func identOf(v RunView, id string) *IdentRow {
 	return nil
 }
 
-// Scan now identifies each device before it checks it. A device known only by its address (no finding before) gets the
-// finding its identified software matched and is checked for it; each device says what was identified, or exactly why nothing was.
+// Scan now identifies each device before it checks it. The device's findings are read again after its identification: the finding
+// its identified software matched is checked too; each device says what was identified, or exactly why nothing was.
 func TestScanNowIdentifiesBeforeItChecks(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
+	r.giveCheck("a-srv") // a device with nothing to check is not part of the run
+
 	id := &fakeIdentify{answer: map[string]Identification{
 		"a-srv":   {Found: []string{"Operating system: Microsoft Windows Server 2016", "Software: Microsoft Windows Server 2016"}},
 		"a-web01": {Why: "no_version"},
@@ -93,7 +96,9 @@ func TestScanNowIdentifiesBeforeItChecks(t *testing.T) {
 	v := r.start("a-srv", "a-web01", "a-nas02")
 	r.wait()
 	v = r.run(v.ID)
-	if row := rowOf(v, "a-srv", ""); row == nil || row.Result == "not_applicable" || row.FindingID == nil || *row.FindingID != "f-9" {
+	if !slices.ContainsFunc(v.Results, func(row RunRow) bool {
+		return row.TargetID == "a-srv" && row.FindingID != nil && *row.FindingID == "f-9"
+	}) {
 		t.Fatalf("a-srv was not checked for what its identification matched: %+v", v.Results)
 	}
 	srv := identOf(v, "a-srv")

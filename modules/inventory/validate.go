@@ -58,7 +58,7 @@ func invisible(r rune) bool {
 
 // stripIgnorable removes the default-ignorable characters that are not format characters: variation selectors (the U+FE0F of
 // an emoji in a device name), the combining grapheme joiner, the Hangul and Mongolian fillers. They render as nothing, so the
-// value reads the same without them, and refusing the value would lose a real device name (WP-31 close-out review). Format
+// value reads the same without them, and refusing the value would lose a real device name. Format
 // characters (bidi, zero-width) are left for cleanText to refuse: they change how the text reads.
 func stripIgnorable(s string) string {
 	if !strings.ContainsFunc(s, ignorableNotFormat) {
@@ -92,8 +92,8 @@ func normMAC(s string) (string, bool) {
 	return hw.String(), true
 }
 
-// Adjustment says a range was written with host bits and was reduced to its network ("192.168.142.5/24" to
-// "192.168.142.0/24"); the response of PUT /inventory/settings lists them (SettingsSaved.adjusted, as the mock does).
+// Adjustment says a range was written with host bits and was reduced to its network ("10.142.0.5/24" to
+// "10.142.0.0/24"); the response of PUT /inventory/settings lists them (SettingsSaved.adjusted, as the mock does).
 type Adjustment struct {
 	From string `json:"from"`
 	To   string `json:"to"`

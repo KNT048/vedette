@@ -310,7 +310,7 @@ func TestServicesOfKeepsOnlyWhatTheInventoryAccepts(t *testing.T) {
 // reads as https on any port (4443 here). A name without a tunnel, and a tunnel without a name, keep their meaning.
 func TestServiceNameCarriesTheTLSTunnel(t *testing.T) {
 	t.Parallel()
-	xmlText := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="192.168.142.20" addrtype="ipv4"/><ports>
+	xmlText := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="10.142.0.20" addrtype="ipv4"/><ports>
 <port protocol="tcp" portid="4443"><state state="open"/><service name="http" product="lighttpd" tunnel="ssl" method="probed" conf="10"/></port>
 <port protocol="tcp" portid="8080"><state state="open"/><service name="http" product="nginx" method="probed" conf="10"/></port>
 <port protocol="tcp" portid="9999"><state state="open"/><service tunnel="ssl" method="probed" conf="3"/></port>
@@ -332,7 +332,7 @@ func TestServiceNameCarriesTheTLSTunnel(t *testing.T) {
 // title, the certificate subject) is kept as the service's detail, never as software; a title with a control character is dropped.
 func TestServiceDetail(t *testing.T) {
 	t.Parallel()
-	xmlText := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="192.168.142.251" addrtype="ipv4"/><ports>
+	xmlText := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="10.142.0.251" addrtype="ipv4"/><ports>
 <port protocol="tcp" portid="443"><state state="open"/><service name="https" product="Fortinet FortiGate firewall http config" extrainfo="FortiOS" devicetype="firewall" tunnel="ssl"/>
 <script id="ssl-cert" output="Subject: commonName=FGT60FTK2109ABCD/organizationName=Fortinet/countryName=US&#xa;Issuer: commonName=support"/>
 <script id="http-title" output="Login"><elem key="title">FortiGate  Login</elem></script></port>
@@ -363,7 +363,7 @@ func TestServiceDetail(t *testing.T) {
 		t.Errorf("detail of a long title has %d runes, want %d", n, maxSvcDetail)
 	}
 	// #714 review: a certificate subject or title longer than the inventory keeps is shortened, its commonName first, never dropped.
-	longXML := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="192.168.142.252" addrtype="ipv4"/><ports>
+	longXML := `<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="10.142.0.252" addrtype="ipv4"/><ports>
 <port protocol="tcp" portid="443"><state state="open"/><service name="https" extrainfo="` + strings.Repeat("e", 150) + `"/>
 <script id="ssl-cert" output="Subject: countryName=US/stateOrProvinceName=` + strings.Repeat("California", 20) + `/organizationName=Fortinet/organizationalUnitName=` + strings.Repeat("FortiGate", 20) + `/commonName=FGT60FTK2109WXYZ/emailAddress=support@fortinet.com"/>
 <script id="http-title" output="x"><elem key="title">` + strings.Repeat("Juniper Web Device Manager ", 20) + `</elem></script></port>

@@ -91,6 +91,7 @@ func TestContract_INV1_TargetsInScope(t *testing.T) {
 func TestContract_INV1_PolicyCheckedRightBeforeTheJob(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
+	r.giveCheck("a-srv")
 	if _, err := r.svc.SaveConfig(r.ctx(), "admin@acme.example", Patch{Rate: ptr(8)}); err != nil {
 		t.Fatal(err)
 	}
@@ -199,8 +200,9 @@ func TestContract_INV4_OnlyPackTemplatesForTheDevicesCVEs(t *testing.T) {
 	if row := rowOf(got, "a-web01", "no_template"); row == nil || row.Note != "CVE-2021-44228: no safe scan template yet, still suspected; see the finding for how it was matched." || *row.FindingID != "f-3" {
 		t.Fatalf("no_template: %+v", got.Results)
 	}
-	if row := rowOf(got, "a-srv", "not_applicable"); row == nil || row.Note != "No scan template applies to the software on this device." {
-		t.Fatalf("not_applicable: %+v", got.Results)
+	// SRV-AD has no finding a template checks: it is left out of the run (nothing to check), not sent a job
+	if row := rowOf(got, "a-srv", ""); row != nil || v.Total != 1 {
+		t.Fatalf("SRV-AD with nothing to check was in the run (total %d): %+v", v.Total, got.Results)
 	}
 }
 
@@ -525,14 +527,14 @@ func TestSuspectedNoteSaysWhatWasUsed(t *testing.T) {
 // to over TLS only, and plain HTTP stays http.
 func TestEndpointsTakeTLSFromTheServiceName(t *testing.T) {
 	t.Parallel()
-	d := Device{IP: "192.168.142.20", Services: []OpenPort{
+	d := Device{IP: "10.142.0.20", Services: []OpenPort{
 		{Port: 4443, Name: "ssl/http"}, {Port: 4443, Name: "http"}, {Port: 8080, Name: "http"}, {Port: 5986, Name: "winrm-https"}, {Port: 22, Name: "ssh"},
 	}}
 	var got []string
 	for _, tg := range endpoints(d) {
 		got = append(got, tg.Input())
 	}
-	want := []string{"https://192.168.142.20:4443", "http://192.168.142.20:8080", "https://192.168.142.20:5986", "192.168.142.20:22"}
+	want := []string{"https://10.142.0.20:4443", "http://10.142.0.20:8080", "https://10.142.0.20:5986", "10.142.0.20:22"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("targets = %q, want %q", got, want)
 	}

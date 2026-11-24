@@ -14,7 +14,7 @@ TEST_KEYS_B64 ?=
 IMAGE_TAG ?= dev
 PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSION NUCLEI_SRC_SHA256 NMAP_MIN_VERSION SCAN_PACK_VERSION OPENCANARY_VERSION SAMBA_MIN_VERSION ZLIB1G_VERSION ZLIB1G_SNAPSHOT ZLIB1G_SHA256_AMD64 ZLIB1G_SHA256_ARM64,--build-arg $(v)=$($(v))) --build-arg VERSION=$(IMAGE_VERSION)
 PACK_DIR := deploy/containers/scan-base/pack
-# Multi-arch images (WP-08d): `make images` builds sensor, scan-base and core for PLATFORMS as one manifest list per image.
+# Multi-arch images: `make images` builds sensor, scan-base and core for PLATFORMS as one manifest list per image.
 PLATFORMS ?= linux/amd64,linux/arm64
 # The index sequence floor compiled into the binaries that link internal/release: vedette-host, and core (for the signed
 # mitigation packs; a test keeps the list exact). A plain decimal: it is the -X value of internal/release.MinSequenceText. With
@@ -59,23 +59,23 @@ help:
 	@echo "make webui-dist    build the web release and copy it to internal/webui/dist (embedded by -tags webui; core-image runs it)"
 	@echo "make sensor-image scan-base-image scan-image core-image  build the container images (CONTAINER=podman|docker); images-check builds and checks them by effect"
 	@echo "make honeypot-image  build the honeypot image (OpenCanary + Samba); make honeypot-check builds it and checks it by effect (opt-in)"
-	@echo "make images       build sensor, scan-base, core and honeypot for PLATFORMS=linux/amd64,linux/arm64 as one manifest list each, without CPU emulation (WP-08d); PLATFORMS=linux/amd64 needs no binfmt; no push"
-	@echo "make sbom        CycloneDX SBOM (trivy) of each local image per platform and of the source, into dist/sbom/; RELEASE=1 keeps it; trivy's database cache: TRIVY_CACHE_DIR=~/.cache/vedette-trivy (WP-08i)"
+	@echo "make images       build sensor, scan-base, core and honeypot for PLATFORMS=linux/amd64,linux/arm64 as one manifest list each, without CPU emulation; PLATFORMS=linux/amd64 needs no binfmt; no push"
+	@echo "make sbom        CycloneDX SBOM (trivy) of each local image per platform and of the source, into dist/sbom/; RELEASE=1 keeps it; trivy's database cache: TRIVY_CACHE_DIR=~/.cache/vedette-trivy"
 	@echo "make vuln-scan    trivy on the local images and the source: fails on a fixable HIGH/CRITICAL; exceptions only in .trivyignore.yaml with reason and date"
 	@echo "make notices-check  THIRD_PARTY_NOTICES.md against the Go modules linked into the binaries and the web production dependencies; no GPL/AGPL"
 	@echo "make release-gates VERSION=<v> RELEASE_PREV_INDEX=<prev>   step 3 of the release job, after make images and both host-deb: vuln-scan + sbom (kept in dist/sbom, dist/vuln), notices-check, check-binaries -release inside each .deb, the version label of every image platform and core's floor label, each .deb rebuilt with the floor and compared byte for byte; then dist/release/gates.json, the record release-push, release-in and release-manifest refuse to differ from; MIN_SEQUENCE=0 instead of RELEASE_PREV_INDEX for the very first release only"
-	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys; WP-08h); install-check runs install.sh end to end in systemd containers (opt-in)"
-	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine (WP-08f): print the cosign commands, build release-manifest.json + index.json (refuses migrations that remove, edit or insert below a migration of any earlier release tag of the same schema epoch; refuses rollback.safe=true, or a min_upgrade_from other than its own version, for a release that starts a new schema epoch, and rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index); RELEASE_ADVISORY=<file.json> adds an advisory every box shows on its Updates page; sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
+	@echo "make install-artifacts [FAST=1] [TEST_VERSION=0.0.1-test.1]   the TEST release for install.sh --test-artifacts into dist/install (.deb, images, documents signed with throwaway keys); install-check runs install.sh end to end in systemd containers (opt-in)"
+	@echo "make release-cosign-plan / release-manifest / release-refresh / release-sign / release-verify   the release builder, offline, on the maintainer's machine: print the cosign commands, build release-manifest.json + index.json (refuses migrations that remove, edit or insert below a migration of any earlier release tag of the same schema epoch; refuses rollback.safe=true, or a min_upgrade_from other than its own version, for a release that starts a new schema epoch, and rollback.safe=true unless rollback.min_version is set and every migration since that release, read from git, is add-only); release-refresh = the weekly index refresh without a manifest (RELEASE_PREV_INDEX = the published index); RELEASE_ADVISORY=<file.json> adds an advisory every box shows on its Updates page; sign with the pinned minisign (keys from MINISIGN_KEY / COSIGN_KEY, never argv secrets), verify with the box's verifier; output dist/release, removed after a successful verify unless RELEASE=1; see scripts/release"
 	@echo "make release-container-assets   after release-manifest: the container-only files (compose.yaml, compose.sensors.yaml, compose.syslog.yaml, vedette.env with the three image digests) read from git at the tag into dist/release; release-sign signs them, release-verify requires them when install_modes lists container"
-	@echo "make release-push VERSION=<v> / release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false / release-publish [PUBLISH=1]   the release job's network steps (WP-08k): images by digest to ghcr (images.json), release.in.json, then the gh release assets with the index last"
+	@echo "make release-push VERSION=<v> / release-in RELEASE_CHANNEL=stable RELEASE_ROLLBACK_SAFE=false / release-publish [PUBLISH=1]   the release job's network steps: images by digest to ghcr (images.json), release.in.json, then the gh release assets with the index last"
 	@echo "make release-withdraw RELEASE_PREV_INDEX=<live index> WITHDRAW_RELEASE=<v> WITHDRAW_MANIFEST=<its release-manifest.json> WITHDRAW_REASON=<line> [CHANNEL_MANIFEST=<earlier manifest> | HOLD_CHANNEL=stable]   an index that withdraws a published release or image digest; then release-sign, release-verify, release-publish (docs/RUNBOOK.md 9.1)"
 	@echo "make release-deb-name VERSION=<v> / release-bake-install   part A of the release job: SemVer names of prerelease .deb before release-in; install.sh with its three lines baked and signed (MINISIGN_KEY) into dist/release"
 	@echo "make release-packs PACKS_VERSION=<n.n.n>   sign the confirmed mitigation packs of content/mitigation/packs with the release minisign key before the core image is built (MINISIGN_KEY, maintainer machine)"
 	@echo "make release-interop   the builder and the box's verifier against the real pinned minisign (downloads it into ~/.cache/vedette-minisign, checks deploy/tools.env)"
 	@echo "release preflight: release-manifest refuses a -test. version and, with RELEASE_PREV_INDEX, an index sequence not above MIN_SEQUENCE (host-deb takes it from that index); host-deb of a real version needs RELEASE_PREV_INDEX (or MIN_SEQUENCE=0 for the first release), refuses -overlay/-tags in GOFLAGS and a dirty tree, and checks the built vedette-host (go run ./scripts/release check-binaries -release BINARY: no -tags releasetestkeys, the production key bytes inside) and sets file times from SOURCE_DATE_EPOCH (commit time)"
-	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm (WP-08g); host-deb-check installs it in systemd containers (opt-in, pulls images)"
+	@echo "make host-deb VERSION=x.y.z [ARCH=amd64|arm64]   build dist/vedette-host_<version>_<arch>.deb with nfpm; host-deb-check installs it in systemd containers (opt-in, pulls images)"
 	@echo "make reaper-install install the cleaner for orphaned test/dev processes (every 10 minutes)"
-	@echo "make clean         xoá build output và báo cáo test"
+	@echo "make clean         remove build output and test reports"
 
 dev:
 	pnpm --dir web install --frozen-lockfile
@@ -232,8 +232,8 @@ contract:
 build:
 	pnpm --dir web build
 
-# Release SPA (WP-08a): VITE_API_MOCK=off build, then fail if any mock layer is in web/dist.
-# web/dist is left in place for the core embed (WP-08b); `make clean` removes it (build-artifacts rule).
+# Release SPA: VITE_API_MOCK=off build, then fail if any mock layer is in web/dist.
+# web/dist is left in place for the core embed; `make clean` removes it (build-artifacts rule).
 web-release:
 	pnpm --dir web install --frozen-lockfile
 	VITE_API_MOCK=off pnpm --dir web build
@@ -255,7 +255,7 @@ audit: vuln
 e2e:
 	pnpm --dir web e2e
 
-# Real-backend end-to-end (WP-30): builds the release GUI and the box, runs web/e2e-real/ on desktop. The script removes its build
+# Real-backend end-to-end: builds the release GUI and the box, runs web/e2e-real/ on desktop. The script removes its build
 # output on every exit path; the traces of a failed run stay in web/test-results/real until `make clean`.
 e2e-real:
 	bash scripts/dev/e2e-real.sh
@@ -324,7 +324,7 @@ $(PACK_DIR)/index.json: deploy/containers/pins.env $(wildcard scripts/scanpack/*
 	mv $(PACK_DIR)/review-queue.md scripts/scanpack/kev-review-queue.md
 	printf 'nuclei_templates_version: %s\nnuclei_templates_sha256: %s\nscan_pack_version: %s\n' '$(NUCLEI_TEMPLATES_VERSION)' '$(NUCLEI_TEMPLATES_SHA256)' '$(SCAN_PACK_VERSION)' > content/nucleipack/index.source
 
-# Multi-arch (WP-08d): one manifest list per image, every platform of PLATFORMS in it, local only (the push is the release job's, WP-08k).
+# Multi-arch: one manifest list per image, every platform of PLATFORMS in it, local only (the push is the release job's).
 # The Go and download stages run on this machine ($BUILDPLATFORM) and the target stages only COPY, so arm64 needs no qemu/binfmt.
 # podman: `podman build --platform a,b --manifest`; docker: buildx writes an OCI archive to dist/images/ (the classic image store holds no
 # manifest list) and a single platform is loaded with --load. $(1) = image name, $(2) = Containerfile, $(3) = extra build arguments. An old list of the same tag is removed first (`manifest rm`; `rmi` of a list says "tag not known"), else the build is appended to it.
@@ -339,7 +339,7 @@ images: webui-dist scan-pack check-min-sequence
 	$(call MULTI,sensor,deploy/containers/sensor/Containerfile) && $(call MULTI,scan-base,deploy/containers/scan-base/Containerfile) && $(call MULTI,core,deploy/containers/core/Containerfile,--build-arg MIN_SEQUENCE=$(MIN_SEQUENCE) --build-arg TEST_KEYS_B64=$(TEST_KEYS_B64)) && $(call MULTI,honeypot,deploy/containers/honeypot/Containerfile) || { rm -rf web/dist internal/webui/dist internal/webui/licenses; exit 1; }
 	rm -rf web/dist internal/webui/dist internal/webui/licenses
 
-# The honeypot image (WP-08e): OpenCanary + Samba. Needs the network at build time (apt, PyPI). Its effects are checked by `make honeypot-check`.
+# The honeypot image: OpenCanary + Samba. Needs the network at build time (apt, PyPI). Its effects are checked by `make honeypot-check`.
 honeypot-image:
 	$(CONTAINER) build -f deploy/containers/honeypot/Containerfile $(PIN_ARGS) -t localhost/vedette-honeypot:$(IMAGE_TAG) .
 
@@ -363,7 +363,7 @@ scan-base-image: scan-pack
 scan-image: scan-base-image
 	$(CONTAINER) build -f deploy/containers/scan/Containerfile.onbox $(PIN_ARGS) --build-arg BASE_IMAGE=localhost/vedette-scan-base:$(IMAGE_TAG) -t localhost/vedette-scan-nmap:$(IMAGE_TAG) .
 
-# The vedette-host package (WP-08g): a static binary (the version flag like the core image's) and nfpm. VERSION is SemVer without a v.
+# The vedette-host package: a static binary (the version flag like the core image's) and nfpm. VERSION is SemVer without a v.
 # The binary goes to dist/host-deb/<arch>/, the package to dist/ (both removed by `make clean`).
 ARCH ?= amd64
 DEB_OUT ?= dist
@@ -393,9 +393,9 @@ endif
 host-deb-check:
 	scripts/dev/host-deb-check.sh
 
-# Supply chain (WP-08i): the tool is trivy, the official image pinned by digest in deploy/tools.env, run with $(CONTAINER); its vulnerability
+# Supply chain: the tool is trivy, the official image pinned by digest in deploy/tools.env, run with $(CONTAINER); its vulnerability
 # database (1.7 GB) lands in $(TRIVY_CACHE_DIR), on disk, never /tmp (the maintainer's own download, not a product flow). They scan the local images of `make images` (every platform of
-# PLATFORMS, tag IMAGE_TAG) and the source tree. RELEASE=1 keeps dist/sbom and dist/vuln for the release job (WP-08k); otherwise they are removed.
+# PLATFORMS, tag IMAGE_TAG) and the source tree. RELEASE=1 keeps dist/sbom and dist/vuln for the release job; otherwise they are removed.
 include deploy/tools.env
 TRIVY_CACHE_DIR ?= $(HOME)/.cache/vedette-trivy
 RELEASE ?=
@@ -415,7 +415,7 @@ NOTICES_WEB_LICENSES ?= 1
 notices-check:
 	go run ./scripts/noticescheck -notices THIRD_PARTY_NOTICES.md -cmd ./cmd/vedette -cmd ./cmd/vedette-host -cmd ./cmd/vedette-sensor -web web $(if $(filter 1,$(NOTICES_WEB_LICENSES)),-web-licenses)
 
-# The release gates (WP-08k part B): after `make images IMAGE_TAG=<v>
+# The release gates: after `make images IMAGE_TAG=<v>
 # IMAGE_VERSION=<v>` and `make host-deb VERSION=<v> ARCH=amd64|arm64`, all with the same RELEASE_PREV_INDEX, from a full clone at the clean tag.
 # In order, stopping at the first failure: VERSION and the tree (`release gates -preflight`: SemVer, no -test., HEAD = tag v<v>, clean);
 # vuln-scan (the .trivyignore.yaml dates first) and sbom of the lists tagged <v>, kept in dist/vuln and dist/sbom (RELEASE=1, part C attests
@@ -458,16 +458,16 @@ dev-sensors-down:
 dev-sensors-smoke: scan-pack
 	scripts/dev/sensors-smoke.sh
 
-# The container-only install (WP-08m) the way docs/INSTALL-CONTAINER.md tells a customer, on Docker and on Podman: builds the three images
+# The container-only install the way docs/INSTALL-CONTAINER.md tells a customer, on Docker and on Podman: builds the three images
 # locally, checks by effect (ports, key owner and mode, uid and capabilities), tears down. Slow, opt-in, not in check or CI. Run it as
 # `~/vedette-wt/heavy make container-only-smoke`; SMOKE_RUNTIMES="docker" or "podman" picks one. The scan pack folder is a build output: removed after.
 .PHONY: container-only-smoke
 container-only-smoke:
 	scripts/dev/container-only-smoke.sh; rc=$$?; rm -rf $(PACK_DIR); exit $$rc
 
-# ---- install.sh (WP-08h) ----------------------------------------------------------------------------------------------
+# ---- install.sh ----------------------------------------------------------------------------------------------
 # install-artifacts: the TEST release for `install.sh --test-artifacts DIR`, signed with throwaway keys made on the spot (the real keys and
-# images do not exist before WP-08k). The folder dist/install is the product (copy it to the box); the work folder and the local images
+# images do not exist before). The folder dist/install is the product (copy it to the box); the work folder and the local images
 # are removed unless RELEASE=1; `make clean` removes dist. FAST=1: core with a placeholder interface + sensor, for install-check.
 # install-check: install.sh end to end in systemd containers (Ubuntu 24.04, 26.04, Debian 13), opt-in: pulls base images, runs apt in them.
 .PHONY: install-artifacts install-check
@@ -478,7 +478,7 @@ install-artifacts:
 
 install-check:
 	scripts/dev/install-check.sh
-# ---- Release builder (WP-08f): offline, on the maintainer's machine, no key in the repo, nothing pushed, no tag. Block kept apart on purpose. ----
+# ---- Release builder: offline, on the maintainer's machine, no key in the repo, nothing pushed, no tag. Block kept apart on purpose. ----
 # Flow: the maintainer tags v<version> first (the manifest reads the migrations at that ref, even for
 # rollback.safe=false; or pass RELEASE_REF; the images and the .deb are built only after the tag: release-gates rebuilds the .deb at the tag) ->
 # build the images and push them by digest (release-push, then release-in writes release.in.json); build the .deb with `make host-deb VERSION=<version> RELEASE_PREV_INDEX=<published index dir>` (that
@@ -517,7 +517,7 @@ RELEASE_KEYS_ARG = $(if $(RELEASE_KEYS),-keys-dir $(RELEASE_KEYS))
 RELEASE_ADVISORY ?=
 RELEASE_ADVISORY_ARGS = $(foreach a,$(RELEASE_ADVISORY),-advisory $(a))
 
-# WP-08k step 6: one cosign sign per image (index digest of RELEASE_IN, the files release-manifest reads), then one
+# One cosign sign per image (index digest of RELEASE_IN, the files release-manifest reads), then one
 # cosign attest --type cyclonedx per platform SBOM of `make sbom RELEASE=1 IMAGE_TAG=<version>` onto that platform's digest in images.json
 # (each SBOM's trivy ImageID must be the config digest images.json records for that platform: the image that was pushed). Printed with
 # the pinned cosign (COSIGN_BIN: an absolute path), never run; the first line is `cd` to the repo. The sign and attest lines upload to ghcr with
@@ -546,7 +546,7 @@ release-verify:
 	$(RELEASE_GO) verify -dir $(RELEASE_OUT) $(if $(RELEASE_PREV_INDEX),-prev-index $(RELEASE_PREV_INDEX)) $(RELEASE_KEYS_ARG)
 	@if [ "$(RELEASE)" != 1 ]; then rm -rf $(RELEASE_OUT); rmdir dist 2>/dev/null || true; fi
 
-# The release job's network steps (WP-08k). Each refuses rather than guesses.
+# The release job's network steps. Each refuses rather than guesses.
 #   release-push      the four podman manifest lists of `make images IMAGE_TAG=<VERSION> IMAGE_VERSION=<VERSION>` to REGISTRY by digest (read back
 #                     by digest, the version tag pushed too and checked; a version already there is reused only with the same images), then
 #                     dist/release/images.json. Each platform image must carry the version label VERSION and be the one dist/release/gates.json

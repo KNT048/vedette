@@ -54,7 +54,7 @@ func TestPrivateMAC(t *testing.T) {
 func TestContract_AQuietPrivateDeviceIsNotToReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	e.record(dhcp(phoneMAC, "192.168.142.129", "iPhone")...)
+	e.record(dhcp(phoneMAC, "10.142.0.129", "iPhone")...)
 	id := e.idByMAC(phoneMAC)
 	if l := e.review(); len(l.Items) != 0 || l.Counts.Pending != 0 || l.Counts.All != 1 {
 		t.Fatalf("To review = %v, counts %+v; want none, all 1", ids(l), l.Counts)
@@ -67,6 +67,9 @@ func TestContract_AQuietPrivateDeviceIsNotToReview(t *testing.T) {
 	}
 	if total, pending, err := e.svc.DeviceCounts(e.ctx()); err != nil || total != 1 || pending != 0 {
 		t.Fatalf("DeviceCounts = %d, %d, %v", total, pending, err)
+	}
+	if review, err := e.svc.ToReviewIDs(e.ctx()); err != nil || len(review) != 0 {
+		t.Fatalf("ToReviewIDs = %v, %v; want none", review, err)
 	}
 	d := e.detail(id)
 	if !d.Asset.PrivateMAC || !d.Asset.Quiet || d.Asset.Approved {
@@ -93,7 +96,7 @@ func searchFor(t *testing.T, q string) inventory.DeviceFilter {
 func TestContract_APrivateDeviceWithAServiceIsToReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	ip := netip.MustParseAddr("192.168.142.129")
+	ip := netip.MustParseAddr("10.142.0.129")
 	e.record(dhcp(phoneMAC, ip.String(), "iPhone")...)
 	id := e.idByMAC(phoneMAC)
 	e.ev.reset()
@@ -132,16 +135,16 @@ func TestContract_APrivateDeviceWithAServiceIsToReview(t *testing.T) {
 func TestContract_APrivateDeviceThatStaysIsToReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	e.record(dhcp(phoneMAC, "192.168.142.129", "phone-01")...)
+	e.record(dhcp(phoneMAC, "10.142.0.129", "phone-01")...)
 	id := e.idByMAC(phoneMAC)
 	e.tick(23 * time.Hour)
-	e.record(dhcp(phoneMAC, "192.168.142.129", "phone-01")...)
+	e.record(dhcp(phoneMAC, "10.142.0.129", "phone-01")...)
 	if l := e.review(); len(l.Items) != 0 {
 		t.Fatalf("after 23 h: To review = %v", ids(l))
 	}
 	e.ev.reset()
 	e.tick(2 * time.Hour)
-	e.record(dhcp(phoneMAC, "192.168.142.129", "phone-01")...)
+	e.record(dhcp(phoneMAC, "10.142.0.129", "phone-01")...)
 	if l := e.review(); !slices.Contains(ids(l), id) {
 		t.Fatalf("after 25 h: To review = %v", ids(l))
 	}
@@ -160,9 +163,9 @@ func TestContract_APrivateDeviceThatStaysIsToReview(t *testing.T) {
 func TestContract_OnlyARandomPrivateAddressIsQuiet(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	e.record(dhcp(qemuMAC, "192.168.142.10", "vm-01")...)
-	e.record(dhcp(dockMAC, "192.168.142.11", "runner-01")...)
-	e.record(dhcp(burnt1, "192.168.142.12", "accounting-pc")...)
+	e.record(dhcp(qemuMAC, "10.142.0.10", "vm-01")...)
+	e.record(dhcp(dockMAC, "10.142.0.11", "runner-01")...)
+	e.record(dhcp(burnt1, "10.142.0.12", "accounting-pc")...)
 	if l := e.review(); len(l.Items) != 3 || l.Counts.Pending != 3 {
 		t.Fatalf("To review = %v, counts %+v; want all three", ids(l), l.Counts)
 	}
@@ -184,7 +187,7 @@ func TestContract_OnlyARandomPrivateAddressIsQuiet(t *testing.T) {
 func TestContract_APrivateDeviceThatShowedABurnedInMACIsToReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	ip := netip.MustParseAddr("192.168.142.50")
+	ip := netip.MustParseAddr("10.142.0.50")
 	e.record(obs(ip, phoneMAC, observe.Hostname, "gym-tablet", observe.Passive, 0.7))
 	e.record(obs(ip, burnt1, observe.MAC, burnt1, observe.Passive, 0.9))
 	if l := e.review(); l.Counts.Pending != 1 {
@@ -196,23 +199,23 @@ func TestContract_APrivateDeviceThatShowedABurnedInMACIsToReview(t *testing.T) {
 func TestContract_FoldByDistinctiveNameNeverByGenericName(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	e.record(dhcp(privMac1, "192.168.142.145", "office-ultrabook")...)
-	id := e.idOf("192.168.142.145")
+	e.record(dhcp(privMac1, "10.142.0.145", "office-ultrabook")...)
+	id := e.idOf("10.142.0.145")
 	if err := e.svc.Approve(e.ctx(), "user-a", id); err != nil {
 		t.Fatal(err)
 	}
-	e.record(dhcp(privMac3, "192.168.142.150", "iPhone")...)
+	e.record(dhcp(privMac3, "10.142.0.150", "iPhone")...)
 	e.tick(time.Hour)
-	e.record(dhcp(privMac2, "192.168.142.138", "office-ultrabook")...)
-	e.record(dhcp(burnt2, "192.168.142.151", "iPhone")...)
+	e.record(dhcp(privMac2, "10.142.0.138", "office-ultrabook")...)
+	e.record(dhcp(burnt2, "10.142.0.151", "iPhone")...)
 	e.tick(time.Hour)
-	e.record(dhcp("86:52:d9:85:7f:a9", "192.168.142.152", "iPhone")...)
+	e.record(dhcp("86:52:d9:85:7f:a9", "10.142.0.152", "iPhone")...)
 	// The laptop folded into its approved device (history kept); the three "iPhone" rows stayed three devices.
 	if n := e.count(`SELECT count(*) FROM inv_asset WHERE lower(hostname) LIKE 'office-ultrabook%'`); n != 1 {
 		t.Fatalf("%d laptop rows, want 1", n)
 	}
 	d := e.detail(id)
-	if !d.Asset.Approved || d.Asset.MAC == nil || *d.Asset.MAC != privMac2 || d.Asset.IP != "192.168.142.138" {
+	if !d.Asset.Approved || d.Asset.MAC == nil || *d.Asset.MAC != privMac2 || d.Asset.IP != "10.142.0.138" {
 		t.Fatalf("laptop: approved %v mac %v ip %s", d.Asset.Approved, d.Asset.MAC, d.Asset.IP)
 	}
 	if n := e.count(`SELECT count(*) FROM inv_observation WHERE asset_id = ? AND field = 'mac'`, id); n < 2 {
@@ -252,7 +255,7 @@ func (e *env) port(ip netip.Addr, open bool) {
 func TestContract_EarnedReviewStaysAndNoticesOnce(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	ip := netip.MustParseAddr("192.168.142.129")
+	ip := netip.MustParseAddr("10.142.0.129")
 	e.record(dhcp(phoneMAC, ip.String(), "phone-01")...)
 	id := e.idByMAC(phoneMAC)
 	for round := range 3 {
@@ -282,11 +285,11 @@ func TestContract_EarnedReviewStaysAndNoticesOnce(t *testing.T) {
 func TestContract_AFoldPastADayEarnsReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	e.record(dhcp(privMac1, "192.168.142.145", "office-ultrabook")...)
-	id := e.idOf("192.168.142.145")
+	e.record(dhcp(privMac1, "10.142.0.145", "office-ultrabook")...)
+	id := e.idOf("10.142.0.145")
 	e.ev.reset()
 	e.tick(26 * time.Hour)
-	e.record(dhcp(privMac2, "192.168.142.138", "office-ultrabook")...)
+	e.record(dhcp(privMac2, "10.142.0.138", "office-ultrabook")...)
 	d := e.only()
 	if d.ID != id || d.Quiet {
 		t.Fatalf("after the fold: id %s quiet %v", d.ID, d.Quiet)
@@ -298,7 +301,7 @@ func TestContract_AFoldPastADayEarnsReview(t *testing.T) {
 		t.Fatalf("%d notices after the fold, want 1", n)
 	}
 	e.tick(time.Hour)
-	e.record(dhcp(privMac2, "192.168.142.138", "office-ultrabook")...)
+	e.record(dhcp(privMac2, "10.142.0.138", "office-ultrabook")...)
 	if n := e.notices(); n != 1 {
 		t.Fatalf("%d notices after another sighting, want 1", n)
 	}
@@ -308,7 +311,7 @@ func TestContract_AFoldPastADayEarnsReview(t *testing.T) {
 func TestContract_AFindingOrAHitEarnsReview(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t).quietEnv()
-	e.record(dhcp(phoneMAC, "192.168.142.129", "phone-01")...)
+	e.record(dhcp(phoneMAC, "10.142.0.129", "phone-01")...)
 	id := e.idByMAC(phoneMAC)
 	e.ev.reset()
 	if err := e.svc.EarnReview(e.ctx(), id); err != nil {

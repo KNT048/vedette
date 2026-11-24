@@ -134,13 +134,15 @@ type connObs struct {
 	via     string // how it was seen when not in a log line (span_dns, …: MatchMirror); "" is syslog:<the source's name>
 }
 
-// iocRow is a hit before it is stored. listed is the parent name a feed lists when dest is one of its subdomains, else "".
+// iocRow is a hit before it is stored. listed is the parent name a feed lists when dest is one of its subdomains, else "". after is
+// the time of the newest stored hit of the pair when the incident it counted on was resolved since (the hit is new although that one is
+// less than IocDedupe old), else "".
 type iocRow struct {
-	id, src, dest, kind, via, source, listed string
-	at                                       time.Time
-	feeds                                    []string
-	conf                                     float64
-	blocked                                  bool
+	id, src, dest, kind, via, source, listed, after string
+	at                                              time.Time
+	feeds                                           []string
+	conf                                            float64
+	blocked                                         bool
 }
 
 type lookupResult struct {
@@ -213,15 +215,21 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 			continue
 		}
 		seen[pair] = seen[pair].note(o.blocked, conf)
-		if s.hasRecentHit(ctx, pair[0], pair[1], o.blocked, conf, cutoff) {
-			continue
-		}
 		via := o.via
 		if via == "" {
 			via = "syslog:" + names[o.source]
 		}
-		out = append(out, iocRow{id: store.NewID("ih"), src: k.src.String(), dest: k.dest, kind: k.kind, via: via, source: o.source, at: o.at,
-			feeds: cleanFeeds(l.Feeds), conf: conf, blocked: o.blocked, listed: listed})
+		r := iocRow{id: store.NewID("ih"), src: k.src.String(), dest: k.dest, kind: k.kind, via: via, source: o.source, at: o.at,
+			feeds: cleanFeeds(l.Feeds), conf: conf, blocked: o.blocked, listed: listed}
+		if last, ok := s.recentHit(ctx, pair[0], pair[1], o.blocked, conf, cutoff); ok {
+			// A repeat inside the dedupe time is held back while the incident that hit counted on is open; once it was resolved since,
+			// this hit is new and opens a new incident.
+			if !s.resolvedSince(ctx, EventBadAddress, badAddressEvent(r.hit(nil)), last) {
+				continue
+			}
+			r.after = store.FormatTS(last)
+		}
+		out = append(out, r)
 	}
 	return out, true
 }
@@ -296,14 +304,33 @@ func parentDomains(name string) []string {
 // The pair is (device, listed name): a hit on the listed name itself or on any of its subdomains, each found through its index
 // (logs_ioc_hits_pair, logs_ioc_hits_listed). A hit surer than the recent one (an exact feed at 0.9 after a subdomain feed at 0.6) is
 // not a repeat: the higher severity is news.
-const recentHitSQL = `SELECT 1 WHERE EXISTS (SELECT 1 FROM logs_ioc_hits WHERE src_ip = ?1 AND dest = ?2 AND ts > ?3 AND (?4 OR blocked = 0) AND confidence >= ?5)
-OR EXISTS (SELECT 1 FROM logs_ioc_hits WHERE src_ip = ?1 AND listed_as = ?2 AND ts > ?3 AND (?4 OR blocked = 0) AND confidence >= ?5)`
+// It answers the time of the newest such hit (NULL when there is none).
+const recentHitSQL = `SELECT max(ts) FROM (SELECT ts FROM logs_ioc_hits WHERE src_ip = ?1 AND dest = ?2 AND ts > ?3 AND (?4 OR blocked = 0) AND confidence >= ?5
+UNION ALL SELECT ts FROM logs_ioc_hits WHERE src_ip = ?1 AND listed_as = ?2 AND ts > ?3 AND (?4 OR blocked = 0) AND confidence >= ?5)`
 
-// hasRecentHit says whether the pair (device, listed name) has a stored hit newer than cutoff that makes it a repeat (a read on the
-// reader pool); an error says no.
-func (s *Service) hasRecentHit(ctx context.Context, src, name string, blocked bool, conf float64, cutoff string) bool {
-	var one int
-	return s.cfg.Volume.Reader().QueryRowContext(ctx, recentHitSQL, src, name, cutoff, blocked, conf).Scan(&one) == nil
+// recentHit is the time of the newest stored hit of the pair (device, listed name) newer than cutoff that makes a new one a repeat (a
+// read on the reader pool); ok is false when there is none. An error says none.
+func (s *Service) recentHit(ctx context.Context, src, name string, blocked bool, conf float64, cutoff string) (last time.Time, ok bool) {
+	var ts sql.NullString
+	if err := s.cfg.Volume.Reader().QueryRowContext(ctx, recentHitSQL, src, name, cutoff, blocked, conf).Scan(&ts); err != nil || !ts.Valid {
+		return time.Time{}, false
+	}
+	last, err := time.Parse(time.RFC3339Nano, ts.String)
+	return last, err == nil
+}
+
+// resolvedSince asks Config.Incidents whether the incident of an event was resolved at or after since with none of its key open; nil,
+// or a failed read, says no (the repeat stays held back: a failed read never turns into a flood).
+func (s *Service) resolvedSince(ctx context.Context, event string, data any, since time.Time) bool {
+	if s.cfg.Incidents == nil {
+		return false
+	}
+	ok, err := s.cfg.Incidents(ctx, event, data, since)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "logs: reading whether an incident was resolved", "err", err)
+		return false
+	}
+	return ok
 }
 
 // noteLookupFailure logs a failed lookup, once for a run of the same failure; the feeds being off is not a failure (PRE-3).
@@ -364,12 +391,12 @@ func (s *Service) storeIOC(ctx context.Context, tx *sql.Tx, rows []iocRow, fresh
 	}
 	cutoff := store.FormatTS(s.ts().Add(-IocDedupe))
 	for _, r := range rows {
-		var one int
-		switch err := tx.QueryRowContext(ctx, recentHitSQL, r.src, cmp.Or(r.listed, r.dest), cutoff, r.blocked, r.conf).Scan(&one); {
-		case err == nil:
-			continue
-		case !errors.Is(err, sql.ErrNoRows):
+		var last sql.NullString // a hit whose incident was resolved since the newest hit of its pair counts only hits newer than that one
+		if err := tx.QueryRowContext(ctx, recentHitSQL, r.src, cmp.Or(r.listed, r.dest), max(cutoff, r.after), r.blocked, r.conf).Scan(&last); err != nil {
 			return fmt.Errorf("logs: checking a hit: %w", err)
+		}
+		if last.Valid {
+			continue
 		}
 		feeds, err := json.Marshal(r.feeds)
 		if err != nil {
@@ -397,20 +424,26 @@ const IocSummaryTarget = "more bad connections"
 // noteBudgetOut logs, once per clock hour, that hits were stored and not announced because the hourly budget ran out, and announces
 // that once as a logs.anomaly.detected event (notify opens a log_anomaly incident from it): "at least N more", the count of the batch
 // that first ran over. The hits are in the digest.
+// A summary a person resolved while the hour still runs over is announced again (a new incident), once per resolve.
 func (s *Service) noteBudgetOut(ctx context.Context, n int, hour int64) {
-	s.iocMu.Lock()
-	first := s.iocCapLogged != hour
-	s.iocCapLogged = hour
-	s.iocMu.Unlock()
-	if !first {
-		return
-	}
-	s.cfg.Log.WarnContext(ctx, "logs: more bad connections than the hourly limit of announcements; they are stored and shown in the digest, not announced", "not_announced", n, "limit", IocEventsPerHour)
 	ev := AnomalyEvent{Source: "logs", Target: fmt.Sprintf("ioc:%s %d", IocSummaryTarget, hour),
 		Title:    fmt.Sprintf("At least %d more connections to known-bad addresses this hour, not announced one by one", n),
 		What:     fmt.Sprintf("The limit of %d announced bad connections an hour was reached; more were found and are not announced one by one.", IocEventsPerHour),
 		Action:   "Open Logs and read the bad connections of the digest: a device that meets this many listed addresses in an hour is probably infected.",
 		Severity: "medium", Devices: []DeviceInfo{}}
+	s.iocMu.Lock()
+	first := s.iocCapLogged != hour
+	again := !first && s.resolvedSince(ctx, EventAnomalyDetected, ev, s.iocCapAt)
+	if first || again {
+		s.iocCapLogged, s.iocCapAt = hour, s.now()
+	}
+	s.iocMu.Unlock()
+	if !first && !again {
+		return
+	}
+	if first {
+		s.cfg.Log.WarnContext(ctx, "logs: more bad connections than the hourly limit of announcements; they are stored and shown in the digest, not announced", "not_announced", n, "limit", IocEventsPerHour)
+	}
 	if s.cfg.Events == nil {
 		return
 	}

@@ -57,7 +57,7 @@ func (u notifyUsers) EmailCodeUsers(ctx context.Context) (int, error) {
 }
 
 // notifyDevices implements notify.DeviceDirectory over the inventory: the device as the Devices page names it, with its
-// address when that is not the name already, so a notice says "byn (192.168.142.181)" and not an asset id.
+// address when that is not the name already, so a notice says "srv01 (10.142.0.181)" and not an asset id.
 type notifyDevices struct{ inv *inventory.Service }
 
 func (a notifyDevices) DeviceName(ctx context.Context, assetID string) (string, bool, error) {
@@ -268,6 +268,17 @@ func (w *hitRows) Write(p []byte) (int, error) {
 // notifySMTPLoopback is set by the tests of this package only (notify_wiring_test.go): their fake SMTP servers, and the e2e box's,
 // listen on 127.0.0.1, which notify refuses as an SMTP server (in a container loopback is core itself).
 var notifySMTPLoopback bool
+
+// incidentResolvedSince is notify's ResolvedSince for a module that holds back repeats of an incident key (ids, logs, honeypot): whether the
+// incident an event would count on was resolved at or after since with none of its key open. False while notify is off.
+func incidentResolvedSince(d *deps) func(ctx context.Context, event string, data any, since time.Time) (bool, error) {
+	return func(ctx context.Context, event string, data any, since time.Time) (bool, error) {
+		if d.Reg != nil && !d.Reg.Enabled(notify.ModuleID) {
+			return false, nil
+		}
+		return newNotify(d).ResolvedSince(ctx, event, data, since)
+	}
+}
 
 func newNotify(d *deps) *notify.Service {
 	notifyMu.Lock()

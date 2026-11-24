@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make container-only-smoke (WP-08m slice 3): bring the container-only install up the way docs/INSTALL-CONTAINER.md tells a customer
+# make container-only-smoke: bring the container-only install up the way docs/INSTALL-CONTAINER.md tells a customer
 # (deploy/compose/container-only/*, a vedette.env with the address and the images filled in), once per runtime, check BY EFFECT, tear everything
 # down and leave the box as it was. Opt-in: slow (builds the images), not in `make check`, not in CI. Run it through the heavy lock:
 #   ~/vedette-wt/heavy make container-only-smoke

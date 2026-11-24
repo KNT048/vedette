@@ -22,8 +22,9 @@ const (
 	// AuthFailThreshold failed attempts within AuthFailWindow open the incident (fail2ban's default is 5 in 10 minutes; Wazuh 8 in 120 s).
 	AuthFailThreshold = 5
 	AuthFailWindow    = 10 * time.Minute
-	// AuthDedupe is how long one (source, address) is one incident after it opened: more failures inside it are not announced again; a
-	// login that is accepted from the address is, once, as a second incident of higher severity.
+	// AuthDedupe is how long one (source, address) is one incident after it opened: more failures inside it are not announced again while
+	// that incident is open (once it was resolved, the next failure past the threshold opens a new one); a login that is accepted from the
+	// address is, once, as a second incident of higher severity.
 	AuthDedupe = time.Hour
 	// MaxAuthTracked is how many (source, address) pairs are followed; maxAuthStamps the times kept for one class of line of one pair;
 	// maxAuthUsers the account names kept; AuthEventsPerHour the most incidents announced in a clock hour.
@@ -66,6 +67,7 @@ type authState struct {
 	success   time.Time    // the last accepted login seen from the address
 	firedAt   time.Time    // when the incident opened; zero before
 	escalated bool
+	escAt     time.Time // when the incident of the accepted login opened
 	last      time.Time
 }
 
@@ -76,8 +78,9 @@ type authAlert struct {
 	at        time.Time
 	attempts  int
 	users     []string
-	accepted  bool // a login from the address was accepted: high severity
-	escalated bool // this alert is the second one: the acceptance came after the first
+	accepted  bool      // a login from the address was accepted: high severity
+	escalated bool      // this alert is the second one: the acceptance came after the first
+	since     time.Time // a held repeat: when the incident it would count on was announced
 }
 
 // authLine reads the kind of login a line is: sig is its signature, bounded says the signature comes from shipped data (a Windows event id:
@@ -152,10 +155,11 @@ func authLabel(a netip.Addr) string {
 }
 
 // noteAuth follows the login lines of a batch (in receive order) and returns the incidents to announce. A pair counts as announced from now
-// on; announceAuth takes that back (authUnmark) for an incident that the hourly budget did not let out.
-func (s *Service) noteAuth(obs []authObs) []authAlert {
+// on; announceAuth takes that back (authUnmark) for an incident that the hourly budget did not let out. held is the repeats the dedupe
+// time holds back, the last one of each pair and incident: announceAuth lets one through when its incident was resolved since (authRefire).
+func (s *Service) noteAuth(obs []authObs) (out, held []authAlert) {
 	if len(obs) == 0 {
-		return nil
+		return nil, nil
 	}
 	s.authMu.Lock()
 	defer s.authMu.Unlock()
@@ -168,7 +172,12 @@ func (s *Service) noteAuth(obs []authObs) []authAlert {
 			delete(s.auth, k)
 		}
 	}
-	var out []authAlert
+	holding := map[authKey][2]*authAlert{} // by pair: the held failures, the held accepted login
+	hold := func(k authKey, i int, a authAlert) {
+		h := holding[k]
+		h[i] = &a
+		holding[k] = h
+	}
 	for _, o := range obs {
 		net := authNet(o.addr)
 		k := authKey{o.source, net}
@@ -178,9 +187,15 @@ func (s *Service) noteAuth(obs []authObs) []authAlert {
 				continue
 			}
 			st.success, st.last = o.at, o.at
-			if !st.firedAt.IsZero() && !st.escalated && o.at.Sub(st.firedAt) < AuthDedupe { // the incident of an hour ago is over
-				st.escalated = true
-				out = append(out, authAlert{o.source, net, o.at, authAttempts(st, o.at), slices.Clone(st.users), true, true})
+			if !st.firedAt.IsZero() && o.at.Sub(st.firedAt) < AuthDedupe { // the incident of an hour ago is over
+				a := authAlert{o.source, net, o.at, authAttempts(st, o.at), slices.Clone(st.users), true, true, time.Time{}}
+				if !st.escalated {
+					st.escalated, st.escAt = true, o.at
+					out = append(out, a)
+				} else {
+					a.since = st.escAt
+					hold(k, 1, a)
+				}
 			}
 			continue
 		}
@@ -203,13 +218,41 @@ func (s *Service) noteAuth(obs []authObs) []authAlert {
 		if o.user != "" && len(st.users) < maxAuthUsers && !slices.Contains(st.users, o.user) {
 			st.users = append(st.users, o.user)
 		}
-		if n := authAttempts(st, o.at); n >= AuthFailThreshold && (st.firedAt.IsZero() || o.at.Sub(st.firedAt) >= AuthDedupe) {
+		switch n := authAttempts(st, o.at); {
+		case n < AuthFailThreshold:
+		case st.firedAt.IsZero() || o.at.Sub(st.firedAt) >= AuthDedupe:
 			acc := !st.success.IsZero() && o.at.Sub(st.success) <= AuthFailWindow
 			st.firedAt, st.escalated = o.at, acc
-			out = append(out, authAlert{o.source, net, o.at, n, slices.Clone(st.users), acc, false})
+			if acc {
+				st.escAt = o.at
+			}
+			out = append(out, authAlert{o.source, net, o.at, n, slices.Clone(st.users), acc, false, time.Time{}})
+		default:
+			hold(k, 0, authAlert{o.source, net, o.at, n, slices.Clone(st.users), false, false, st.firedAt})
 		}
 	}
-	return out
+	for _, h := range holding {
+		for _, a := range h {
+			if a != nil {
+				held = append(held, *a)
+			}
+		}
+	}
+	slices.SortFunc(held, func(a, b authAlert) int { return a.at.Compare(b.at) })
+	return out, held
+}
+
+// authRefire marks a held repeat as announced: its incident was resolved, so it is the first of a new one.
+func (s *Service) authRefire(a authAlert) {
+	s.authMu.Lock()
+	defer s.authMu.Unlock()
+	if st := s.auth[authKey{a.source, a.addr}]; st != nil {
+		if a.accepted {
+			st.escAt = a.at
+		} else {
+			st.firedAt = a.at
+		}
+	}
 }
 
 // evictOldestQuiet drops the pair that has not opened an incident and was seen longest ago, to make room for a new one; false when every
@@ -273,7 +316,15 @@ func (s *Service) authBudget(n int) (allowed int, first bool) {
 // announceAuth publishes the incidents of a committed batch as logs.anomaly.detected (notify opens a log_anomaly incident; never inside the
 // transaction). Without a bus nothing is sent.
 func (s *Service) announceAuth(ctx context.Context, obs []authObs, names map[string]string, senders map[string]netip.Addr) {
-	alerts := s.noteAuth(obs)
+	alerts, held := s.noteAuth(obs)
+	// A repeat inside the dedupe time is let through when the incident it would count on was resolved since its announcement: it opens a
+	// new incident (the budget below still applies to failures).
+	for _, a := range held {
+		if s.resolvedSince(ctx, EventAnomalyDetected, authEvent(a, names[a.source], nil), a.since) {
+			s.authRefire(a)
+			alerts = append(alerts, a)
+		}
+	}
 	if len(alerts) == 0 {
 		return
 	}

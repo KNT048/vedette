@@ -20,7 +20,7 @@ type differsEnv struct {
 
 func newDiffersEnv(t *testing.T) *differsEnv {
 	t.Helper()
-	e := &differsEnv{env: newEnv(t), ip: netip.MustParseAddr("192.168.142.7")}
+	e := &differsEnv{env: newEnv(t), ip: netip.MustParseAddr("10.142.0.7")}
 	e.read(observe.Passive, observe.MAC, "02:aa:bb:cc:dd:ee") // a device to hang values on
 	addrs, err := e.svc.AddressMap(e.ctx())
 	if err != nil {

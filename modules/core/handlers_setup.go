@@ -20,6 +20,7 @@ import (
 	"github.com/knt048/vedette/core/auth"
 	"github.com/knt048/vedette/core/localnet"
 	"github.com/knt048/vedette/core/modreg"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
@@ -306,6 +307,13 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	if lerr != nil {
 		return nil, lerr
 	}
+	tz := defaultTimezone // the box's one zone (INV-43): the wizard offers the browser's
+	if z, ok := req.Timezone.Get(); ok {
+		if !validTimezone(z) {
+			return nil, apierr.New(400, CodeInvalidTimezone, "The time zone is not a known name, for example Asia/Ho_Chi_Minh or UTC.").With("field", "timezone")
+		}
+		tz = orgtime.CanonicalZone(z)
+	}
 	wantMods, merr := h.wantedModules(req)
 	if merr != nil {
 		return nil, merr
@@ -327,7 +335,7 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 		} else if !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("core: read org: %w", err)
 		}
-		if err := q.InsertOrg(ctx, coredb.InsertOrgParams{Name: org, Timezone: defaultTimezone, DataMode: "clean", InstallID: store.NewID("ins")}); err != nil {
+		if err := q.InsertOrg(ctx, coredb.InsertOrgParams{Name: org, Timezone: tz, DataMode: "clean", InstallID: store.NewID("ins")}); err != nil {
 			return fmt.Errorf("core: insert org: %w", err)
 		}
 		u, err := h.auth.CreateUser(ctx, tx, email, auth.NewUser{Name: name, Email: email, Role: routes.Admin, PasswordHash: hash})
@@ -375,7 +383,7 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 		if err := h.audit.Append(ctx, tx, audit.Entry{User: email, Action: "auth.login", Target: email}); err != nil {
 			return err
 		}
-		detail := fmt.Sprintf("bundle %s, %d ranges", req.Bundle.Or(""), len(lan))
+		detail := fmt.Sprintf("bundle %s, %d ranges, time zone %s", req.Bundle.Or(""), len(lan), tz)
 		if req.Commitment.Or(false) {
 			detail += ", active-scan commitment confirmed"
 		}
@@ -402,6 +410,9 @@ func (h *APIHandlers) CorePostCoreSetup(ctx context.Context, req *oas.CorePostCo
 	}
 	if h.dropUploads != nil {
 		h.dropUploads() // a backup someone uploaded and did not restore is not kept on a box that is set up
+	}
+	if h.osZone != nil {
+		h.osZone.WakeZoneAlignment() // the operating system takes the zone just chosen
 	}
 	setSession(x, sess, "")
 	return &oas.CorePostCoreSetupOK{Ok: true}, nil

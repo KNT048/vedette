@@ -182,7 +182,7 @@ func TestHoneypotReadsTheLogOfTheContainer(t *testing.T) {
 }
 
 // The decoy addresses the honeypot handed to the host are the box, not devices: the inventory ignores what the sensors
-// see there (the trap answers ARP itself) and the active sensor must not probe them (WP-14 review, CONTRACT open question 2).
+// see there (the trap answers ARP itself) and the active sensor must not probe them.
 func TestHoneypotDecoyAddressesAreNotDevices(t *testing.T) {
 	t.Parallel()
 	s := newStackWith(t, func(d *deps) { d.HoneypotDir = t.TempDir() })

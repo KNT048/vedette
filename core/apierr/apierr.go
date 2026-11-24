@@ -25,13 +25,13 @@ const (
 	CodeCoreModule      = "core_module"
 	CodeMissingDeps     = "missing_dependencies"
 
-	// New codes (not yet in section 3.3, proposed [DX] in the WP-04a report).
+	// New codes (not yet in section 3.3).
 	CodeCSRFInvalid = "csrf_invalid"
 	// CodePasswordChangeRequired is the 403 of a session opened with an administrator-set password.
 	CodePasswordChangeRequired = "password_change_required"
 	CodeNotImplemented         = "not_implemented"
 	CodeInternal               = "internal"
-	// CodeMisdirected (421) answers a request whose Host header the box does not serve (WP-04b part 2).
+	// CodeMisdirected (421) answers a request whose Host header the box does not serve.
 	CodeMisdirected = "misdirected_request"
 )
 

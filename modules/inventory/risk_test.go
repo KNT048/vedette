@@ -232,7 +232,7 @@ func TestContract_TheCSVHasTheRisk(t *testing.T) {
 	if !strings.HasSuffix(lines[0], ",risk") {
 		t.Fatalf("header = %q", lines[0])
 	}
-	want := map[string]string{"192.168.142.10": ",2 exploited", "192.168.142.11": ",Update recommended", "192.168.142.12": ","}
+	want := map[string]string{"10.142.0.10": ",2 exploited", "10.142.0.11": ",Update recommended", "10.142.0.12": ","}
 	for _, l := range lines[1:] {
 		for ip, end := range want {
 			if strings.Contains(l, ","+ip+",") && !strings.HasSuffix(l, end) {
@@ -250,7 +250,7 @@ func TestContract_TheBoxIsMarkedLikeAnyDevice(t *testing.T) {
 	t.Parallel()
 	src := fakeRisk{}
 	e := newEnv(t, withRisk(src))
-	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "boxanna", IP: "192.168.142.2"})
+	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "boxanna", IP: "10.142.0.2"})
 	if err != nil {
 		t.Fatal(err)
 	}

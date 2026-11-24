@@ -10093,7 +10093,7 @@
     "/core/general": {
       "get": {
         "operationId": "core_get_core_general",
-        "summary": "Organization name and time zone",
+        "summary": "Organization name and the box's time zone, and whether the operating system uses that zone too",
         "tags": [
           "core"
         ],
@@ -10113,12 +10113,50 @@
                       "type": "string"
                     },
                     "timezone": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh)"
+                    },
+                    "os_time_zone": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "in_sync",
+                            "pending",
+                            "failed",
+                            "not_managed"
+                          ],
+                          "description": "in_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself (the system helper is busy or not answering); failed: the system helper could not set it (message says why); not_managed: this install has no system helper that can set it (a container-only install, or a helper older than this version), so the operating system keeps its own zone"
+                        },
+                        "zone": {
+                          "description": "The zone the operating system uses now; null when it could not be read",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "message": {
+                          "description": "Why it is not in sync, a sentence for the person; null when it is",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "zone",
+                        "message"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The operating system side of the box's time zone"
                     }
                   },
                   "required": [
                     "name",
-                    "timezone"
+                    "timezone",
+                    "os_time_zone"
                   ],
                   "additionalProperties": false
                 }
@@ -10139,7 +10177,7 @@
       },
       "put": {
         "operationId": "core_put_core_general",
-        "summary": "Save organization name and time zone",
+        "summary": "Save organization name and the box's time zone: the schedules move with it and the box sets the operating system to it (os_time_zone says how that went; the save stands either way)",
         "tags": [
           "core"
         ],
@@ -10158,7 +10196,8 @@
                     "type": "string"
                   },
                   "timezone": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh)"
                   }
                 },
                 "required": [
@@ -10182,12 +10221,50 @@
                       "type": "string"
                     },
                     "timezone": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh)"
+                    },
+                    "os_time_zone": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "in_sync",
+                            "pending",
+                            "failed",
+                            "not_managed"
+                          ],
+                          "description": "in_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself (the system helper is busy or not answering); failed: the system helper could not set it (message says why); not_managed: this install has no system helper that can set it (a container-only install, or a helper older than this version), so the operating system keeps its own zone"
+                        },
+                        "zone": {
+                          "description": "The zone the operating system uses now; null when it could not be read",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "message": {
+                          "description": "Why it is not in sync, a sentence for the person; null when it is",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "zone",
+                        "message"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The operating system side of the box's time zone"
                     }
                   },
                   "required": [
                     "name",
-                    "timezone"
+                    "timezone",
+                    "os_time_zone"
                   ],
                   "additionalProperties": false
                 }
@@ -15040,7 +15117,7 @@
     "/core/privacy": {
       "get": {
         "operationId": "core_get_core_privacy",
-        "summary": "The 14 data flows leaving the box and the verbatim anonymous-signal payload",
+        "summary": "The data flows leaving the box and the verbatim anonymous-signal payload",
         "tags": [
           "core"
         ],
@@ -15092,7 +15169,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 16 flows listed in PRIVACY.md"
+                      "description": "Exactly the flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -15227,7 +15304,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Exactly the 16 flows listed in PRIVACY.md"
+                      "description": "Exactly the flows listed in PRIVACY.md"
                     },
                     "telemetry": {
                       "type": "object",
@@ -15353,6 +15430,10 @@
                       "mid",
                       "custom"
                     ]
+                  },
+                  "timezone": {
+                    "description": "The box's time zone (an IANA name such as Europe/Berlin): every page, mail, log and schedule reads it, and the operating system is set to it. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh). Absent: Asia/Ho_Chi_Minh. Not a known zone: 400 invalid_timezone",
+                    "type": "string"
                   },
                   "modules": {
                     "type": "array",
@@ -15539,7 +15620,7 @@
                       "description": "appliance: installed by install.sh, with the system helper vedette-host; container: container-only install on the customer's Docker or Podman, no helper. The one place the GUI learns it"
                     },
                     "lan": {
-                      "description": "The network of the box's management address (CIDR, like 192.168.142.0/24), offered as the first range of the network step; null when setup is done, on a container-only install, or when the box has no private IPv4 address",
+                      "description": "The network of the box's management address (CIDR, like 10.142.0.0/24), offered as the first range of the network step; null when setup is done, on a container-only install, or when the box has no private IPv4 address",
                       "type": [
                         "string",
                         "null"
@@ -53343,6 +53424,73 @@
                                   "type": "integer",
                                   "minimum": 1,
                                   "maximum": 9007199254740991
+                                },
+                                "others": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "key": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 400,
+                                        "description": "The \"By fix\" group (the same key on every device the same fix applies to); opaque"
+                                      },
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "update",
+                                          "distro_update",
+                                          "os_update",
+                                          "feature_update",
+                                          "restart",
+                                          "none_yet",
+                                          "unknown"
+                                        ],
+                                        "description": "update = install `version` of the software or later; distro_update = install the distribution's package release `version` or later; os_update = install the operating system update `ref` (a KB number) or build `version`; feature_update = no update of this release fixes it, move to release `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data"
+                                      },
+                                      "product": {
+                                        "type": "string",
+                                        "description": "The product the fix is for, as people name it (\"OpenSSH\")"
+                                      },
+                                      "version": {
+                                        "description": "update, distro_update, feature_update: the version or release to install; os_update: the build when known; restart: the installed kernel's package release the device runs after the restart",
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "ref": {
+                                        "description": "os_update: the KB number; none_yet: the advisory id when known",
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      },
+                                      "url": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                            "format": "uri"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ],
+                                        "description": "The vendor advisory or release notes"
+                                      }
+                                    },
+                                    "required": [
+                                      "key",
+                                      "kind",
+                                      "product",
+                                      "version",
+                                      "ref",
+                                      "url"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "description": "The fixes of the other steps for the same software line on this device, the most findings first: a line is in several steps only when no single release is known to fix all of its CVEs (or some name no release). Empty when this step is the line's only one"
                                 }
                               },
                               "required": [
@@ -53350,7 +53498,8 @@
                                 "software",
                                 "status",
                                 "severity",
-                                "findings"
+                                "findings",
+                                "others"
                               ],
                               "additionalProperties": false
                             },
@@ -54260,6 +54409,33 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
+                                "const": "devices_not_added"
+                              },
+                              "id": {
+                                "type": "string",
+                                "const": "devices_not_added",
+                                "description": "The item"
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991,
+                                "description": "Devices in the Devices list's To review that have no open finding"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "id",
+                              "count"
+                            ],
+                            "additionalProperties": false,
+                            "description": "One card for every device nobody added yet that has no open finding, after the unconfirmed findings and the questions; it counts as one item. Review opens the Devices list's To review (/devices?tab=review), where each is added or ignored. Not in a queue read for one device or by a search"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
                                 "const": "device_unchecked"
                               },
                               "id": {
@@ -54982,7 +55158,7 @@
                           }
                         ]
                       },
-                      "description": "Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting; an item leaves the moment it is answered or stops being true"
+                      "description": "Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting, then the one card of the devices not added yet with no open finding; an item leaves the moment it is answered or stops being true"
                     },
                     "total": {
                       "type": "integer",
@@ -68096,7 +68272,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Ranges normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24"
+                      "description": "Ranges normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24"
                     }
                   },
                   "required": [
@@ -99953,7 +100129,7 @@
                           },
                           "label": {
                             "type": "string",
-                            "description": "What it scans, e.g. \"LAN sweep 192.168.142.0/24\", \"Check 192.168.142.20\", \"203.0.113.10\""
+                            "description": "What it scans, e.g. \"LAN sweep 10.142.0.0/24\", \"Check 10.142.0.20\", \"203.0.113.10\""
                           },
                           "target_id": {
                             "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
@@ -100685,7 +100861,7 @@
                           },
                           "label": {
                             "type": "string",
-                            "description": "What it scans, e.g. \"LAN sweep 192.168.142.0/24\", \"Check 192.168.142.20\", \"203.0.113.10\""
+                            "description": "What it scans, e.g. \"LAN sweep 10.142.0.0/24\", \"Check 10.142.0.20\", \"203.0.113.10\""
                           },
                           "target_id": {
                             "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
@@ -100985,7 +101161,7 @@
                     },
                     "label": {
                       "type": "string",
-                      "description": "What it scans, e.g. \"LAN sweep 192.168.142.0/24\", \"Check 192.168.142.20\", \"203.0.113.10\""
+                      "description": "What it scans, e.g. \"LAN sweep 10.142.0.0/24\", \"Check 10.142.0.20\", \"203.0.113.10\""
                     },
                     "target_id": {
                       "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
@@ -101260,7 +101436,7 @@
                           },
                           "label": {
                             "type": "string",
-                            "description": "What it scanned: \"LAN 192.168.142.0/24\", \"192.168.142.20\", \"SNMP read of 3 devices\", \"203.0.113.10\""
+                            "description": "What it scanned: \"LAN 10.142.0.0/24\", \"10.142.0.20\", \"SNMP read of 3 devices\", \"203.0.113.10\""
                           },
                           "target_id": {
                             "description": "The exposure target of a public scan, for a link; null otherwise (a LAN job does not record its device)",
@@ -101299,7 +101475,7 @@
                           },
                           "text": {
                             "type": "string",
-                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 192.168.142.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, \"OS guess <x>\" for nmap's fingerprint, \"OS <x>\" for the device's own answer, \"OS guess now <x> (changed since the previous check)\"; otherwise \"OS: scan guess not used now\", never a second OS value; \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 192.168.142.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
+                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Failed: the device did not answer over SNMP.\" (an SNMP read nothing answered is failed, never partial), \"Scanned 10.142.0.20: 3 open ports (22 ssh, 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check\" (a device check: its open ports; the OS it recorded only when it is the OS the device page shows now, \"OS guess <x>\" for nmap's fingerprint, \"OS <x>\" for the device's own answer, \"OS guess now <x> (changed since the previous check)\"; otherwise \"OS: scan guess not used now\", never a second OS value; \"since the previous check: port 8080 newly open, port 23 no longer open\"), \"Scanned 10.142.0.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
                           }
                         },
                         "required": [
@@ -101708,7 +101884,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24"
+                      "description": "Ranges and exclusions normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24"
                     }
                   },
                   "required": [
@@ -101918,7 +102094,7 @@
                   "entry": {
                     "type": "string",
                     "maxLength": 64,
-                    "description": "One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 192.168.142.9 or 192.168.142.64/28"
+                    "description": "One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 10.142.0.9 or 10.142.0.64/28"
                   }
                 },
                 "required": [
@@ -102387,7 +102563,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24"
+                      "description": "Ranges and exclusions normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24"
                     }
                   },
                   "required": [
@@ -103966,7 +104142,7 @@
       },
       "post": {
         "operationId": "scan_post_scans_runs",
-        "summary": "Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked)",
+        "summary": "Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked); a chosen device with nothing to check (checkable and again both 0) is left out, and 400 nothing_to_check when none has anything",
         "tags": [
           "scan"
         ],
@@ -105053,6 +105229,24 @@
                               }
                             ],
                             "description": "When the inventory last saw the device (picker filter); null for external targets"
+                          },
+                          "suspected": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Open findings of the device not confirmed yet (distinct CVEs, closed ones left out); 0 for external targets"
+                          },
+                          "checkable": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "How many of the suspected findings have a safe check in the installed template pack: what a vulnerability check can confirm or rule out"
+                          },
+                          "again": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Confirmed or mitigated findings with a safe check: a vulnerability check runs it again to see whether a fix holds. A device whose checkable and again are both 0 has nothing to check: POST /scans/runs leaves it out (400 nothing_to_check when no picked device has anything) and the schedule skips it"
                           }
                         },
                         "required": [
@@ -105070,7 +105264,10 @@
                           "mac",
                           "vendor",
                           "approved",
-                          "last_seen"
+                          "last_seen",
+                          "suspected",
+                          "checkable",
+                          "again"
                         ],
                         "additionalProperties": false
                       }
@@ -105188,7 +105385,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105242,9 +105439,9 @@
                           "description": "once only"
                         },
                         "tz": {
+                          "description": "Always \"org\": every schedule reads its times in the box's time zone (Settings › General). Kept for clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read as the box's",
                           "type": "string",
-                          "maxLength": 64,
-                          "description": "\"org\" (the organization's time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin"
+                          "maxLength": 64
                         },
                         "window": {
                           "type": "string",
@@ -105279,7 +105476,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105292,7 +105489,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105308,7 +105505,6 @@
                         "weekdays",
                         "month_day",
                         "once_at",
-                        "tz",
                         "window",
                         "window_days",
                         "window_from",
@@ -105319,7 +105515,7 @@
                     },
                     "zone": {
                       "type": "string",
-                      "description": "The IANA zone the rule is read in (the organization's for tz \"org\")"
+                      "description": "The IANA zone the rule is read in: the box's (Settings › General)"
                     },
                     "next_due_at": {
                       "anyOf": [
@@ -105586,7 +105782,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -105640,9 +105836,9 @@
                         "description": "once only"
                       },
                       "tz": {
+                        "description": "Always \"org\": every schedule reads its times in the box's time zone (Settings › General). Kept for clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read as the box's",
                         "type": "string",
-                        "maxLength": 64,
-                        "description": "\"org\" (the organization's time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin"
+                        "maxLength": 64
                       },
                       "window": {
                         "type": "string",
@@ -105677,7 +105873,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -105690,7 +105886,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -105706,7 +105902,6 @@
                       "weekdays",
                       "month_day",
                       "once_at",
-                      "tz",
                       "window",
                       "window_days",
                       "window_from",
@@ -105793,7 +105988,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105847,9 +106042,9 @@
                           "description": "once only"
                         },
                         "tz": {
+                          "description": "Always \"org\": every schedule reads its times in the box's time zone (Settings › General). Kept for clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read as the box's",
                           "type": "string",
-                          "maxLength": 64,
-                          "description": "\"org\" (the organization's time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin"
+                          "maxLength": 64
                         },
                         "window": {
                           "type": "string",
@@ -105884,7 +106079,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105897,7 +106092,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105913,7 +106108,6 @@
                         "weekdays",
                         "month_day",
                         "once_at",
-                        "tz",
                         "window",
                         "window_days",
                         "window_from",
@@ -105924,7 +106118,7 @@
                     },
                     "zone": {
                       "type": "string",
-                      "description": "The IANA zone the rule is read in (the organization's for tz \"org\")"
+                      "description": "The IANA zone the rule is read in: the box's (Settings › General)"
                     },
                     "next_due_at": {
                       "anyOf": [
@@ -106229,7 +106423,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -106283,9 +106477,9 @@
                         "description": "once only"
                       },
                       "tz": {
+                        "description": "Always \"org\": every schedule reads its times in the box's time zone (Settings › General). Kept for clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read as the box's",
                         "type": "string",
-                        "maxLength": 64,
-                        "description": "\"org\" (the organization's time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin"
+                        "maxLength": 64
                       },
                       "window": {
                         "type": "string",
@@ -106320,7 +106514,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -106333,7 +106527,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -106349,7 +106543,6 @@
                       "weekdays",
                       "month_day",
                       "once_at",
-                      "tz",
                       "window",
                       "window_days",
                       "window_from",

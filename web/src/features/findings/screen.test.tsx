@@ -92,6 +92,23 @@ describe('By fix is the plan: numbered steps, from → to, one machine counted o
   })
 })
 
+describe('By fix: a line in several steps says so', () => {
+  it('a device whose line no single release fixes names its other steps on each step', async () => {
+    const sev = { critical: 0, high: 1, medium: 0, low: 0, none: 0, unscored: 0 }
+    const device = { id: 'a-sw1', name: 'core-switch', ip: '192.0.2.10', kind: 'switch', added: true, ignored: false }
+    const software = { id: 's-junos', name: 'Juniper Junos OS', version: '15.1R7.9' }
+    const fix = (version: string) => ({ key: `juniper|junos os|update|${version}`, kind: 'update', product: 'Juniper Junos OS', version, ref: null, url: null })
+    const step = (version: string, other: string, cve: string, findings: number) => ({ fix: fix(version), status: 'critical_edge', cause: cve, devices: 1, findings,
+      severity: { ...sev, high: findings }, items: [{ device, software, status: 'critical_edge', severity: { ...sev, high: findings }, findings, others: [fix(other)] }] })
+    server.use(http.get('*/api/v1/findings/fixes', () => HttpResponse.json({ items: [step('23.2R2-S7.7', '19.1R3-S9', 'CVE-2026-94002', 3), step('19.1R3-S9', '23.2R2-S7.7', 'CVE-2026-94001', 1)], total: 2, findings: 4 })))
+    renderApp('/findings?tab=fix')
+    const table = await fixesTable()
+    const first = within(table).getByRole('article', { name: /^Step 1: Update Juniper Junos OS 15\.1R7\.9 → 23\.2R2-S7\.7$/ })
+    await userEvent.click(within(first).getByRole('button', { name: /^Update Juniper Junos OS/ }))
+    expect(within(first).getByText('Juniper Junos OS on this device is also in another step (19.1R3-S9): no single release is known to fix all of its findings.')).toBeInTheDocument()
+  })
+})
+
 describe('Findings: counts read as English', () => {
   it('one device, one fix and one finding are singular in the summaries and on a fix', async () => {
     renderApp('/findings?tab=device&by-device.q=CVE-2022-27593')
@@ -177,6 +194,15 @@ describe('Findings: Needs your input', () => {
     const name = add.getAttribute('aria-label')!.replace('Add device ', '')
     await userEvent.click(add)
     await waitFor(() => expect(within(table).queryByRole('button', { name: `Add device ${name}` })).toBeNull(), T)
+  })
+
+  it('the devices not added yet with no open finding are one card, last, whose Review opens the Devices list To review', async () => {
+    renderApp('/findings?tab=input')
+    const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
+    const words = await within(table).findByText(/^\d+ devices? not added yet with no open finding\.$/, {}, T)
+    const rows = within(table).getAllByRole('row')
+    expect(rows[rows.length - 1]).toContainElement(words)
+    expect(within(table).getByRole('link', { name: 'Review' })).toHaveAttribute('href', '/devices?tab=review')
   })
 
   it('an urgent finding not confirmed yet: Run the safe check first when one exists, Confirm vulnerability, Not affected…', async () => {

@@ -1,3 +1,4 @@
+import { canonicalZone } from '@/lib/zoneNames'
 
 /** Split out so a test can replace it (jsdom does not allow changing location.reload). */
 export const nav = { reload: () => window.location.reload(), toSetup: () => window.location.assign('/setup') }
@@ -54,8 +55,8 @@ export interface NormalisedCidr { value: string; note: 'prefix' | 'network' | nu
 /** A bare address without the prefix length: do NOT guess /24 (the range could be /25, /23...). */
 export const isBareIp = (raw: string) => IPV4_BARE.test(raw.trim())
 /**
- * Normalise a network range the user typed. A prefix is required ("192.168.142.0/24"); without a prefix → null
- * (use isBareIp to report the right error). "192.168.142.5/24" has host bits → "192.168.142.0/24" (note 'network', the prefix is kept).
+ * Normalise a network range the user typed. A prefix is required ("10.142.0.0/24"); without a prefix → null
+ * (use isBareIp to report the right error). "10.142.0.5/24" has host bits → "10.142.0.0/24" (note 'network', the prefix is kept).
  */
 export function normaliseCidr(raw: string): NormalisedCidr | null {
   const s = raw.trim()
@@ -70,13 +71,15 @@ export function normaliseCidr(raw: string): NormalisedCidr | null {
   return { value: `${[24, 16, 8, 0].map((sh) => (net >>> sh) & 255).join('.')}/${bits}`, note }
 }
 
-/** Zones offered for search: every IANA zone the browser lists, plus the box default and UTC (some engines list a zone under an older alias, or leave UTC out). */
-export const TIMEZONES: string[] = [...new Set([...Intl.supportedValuesOf('timeZone'), 'Asia/Ho_Chi_Minh', 'UTC'])].sort()
+/** Zones offered for search: every zone the browser lists under its current IANA name (some engines list a zone under an older alias,
+ *  which the box's operating system may not ship), plus the box default and UTC (some engines leave UTC out). */
+export const TIMEZONES: string[] = [...new Set([...Intl.supportedValuesOf('timeZone').map(canonicalZone), 'Asia/Ho_Chi_Minh', 'UTC'])].sort()
 /** Any name the browser itself accepts as a zone; the box checks the name again (time.LoadLocation). */
 export const validTimeZone = (z: string): boolean => {
   try { new Intl.DateTimeFormat(undefined, { timeZone: z }); return true } catch { return false }
 }
-export const browserTimeZone = (): string | null => Intl.DateTimeFormat().resolvedOptions().timeZone || null
+/** This browser's zone under its current IANA name (Chrome's "Asia/Saigon" is "Asia/Ho_Chi_Minh"). */
+export const browserTimeZone = (): string | null => { const z = Intl.DateTimeFormat().resolvedOptions().timeZone; return z ? canonicalZone(z) : null }
 /** Two names of one zone: an engine reports a zone under its own name for it (Chrome's "Asia/Saigon" is the IANA "Asia/Ho_Chi_Minh"),
  *  so names are compared as the engine resolves them. */
 export const sameTimeZone = (a: string, b: string): boolean => {

@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// WP-13b slice 13b-10 (INV-15, INV-16, FORBID-5): AI proposals. The ai module calls Service.Propose as the service identity
+// INV-15, INV-16, FORBID-5: AI proposals. The ai module calls Service.Propose as the service identity
 // ai:response; there is no HTTP route for it in the real build. The AI names a catalog action and typed values and points at the
 // evidence. The server, not the prompt, decides whether that becomes an approval request, a suggestion note, a digest note or a
 // refusal. The body has no field that could hold a command, a path, a template or a header (INV-14, TestProposeBodyHasNoCommandField).
@@ -102,7 +102,7 @@ type EvidenceRef struct {
 // EvidencePorts look up evidence the module does not own. A nil port, or a lookup that says not found, means the evidence does not
 // exist: the proposal is refused (422 evidence_invalid). A finding is looked up through Directory.
 type EvidencePorts struct {
-	// IocHit finds a known-bad connection by id (logs, WP-24). Nil until that module offers a read-only lookup.
+	// IocHit finds a known-bad connection by id (logs). Nil until that module offers a read-only lookup.
 	IocHit func(ctx context.Context, id string) (EvidenceRef, bool, error)
 	// ConfigRead finds a read the box made through a connection, by its read record: the ai module's ai_read, at most 24 hours old;
 	// an existing read tool proves nothing. Nil (a binary without the ai module) = no read is evidence.

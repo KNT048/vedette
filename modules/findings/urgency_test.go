@@ -52,6 +52,11 @@ func TestUrgency_TheRuleOfEachLayer(t *testing.T) {
 		{"needs a login", CVEFacts{CVSS: &CVSS{Score: 9.1, Version: "3.1", Vector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H"}}, edge, nil, UrgencyUpdate},
 		{"CVSS 4.0", CVEFacts{CVSS: &CVSS{Score: 9.3, Version: "4.0", Vector: "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"}}, edge, nil, UrgencyCriticalEdge},
 		{"CVSS 2.0 with no authentication", CVEFacts{CVSS: &CVSS{Score: 10, Version: "2.0", Vector: "AV:N/AC:L/Au:N/C:C/I:C/A:C"}}, edge, nil, UrgencyCriticalEdge},
+		{"an attack at the device on a local-only flaw", CVEFacts{CVSS: &CVSS{Score: 9.3, Version: "3.1", Vector: "CVSS:3.1/AV:L/AC:L/PR:H/UI:N/S:C/C:H/I:H/A:H"}}, Target{AssetID: "a-1", Affected: true}, []Attack{{CVE: "CVE-1", AssetID: "a-1", LastSeen: now.Add(-time.Hour)}}, UrgencyUpdate},
+		{"an attack on a flaw that needs physical access", CVEFacts{CVSS: &CVSS{Score: 6.8, Version: "4.0", Vector: "CVSS:4.0/AV:P/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"}}, Target{AssetID: "a-1"}, []Attack{{CVE: "CVE-1", AssetID: "a-1", LastSeen: now.Add(-time.Hour)}}, UrgencyUpdate},
+		{"an attack on a local-only flaw, CVSS 2.0", CVEFacts{CVSS: &CVSS{Score: 7.2, Version: "2.0", Vector: "AV:L/AC:L/Au:N/C:C/I:C/A:C"}}, Target{AssetID: "a-1"}, []Attack{{CVE: "CVE-1", AssetID: "a-1", LastSeen: now.Add(-time.Hour)}}, UrgencyUpdate},
+		{"an attack on an adjacent-network flaw", CVEFacts{CVSS: &CVSS{Score: 8.8, Version: "3.1", Vector: "CVSS:3.1/AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"}}, Target{AssetID: "a-1"}, []Attack{{CVE: "CVE-1", AssetID: "a-1", LastSeen: now.Add(-time.Hour)}}, UrgencyUnderAttack},
+		{"an attack on a network flaw", CVEFacts{CVSS: critical}, Target{AssetID: "a-1"}, []Attack{{CVE: "CVE-1", AssetID: "a-1", LastSeen: now.Add(-time.Hour)}}, UrgencyUnderAttack},
 		{"CVSS 2.0 with authentication", CVEFacts{CVSS: &CVSS{Score: 9, Version: "2.0", Vector: "AV:N/AC:L/Au:S/C:C/I:C/A:C"}}, edge, nil, UrgencyUpdate},
 	} {
 		if got := Urgency("CVE-1", c.facts, c.target, c.attacks, now); got.Layer != c.want {

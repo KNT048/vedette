@@ -75,9 +75,71 @@ type host struct {
 	closed, filtered int
 	// scanned are the TCP ports the run looked at (nmap's <scaninfo services>); nil when it printed none
 	scanned []observe.PortRange
+	// runs is what each nmap run merged into this host said about the ports it did not find open (one run, or a normal scan and
+	// its Extra run): answer reads it
+	runs    []portRun
 	ntlm    ntlmInfo    // what the device said about itself in an NTLM challenge; zero when no script answered
 	scripts []nseScript // every NSE script result of an open port or of the host (<hostscript>), read for the full shapes
 	says    []selfSays  // what the device stated about itself to the scripts of selfScripts (a web page's version), no login involved
+}
+
+// portRun is what one nmap run said about the TCP ports of a host it did not find open: the ports it asked about (its <scaninfo>),
+// the state of each port it listed one by one (at most maxPortsPerHost), and the states it grouped in <extraports> without naming
+// the ports.
+type portRun struct {
+	scanned []observe.PortRange
+	listed  map[int]string
+	extra   []string
+}
+
+// maxExtraStates bounds the <extraports> states kept per run: nmap prints one per state (closed, filtered), so a longer list is not nmap's.
+const maxExtraStates = 4
+
+// portAnswer is what a check learned about one TCP port.
+type portAnswer int
+
+const (
+	notAsked       portAnswer = iota // no run of the check asked about the port: the check says nothing about it
+	noAnswer                         // asked, and nothing came back (nmap's "filtered"): see answer
+	answeredClosed                   // the device refused the connection (nmap's "closed"): the port is closed
+	answeredOpen                     // the port is open
+)
+
+// answer is what the check of h learned about a TCP port. It is the one rule by which a check's result turns into the state of a
+// port: only an open port is open, and only a port that refused the connection is closed. A port nmap asked about that sent nothing
+// back ("filtered", "closed|filtered", or grouped in <extraports> with such ports) is noAnswer: a firewall that drops the probes and a
+// device or link that rate-limits or loses them look the same to nmap, so the check is incomplete for that port, never proof that it
+// closed. A port inside <extraports> is closed only when the run grouped nothing but closed ports there.
+func (h host) answer(port int) portAnswer {
+	if slices.ContainsFunc(h.ports, func(p portInfo) bool { return p.proto == "tcp" && p.number == port }) {
+		return answeredOpen
+	}
+	got := notAsked
+	for _, r := range h.runs {
+		st, listed := r.listed[port]
+		switch {
+		case listed && st == "closed":
+			return answeredClosed
+		case listed:
+			got = noAnswer
+		case !inRanges(r.scanned, port):
+		case len(r.extra) == 1 && r.extra[0] == "closed":
+			return answeredClosed
+		default:
+			got = noAnswer
+		}
+	}
+	return got
+}
+
+// noPortAnswered says the device was up but no port it was asked about answered (every one "filtered", or most of them with none
+// open): the whole check is incomplete, the same rule as answer's for one port (Identification WhyFiltered, the history's words).
+func (h host) noPortAnswered() bool {
+	return !h.timedOut && len(h.ports) == 0 && h.filtered > 0 && h.filtered >= h.closed
+}
+
+func inRanges(rs []observe.PortRange, p int) bool {
+	return slices.ContainsFunc(rs, func(r observe.PortRange) bool { return p >= r.From && p <= r.To })
 }
 
 // nseScript is one NSE script result: the script's id, its text output (scriptText, or outputWithheld) and the findings
@@ -523,7 +585,7 @@ func parseNmapXML(data []byte) ([]host, error) {
 				if len(hosts) >= maxXMLHosts {
 					return nil, fmt.Errorf("%w: too many hosts", errXMLInvalid)
 				}
-				cur, up = &host{timedOut: a["timedout"] == "true", scanned: scanned}, false
+				cur, up = &host{timedOut: a["timedout"] == "true", scanned: scanned, runs: []portRun{{scanned: scanned}}}, false
 			case "nmaprun/host/status":
 				up = cur != nil && a["state"] == "up"
 			case "nmaprun/host/address":
@@ -555,11 +617,20 @@ func parseNmapXML(data []byte) ([]host, error) {
 			case "nmaprun/host/ports/extraports":
 				if cur != nil {
 					cur.countState(a["state"], num(a["count"], 65535))
+					if r := &cur.runs[0]; len(r.extra) < maxExtraStates {
+						r.extra = append(r.extra, a["state"])
+					}
 				}
 			case "nmaprun/host/ports/port/state":
 				portOK = port != nil && a["state"] == "open"
 				if cur != nil && port != nil {
 					cur.countState(a["state"], 1)
+					if r := &cur.runs[0]; a["state"] != "open" && port.proto == "tcp" && port.number > 0 && len(r.listed) < maxPortsPerHost {
+						if r.listed == nil {
+							r.listed = map[int]string{}
+						}
+						r.listed[port.number] = a["state"]
+					}
 				}
 			case "nmaprun/host/ports/port/service":
 				if port != nil {

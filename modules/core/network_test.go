@@ -1148,7 +1148,7 @@ func TestNetworkARevertThatCannotBeAppliedShowsTheRestart(t *testing.T) {
 
 // ---- the review of acc33e0 ----
 
-// M2: the host allows 60 requests a minute for all of core. Readers that arrive together share one read, and a
+// The host allows 60 requests a minute for all of core. Readers that arrive together share one read, and a
 // read is kept longer than the 5 s poll of the page.
 func TestNetworkConcurrentReadsMakeOneHostCall(t *testing.T) {
 	t.Parallel()
@@ -1184,7 +1184,7 @@ func TestNetworkConcurrentReadsMakeOneHostCall(t *testing.T) {
 	}
 }
 
-// M3: a confirm that the host did not take (429, or "nothing is waiting" from a race) does not end core's record.
+// A confirm that the host did not take (429, or "nothing is waiting" from a race) does not end core's record.
 // The page keeps the old address, and when the change later goes back it is audited once.
 func TestNetworkAFailedConfirmKeepsTheRecordUntilTheRunEnds(t *testing.T) {
 	t.Parallel()
@@ -1220,7 +1220,7 @@ func TestNetworkAFailedConfirmKeepsTheRecordUntilTheRunEnds(t *testing.T) {
 	}
 }
 
-// L2: only an ended run settles the record. A host that cannot be asked, or a run that is still going (a confirm
+// Only an ended run settles the record. A host that cannot be asked, or a run that is still going (a confirm
 // in progress), writes nothing and is tried again; the revert is written once, when the run has ended.
 func TestNetworkSettleWaitsForTheRunToEnd(t *testing.T) {
 	t.Parallel()
@@ -1255,7 +1255,7 @@ func TestNetworkSettleWaitsForTheRunToEnd(t *testing.T) {
 	}
 }
 
-// M1: the passive sensor reads its cards through Cards. No socket file: ok false (cmd/vedette's HostCards makes it an
+// The passive sensor reads its cards through Cards. No socket file: ok false (cmd/vedette's HostCards makes it an
 // error); a host that does not answer: the last good list, or ok false before there is one; never an error.
 func TestNetworkCardsSurviveAMissingOrFailingHost(t *testing.T) {
 	t.Parallel()
@@ -1288,7 +1288,7 @@ func TestNetworkCardsSurviveAMissingOrFailingHost(t *testing.T) {
 	})
 }
 
-// L3: a box with no configuration of the host's and no default route. One card with an address is the management
+// A box with no configuration of the host's and no default route. One card with an address is the management
 // card; several are not told apart, and the message never has an empty card name.
 func TestNetworkManagementCardWithoutAConfigurationOrARoute(t *testing.T) {
 	t.Parallel()
@@ -1321,7 +1321,7 @@ func TestNetworkManagementCardWithoutAConfigurationOrARoute(t *testing.T) {
 	}
 }
 
-// L4: when the sensor cannot be told, the save says so (verdict sensor_unreachable), every look tries again, and a
+// When the sensor cannot be told, the save says so (verdict sensor_unreachable), every look tries again, and a
 // sensor that says it is off is never shown as "ok" from the host's counters.
 func TestNetworkSensorThatCannotBeToldIsReported(t *testing.T) {
 	t.Parallel()
@@ -1361,7 +1361,7 @@ func TestNetworkSensorThatCannotBeToldIsReported(t *testing.T) {
 	}
 }
 
-// L5: 5 seconds after the window would run out the box's addresses are read again and the revert is settled and
+// 5 seconds after the window would run out the box's addresses are read again and the revert is settled and
 // audited, with nobody on the page.
 func TestNetworkLooksAgainAfterTheWindow(t *testing.T) {
 	t.Parallel()
@@ -1387,7 +1387,7 @@ func TestNetworkLooksAgainAfterTheWindow(t *testing.T) {
 	}
 }
 
-// L8: an NTP save that changes nothing is audited, as the mock does.
+// An NTP save that changes nothing is audited, as the mock does.
 func TestNetworkNTPSaveWithNoChangeIsAudited(t *testing.T) {
 	t.Parallel()
 	e := newNetEnv(t, netOpts{})
@@ -1400,7 +1400,7 @@ func TestNetworkNTPSaveWithNoChangeIsAudited(t *testing.T) {
 	}
 }
 
-// L1: core's rules are the host's (host/ops unicast4, hostInSubnet, IsGlobalUnicast), so a person gets the sentence of
+// Core's rules are the host's (host/ops unicast4, hostInSubnet, IsGlobalUnicast), so a person gets the sentence of
 // the form and not a refusal of the host.
 func TestNetworkRulesMatchTheHosts(t *testing.T) {
 	t.Parallel()

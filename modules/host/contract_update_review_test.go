@@ -90,7 +90,7 @@ func TestContract_Update_AThingThatIsNotAFilePlantedAtAnAsideNameIsNeverWalkedOr
 	})
 }
 
-// M1: only the names the journal lists are put back, so a stale aside file of an earlier run can never replace
+// Only the names the journal lists are put back, so a stale aside file of an earlier run can never replace
 // the database; and a new rollback clears every stale aside before it moves anything.
 func TestContract_Update_OnlyTheJournaledNamesAreMovedAndPutBackAndStaleAsidesAreCleared(t *testing.T) {
 	t.Parallel()
@@ -146,7 +146,7 @@ func TestContract_Update_OnlyTheJournaledNamesAreMovedAndPutBackAndStaleAsidesAr
 	})
 }
 
-// M2: while core's database waits to be put back, every other write command is refused, and the host does not
+// While core's database waits to be put back, every other write command is refused, and the host does not
 // give up on putting it back.
 func TestContract_Update_WhileADatabaseWaitsToBePutBackEveryWriteIsRefusedAndTheHostDoesNotGiveUp(t *testing.T) {
 	t.Parallel()
@@ -357,7 +357,7 @@ func TestContract_Update_AVerifiedJournalThatCannotBeWrittenButCanBeRemovedLetsT
 	}
 }
 
-// M4: fail closed when the running version is not recorded.
+// Fail closed when the running version is not recorded.
 func TestContract_Update_ASwitchOfAServiceWhoseRunningVersionIsUnknownIsRefusedWithNoWrite(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)
@@ -376,7 +376,7 @@ func TestContract_Update_ASwitchOfAServiceWhoseRunningVersionIsUnknownIsRefusedW
 	e.ok(t, api.CmdContainerStart, api.ContainerStartArgs{Service: "sensor", Version: v2})
 }
 
-// L3: a switch that worked but whose journal cannot be written is not undone and settles nothing.
+// A switch that worked but whose journal cannot be written is not undone and settles nothing.
 func TestContract_Update_ASwitchThatWorkedButCannotBeJournaledSettlesNothingAndIsNotReverted(t *testing.T) {
 	t.Parallel()
 	e := startUpd(t)

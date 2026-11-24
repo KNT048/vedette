@@ -683,7 +683,7 @@ func TestModuleOffKillsNmap(t *testing.T) {
 	r.core.noResult(t, 300*time.Millisecond)
 }
 
-// M2: results are retried on 429, 503 and transport errors, so fast jobs one after the other under the default limits (10
+// Results are retried on 429, 503 and transport errors, so fast jobs one after the other under the default limits (10
 // requests a second, burst 20, for polls, heartbeats and results together) lose none.
 func TestBackToBackJobsLoseNoResult(t *testing.T) {
 	t.Parallel()
@@ -726,7 +726,7 @@ func TestResultIsNotRetriedOnAFinalRefusal(t *testing.T) {
 	}
 }
 
-// L6: a job id that is not 32 lowercase hex digits is never used: no URL, no log, no run.
+// A job id that is not 32 lowercase hex digits is never used: no URL, no log, no run.
 func TestJobWithABadIDIsIgnored(t *testing.T) {
 	t.Parallel()
 	nm := writeNmap(t, printXML)

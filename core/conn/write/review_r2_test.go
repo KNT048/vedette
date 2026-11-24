@@ -12,11 +12,10 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 )
 
-// WP-31 review, slice R2.
-
-// L5: a step that is cancelled while it is being sent (the emergency stop) sends no further line. Lines 3 and 4 never reach the device and the
+// Tests from an independent review.
+// A step that is cancelled while it is being sent (the emergency stop) sends no further line. Lines 3 and 4 never reach the device and the
 // outcome is "unknown": line 1 and 2 were accepted.
-func TestWP31_L5_ACancelledSSHStepSendsNoFurtherLine(t *testing.T) {
+func TestACancelledSSHStepSendsNoFurtherLine(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
 	ctx, cancel := context.WithCancel(t.Context())
@@ -35,9 +34,9 @@ func TestWP31_L5_ACancelledSSHStepSendsNoFurtherLine(t *testing.T) {
 	wantStatus(t, res, write.StatusUnknown)
 }
 
-// L4: the writer holds an MCP tool to the identity the administrator vouched for, as the reader does: a server that changed the tool since the
+// The writer holds an MCP tool to the identity the administrator vouched for, as the reader does: a server that changed the tool since the
 // Test is not called.
-func TestWP31_L4_WriterRefusesAnMCPToolTheServerChanged(t *testing.T) {
+func TestWriterRefusesAnMCPToolTheServerChanged(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
 	f := conntest.NewMCP(t, conntest.MCPOpts{Tools: []conntest.MCPTool{{Name: "block_ip", Description: "Block an address"}}})

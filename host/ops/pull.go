@@ -57,7 +57,7 @@ const (
 	pullCallLimit = 25 * time.Minute
 	// storageProbe is where Podman keeps images (its default graph root): the free space of the filesystem
 	// that holds it is what low_disk looks at. The appliance installs the default storage.conf (installer,
-	// WP-08); a moved graph root would be measured wrongly (deferred: ask podman info in a later slice).
+	//); a moved graph root would be measured wrongly (deferred: ask podman info in a later slice).
 	storageProbe = "var/lib/containers"
 	// lowDiskFactor: twice the image size (spec 6.7: layers are stored compressed and then unpacked).
 	lowDiskFactor = 2

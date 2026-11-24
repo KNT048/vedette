@@ -1,4 +1,4 @@
-// Package response is the response module (WP-13a, part 1): the execution switch, the action catalog, rules and the engine, requests and
+// Package response is the response module: the execution switch, the action catalog, rules and the engine, requests and
 // approvals in the app, the box actions (block list, message, webhook) and the hash-chained log. See CONTRACT.md.
 package response
 

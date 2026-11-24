@@ -26,8 +26,7 @@ import (
 	"github.com/knt048/vedette/host/server/servertest"
 )
 
-// decoy_ip.add and decoy_ip.remove, the honeypot namespace and the re-apply (WP-07b part 3, slice
-// 3-5; spec 6.6; host CONTRACT DECOY-1..DECOY-8). The machine is the fake of opstest with
+// decoy_ip.add and decoy_ip.remove, the honeypot namespace and the re-apply (spec 6.6; host CONTRACT DECOY-1..DECOY-8). The machine is the fake of opstest with
 // its stateful ip: it remembers links, addresses, rules and the nft ruleset, so the tests assert both
 // the exact argv of every step and the effect.
 

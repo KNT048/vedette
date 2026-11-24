@@ -7,6 +7,7 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { engineStore, runs, scannerStore, timing } from './mocks'
+import { records } from '@/features/findings/modelMocks'
 import { runsPoll } from './api'
 import type { ScanConfig, ScanRun } from './types'
 
@@ -19,6 +20,11 @@ const as = (userId: string) => sessionStore.set({ userId })
 const json = (method: string, b: unknown) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
 const getRuns = async () => ((await (await fetch(`${base()}/scans/runs`)).json()) as { items: ScanRun[] }).items
 const postRun = (targets: string[]) => fetch(`${base()}/scans/runs`, json('POST', { targets }))
+/** A suspected finding with a safe check (CVE-2024-4577) on the device: a run includes only devices with something to check. */
+const giveCheck = (asset: string) => {
+  const tpl = records.get()[0]!
+  records.update((l) => [...l, { ...tpl, id: `fv-chk-${asset}`, asset_id: asset, cve: 'CVE-2024-4577', verified: 'no' as const, state: 'open' as const, resolution: null }])
+}
 
 timing.engineMs = 0 // the mock's engine is busy after Stop now only where a test says so
 runsPoll.runningMs = 1000 // the page reads every 5 s while a scan runs (#830); the tests' mock scans last 2 s
@@ -82,6 +88,11 @@ describe('scan: the API never scans outside the scope (LEGAL §3)', () => {
     expect(byId('a-srvad')).toMatchObject({ selectable: false, reason: 'regular_scan_never' }) // "never" set by a person is absolute
     as('u-op')
     expect((await (await postRun(['a-srvad'])).json()).error.message).toMatch(/is set to never be scanned in the inventory; change that setting first/)
+    // the box has nothing to check: no run starts, and the refusal says why
+    const none = await postRun(['a-box'])
+    expect(none.status).toBe(400)
+    expect((await none.json()).error.code).toBe('nothing_to_check')
+    giveCheck('a-box')
     expect((await postRun(['a-box'])).status).toBe(201)
   })
 
@@ -204,6 +215,7 @@ describe('scan: scan now, progress, stop now (S-SCAN-4)', () => {
     renderApp('/settings/scanning?tab=history')
     await screen.findByRole('table', { name: 'Auto rescan event log' })
     as('u-op')
+    for (const id of ['a-web01', 'a-cam03', 'a-nas02']) giveCheck(id)
     await postRun(['a-web01', 'a-cam03', 'a-nas02'])
     await waitFor(async () => expect((await getRuns())[0]!.status).toBe('auto_stopped'), { timeout: 4000 })
     const stopped = (await getRuns())[0]!

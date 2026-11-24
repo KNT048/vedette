@@ -77,8 +77,8 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventAssetIgnored, s.assetIgnored)
 	on(EventAssetUpdated, s.assetUpdated)
 	on(EventHoneypotHit, s.hitEvent)
-	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentLogAnomaly) })
-	on(EventLogBadAddress, func(ctx context.Context, d any) error { return s.logEvent(ctx, d, IncidentBadAddress) })
+	on(EventLogAnomaly, func(ctx context.Context, d any) error { return s.openFrom(ctx, EventLogAnomaly, d) })
+	on(EventLogBadAddress, func(ctx context.Context, d any) error { return s.openFrom(ctx, EventLogBadAddress, d) })
 	on(EventIntrusion, s.intrusionEvent)
 	on(EventDecisionMade, s.decisionEvent)
 	return func() {
@@ -346,8 +346,8 @@ func (s *Service) assetEvent(ctx context.Context, data any) error {
 }
 
 // deviceLabel names a device on its new-device incidents: the name the Devices page shows (inventory's one naming rule,
-// so a host name learnt later or a name typed by hand shows), then its address when that is not the name already: "byn
-// (192.168.142.181)", "Hon Hai Precision Ind. Co.,Ltd. (192.168.142.181)", "192.168.142.254".
+// so a host name learnt later or a name typed by hand shows), then its address when that is not the name already: "srv01
+// (10.142.0.181)", "Hon Hai Precision Ind. Co.,Ltd. (10.142.0.181)", "10.142.0.254".
 func deviceLabel(st DeviceState) string {
 	if st.Address != "" && st.Address != st.Name {
 		return clip(st.Name+" ("+st.Address+")", 200)
@@ -853,15 +853,41 @@ type TrapHit struct {
 
 // hitEvent opens a trap incident for a honeypot hit (S-HP-1).
 func (s *Service) hitEvent(ctx context.Context, data any) error {
-	var e TrapHit
-	if err := decode(data, &e); err != nil {
+	return s.openFrom(ctx, EventHoneypotHit, data)
+}
+
+// openFrom opens or counts the incident of a producer's event (incidentOf).
+func (s *Service) openFrom(ctx context.Context, event string, data any) error {
+	in, ok, err := incidentOf(event, data)
+	if err != nil || !ok {
 		return err
 	}
-	if e.ID == "" || e.SrcIP == "" {
-		return nil
-	}
-	_, _, err := s.OpenIncident(ctx, trapIncident(e))
+	_, _, err = s.OpenIncident(ctx, in)
 	return err
+}
+
+// incidentOf is the incident a producer's event opens or counts on: honeypot.hit.created, logs.anomaly.detected,
+// logs.bad_address.detected and ids.alert.detected. ok is false for an event that opens nothing (a hit without an id or a source) and
+// for any other event name.
+func incidentOf(event string, data any) (in IncidentInput, ok bool, err error) {
+	switch event {
+	case EventHoneypotHit:
+		var e TrapHit
+		if err := decode(data, &e); err != nil {
+			return in, false, err
+		}
+		if e.ID == "" || e.SrcIP == "" {
+			return in, false, nil
+		}
+		return trapIncident(e), true, nil
+	case EventLogAnomaly:
+		return logIncident(data, IncidentLogAnomaly)
+	case EventLogBadAddress:
+		return logIncident(data, IncidentBadAddress)
+	case EventIntrusion:
+		return intrusionIncident(data)
+	}
+	return in, false, nil
 }
 
 // trapIncident is the incident a trap hit opens: the words of its alert, its severity and its key.
@@ -898,9 +924,9 @@ func trapIncident(e TrapHit) IncidentInput {
 	return in
 }
 
-// logEvent opens an incident from a logs event. The logs module sends the description ready-made
+// logIncident is the incident of a logs event. The logs module sends the description ready-made
 // (it knows the logs): source and target make the dedupe key.
-func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) error {
+func logIncident(data any, kind IncidentKind) (IncidentInput, bool, error) {
 	var e struct {
 		Source   string   `json:"source"`
 		Target   string   `json:"target"`
@@ -912,20 +938,24 @@ func (s *Service) logEvent(ctx context.Context, data any, kind IncidentKind) err
 		Blocked  bool     `json:"blocked"` // logs.bad_address.detected only: the device that logged it blocked the connection
 	}
 	if err := decode(data, &e); err != nil {
-		return err
+		return IncidentInput{}, false, err
 	}
 	if utf8.RuneCountInString(e.Title) > 200 || e.Title == "" {
-		return fmt.Errorf("%w: a logs event needs a title of at most 200 characters", ErrInvalidNotice)
+		return IncidentInput{}, false, fmt.Errorf("%w: a logs event needs a title of at most 200 characters", ErrInvalidNotice)
 	}
-	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: kind, Source: e.Source, Target: e.Target, Title: e.Title, Severity: e.Severity, What: e.What, Action: e.Action,
-		Link: "/logs", Devices: e.Devices, Attempt: e.Blocked && kind == IncidentBadAddress})
-	return err
+	return IncidentInput{Kind: kind, Source: e.Source, Target: e.Target, Title: e.Title, Severity: e.Severity, What: e.What, Action: e.Action,
+		Link: "/logs", Devices: e.Devices, Attempt: e.Blocked && kind == IncidentBadAddress}, true, nil
 }
 
 // intrusionEvent opens or counts the incident of kind intrusion of an IPS or IDS alert (ids.alert.detected). The ids module sends the
 // description ready-made; source (the attacking address) and target (the CVE ids or the rule) make the dedupe key, and the link is the
 // alert's page (or /detection for the hourly summary). A repeat with a higher severity raises the open incident (OpenIncident).
 func (s *Service) intrusionEvent(ctx context.Context, data any) error {
+	return s.openFrom(ctx, EventIntrusion, data)
+}
+
+// intrusionIncident is the incident of an ids.alert.detected event.
+func intrusionIncident(data any) (IncidentInput, bool, error) {
 	var e struct {
 		Source   string    `json:"source"`
 		Target   string    `json:"target"`
@@ -938,14 +968,13 @@ func (s *Service) intrusionEvent(ctx context.Context, data any) error {
 		Devices  []Device  `json:"devices"`
 	}
 	if err := decode(data, &e); err != nil {
-		return err
+		return IncidentInput{}, false, err
 	}
 	if e.Link != "/detection" && !strings.HasPrefix(e.Link, "/detection/") {
-		return fmt.Errorf("%w: an intrusion event links to its alert or to /detection", ErrInvalidNotice)
+		return IncidentInput{}, false, fmt.Errorf("%w: an intrusion event links to its alert or to /detection", ErrInvalidNotice)
 	}
-	_, _, err := s.OpenIncident(ctx, IncidentInput{Kind: IncidentIntrusion, Source: e.Source, Target: e.Target, Title: e.Title, Severity: e.Severity,
-		What: e.What, Action: e.Action, Link: e.Link, Devices: e.Devices, At: e.At})
-	return err
+	return IncidentInput{Kind: IncidentIntrusion, Source: e.Source, Target: e.Target, Title: e.Title, Severity: e.Severity,
+		What: e.What, Action: e.Action, Link: e.Link, Devices: e.Devices, At: e.At}, true, nil
 }
 
 // Jobs returns the scheduler jobs of the module: "deliver" sends what is due (held notices when quiet

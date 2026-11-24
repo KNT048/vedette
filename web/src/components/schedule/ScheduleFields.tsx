@@ -8,16 +8,15 @@ import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { displayTimeZone, fmtWeekdayDateTimeIn } from '@/lib/format'
-import { TIMEZONES } from '@/features/core/util'
 import { useSchedulePreview } from './api'
-import { clockIn, DAYS, daysText, intervalProblem, intervalText, toSave, unitsFor, zoneOf, type Draft, type Unit } from './rule'
+import { clockIn, DAYS, daysText, intervalProblem, intervalText, toSave, unitsFor, type Draft, type Unit } from './rule'
 import { WindowFields } from './WindowFields'
 import type { Freq, Schedule, WindowMode } from './types'
 
-/** The organization's zone: the one a saved "org" rule is read in, else the one the app writes dates in. */
-export const orgZoneOf = (s: Schedule) => (s.rule.tz === 'org' ? s.zone : displayTimeZone() ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
+/** The box's time zone, the one every schedule is read in (Schedule.zone; the one the app writes dates in while it is not known). */
+export const orgZoneOf = (s: Schedule) => s.zone || (displayTimeZone() ?? Intl.DateTimeFormat().resolvedOptions().timeZone)
 
-/** "Sun 23 Nov 2026, 23:00", in the rule's zone; its name added when it is not the zone the app writes dates in. */
+/** "Sun 23 Nov 2026, 23:00", in the box's zone; its name added when it is not the zone the app writes dates in. */
 export function fmtInZone(iso: string, zone: string) {
   const s = fmtWeekdayDateTimeIn(iso, zone)
   return zone === (displayTimeZone() ?? Intl.DateTimeFormat().resolvedOptions().timeZone) ? s : `${s} (${zone})`
@@ -29,11 +28,12 @@ export function fieldError(e: unknown): { field: string; message: string } | nul
   return e instanceof ApiError && e.status === 400 ? { field: String(e.details.field ?? '').replace(/^rule\./, ''), message: e.message } : null
 }
 
-const ADVANCED: ReadonlySet<string> = new Set(['tz', 'window', 'window_days', 'window_from', 'window_to', 'paused_until'])
+const ADVANCED: ReadonlySet<string> = new Set(['window', 'window_days', 'window_from', 'window_to', 'paused_until'])
 
 /**
  * The fields of one schedule, for a dialog: on/off, how often (only what its owner allows, with the owner's reason), and behind one
- * click the time zone, the window and a pause. The next three start times come from the box as the fields change; a rule it refuses
+ * click the window and a pause (every schedule follows the box's time zone, Settings › General, named above the next start times).
+ * The next three start times come from the box as the fields change; a rule it refuses
  * shows its message at the field it names. `error` is the answer of a save (it wins until the person changes something).
  */
 export function ScheduleFields({ schedule: s, draft: d, onChange, error, idPrefix, disabled, onOff = true }: {
@@ -43,9 +43,8 @@ export function ScheduleFields({ schedule: s, draft: d, onChange, error, idPrefi
 }) {
   const { t } = useTranslation('schedule')
   const l = s.limits
-  const orgZone = orgZoneOf(s)
-  const zone = zoneOf(d.tz, orgZone)
-  const body = toSave(d, orgZone)
+  const zone = orgZoneOf(s)
+  const body = toSave(d, zone)
   const on = d.enabled || !onOff
   // an interval the owner does not allow is said here, in plain words, and nothing is asked of the box for it
   const local = on ? intervalProblem(d, l) : null
@@ -55,7 +54,7 @@ export function ScheduleFields({ schedule: s, draft: d, onChange, error, idPrefi
   const err = (local ? { field: 'every_minutes', message: intervalText(local, l, t) } : null) ?? (noDay ? { field: 'window_days', message: t('fields.windowNoDay') } : null)
     ?? fieldError(error) ?? (on ? fieldError(preview.error) : null)
   const at = (f: string) => (err && err.field === f ? err.message : undefined)
-  const [more, setMore] = useState(() => d.tz !== 'org' || d.window === 'custom' || d.resumeOn !== '' || (!!err && ADVANCED.has(err.field)))
+  const [more, setMore] = useState(() => d.window === 'custom' || d.resumeOn !== '' || (!!err && ADVANCED.has(err.field)))
   const set = (p: Partial<Draft>) => onChange({ ...d, ...p })
   const id = (n: string) => `${idPrefix}-${n}`
   const units = unitsFor(l)
@@ -141,12 +140,6 @@ export function ScheduleFields({ schedule: s, draft: d, onChange, error, idPrefi
             </Button>
             {more ? (
               <div id={id('more')} className="grid gap-4 border-l-2 border-rule pl-4">
-                <Field label={t('fields.tz')} htmlFor={id('tz')} error={at('tz')} className="max-w-sm">
-                  <Select id={id('tz')} value={d.tz} disabled={disabled} onChange={(e) => set({ tz: e.target.value })}>
-                    <option value="org">{t('fields.tzOrg', { zone: orgZone })}</option>
-                    {TIMEZONES.map((z) => <option key={z} value={z}>{z}</option>)}
-                  </Select>
-                </Field>
                 {windows.length > 1 || d.window !== windows[0] ? (
                   <Field label={t('fields.window')} htmlFor={id('window')} error={at('window')} className="max-w-sm">
                     <Select id={id('window')} value={d.window} disabled={disabled} onChange={(e) => {
@@ -176,7 +169,7 @@ export function ScheduleFields({ schedule: s, draft: d, onChange, error, idPrefi
           {unlisted ? <p role="alert" className="text-meta text-danger">{unlisted}</p> : null}
           {!err && preview.data ? (
             <div className="grid gap-1" aria-live="polite">
-              {/* the zone the times are in is named here, not only behind "Time zone, window, pause" */}
+              {/* the box's zone, the one the times are in, is named here */}
               <p className="text-sm font-medium">{t('preview.titleIn', { zone: preview.data.zone || zone })}</p>
               {preview.data.upcoming.length ? (
                 <ol className="grid gap-0.5 text-sm">{preview.data.upcoming.map((u) => {

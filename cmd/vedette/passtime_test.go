@@ -233,7 +233,8 @@ func (p *passInv) AssetIDs(context.Context) ([]string, error) {
 	return slices.Sorted(maps.Keys(p.assets)), nil
 }
 
-func (p *passInv) IgnoredIDs(context.Context) ([]string, error) { return nil, nil }
+func (p *passInv) IgnoredIDs(context.Context) ([]string, error)  { return nil, nil }
+func (p *passInv) ToReviewIDs(context.Context) ([]string, error) { return nil, nil }
 
 func (p *passInv) Lines(context.Context, []string) (map[string]findings.Line, error) { return nil, nil }
 

@@ -586,7 +586,7 @@ func (c *Catalog) vendorKnowsWordAs(vendor, word string, as *catEntry) bool {
 
 // ---- the KEV data behind it ----
 
-// EmbeddedKEV is the KEV stand-in until feeds (WP-20) implements KEV: the vendor/product pairs come from
+// EmbeddedKEV is the KEV stand-in until feeds implements KEV: the vendor/product pairs come from
 // content/catalog/kev-products.json, and no CVE ids are known, so nothing is matched (deferred).
 type EmbeddedKEV struct{}
 

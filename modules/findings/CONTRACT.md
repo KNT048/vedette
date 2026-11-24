@@ -74,7 +74,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **M-8 One fix resolver.** `FixOf(device, line, CVE)` is the only reading of what fixes a finding; the match write stores it with
   `fix_key` and `range_origin`.
 - **M-9 One urgency.** `Urgency(cve, facts, target, attacks, now)` is the only rule of a finding's layer: 1 an intrusion alert in
-  the last 14 days named the CVE; 2 a qualifying exploited signal; 3 a qualifying public-exploit signal; 4 CVSS ≥ 9, network, no
+  the last 14 days named the CVE of a flaw exploitable over the network (an AV:L or AV:P flaw is never under attack from network
+  traffic); 2 a qualifying exploited signal; 3 a qualifying public-exploit signal; 4 CVSS ≥ 9, network, no
   privileges, automatable, on an edge product class; 5 the rest. Only the urgency pass stores it. Each rise of an open finding into
   layers 1–4 is one `findings.finding.urgency_raised`, told once by `Tell` (news, a first-run summary line, or backlog). A device a
   person ignored is not rated. A finding above layer 2 is never called exploited.
@@ -92,7 +93,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   notation (ESXi's "8.0 U3d (build 24585383)", DSM's "7.2.1-69057 Update 6") is ordered by the product's version scheme and judged
   with the vendor's rows, so one line names one release (`TestCumulativeTarget_Count_LinesWithSeveralUpdatesOfOneProduct`). A block is
   keyed by the catalogue's product, so one product read under two names (Oracle Java SE, Eclipse Temurin) is one By fix row
-  (`TestBlockKey_Count_ByFixCardsWithARepeatedTitle`). `ListedFix` is one finding's listed fix, for its own page. The Needs your input queue is computed from
+  (`TestBlockKey_Count_ByFixCardsWithARepeatedTitle`). A fix version no order reads stays its own block without keeping the line's
+  other fixes from combining (`orderable`), and every release name a scheme writes reads back (`TestRelease_Count_WrittenNamesThatDoNotReadBack`),
+  so a line is in one By fix step whenever one release clears all its CVEs (`TestOneStep_Count_LinesSplitWhereOneReleaseCoversAll`); when
+  it is in several, each step's device row names the others (`FixDevice.others`). `ListedFix` is one finding's listed fix, for its own page. The Needs your input queue is computed from
   rows, never stored, and searched like the other lists (`q`: the device's name or address, the software, the CVE id); a device not
   added yet is also found by the CVE ids and software names of its open findings, which its item does not show (read only when `q`
   is set); a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).
@@ -231,7 +235,7 @@ Findings listens to `inventory.match.changed`, `inventory.software.changed` and 
 ## Dependencies
 
 - **Depends on**: `core` (lifecycle, audit, version schemes, Windows releases, org time zone), `feeds` (`MatchSet`, CVSS,
-  urgency facts, `HaveSince`), `inventory` (`MatchInput`, `AssetIDs`, device refs, ignored devices).
+  urgency facts, `HaveSince`), `inventory` (`MatchInput`, `AssetIDs`, device refs, ignored devices, `ToReviewIDs` for the one card of the devices not added yet with no open finding).
 - **Used by** (adapters in `cmd/vedette` unless noted): mitigation (imports findings: guidance, AI answers), notify
   (`notifyfindings.go`), scan (`ConfirmFromScan`), response, reports (`Views`, events), ai and mcp-server (`Views`, `ByDevice`),
   inventory (`DeviceStatuses`, `EarnReview`), exposure (`MatchAsset`, `FixOf` in `exposurematch.go`), feeds (`PinnedCVEs`), ids

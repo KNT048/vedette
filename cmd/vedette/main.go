@@ -1,5 +1,5 @@
 // Command vedette is the box's main process: the core API, the module registry and the job
-// scheduler. The embedded web interface and TLS arrive with WP-04b and WP-08.
+// scheduler. The embedded web interface and TLS arrive later.
 package main
 
 import (

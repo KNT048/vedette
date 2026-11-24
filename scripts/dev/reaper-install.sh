@@ -9,8 +9,8 @@ src="$(cd "$(dirname "$0")" && pwd)/orphan-reaper.sh"
 mode=${1:-install}
 # Which GitHub issues the job announces (orphan-reaper.sh check_issues). launchd/systemd do not
 # inherit the shell's environment, so the values are written into the job at install time:
-#   VEDETTE_ISSUE_LABEL=owner:emily make reaper-install   # or VEDETTE_REAPER_ISSUES=0 to turn it off
-issue_label=${VEDETTE_ISSUE_LABEL:-owner:kien}
+#   VEDETTE_ISSUE_LABEL=my-label make reaper-install   # or VEDETTE_REAPER_ISSUES=0 to turn it off
+issue_label=${VEDETTE_ISSUE_LABEL:-needs-triage}
 issues_on=${VEDETTE_REAPER_ISSUES:-1}
 case "$issue_label$issues_on" in
 *[!a-zA-Z0-9:._-]*) echo "orphan reaper: VEDETTE_ISSUE_LABEL / VEDETTE_REAPER_ISSUES may only hold a-z A-Z 0-9 : . _ -" >&2; exit 1 ;;

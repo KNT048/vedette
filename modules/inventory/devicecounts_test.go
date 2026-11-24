@@ -2,6 +2,7 @@ package inventory_test
 
 import (
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/knt048/vedette/core/observe"
@@ -30,5 +31,10 @@ func TestDeviceCountsAreTheListCounts(t *testing.T) {
 	total, pending, err := e.svc.DeviceCounts(e.ctx())
 	if err != nil || total != l.Counts.All || pending != l.Counts.Pending || total != 2 || pending != 1 {
 		t.Fatalf("DeviceCounts = %d, %d, %v; list counts %+v", total, pending, err, l.Counts)
+	}
+	// ToReviewIDs (findings' grouped card of the devices not added yet) is the devices of To review
+	review, err := e.svc.ToReviewIDs(e.ctx())
+	if err != nil || len(review) != pending || slices.Contains(review, l.Items[0].ID) {
+		t.Fatalf("ToReviewIDs = %v, %v; want the %d device(s) not approved", review, err, pending)
 	}
 }

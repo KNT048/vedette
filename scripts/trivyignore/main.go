@@ -1,4 +1,4 @@
-// Command trivyignore checks the committed exceptions of the vulnerability gate (WP-08i). trivy applies a
+// Command trivyignore checks the committed exceptions of the vulnerability gate. trivy applies a
 // .trivyignore.yaml entry until its expired_at date and never complains about an entry that has no date, an empty reason or
 // an old date, so this gate does: every entry needs an id, a statement (the reason) and an expired_at (yyyy-mm-dd) that is
 // after today (trivy stops applying an entry at the start of its date) and at most MaxDays ahead. An expired entry therefore fails `make vuln-scan` even when the finding it hid is

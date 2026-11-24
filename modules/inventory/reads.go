@@ -152,7 +152,7 @@ func loadServices(ctx context.Context, q querier, sub string, idx map[string]int
 
 // summaryOf is the source of the most trusted of vendor, model, os and the confidence of the weakest. A device with
 // none of them (a router seen only by ARP) takes its hostname and MAC instead, so the list still says which sensor saw
-// it ("Unknown 192.168.142.1" with source "–").
+// it ("Unknown 10.142.0.1" with source "–").
 func summaryOf(d *Device) *Summary {
 	if d.Vendor == nil && d.Model == nil && d.OS == nil {
 		return summaryOver(d.ident)
@@ -252,6 +252,28 @@ func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err err
 		return 0, 0, fmt.Errorf("inventory: count devices: %w", err)
 	}
 	return total, pending, nil
+}
+
+// ToReviewIDs is the id of every device in To review (toReviewSQL: not approved, not quiet), ignored devices and the box left out,
+// ordered by id, with no cap: findings' Needs your input counts the ones with no open finding as one card that opens To review.
+func (s *Service) ToReviewIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id FROM inv_asset a WHERE a.ignored_at IS NULL AND a.is_box = 0 AND `+toReviewSQL+` ORDER BY a.id`)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read the devices to review: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("inventory: read the devices to review: %w", err)
+		}
+		out = append(out, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read the devices to review: %w", err)
+	}
+	return out, nil
 }
 
 // filtered reads the devices f keeps (limit 0 = all), newest first, each with its finding count, summary and, when withSources, its

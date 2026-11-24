@@ -208,7 +208,7 @@ func baseURL(addr, listen string) string {
 	return "https://" + net.JoinHostPort(addr, port)
 }
 
-// testBaseURL is a test seam (WP-30): the end-to-end box listens on loopback, where baseURL answers "" and notify refuses
+// testBaseURL is a test seam: the end-to-end box listens on loopback, where baseURL answers "" and notify refuses
 // every approval request, so the box of `make e2e-real` answers http://127.0.0.1:<port> for its own listen address. Unexported, no flag, nil in the
 // shipped binary: only a _test.go file sets it, so the production derivation above is the only one a real box ever runs.
 var testBaseURL func(listen string) string

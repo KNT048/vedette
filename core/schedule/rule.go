@@ -1,7 +1,6 @@
 package schedule
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"slices"
@@ -45,7 +44,9 @@ var WindowModes = []WindowMode{WindowGlobal, WindowNone, WindowCustom}
 // Valid reports whether w is one of WindowModes.
 func (w WindowMode) Valid() bool { return slices.Contains(WindowModes, w) }
 
-// OrgZone is the tz of a schedule that follows the organization's time zone (Settings, General).
+// OrgZone is the tz of every schedule: the box has one time zone (Settings, General, which the operating system follows too), and
+// every schedule reads its times of day, days and window in it. The column and the field stay for the versions before this one: a
+// zone one of them stored is read as the box's zone (scanRow), and a zone a client still sends is ignored (Validate).
 const OrgZone = "org"
 
 // Limits of a rule, whatever its owner allows.
@@ -63,7 +64,7 @@ type Rule struct {
 	Weekdays     []int      `json:"weekdays"`      // weekly: 1 = Monday ... 7 = Sunday
 	MonthDay     *int       `json:"month_day"`     // monthly: 1 to 31 (a shorter month runs on its last day), 0 = the last day
 	OnceAt       *time.Time `json:"once_at"`       // once
-	TZ           string     `json:"tz"`            // OrgZone or an IANA zone: the zone of At, the days and the window
+	TZ           string     `json:"tz"`            // always OrgZone: the box's zone is the zone of At, the days and the window
 	Window       WindowMode `json:"window"`
 	WindowDays   []int      `json:"window_days"` // custom: 1 = Monday ... 7 = Sunday
 	WindowFrom   *string    `json:"window_from"` // custom: HH:MM; equal to WindowTo = the whole day
@@ -105,9 +106,6 @@ func ruleErr(field, format string, args ...any) error {
 	return &RuleError{Field: field, Message: fmt.Sprintf(format, args...)}
 }
 
-// ErrUnknownZone is a tz that is neither OrgZone nor a zone this box knows.
-var ErrUnknownZone = errors.New("schedule: unknown time zone")
-
 var hhmmRE = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
 
 // clock parses HH:MM into minutes after midnight.
@@ -134,34 +132,12 @@ func days(field string, ds []int) ([]int, error) {
 	return out, nil
 }
 
-// LoadZone returns the zone of tz: org is the organization's zone, anything else an IANA name.
-func LoadZone(tz, org string) (*time.Location, error) {
-	name := tz
-	if tz == OrgZone {
-		name = org
-	}
-	if name == "" || strings.EqualFold(name, "local") {
-		return nil, fmt.Errorf("%w: %q", ErrUnknownZone, tz)
-	}
-	loc, err := time.LoadLocation(name)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %q", ErrUnknownZone, tz)
-	}
-	return loc, nil
-}
-
-// Validate checks a rule and returns it normalized: the fields its frequency does not use are cleared, day lists are sorted, an
-// empty tz is the organization's and an empty window none. The error is a *RuleError.
+// Validate checks a rule and returns it normalized: the fields its frequency does not use are cleared, day lists are sorted, the tz
+// is OrgZone whatever was sent (a client of an earlier version may still send a zone of its own: the save goes through and the
+// answer says the zone the rule is read in, rather than refusing a field the person can no longer see) and an empty window is
+// none. The error is a *RuleError.
 func Validate(r Rule) (Rule, error) {
-	out := Rule{Freq: r.Freq, TZ: r.TZ, Window: r.Window}
-	if out.TZ == "" {
-		out.TZ = OrgZone
-	}
-	if out.TZ != OrgZone {
-		if _, err := LoadZone(out.TZ, ""); err != nil {
-			return Rule{}, ruleErr("tz", "Choose a time zone from the list, such as Europe/Berlin.")
-		}
-	}
+	out := Rule{Freq: r.Freq, TZ: OrgZone, Window: r.Window}
 	at := func() error {
 		if r.At == nil {
 			return ruleErr("at_time", "Choose the time of day.")

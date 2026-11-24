@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Approver identities (S-RESP-2, WP-31 R3). An administrator types each approver's address or ID on a notify channel; a button
+// Approver identities. An administrator types each approver's address or ID on a notify channel; a button
 // press or an email link counts as that person only after the person proved the address themselves: a code mailed to it (email), or a code
 // answered privately to a button press from that ID (chat). The code is typed in My account by the person signed in. A proof is held to the
 // exact address: a list changed by an administrator, or a changed sign-in email, is not linked any more. Approving in the app is not touched.

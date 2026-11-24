@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// L6: the worker reads the same index. Checked on the whole dependency graph (the same
+// The worker reads the same index. Checked on the whole dependency graph (the same
 // walk go list -deps does, with go/build, because os/exec is SYS-1's): standard library only, and never a process,
 // the network, a database or unsafe of its own.
 func TestLeafImportsOnlyTheStandardLibrary(t *testing.T) {

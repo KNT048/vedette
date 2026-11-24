@@ -12,7 +12,7 @@ import (
 func TestContract_KernelOfAnotherRequest(t *testing.T) {
 	w := newWorld(t)
 	_, secret := w.token("srv", 7)
-	key := w.enroll(secret, "byn", peerA)
+	key := w.enroll(secret, "srv01", peerA)
 	images := snap("deb_packages",
 		map[string]string{"name": "linux-image-7.0.0-30-generic", "version": "7.0.0-30.30", "arch": "amd64", "source": "linux-signed"},
 		map[string]string{"name": "linux-image-7.0.0-43-generic", "version": "7.0.0-43.43", "arch": "amd64", "source": "linux-signed"},

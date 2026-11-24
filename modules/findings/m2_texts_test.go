@@ -39,12 +39,12 @@ func TestFixedIn_M24_RangeEndThatIsItselfAffectedIsNotTheFix(t *testing.T) {
 func TestMatch_M26_ScanDisplayWithVersionIsNotDoubled(t *testing.T) {
 	t.Parallel()
 	v := Vuln{CVE: "CVE-2099-0002", Vendor: "OpenBSD", Product: "OpenSSH", Affected: []Affected{{CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.6"}}}}
-	a := Asset{ID: "a", Name: "192.168.142.1", Software: []Software{{ID: "s", Display: "OpenSSH 10.2", Vendor: "openbsd", Product: "openssh", Version: "10.2", KevKeys: []string{"openbsd|openssh"}, Source: "nmap"}}}
+	a := Asset{ID: "a", Name: "10.142.0.1", Software: []Software{{ID: "s", Display: "OpenSSH 10.2", Vendor: "openbsd", Product: "openssh", Version: "10.2", KevKeys: []string{"openbsd|openssh"}, Source: "nmap"}}}
 	r := MatchAsset(a, []Vuln{v}, nil, t0)
 	if len(r.New) != 1 {
 		t.Fatalf("got %+v", r)
 	}
-	if s := r.New[0].Evidence.Summary; !strings.HasPrefix(s, "192.168.142.1 runs OpenSSH 10.2. Its version") {
+	if s := r.New[0].Evidence.Summary; !strings.HasPrefix(s, "10.142.0.1 runs OpenSSH 10.2. Its version") {
 		t.Errorf("summary %q", s)
 	}
 	for _, c := range []struct{ display, version, want string }{
@@ -138,19 +138,19 @@ func detailKnown(t *testing.T, a Asset, v Vuln) map[string]any {
 	return b
 }
 
-// Review r1 L8 + M3 of #896: the walked 192.168.142.1 (OpenSSH 10.2 read by a scan) and WINLAB01 (the agent's Windows release row)
+// Review r1 L8 + M3 of #896: the walked 10.142.0.1 (OpenSSH 10.2 read by a scan) and WINLAB01 (the agent's Windows release row)
 // through GET /findings/{id}; and with two rows keyed to the same product (an nmap row first by name, then the agent's), known_version
 // is the row the finding was matched on, the one the evidence names, not the first keyed one.
 func TestFindingDetail_M23_KnownVersionIsTheMatchedRow(t *testing.T) {
 	t.Parallel()
 	ssh := Vuln{CVE: "CVE-2099-12315", Vendor: "OpenBSD", Product: "OpenSSH", Name: "OpenBSD OpenSSH", Affected: []Affected{{CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.6"}}}}
-	gw := Asset{ID: "a-1", Name: "192.168.142.1", Software: []Software{{ID: "s-1", Display: "OpenSSH 10.2", Vendor: "openbsd", Product: "openssh", Version: "10.2", KevKeys: []string{"openbsd|openssh"}, Source: "nmap"}}}
+	gw := Asset{ID: "a-1", Name: "10.142.0.1", Software: []Software{{ID: "s-1", Display: "OpenSSH 10.2", Vendor: "openbsd", Product: "openssh", Version: "10.2", KevKeys: []string{"openbsd|openssh"}, Source: "nmap"}}}
 	b := detailKnown(t, gw, ssh)
 	if k, _ := b["known_version"].(map[string]any); k["software"] != "OpenSSH" || k["version"] != "10.2" || k["source"] != "scan" {
-		t.Errorf("192.168.142.1: %v", b["known_version"])
+		t.Errorf("10.142.0.1: %v", b["known_version"])
 	}
-	if ev, _ := b["evidence"].(map[string]any); !strings.HasPrefix(ev["summary"].(string), "192.168.142.1 runs OpenSSH 10.2. ") {
-		t.Errorf("192.168.142.1 evidence: %v", ev["summary"])
+	if ev, _ := b["evidence"].(map[string]any); !strings.HasPrefix(ev["summary"].(string), "10.142.0.1 runs OpenSSH 10.2. ") {
+		t.Errorf("10.142.0.1 evidence: %v", ev["summary"])
 	}
 
 	two := Asset{ID: "a-1", Name: "web-01", Software: []Software{

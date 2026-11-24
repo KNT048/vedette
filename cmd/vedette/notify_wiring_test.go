@@ -371,12 +371,12 @@ func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	// first-discovery summary. The sensor's first contact is made through the inventory (inv_* tables are its own, INV-2): a month
 	// ago it saw the box, which records the contact and creates no device.
 	monthAgo := time.Now().AddDate(0, -1, 0).UTC()
-	if _, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "vedette-box", IP: "192.168.142.2"}); err != nil {
+	if _, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "vedette-box", IP: "10.142.0.2"}); err != nil {
 		t.Fatal(err)
 	}
 	back.Store(&monthAgo)
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{
-		{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.142.2")}, Field: observe.Hostname, Value: "vedette-box", Source: observe.Passive, Confidence: 0.7},
+		{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("10.142.0.2")}, Field: observe.Hostname, Value: "vedette-box", Source: observe.Passive, Confidence: 0.7},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -389,7 +389,7 @@ func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	}
 	const mac = "aa:bb:cc:00:01:45"
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{
-		{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr("192.168.142.145")}, Field: observe.Hostname, Value: "annas-macbook-air", Source: observe.Passive, Confidence: 0.7},
+		{AssetHint: observe.AssetHint{MAC: mac, IP: netip.MustParseAddr("10.142.0.145")}, Field: observe.Hostname, Value: "annas-macbook-air", Source: observe.Passive, Confidence: 0.7},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -408,7 +408,7 @@ func TestWiringApproveInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	}
 	svc := newNotify(s.d)
 	list, err := svc.Incidents(ctx)
-	if err != nil || len(list) != 1 || list[0].Status != notify.StatusNew || list[0].Title != "A new unknown device appeared: annas-macbook-air (192.168.142.145)" {
+	if err != nil || len(list) != 1 || list[0].Status != notify.StatusNew || list[0].Title != "A new unknown device appeared: annas-macbook-air (10.142.0.145)" {
 		t.Fatalf("before approving = %+v, %v", list, err)
 	}
 	if err := s.d.Inventory.Approve(ctx, "it@acme.example", id); err != nil {
@@ -524,13 +524,13 @@ func TestWiringALearningSensorFoldsItsDevicesIntoTheSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{
-		{AssetHint: observe.AssetHint{MAC: "a4:bb:cc:00:01:46", IP: netip.MustParseAddr("192.168.142.146")}, Field: observe.Hostname, Value: "printer-2", Source: observe.Passive, Confidence: 0.7},
+		{AssetHint: observe.AssetHint{MAC: "a4:bb:cc:00:01:46", IP: netip.MustParseAddr("10.142.0.146")}, Field: observe.Hostname, Value: "printer-2", Source: observe.Passive, Confidence: 0.7},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	list, err := newNotify(s.d).Incidents(ctx)
 	if err != nil || len(list) != 1 || list[0].Link != "/devices" || list[0].Title != "1 device found on your network: add it in Devices" ||
-		len(list[0].Devices) != 1 || list[0].Devices[0].Name != "printer-2 (192.168.142.146)" || !strings.Contains(list[0].What, "A sensor started watching") {
+		len(list[0].Devices) != 1 || list[0].Devices[0].Name != "printer-2 (10.142.0.146)" || !strings.Contains(list[0].What, "A sensor started watching") {
 		t.Fatalf("incidents = %+v, %v", list, err)
 	}
 }

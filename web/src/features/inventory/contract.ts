@@ -309,7 +309,7 @@ export const SettingsInput = InventorySettings.extend({
   version: z.string().max(64).optional().describe('The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (#860). Left out: no check, so a range or exclusion added since the page loaded is replaced; this page is being replaced by Settings › Scanning (#850)'),
 })
 export const SettingsSaved = InventorySettings.extend({
-  adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24'),
+  adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24'),
 })
 
 export const SensorStatus = z.enum(['online', 'offline', 'never_connected', 'starting']).describe('online: a heartbeat in the last 90 s; offline: it reported before, then nothing for 90 s; never_connected: no heartbeat ever; starting: not online while the box is still starting the sensor container (an appliance after setup or after the module is turned on: the start is being retried, for up to 10 minutes, or was confirmed less than 3 minutes ago). A container-only install never says starting: the customer starts it')

@@ -8415,7 +8415,7 @@ func (s *Server) handleCoreGetCoreDataRestoreRunRequest(args [0]string, argsEsca
 
 // handleCoreGetCoreGeneralRequest handles core_get_core_general operation.
 //
-// Organization name and time zone.
+// Organization name and the box's time zone, and whether the operating system uses that zone too.
 //
 // GET /core/general
 func (s *Server) handleCoreGetCoreGeneralRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -8484,7 +8484,7 @@ func (s *Server) handleCoreGetCoreGeneralRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCoreGeneralOperation,
-			OperationSummary: "Organization name and time zone",
+			OperationSummary: "Organization name and the box's time zone, and whether the operating system uses that zone too",
 			OperationID:      "core_get_core_general",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -9205,7 +9205,7 @@ func (s *Server) handleCoreGetCoreOidcRequest(args [0]string, argsEscaped bool, 
 
 // handleCoreGetCorePrivacyRequest handles core_get_core_privacy operation.
 //
-// The 14 data flows leaving the box and the verbatim anonymous-signal payload.
+// The data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -9274,7 +9274,7 @@ func (s *Server) handleCoreGetCorePrivacyRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCorePrivacyOperation,
-			OperationSummary: "The 14 data flows leaving the box and the verbatim anonymous-signal payload",
+			OperationSummary: "The data flows leaving the box and the verbatim anonymous-signal payload",
 			OperationID:      "core_get_core_privacy",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -17013,7 +17013,8 @@ func (s *Server) handleCorePutCoreConnectionsIDRequest(args [1]string, argsEscap
 
 // handleCorePutCoreGeneralRequest handles core_put_core_general operation.
 //
-// Save organization name and time zone.
+// Save organization name and the box's time zone: the schedules move with it and the box sets the
+// operating system to it (os_time_zone says how that went; the save stands either way).
 //
 // PUT /core/general
 func (s *Server) handleCorePutCoreGeneralRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -17097,7 +17098,7 @@ func (s *Server) handleCorePutCoreGeneralRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePutCoreGeneralOperation,
-			OperationSummary: "Save organization name and time zone",
+			OperationSummary: "Save organization name and the box's time zone: the schedules move with it and the box sets the operating system to it (os_time_zone says how that went; the save stands either way)",
 			OperationID:      "core_put_core_general",
 			Body:             request,
 			RawBody:          rawBody,
@@ -52256,7 +52257,9 @@ func (s *Server) handleScanPostScansCredentialedIDTestRequest(args [1]string, ar
 
 // handleScanPostScansRunsRequest handles scan_post_scans_runs operation.
 //
-// Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked).
+// Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked); a chosen
+// device with nothing to check (checkable and again both 0) is left out, and 400 nothing_to_check when
+// none has anything.
 //
 // POST /scans/runs
 func (s *Server) handleScanPostScansRunsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -52340,7 +52343,7 @@ func (s *Server) handleScanPostScansRunsRequest(args [0]string, argsEscaped bool
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanPostScansRunsOperation,
-			OperationSummary: "Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked)",
+			OperationSummary: "Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked); a chosen device with nothing to check (checkable and again both 0) is left out, and 400 nothing_to_check when none has anything",
 			OperationID:      "scan_post_scans_runs",
 			Body:             request,
 			RawBody:          rawBody,

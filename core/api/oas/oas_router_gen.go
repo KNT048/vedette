@@ -13728,7 +13728,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = CoreGetCoreGeneralOperation
-							r.summary = "Organization name and time zone"
+							r.summary = "Organization name and the box's time zone, and whether the operating system uses that zone too"
 							r.operationID = "core_get_core_general"
 							r.operationGroup = ""
 							r.pathPattern = "/core/general"
@@ -13737,7 +13737,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return r, true
 						case "PUT":
 							r.name = CorePutCoreGeneralOperation
-							r.summary = "Save organization name and time zone"
+							r.summary = "Save organization name and the box's time zone: the schedules move with it and the box sets the operating system to it (os_time_zone says how that went; the save stands either way)"
 							r.operationID = "core_put_core_general"
 							r.operationGroup = ""
 							r.pathPattern = "/core/general"
@@ -14215,7 +14215,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = CoreGetCorePrivacyOperation
-							r.summary = "The 14 data flows leaving the box and the verbatim anonymous-signal payload"
+							r.summary = "The data flows leaving the box and the verbatim anonymous-signal payload"
 							r.operationID = "core_get_core_privacy"
 							r.operationGroup = ""
 							r.pathPattern = "/core/privacy"
@@ -22362,7 +22362,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return r, true
 									case "POST":
 										r.name = ScanPostScansRunsOperation
-										r.summary = "Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked)"
+										r.summary = "Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked); a chosen device with nothing to check (checkable and again both 0) is left out, and 400 nothing_to_check when none has anything"
 										r.operationID = "scan_post_scans_runs"
 										r.operationGroup = ""
 										r.pathPattern = "/scans/runs"

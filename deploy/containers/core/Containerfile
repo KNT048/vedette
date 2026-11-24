@@ -1,5 +1,5 @@
 # The `core` image: the server, statically linked (modernc SQLite is pure Go), on a base with no shell.
-# Build from the repository root: `make core-image` (it builds the web interface first and embeds it with -tags webui; without the files the build fails). Used by the compose dev profile now; the release job (WP-08) signs and publishes it.
+# Build from the repository root: `make core-image` (it builds the web interface first and embeds it with -tags webui; without the files the build fails). Used by the compose dev profile now; the release job signs and publishes it.
 # Health: the unit's HealthCmd is the exec form ["/vedette","healthcheck"].
 ARG GOLANG_IMAGE
 ARG DEBIAN_IMAGE
@@ -40,7 +40,7 @@ RUN set -eu; mkdir -p -m 0750 /out/dirs/var/lib/vedette /out/dirs/var/lib/vedett
 RUN set -eu; install -d -m 0755 /out/content/mitigation; \
     find content/mitigation/packs -maxdepth 1 -type f ! -name '.*' -exec install -m 0644 {} /out/content/mitigation/ \;
 
-# The osquery packages the box serves to the servers of the customer under /install/osquery/ (WP-26 slice 3, agent-intake INV-5).
+# The osquery packages the box serves to the servers of the customer under /install/osquery/.
 # deploy/osquery/PINS holds the version and the SHA-256 of each file. Each file is downloaded from the official release and checked against its
 # pinned SHA-256 BEFORE it is copied anywhere; a missing pin or a mismatch fails the build (set -e). SHA256SUMS is made here from the pins, so the
 # list the servers check against is exactly what was verified. Nothing is downloaded when the box runs. Files are unmodified (Apache-2.0 / GPL-2.0, THIRD_PARTY_NOTICES.md).

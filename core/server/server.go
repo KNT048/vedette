@@ -7,6 +7,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -33,7 +34,7 @@ type ModuleGate interface {
 // Config is what New needs; every field except MaxBody is required.
 type Config struct {
 	API     oas.Handler   // the composite handler: see Fallback
-	Auth    Authenticator // sessions and CSRF (WP-04b)
+	Auth    Authenticator // sessions and CSRF
 	Modules ModuleGate
 	Log     *slog.Logger
 	MaxBody int64 // bytes; 0 = DefaultMaxBody
@@ -318,8 +319,40 @@ func (a *api) route(w http.ResponseWriter, r *http.Request) {
 		}
 		r = r.WithContext(WithPrincipal(r.Context(), p))
 	}
+	var body *startedBody
+	if r.Body != nil && r.Body != http.NoBody {
+		body = &startedBody{ReadCloser: r.Body}
+		r.Body = body
+	}
 	tw := &typedWriter{ResponseWriter: w}
 	a.oas.ServeHTTP(tw, r.WithContext(withExchange(r.Context(), tw, r)))
+	if body != nil {
+		body.drain()
+	}
+}
+
+// startedBody notes whether the handler read any of the request body, so the rest can be read after it answered (drain).
+type startedBody struct {
+	io.ReadCloser
+	started bool
+}
+
+func (b *startedBody) Read(p []byte) (int, error) {
+	b.started = true
+	return b.ReadCloser.Read(p) //nolint:wrapcheck // the body's own error, as net/http gives it
+}
+
+// drain reads what the handler left of a body it started to read, within the operation's cap (opLimit), before the answer
+// goes out. A handler may answer an upload after its first bytes (a wrong backup password is known from the file's
+// header); net/http would then read at most 256 KiB more and close the connection while the browser is still sending the
+// file, and the browser sends the whole request again on a new connection: one press of a button became two judged
+// requests (two counted password guesses), and the page showed the answer to the second. A body the handler never started
+// is left to net/http: a request refused before its upload is looked at (a wrong setup code, no session) never makes the
+// box take in the file.
+func (b *startedBody) drain() {
+	if b.started {
+		_, _ = io.Copy(io.Discard, b.ReadCloser) // an error (the cap, a timeout, a client gone) leaves the connection to net/http to close
+	}
 }
 
 func (a *api) authenticate(r *http.Request) (Principal, *apierr.Error) {

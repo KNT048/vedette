@@ -97,7 +97,7 @@ func TestDistroKernelFollowsTheRunningKernel(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "byn", OS: "Ubuntu 26.04"})
+	id, err := s.d.Inventory.EnsureBox(ctx, inventory.BoxInfo{Hostname: "srv01", OS: "Ubuntu 26.04"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +238,7 @@ func TestAlpineFixReachesFindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ip := netip.MustParseAddr("192.168.142.1")
+	ip := netip.MustParseAddr("10.142.0.1")
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.Hostname, Value: "gw-alpine", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestAlpineNotLoadedKeepsTheQuestionAndWakesThePull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ip := netip.MustParseAddr("192.168.142.1")
+	ip := netip.MustParseAddr("10.142.0.1")
 	if err := s.d.Inventory.Record(ctx, []observe.Observation{{AssetHint: observe.AssetHint{IP: ip}, Field: observe.Hostname, Value: "gw-alpine", Source: observe.Passive, Confidence: 0.6, SeenAt: time.Now().UTC()}}); err != nil {
 		t.Fatal(err)
 	}

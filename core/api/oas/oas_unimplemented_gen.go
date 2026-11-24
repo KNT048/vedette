@@ -570,7 +570,7 @@ func (UnimplementedHandler) CoreGetCoreDataRestoreRun(ctx context.Context) (r Ni
 
 // CoreGetCoreGeneral implements core_get_core_general operation.
 //
-// Organization name and time zone.
+// Organization name and the box's time zone, and whether the operating system uses that zone too.
 //
 // GET /core/general
 func (UnimplementedHandler) CoreGetCoreGeneral(ctx context.Context) (r *CoreGetCoreGeneralOK, _ error) {
@@ -631,7 +631,7 @@ func (UnimplementedHandler) CoreGetCoreOidc(ctx context.Context) (r *CoreGetCore
 
 // CoreGetCorePrivacy implements core_get_core_privacy operation.
 //
-// The 14 data flows leaving the box and the verbatim anonymous-signal payload.
+// The data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (UnimplementedHandler) CoreGetCorePrivacy(ctx context.Context) (r *CoreGetCorePrivacyOK, _ error) {
@@ -1266,7 +1266,8 @@ func (UnimplementedHandler) CorePutCoreConnectionsID(ctx context.Context, req *C
 
 // CorePutCoreGeneral implements core_put_core_general operation.
 //
-// Save organization name and time zone.
+// Save organization name and the box's time zone: the schedules move with it and the box sets the
+// operating system to it (os_time_zone says how that went; the save stands either way).
 //
 // PUT /core/general
 func (UnimplementedHandler) CorePutCoreGeneral(ctx context.Context, req *CorePutCoreGeneralReq) (r *CorePutCoreGeneralOK, _ error) {
@@ -3867,7 +3868,9 @@ func (UnimplementedHandler) ScanPostScansCredentialedIDTest(ctx context.Context,
 
 // ScanPostScansRuns implements scan_post_scans_runs operation.
 //
-// Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked).
+// Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked); a chosen
+// device with nothing to check (checkable and again both 0) is left out, and 400 nothing_to_check when
+// none has anything.
 //
 // POST /scans/runs
 func (UnimplementedHandler) ScanPostScansRuns(ctx context.Context, req *ScanPostScansRunsReq) (r *ScanPostScansRunsCreated, _ error) {

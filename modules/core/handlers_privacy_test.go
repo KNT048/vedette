@@ -36,16 +36,19 @@ func TestPrivacy_GetDefaultsAndShape(t *testing.T) {
 	r := admin.get("/core/privacy")
 	wantOK(t, r, 200)
 	f := flowsOf(t, r)
-	if len(f) != 16 {
+	if len(f) != 15 {
 		t.Fatalf("flows = %s", r.Raw)
 	}
 	for id := 1; id <= 16; id++ {
+		if id == 4 { // retired: nothing is sent for it
+			continue
+		}
 		if _, ok := f[id]; !ok {
 			t.Fatalf("flow %d missing", id)
 		}
 	}
 	want := map[int]flowRow{
-		1: {"on", "reason", nil}, 2: {"off", "switch", nil}, 3: {"off", "reason", false}, 4: {"conditional", "reason", nil},
+		1: {"on", "reason", nil}, 2: {"off", "switch", nil}, 3: {"off", "reason", false},
 		5: {"conditional", "reason", nil}, 6: {"on", "switch", nil}, 7: {"conditional", "reason", nil}, 8: {"off", "reason", nil},
 		9: {"off", "reason", nil}, 10: {"on", "reason", nil}, 11: {"off", "reason", nil}, 12: {"off", "reason", nil},
 		13: {"off", "reason", nil}, // mcp-server is off by default
@@ -193,8 +196,13 @@ func TestPrivacy_FactsPort(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		f := v.Flows[id-1]
-		return string(f.State), f.Configured.Or(false)
+		for _, f := range v.Flows {
+			if f.ID == id {
+				return string(f.State), f.Configured.Or(false)
+			}
+		}
+		t.Fatalf("flow %d missing", id)
+		return "", false
 	}
 	h := mk(fakeFacts{ai: true, ntp: false, oidc: true})
 	if s, c := state(h, 3); s != "off" || c { // ai configured, module off
@@ -224,8 +232,8 @@ func TestPrivacy_FactsPort(t *testing.T) {
 	if s, _ := state(mk(nil), 12); s != "off" { // no port: nothing is configured
 		t.Errorf("flow 12 without a port = %s", s)
 	}
-	if v, err := mk(fakeFacts{conn: true}).CoreGetCorePrivacy(t.Context()); err != nil || string(v.Flows[11].Control) != "reason" || v.Flows[11].ID != 12 {
-		t.Errorf("flow 12 = %+v, %v", v.Flows[11], err)
+	if v, err := mk(fakeFacts{conn: true}).CoreGetCorePrivacy(t.Context()); err != nil || len(v.Flows) != 15 || string(v.Flows[10].Control) != "reason" || v.Flows[10].ID != 12 {
+		t.Errorf("flow 12 = %+v, %v", v.Flows, err)
 	}
 	if s, c := state(mk(nil), 3); s != "off" || c { // no port: no provider configured
 		t.Errorf("flow 3 without a port = %s %v", s, c)
@@ -383,21 +391,25 @@ func TestPrivacy_AnswersHaveExactlyTheSchemaKeys(t *testing.T) {
 			t.Errorf("%s update_check = %v", name, r.JSON["update_check"])
 		}
 		flows, _ := r.JSON["flows"].([]any)
-		if len(flows) != 16 {
+		if len(flows) != 15 {
 			t.Fatalf("%s flows = %d", name, len(flows))
 		}
 		for i, f := range flows {
 			m := f.(map[string]any)
+			id := i + 1 // flow 4 is retired, so ids after it are one ahead of the position
+			if id >= 4 {
+				id++
+			}
 			for k := range m {
 				if !slices.Contains([]string{"id", "state", "control", "configured"}, k) {
-					t.Errorf("%s flow %d has key %q", name, i+1, k)
+					t.Errorf("%s flow %d has key %q", name, id, k)
 				}
 			}
-			if m["id"] != float64(i+1) || !slices.Contains([]any{"on", "off", "conditional"}, m["state"]) || !slices.Contains([]any{"switch", "reason"}, m["control"]) {
-				t.Errorf("%s flow %d = %v", name, i+1, m)
+			if m["id"] != float64(id) || !slices.Contains([]any{"on", "off", "conditional"}, m["state"]) || !slices.Contains([]any{"switch", "reason"}, m["control"]) {
+				t.Errorf("%s flow %d = %v", name, id, m)
 			}
-			if _, has := m["configured"]; has != (i+1 == 3) {
-				t.Errorf("%s flow %d configured present = %v", name, i+1, has)
+			if _, has := m["configured"]; has != (id == 3) {
+				t.Errorf("%s flow %d configured present = %v", name, id, has)
 			}
 		}
 	}

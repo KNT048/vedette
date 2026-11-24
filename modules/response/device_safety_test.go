@@ -34,7 +34,7 @@ func (e *env) approveOnly() response.ActionRequest {
 
 func (e *env) phaseList() string { return strings.Join(e.exec.phases(), ",") }
 
-// M3: the headers of a step, with their typed values filled in, are in the request the approver reads; so is {expiry_s} as the number that is sent.
+// The headers of a step, with their typed values filled in, are in the request the approver reads; so is {expiry_s} as the number that is sent.
 func TestDevice_HeadersAreShownToTheApprover(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)
@@ -78,7 +78,7 @@ func TestDevice_ExpirySecondsAreShownAsTheNumberThatIsSent(t *testing.T) {
 	}
 }
 
-// L1: the stored steps are compared with what the catalog row renders; a row edited behind the API sends nothing.
+// The stored steps are compared with what the catalog row renders; a row edited behind the API sends nothing.
 func TestDevice_ExecThatDiffersFromTheApprovedChangeIsNotSent(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -123,7 +123,7 @@ func (p panicky) Execute(ctx context.Context, s response.DeviceStep) (response.D
 	return p.inner.Execute(ctx, s)
 }
 
-// M1: a crash during a write is state unknown, in force, never "Nothing was changed". Read back at once: the device shows the change, shows something
+// A crash during a write is state unknown, in force, never "Nothing was changed". Read back at once: the device shows the change, shows something
 // else, or cannot tell.
 func TestDevice_PanicDuringAWriteIsUnknownAndSettledByTheReadBack(t *testing.T) {
 	t.Parallel()
@@ -152,7 +152,7 @@ func TestDevice_PanicDuringAWriteIsUnknownAndSettledByTheReadBack(t *testing.T) 
 	}
 }
 
-// L2: an undo whose read-back prints nothing proves nothing: the item stays in force and says so.
+// An undo whose read-back prints nothing proves nothing: the item stays in force and says so.
 func TestDevice_SilentReadBackAfterTheUndoIsNotProof(t *testing.T) {
 	t.Parallel()
 	e := switchRequest(t)
@@ -170,7 +170,7 @@ func TestDevice_SilentReadBackAfterTheUndoIsNotProof(t *testing.T) {
 	}
 }
 
-// L3: the retry of an undo whose outcome is not clear reads first. Unclear: wait (the rollback is not sent again). Gone: done. Present: send again.
+// The retry of an undo whose outcome is not clear reads first. Unclear: wait (the rollback is not sent again). Gone: done. Present: send again.
 func TestDevice_RetryOfAnUnclearUndoReadsFirst(t *testing.T) {
 	t.Parallel()
 	e := switchRequest(t)
@@ -438,7 +438,7 @@ func TestDevice_StateUnknownItemCanBeUndone(t *testing.T) {
 	}
 }
 
-// L6: an action whose address is outside the allow-list of its connection could never be sent: it is not available, with the reason, when the
+// An action whose address is outside the allow-list of its connection could never be sent: it is not available, with the reason, when the
 // request is made.
 func TestDevice_AddressOutsideTheAllowListIsNotAvailable(t *testing.T) {
 	t.Parallel()

@@ -14380,13 +14380,22 @@ func (s *CoreGetCoreDataRestoreRunOKStatus) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCoreGeneralOK struct {
-	Name     string `json:"name"`
+	Name string `json:"name"`
+	// The operating system side of the box's time zone.
+	OsTimeZone CoreGetCoreGeneralOKOsTimeZone `json:"os_time_zone"`
+	// The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old
+	// alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh).
 	Timezone string `json:"timezone"`
 }
 
 // GetName returns the value of Name.
 func (s *CoreGetCoreGeneralOK) GetName() string {
 	return s.Name
+}
+
+// GetOsTimeZone returns the value of OsTimeZone.
+func (s *CoreGetCoreGeneralOK) GetOsTimeZone() CoreGetCoreGeneralOKOsTimeZone {
+	return s.OsTimeZone
 }
 
 // GetTimezone returns the value of Timezone.
@@ -14399,9 +14408,116 @@ func (s *CoreGetCoreGeneralOK) SetName(val string) {
 	s.Name = val
 }
 
+// SetOsTimeZone sets the value of OsTimeZone.
+func (s *CoreGetCoreGeneralOK) SetOsTimeZone(val CoreGetCoreGeneralOKOsTimeZone) {
+	s.OsTimeZone = val
+}
+
 // SetTimezone sets the value of Timezone.
 func (s *CoreGetCoreGeneralOK) SetTimezone(val string) {
 	s.Timezone = val
+}
+
+// The operating system side of the box's time zone.
+type CoreGetCoreGeneralOKOsTimeZone struct {
+	// Why it is not in sync, a sentence for the person; null when it is.
+	Message NilString `json:"message"`
+	// In_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself
+	// (the system helper is busy or not answering); failed: the system helper could not set it (message
+	// says why); not_managed: this install has no system helper that can set it (a container-only install,
+	// or a helper older than this version), so the operating system keeps its own zone.
+	State CoreGetCoreGeneralOKOsTimeZoneState `json:"state"`
+	// The zone the operating system uses now; null when it could not be read.
+	Zone NilString `json:"zone"`
+}
+
+// GetMessage returns the value of Message.
+func (s *CoreGetCoreGeneralOKOsTimeZone) GetMessage() NilString {
+	return s.Message
+}
+
+// GetState returns the value of State.
+func (s *CoreGetCoreGeneralOKOsTimeZone) GetState() CoreGetCoreGeneralOKOsTimeZoneState {
+	return s.State
+}
+
+// GetZone returns the value of Zone.
+func (s *CoreGetCoreGeneralOKOsTimeZone) GetZone() NilString {
+	return s.Zone
+}
+
+// SetMessage sets the value of Message.
+func (s *CoreGetCoreGeneralOKOsTimeZone) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetState sets the value of State.
+func (s *CoreGetCoreGeneralOKOsTimeZone) SetState(val CoreGetCoreGeneralOKOsTimeZoneState) {
+	s.State = val
+}
+
+// SetZone sets the value of Zone.
+func (s *CoreGetCoreGeneralOKOsTimeZone) SetZone(val NilString) {
+	s.Zone = val
+}
+
+// In_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself
+// (the system helper is busy or not answering); failed: the system helper could not set it (message
+// says why); not_managed: this install has no system helper that can set it (a container-only install,
+// or a helper older than this version), so the operating system keeps its own zone.
+type CoreGetCoreGeneralOKOsTimeZoneState string
+
+const (
+	CoreGetCoreGeneralOKOsTimeZoneStateInSync     CoreGetCoreGeneralOKOsTimeZoneState = "in_sync"
+	CoreGetCoreGeneralOKOsTimeZoneStatePending    CoreGetCoreGeneralOKOsTimeZoneState = "pending"
+	CoreGetCoreGeneralOKOsTimeZoneStateFailed     CoreGetCoreGeneralOKOsTimeZoneState = "failed"
+	CoreGetCoreGeneralOKOsTimeZoneStateNotManaged CoreGetCoreGeneralOKOsTimeZoneState = "not_managed"
+)
+
+// AllValues returns all CoreGetCoreGeneralOKOsTimeZoneState values.
+func (CoreGetCoreGeneralOKOsTimeZoneState) AllValues() []CoreGetCoreGeneralOKOsTimeZoneState {
+	return []CoreGetCoreGeneralOKOsTimeZoneState{
+		CoreGetCoreGeneralOKOsTimeZoneStateInSync,
+		CoreGetCoreGeneralOKOsTimeZoneStatePending,
+		CoreGetCoreGeneralOKOsTimeZoneStateFailed,
+		CoreGetCoreGeneralOKOsTimeZoneStateNotManaged,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreGeneralOKOsTimeZoneState) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreGeneralOKOsTimeZoneStateInSync:
+		return []byte(s), nil
+	case CoreGetCoreGeneralOKOsTimeZoneStatePending:
+		return []byte(s), nil
+	case CoreGetCoreGeneralOKOsTimeZoneStateFailed:
+		return []byte(s), nil
+	case CoreGetCoreGeneralOKOsTimeZoneStateNotManaged:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreGeneralOKOsTimeZoneState) UnmarshalText(data []byte) error {
+	switch CoreGetCoreGeneralOKOsTimeZoneState(data) {
+	case CoreGetCoreGeneralOKOsTimeZoneStateInSync:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStateInSync
+		return nil
+	case CoreGetCoreGeneralOKOsTimeZoneStatePending:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStatePending
+		return nil
+	case CoreGetCoreGeneralOKOsTimeZoneStateFailed:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStateFailed
+		return nil
+	case CoreGetCoreGeneralOKOsTimeZoneStateNotManaged:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStateNotManaged
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type CoreGetCoreLogsExportOK struct {
@@ -15866,7 +15982,7 @@ func (s *CoreGetCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCorePrivacyOK struct {
-	// Exactly the 16 flows listed in PRIVACY.md.
+	// Exactly the flows listed in PRIVACY.md.
 	Flows       []CoreGetCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CoreGetCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                            `json:"update_check"`
@@ -16091,9 +16207,9 @@ type CoreGetCoreSetupModulesOK struct {
 	// Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
 	// install on the customer's Docker or Podman, no helper. The one place the GUI learns it.
 	Install CoreGetCoreSetupModulesOKInstall `json:"install"`
-	// The network of the box's management address (CIDR, like 192.168.142.0/24), offered as the first
-	// range of the network step; null when setup is done, on a container-only install, or when the box has
-	// no private IPv4 address.
+	// The network of the box's management address (CIDR, like 10.142.0.0/24), offered as the first range
+	// of the network step; null when setup is done, on a container-only install, or when the box has no
+	// private IPv4 address.
 	Lan     NilString                              `json:"lan"`
 	Modules []CoreGetCoreSetupModulesOKModulesItem `json:"modules"`
 }
@@ -20110,7 +20226,7 @@ type CoreGetSchedulesOwnerKeyOK struct {
 	UpdatedBy NilString `json:"updated_by"`
 	// Due, and held: what it waits for ("The scan window to open").
 	WaitingFor NilString `json:"waiting_for"`
-	// The IANA zone the rule is read in (the organization's for tz "org").
+	// The IANA zone the rule is read in: the box's (Settings › General).
 	Zone string `json:"zone"`
 }
 
@@ -20528,9 +20644,10 @@ type CoreGetSchedulesOwnerKeyOKRule struct {
 	MonthDay NilInt `json:"month_day"`
 	// Once only.
 	OnceAt NilDateTime `json:"once_at"`
-	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
-	// Europe/Berlin.
-	Tz string `json:"tz"`
+	// Always "org": every schedule reads its times in the box's time zone (Settings › General). Kept for
+	// clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read
+	// as the box's.
+	Tz OptString `json:"tz"`
 	// Weekly only.
 	Weekdays []int `json:"weekdays"`
 	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
@@ -20572,7 +20689,7 @@ func (s *CoreGetSchedulesOwnerKeyOKRule) GetOnceAt() NilDateTime {
 }
 
 // GetTz returns the value of Tz.
-func (s *CoreGetSchedulesOwnerKeyOKRule) GetTz() string {
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetTz() OptString {
 	return s.Tz
 }
 
@@ -20627,7 +20744,7 @@ func (s *CoreGetSchedulesOwnerKeyOKRule) SetOnceAt(val NilDateTime) {
 }
 
 // SetTz sets the value of Tz.
-func (s *CoreGetSchedulesOwnerKeyOKRule) SetTz(val string) {
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetTz(val OptString) {
 	s.Tz = val
 }
 
@@ -20879,7 +20996,7 @@ func (s *CorePatchCoreAccountReq) SetName(val string) {
 }
 
 type CorePatchCorePrivacyOK struct {
-	// Exactly the 16 flows listed in PRIVACY.md.
+	// Exactly the flows listed in PRIVACY.md.
 	Flows       []CorePatchCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CorePatchCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                              `json:"update_check"`
@@ -29780,6 +29897,10 @@ type CorePostCoreSetupReq struct {
 	// administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated wrong
 	// tries.
 	SetupCode OptString `json:"setup_code"`
+	// The box's time zone (an IANA name such as Europe/Berlin): every page, mail, log and schedule reads
+	// it, and the operating system is set to it. An old alias is stored under its current name
+	// (Asia/Saigon as Asia/Ho_Chi_Minh). Absent: Asia/Ho_Chi_Minh. Not a known zone: 400 invalid_timezone.
+	Timezone OptString `json:"timezone"`
 }
 
 // GetAcceptTerms returns the value of AcceptTerms.
@@ -29827,6 +29948,11 @@ func (s *CorePostCoreSetupReq) GetSetupCode() OptString {
 	return s.SetupCode
 }
 
+// GetTimezone returns the value of Timezone.
+func (s *CorePostCoreSetupReq) GetTimezone() OptString {
+	return s.Timezone
+}
+
 // SetAcceptTerms sets the value of AcceptTerms.
 func (s *CorePostCoreSetupReq) SetAcceptTerms(val OptBool) {
 	s.AcceptTerms = val
@@ -29870,6 +29996,11 @@ func (s *CorePostCoreSetupReq) SetSample(val OptBool) {
 // SetSetupCode sets the value of SetupCode.
 func (s *CorePostCoreSetupReq) SetSetupCode(val OptString) {
 	s.SetupCode = val
+}
+
+// SetTimezone sets the value of Timezone.
+func (s *CorePostCoreSetupReq) SetTimezone(val OptString) {
+	s.Timezone = val
 }
 
 type CorePostCoreSetupReqAdmin struct {
@@ -38693,9 +38824,10 @@ type CorePostSchedulesPreviewReqRule struct {
 	MonthDay NilInt `json:"month_day"`
 	// Once only.
 	OnceAt NilDateTime `json:"once_at"`
-	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
-	// Europe/Berlin.
-	Tz string `json:"tz"`
+	// Always "org": every schedule reads its times in the box's time zone (Settings › General). Kept for
+	// clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read
+	// as the box's.
+	Tz OptString `json:"tz"`
 	// Weekly only.
 	Weekdays []int `json:"weekdays"`
 	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
@@ -38737,7 +38869,7 @@ func (s *CorePostSchedulesPreviewReqRule) GetOnceAt() NilDateTime {
 }
 
 // GetTz returns the value of Tz.
-func (s *CorePostSchedulesPreviewReqRule) GetTz() string {
+func (s *CorePostSchedulesPreviewReqRule) GetTz() OptString {
 	return s.Tz
 }
 
@@ -38792,7 +38924,7 @@ func (s *CorePostSchedulesPreviewReqRule) SetOnceAt(val NilDateTime) {
 }
 
 // SetTz sets the value of Tz.
-func (s *CorePostSchedulesPreviewReqRule) SetTz(val string) {
+func (s *CorePostSchedulesPreviewReqRule) SetTz(val OptString) {
 	s.Tz = val
 }
 
@@ -39846,13 +39978,22 @@ func (s *CorePutCoreConnectionsIDReqToolsItemAccess) UnmarshalText(data []byte) 
 }
 
 type CorePutCoreGeneralOK struct {
-	Name     string `json:"name"`
+	Name string `json:"name"`
+	// The operating system side of the box's time zone.
+	OsTimeZone CorePutCoreGeneralOKOsTimeZone `json:"os_time_zone"`
+	// The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old
+	// alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh).
 	Timezone string `json:"timezone"`
 }
 
 // GetName returns the value of Name.
 func (s *CorePutCoreGeneralOK) GetName() string {
 	return s.Name
+}
+
+// GetOsTimeZone returns the value of OsTimeZone.
+func (s *CorePutCoreGeneralOK) GetOsTimeZone() CorePutCoreGeneralOKOsTimeZone {
+	return s.OsTimeZone
 }
 
 // GetTimezone returns the value of Timezone.
@@ -39865,13 +40006,122 @@ func (s *CorePutCoreGeneralOK) SetName(val string) {
 	s.Name = val
 }
 
+// SetOsTimeZone sets the value of OsTimeZone.
+func (s *CorePutCoreGeneralOK) SetOsTimeZone(val CorePutCoreGeneralOKOsTimeZone) {
+	s.OsTimeZone = val
+}
+
 // SetTimezone sets the value of Timezone.
 func (s *CorePutCoreGeneralOK) SetTimezone(val string) {
 	s.Timezone = val
 }
 
+// The operating system side of the box's time zone.
+type CorePutCoreGeneralOKOsTimeZone struct {
+	// Why it is not in sync, a sentence for the person; null when it is.
+	Message NilString `json:"message"`
+	// In_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself
+	// (the system helper is busy or not answering); failed: the system helper could not set it (message
+	// says why); not_managed: this install has no system helper that can set it (a container-only install,
+	// or a helper older than this version), so the operating system keeps its own zone.
+	State CorePutCoreGeneralOKOsTimeZoneState `json:"state"`
+	// The zone the operating system uses now; null when it could not be read.
+	Zone NilString `json:"zone"`
+}
+
+// GetMessage returns the value of Message.
+func (s *CorePutCoreGeneralOKOsTimeZone) GetMessage() NilString {
+	return s.Message
+}
+
+// GetState returns the value of State.
+func (s *CorePutCoreGeneralOKOsTimeZone) GetState() CorePutCoreGeneralOKOsTimeZoneState {
+	return s.State
+}
+
+// GetZone returns the value of Zone.
+func (s *CorePutCoreGeneralOKOsTimeZone) GetZone() NilString {
+	return s.Zone
+}
+
+// SetMessage sets the value of Message.
+func (s *CorePutCoreGeneralOKOsTimeZone) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetState sets the value of State.
+func (s *CorePutCoreGeneralOKOsTimeZone) SetState(val CorePutCoreGeneralOKOsTimeZoneState) {
+	s.State = val
+}
+
+// SetZone sets the value of Zone.
+func (s *CorePutCoreGeneralOKOsTimeZone) SetZone(val NilString) {
+	s.Zone = val
+}
+
+// In_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself
+// (the system helper is busy or not answering); failed: the system helper could not set it (message
+// says why); not_managed: this install has no system helper that can set it (a container-only install,
+// or a helper older than this version), so the operating system keeps its own zone.
+type CorePutCoreGeneralOKOsTimeZoneState string
+
+const (
+	CorePutCoreGeneralOKOsTimeZoneStateInSync     CorePutCoreGeneralOKOsTimeZoneState = "in_sync"
+	CorePutCoreGeneralOKOsTimeZoneStatePending    CorePutCoreGeneralOKOsTimeZoneState = "pending"
+	CorePutCoreGeneralOKOsTimeZoneStateFailed     CorePutCoreGeneralOKOsTimeZoneState = "failed"
+	CorePutCoreGeneralOKOsTimeZoneStateNotManaged CorePutCoreGeneralOKOsTimeZoneState = "not_managed"
+)
+
+// AllValues returns all CorePutCoreGeneralOKOsTimeZoneState values.
+func (CorePutCoreGeneralOKOsTimeZoneState) AllValues() []CorePutCoreGeneralOKOsTimeZoneState {
+	return []CorePutCoreGeneralOKOsTimeZoneState{
+		CorePutCoreGeneralOKOsTimeZoneStateInSync,
+		CorePutCoreGeneralOKOsTimeZoneStatePending,
+		CorePutCoreGeneralOKOsTimeZoneStateFailed,
+		CorePutCoreGeneralOKOsTimeZoneStateNotManaged,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreGeneralOKOsTimeZoneState) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreGeneralOKOsTimeZoneStateInSync:
+		return []byte(s), nil
+	case CorePutCoreGeneralOKOsTimeZoneStatePending:
+		return []byte(s), nil
+	case CorePutCoreGeneralOKOsTimeZoneStateFailed:
+		return []byte(s), nil
+	case CorePutCoreGeneralOKOsTimeZoneStateNotManaged:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreGeneralOKOsTimeZoneState) UnmarshalText(data []byte) error {
+	switch CorePutCoreGeneralOKOsTimeZoneState(data) {
+	case CorePutCoreGeneralOKOsTimeZoneStateInSync:
+		*s = CorePutCoreGeneralOKOsTimeZoneStateInSync
+		return nil
+	case CorePutCoreGeneralOKOsTimeZoneStatePending:
+		*s = CorePutCoreGeneralOKOsTimeZoneStatePending
+		return nil
+	case CorePutCoreGeneralOKOsTimeZoneStateFailed:
+		*s = CorePutCoreGeneralOKOsTimeZoneStateFailed
+		return nil
+	case CorePutCoreGeneralOKOsTimeZoneStateNotManaged:
+		*s = CorePutCoreGeneralOKOsTimeZoneStateNotManaged
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePutCoreGeneralReq struct {
-	Name     string `json:"name"`
+	Name string `json:"name"`
+	// The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old
+	// alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh).
 	Timezone string `json:"timezone"`
 }
 
@@ -45050,7 +45300,7 @@ type CorePutSchedulesOwnerKeyOK struct {
 	UpdatedBy NilString `json:"updated_by"`
 	// Due, and held: what it waits for ("The scan window to open").
 	WaitingFor NilString `json:"waiting_for"`
-	// The IANA zone the rule is read in (the organization's for tz "org").
+	// The IANA zone the rule is read in: the box's (Settings › General).
 	Zone string `json:"zone"`
 }
 
@@ -45468,9 +45718,10 @@ type CorePutSchedulesOwnerKeyOKRule struct {
 	MonthDay NilInt `json:"month_day"`
 	// Once only.
 	OnceAt NilDateTime `json:"once_at"`
-	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
-	// Europe/Berlin.
-	Tz string `json:"tz"`
+	// Always "org": every schedule reads its times in the box's time zone (Settings › General). Kept for
+	// clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read
+	// as the box's.
+	Tz OptString `json:"tz"`
 	// Weekly only.
 	Weekdays []int `json:"weekdays"`
 	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
@@ -45512,7 +45763,7 @@ func (s *CorePutSchedulesOwnerKeyOKRule) GetOnceAt() NilDateTime {
 }
 
 // GetTz returns the value of Tz.
-func (s *CorePutSchedulesOwnerKeyOKRule) GetTz() string {
+func (s *CorePutSchedulesOwnerKeyOKRule) GetTz() OptString {
 	return s.Tz
 }
 
@@ -45567,7 +45818,7 @@ func (s *CorePutSchedulesOwnerKeyOKRule) SetOnceAt(val NilDateTime) {
 }
 
 // SetTz sets the value of Tz.
-func (s *CorePutSchedulesOwnerKeyOKRule) SetTz(val string) {
+func (s *CorePutSchedulesOwnerKeyOKRule) SetTz(val OptString) {
 	s.Tz = val
 }
 
@@ -45765,9 +46016,10 @@ type CorePutSchedulesOwnerKeyReqRule struct {
 	MonthDay NilInt `json:"month_day"`
 	// Once only.
 	OnceAt NilDateTime `json:"once_at"`
-	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
-	// Europe/Berlin.
-	Tz string `json:"tz"`
+	// Always "org": every schedule reads its times in the box's time zone (Settings › General). Kept for
+	// clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read
+	// as the box's.
+	Tz OptString `json:"tz"`
 	// Weekly only.
 	Weekdays []int `json:"weekdays"`
 	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
@@ -45809,7 +46061,7 @@ func (s *CorePutSchedulesOwnerKeyReqRule) GetOnceAt() NilDateTime {
 }
 
 // GetTz returns the value of Tz.
-func (s *CorePutSchedulesOwnerKeyReqRule) GetTz() string {
+func (s *CorePutSchedulesOwnerKeyReqRule) GetTz() OptString {
 	return s.Tz
 }
 
@@ -45864,7 +46116,7 @@ func (s *CorePutSchedulesOwnerKeyReqRule) SetOnceAt(val NilDateTime) {
 }
 
 // SetTz sets the value of Tz.
-func (s *CorePutSchedulesOwnerKeyReqRule) SetTz(val string) {
+func (s *CorePutSchedulesOwnerKeyReqRule) SetTz(val OptString) {
 	s.Tz = val
 }
 
@@ -93668,6 +93920,10 @@ func (s *FindingsGetFindingsFixesOKItemsItemFixKind) UnmarshalText(data []byte) 
 type FindingsGetFindingsFixesOKItemsItemItemsItem struct {
 	Device   FindingsGetFindingsFixesOKItemsItemItemsItemDevice `json:"device"`
 	Findings int                                                `json:"findings"`
+	// The fixes of the other steps for the same software line on this device, the most findings first: a
+	// line is in several steps only when no single release is known to fix all of its CVEs (or some name
+	// no release). Empty when this step is the line's only one.
+	Others []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem `json:"others"`
 	// Findings by severity band: "2 Critical · 18 High · 5 Medium".
 	Severity FindingsGetFindingsFixesOKItemsItemItemsItemSeverity    `json:"severity"`
 	Software NilFindingsGetFindingsFixesOKItemsItemItemsItemSoftware `json:"software"`
@@ -93683,6 +93939,11 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) GetDevice() FindingsGetFi
 // GetFindings returns the value of Findings.
 func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) GetFindings() int {
 	return s.Findings
+}
+
+// GetOthers returns the value of Others.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) GetOthers() []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem {
+	return s.Others
 }
 
 // GetSeverity returns the value of Severity.
@@ -93708,6 +93969,11 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) SetDevice(val FindingsGet
 // SetFindings sets the value of Findings.
 func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) SetFindings(val int) {
 	s.Findings = val
+}
+
+// SetOthers sets the value of Others.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) SetOthers(val []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) {
+	s.Others = val
 }
 
 // SetSeverity sets the value of Severity.
@@ -94443,6 +94709,169 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemDeviceKind) UnmarshalText(d
 		return nil
 	case FindingsGetFindingsFixesOKItemsItemItemsItemDeviceKindUnknown:
 		*s = FindingsGetFindingsFixesOKItemsItemItemsItemDeviceKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem struct {
+	// The "By fix" group (the same key on every device the same fix applies to); opaque.
+	Key string `json:"key"`
+	// Update = install `version` of the software or later; distro_update = install the distribution's
+	// package release `version` or later; os_update = install the operating system update `ref` (a KB
+	// number) or build `version`; feature_update = no update of this release fixes it, move to release
+	// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+	// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+	// advisory); unknown = no fix data.
+	Kind FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind `json:"kind"`
+	// The product the fix is for, as people name it ("OpenSSH").
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
+	Ref NilString `json:"ref"`
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known; restart: the installed kernel's package release the device runs after the restart.
+	Version NilString `json:"version"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetKey() string {
+	return s.Key
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetKind() FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetProduct() string {
+	return s.Product
+}
+
+// GetRef returns the value of Ref.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetRef() NilString {
+	return s.Ref
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetURL() NilURI {
+	return s.URL
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetKey(val string) {
+	s.Key = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetKind(val FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRef sets the value of Ref.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetRef(val NilString) {
+	s.Ref = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+// Update = install `version` of the software or later; distro_update = install the distribution's
+// package release `version` or later; os_update = install the operating system update `ref` (a KB
+// number) or build `version`; feature_update = no update of this release fixes it, move to release
+// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+// advisory); unknown = no fix data.
+type FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind string
+
+const (
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUpdate        FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "update"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindDistroUpdate  FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "distro_update"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindOsUpdate      FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "os_update"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindFeatureUpdate FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "feature_update"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindRestart       FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "restart"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindNoneYet       FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "none_yet"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUnknown       FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind values.
+func (FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) AllValues() []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind {
+	return []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind{
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUpdate,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindDistroUpdate,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindOsUpdate,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindFeatureUpdate,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindRestart,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindNoneYet,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindDistroUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindOsUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindRestart:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindNoneYet:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind(data) {
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUpdate:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUpdate
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindDistroUpdate:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindDistroUpdate
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindOsUpdate:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindOsUpdate
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindFeatureUpdate:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindRestart:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindRestart
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindNoneYet:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindNoneYet
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUnknown:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -104651,6 +105080,49 @@ func (s *FindingsGetFindingsInput1DeviceUncheckedDeviceKind) UnmarshalText(data 
 	}
 }
 
+// One card for every device nobody added yet that has no open finding, after the unconfirmed findings
+// and the questions; it counts as one item. Review opens the Devices list's To review
+// (/devices?tab=review), where each is added or ignored. Not in a queue read for one device or by a
+// search.
+// Ref: #/components/schemas/findings_get_findings_input_1_devices_not_added
+type FindingsGetFindingsInput1DevicesNotAdded struct {
+	// Devices in the Devices list's To review that have no open finding.
+	Count int `json:"count"`
+	// The item.
+	ID   string `json:"id"`
+	Kind string `json:"kind"`
+}
+
+// GetCount returns the value of Count.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) GetCount() int {
+	return s.Count
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) GetKind() string {
+	return s.Kind
+}
+
+// SetCount sets the value of Count.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) SetCount(val int) {
+	s.Count = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsInput1DevicesNotAdded) SetKind(val string) {
+	s.Kind = val
+}
+
 // What Vedette cannot decide without a person.
 // Ref: #/components/schemas/findings_get_findings_input_1_question
 type FindingsGetFindingsInput1Question struct {
@@ -106936,7 +107408,8 @@ func (s *FindingsGetFindingsInput1UnconfirmedStatus) UnmarshalText(data []byte) 
 
 type FindingsGetFindingsInputOK struct {
 	// Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status,
-	// then questions by CVEs waiting; an item leaves the moment it is answered or stops being true.
+	// then questions by CVEs waiting, then the one card of the devices not added yet with no open finding;
+	// an item leaves the moment it is answered or stops being true.
 	Items []FindingsGetFindingsInputOKItemsItem `json:"items"`
 	// The queue length: the tab count.
 	Total int `json:"total"`
@@ -106967,6 +107440,7 @@ type FindingsGetFindingsInputOKItemsItem struct {
 	// Type selects the active sum variant, switch on this field.
 	Type                                     FindingsGetFindingsInputOKItemsItemType
 	FindingsGetFindingsInput1DeviceNotAdded  FindingsGetFindingsInput1DeviceNotAdded
+	FindingsGetFindingsInput1DevicesNotAdded FindingsGetFindingsInput1DevicesNotAdded
 	FindingsGetFindingsInput1DeviceUnchecked FindingsGetFindingsInput1DeviceUnchecked
 	FindingsGetFindingsInput1Unconfirmed     FindingsGetFindingsInput1Unconfirmed
 	FindingsGetFindingsInput1Question        FindingsGetFindingsInput1Question
@@ -106978,6 +107452,7 @@ type FindingsGetFindingsInputOKItemsItemType string
 // Possible values for FindingsGetFindingsInputOKItemsItemType.
 const (
 	FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem  FindingsGetFindingsInputOKItemsItemType = "device_not_added"
+	FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem FindingsGetFindingsInputOKItemsItemType = "devices_not_added"
 	FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem FindingsGetFindingsInputOKItemsItemType = "device_unchecked"
 	FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInputOKItemsItem     FindingsGetFindingsInputOKItemsItemType = "unconfirmed"
 	FindingsGetFindingsInput1QuestionFindingsGetFindingsInputOKItemsItem        FindingsGetFindingsInputOKItemsItemType = "question"
@@ -106986,6 +107461,11 @@ const (
 // IsFindingsGetFindingsInput1DeviceNotAdded reports whether FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DeviceNotAdded.
 func (s FindingsGetFindingsInputOKItemsItem) IsFindingsGetFindingsInput1DeviceNotAdded() bool {
 	return s.Type == FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem
+}
+
+// IsFindingsGetFindingsInput1DevicesNotAdded reports whether FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DevicesNotAdded.
+func (s FindingsGetFindingsInputOKItemsItem) IsFindingsGetFindingsInput1DevicesNotAdded() bool {
+	return s.Type == FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem
 }
 
 // IsFindingsGetFindingsInput1DeviceUnchecked reports whether FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DeviceUnchecked.
@@ -107021,6 +107501,27 @@ func (s FindingsGetFindingsInputOKItemsItem) GetFindingsGetFindingsInput1DeviceN
 func NewFindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem(v FindingsGetFindingsInput1DeviceNotAdded) FindingsGetFindingsInputOKItemsItem {
 	var s FindingsGetFindingsInputOKItemsItem
 	s.SetFindingsGetFindingsInput1DeviceNotAdded(v)
+	return s
+}
+
+// SetFindingsGetFindingsInput1DevicesNotAdded sets FindingsGetFindingsInputOKItemsItem to FindingsGetFindingsInput1DevicesNotAdded.
+func (s *FindingsGetFindingsInputOKItemsItem) SetFindingsGetFindingsInput1DevicesNotAdded(v FindingsGetFindingsInput1DevicesNotAdded) {
+	s.Type = FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem
+	s.FindingsGetFindingsInput1DevicesNotAdded = v
+}
+
+// GetFindingsGetFindingsInput1DevicesNotAdded returns FindingsGetFindingsInput1DevicesNotAdded and true boolean if FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DevicesNotAdded.
+func (s FindingsGetFindingsInputOKItemsItem) GetFindingsGetFindingsInput1DevicesNotAdded() (v FindingsGetFindingsInput1DevicesNotAdded, ok bool) {
+	if !s.IsFindingsGetFindingsInput1DevicesNotAdded() {
+		return v, false
+	}
+	return s.FindingsGetFindingsInput1DevicesNotAdded, true
+}
+
+// NewFindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem returns new FindingsGetFindingsInputOKItemsItem from FindingsGetFindingsInput1DevicesNotAdded.
+func NewFindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem(v FindingsGetFindingsInput1DevicesNotAdded) FindingsGetFindingsInputOKItemsItem {
+	var s FindingsGetFindingsInputOKItemsItem
+	s.SetFindingsGetFindingsInput1DevicesNotAdded(v)
 	return s
 }
 
@@ -160069,7 +160570,7 @@ func (s *InventoryPutInventoryNotifyNewReq) SetEnabled(val bool) {
 
 type InventoryPutInventorySettingsOK struct {
 	Active InventoryPutInventorySettingsOKActive `json:"active"`
-	// Ranges normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24.
+	// Ranges normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24.
 	Adjusted []InventoryPutInventorySettingsOKAdjustedItem `json:"adjusted"`
 	// Device types scanned only once, gently, when first seen; passive-only after that. Every type acting
 	// as one of them counts.
@@ -260947,11 +261448,19 @@ func (s *ScanGetScansTargetsOK) SetItems(val []ScanGetScansTargetsOKItemsItem) {
 }
 
 type ScanGetScansTargetsOKItemsItem struct {
+	// Confirmed or mitigated findings with a safe check: a vulnerability check runs it again to see
+	// whether a fix holds. A device whose checkable and again are both 0 has nothing to check: POST
+	// /scans/runs leaves it out (400 nothing_to_check when no picked device has anything) and the schedule
+	// skips it.
+	Again int `json:"again"`
 	// Approved in the inventory (picker filter); false for external targets.
 	Approved bool `json:"approved"`
 	// The Vedette box itself: pick_only, so it is scanned only when a person ticks it; sweeps, schedules,
 	// KEV rescans and Select all never include it.
 	Box bool `json:"box"`
+	// How many of the suspected findings have a safe check in the installed template pack: what a
+	// vulnerability check can confirm or rule out.
+	Checkable int `json:"checkable"`
 	// Device type in the inventory; null for external targets.
 	DeviceKind NilScanGetScansTargetsOKItemsItemDeviceKind `json:"device_kind"`
 	Findings   int                                         `json:"findings"`
@@ -260975,8 +261484,16 @@ type ScanGetScansTargetsOKItemsItem struct {
 	// targets are not scanned by this version yet.
 	Reason     NilScanGetScansTargetsOKItemsItemReason `json:"reason"`
 	Selectable bool                                    `json:"selectable"`
+	// Open findings of the device not confirmed yet (distinct CVEs, closed ones left out); 0 for external
+	// targets.
+	Suspected int `json:"suspected"`
 	// For the picker search; null when unknown and for external targets.
 	Vendor NilString `json:"vendor"`
+}
+
+// GetAgain returns the value of Again.
+func (s *ScanGetScansTargetsOKItemsItem) GetAgain() int {
+	return s.Again
 }
 
 // GetApproved returns the value of Approved.
@@ -260987,6 +261504,11 @@ func (s *ScanGetScansTargetsOKItemsItem) GetApproved() bool {
 // GetBox returns the value of Box.
 func (s *ScanGetScansTargetsOKItemsItem) GetBox() bool {
 	return s.Box
+}
+
+// GetCheckable returns the value of Checkable.
+func (s *ScanGetScansTargetsOKItemsItem) GetCheckable() int {
+	return s.Checkable
 }
 
 // GetDeviceKind returns the value of DeviceKind.
@@ -261049,9 +261571,19 @@ func (s *ScanGetScansTargetsOKItemsItem) GetSelectable() bool {
 	return s.Selectable
 }
 
+// GetSuspected returns the value of Suspected.
+func (s *ScanGetScansTargetsOKItemsItem) GetSuspected() int {
+	return s.Suspected
+}
+
 // GetVendor returns the value of Vendor.
 func (s *ScanGetScansTargetsOKItemsItem) GetVendor() NilString {
 	return s.Vendor
+}
+
+// SetAgain sets the value of Again.
+func (s *ScanGetScansTargetsOKItemsItem) SetAgain(val int) {
+	s.Again = val
 }
 
 // SetApproved sets the value of Approved.
@@ -261062,6 +261594,11 @@ func (s *ScanGetScansTargetsOKItemsItem) SetApproved(val bool) {
 // SetBox sets the value of Box.
 func (s *ScanGetScansTargetsOKItemsItem) SetBox(val bool) {
 	s.Box = val
+}
+
+// SetCheckable sets the value of Checkable.
+func (s *ScanGetScansTargetsOKItemsItem) SetCheckable(val int) {
+	s.Checkable = val
 }
 
 // SetDeviceKind sets the value of DeviceKind.
@@ -261122,6 +261659,11 @@ func (s *ScanGetScansTargetsOKItemsItem) SetReason(val NilScanGetScansTargetsOKI
 // SetSelectable sets the value of Selectable.
 func (s *ScanGetScansTargetsOKItemsItem) SetSelectable(val bool) {
 	s.Selectable = val
+}
+
+// SetSuspected sets the value of Suspected.
+func (s *ScanGetScansTargetsOKItemsItem) SetSuspected(val int) {
+	s.Suspected = val
 }
 
 // SetVendor sets the value of Vendor.
@@ -266630,7 +267172,7 @@ type ScanningGetScanningHistoryOKItemsItem struct {
 	// Check this device now, the first step of Scan now); snmp: SNMP reads; external: a scan of a public
 	// target (one per target and day).
 	Kind ScanningGetScanningHistoryOKItemsItemKind `json:"kind"`
-	// What it scanned: "LAN 192.168.142.0/24", "192.168.142.20", "SNMP read of 3 devices", "203.0.113.10".
+	// What it scanned: "LAN 10.142.0.0/24", "10.142.0.20", "SNMP read of 3 devices", "203.0.113.10".
 	Label string `json:"label"`
 	// Partial: it ended, but part of it found nothing usable (an SNMP device of several that did not
 	// answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that
@@ -266642,12 +267184,12 @@ type ScanningGetScanningHistoryOKItemsItem struct {
 	TargetID NilString `json:"target_id"`
 	// The outcome in words, only from what the run stored: "Swept 254 addresses: 12 hosts answered, 2 new
 	// devices", "2 of 3 devices answered over SNMP", "Failed: the device did not answer over SNMP." (an
-	// SNMP read nothing answered is failed, never partial), "Scanned 192.168.142.20: 3 open ports (22 ssh,
-	// 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check" (a device
+	// SNMP read nothing answered is failed, never partial), "Scanned 10.142.0.20: 3 open ports (22 ssh, 80
+	// http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check" (a device
 	// check: its open ports; the OS it recorded only when it is the OS the device page shows now, "OS
 	// guess " for nmap's fingerprint, "OS " for the device's own answer, "OS guess now (changed since the
 	// previous check)"; otherwise "OS: scan guess not used now", never a second OS value; "since the
-	// previous check: port 8080 newly open, port 23 no longer open"), "Scanned 192.168.142.20: it did not
+	// previous check: port 8080 newly open, port 23 no longer open"), "Scanned 10.142.0.20: it did not
 	// answer", "Stopped: . Swept 64 addresses … before it ended", "Failed: .".
 	Text string `json:"text"`
 	// Sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart);
@@ -267969,7 +268511,7 @@ type ScanningGetScanningOKRunningItem struct {
 	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
 	// /scanning/engines/nmap-discovery/run.
 	ID string `json:"id"`
-	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
+	// What it scans, e.g. "LAN sweep 10.142.0.0/24", "Check 10.142.0.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
 	Progress NilScanningGetScanningOKRunningItemProgress `json:"progress"`
@@ -269913,7 +270455,7 @@ type ScanningPatchScanningEnginesIDOKRunningItem struct {
 	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
 	// /scanning/engines/nmap-discovery/run.
 	ID string `json:"id"`
-	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
+	// What it scans, e.g. "LAN sweep 10.142.0.0/24", "Check 10.142.0.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
 	Progress NilScanningPatchScanningEnginesIDOKRunningItemProgress `json:"progress"`
@@ -271883,7 +272425,7 @@ type ScanningPostScanningEnginesNmapDiscoveryRunAccepted struct {
 	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
 	// /scanning/engines/nmap-discovery/run.
 	ID string `json:"id"`
-	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
+	// What it scans, e.g. "LAN sweep 10.142.0.0/24", "Check 10.142.0.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
 	Progress NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress `json:"progress"`
@@ -272998,8 +273540,8 @@ func (s *ScanningPostScanningSafetyExclusionsOKWindow) SetTo(val string) {
 }
 
 type ScanningPostScanningSafetyExclusionsReq struct {
-	// One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g.
-	// 192.168.142.9 or 192.168.142.64/28.
+	// One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 10.142.0.9
+	// or 10.142.0.64/28.
 	Entry string `json:"entry"`
 }
 
@@ -273014,7 +273556,7 @@ func (s *ScanningPostScanningSafetyExclusionsReq) SetEntry(val string) {
 }
 
 type ScanningPostScanningSafetyRangesOK struct {
-	// Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24.
+	// Ranges and exclusions normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24.
 	Adjusted []ScanningPostScanningSafetyRangesOKAdjustedItem `json:"adjusted"`
 	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
 	// 200 a save accepts).
@@ -273579,7 +274121,7 @@ func (s *ScanningPostScanningSafetyRangesReq) SetShownRanges(val []string) {
 }
 
 type ScanningPutScanningSafetyOK struct {
-	// Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24.
+	// Ranges and exclusions normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24.
 	Adjusted []ScanningPutScanningSafetyOKAdjustedItem `json:"adjusted"`
 	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
 	// 200 a save accepts).

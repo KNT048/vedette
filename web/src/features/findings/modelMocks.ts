@@ -10,7 +10,7 @@ import { assetsStore, isOn } from '@/mocks/stores'
 import { SAMPLE_SEVERITY, seedFindingRecords, seedQuestions, type FindingRecord, type QuestionRecord } from '@/mocks/seed/findings'
 import type { Asset } from '@/lib/types'
 import { displayName } from '@/features/inventory/nameOf'
-import { BOX_ID, metaStore } from '@/features/inventory/mocks'
+import { BOX_ID, isQuiet, metaStore } from '@/features/inventory/mocks'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
 import { dayAfter, untilOk } from './accept'
 import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/lib/statusCodes'
@@ -25,6 +25,19 @@ export const questions = collection<QuestionRecord[]>('fnd_question', seedQuesti
 
 /** CVEs the scan's safe checks cover (the sample ones). */
 const SAFE_CHECKS = new Set(['CVE-2024-4577', 'CVE-2022-27593', 'CVE-2026-119977'])
+/** What a vulnerability check of the device can do (the box's scan checkCount, read by GET /scans/targets): its open findings not
+ *  confirmed yet (distinct CVEs), how many of those have a safe check, and how many confirmed ones have one to run again. */
+export function checkCounts(assetId: string): { suspected: number; checkable: number; again: number } {
+  const seen = new Set<string>()
+  const c = { suspected: 0, checkable: 0, again: 0 }
+  for (const r of records.get()) {
+    if (r.asset_id !== assetId || r.state !== 'open' || seen.has(r.cve)) continue
+    seen.add(r.cve)
+    const safe = SAFE_CHECKS.has(r.cve)
+    if (r.verified === 'no') { c.suspected++; if (safe) c.checkable++ } else if (safe) c.again++
+  }
+  return c
+}
 const RESOLUTIONS: readonly Resolution[] = FINDING_RESOLUTIONS
 const NOTE_NEEDED: Resolution[] = ['false_positive', 'not_relevant', 'accepted']
 
@@ -93,7 +106,7 @@ export function deviceStatus(assetId: string): DeviceStatus {
     const layer = Math.min(...open.map((r) => r.layer))
     return { code: OPEN_STATUSES[layer - 1]!, count: new Set(open.filter((r) => r.layer === layer).map((r) => r.cve)).size }
   }
-  const n = inputItems().filter((i) => i.device.id === assetId).length
+  const n = inputItems().filter((i) => i.kind !== 'devices_not_added' && i.device.id === assetId).length
   return n ? { code: 'needs_input', count: n } : null
 }
 
@@ -111,6 +124,10 @@ function inputItems(): InputItem[] {
       const layer = Math.min(...l.map((r) => r.layer))
       return { kind: 'device_not_added', id: `device:${l[0]!.asset_id}`, device: deviceRef(l[0]!.asset), status: { code: OPEN_STATUSES[layer - 1]!, count: new Set(l.filter((r) => r.layer === layer).map((r) => r.cve)).size }, findings: l.length }
     })
+  // the devices of To review with no open finding: one card for all of them, last, as the server lists it
+  const withFindings = new Set(all.filter((r) => r.state === 'open').map((r) => r.asset_id))
+  const rest = assetsStore.get().filter((a) => !a.approved && a.id !== BOX_ID && visible(a.id) && !isQuiet(a) && !withFindings.has(a.id)).length
+  const group: InputItem[] = rest > 0 ? [{ kind: 'devices_not_added', id: 'devices_not_added', count: rest }] : []
   const unconfirmed = all.filter((r) => r.state === 'open' && r.layer <= 4 && r.verified === 'no' && visible(r.asset_id)).sort((a, b) => a.layer - b.layer || bySeverity(a, b))
     .map((r): InputItem => ({ kind: 'unconfirmed', id: r.id, cve: r.cve, device: deviceRef(r.asset), software: r.software, status: OPEN_STATUSES[r.layer - 1] as 'exploited',
       severity: severityOf(r.cve), basis: r.basis, safe_check: SAFE_CHECKS.has(r.cve) }))
@@ -123,7 +140,7 @@ function inputItems(): InputItem[] {
   const unchecked = assetsStore.get().filter((a) => a.approved && a.id !== BOX_ID && visible(a.id) && !(a.origin === 'manual' && !a.hostname && !a.ip) &&
     !a.software.some((s) => !s.not_installed) && (!a.os || (a.os.source === 'nmap' && !a.os.value.includes('(build '))))
     .map((a): InputItem => ({ kind: 'device_unchecked', id: `unchecked:${a.id}`, device: deviceRef(a) }))
-  return [...notAdded, ...unchecked, ...unconfirmed, ...asked]
+  return [...notAdded, ...unchecked, ...unconfirmed, ...asked, ...group]
 }
 
 function view(r: FindingRecord & { asset: Asset }): View {
@@ -187,7 +204,12 @@ export function fixCards(p: URLSearchParams): FixCards {
   const l = filtered(p)
   const cards = [...groupBy(l, (r) => r.fix.key).values()].map((g): FixCard => {
     const top = mostUrgent(g)
-    const items = [...groupBy(g, (r) => r.asset_id).values()].map((d): FixDevice => ({ device: deviceRef(d[0]!.asset), software: mostUrgent(d).software, status: OPEN_STATUSES[mostUrgent(d).layer - 1]!, severity: severityCounts(d), findings: d.length }))
+    const others = (d: typeof g) => { // the line's other steps, the most findings first, as the backend's otherSteps
+      const sw = mostUrgent(d).software?.id
+      const rest = sw ? l.filter((r) => r.asset_id === d[0]!.asset_id && r.software?.id === sw && r.fix.key !== top.fix.key) : []
+      return [...groupBy(rest, (r) => r.fix.key).values()].sort((a, b) => b.length - a.length || a[0]!.fix.key.localeCompare(b[0]!.fix.key)).map((x) => ({ ...x[0]!.fix }))
+    }
+    const items = [...groupBy(g, (r) => r.asset_id).values()].map((d): FixDevice => ({ device: deviceRef(d[0]!.asset), software: mostUrgent(d).software, status: OPEN_STATUSES[mostUrgent(d).layer - 1]!, severity: severityCounts(d), findings: d.length, others: others(d) }))
       .sort((a, b) => byUrgency({ layer: layerOf(a.status), n: a.findings, name: a.device.name }, { layer: layerOf(b.status), n: b.findings, name: b.device.name }))
     return { fix: { ...top.fix }, status: OPEN_STATUSES[top.layer - 1]!, cause: top.cve, devices: items.length, findings: g.length, severity: severityCounts(g), items }
   }).sort((a, b) => byUrgency({ layer: layerOf(a.status), n: a.findings, name: a.fix.product }, { layer: layerOf(b.status), n: b.findings, name: b.fix.product }))
@@ -263,7 +285,8 @@ export const modelHandlers = [
     const q = (p.get('q') ?? '').trim().toLowerCase()
     // the server's search: the device's name or address, the software's name or the CVE id contains q
     const has = (v?: string | null) => !!v && v.toLowerCase().includes(q)
-    const items = inputItems().filter((i) => (!device || i.device.id === device)
+    // the grouped card names no device: not in a queue of one device or a search
+    const items = inputItems().filter((i) => i.kind === 'devices_not_added' ? !device && !q : (!device || i.device.id === device)
       && (!q || has(i.device.name) || has(i.device.ip) || ('software' in i && has(i.software?.name)) || ('cve' in i && has(i.cve))))
     return { items: slice(items), total: items.length } satisfies InputList
   })),

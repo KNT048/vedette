@@ -324,7 +324,7 @@ func TestApprovedInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	devs := &stateDevices{m: map[string]notify.DeviceState{
 		"a1":  {Name: "PC-01", Address: "10.0.0.1"},
 		"a2":  {Name: "NAS-01", Address: "10.0.0.2"},
-		"181": {Name: "Hon Hai Precision Ind. Co.,Ltd.", Address: "192.168.142.181"},
+		"181": {Name: "Hon Hai Precision Ind. Co.,Ltd.", Address: "10.142.0.181"},
 	}}
 	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
 	e.firstRunAt(e.clock.Now())
@@ -347,17 +347,17 @@ func TestApprovedInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 	e.clock.Add(37 * time.Hour) // past the first discovery: a device has its own incident
 	publish(inventory.EventAssetDiscovered, inventory.AssetEvent{AssetID: "181", Notify: true})
 	l, _ = e.svc.Incidents(e.ctx())
-	if l[0].Title != "A new unknown device appeared: Hon Hai Precision Ind. Co.,Ltd. (192.168.142.181)" {
+	if l[0].Title != "A new unknown device appeared: Hon Hai Precision Ind. Co.,Ltd. (10.142.0.181)" {
 		t.Fatalf("title = %q", l[0].Title)
 	}
-	devs.set("181", notify.DeviceState{Name: "byn", Address: "192.168.142.181"}) // its host name arrived
+	devs.set("181", notify.DeviceState{Name: "srv01", Address: "10.142.0.181"}) // its host name arrived
 	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "181"})
 	own := e.detail(l[0].ID)
-	if own.Status != notify.StatusNew || own.Title != "A new unknown device appeared: byn (192.168.142.181)" ||
-		own.What != "A device that is not in your inventory joined the network: byn (192.168.142.181)." || own.Devices[0].Name != "byn (192.168.142.181)" {
+	if own.Status != notify.StatusNew || own.Title != "A new unknown device appeared: srv01 (10.142.0.181)" ||
+		own.What != "A device that is not in your inventory joined the network: srv01 (10.142.0.181)." || own.Devices[0].Name != "srv01 (10.142.0.181)" {
 		t.Fatalf("renamed = %+v", own)
 	}
-	devs.set("181", notify.DeviceState{Name: "byn", Address: "192.168.142.181", Approved: true})
+	devs.set("181", notify.DeviceState{Name: "srv01", Address: "10.142.0.181", Approved: true})
 	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "181"})
 	publish(notify.EventAssetApproved, map[string]string{"asset_id": "181", "actor": "an@acme.example"}) // B9, after the update
 	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "181"})
@@ -374,7 +374,7 @@ func TestApprovedInDevicesClosesTheNewDeviceIncident(t *testing.T) {
 // A quiet device (a private Wi-Fi address nobody had a reason to look at) sends its new-device notice with the update that
 // says it earned one (inventory INV-49): the incident opens then, and a plain update opens none.
 func TestAQuietDeviceEarnsItsNotice(t *testing.T) {
-	devs := &stateDevices{m: map[string]notify.DeviceState{"p1": {Name: "phone-01", Address: "192.168.142.129"}}}
+	devs := &stateDevices{m: map[string]notify.DeviceState{"p1": {Name: "phone-01", Address: "10.142.0.129"}}}
 	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
 	e.firstRunAt(e.clock.Now().Add(-48 * time.Hour))
 	e.svc.Subscribe(e.bus)
@@ -391,7 +391,7 @@ func TestAQuietDeviceEarnsItsNotice(t *testing.T) {
 	}
 	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "p1", Notify: true})
 	l, _ := e.svc.Incidents(e.ctx())
-	if len(l) != 1 || l[0].Title != "A new unknown device appeared: phone-01 (192.168.142.129)" {
+	if len(l) != 1 || l[0].Title != "A new unknown device appeared: phone-01 (10.142.0.129)" {
 		t.Fatalf("incidents after: %+v", l)
 	}
 }
@@ -400,8 +400,8 @@ func TestAQuietDeviceEarnsItsNotice(t *testing.T) {
 // run; a device not approved stays open with its current name, and a device the inventory no longer has is left to INV-20.
 func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
 	devs := &stateDevices{m: map[string]notify.DeviceState{
-		"181":  {Name: "Hon Hai Precision Ind. Co.,Ltd.", Address: "192.168.142.181"},
-		"145":  {Name: "192.168.142.145", Address: "192.168.142.145"},
+		"181":  {Name: "Hon Hai Precision Ind. Co.,Ltd.", Address: "10.142.0.181"},
+		"145":  {Name: "10.142.0.145", Address: "10.142.0.145"},
 		"gone": {Name: "old-phone"},
 	}}
 	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
@@ -412,8 +412,8 @@ func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	devs.set("181", notify.DeviceState{Name: "byn", Address: "192.168.142.181", Approved: true}) // approved by the version before
-	devs.set("145", notify.DeviceState{Name: "annas-macbook-air", Address: "192.168.142.145"})
+	devs.set("181", notify.DeviceState{Name: "srv01", Address: "10.142.0.181", Approved: true}) // approved by the version before
+	devs.set("145", notify.DeviceState{Name: "annas-macbook-air", Address: "10.142.0.145"})
 	devs.mu.Lock()
 	delete(devs.m, "gone")
 	devs.mu.Unlock()
@@ -428,10 +428,10 @@ func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
 		got[i.Devices[0].ID] = i
 	}
 	if i := got["181"]; i.Status != notify.StatusResolved || i.ResolvedReason == nil || *i.ResolvedReason != "Closed by Vedette: the device was approved in Devices." ||
-		i.Title != "A new unknown device appeared: byn (192.168.142.181)" {
+		i.Title != "A new unknown device appeared: srv01 (10.142.0.181)" {
 		t.Fatalf("approved device = %+v", i)
 	}
-	if i := got["145"]; i.Status != notify.StatusNew || i.Title != "A new unknown device appeared: annas-macbook-air (192.168.142.145)" {
+	if i := got["145"]; i.Status != notify.StatusNew || i.Title != "A new unknown device appeared: annas-macbook-air (10.142.0.145)" {
 		t.Fatalf("device not approved = %+v", i)
 	}
 	if i := got["gone"]; i.Status != notify.StatusNew || i.Title != "A new unknown device appeared: old-phone" {
@@ -446,7 +446,7 @@ func TestAutoCloseClosesNewDeviceIncidentsOfApprovedDevices(t *testing.T) {
 // A person who reopens the incident of an approved device keeps it open; neither the next update of the device
 // nor the job closes it again. An update of a device on no open incident does not read the inventory.
 func TestReopenedIncidentOfAnApprovedDeviceStaysOpen(t *testing.T) {
-	devs := &stateDevices{m: map[string]notify.DeviceState{"145": {Name: "annas-macbook-air", Address: "192.168.142.145"}}}
+	devs := &stateDevices{m: map[string]notify.DeviceState{"145": {Name: "annas-macbook-air", Address: "10.142.0.145"}}}
 	e := newEnv(t, func(c *notify.Config) { c.Devices = devs })
 	e.firstRunAt(e.clock.Now().AddDate(0, -1, 0))
 	e.svc.Subscribe(e.bus)
@@ -460,7 +460,7 @@ func TestReopenedIncidentOfAnApprovedDeviceStaysOpen(t *testing.T) {
 	l, _ := e.svc.Incidents(e.ctx())
 	id := l[0].ID
 	e.clock.Add(time.Minute)
-	devs.set("145", notify.DeviceState{Name: "annas-macbook-air", Address: "192.168.142.145", Approved: true, ApprovedAt: e.clock.Now()})
+	devs.set("145", notify.DeviceState{Name: "annas-macbook-air", Address: "10.142.0.145", Approved: true, ApprovedAt: e.clock.Now()})
 	publish(inventory.EventAssetUpdated, inventory.AssetEvent{AssetID: "145"})
 	if e.detail(id).Status != notify.StatusResolved {
 		t.Fatal("approving did not close the incident")

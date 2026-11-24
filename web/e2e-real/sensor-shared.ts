@@ -1,4 +1,4 @@
-// Shared by sensors.global.spec.ts (WP-30 slice 7): the devices the sensors make, and giving the box back.
+// Shared by sensors.global.spec.ts: the devices the sensors make, and giving the box back.
 // The passive sensor is the REAL `vedette-sensor passive` replaying modules/sensor-passive/testdata/lan-discovery.pcap; the active one is the REAL
 // `vedette-sensor active` with a fake nmap (cmd/vedette/e2esensor_test.go). Both are started through the control endpoint (box.ts: sensorCtl).
 import { expect, type APIRequestContext } from '@playwright/test'

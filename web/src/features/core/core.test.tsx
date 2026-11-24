@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -17,7 +17,7 @@ import { CHECK_FAILURES, checkScenario, mockSign, MOCK_IDP_USER } from './mocks'
 import { saveSsoFlow, takeSsoFlow } from './ssoFlow'
 import type { Role } from '@/lib/session'
 import { restartWait } from './BoxRestarting'
-import { nav, compareVersion, toBase64 } from './util'
+import { nav, compareVersion, toBase64, browserTimeZone } from './util'
 import { fmtDateTime } from '@/lib/format'
 
 // The offline bundle is hidden in the GUI for v1 (BUNDLE_IN_UI false) but its code is kept, so this file runs the bundle as
@@ -87,6 +87,10 @@ describe('core: initial setup', () => {
     await acceptTerms(u)
     expect(await screen.findByRole('heading', { level: 2, name: 'Organization and administrator account' })).toBeInTheDocument()
     await expectNoA11yViolations()
+    // the box's one time zone starts as this browser's; an alias is written under its current name by the box
+    expect(screen.getByLabelText('Time zone')).toHaveValue(browserTimeZone())
+    await u.clear(screen.getByLabelText('Time zone'))
+    await u.type(screen.getByLabelText('Time zone'), 'Asia/Saigon')
     // error at step 1: the password is too short
     await u.type(screen.getByLabelText('Organization name'), 'ABC Company')
     await u.type(screen.getByLabelText('Administrator name'), 'Lan')
@@ -143,6 +147,7 @@ describe('core: initial setup', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
     expect(orgStore.get().setup_complete).toBe(true)
     expect(orgStore.get().name).toBe('ABC Company')
+    expect(orgStore.get().timezone).toBe('Asia/Ho_Chi_Minh')
     expect(usersStore.get().map((x) => x.email)).toEqual(['lan@abc.vn'])
     expect(assetsStore.get()).toHaveLength(0)
     expect(modulesStore.get().find((m) => m.id === 'scan')!.enabled).toBe(true)
@@ -303,14 +308,14 @@ describe('core: initial setup', () => {
     await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     await u.clear(await screen.findByLabelText('Range 1'))
-    await u.type(screen.getByLabelText('Range 1'), '192.168.0.0/16') // overlaps row 2: only the box checks that (overlap_range)
+    await u.type(screen.getByLabelText('Range 1'), '10.142.0.0/16') // overlaps row 2: only the box checks that (overlap_range)
     await u.click(screen.getByRole('button', { name: 'Add range' }))
-    await u.type(screen.getByLabelText('Range 2'), '192.168.142.0/24')
+    await u.type(screen.getByLabelText('Range 2'), '10.142.0.0/24')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 2, name: 'Network to watch' })).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent(/Range 192.168.0.0\/16 overlaps 192.168.142.0\/24/)
-    expect(screen.getByLabelText('Range 2')).toHaveValue('192.168.142.0/24') // what was typed is kept
+    expect(screen.getByRole('alert')).toHaveTextContent(/Range 10.142.0.0\/16 overlaps 10.142.0.0\/24/)
+    expect(screen.getByLabelText('Range 2')).toHaveValue('10.142.0.0/24') // what was typed is kept
     expect(orgStore.get().setup_complete).toBe(false)
   })
 
@@ -352,14 +357,14 @@ describe('core: initial setup', () => {
 
   it('the LAN range typed in setup is stored where Settings › Scanning › Safety keeps ranges, and the commitment with it', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.142.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['10.142.0.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(200)
     const st = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; scope_confirmed_at: string | null; scope_confirmed_by: string | null }
-    expect(st.lan_ranges).toEqual(['192.168.142.0/24', '10.1.0.0/16'])
+    expect(st.lan_ranges).toEqual(['10.142.0.0/24', '10.1.0.0/16'])
     expect(st).toMatchObject({ scope_confirmed_by: 'lan@abc.vn' })
     expect(st.scope_confirmed_at).not.toBeNull()
     const scan = (await (await fetch(`${location.origin}/api/v1/scans/config`)).json()) as { scope: { networks: string[] } }
-    expect(scan.scope.networks).toEqual(['192.168.142.0/24', '10.1.0.0/16'])
+    expect(scan.scope.networks).toEqual(['10.142.0.0/24', '10.1.0.0/16'])
   })
 
   it('setup takes a network in the RFC 6598 shared address space (100.64/10) and refuses the rest of 100/8, with the backend sentence', async () => {
@@ -376,17 +381,17 @@ describe('core: initial setup', () => {
 
   it('setup refuses overlapping LAN ranges like Settings › Scanning › Safety does, and nothing is set up (#350)', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.0.0/16', '192.168.142.0/24'], bundle: 'smb', commitment: true }) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['10.142.0.0/16', '10.142.0.0/24'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(400)
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('overlap_range')
     expect(orgStore.get().setup_complete).toBe(false)
-    const same = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.142.0/24', '192.168.142.7/24'], bundle: 'smb', commitment: true }) })
+    const same = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['10.142.0.0/24', '10.142.0.7/24'], bundle: 'smb', commitment: true }) })
     expect(same.status).toBe(200) // the same network written twice is not an overlap
   })
 
   it('setup writes the same audit rows as the backend, oldest first: the administrator, the sign-in, the setup', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.142.0/24'], bundle: 'smb', commitment: true }) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['10.142.0.0/24'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(200)
     const rows = [...auditStore.get()].reverse()
     expect(rows.map((r) => [r.user, r.action, r.target])).toEqual([
@@ -466,6 +471,20 @@ describe('core: Settings frame and roles', () => {
     expect(auditStore.get()[0]!.action).toBe('core.general')
   })
 
+  it('says whether the operating system of the box uses the zone too, and why not', async () => {
+    renderApp('/settings/general')
+    expect(await screen.findByText(/The operating system of the box uses this time zone too/)).toBeInTheDocument()
+    cleanup()
+    server.use(http.get('*/api/v1/core/general', () => HttpResponse.json({ name: 'Acme', timezone: 'Europe/Paris', os_time_zone: { state: 'failed', zone: 'Asia/Ho_Chi_Minh', message: 'The operating system does not know this time zone. Choose another name for it from the list.' } })))
+    renderApp('/settings/general')
+    const failed = await screen.findByText(/could not be set\. The operating system does not know this time zone/)
+    expect(failed).toHaveAttribute('data-state', 'failed')
+    cleanup()
+    server.use(http.get('*/api/v1/core/general', () => HttpResponse.json({ name: 'Acme', timezone: 'Europe/Berlin', os_time_zone: { state: 'pending', zone: 'Etc/UTC', message: 'The system helper is busy or not answering. Vedette sets the operating system\'s time zone as soon as it can.' } })))
+    renderApp('/settings/general')
+    expect(await screen.findByText(/still uses Etc\/UTC\. The system helper is busy/)).toBeInTheDocument()
+  })
+
   it('an API error shows a message and a retry button', async () => {
     server.use(http.get('*/api/v1/core/general', () => HttpResponse.json({ error: { code: 'x', message: 'The settings server is not responding.' } }, { status: 503 })))
     renderApp('/settings/general')
@@ -527,11 +546,11 @@ describe('core: privacy (S-CORE-4)', () => {
     expect((await screen.findAllByText('Your own feeds right now: intel.partner.example.')).length).toBeGreaterThan(0)
     expect(document.body.textContent).not.toContain('s3cret')
   })
-  it('shows all 16 flows; the anonymous signal says "not sent", no switch, no payload', async () => {
+  it('shows all 15 flows; the anonymous signal says "not sent", no switch, no payload', async () => {
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
-    expect(within(table).getAllByRole('row')).toHaveLength(17)
-    for (const n of ['MCP server, read by tools you connect', 'Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on', 'Connections you add', 'Outside view of your public IP']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
+    expect(within(table).getAllByRole('row')).toHaveLength(16)
+    for (const n of ['MCP server, read by tools you connect', 'Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on', 'Connections you add', 'Outside view of your public IP']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
     expect(screen.queryByRole('switch', { name: 'Send anonymous signal' })).toBeNull()
     expect(document.querySelector('pre code')).toBeNull()
     expect(screen.getByText(/Anonymous signal: not sent\. The box sends nothing to the Vedette project\./)).toBeInTheDocument()

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Tests of the independent review of WP-20 (feat/feeds-module): each was written red first.
+// Tests of the independent review (feat/feeds-module): each was written red first.
 
 func vulnFeedBody(name, u string) string {
 	return `{"name":"` + name + `","kind":"vulnerabilities","url":"` + u + `","enabled":true,

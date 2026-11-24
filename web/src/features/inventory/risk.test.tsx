@@ -71,8 +71,8 @@ describe('inventory: risk marker', () => {
     first.unmount()
     // clean on both reads: no marker, and no card of the findings model (no open finding) and no question
     const cards = (await get('/findings/devices?limit=100')).json.items as { device: { id: string } }[]
-    const asked = (await get('/findings/input?limit=100')).json.items as { device: { id: string } }[]
-    const busy = new Set([...cards, ...asked].map((c) => c.device.id))
+    const asked = (await get('/findings/input?limit=100')).json.items as { device?: { id: string } }[]
+    const busy = new Set([...cards, ...asked].flatMap((c) => c.device ? [c.device.id] : []))
     const clean = list.find((d) => !d.risk && !d.is_box && !busy.has(d.id))!
     renderApp(`/devices/${clean.id}`)
     await screen.findByRole('heading', { level: 1 }, T)

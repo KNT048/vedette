@@ -1,5 +1,5 @@
 #!/bin/sh
-# vedette-host postrm (WP-08g). Remove and purge delete the package's own files only. They NEVER delete the data:
+# vedette-host postrm. Remove and purge delete the package's own files only. They NEVER delete the data:
 # /var/lib/vedette (database and key), the backups, /var/lib/vedette-host, /var/lib/vedette-honeypot, /etc/vedette
 # (host.conf), the Quadlet units, the users and groups, the /etc/subuid and /etc/subgid lines. Deleting them is a separate,
 # deliberate step (docs/RUNBOOK.md): Debian Policy 9.2.1 says never to remove system users, and the key cannot be re-created.

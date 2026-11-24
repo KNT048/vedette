@@ -1,5 +1,5 @@
 #!/usr/bin/python3 -I
-"""The honeypot container's process 1 (WP-08e): sets the container up and keeps the traps alive. It runs as the image's own user,
+"""The honeypot container's process 1: sets the container up and keeps the traps alive. It runs as the image's own user,
 uid 1000 gid 0, from the first instruction: no root, no capability (the unit adds none), nothing to drop.
 
 1. log/ (a volume the container writes and core reads): podman's `:U` gives it to this user; the mode is made 0755 so core, which

@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/conn/write"
 )
 
-// L2: a connection edited between opening the credential and dialling is not dialled: connection_changed, nothing sent.
+// A connection edited between opening the credential and dialling is not dialled: connection_changed, nothing sent.
 func TestWriterRefusesAConnectionEditedWhileTheCredentialWasOpen(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

@@ -5,7 +5,7 @@ import "testing"
 // execHash is stored with every request and compared at every undo. A change of execRec (a field, a tag, the order) would change
 // every hash from then on and silently block the undo of every change in force, so the hash of a fixed record is pinned. Change it only with a
 // plan for the requests already stored (a migration, or the fallback in undoStepsProblem).
-func TestWP31_ExecHashIsPinned(t *testing.T) {
+func TestExecHashIsPinned(t *testing.T) {
 	t.Parallel()
 	ex := &execRec{
 		Precheck: &execStep{Method: "GET", URL: "https://fw.lan/api/v2/monitor/user/banned/select"},

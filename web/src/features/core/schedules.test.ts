@@ -5,15 +5,15 @@ import { orgStore, sessionStore } from '@/mocks/stores'
 import { Schedule, SchedulePreview } from './contract'
 
 const api = (path: string, init?: RequestInit) => fetch(`${location.origin}/api/v1${path}`, { headers: { 'Content-Type': 'application/json' }, ...init })
-const rule = (r: Record<string, unknown>) => ({ every_minutes: null, at_time: null, weekdays: null, month_day: null, once_at: null, tz: 'Europe/Berlin', window: 'none', window_days: null, window_from: null, window_to: null, ...r })
+const rule = (r: Record<string, unknown>) => ({ every_minutes: null, at_time: null, weekdays: null, month_day: null, once_at: null, tz: 'America/New_York', window: 'none', window_days: null, window_from: null, window_to: null, ...r })
 
 describe('schedules', () => {
   beforeEach(() => {
-    orgStore.update((o) => ({ ...o, setup_complete: true }))
+    orgStore.update((o) => ({ ...o, setup_complete: true, timezone: 'Europe/Berlin' }))
     sessionStore.set({ userId: 'u-admin' })
   })
 
-  it('previews the next three starts of every kind of rule in a zone', async () => {
+  it('previews the next three starts of every kind of rule in the box\'s zone, whatever zone a client still sends', async () => {
     for (const r of [
       rule({ freq: 'interval', every_minutes: 360 }),
       rule({ freq: 'interval', every_minutes: 4320, at_time: '02:30', window: 'custom', window_days: [1, 2, 3, 4, 5], window_from: '00:00', window_to: '00:00' }),

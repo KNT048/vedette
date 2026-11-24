@@ -26,7 +26,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// The release gates (WP-08k part B). `make release-gates` runs
+// The release gates. `make release-gates` runs
 // vuln-scan, sbom and notices-check, then this command: the checks that need the built artifacts and nothing else. Nothing here
 // signs, pushes or publishes; every external command is a fixed argv through runFunc.
 

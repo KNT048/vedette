@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { collectErrors, expectAccessible } from '../helpers'
-import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
+import { begin, noHScroll, stepper, THEMES } from './ui-check-shared'
 
 // "As the admin I choose when the security report is emailed and see when the next one goes out."
 // Reports -> Settings -> Delivery: the shared schedule editor, limited to weekly or monthly (a report covers a week or a month).

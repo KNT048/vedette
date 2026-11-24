@@ -13,12 +13,13 @@ import { cidrRange, overlapping } from '@/features/inventory/validate'
 import { osHandlers } from './osMock'
 import { networkHandlers } from './networkMock'
 import { schedulesHandlers } from './schedulesMock'
+import { canonicalZone } from '@/lib/zoneNames'
 import { connectionsHandlers } from './connectionsMock'
 import { connectorsStore } from '@/mocks/connectors'
 import { newSecret, verifyTotp } from './totp'
 import { checkCode, clearCode, issueCode, maskEmail, sentBody } from './emailCode'
 import { CIDR_RE, compareVersion, fromBase64, GUESSABLE_PASSWORD, guessablePassword, isPrivateCidr, LOCAL_RANGE_NAMES, MIN_PASSWORD, validTimeZone } from './util'
-import type { AccountSession, AdminUser, BoxBackup, RestoreRun, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, SetupPayload, TermsState, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateCheckError, UpdateRun, UpdatesState } from './types'
+import type { AccountSession, AdminUser, BoxBackup, RestoreRun, Advisory, AuditQuery, AuditRow, ManagedPackage, McpToken, OidcConfig, PrivacyFlow, GeneralView, SetupPayload, TermsState, UpdateAvailable, UpdateChannel, UpdateComponent, UpdateHistory, UpdateCheckError, UpdateRun, UpdatesState } from './types'
 
 const ROLES: Role[] = ['viewer', 'operator', 'admin']
 const hex = (n: number) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -97,6 +98,7 @@ const setupHandlers = [
     if (b.accept_terms !== true) return fail(400, 'terms_not_accepted', TERMS_REFUSED) // the first step of the form
     const org = String(b.org ?? '').trim()
     if (org.length < 2 || org.length > 80) return fail(400, 'invalid_org', 'The organization name is 2 to 80 characters.')
+    if (b.timezone !== undefined && !validTimeZone(String(b.timezone))) return fail(400, 'invalid_timezone', 'The time zone is not a known name, for example Asia/Ho_Chi_Minh or UTC.', { field: 'timezone' })
     const a = b.admin ?? { name: '', email: '', password: '' }
     const name = String(a.name ?? '').trim()
     const email = String(a.email ?? '').trim().toLowerCase()
@@ -138,7 +140,7 @@ const setupHandlers = [
     setDataMode('clean')
     const user: User = { id: newId('u'), name, email, role: 'admin', password: String(a.password), twofa: false, created_at: nowIso(), last_login: nowIso() }
     usersStore.set([user])
-    orgStore.update((o) => ({ ...o, name: org, setup_complete: true }))
+    orgStore.update((o) => ({ ...o, name: org, setup_complete: true, timezone: b.timezone ? canonicalZone(b.timezone) : o.timezone }))
     modulesStore.set(all.map((m) => ({ ...m, enabled: m.tier === 'core' || enable.includes(m.id), enabled_at: m.tier === 'core' || enable.includes(m.id) ? nowIso() : null })))
     // The LAN ranges asked for here are the ranges of Settings › Scanning › Safety (and what Scan reads); the commitment ticked here is that page's commitment.
     inventorySettingsStore.update((st) => ({ ...st, lan_ranges: [...new Set(lan)], scope_confirmed_at: b.commitment ? nowIso() : null, scope_confirmed_by: b.commitment ? email : null }))
@@ -162,11 +164,12 @@ const generalHandlers = [
     // Who accepted is said to administrators only, as the user list is.
     return HttpResponse.json({ version: TERMS_VERSION, accepted: a && currentUser()?.role !== 'admin' ? { ...a, by: null } : a } satisfies TermsState)
   }),
+  // The mock box's operating system follows the zone at once (the real one does through its system helper).
   http.get(`${API}/core/general`, () => {
     const denied = guard('viewer')
     if (denied) return denied
     const o = orgStore.get()
-    return HttpResponse.json({ name: o.name, timezone: o.timezone })
+    return HttpResponse.json({ name: o.name, timezone: o.timezone, os_time_zone: osTimeZone(o.timezone) } satisfies GeneralView)
   }),
   http.put(`${API}/core/general`, async ({ request }) => {
     const denied = guard('admin')
@@ -175,11 +178,16 @@ const generalHandlers = [
     const name = String(b.name ?? '').trim()
     if (name.length < 2 || name.length > 80) return fail(400, 'invalid_org', 'The organization name is 2 to 80 characters.')
     if (!validTimeZone(String(b.timezone))) return fail(400, 'invalid_timezone', 'The time zone is not in the list.')
-    orgStore.update((o) => ({ ...o, name, timezone: b.timezone as string }))
-    audit('core.general', name, `time zone ${b.timezone}`)
-    return HttpResponse.json({ name, timezone: b.timezone })
+    const tz = canonicalZone(b.timezone as string) // one zone, one name, as the box stores it
+    orgStore.update((o) => ({ ...o, name, timezone: tz }))
+    audit('core.general', name, `time zone ${tz}`)
+    return HttpResponse.json({ name, timezone: tz, os_time_zone: osTimeZone(tz) } satisfies GeneralView)
   }),
 ]
+
+function osTimeZone(zone: string): GeneralView['os_time_zone'] {
+  return { state: 'in_sync', zone, message: null }
+}
 
 // ---------- My account ----------
 const sessionsStore = collection<Record<string, AccountSession[]>>('core_sessions_list', () => ({}))
@@ -972,7 +980,6 @@ function privacyView() {
     { id: 1, state: 'on', control: 'reason' },
     { id: 2, state: p.telemetry ? 'on' : 'off', control: 'switch' },
     { id: 3, state: ai ? 'on' : 'off', control: 'reason', configured: ai },
-    { id: 4, state: 'conditional', control: 'reason' },
     { id: 5, state: 'conditional', control: 'reason' },
     { id: 6, state: p.update_check ? 'on' : 'off', control: 'switch' },
     { id: 7, state: 'conditional', control: 'reason' },

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make e2e-real (WP-30): the browser specs of web/e2e-real/ against the REAL backend with the release GUI embedded in it.
+# make e2e-real: the browser specs of web/e2e-real/ against the REAL backend with the release GUI embedded in it.
 #   1. make webui-dist (the release SPA, mock layer off), 2. go test -c -tags webui of cmd/vedette (the box is TestE2EBox, a test so that
 #   later slices can put loopback fakes in the same process), 3. start the box on a temp folder, wait for its ready.json,
 #   4. Playwright (desktop) against it, 5. stop everything and remove the temp folder, web/dist and internal/webui/dist on every exit path.

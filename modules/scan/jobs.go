@@ -488,10 +488,19 @@ func (s *Service) startScheduled(ctx context.Context, tx *sql.Tx, f schedule.Fir
 	if err != nil {
 		return "", err
 	}
+	counts, _, err := s.checkCounts(ctx)
+	if err != nil {
+		return "", err
+	}
 	var ids []string
 	var first Current
+	allowed := 0
 	for _, d := range devs {
-		if why, _ := fold(st, d, auto[d.ID]); why != "" || len(ids) == MaxRunTargets {
+		if why, _ := fold(st, d, auto[d.ID]); why != "" {
+			continue
+		}
+		allowed++
+		if !counts[d.ID].any() || len(ids) == MaxRunTargets { // nothing a check could confirm, rule out or check again
 			continue
 		}
 		if len(ids) == 0 {
@@ -501,6 +510,9 @@ func (s *Service) startScheduled(ctx context.Context, tx *sql.Tx, f schedule.Fir
 	}
 	if len(ids) == 0 {
 		reason := "No device may be checked without someone picking it, so there was nothing to check."
+		if allowed > 0 {
+			reason = "Nothing to check: no safe check exists yet for the findings of the devices it may check."
+		}
 		if f.First { // a new box has no devices yet: its first check waits for them
 			return "", schedule.Hold(reason)
 		}

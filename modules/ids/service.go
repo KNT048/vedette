@@ -66,7 +66,8 @@ type Inventory interface {
 // LinkedFinding is a finding of the attacked device for a CVE an alert names, with the findings module's one status.
 type LinkedFinding struct {
 	ID, CVE, Status string
-	// Affected: the finding is open, so the device is affected by the CVE (not patched, mitigated, accepted or dismissed).
+	// Affected: the finding is open, so the device is affected by the CVE (not patched, mitigated, accepted or dismissed), and the flaw
+	// can be exploited over the network: an alert naming a flaw that needs local or physical access is not an attack on it.
 	Affected bool
 }
 
@@ -79,9 +80,13 @@ type Findings interface {
 // IncidentRef is the incident of kind intrusion that groups an alert.
 type IncidentRef struct{ ID, Status string }
 
-// Incidents finds the intrusion incident opened for an incident key (source and target, as the event gave them) that existed at a time.
+// Incidents reads notify's intrusion incidents. Intrusion finds the incident opened for an incident key (source and target, as the
+// event gave them) that existed at a time. ResolvedSince says whether the incident an announcement of ev would count on was resolved
+// at or after since and none of its key is open: a repeat announced at since and held back since then must be announced again, as a
+// new incident (notify ResolvedSince).
 type Incidents interface {
 	Intrusion(ctx context.Context, source, target string, at time.Time) (IncidentRef, bool, error)
+	ResolvedSince(ctx context.Context, ev AlertEvent, since time.Time) (bool, error)
 }
 
 // Publisher publishes events after a commit.
@@ -123,14 +128,21 @@ type Service struct {
 	lastIn  time.Time
 
 	// The hourly announcement budget, read and written by the flush job only (one run at a time) under annMu: the clock hour, how many
-	// were announced in it, the severity each incident key was last announced with in it (a repeat at the same or a lower severity is
-	// not announced again; a rise is), and the hour whose summary was sent.
+	// were announced in it, the severity each incident key was last announced with in it and when (a repeat at the same or a lower
+	// severity is not announced again while its incident is open; a rise is), and the summary of the hour.
 	annMu      sync.Mutex
 	annHour    int64
 	annSent    int
-	annTold    map[string]int
-	annLeft    int // alerts of the hour not announced one by one
-	annSumRank int // the severity the hour's summary was announced with; -1 = none yet
+	annTold    map[string]told
+	annLeft    int       // alerts of the hour not announced one by one
+	annSumRank int       // the severity the hour's summary was announced with; -1 = none yet
+	annSumAt   time.Time // when it was
+}
+
+// told is the last announcement of an incident key in the hour: its severity rank and the time.
+type told struct {
+	rank int
+	at   time.Time
 }
 
 // NewService checks the config and returns the service.
@@ -413,7 +425,8 @@ const summaryTarget = "more intrusion alerts"
 
 // announce publishes ids.alert.detected for the alerts a flush stored, in a fixed order: the most severe first (critical: the attacked
 // device is affected by a CVE the alert names), then the newest, then by source address, incident target and alert. An incident key already announced in this clock hour with
-// the same or a higher severity is not announced again (its alert row counts the events); one whose severity rose is, so notify raises
+// the same or a higher severity is not announced again while its incident is open (its alert row counts the events); once a person or
+// Vedette resolved that incident, the repeat is a new incident and is announced again. One whose severity rose is, so notify raises
 // the incident. At most AlertEventsPerHour announcements a clock hour; past it, one summary incident for the hour with the highest
 // severity left out.
 func (s *Service) announce(ctx context.Context, rows []stored) {
@@ -427,17 +440,32 @@ func (s *Service) announce(ctx context.Context, rows []stored) {
 			strings.Compare(a.Target, b.Target), strings.Compare(a.Link, b.Link))
 	})
 	s.annMu.Lock()
-	hour := s.now().Unix() / 3600
+	now := s.now()
+	hour := now.Unix() / 3600
 	if hour != s.annHour {
-		s.annHour, s.annSent, s.annTold, s.annLeft, s.annSumRank = hour, 0, map[string]int{}, 0, -1
+		s.annHour, s.annSent, s.annTold, s.annLeft, s.annSumRank = hour, 0, map[string]told{}, 0, -1
 	}
 	var send []AlertEvent
 	left, leftSev := 0, "info"
+	sent := map[string]bool{}  // the keys announced in this flush
+	again := map[string]bool{} // whether the incident of a key was resolved since its announcement, asked once a flush
 	for _, ev := range evs {
 		key := ev.Source + "\x00" + ev.Target
 		rank := severityRank[ev.Severity]
-		if told, ok := s.annTold[key]; ok && told >= rank {
-			continue
+		if t, ok := s.annTold[key]; ok && t.rank >= rank {
+			// A repeat waits while its incident is open; once the incident was resolved since the announcement, the repeat is a new
+			// incident and is announced again (within the budget below). A key announced in this flush is not asked again.
+			if sent[key] {
+				continue
+			}
+			res, asked := again[key]
+			if !asked {
+				res = s.resolvedSince(ctx, ev, t.at)
+				again[key] = res
+			}
+			if !res {
+				continue
+			}
 		}
 		if s.annSent >= AlertEventsPerHour {
 			left++
@@ -447,7 +475,7 @@ func (s *Service) announce(ctx context.Context, rows []stored) {
 			continue
 		}
 		s.annSent++
-		s.annTold[key] = rank
+		s.annTold[key], sent[key] = told{rank, now}, true
 		send = append(send, ev)
 	}
 	if severityRank[leftSev] < severityRank["medium"] {
@@ -455,11 +483,13 @@ func (s *Service) announce(ctx context.Context, rows []stored) {
 	}
 	// The hour's summary goes out once, and again whenever what was left out is more severe than it said (an attack on an affected
 	// device after the budget ran out): notify raises the summary incident and sends that raise.
+	// A summary a person resolved while the flood goes on is announced again, once per resolve, like any other repeat.
 	s.annLeft += left
 	total := s.annLeft
-	summary := left > 0 && severityRank[leftSev] > s.annSumRank
-	if summary {
-		s.annSumRank = severityRank[leftSev]
+	sum := s.summaryEvent(hour, total, leftSev)
+	summary := left > 0 && (severityRank[leftSev] > s.annSumRank || s.annSumRank >= 0 && s.resolvedSince(ctx, sum, s.annSumAt))
+	if summary { // after a resolve the summary is a new incident: it says the severity of what was left out since
+		s.annSumRank, s.annSumAt = severityRank[leftSev], now
 	}
 	s.annMu.Unlock()
 	for _, ev := range send {
@@ -474,18 +504,36 @@ func (s *Service) announce(ctx context.Context, rows []stored) {
 	if !summary {
 		return
 	}
+	if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventAlertDetected, Data: sum}); err != nil {
+		s.cfg.Log.WarnContext(ctx, "ids: announcing the summary of the alerts not announced", "err", err)
+	}
+}
+
+// summaryEvent is the summary incident of an hour in which total alerts were not announced one by one, at severity sev.
+func (s *Service) summaryEvent(hour int64, total int, sev string) AlertEvent {
 	title := "At least " + strconv.Itoa(total) + " more intrusion alerts this hour, not announced one by one"
 	what := "The limit of " + strconv.Itoa(AlertEventsPerHour) + " announced intrusion alerts an hour was reached; more IPS events were received and are not announced one by one. A flood of events from many addresses can also be forged on the LAN when the firewall sends its logs over UDP."
-	if leftSev == "critical" {
+	if sev == "critical" {
 		title = "At least " + strconv.Itoa(total) + " more intrusion alerts this hour, including attacks on affected devices"
 		what += " Among them are attacks on devices affected by the CVE the attack names."
 	}
-	ev := AlertEvent{Source: "ids", Target: summaryTarget + " " + strconv.FormatInt(hour, 10), Title: title, What: what,
+	return AlertEvent{Source: "ids", Target: summaryTarget + " " + strconv.FormatInt(hour, 10), Title: title, What: what,
 		Action:   "Open Intrusion detection and read the alerts of the last 24 hours, the most severe first.",
-		Severity: leftSev, Link: "/detection", At: s.now(), Devices: []DeviceRef{}}
-	if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventAlertDetected, Data: ev}); err != nil {
-		s.cfg.Log.WarnContext(ctx, "ids: announcing the summary of the alerts not announced", "err", err)
+		Severity: sev, Link: "/detection", At: s.now(), Devices: []DeviceRef{}}
+}
+
+// resolvedSince asks notify whether the incident of ev was resolved at or after since with none of its key open (Incidents.ResolvedSince).
+// Without the port, or when the read fails, the repeat stays held back: a failed read never turns into a flood of announcements.
+func (s *Service) resolvedSince(ctx context.Context, ev AlertEvent, since time.Time) bool {
+	if s.cfg.Incidents == nil {
+		return false
 	}
+	ok, err := s.cfg.Incidents.ResolvedSince(ctx, ev, since)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "ids: reading whether an incident was resolved", "err", err)
+		return false
+	}
+	return ok
 }
 
 // alertEvents describes the stored alerts for their incidents. The devices' names and findings are read once for all of them; an alert

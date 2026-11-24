@@ -15,6 +15,8 @@ const T = { timeout: 5000 }
 const IDENT = 'Device check: ports, services, software'
 const VULN = 'Vulnerability check: does a known exploit work'
 const SNMP = 'SNMP read: model and firmware'
+/** The vulnerability check button: named by what it checks ("Check 1 suspected finding"), or the general words before the count. */
+const VULN_BUTTON = /^(Run vulnerability checks now|Check \d+ (suspected|confirmed))/
 const run = (over: Partial<ScanRun>): ScanRun => ({
   id: 'run-nas', trigger: 'manual', trigger_note: null, started_at: '2026-11-17T03:18:00.000Z', started_by: 'admin@acme.example', ended_at: '2026-11-17T03:25:00.000Z',
   status: 'done', total: 1, done: 1, current: null, progress: null, results: [], matched: 0, stop_reason: null, identification: [], ...over,
@@ -37,8 +39,8 @@ describe('the device page says what each check does and when each last ran', () 
     renderApp('/devices/a-nas02')
     const identify = await screen.findByRole('button', { name: 'Check this device now' }, T)
     expect(identify).toHaveAccessibleDescription(/open ports, services, operating system and software versions\. Does not test whether a flaw can be exploited\. Usually 1 to 5 minutes\./)
-    const vuln = await screen.findByRole('button', { name: 'Run vulnerability checks now' }, T)
-    expect(vuln).toHaveAccessibleDescription(/exploited flaws this device may have.*patches nothing\. Usually 5 to 15 minutes\./)
+    const vuln = await screen.findByRole('button', { name: 'Check 1 confirmed finding again' }, T)
+    expect(vuln).toHaveAccessibleDescription(/patches nothing\. Usually 5 to 15 minutes\./)
     // not on the page by default: the words are only in the info icons and the descriptions
     for (const el of screen.getAllByText(/Usually 1 to 5 minutes/)) expect(el.closest('[hidden]')).not.toBeNull()
     expect(screen.queryByText('When Vedette last checked this device and what it found.')).toBeNull()
@@ -78,11 +80,11 @@ describe('the device page says what each check does and when each last ran', () 
     const ident = await screen.findByRole('group', { name: IDENT }, T)
     // the hints name the two buttons, which this device's page shows
     expect(screen.getAllByRole('button', { name: 'Check this device now' }).length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('button', { name: 'Run vulnerability checks now' }).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: VULN_BUTTON }).length).toBeGreaterThan(0)
     expect(within(ident).getByText('Never')).toBeInTheDocument()
     expect(within(ident).getByText(/Check this device now” above runs it/)).toBeInTheDocument()
     expect(within(ident).queryByRole('link', { name: 'Open the run' })).toBeNull()
-    expect(within(screen.getByRole('group', { name: VULN })).getByText(/Run vulnerability checks now” above runs it/)).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: VULN })).getByText(/^“Check \d+ [^”]+” above runs it/)).toBeInTheDocument()
     const snmp = screen.getByRole('group', { name: SNMP })
     expect(within(snmp).getByText('Never')).toBeInTheDocument()
     expect(within(snmp).getByText(/once SNMP is set up on this device/)).toBeInTheDocument()
@@ -190,7 +192,7 @@ describe('Last checks never points at a button the device page does not show', (
     await vi.waitFor(() => expect(ident).toHaveTextContent('Network scan off: see Sources'), T)
     await vi.waitFor(() => expect(screen.getByRole('group', { name: VULN })).toHaveTextContent('Network scan off: see Sources'), T)
     expect(screen.queryAllByRole('button', { name: 'Check this device now' })).toHaveLength(0)
-    expect(screen.queryAllByRole('button', { name: 'Run vulnerability checks now' })).toHaveLength(0)
+    expect(screen.queryAllByRole('button', { name: VULN_BUTTON })).toHaveLength(0)
     expect(within(section).queryByText(/above/)).toBeNull()
   })
 
@@ -241,7 +243,7 @@ describe('Last checks never points at a button the device page does not show', (
     const section = await lastChecks()
     const vuln = await within(section).findByRole('group', { name: VULN }, T)
     expect(await within(vuln).findByRole('button', { name: 'About Never' }, T)).toHaveAccessibleDescription(/^No suspected finding on this device has a safe check: none exists for these 2 suspected CVEs/)
-    expect(within(section).queryByRole('button', { name: 'Run vulnerability checks now' })).toBeNull()
+    expect(within(section).queryByRole('button', { name: VULN_BUTTON })).toBeNull()
   })
 
   it('1 of 2 suspected findings has a safe check: the run is offered and the note says 1 of 2', async () => {
@@ -250,7 +252,7 @@ describe('Last checks never points at a button the device page does not show', (
     suspect(['CVE-2024-27834', CHECKABLE])
     renderApp('/devices/a-man1')
     const section = await lastChecks()
-    expect(await within(section).findByRole('button', { name: 'Run vulnerability checks now' }, T)).toHaveAccessibleDescription(/1 of 2 suspected findings can be checked\./)
+    expect(await within(section).findByRole('button', { name: 'Check 1 suspected finding' }, T)).toHaveAccessibleDescription(/^Runs the safe check of 1 of the 2 suspected findings, to confirm or rule it out\./)
   })
 
   it('every finding confirmed and none with a safe check: no run is offered, the note says why, the row never names the button', async () => {
@@ -260,7 +262,7 @@ describe('Last checks never points at a button the device page does not show', (
     renderApp('/devices/a-man1')
     const section = await lastChecks()
     expect(await within(section).findByText(/No suspected finding on this device has a safe check: nothing on it is suspected/, undefined, T)).toBeInTheDocument()
-    expect(within(section).queryByRole('button', { name: 'Run vulnerability checks now' })).toBeNull()
+    expect(within(section).queryByRole('button', { name: VULN_BUTTON })).toBeNull()
     expect(within(await within(section).findByRole('group', { name: VULN }, T)).getByText('Never')).toBeInTheDocument()
   })
 
@@ -270,7 +272,31 @@ describe('Last checks never points at a button the device page does not show', (
     suspect([CHECKABLE], 'device')
     renderApp('/devices/a-man1')
     const section = await lastChecks()
-    expect(await within(section).findByRole('button', { name: 'Run vulnerability checks now' }, T)).toHaveAccessibleDescription(/1 confirmed finding can be checked again, to see whether a fix holds\./)
+    expect(await within(section).findByRole('button', { name: 'Check 1 confirmed finding again' }, T)).toHaveAccessibleDescription(/Runs the safe check of 1 confirmed finding again, to see whether a fix holds\./)
+  })
+
+  // The button's words follow what the run will do: never "to confirm or rule them out" when no suspected finding can be checked
+  it('only confirmed findings can be checked again: the words say that, never "confirm or rule them out"', async () => {
+    noRuns()
+    addDevice({ ip: '192.168.10.241' })
+    suspect([CHECKABLE], 'device')
+    openOn('a-man1', 'CVE-2024-27834', 5)
+    openOn('a-man1', 'CVE-2026-97229', 6)
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    const button = await within(section).findByRole('button', { name: 'Check 1 confirmed finding again' }, T)
+    expect(button).toHaveAccessibleDescription(/^Runs the safe check of 1 confirmed finding again, to see whether a fix holds\. None of the 2 suspected findings has a safe check\. Identifies the device first; patches nothing\. Usually 5 to 15 minutes\.$/)
+    expect(button).not.toHaveAccessibleDescription(/rule them out/)
+  })
+
+  it('suspected findings with a safe check: the words name how many the run confirms or rules out', async () => {
+    noRuns()
+    addDevice({ ip: '192.168.10.241' })
+    suspect([CHECKABLE])
+    renderApp('/devices/a-man1')
+    const section = await lastChecks()
+    expect(await within(section).findByRole('button', { name: 'Check 1 suspected finding' }, T))
+      .toHaveAccessibleDescription(/^Runs the safe check of the suspected finding, to confirm or rule it out\. Identifies the device first; patches nothing\. Usually 5 to 15 minutes\.$/)
   })
 
   it('a device not approved yet: the device check button is there and named, the vulnerability check says to approve it', async () => {
@@ -280,7 +306,7 @@ describe('Last checks never points at a button the device page does not show', (
     const section = await lastChecks()
     await within(section).findByRole('group', { name: VULN }, T)
     expect(await within(section).findAllByText('Not approved in the inventory, so not scanned', undefined, T)).toHaveLength(1)
-    expect(screen.queryAllByRole('button', { name: 'Run vulnerability checks now' })).toHaveLength(0)
+    expect(screen.queryAllByRole('button', { name: VULN_BUTTON })).toHaveLength(0)
     expect(screen.getAllByRole('button', { name: 'Check this device now' }).length).toBeGreaterThan(0)
     expect(within(screen.getByRole('group', { name: IDENT })).getByText(/Check this device now” above runs it/)).toBeInTheDocument()
   })
@@ -292,7 +318,7 @@ describe('Last checks never points at a button the device page does not show', (
     const section = await lastChecks()
     const ident = await within(section).findByRole('group', { name: IDENT }, T)
     expect(within(ident).getByText(/^An admin can run it with “Check this device now” above\./)).toBeInTheDocument()
-    expect(within(screen.getByRole('group', { name: VULN })).getByText(/^An operator can run it with “Run vulnerability checks now” above\./)).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: VULN })).getByText(/^An operator can run it with “Check \d+ [^”]+” above\./)).toBeInTheDocument()
   })
 
   it('an operator runs the vulnerability checks, an admin the device check', async () => {
@@ -302,7 +328,7 @@ describe('Last checks never points at a button the device page does not show', (
     const section = await lastChecks()
     const ident = await within(section).findByRole('group', { name: IDENT }, T)
     expect(within(ident).getByText(/^An admin can run it with “Check this device now” above\./)).toBeInTheDocument()
-    expect(within(screen.getByRole('group', { name: VULN })).getByText(/^“Run vulnerability checks now” above runs it\./)).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: VULN })).getByText(/^“Check \d+ [^”]+” above runs it\./)).toBeInTheDocument()
   })
 
   it('the scanner not available: the vulnerability row says why, as the button does, not that the button runs it', async () => {

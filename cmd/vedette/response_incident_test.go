@@ -31,7 +31,7 @@ func TestResponseIncidentRespondReadsTheTrapSource(t *testing.T) {
 				svc, port = nil, nil
 			}
 			exec(`INSERT INTO hp_hits (id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, events)
-				VALUES (?, ?, ?, ?, 'SSH', ?, ?, ?, '', '192.168.142.240', 'FILESRV-OLD', '[]')`, id, ts, kind, svc, port, src, store == "test")
+				VALUES (?, ?, ?, ?, 'SSH', ?, ?, ?, '', '10.142.0.240', 'FILESRV-OLD', '[]')`, id, ts, kind, svc, port, src, store == "test")
 		}
 		ev := honeypot.HitEventData{ID: id, TS: ts, Kind: honeypot.HitKind(kind), Service: "ssh", Port: 22, SrcIP: src, Label: "SSH", Decoy: "FILESRV-OLD"}
 		if err := s.d.Bus.Publish(ctx, events.Event{Name: honeypot.EventHitCreated, Data: ev}); err != nil {
@@ -49,8 +49,8 @@ func TestResponseIncidentRespondReadsTheTrapSource(t *testing.T) {
 	if c, v := s.do("POST", "/response/incidents/"+pub+"/request", "operator", `{"action_id":"blocklist_add"}`); c != 201 || v["source"] != "person" || v["status"] != "pending" || v["proposal_id"] != "incident:"+pub {
 		t.Fatalf("ask: %d %v", c, v)
 	}
-	hit("hit-lan", "192.168.142.145")
-	lan := incidentOf(s, "192.168.142.145")
+	hit("hit-lan", "10.142.0.145")
+	lan := incidentOf(s, "10.142.0.145")
 	_, v = s.do("GET", "/response/incidents/"+lan, "viewer", "")
 	if src, _ := v["source"].(map[string]any); src["scope"] != "lan" || len(v["options"].([]any)) != 0 {
 		t.Fatalf("LAN panel: %v", v)
@@ -63,22 +63,22 @@ func TestResponseIncidentRespondReadsTheTrapSource(t *testing.T) {
 	}
 
 	// A test hit and a hit that is gone name no source.
-	hitAt("hit-test", "192.168.142.160", "service", "test", "2026-11-13T07:14:00.000Z")
-	hitAt("hit-gone", "192.168.142.161", "service", "none", "2026-11-13T07:14:00.000Z")
-	for _, src := range []string{"192.168.142.160", "192.168.142.161"} {
+	hitAt("hit-test", "10.142.0.160", "service", "test", "2026-11-13T07:14:00.000Z")
+	hitAt("hit-gone", "10.142.0.161", "service", "none", "2026-11-13T07:14:00.000Z")
+	for _, src := range []string{"10.142.0.160", "10.142.0.161"} {
 		if _, v := s.do("GET", "/response/incidents/"+incidentOf(s, src), "viewer", ""); v["source"] != nil {
 			t.Errorf("%s: a source from a test or missing hit: %v", src, v)
 		}
 	}
 
 	// A scan of attempts only: its source may be forged. A service hit of the same source within the hour confirms it.
-	hitAt("hit-scan", "192.168.142.170", "scan", "real", "2026-11-13T07:20:00.000Z")
-	scan := incidentOf(s, "192.168.142.170")
+	hitAt("hit-scan", "10.142.0.170", "scan", "real", "2026-11-13T07:20:00.000Z")
+	scan := incidentOf(s, "10.142.0.170")
 	if _, v := s.do("GET", "/response/incidents/"+scan, "viewer", ""); v["note"] == nil || !strings.Contains(v["note"].(string), "forged") {
 		t.Fatalf("unconfirmed scan: %v", v)
 	}
 	exec(`INSERT INTO hp_hits (id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, events)
-		VALUES ('hit-scan-conn', '2026-11-13T07:50:00.000Z', 'service', 'smb', 'SMB', 445, '192.168.142.170', 0, '', '192.168.142.241', 'NAS', '[]')`)
+		VALUES ('hit-scan-conn', '2026-11-13T07:50:00.000Z', 'service', 'smb', 'SMB', 445, '10.142.0.170', 0, '', '10.142.0.241', 'NAS', '[]')`)
 	if _, v := s.do("GET", "/response/incidents/"+scan, "viewer", ""); v["note"] != nil {
 		t.Fatalf("a scan whose source completed a connection is still unconfirmed: %v", v)
 	}
@@ -86,7 +86,7 @@ func TestResponseIncidentRespondReadsTheTrapSource(t *testing.T) {
 	// A UDP trap hit (one datagram, no handshake) is as forgeable as a scan: nothing is offered for its source, and
 	// it does not confirm a scan of the same source. A TCP connection of that source near it confirms both.
 	exec(`INSERT INTO hp_hits (id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, events, handshake)
-		VALUES ('hit-udp', '2026-11-13T08:00:00.000Z', 'service', 'tftp', 'TFTP', 69, '203.0.113.20', 0, '', '192.168.142.241', 'NAS', '[]', 0)`)
+		VALUES ('hit-udp', '2026-11-13T08:00:00.000Z', 'service', 'tftp', 'TFTP', 69, '203.0.113.20', 0, '', '10.142.0.241', 'NAS', '[]', 0)`)
 	if err := s.d.Bus.Publish(ctx, events.Event{Name: honeypot.EventHitCreated, Data: honeypot.HitEventData{ID: "hit-udp", TS: "2026-11-13T08:00:00.000Z",
 		Kind: honeypot.KindService, Service: "tftp", Port: 69, SrcIP: "203.0.113.20", Label: "TFTP", Decoy: "NAS", Unconfirmed: true}}); err != nil {
 		t.Fatal(err)
@@ -98,22 +98,22 @@ func TestResponseIncidentRespondReadsTheTrapSource(t *testing.T) {
 	if c, v := s.do("POST", "/response/incidents/"+udp+"/request", "operator", `{"action_id":"blocklist_add"}`); c != 409 || v["error"].(map[string]any)["code"] != "source_unconfirmed" {
 		t.Fatalf("block a UDP hit's source: %d %v", c, v)
 	}
-	hitAt("hit-scan-udp", "192.168.142.171", "scan", "real", "2026-11-13T08:10:00.000Z")
+	hitAt("hit-scan-udp", "10.142.0.171", "scan", "real", "2026-11-13T08:10:00.000Z")
 	exec(`INSERT INTO hp_hits (id, ts, kind, service, label, port, src_ip, is_test, excerpt, trap_ip, trap_hostname, events, handshake)
-		VALUES ('hit-udp-2', '2026-11-13T08:11:00.000Z', 'service', 'ntp', 'NTP', 123, '192.168.142.171', 0, '', '192.168.142.241', 'NAS', '[]', 0)`)
-	if _, v := s.do("GET", "/response/incidents/"+incidentOf(s, "192.168.142.171"), "viewer", ""); v["note"] == nil {
+		VALUES ('hit-udp-2', '2026-11-13T08:11:00.000Z', 'service', 'ntp', 'NTP', 123, '10.142.0.171', 0, '', '10.142.0.241', 'NAS', '[]', 0)`)
+	if _, v := s.do("GET", "/response/incidents/"+incidentOf(s, "10.142.0.171"), "viewer", ""); v["note"] == nil {
 		t.Fatalf("a UDP line confirms a scan's source: %v", v)
 	}
 
 	// A source that is one of the box's decoys is never-touch through the real BoxAddrs (the honeypot's applied Trap IPs).
-	exec(`INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('applied', '["192.168.142.240"]', '2026-11-13T07:00:00.000Z', 'system')`)
+	exec(`INSERT INTO hp_config (key, value, updated_at, updated_by) VALUES ('applied', '["10.142.0.240"]', '2026-11-13T07:00:00.000Z', 'system')`)
 	if c, v := s.do("PUT", "/response/catalog/fgt_addrgrp_add", "admin", `{"enabled":true}`); c != 200 {
 		t.Fatalf("enable the action: %d %v", c, v)
 	}
-	hit("hit-decoy", "192.168.142.240")
-	_, v = s.do("GET", "/response/incidents/"+incidentOf(s, "192.168.142.240"), "viewer", "")
+	hit("hit-decoy", "10.142.0.240")
+	_, v = s.do("GET", "/response/incidents/"+incidentOf(s, "10.142.0.240"), "viewer", "")
 	opts, _ := v["options"].([]any)
-	if len(opts) != 1 || !strings.Contains(fmt.Sprint(opts[0].(map[string]any)["why"]), "matches the never-touch list (This Vedette box, 192.168.142.240)") {
+	if len(opts) != 1 || !strings.Contains(fmt.Sprint(opts[0].(map[string]any)["why"]), "matches the never-touch list (This Vedette box, 10.142.0.240)") {
 		t.Fatalf("decoy source: %v", v)
 	}
 }

@@ -238,10 +238,10 @@ func (s *Service) lineGroups(ctx context.Context, f ListFilter) ([]lineGroup, er
 	return out, nil
 }
 
-// combine sets the block of each group: the groups of one device, line, product and fix kind with a version combine when every
-// version of them compares with the others; otherwise (or for a kind without a version) a group is its own block. Updates to
-// different releases get the lowest release that clears every CVE (planReleases, with j's ranges; nil: each CVE cleared by its own
-// fix and any later release), the other kinds the newest version of them.
+// combine sets the block of each group: the groups of one device, line, product and fix kind with a version combine, except a group
+// whose version does not compare with the others (orderable), which is its own block, as is a group of a kind without a version.
+// Updates to different releases get the lowest release that clears every CVE (planReleases, with j's ranges; nil: each CVE cleared by
+// its own fix and any later release), the other kinds the newest version of them.
 func combine(gs []lineGroup, j *releaseJudge) {
 	type bucket struct {
 		asset, software, product string
@@ -257,23 +257,15 @@ func combine(gs []lineGroup, j *releaseJudge) {
 		idx[b] = append(idx[b], i)
 	}
 	for b, is := range idx {
+		is = orderable(gs, is, b.kind, b.product)
 		if len(is) < 2 {
 			continue
 		}
 		top := is[0]
-		ok := true
 		for _, i := range is[1:] {
-			c, same := compareFix(b.kind, b.product, gs[i].Fix.Version, gs[top].Fix.Version)
-			if !same {
-				ok = false
-				break
-			}
-			if c > 0 {
+			if c, _ := compareFix(b.kind, b.product, gs[i].Fix.Version, gs[top].Fix.Version); c > 0 {
 				top = i
 			}
-		}
-		if !ok {
-			continue
 		}
 		if b.kind == FixUpdate && slices.ContainsFunc(is, func(i int) bool { return gs[i].Fix.Version != gs[top].Fix.Version }) {
 			planReleases(gs, is, b.product, j)
@@ -285,6 +277,59 @@ func combine(gs []lineGroup, j *releaseJudge) {
 			gs[i].Block, gs[i].BlockFix = key, fx
 		}
 	}
+}
+
+// orderable is the groups of is whose versions all compare with one another. A version that does not compare with some others (a
+// release name no order reads) is left out, the one with the most such others first, so it stays its own block while the rest still
+// combine into one: one unreadable fix never splits a line into a step per CVE.
+func orderable(gs []lineGroup, is []int, kind FixKind, product string) []int {
+	// Each pair is compared once (a line may hold hundreds of fixes): bad[a][b] says the two do not compare, n[a] how many others a
+	// does not compare with among those still in.
+	bad := make([][]bool, len(is))
+	n := make([]int, len(is))
+	for a := range is {
+		bad[a] = make([]bool, len(is))
+	}
+	for a := range is {
+		for b := a + 1; b < len(is); b++ {
+			if _, ok := compareFix(kind, product, gs[is[a]].Fix.Version, gs[is[b]].Fix.Version); !ok {
+				bad[a][b], bad[b][a] = true, true
+				n[a]++
+				n[b]++
+			}
+		}
+	}
+	in := make([]bool, len(is))
+	for a := range in {
+		in[a] = true
+	}
+	for left := len(is); left > 1; left-- {
+		worst, most := -1, 0
+		for a := range is {
+			if !in[a] {
+				continue
+			}
+			if n[a] > most || n[a] == most && n[a] > 0 && gs[is[a]].Fix.Version > gs[is[worst]].Fix.Version {
+				worst, most = a, n[a]
+			}
+		}
+		if most == 0 {
+			break
+		}
+		in[worst] = false
+		for b := range is {
+			if in[b] && bad[worst][b] {
+				n[b]--
+			}
+		}
+	}
+	var out []int
+	for a, i := range is {
+		if in[a] {
+			out = append(out, i)
+		}
+	}
+	return out
 }
 
 // blockKey is the key a block of product's fix is listed under: the fix key of the catalogue's product, so lines that name one product
@@ -705,6 +750,7 @@ type FixDeviceJS struct {
 	Status   string         `json:"status"`
 	Severity SeverityCounts `json:"severity"`
 	Findings int            `json:"findings"`
+	Others   []fixJS        `json:"others"`
 	urgency  int
 }
 
@@ -784,6 +830,13 @@ func (s *Service) byFix(ctx context.Context, f ListFilter, p Page) (FixCards, er
 		}
 	}
 	blocks := blocksOf(gs)
+	lineBlocks := map[[2]string][]lineGroup{} // (device, line) -> its groups with rows the list selects: the line's steps
+	for _, g := range gs {
+		if g.N > 0 && g.Software != "" {
+			k := [2]string{g.Asset, g.Software}
+			lineBlocks[k] = append(lineBlocks[k], g)
+		}
+	}
 	fs, err := s.listRows(ctx, f, keys(assets))
 	if err != nil {
 		return FixCards{}, err
@@ -822,7 +875,8 @@ func (s *Service) byFix(ctx context.Context, f ListFilter, p Page) (FixCards, er
 		}
 		for _, dvs := range per[a.key] {
 			dc := causeOf(dvs)
-			d := FixDeviceJS{Device: deviceRef(dc.Device), Software: softwareRef(dc), Status: LayerCode(dc.Finding.Urgency), Findings: len(dvs), urgency: dc.Finding.Urgency}
+			d := FixDeviceJS{Device: deviceRef(dc.Device), Software: softwareRef(dc), Status: LayerCode(dc.Finding.Urgency), Findings: len(dvs), urgency: dc.Finding.Urgency,
+				Others: otherSteps(lineBlocks[[2]string{dc.Finding.AssetID, dc.Finding.SoftwareID}], a.key, productName(dc.Finding, dc.Line))}
 			if d.Software != nil && dc.Line != nil && dc.Line.Version != "" {
 				v := dc.Line.Version
 				d.Software.Version = &v
@@ -845,6 +899,31 @@ func (s *Service) byFix(ctx context.Context, f ListFilter, p Page) (FixCards, er
 	}
 	s.linkAdvisories(ctx, fxs, causes)
 	return out, nil
+}
+
+// otherSteps are the fixes of a line's other steps than the one keyed key (combine keeps a line in several steps only when no single
+// release is known to clear every CVE of it, or some CVEs name no release), the most findings first; empty when the step is the line's
+// only one. By fix says so on the device's row, so the reader knows the steps belong together.
+func otherSteps(line []lineGroup, key, product string) []fixJS {
+	n := map[string]int{}
+	var bs []lineGroup
+	for _, g := range line {
+		if g.Block == key {
+			continue
+		}
+		if _, ok := n[g.Block]; !ok {
+			bs = append(bs, g)
+		}
+		n[g.Block] += g.N
+	}
+	slices.SortFunc(bs, func(a, b lineGroup) int {
+		return cmp.Or(cmp.Compare(n[b.Block], n[a.Block]), cmp.Compare(a.Block, b.Block))
+	})
+	out := make([]fixJS, 0, len(bs))
+	for _, g := range bs {
+		out = append(out, fixOf(g.Block, g.BlockFix, product))
+	}
+	return out
 }
 
 // FixFindings are the open findings of one device listed under one fix on one software line ("" for the block on no line): its block

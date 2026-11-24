@@ -1,6 +1,6 @@
-// Contract tests of the host framework (modules/host/CONTRACT.md). WP-07a covers the invariants
+// Contract tests of the host framework (modules/host/CONTRACT.md). The framework tests cover the invariants
 // the framework itself owns: INV-1, INV-2, INV-3, INV-4, INV-12, POST-4, FORBID-1 and FORBID-2.
-// The command-specific ones (INV-5..11, POST-1..3, FORBID-3..6) come with the commands in WP-07b.
+// The command-specific ones (INV-5..11, POST-1..3, FORBID-3..6) come with the commands in.
 package host_test
 
 import (
@@ -42,12 +42,12 @@ const (
 )
 
 // documentedCommands is the command list of docs/specs/host-api.md section 6 that is implemented.
-// WP-07b implements the OS, backup, log and network and decoy commands (contract_os_test.go checks the list
+// The host implements the OS, backup, log and network and decoy commands (contract_os_test.go checks the list
 // against the spec); the container commands follow in later slices. Sorted.
 var documentedCommands = []string{
 	"backup.create", "backup.purge", "backup.restore", "container.pull", "container.rollback", "container.start", "container.stop", "decoy_ip.add", "decoy_ip.remove", "decoy_ip.set_ports",
 	"exposure.fence_check", "exposure.token", "exposure.token_forget", "greenbone.down", "greenbone.sync_feed", "greenbone.up", "host.self_update", "logs.export", "net.apply", "net.confirm", "net.revert",
-	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel", "zap.baseline",
+	"os.auto_security.set", "os.check", "os.install", "os.reboot", "os.reboot.cancel", "os.timezone.set", "zap.baseline",
 }
 
 // netArgs mirrors how a real command validates: name regex, netip for IPs, enum, HH:MM.

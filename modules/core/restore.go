@@ -225,7 +225,7 @@ func (h *OSHandlers) startRestore(ctx context.Context, c caller, admin bool, b a
 	var snap snapshot
 	var run api.Run
 	keepSnap := false
-	err := h.act(ctx, c, admin, "data.restore", b.BackupID, "backup of "+b.CreatedAt.UTC().Format(time.RFC3339), func(id, actor string) error {
+	err := h.act(ctx, c, admin, "data.restore", b.BackupID, "backup of "+h.auditStamp(ctx, b.CreatedAt), func(id, actor string) error {
 		var err error
 		if snap, err = h.snaps.create(ctx, true); err != nil {
 			return h.snapshotFailure(ctx, err)

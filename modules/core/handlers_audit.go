@@ -15,10 +15,12 @@ import (
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
+	hostapi "github.com/knt048/vedette/host/api"
 )
 
 // Error codes of the general settings and the audit filters. The audit ones are invalid_from and invalid_to
@@ -71,7 +73,7 @@ func (h *APIHandlers) orgLocation(ctx context.Context) (*time.Location, error) {
 	if err != nil {
 		return nil, fmt.Errorf("core: read org: %w", err)
 	}
-	loc, err := time.LoadLocation(org.Timezone)
+	loc, err := time.LoadLocation(orgtime.CanonicalZone(org.Timezone))
 	if err != nil {
 		return time.UTC, nil // a zone stored by an older build that this one does not know
 	}
@@ -288,7 +290,7 @@ func (h *APIHandlers) CoreGetCoreAuditExport(ctx context.Context, params oas.Cor
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		x.W.Header().Set("Content-Disposition", `attachment; filename="vedette-audit.csv"`)
 		x.W.Header().Set("Cache-Control", "no-store")
-		x.SetContentType("text/csv; charset=utf-8") // the generated file encoder says octet-stream (API_CONVENTIONS §7)
+		x.SetContentType("text/csv; charset=utf-8") // the generated file encoder says octet-stream (API_CONVENTIONS §11)
 	}
 	return oas.CoreGetCoreAuditExportOK{Data: &auditCSV{ctx: ctx, q: coredb.New(h.db.Reader()), f: f, next: top + 1, buf: *bytes.NewBufferString(auditExportBOM + auditExportTitle + "\r\n")}}, nil
 }
@@ -341,21 +343,38 @@ func csvCell(v string) string {
 	return v
 }
 
-// CoreGetCoreGeneral implements GET /core/general (viewer).
+// generalView is the body of GET and PUT /core/general.
+type generalView struct {
+	Name       string     `json:"name"`
+	Timezone   string     `json:"timezone"`
+	OsTimeZone osZoneSync `json:"os_time_zone"`
+}
+
+// osZoneState is the operating system side of the zone for General (INV-43).
+func (h *APIHandlers) osZoneState(ctx context.Context) osZoneSync {
+	if h.osZone == nil {
+		return zoneSyncOf(osZoneNotManaged, "", "This install has no system helper, so the operating system keeps its own time zone. Vedette writes every time in the zone above.")
+	}
+	return h.osZone.zoneSync(ctx)
+}
+
+// CoreGetCoreGeneral implements GET /core/general (viewer): the name, the box's zone under its current name, and whether the
+// operating system uses it too.
 func (h *APIHandlers) CoreGetCoreGeneral(ctx context.Context) (*oas.CoreGetCoreGeneralOK, error) {
 	org, err := coredb.New(h.db.Reader()).GetOrg(ctx)
 	if isNoRows(err) {
-		return &oas.CoreGetCoreGeneralOK{Name: "", Timezone: defaultTimezone}, nil
+		return encode[oas.CoreGetCoreGeneralOK](generalView{Timezone: defaultTimezone, OsTimeZone: h.osZoneState(ctx)})
 	}
 	if err != nil {
 		return nil, fmt.Errorf("core: read org: %w", err)
 	}
-	return &oas.CoreGetCoreGeneralOK{Name: org.Name, Timezone: org.Timezone}, nil
+	return encode[oas.CoreGetCoreGeneralOK](generalView{Name: org.Name, Timezone: orgtime.CanonicalZone(org.Timezone), OsTimeZone: h.osZoneState(ctx)})
 }
 
-// OrgTimeZone returns the IANA name of the organization time zone (core_org.timezone; the column default
-// before first-run setup has made the row). It is the neutral read other modules reach through cmd/vedette
-// (notify quiet hours, the scan window of sensor-active); nobody else reads core_org.
+// OrgTimeZone returns the IANA name of the organization time zone, the box's one zone (core_org.timezone, under its current name:
+// a zone an older version stored as Asia/Saigon reads as Asia/Ho_Chi_Minh; the column default before first-run setup has made the
+// row). It is the neutral read other modules reach through cmd/vedette (notify quiet hours, the scan window of sensor-active);
+// nobody else reads core_org.
 func (h *APIHandlers) OrgTimeZone(ctx context.Context) (string, error) {
 	org, err := coredb.New(h.db.Reader()).GetOrg(ctx)
 	if isNoRows(err) {
@@ -364,7 +383,7 @@ func (h *APIHandlers) OrgTimeZone(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("core: read org: %w", err)
 	}
-	return org.Timezone, nil
+	return orgtime.CanonicalZone(org.Timezone), nil
 }
 
 // OrgName returns the organization name of the general settings ("" before first-run setup). The reports module offers it as the
@@ -380,9 +399,10 @@ func (h *APIHandlers) OrgName(ctx context.Context) (string, error) {
 	return org.Name, nil
 }
 
-// validTimezone accepts an IANA zone name this box knows (the compiled-in list of time/tzdata).
+// validTimezone accepts an IANA zone name this box knows (the compiled-in list of time/tzdata) that has the shape the system helper
+// takes (hostapi.ValidZoneName: no path, no posix/ or right/ tree).
 func validTimezone(s string) bool {
-	if s == "" || len(s) > 64 || s == "Local" {
+	if !hostapi.ValidZoneName(s) || s == "Local" {
 		return false
 	}
 	_, err := time.LoadLocation(s)
@@ -402,26 +422,32 @@ func (h *APIHandlers) CorePutCoreGeneral(ctx context.Context, req *oas.CorePutCo
 	if !validTimezone(req.Timezone) {
 		return nil, apierr.New(400, CodeInvalidTimezone, "The time zone is not a known name, for example Asia/Ho_Chi_Minh or UTC.")
 	}
+	tz := orgtime.CanonicalZone(req.Timezone) // one zone, one name: an old alias is kept under its current name
 	err = h.db.Write(ctx, func(tx *sql.Tx) error {
 		if err := h.auth.CheckAdmin(ctx, tx, c.ID, c.SessionID); err != nil {
 			return err
 		}
-		n, err := coredb.New(tx).UpdateOrgGeneral(ctx, coredb.UpdateOrgGeneralParams{Name: name, Timezone: req.Timezone})
+		n, err := coredb.New(tx).UpdateOrgGeneral(ctx, coredb.UpdateOrgGeneralParams{Name: name, Timezone: tz})
 		if err != nil {
 			return fmt.Errorf("core: update org: %w", err)
 		}
 		if n == 0 {
 			return apierr.NotFound() // setup has not run: nothing to change
 		}
-		if _, err := schedule.Recompute(ctx, tx); err != nil { // the schedules read in the organization's zone move with it
+		if _, err := schedule.Recompute(ctx, tx); err != nil { // every schedule is read in the box's zone and moves with it
 			return err
 		}
-		return h.audit.Append(ctx, tx, audit.Entry{User: c.Email, Action: "core.general", Target: name, Detail: "time zone " + req.Timezone})
+		return h.audit.Append(ctx, tx, audit.Entry{User: c.Email, Action: "core.general", Target: name, Detail: "time zone " + tz})
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &oas.CorePutCoreGeneralOK{Name: name, Timezone: req.Timezone}, nil
+	// The operating system follows (INV-43). The save stands whatever the helper answers; os_time_zone says how it went.
+	osz := h.osZoneState(ctx)
+	if h.osZone != nil {
+		osz = h.osZone.zoneSaved(ctx, c.Email)
+	}
+	return encode[oas.CorePutCoreGeneralOK](generalView{Name: name, Timezone: tz, OsTimeZone: osz})
 }
 
 // AuditNamer names the devices and findings that audit rows refer to by id: a device by its host name, else its IP, else what

@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-10 (INV-15, INV-16, FORBID-5): AI proposals through the Go port as the service identity ai:response.
+// INV-15, INV-16, FORBID-5: AI proposals through the Go port as the service identity ai:response.
 
 // evFake stands in for the logs and core/conn lookups. Ids it does not know are not found.
 type evFake struct {

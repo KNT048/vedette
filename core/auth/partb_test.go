@@ -10,7 +10,7 @@ import (
 	"github.com/knt048/vedette/core/auth/authtest"
 )
 
-// WP-04b1 carry-over: a dead session gets 401 from DisableTwoFA whatever else is stale (the order of
+// A dead session gets 401 from DisableTwoFA whatever else is stale (the order of
 // ChangeOwnPassword): the caller is refused before the password proof is compared. An administrator's reset
 // that lands while the password is being checked ends the session AND moves the password; the answer must be
 // 401, not wrong_password.
@@ -45,7 +45,7 @@ func TestDisableTwoFARefusesADeadSessionBeforeTheStalePassword(t *testing.T) {
 	}
 }
 
-// WP-04b1 carry-over: an administrator whose session ended, who was disabled or who was demoted changes
+// An administrator whose session ended, who was disabled or who was demoted changes
 // nothing: ResetPassword, UpdateUser and ResetTwoFA re-check the actor in the transaction that writes.
 func TestAdminActionsRecheckTheActorInTheWriteTransaction(t *testing.T) {
 	t.Parallel()

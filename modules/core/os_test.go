@@ -823,12 +823,13 @@ func TestOSSocketThatDoesNotAnswerIs503HostUnreachable(t *testing.T) {
 func TestBackupDownloadStreamsTheHostsFileAndHoldsNoKey(t *testing.T) {
 	t.Parallel()
 	e := newOSEnv(t, osOpts{})
+	e.setZone("Asia/Ho_Chi_Minh") // the file is named by the organization's day and time to the minute: two the same day differ
 	before := len(e.actions())
 	r := e.admin.get("/core/data/backup")
 	if r.Code != 200 {
 		t.Fatalf("backup = %d %s", r.Code, r.Raw)
 	}
-	if cd := r.Header.Get("Content-Disposition"); cd != `attachment; filename="vedette-backup-2026-11-09.tar.gz"` {
+	if cd := r.Header.Get("Content-Disposition"); cd != `attachment; filename="vedette-backup-2026-11-09-1900.tar.gz"` {
 		t.Errorf("Content-Disposition = %q", cd)
 	}
 	if cl := r.Header.Get("Content-Length"); cl == "" || cl != strconv.Itoa(len(r.Raw)) {

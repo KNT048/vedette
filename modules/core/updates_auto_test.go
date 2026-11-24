@@ -14,6 +14,28 @@ import (
 // cmd/vedette schedules every core.UpdateTickEvery.
 
 // auditUsers lists the user of every audit row of action, oldest first.
+// auditDetails is the detail of every audit row of action, oldest first.
+func (e *osEnv) auditDetails(action string) []string {
+	e.t.Helper()
+	rows, err := e.env.DB.Reader().QueryContext(e.t.Context(), "SELECT coalesce(detail, '') FROM core_audit WHERE action = ? ORDER BY seq", action)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []string
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			e.t.Fatal(err)
+		}
+		out = append(out, d)
+	}
+	if err := rows.Err(); err != nil {
+		e.t.Fatal(err)
+	}
+	return out
+}
+
 func (e *osEnv) auditUsers(action string) []string {
 	e.t.Helper()
 	rows, err := e.env.DB.Reader().QueryContext(e.t.Context(), "SELECT user FROM core_audit WHERE action = ? ORDER BY seq", action)

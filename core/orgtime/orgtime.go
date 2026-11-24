@@ -72,6 +72,10 @@ func ClockZone(t time.Time, loc *time.Location) string {
 // ISODay is the day of instant t in loc as the API sends a date: "2026-11-15".
 func ISODay(t time.Time, loc *time.Location) string { return in(t, loc).Format(time.DateOnly) }
 
+// FileStamp is instant t in loc to the minute for a file name, with no character a file system refuses: "2026-11-15-0411".
+// Two files made the same day get different names, and they sort by time.
+func FileStamp(t time.Time, loc *time.Location) string { return in(t, loc).Format("2006-01-02-1504") }
+
 // CalendarDay writes a calendar day stored at 00:00 UTC (see the package comment): "15 Nov 2026".
 func CalendarDay(d time.Time) string { return d.UTC().Format(dayLayout) }
 

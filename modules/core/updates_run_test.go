@@ -484,6 +484,33 @@ func TestUpdateApplyPullsEveryServiceSwitchesCoreFirstThenTheOthers(t *testing.T
 	eventuallyOS(t, "the snapshot to be removed", func() bool { return len(e.snapshotDirs()) == 0 })
 }
 
+// A service that runs is switched with core even when its unit has lost [Install] (enabled=false): leaving it out kept the
+// scanner on the old image until its module's guard noticed. One that is installed but stopped is still only pulled.
+func TestUpdateApplySwitchesARunningServiceWithoutInstall(t *testing.T) {
+	t.Parallel()
+	st := lockstep("1.3.0", "1.2.0")
+	for i := range st.Services {
+		switch st.Services[i].Service {
+		case api.ServiceScan:
+			st.Services[i].Enabled, st.Services[i].UnitState = false, api.UnitActive
+		case api.ServiceHoneypot:
+			st.Services[i].UnitState = api.UnitInactive
+		}
+	}
+	e, fh := newRunEnv(t, st, "1.3.0", true)
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	if run := endedRun(t, e); run["status"] != "done" {
+		t.Fatalf("run = %v", run)
+	}
+	want := []string{"pull core 1.4.0", "pull sensor 1.4.0", "pull honeypot 1.4.0", "pull scan 1.4.0", "start core 1.4.0 snap", "start sensor 1.4.0", "start scan 1.4.0"}
+	if got := fh.callList(); !slices.Equal(got, want) {
+		t.Errorf("calls = %q, want %q", got, want)
+	}
+	if a := e.auditDetails("update.apply"); len(a) != 1 || !strings.Contains(a[0], "pulled but not started (off): honeypot") || strings.Contains(a[0], "scan") {
+		t.Errorf("update.apply detail = %q, want only the honeypot named as off", a)
+	}
+}
+
 // core's own switch restarts core: the next process (the new release) finds the stored run, asks the host about the
 // stored run id, switches the other services only then (the host judges them by core taking their heartbeat)
 // and settles it once, with the user who started it.
@@ -525,6 +552,18 @@ func TestUpdateRunIsCarriedOnAfterCoreRestarts(t *testing.T) {
 	}
 	// The snapshot is removed just after the end is stored, so the run can read done a moment before.
 	eventuallyOS(t, "the snapshot to be removed", func() bool { return len(e.snapshotDirs()) == 0 })
+
+	// One update has one time: the version in use was installed when the update ended (the history row and the run's end),
+	// not whenever core's process last started (a later restart of core moves nothing).
+	e.clock.Advance(15 * time.Minute)
+	e.handler.Close()
+	e.handler = e.start(t, "1.4.0")
+	s := e.admin.get("/core/updates").JSON
+	h0 := s["history"].([]any)[0].(map[string]any)
+	sw := s["components"].([]any)[0].(map[string]any)
+	if r := s["run"].(map[string]any); sw["id"] != "software" || sw["installed_at"] != h0["ts"] || r["finished_at"] != h0["ts"] {
+		t.Errorf("software installed_at = %v, run finished_at = %v, history ts = %v: want one time", sw["installed_at"], r["finished_at"], h0["ts"])
+	}
 }
 
 // After a restart, a switch of core that the host never took is not sent again: the run stops, and no other service

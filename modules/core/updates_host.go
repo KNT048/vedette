@@ -91,17 +91,23 @@ func hostFileOf(m *release.Manifest, arch string) *release.HostFile {
 // hostComponentOf is the System helper row of the page: never rolled back by hand (previous null). installed_at is
 // the history entry that brought this version, or this process's start (core has no better record).
 func hostComponentOf(info api.Info, hist []updateHistoryView, started time.Time) updateComponentView {
-	c := updateComponentView{ID: hostComponent, Kind: "software", Version: info.HostVersion, InstalledAt: started, Signature: "unsigned"}
+	c := updateComponentView{ID: hostComponent, Kind: "software", Version: info.HostVersion, InstalledAt: installedAt(hist, hostComponent, info.HostVersion, started), Signature: "unsigned"}
 	if _, err := release.CompareVersions(info.HostVersion, info.HostVersion); err == nil {
 		c.Signature = "valid" // install.sh and host.self_update install only a package whose hash a signed document names
 	}
+	return c
+}
+
+// installedAt is when the component got the version it runs: the newest history entry that brought it there (the end of
+// that update or rollback, the same time the run and the history show), else started (installed by install.sh, or the
+// entry is older than the history keeps). A restart of core is not an install.
+func installedAt(hist []updateHistoryView, component, version string, started time.Time) time.Time {
 	for _, e := range hist {
-		if e.Component == hostComponent && e.To == info.HostVersion {
-			c.InstalledAt = e.TS
-			break
+		if e.Component == component && e.To == version {
+			return e.TS
 		}
 	}
-	return c
+	return started
 }
 
 // planHost puts the host step first when the release brings a newer helper. A helper without host.self_update

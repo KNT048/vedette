@@ -437,6 +437,24 @@ func (s *Store) recordUnread(ctx context.Context) (int, error) {
 	return n, nil
 }
 
+// recordOwnUnread counts the CVEs only this box's own lists or signals keep (keepSetSQL but not publicListedSQL: a custom list's entry, a
+// signal the box builds) whose record was never read and that no by-ID ask brings (not published since cutoff, the window's start):
+// their record comes only from a read of the whole list (recordsOwn). An ID that is not a CVE ID never counts (nothing would stamp it).
+func (s *Store) recordOwnUnread(ctx context.Context, cutoff time.Time) (int, error) {
+	own, err := stringSet(ctx, s.db.Reader(), `SELECT k.cve FROM (`+keepSetSQL+`) k LEFT JOIN feeds_cve c ON c.cve = k.cve
+WHERE c.record_at IS NULL AND (c.published IS NULL OR c.published < ?) AND k.cve NOT IN (`+publicListedSQL+`)`, store.FormatTS(cutoff))
+	if err != nil {
+		return 0, fmt.Errorf("feeds: CVE records of own lists: %w", err)
+	}
+	n := 0
+	for cve := range own {
+		if cveRE.MatchString(cve) {
+			n++
+		}
+	}
+	return n, nil
+}
+
 // recordWaiting is the record_at of a CVE whose record changed in a day's last hour that no archive of changes held, and that is never
 // asked for by ID (only this box keeps it): the stored record is older than the source's; the next read of the whole list replaces it.
 // A real read time is never this one.

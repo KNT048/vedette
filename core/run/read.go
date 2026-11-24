@@ -251,7 +251,8 @@ func (m *Manager) getTx(ctx context.Context, q querier, id string) (Run, error) 
 // for a run a person started (trigger manual), its queue time when it was not resumed by a person since. began is the first start of
 // the dispatcher after that ask (zero while it has not started since). Both are zero when no person asked for the run. It is read from
 // the database, so it holds across a restart: a kind that lets a person's run go outside its usual hours (a LAN sweep outside the
-// scan window) keeps doing so after the box restarts. A person's ask older than the run's log (MaxLogLines, KeepLog) is not found.
+// scan window) keeps doing so after the box restarts. A person's Resume older than the run's log (MaxLogLines, KeepLog) is not
+// found; a run a person started and nobody resumed counts from its stored start, which outlives its "Started" line.
 func (m *Manager) Asked(ctx context.Context, r Run) (asked, began time.Time, err error) {
 	db := m.cfg.DB.Reader()
 	var after int64
@@ -273,15 +274,20 @@ func (m *Manager) Asked(ctx context.Context, r Run) (asked, began time.Time, err
 	default:
 		return time.Time{}, time.Time{}, fmt.Errorf("run: asked: %w", err)
 	}
-	err = db.QueryRowContext(ctx, `SELECT ts FROM core_run_log WHERE run_id = ? AND id > ? AND text IN (?, ?) ORDER BY id LIMIT 1`,
-		r.ID, after, LineStarted, LineResumed).Scan(&ts)
-	switch {
-	case errors.Is(err, sql.ErrNoRows) && after == 0 && r.StartedAt != nil: // the start line is past the log's limits: the run's own start
+	if after == 0 { // nobody resumed it: its first turn, which is its stored start (the log may have lost its "Started" line)
+		if r.StartedAt == nil {
+			return asked, time.Time{}, nil
+		}
 		ts = *r.StartedAt
-	case errors.Is(err, sql.ErrNoRows):
-		return asked, time.Time{}, nil
-	case err != nil:
-		return time.Time{}, time.Time{}, fmt.Errorf("run: asked: %w", err)
+	} else {
+		err = db.QueryRowContext(ctx, `SELECT ts FROM core_run_log WHERE run_id = ? AND id > ? AND text IN (?, ?) ORDER BY id LIMIT 1`,
+			r.ID, after, LineStarted, LineResumed).Scan(&ts)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return asked, time.Time{}, nil
+		case err != nil:
+			return time.Time{}, time.Time{}, fmt.Errorf("run: asked: %w", err)
+		}
 	}
 	if began, err = time.Parse(time.RFC3339Nano, ts); err != nil {
 		return time.Time{}, time.Time{}, fmt.Errorf("run: asked: %w", err)

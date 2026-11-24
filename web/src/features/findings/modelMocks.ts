@@ -205,7 +205,11 @@ function handledList(p: URLSearchParams): HandledList {
   const l = rows().filter((r) => r.state === 'handled' && !isIgnored(r.asset_id) && matches(r, q) && (!res || res.includes(r.resolution!)) && (!device || r.asset_id === device)
     && (!from || r.resolved_at! >= from) && (!to || r.resolved_at! <= to))
     .sort((a, b) => b.resolved_at!.localeCompare(a.resolved_at!) || a.id.localeCompare(b.id))
-  return { items: slice(l.map((r): HandledRow => ({ id: r.id, cve: r.cve, device: deviceRef(r.asset), software: r.software, status: r.resolution!, severity: severityOf(r.cve), handled: view(r).handled! }))), total: l.length }
+  // Vedette's corrections of its own match are left out unless asked for, and counted either way (the backend's HandledFilter.Corrections)
+  const correction = (r: (typeof l)[number]) => r.via === 'data_corrected' && r.resolved_by === 'system'
+  const corrections = l.filter(correction).length
+  const shown = p.get('corrections') === 'true' ? l : l.filter((r) => !correction(r))
+  return { items: slice(shown.map((r): HandledRow => ({ id: r.id, cve: r.cve, device: deviceRef(r.asset), software: r.software, status: r.resolution!, severity: severityOf(r.cve), handled: view(r).handled! }))), total: shown.length, corrections }
 }
 
 export function overview(): Overview {

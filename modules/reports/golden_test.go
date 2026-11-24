@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -460,5 +461,36 @@ func TestDocumentDetectionOfManyDevicesSaysHowMany(t *testing.T) {
 		if d.DeviceCount != want {
 			t.Errorf("%s: device count %d, want %d", d.Kind, d.DeviceCount, want)
 		}
+	}
+}
+
+// A report lists 100 open rows at most. Each group's header counts the group's open findings, listed or not ("70 of 147 shown"), and
+// New counts the findings still open among all the new ones, not among the rows listed. Measured on a box: "Juniper EX4200: 70
+// findings" for a device with 147 open, and "342 findings · 100 of them are still open" with 335 open.
+func TestDocumentCountsWholeGroupsBeyondTheListedRows(t *testing.T) {
+	t.Parallel()
+	var fs []FindingView
+	add := func(n int, d DeviceRef, urgency int, status string) {
+		for range n {
+			i := len(fs)
+			fs = append(fs, FindingView{ID: fmt.Sprintf("f-%03d", i), CVE: fmt.Sprintf("CVE-2026-9%04d", i), Device: d, Product: "nginx", Status: status, Urgency: urgency,
+				Severity: sev("high", 7.5), Verification: byBanner, Fix: fix("update", "nginx", "1.31.9"), FirstSeen: at("2026-11-06T09:00:00Z"),
+				Events: []FindingEvent{created("2026-11-06T09:00:00Z")}})
+		}
+	}
+	other := devWeb
+	other.ID, other.Name = "a-switch", "switch-01"
+	add(70, devWeb, 2, "exploited")
+	add(80, other, 5, "update_recommended")
+	doc := buildDocument(docInput{def: defaultDefinition(), now: t0, loc: time.UTC, findings: fs})
+	totals := map[string][2]int{}
+	for _, g := range doc.Open.Groups {
+		totals[g.Key] = [2]int{len(g.Items), g.Total}
+	}
+	if totals[devWeb.ID] != [2]int{70, 70} || totals["a-switch"] != [2]int{30, 80} {
+		t.Errorf("group rows/totals = %v, want web 70/70 and switch 30 of 80", totals)
+	}
+	if doc.New.Total != 150 || doc.New.Open != 150 || len(doc.New.Items) != MaxRows {
+		t.Errorf("new = total %d, open %d, listed %d; want 150, 150, %d", doc.New.Total, doc.New.Open, len(doc.New.Items), MaxRows)
 	}
 }

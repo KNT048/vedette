@@ -84,6 +84,9 @@ describe('reports: the security report (S-REP-1)', () => {
       expect(d.new!.total).toBe(s.new)
       expect(d.handled!.totals.reduce((n, x) => n + x.n, 0)).toBe(s.handled)
       expect(d.new!.items.some((f) => f.status === 'patched')).toBe(true) // new in the period and already handled counts as new
+      // each group counts its whole open list and new counts what is still open of all of it, never the rows listed
+      expect(d.open!.groups.reduce((n, g) => n + (g.total ?? 0), 0)).toBe(d.open!.total)
+      expect(d.new!.open).toBe(d.new!.items.filter((f) => !['patched', 'mitigated', 'accepted', 'not_relevant', 'false_positive'].includes(f.status)).length)
     }
   })
 

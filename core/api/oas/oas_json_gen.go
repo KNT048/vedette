@@ -177365,6 +177365,10 @@ func (s *FindingsGetFindingsHandledOK) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsHandledOK) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("corrections")
+		e.Int(s.Corrections)
+	}
+	{
 		e.FieldStart("items")
 		e.ArrStart()
 		for _, elem := range s.Items {
@@ -177378,9 +177382,10 @@ func (s *FindingsGetFindingsHandledOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsHandledOK = [2]string{
-	0: "items",
-	1: "total",
+var jsonFieldsNameOfFindingsGetFindingsHandledOK = [3]string{
+	0: "corrections",
+	1: "items",
+	2: "total",
 }
 
 // Decode decodes FindingsGetFindingsHandledOK from json.
@@ -177392,8 +177397,20 @@ func (s *FindingsGetFindingsHandledOK) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "items":
+		case "corrections":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Corrections = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"corrections\"")
+			}
+		case "items":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				s.Items = make([]FindingsGetFindingsHandledOKItemsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -177411,7 +177428,7 @@ func (s *FindingsGetFindingsHandledOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"items\"")
 			}
 		case "total":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.Total = int(v)
@@ -177432,7 +177449,7 @@ func (s *FindingsGetFindingsHandledOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -328102,15 +328119,22 @@ func (s *ReportsGetReportsDocumentOKNew) encodeFields(e *jx.Encoder) {
 		e.Int(s.More)
 	}
 	{
+		if s.Open.Set {
+			e.FieldStart("open")
+			s.Open.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("total")
 		e.Int(s.Total)
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKNew = [3]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKNew = [4]string{
 	0: "items",
 	1: "more",
-	2: "total",
+	2: "open",
+	3: "total",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKNew from json.
@@ -328152,8 +328176,18 @@ func (s *ReportsGetReportsDocumentOKNew) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
+		case "open":
+			if err := func() error {
+				s.Open.Reset()
+				if err := s.Open.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open\"")
+			}
 		case "total":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Total = int(v)
@@ -328174,7 +328208,7 @@ func (s *ReportsGetReportsDocumentOKNew) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -329774,13 +329808,20 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItem) encodeFields(e *jx.Encoder) 
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
+	{
+		if s.Total.Set {
+			e.FieldStart("total")
+			s.Total.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsDocumentOKOpenGroupsItem = [4]string{
+var jsonFieldsNameOfReportsGetReportsDocumentOKOpenGroupsItem = [5]string{
 	0: "items",
 	1: "key",
 	2: "label",
 	3: "status",
+	4: "total",
 }
 
 // Decode decodes ReportsGetReportsDocumentOKOpenGroupsItem from json.
@@ -329843,6 +329884,16 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItem) Decode(d *jx.Decoder) error 
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"status\"")
+			}
+		case "total":
+			if err := func() error {
+				s.Total.Reset()
+				if err := s.Total.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"total\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -337531,15 +337582,22 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNew) encodeFields(e *jx.Encoder) {
 		e.Int(s.More)
 	}
 	{
+		if s.Open.Set {
+			e.FieldStart("open")
+			s.Open.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("total")
 		e.Int(s.Total)
 	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentNew = [3]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentNew = [4]string{
 	0: "items",
 	1: "more",
-	2: "total",
+	2: "open",
+	3: "total",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentNew from json.
@@ -337581,8 +337639,18 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNew) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"more\"")
 			}
+		case "open":
+			if err := func() error {
+				s.Open.Reset()
+				if err := s.Open.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open\"")
+			}
 		case "total":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Int()
 				s.Total = int(v)
@@ -337603,7 +337671,7 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNew) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -339203,13 +339271,20 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) encodeFields(e *jx.
 		e.FieldStart("status")
 		s.Status.Encode(e)
 	}
+	{
+		if s.Total.Set {
+			e.FieldStart("total")
+			s.Total.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentOpenGroupsItem = [4]string{
+var jsonFieldsNameOfReportsGetReportsHistoryIDOKDocumentOpenGroupsItem = [5]string{
 	0: "items",
 	1: "key",
 	2: "label",
 	3: "status",
+	4: "total",
 }
 
 // Decode decodes ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem from json.
@@ -339272,6 +339347,16 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItem) Decode(d *jx.Decode
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"status\"")
+			}
+		case "total":
+			if err := func() error {
+				s.Total.Reset()
+				if err := s.Total.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"total\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)

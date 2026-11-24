@@ -8116,13 +8116,14 @@ func decodeFindingsGetFindingsFixesParams(args [0]string, argsEscaped bool, r *h
 
 // FindingsGetFindingsHandledParams is parameters of findings_get_findings_handled operation.
 type FindingsGetFindingsHandledParams struct {
-	Q          OptString   `json:",omitempty,omitzero"`
-	Resolution OptString   `json:",omitempty,omitzero"`
-	Device     OptString   `json:",omitempty,omitzero"`
-	From       OptDateTime `json:",omitempty,omitzero"`
-	To         OptDateTime `json:",omitempty,omitzero"`
-	Offset     OptString   `json:",omitempty,omitzero"`
-	Limit      OptString   `json:",omitempty,omitzero"`
+	Q           OptString                                `json:",omitempty,omitzero"`
+	Resolution  OptString                                `json:",omitempty,omitzero"`
+	Device      OptString                                `json:",omitempty,omitzero"`
+	From        OptDateTime                              `json:",omitempty,omitzero"`
+	To          OptDateTime                              `json:",omitempty,omitzero"`
+	Corrections OptFindingsGetFindingsHandledCorrections `json:",omitempty,omitzero"`
+	Offset      OptString                                `json:",omitempty,omitzero"`
+	Limit       OptString                                `json:",omitempty,omitzero"`
 }
 
 func unpackFindingsGetFindingsHandledParams(packed middleware.Parameters) (params FindingsGetFindingsHandledParams) {
@@ -8169,6 +8170,15 @@ func unpackFindingsGetFindingsHandledParams(packed middleware.Parameters) (param
 		}
 		if v, ok := packed[key]; ok {
 			params.To = v.(OptDateTime)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "corrections",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Corrections = v.(OptFindingsGetFindingsHandledCorrections)
 		}
 	}
 	{
@@ -8476,6 +8486,62 @@ func decodeFindingsGetFindingsHandledParams(args [0]string, argsEscaped bool, r 
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "to",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: corrections.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "corrections",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotCorrectionsVal FindingsGetFindingsHandledCorrections
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotCorrectionsVal = FindingsGetFindingsHandledCorrections(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Corrections.SetTo(paramsDotCorrectionsVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Corrections.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "corrections",
 			In:   "query",
 			Err:  err,
 		}

@@ -1,6 +1,7 @@
 // Mock of the periodic security report: a fixed sample network, filtered and grouped by the saved options the way the
 // server builds the document (one query per section on the shared read models). Clean install: an empty network.
 import { dataMode } from '@/mocks/db'
+import { OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
 import { orgStore } from '@/mocks/stores'
 import { dayOf } from '@/lib/format'
 import type {
@@ -150,16 +151,19 @@ export function buildDocument(def: ReportDefinition, at = Date.now()): ReportDoc
       ...(leftOut ? { not_relevant_left_out: leftOut } : {}) }
   }
   if (s.open) {
-    const groups = new Map<string, { key: string; label: string; status: OpenStatus; items: ReportFinding[] }>()
+    const groups = new Map<string, { key: string; label: string; status: OpenStatus; items: ReportFinding[]; total: number }>()
+    const keyOf = (f: ReportFinding) => o.grouping === 'device' ? f.device.id : f.cve
+    const totals = new Map<string, number>()
+    for (const f of open) totals.set(keyOf(f), (totals.get(keyOf(f)) ?? 0) + 1) // the whole group, listed or not
     for (const f of open.slice(0, groupLimit)) {
-      const key = o.grouping === 'device' ? f.device.id : f.cve
-      const g = groups.get(key) ?? { key, label: o.grouping === 'device' ? f.device.name : f.cve, status: f.status as OpenStatus, items: [] }
+      const key = keyOf(f)
+      const g = groups.get(key) ?? { key, label: o.grouping === 'device' ? f.device.name : f.cve, status: f.status as OpenStatus, items: [], total: totals.get(key) ?? 0 }
       g.items.push(f)
       groups.set(key, g)
     }
     doc.open = { grouping: o.grouping, total: open.length, groups: [...groups.values()], more: Math.max(0, open.length - groupLimit) }
   }
-  if (s.new) doc.new = { total: fresh.length, items: fresh.slice(0, groupLimit), more: Math.max(0, fresh.length - groupLimit) }
+  if (s.new) doc.new = { total: fresh.length, open: fresh.filter((f) => (OPEN_FINDING_STATUSES as readonly string[]).includes(f.status)).length, items: fresh.slice(0, groupLimit), more: Math.max(0, fresh.length - groupLimit) }
   if (s.exposure) doc.exposure = { module_on: true, targets: clean ? [] : TARGETS(end) }
   if (s.detections) {
     doc.detections = clean ? { module_on: true, by_kind: [], top: [] } : {

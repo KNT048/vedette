@@ -417,6 +417,7 @@ export const HandledRow = z.object({
 export const HandledList = z.object({
   items: z.array(HandledRow).describe('The newest handling first'),
   total: z.number().int().min(0),
+  corrections: z.number().int().min(0).describe('Findings Vedette closed itself because it corrected its own match (via data_corrected, by Vedette) that the same filters select: left out unless corrections=true, counted here either way'),
 })
 export const FindingEvent = z.object({
   ts: iso,
@@ -511,7 +512,9 @@ export const endpoints = defineEndpoints([
     query: z.object({ device: deviceFilter, offset, limit }), response: AnsweredList, example: { query: {} } },
   { method: 'get', path: '/findings/handled', summary: 'Handled: findings by handling, the newest first, each with who and how', stories: ['S-MIT-1'], role: 'viewer',
     query: z.object({ q, resolution: z.string().max(200).optional().describe('Comma-separated resolutions; an unknown value: 400 bad_filter'), device: deviceFilter,
-      from: iso.optional().describe('Handled at or after'), to: iso.optional().describe('Handled at or before'), offset, limit }),
+      from: iso.optional().describe('Handled at or after'), to: iso.optional().describe('Handled at or before'),
+      corrections: z.enum(['true', 'false']).optional().describe('true: also list the findings Vedette closed because it corrected its own match (never a flaw that was handled); default false: leave them out, as the report does'),
+      offset, limit }),
     response: HandledList, example: { query: {} } },
   { method: 'get', path: '/findings/overview', summary: 'Home: open findings and devices by status, the queue length, the fixes to do first and the 30-day trend', stories: ['S-MIT-1', 'S-UI-1'], role: 'viewer',
     response: Overview },

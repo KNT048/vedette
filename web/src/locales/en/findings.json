@@ -547,7 +547,13 @@
     "findings_one": "{{count}} finding",
     "findings_other": "{{count}} findings",
     "handleOf": "Mark as handled: {{fix}} on {{device}}",
-    "gone": "{{device}} has no open finding for this fix any more."
+    "gone": "{{device}} has no open finding for this fix any more.",
+    "order": "Do them in this order: the most urgent first, then the fix that clears the most findings.",
+    "step": "Step {{n}}: {{fix}}",
+    "nowOn": "Now on {{versions}}",
+    "machines_one": "(possibly {{count}} machine)",
+    "machines_other": "(possibly {{count}} machines)",
+    "sameAs": "Possibly the same device as {{names}}"
   },
   "handle": {
     "title": "Mark as handled",
@@ -684,7 +690,14 @@
     "reopenTitle": "Reopen {{cve}} on {{device}}",
     "reopenBody": "It goes back to the open findings with the status its urgency gives it.",
     "reopenNote": "Why? (optional)",
-    "reopened": "Reopened {{cve}} on {{device}}."
+    "reopened": "Reopened {{cve}} on {{device}}.",
+    "correctionsHidden_one": "{{count}} finding Vedette closed because it corrected its own match is not listed: it was never a flaw on the device.",
+    "correctionsHidden_other": "{{count}} findings Vedette closed because it corrected its own match are not listed: they were never a flaw on the device.",
+    "correctionsShown_one": "Listed with {{count}} finding Vedette closed because it corrected its own match.",
+    "correctionsShown_other": "Listed with {{count}} findings Vedette closed because it corrected its own match.",
+    "showCorrections_one": "Show it",
+    "showCorrections_other": "Show them",
+    "hideCorrections": "Hide them"
   },
   "brief": {
     "title": "About {{cve}}",

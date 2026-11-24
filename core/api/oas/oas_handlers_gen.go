@@ -26476,6 +26476,10 @@ func (s *Server) handleFindingsGetFindingsHandledRequest(args [0]string, argsEsc
 					In:   "query",
 				}: params.To,
 				{
+					Name: "corrections",
+					In:   "query",
+				}: params.Corrections,
+				{
 					Name: "offset",
 					In:   "query",
 				}: params.Offset,

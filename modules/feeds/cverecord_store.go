@@ -326,7 +326,7 @@ func KEVRecordRows(ranges []Range, vendor, product string) ([]AffectedRow, strin
 	}
 	var rows []AffectedRow
 	complete := true
-	for _, r := range ranges {
+	for _, r := range CutCatchAll(ranges) { // a record's "every later version" row stops at the trains it names fixes for
 		if r.Origin != OriginCNA || r.Vendor != k.Vendor || r.Product != k.Product || r.Part != "" || !r.Generic() || recordSkipped(r) {
 			continue
 		}

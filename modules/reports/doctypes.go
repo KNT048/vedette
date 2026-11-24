@@ -217,7 +217,8 @@ type OpenGroup struct {
 	Status string          `json:"status"`
 	Items  []ReportFinding `json:"items"`
 	// Total is every open finding of the group, listed or not (a report lists 100 rows at most): the header says "70 of 147 shown".
-	Total int `json:"total"`
+	// Absent in a report sent before it was counted (a group always has one), so the page counts the listed rows there.
+	Total int `json:"total,omitempty"`
 }
 
 // ReportOpen is section 3.
@@ -231,7 +232,7 @@ type ReportOpen struct {
 // ReportNew is section 4.
 type ReportNew struct {
 	Total int             `json:"total"`
-	Open  int             `json:"open"` // of Total, the findings still open at the end of the period, listed or not
+	Open  int             `json:"open,omitempty"` // of Total, still open at the end of the period, listed or not; absent when none or sent before
 	Items []ReportFinding `json:"items"`
 	More  int             `json:"more"`
 }

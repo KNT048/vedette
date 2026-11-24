@@ -59,3 +59,36 @@ func TestRecordCatchAll_NginxGetsItsTrainFix(t *testing.T) {
 		}
 	}
 }
+
+// A record that says what an unlisted version is (defaultStatus unaffected) lists one train with its fix, 1.30.0 before 1.30.6, and
+// "1.25.0, every later version". The record calls 1.31.9 affected and names no fix for its train; cutting the open row at 1.30.0 must
+// not turn that into proof that 1.31.9 is unaffected. Read through the exploited-list view (KEVRecordRows, rangesFrom), a device on
+// 1.31.9 that already has the finding keeps it open (a question, as before the cut), while 1.30.5 still gets its train's fix.
+func TestRecordCatchAll_UnlistedTrainAboveTheCutIsNoProof(t *testing.T) {
+	t.Parallel()
+	row := func(start, end string) feeds.Range {
+		return feeds.Range{CVE: "CVE-2026-10001", Origin: feeds.OriginCNA, Vendor: "f5", Product: "nginxopensource",
+			StartIncl: start, EndExcl: end, VersionType: "custom", DefaultStatus: feeds.DefaultUnaffected}
+	}
+	rows, src := feeds.KEVRecordRows([]feeds.Range{row("1.30.0", "1.30.6"), row("1.25.0", "")}, "F5", "NGINX Open Source")
+	v := findings.Vuln{CVE: "CVE-2026-10001", NVDAnswered: true, Origin: feeds.OriginCNA, RangesFrom: rangesFrom(src)}
+	for _, r := range rows {
+		v.Affected = append(v.Affected, findings.Affected{CPE: r.CPE,
+			Range: findings.VersionRange{StartIncl: r.StartIncl, StartExcl: r.StartExcl, EndIncl: r.EndIncl, EndExcl: r.EndExcl}})
+	}
+	device := func(version string) (findings.Asset, findings.Software) {
+		s := findings.Software{ID: "s-nginx", Display: "nginx", Vendor: "F5", Product: "nginx", Version: version,
+			CPE: "cpe:2.3:a:f5:nginx:" + version + ":*:*:*:*:*:*:*", Source: "manual"}
+		return findings.Asset{ID: "web-01", Name: "web-01", Software: []findings.Software{s}}, s
+	}
+	at := time.Date(2026, 11, 24, 0, 0, 0, 0, time.UTC)
+	have := map[string]bool{"CVE-2026-10001": true}
+	a, _ := device("1.31.9")
+	if res := findings.MatchAsset(a, []findings.Vuln{v}, have, at); len(res.NotAffected) != 0 {
+		t.Errorf("nginx 1.31.9 (a train the record names no fix for) closed as not affected: %s", res.NotAffected[0].Evidence.Summary)
+	}
+	a, s := device("1.30.5")
+	if fx := findings.FixOf(a, s, v); fx.Kind != findings.FixUpdate || fx.Version != "1.30.6" {
+		t.Errorf("nginx 1.30.5: fix %+v, want update to 1.30.6", fx)
+	}
+}

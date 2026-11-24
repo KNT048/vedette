@@ -323,7 +323,8 @@ Device lifecycle participants (section 5.9) run for switched-off modules too.
   deleted after 400 days; log lines after 30 days, at most 2,000 per run.
 - **Schedules** (`core/schedule`). Every schedule a person sets is one `core_schedule` row, keyed by the owner (`owner_key`, for
   example `reports.def:<id>`). `next_due_at` is written by `core/schedule` in the same write as any rule change or run, from the
-  pure function `schedule.Next`. Housekeeping ticks stay in `core/jobs` and are not schedules.
+  pure function `schedule.Due`, which keeps the times the person asked for when a start is moved or late. Housekeeping ticks
+  stay in `core/jobs` and are not schedules.
 
 ### 5.8 Self-check of data invariants
 

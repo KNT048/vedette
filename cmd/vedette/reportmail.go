@@ -336,7 +336,11 @@ func reportExposureSection(x *reports.ReportExposure, loc *time.Location) channe
 		if proof == "" {
 			proof = t.Proof
 		}
-		targets.Rows = append(targets.Rows, []string{name, proof, scan, reportPlural(open, "open port", "open ports"), strings.Join(issues, "; ")})
+		portsCell := reportPlural(open, "open port", "open ports")
+		if t.LastScanAt == nil && open == 0 && len(t.Issues) == 0 { // nothing was checked: no count to claim
+			portsCell, issues = "–", []string{"–"}
+		}
+		targets.Rows = append(targets.Rows, []string{name, proof, scan, portsCell, strings.Join(issues, "; ")})
 	}
 	sec.Tables = append(sec.Tables, targets, ports)
 	return sec
@@ -380,6 +384,9 @@ func reportDetectionsSection(x *reports.ReportDetections, loc *time.Location) ch
 			dev := ""
 			if t.Device != nil {
 				dev = reportDevice(*t.Device)
+			}
+			if t.DeviceCount > 1 { // one device's name would read as the only one
+				dev = fmt.Sprintf("%d devices", t.DeviceCount)
 			}
 			top.Rows = append(top.Rows, []string{reportKind(t.Kind) + ": " + t.Title, t.Severity, dev, reportDay(t.At, loc)})
 		}

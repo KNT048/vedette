@@ -536,6 +536,9 @@ func detectionsOf(in docInput, o Options) *ReportDetections {
 			sev = "info"
 		}
 		d := TopDetection{Kind: t.Kind, Title: clip(t.Title, 200), Severity: sev, At: ts(t.At)}
+		if t.Devices > 1 {
+			d.DeviceCount = t.Devices
+		}
 		if t.DeviceID != "" {
 			dev, known := devs[t.DeviceID]
 			ref := DeviceRef{ID: t.DeviceID, Name: clip(cmp.Or(dev.Name, t.DeviceName, t.DeviceID), 200), Added: !known || dev.Approved}

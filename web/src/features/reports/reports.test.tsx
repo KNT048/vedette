@@ -56,12 +56,17 @@ describe('reports: the security report (S-REP-1)', () => {
     renderApp('/reports')
     const exp = within(await report()).getByRole('region', { name: 'External exposure' })
     expect(within(exp).getAllByText('example.com').length).toBeGreaterThan(0)
-    expect(within(exp).getAllByText('Ownership proved')).toHaveLength(2)
+    expect(within(exp).getAllByText('Ownership proved')).toHaveLength(3)
     expect(within(exp).getByText('Covered by example.com')).toBeInTheDocument()
     expect(within(exp).getByText('Opened')).toBeInTheDocument()
     expect(within(exp).getByText('Closed')).toBeInTheDocument()
     expect(within(exp).getByText(/^Expires /)).toBeInTheDocument() // the certificate that ends in 12 days
     expect(within(exp).getByText('ZAP')).toBeInTheDocument()
+    // a target not scanned yet claims no count of ports or issues
+    const unscanned = within(exp).getByText('198.51.100.30').closest('.report-block') as HTMLElement
+    expect(within(unscanned).getByText('Not scanned yet')).toBeInTheDocument()
+    expect(within(unscanned).queryByText(/open port/i)).toBeNull()
+    expect(within(unscanned).queryByText('No open issue')).toBeNull()
   })
 
   it('Handled says how many not-relevant closures it leaves out, so its count is not read as a smaller Findings › Handled', async () => {

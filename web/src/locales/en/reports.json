@@ -465,6 +465,8 @@
     "firstMore_other": "{{list}} and {{count}} more devices",
     "firstFindings_one": "{{count}} finding",
     "firstFindings_other": "{{count}} findings",
+    "devicesN_one": "{{count}} device",
+    "devicesN_other": "{{count}} devices",
     "reopenedSince": "Open again since {{day}}: listed in Still open too.",
     "handledTotals": "Handled, by outcome",
     "handledNone": "Nothing was handled in this period.",

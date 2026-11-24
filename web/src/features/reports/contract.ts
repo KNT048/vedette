@@ -209,7 +209,9 @@ export const ReportExposure = z.object({
 export const ReportDetections = z.object({
   module_on: z.boolean().describe('False when detection is off'),
   by_kind: z.array(z.object({ kind: DetectionKind, n: z.number().int(), last_at: iso })),
-  top: z.array(z.object({ kind: DetectionKind, title: z.string().max(200), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), device: DeviceRef.nullable(), at: iso })).max(5),
+  top: z.array(z.object({ kind: DetectionKind, title: z.string().max(200), severity: z.enum(['critical', 'high', 'medium', 'low', 'info']), device: DeviceRef.nullable(),
+    device_count: z.number().int().min(2).optional().describe('How many devices the incident names when more than one (device is the first); absent for one device and in reports sent before it existed'),
+    at: iso })).max(5),
 })
 export const ReportCoverage = z.object({
   devices: z.number().int(), with_agent: z.number().int(), not_added: z.number().int(),

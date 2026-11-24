@@ -77254,6 +77254,12 @@
                                   }
                                 ]
                               },
+                              "device_count": {
+                                "description": "How many devices the incident names when more than one (device is the first); absent for one device and in reports sent before it existed",
+                                "type": "integer",
+                                "minimum": 2,
+                                "maximum": 9007199254740991
+                              },
                               "at": {
                                 "type": "string",
                                 "format": "date-time",
@@ -79423,6 +79429,12 @@
                                         "type": "null"
                                       }
                                     ]
+                                  },
+                                  "device_count": {
+                                    "description": "How many devices the incident names when more than one (device is the first); absent for one device and in reports sent before it existed",
+                                    "type": "integer",
+                                    "minimum": 2,
+                                    "maximum": 9007199254740991
                                   },
                                   "at": {
                                     "type": "string",

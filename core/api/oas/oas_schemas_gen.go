@@ -206608,11 +206608,14 @@ func (s *ReportsGetReportsDocumentOKDetectionsByKindItemKind) UnmarshalText(data
 }
 
 type ReportsGetReportsDocumentOKDetectionsTopItem struct {
-	At       time.Time                                             `json:"at"`
-	Device   NilReportsGetReportsDocumentOKDetectionsTopItemDevice `json:"device"`
-	Kind     ReportsGetReportsDocumentOKDetectionsTopItemKind      `json:"kind"`
-	Severity ReportsGetReportsDocumentOKDetectionsTopItemSeverity  `json:"severity"`
-	Title    string                                                `json:"title"`
+	At     time.Time                                             `json:"at"`
+	Device NilReportsGetReportsDocumentOKDetectionsTopItemDevice `json:"device"`
+	// How many devices the incident names when more than one (device is the first); absent for one device
+	// and in reports sent before it existed.
+	DeviceCount OptInt                                               `json:"device_count"`
+	Kind        ReportsGetReportsDocumentOKDetectionsTopItemKind     `json:"kind"`
+	Severity    ReportsGetReportsDocumentOKDetectionsTopItemSeverity `json:"severity"`
+	Title       string                                               `json:"title"`
 }
 
 // GetAt returns the value of At.
@@ -206623,6 +206626,11 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetAt() time.Time {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetDevice() NilReportsGetReportsDocumentOKDetectionsTopItemDevice {
 	return s.Device
+}
+
+// GetDeviceCount returns the value of DeviceCount.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetDeviceCount() OptInt {
+	return s.DeviceCount
 }
 
 // GetKind returns the value of Kind.
@@ -206648,6 +206656,11 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetAt(val time.Time) {
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetDevice(val NilReportsGetReportsDocumentOKDetectionsTopItemDevice) {
 	s.Device = val
+}
+
+// SetDeviceCount sets the value of DeviceCount.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetDeviceCount(val OptInt) {
+	s.DeviceCount = val
 }
 
 // SetKind sets the value of Kind.
@@ -211782,11 +211795,14 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) Unmarshal
 }
 
 type ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem struct {
-	At       time.Time                                                      `json:"at"`
-	Device   NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice `json:"device"`
-	Kind     ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind      `json:"kind"`
-	Severity ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity  `json:"severity"`
-	Title    string                                                         `json:"title"`
+	At     time.Time                                                      `json:"at"`
+	Device NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice `json:"device"`
+	// How many devices the incident names when more than one (device is the first); absent for one device
+	// and in reports sent before it existed.
+	DeviceCount OptInt                                                        `json:"device_count"`
+	Kind        ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind     `json:"kind"`
+	Severity    ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity `json:"severity"`
+	Title       string                                                        `json:"title"`
 }
 
 // GetAt returns the value of At.
@@ -211797,6 +211813,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetAt() time.Tim
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetDevice() NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice {
 	return s.Device
+}
+
+// GetDeviceCount returns the value of DeviceCount.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetDeviceCount() OptInt {
+	return s.DeviceCount
 }
 
 // GetKind returns the value of Kind.
@@ -211822,6 +211843,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetAt(val time.T
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetDevice(val NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) {
 	s.Device = val
+}
+
+// SetDeviceCount sets the value of DeviceCount.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetDeviceCount(val OptInt) {
+	s.DeviceCount = val
 }
 
 // SetKind sets the value of Kind.

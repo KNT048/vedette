@@ -443,7 +443,7 @@ func (a reportsDetections) Period(ctx context.Context, from, to time.Time, top i
 	}
 	var tops []reports.Detection
 	for _, x := range p.Top {
-		tops = append(tops, reports.Detection{Kind: string(x.Kind), Title: x.Title, Severity: string(x.Severity), DeviceID: x.DeviceID, DeviceName: x.DeviceName, At: x.LastSeen})
+		tops = append(tops, reports.Detection{Kind: string(x.Kind), Title: x.Title, Severity: string(x.Severity), DeviceID: x.DeviceID, DeviceName: x.DeviceName, Devices: x.Devices, At: x.LastSeen})
 	}
 	return counts, tops, nil
 }

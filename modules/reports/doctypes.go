@@ -284,7 +284,10 @@ type TopDetection struct {
 	Title    string     `json:"title"`
 	Severity string     `json:"severity"`
 	Device   *DeviceRef `json:"device"`
-	At       string     `json:"at"`
+	// DeviceCount: how many devices the incident names when more than one (Device is the first by name), so the report says "12
+	// devices" instead of one device's name. Absent for one device, and in documents sent before it existed.
+	DeviceCount int    `json:"device_count,omitempty"`
+	At          string `json:"at"`
 }
 
 // ReportDetections is section 6.

@@ -383,3 +383,29 @@ func TestDocumentPeriodFollowsTheSchedule(t *testing.T) {
 		}
 	}
 }
+
+// An incident that names many devices (12 new devices found at once) is listed with their number, not with the first device's name
+// as if it were the only one.
+func TestDocumentDetectionOfManyDevicesSaysHowMany(t *testing.T) {
+	t.Parallel()
+	in := docInput{def: defaultDefinition(), now: t0, loc: time.UTC, devices: []Device{{ID: "a-dell", Name: "Dell", Approved: false}},
+		detections: detectionsIn{on: true, counts: []DetectionCount{{Kind: "unknown_device", N: 1, LastAt: at("2026-11-10T09:00:00Z")}},
+			top: []Detection{
+				{Kind: "unknown_device", Title: "12 new devices on the network", Severity: "medium", DeviceID: "a-dell", DeviceName: "Dell", Devices: 12, At: at("2026-11-10T09:00:00Z")},
+				{Kind: "trap", Title: "Trap touched", Severity: "high", DeviceID: "a-dell", DeviceName: "Dell", Devices: 1, At: at("2026-11-10T10:00:00Z")},
+			}}}
+	doc := buildDocument(in)
+	top := doc.Detections.Top
+	if len(top) != 2 {
+		t.Fatalf("top = %+v", top)
+	}
+	for _, d := range top {
+		want := 0
+		if d.Kind == "unknown_device" {
+			want = 12
+		}
+		if d.DeviceCount != want {
+			t.Errorf("%s: device count %d, want %d", d.Kind, d.DeviceCount, want)
+		}
+	}
+}

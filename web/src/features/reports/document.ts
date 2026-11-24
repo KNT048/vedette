@@ -90,6 +90,7 @@ const TARGETS = (end: number): ExposureTarget[] => [
   { target_id: 't-3', kind: 'ip', value: '198.51.100.20', parent: null, proof: 'proven', last_scan_at: new Date(end - 3 * DAY).toISOString(),
     services: [{ ip: '198.51.100.20', port: 500, proto: 'udp', name: 'isakmp', product: null, version: null, change: null, cert_expires_at: null }],
     issues: [] },
+  { target_id: 't-4', kind: 'ip', value: '198.51.100.30', parent: null, proof: 'proven', last_scan_at: null, services: [], issues: [] },
 ]
 
 const groupLimit = 100

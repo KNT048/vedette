@@ -354,6 +354,8 @@ function Target({ x, at }: { x: ExposureTarget; at: string }) {
   const open = x.services.filter((s) => s.change !== 'closed')
   const closed = x.services.length - open.length
   const issues = x.issues.filter((i) => i.open > 0)
+  // never scanned and nothing found: no count of ports or issues to claim, only that it was not scanned yet
+  const unchecked = !x.last_scan_at && !x.services.length && !issues.length
   const proofTone = x.proof === 'proven' || x.proof === 'covered' ? 'ok' : x.proof === 'not_current' ? 'warn' : 'danger'
   return (
     <div className="report-block grid gap-3 rounded-md border border-rule bg-surface p-4">
@@ -362,13 +364,13 @@ function Target({ x, at }: { x: ExposureTarget; at: string }) {
           <p className="flex flex-wrap items-baseline gap-2"><span className="font-mono text-sm font-semibold">{x.value}</span>{x.parent ? <span className="text-meta text-muted">{t('sr.under', { parent: x.parent })}</span> : null}</p>
           <p className="text-meta text-muted">
             {x.last_scan_at ? t('sr.lastScan', { time: fmtDateTime(x.last_scan_at) }) : t('sr.neverScanned')}
-            {' · '}{open.length ? t('sr.ports', { count: open.length }) : t('sr.portsNone')}
+            {unchecked ? null : <>{' · '}{open.length ? t('sr.ports', { count: open.length }) : t('sr.portsNone')}</>}
             {closed ? ` · ${t('sr.closedCount', { count: closed })}` : ''}
           </p>
         </div>
         <Chip tone={proofTone}>{x.proof === 'covered' ? (x.parent ? t('sr.proof.covered', { parent: x.parent }) : t('sr.proof.coveredNoParent')) : t(`sr.proof.${x.proof}`)}</Chip>
       </div>
-      <div className="grid gap-1">
+      {unchecked ? null : <div className="grid gap-1">
         <p className="text-meta font-medium">{t('sr.issues')}</p>
         {issues.length ? (
           <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
@@ -382,7 +384,7 @@ function Target({ x, at }: { x: ExposureTarget; at: string }) {
             ))}
           </ul>
         ) : <p className="text-meta text-muted">{t('sr.issuesNone')}</p>}
-      </div>
+      </div>}
       {x.services.length ? (
         <Scroll>
           <table className="w-full border-collapse text-meta">
@@ -445,7 +447,7 @@ function Detections({ d, charts, n }: { d: ReportDetections; charts: boolean; n:
                   {d.top.map((x, i) => (
                     <li key={i} className="report-block grid gap-0.5 border-l-2 border-rule pl-3">
                       <span className="flex min-w-0 flex-wrap items-center gap-2"><SeverityBadge severity={x.severity} compact /><span className="min-w-0 font-medium">{x.title}</span></span>
-                      <span className="text-meta text-muted">{[t(`sr.dkind.${x.kind}`), x.device?.name, fmtDateTime(x.at)].filter(Boolean).join(' · ')}</span>
+                      <span className="text-meta text-muted">{[t(`sr.dkind.${x.kind}`), x.device_count ? t('sr.devicesN', { count: x.device_count }) : x.device?.name, fmtDateTime(x.at)].filter(Boolean).join(' · ')}</span>
                     </li>
                   ))}
                 </ul>

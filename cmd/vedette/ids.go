@@ -9,6 +9,7 @@ import (
 	"github.com/knt048/vedette/core/jobs"
 	"github.com/knt048/vedette/core/lifecycle"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/modules/feeds"
 	"github.com/knt048/vedette/modules/findings"
 	idsmodule "github.com/knt048/vedette/modules/ids"
 	"github.com/knt048/vedette/modules/logs"
@@ -136,6 +137,10 @@ func (a idsFindings) Linked(ctx context.Context, byDevice map[string][]string) (
 			return nil, err
 		}
 	}
+	local, err := localOnlyCVEs(ctx, a.d, byDevice)
+	if err != nil {
+		return nil, err
+	}
 	out := map[string][]idsmodule.LinkedFinding{}
 	for assetID, cves := range byDevice {
 		if slices.Contains(ignored, assetID) {
@@ -149,7 +154,9 @@ func (a idsFindings) Linked(ctx context.Context, byDevice map[string][]string) (
 			if !slices.Contains(cves, r.CVE) {
 				continue
 			}
-			f := idsmodule.LinkedFinding{ID: r.ID, CVE: r.CVE, Affected: r.Status.Open()}
+			// An open finding of a flaw that needs local or physical access does not make the alert an attack on an affected device:
+			// network traffic can carry that exploit but cannot be its exploitation (findings.NeedsLocalAccess, the rule of layer 1 too).
+			f := idsmodule.LinkedFinding{ID: r.ID, CVE: r.CVE, Affected: r.Status.Open() && !local[r.CVE]}
 			switch r.Status {
 			case findings.StatusPatched, findings.StatusMitigated, findings.StatusNotRelevant, findings.StatusFalsePositive:
 				f.Status = string(r.Status)
@@ -159,6 +166,31 @@ func (a idsFindings) Linked(ctx context.Context, byDevice map[string][]string) (
 				f.Status = findings.LayerCode(r.Row.Urgency) // the stored layer: under_attack is findings' one rule (findings.Urgency)
 			}
 			out[assetID] = append(out[assetID], f)
+		}
+	}
+	return out, nil
+}
+
+// localOnlyCVEs says which of the CVEs the alerts name need local or physical access, read from the CVSS score feeds picks (the
+// same facts the urgency pass reads, also while feeds is off).
+func localOnlyCVEs(ctx context.Context, d *deps, byDevice map[string][]string) (map[string]bool, error) {
+	var cves []string
+	for _, cs := range byDevice {
+		cves = append(cves, cs...)
+	}
+	slices.Sort(cves)
+	cves = slices.Compact(cves)
+	if len(cves) == 0 || d.DB == nil {
+		return nil, nil
+	}
+	facts, err := urgencyFacts(ctx, feeds.NewUrgencyReader(d.DB.Reader()), cves)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	for cve, f := range facts {
+		if findings.NeedsLocalAccess(f.CVSS) {
+			out[cve] = true
 		}
 	}
 	return out, nil

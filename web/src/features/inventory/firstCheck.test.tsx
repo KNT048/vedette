@@ -15,7 +15,7 @@ const T = { timeout: 5000 }
 const ZONE = 'Asia/Ho_Chi_Minh' // UTC+7
 const window = { days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00', time_zone: ZONE }
 const input = (over: Partial<FirstCheckInput> = {}): FirstCheckInput => ({
-  ip: '100.65.254.1', window, scope: { lan_ranges: ['100.65.0.0/16'], confirmed_at: '2026-11-13T07:39:30.000Z' },
+  ip: '100.66.254.1', window, scope: { lan_ranges: ['100.66.0.0/16'], confirmed_at: '2026-11-13T07:39:30.000Z' },
   discovery: { enabled: true, next_run_at: '2026-11-18T15:00:00.000Z' }, // 22:00 on the 18th in the zone
   now: new Date('2026-11-18T05:00:00.000Z'), // 12:00 on the 18th in the zone
   ...over,
@@ -56,7 +56,7 @@ describe('the first check of a device whose network scan is on', () => {
     setDisplayTimeZone(ZONE)
     expect(firstCheck(input({ ip: '10.0.0.5' }))).toEqual({ when: 'waiting', why: 'outside' })
     expect(firstCheck(input({ discovery: { enabled: false, next_run_at: null } }))).toEqual({ when: 'waiting', why: 'off' })
-    expect(firstCheck(input({ scope: { lan_ranges: ['100.65.0.0/16'], confirmed_at: null } }))).toEqual({ when: 'waiting', why: 'scope' })
+    expect(firstCheck(input({ scope: { lan_ranges: ['100.66.0.0/16'], confirmed_at: null } }))).toEqual({ when: 'waiting', why: 'scope' })
     expect(firstCheck(input({ discovery: { enabled: true, next_run_at: null }, now: new Date('2026-11-18T05:00:00.000Z') }))).toEqual({ when: 'next' })
   })
 })

@@ -79,8 +79,8 @@ func TestIocHitEvent(t *testing.T) {
 func TestIocHitFromASharedAddressSpaceDevice(t *testing.T) {
 	e := newEnv(t)
 	e.svc.Subscribe(e.bus)
-	pubIoc(e, iocHit("h1", "100.65.254.7", "185.220.101.47", "ip"))
-	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE id = 'ioc:h1' AND fields LIKE '%"src_ip":"100.65.254.7"%'`); n != 1 {
+	pubIoc(e, iocHit("h1", "100.66.254.7", "185.220.101.47", "ip"))
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE id = 'ioc:h1' AND fields LIKE '%"src_ip":"100.66.254.7"%'`); n != 1 {
 		t.Fatalf("%d events from a 100.64/10 device, want 1", n)
 	}
 }

@@ -56,7 +56,7 @@ func TestConnRefusesPrivateAndSpecial(t *testing.T) {
 		}
 	}
 	// A device in the RFC 6598 shared address space (a LAN behind carrier-grade NAT, Tailscale) is a LAN device.
-	for _, src := range []string{"100.64.0.9", "100.65.254.7", "100.127.255.254"} {
+	for _, src := range []string{"100.64.0.9", "100.66.254.7", "100.127.255.254"} {
 		line := strings.Replace(fgTraffic, "srcip=192.168.10.113", "srcip="+src, 1)
 		if l, got := connOf(t, set, "fortigate", line); l != src || len(got) != 1 {
 			t.Errorf("source %q: local %q, dests %v", src, l, got)

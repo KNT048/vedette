@@ -311,8 +311,8 @@ func TestSNMPFormIsChecked(t *testing.T) {
 	w.inv.turnOnErr = nil
 	w.inv.mu.Unlock()
 	// Outside the LAN ranges is allowed (the person set it on this device): a firewall read at its management interface.
-	d := w.set("a-sw", withRead(v2c("c0mmunity"), "100.65.253.1"))
-	if d.ReadFrom != netip.MustParseAddr("100.65.253.1") || d.ReadFromDefault {
+	d := w.set("a-sw", withRead(v2c("c0mmunity"), "100.66.253.1"))
+	if d.ReadFrom != netip.MustParseAddr("100.66.253.1") || d.ReadFromDefault {
 		t.Fatalf("read from outside the LAN: %+v", d)
 	}
 	// The secret goes to a new address only when it is typed again.
@@ -525,14 +525,14 @@ func TestSNMPThroughTheWorker(t *testing.T) {
 		mu.Lock()
 		asked = append(asked, ip.String())
 		mu.Unlock()
-		if ip == netip.MustParseAddr("100.65.253.1") && (p == 161 || p == 1161) {
+		if ip == netip.MustParseAddr("100.66.253.1") && (p == 161 || p == 1161) {
 			return "127.0.0.1", port
 		}
 		return "127.0.0.1", closed
 	})
 	w := newSNMPWorld(t, d)
 	in := v2c("s3cret-community")
-	in.ReadFrom = "100.65.253.1"
+	in.ReadFrom = "100.66.253.1"
 	w.set("a-sw", in)
 	check := func(what, reason string) sa.SNMPCheckResult {
 		t.Helper()
@@ -545,19 +545,19 @@ func TestSNMPThroughTheWorker(t *testing.T) {
 	if res := check("v2c", "ok"); res.Answer == nil || res.Answer.OS != "JUNOS 15.1R7.9" || res.Answer.Model != "EX4200-48T" {
 		t.Fatalf("v2c answer %+v", res.Answer)
 	}
-	w.set("a-sw", sa.SNMPInput{ReadFrom: "100.65.253.1", Version: "v3", Username: "vedette", Auth: "sha", AuthPassword: secrets.NewValue("auth-pass-1"),
+	w.set("a-sw", sa.SNMPInput{ReadFrom: "100.66.253.1", Version: "v3", Username: "vedette", Auth: "sha", AuthPassword: secrets.NewValue("auth-pass-1"),
 		Priv: "aes128", PrivPassword: secrets.NewValue("priv-pass-1"), Port: 1161})
 	if res := check("v3 on port 1161", "ok"); !strings.Contains(res.Message, "UDP port 1161") {
 		t.Fatalf("v3: %+v", res)
 	}
-	w.set("a-sw", sa.SNMPInput{ReadFrom: "100.65.253.1", Version: "v2c", Community: secrets.NewValue("not-the-community")})
+	w.set("a-sw", sa.SNMPInput{ReadFrom: "100.66.253.1", Version: "v2c", Community: secrets.NewValue("not-the-community")})
 	if res := check("wrong community", "no_answer"); !strings.Contains(res.Message, "community") {
 		t.Fatalf("wrong community: %+v", res)
 	}
 	mu.Lock()
 	defer mu.Unlock()
 	for _, a := range asked {
-		if a != "100.65.253.1" {
+		if a != "100.66.253.1" {
 			t.Fatalf("the worker asked %s: a read went to an address other than the device's read address (%v)", a, asked)
 		}
 	}

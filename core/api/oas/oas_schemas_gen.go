@@ -150361,7 +150361,7 @@ type InventoryGetInventorySnmpDevicesIDOK struct {
 	// characters.
 	PrivLast4 string `json:"priv_last4"`
 	// The one address SNMP reads (and the secret) go to; null when not set up. The device's IP unless the
-	// person set its management address, e.g. "100.65.253.1" for a FortiGate whose ip is "100.65.254.1".
+	// person set its management address, e.g. "100.66.253.1" for a FortiGate whose ip is "100.66.254.1".
 	// It never makes or merges a device: what answers there is this device.
 	ReadFrom NilString `json:"read_from"`
 	// True when Read from was left to the device's address (it was the device's IP when saved). If the
@@ -156693,7 +156693,7 @@ type InventoryPostInventorySnmpDevicesIDCheckOKSnmp struct {
 	// characters.
 	PrivLast4 string `json:"priv_last4"`
 	// The one address SNMP reads (and the secret) go to; null when not set up. The device's IP unless the
-	// person set its management address, e.g. "100.65.253.1" for a FortiGate whose ip is "100.65.254.1".
+	// person set its management address, e.g. "100.66.253.1" for a FortiGate whose ip is "100.66.254.1".
 	// It never makes or merges a device: what answers there is this device.
 	ReadFrom NilString `json:"read_from"`
 	// True when Read from was left to the device's address (it was the device's IP when saved). If the
@@ -159024,7 +159024,7 @@ type InventoryPutInventorySnmpDevicesIDOK struct {
 	// characters.
 	PrivLast4 string `json:"priv_last4"`
 	// The one address SNMP reads (and the secret) go to; null when not set up. The device's IP unless the
-	// person set its management address, e.g. "100.65.253.1" for a FortiGate whose ip is "100.65.254.1".
+	// person set its management address, e.g. "100.66.253.1" for a FortiGate whose ip is "100.66.254.1".
 	// It never makes or merges a device: what answers there is this device.
 	ReadFrom NilString `json:"read_from"`
 	// True when Read from was left to the device's address (it was the device's IP when saved). If the

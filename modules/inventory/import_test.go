@@ -161,7 +161,7 @@ func TestContract_INV13_CSVImportAndExport(t *testing.T) {
 			t.Fatalf("result = %+v", r)
 		}
 		// A 100.64/10 device is on a local network (outside the saved ranges here), a 100.128 one is public.
-		r = e.importCSV("name,ip\ncgnat,100.65.254.7\npub100,100.128.0.7\n")
+		r = e.importCSV("name,ip\ncgnat,100.66.254.7\npub100,100.128.0.7\n")
 		if r.Created != 2 || len(r.Notes) != 2 || !strings.Contains(r.Notes[0].Message, "outside your saved network ranges") || !strings.Contains(r.Notes[1].Message, "public address") {
 			t.Fatalf("result = %+v", r)
 		}

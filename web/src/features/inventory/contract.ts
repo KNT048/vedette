@@ -419,7 +419,7 @@ export const DeviceSnmp = z.object({
   device_id: z.string(),
   ip: z.string().nullable().describe('The device\'s own address in the inventory; null when none'),
   state: SnmpState,
-  read_from: z.string().nullable().describe('The one address SNMP reads (and the secret) go to; null when not set up. The device\'s IP unless the person set its management address, e.g. "100.65.253.1" for a FortiGate whose ip is "100.65.254.1". It never makes or merges a device: what answers there is this device'),
+  read_from: z.string().nullable().describe('The one address SNMP reads (and the secret) go to; null when not set up. The device\'s IP unless the person set its management address, e.g. "100.66.253.1" for a FortiGate whose ip is "100.66.254.1". It never makes or merges a device: what answers there is this device'),
   read_from_default: z.boolean().describe('true when Read from was left to the device\'s address (it was the device\'s IP when saved). If the device later moves to another IP, nothing is sent until a person sets Read from again (blocked reason moved); a Read from the person typed stays as it is'),
   version: SnmpVersion.nullable(), username: z.string().nullable().describe('v3 user name; null for v2c'),
   auth: SnmpAuth.nullable().describe('null for v2c'), priv: SnmpPriv.nullable().describe('null for v2c'),

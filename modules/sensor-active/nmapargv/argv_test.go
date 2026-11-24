@@ -256,7 +256,7 @@ func TestValidateRefusesNonPrivateTargets(t *testing.T) {
 			t.Errorf("accepted target %s, which no confirmed LAN range can contain", target)
 		}
 	}
-	for _, target := range []string{"10.0.0.1", "10.255.255.254", "172.16.0.1", "172.31.255.254", "192.168.0.1", "100.64.0.1", "100.65.254.7", "100.127.255.254"} {
+	for _, target := range []string{"10.0.0.1", "10.255.255.254", "172.16.0.1", "172.31.255.254", "192.168.0.1", "100.64.0.1", "100.66.254.7", "100.127.255.254"} {
 		argv := slices.Clone(shapeSweep[:len(shapeSweep)-1])
 		if err := Validate(append(argv, target)); err != nil {
 			t.Errorf("refused the private target %s: %v", target, err)

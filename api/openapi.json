@@ -16187,6 +16187,42 @@
                         }
                       ],
                       "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
+                    },
+                    "auto_wait": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The release on offer that the automatic mode installs once the restart is over"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "os_reboot"
+                              ],
+                              "description": "os_reboot = the box restarts for operating system updates before an install could end, so the automatic mode does not start one now"
+                            },
+                            "reboot_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the box restarts, as the system helper has it scheduled now"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "reboot_at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Automatic mode only: the release on offer waits for a restart of the box (written once per release and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null when nothing waits, the restart is no longer scheduled, or a run is going"
                     }
                   },
                   "required": [
@@ -16202,7 +16238,8 @@
                     "run",
                     "managed",
                     "running_revoked",
-                    "stale_since"
+                    "stale_since",
+                    "auto_wait"
                   ],
                   "additionalProperties": false
                 }
@@ -16757,6 +16794,42 @@
                         }
                       ],
                       "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
+                    },
+                    "auto_wait": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The release on offer that the automatic mode installs once the restart is over"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "os_reboot"
+                              ],
+                              "description": "os_reboot = the box restarts for operating system updates before an install could end, so the automatic mode does not start one now"
+                            },
+                            "reboot_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the box restarts, as the system helper has it scheduled now"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "reboot_at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Automatic mode only: the release on offer waits for a restart of the box (written once per release and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null when nothing waits, the restart is no longer scheduled, or a run is going"
                     }
                   },
                   "required": [
@@ -16772,7 +16845,8 @@
                     "run",
                     "managed",
                     "running_revoked",
-                    "stale_since"
+                    "stale_since",
+                    "auto_wait"
                   ],
                   "additionalProperties": false
                 }
@@ -17321,6 +17395,42 @@
                         }
                       ],
                       "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
+                    },
+                    "auto_wait": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The release on offer that the automatic mode installs once the restart is over"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "os_reboot"
+                              ],
+                              "description": "os_reboot = the box restarts for operating system updates before an install could end, so the automatic mode does not start one now"
+                            },
+                            "reboot_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the box restarts, as the system helper has it scheduled now"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "reboot_at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Automatic mode only: the release on offer waits for a restart of the box (written once per release and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null when nothing waits, the restart is no longer scheduled, or a run is going"
                     }
                   },
                   "required": [
@@ -17336,7 +17446,8 @@
                     "run",
                     "managed",
                     "running_revoked",
-                    "stale_since"
+                    "stale_since",
+                    "auto_wait"
                   ],
                   "additionalProperties": false
                 }
@@ -17938,6 +18049,42 @@
                             }
                           ],
                           "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
+                        },
+                        "auto_wait": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "version": {
+                                  "type": "string",
+                                  "description": "The release on offer that the automatic mode installs once the restart is over"
+                                },
+                                "reason": {
+                                  "type": "string",
+                                  "enum": [
+                                    "os_reboot"
+                                  ],
+                                  "description": "os_reboot = the box restarts for operating system updates before an install could end, so the automatic mode does not start one now"
+                                },
+                                "reboot_at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "description": "When the box restarts, as the system helper has it scheduled now"
+                                }
+                              },
+                              "required": [
+                                "version",
+                                "reason",
+                                "reboot_at"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Automatic mode only: the release on offer waits for a restart of the box (written once per release and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null when nothing waits, the restart is no longer scheduled, or a run is going"
                         }
                       },
                       "required": [
@@ -17953,7 +18100,8 @@
                         "run",
                         "managed",
                         "running_revoked",
-                        "stale_since"
+                        "stale_since",
+                        "auto_wait"
                       ],
                       "additionalProperties": false
                     }
@@ -18491,6 +18639,42 @@
                       ],
                       "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
                     },
+                    "auto_wait": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The release on offer that the automatic mode installs once the restart is over"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "os_reboot"
+                              ],
+                              "description": "os_reboot = the box restarts for operating system updates before an install could end, so the automatic mode does not start one now"
+                            },
+                            "reboot_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the box restarts, as the system helper has it scheduled now"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "reboot_at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Automatic mode only: the release on offer waits for a restart of the box (written once per release and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null when nothing waits, the restart is no longer scheduled, or a run is going"
+                    },
                     "applied": {
                       "type": "number",
                       "description": "Items installed automatically in automatic mode"
@@ -18510,6 +18694,7 @@
                     "managed",
                     "running_revoked",
                     "stale_since",
+                    "auto_wait",
                     "applied"
                   ],
                   "additionalProperties": false
@@ -20734,6 +20919,42 @@
                         }
                       ],
                       "description": "The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle"
+                    },
+                    "auto_wait": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "version": {
+                              "type": "string",
+                              "description": "The release on offer that the automatic mode installs once the restart is over"
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "os_reboot"
+                              ],
+                              "description": "os_reboot = the box restarts for operating system updates before an install could end, so the automatic mode does not start one now"
+                            },
+                            "reboot_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the box restarts, as the system helper has it scheduled now"
+                            }
+                          },
+                          "required": [
+                            "version",
+                            "reason",
+                            "reboot_at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Automatic mode only: the release on offer waits for a restart of the box (written once per release and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null when nothing waits, the restart is no longer scheduled, or a run is going"
                     }
                   },
                   "required": [
@@ -20749,7 +20970,8 @@
                     "run",
                     "managed",
                     "running_revoked",
-                    "stale_since"
+                    "stale_since",
+                    "auto_wait"
                   ],
                   "additionalProperties": false
                 }

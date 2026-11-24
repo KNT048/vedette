@@ -967,6 +967,8 @@ type updatesStateView struct {
 	// RunningRevoked and StaleSince: what the stored index says about the running release and itself.
 	RunningRevoked *runningRevokedView `json:"running_revoked"`
 	StaleSince     *time.Time          `json:"stale_since"` // expires_at of the stored index once it has passed
+	// AutoWait: the automatic mode waits for the operating system restart before it installs the release on offer.
+	AutoWait *autoWaitView `json:"auto_wait"`
 }
 
 type runningRevokedView struct {
@@ -1052,6 +1054,7 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 		Managed:        managedOf(r.running, r.offer),
 		RunningRevoked: runningRevokedOf(r.idx, r.running, h.upd.version),
 		StaleSince:     staleSince(r.idx, h.now()),
+		AutoWait:       h.autoWaitOf(ctx, s, on, r.offer, run),
 	}, nil
 }
 

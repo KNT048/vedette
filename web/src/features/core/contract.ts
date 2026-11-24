@@ -134,6 +134,11 @@ export const UpdateCheckError = z.object({
   at: ts, code: z.enum(['update_source_unreachable', 'update_not_published', 'update_check_failed']).describe('update_source_unreachable = the release source could not be reached (network, timeout, an answer other than 200, a 404 for the index once one is stored or for its signature, or for a manifest the index names; the message names the host and the reason in fixed words); update_not_published = only in a record kept by an older version: a 404 for the index on a box that never stored one is a good check with nothing offered; update_check_failed = what arrived did not pass the signature or shape checks, or this build cannot check'),
   message: z.string().describe("The box's own sentence for this failure (the message of the 503/502 answer): fixed words and the configured source host; never text received from the network"),
 })
+export const AutoUpdateWait = z.object({
+  version: z.string().describe('The release on offer that the automatic mode installs once the restart is over'),
+  reason: z.enum(['os_reboot']).describe('os_reboot = the box restarts for operating system updates before an install could end, so the automatic mode does not start one now'),
+  reboot_at: ts.describe('When the box restarts, as the system helper has it scheduled now'),
+})
 export const UpdatesState = z.object({
   channel: UpdateChannel, mode: z.enum(['auto', 'manual']), check_enabled: z.boolean(), last_check: ts.nullable().describe('null until the first update check'),
   last_check_error: UpdateCheckError.nullable().describe('The latest update check (Check for releases or the 6-hourly check) failed; null once one succeeds. Kept across restarts; while it is set the automatic mode installs nothing'),
@@ -142,6 +147,7 @@ export const UpdatesState = z.object({
   managed: z.array(ManagedPackage).describe('Packages Vedette pins itself (nmap, OpenCanary, osquery mirror, nuclei templates)'),
   running_revoked: RunningRevoked.nullable().describe('The newest stored update information withdraws the release this box runs (update-manifest §8); null otherwise'),
   stale_since: ts.nullable().describe('The stored update information ran out at this time (its expires_at has passed; update-manifest §4.1, §13 (d)): newer and withdrawn releases may be missing. Null while it is current or none is stored. Never blocks Apply, Rollback or a bundle'),
+  auto_wait: AutoUpdateWait.nullable().describe('Automatic mode only: the release on offer waits for a restart of the box (written once per release and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null when nothing waits, the restart is no longer scheduled, or a run is going'),
 })
 
 // ---- the box's operating system. Runs through the privileged helper `vedette-host`: a fixed list of apt commands, the web never runs a shell (SYS-1). ----

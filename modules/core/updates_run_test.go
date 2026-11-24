@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
+	"github.com/knt048/vedette/host/ops"
 	"github.com/knt048/vedette/host/ops/opstest"
 	"github.com/knt048/vedette/modules/core"
 )
@@ -356,6 +357,25 @@ type runEnv struct {
 	fh  *updHost
 
 	retry time.Duration // the follower's wait between tries after e.start (0 = the default)
+
+	modMu  sync.Mutex
+	modOff map[string]bool // modules turned off (OSConfig.ModuleOn); every other module is on
+}
+
+// setModule turns a module on or off as OSConfig.ModuleOn reports it.
+func (e *runEnv) setModule(id string, on bool) {
+	e.modMu.Lock()
+	defer e.modMu.Unlock()
+	if e.modOff == nil {
+		e.modOff = map[string]bool{}
+	}
+	e.modOff[id] = !on
+}
+
+func (e *runEnv) moduleOn(id string) bool {
+	e.modMu.Lock()
+	defer e.modMu.Unlock()
+	return !e.modOff[id]
 }
 
 // newRunEnv: the host reports st, core runs running, srv publishes the manifests of running and 1.4.0 (images of
@@ -403,6 +423,7 @@ func (e *runEnv) start(t *testing.T, version string) *core.OSHandlers {
 		DataDir: e.m.CoreData, KeyPath: filepath.Join(e.m.CoreData, "vedette.key"),
 		Zone: e.h.OrgTimeZone, Setup: e.h, Clock: e.clock.Now, Gate: e.purgeGate,
 		Version: version, UpdateRetry: e.retry, ReleaseBase: e.srv.URL, HTTPClient: e.srv.Client(), Trust: e.srv.rel.Keys,
+		ModuleOn: e.moduleOn,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -508,6 +529,93 @@ func TestUpdateApplySwitchesARunningServiceWithoutInstall(t *testing.T) {
 	}
 	if a := e.auditDetails("update.apply"); len(a) != 1 || !strings.Contains(a[0], "pulled but not started (off): honeypot") || strings.Contains(a[0], "scan") {
 		t.Errorf("update.apply detail = %q, want only the honeypot named as off", a)
+	}
+}
+
+// An update switches a service by what the person asked for, not by a passing state of systemd: a service whose module
+// is off is never started (its unit may still be going down: "deactivating"), and a unit in a passing state without
+// [Install] is a stop that keeps the service off, not a service that runs. The words are systemd's, read as the host
+// reads them (ops.ClassifyActive: activating, deactivating and reloading are all "other").
+func TestUpdateSwitchesAServiceByItsModuleNotByAPassingUnitState(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		unit     string // systemctl is-active
+		install  bool   // the unit has [Install]
+		moduleOn bool
+		start    bool
+	}{
+		{"active", true, true, true},
+		{"active", false, true, true}, // runs without [Install] (an interrupted stop): it takes core's heartbeat
+		{"activating", true, true, true},
+		{"reloading", true, true, true},
+		{"deactivating", true, true, true}, // a restart of a unit that keeps [Install]
+		{"deactivating", false, true, false},
+		{"inactive", true, true, true}, // starts at boot: the update brings it up on the new release, as it always did
+		{"inactive", false, true, false},
+		{"failed", false, true, false},
+		{"active", true, false, false}, // the module was just turned off; its guard has not stopped it yet
+		{"activating", true, false, false},
+		{"deactivating", false, false, false},
+		{"deactivating", true, false, false},
+		{"inactive", false, false, false},
+		{"failed", true, false, false},
+	} {
+		t.Run(fmt.Sprintf("%s install=%v module_on=%v", tc.unit, tc.install, tc.moduleOn), func(t *testing.T) {
+			t.Parallel()
+			st := lockstep("1.3.0", "1.2.0")
+			fh := newUpdHost(t, st)
+			sc := fh.svc(api.ServiceScan)
+			sc.UnitState, sc.Enabled = ops.ClassifyActive([]byte(tc.unit)), tc.install
+			e, _ := newRunEnvWith(t, fh, "1.3.0", true, nil)
+			e.setModule("sensor-active", tc.moduleOn)
+			wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+			if run := endedRun(t, e); run["status"] != "done" {
+				t.Fatalf("run = %v", run)
+			}
+			if got := slices.Contains(fh.callList(), "start scan 1.4.0"); got != tc.start {
+				t.Errorf("scan started = %v, want %v (calls %q)", got, tc.start, fh.callList())
+			}
+			if !slices.Contains(fh.callList(), "pull scan 1.4.0") {
+				t.Errorf("scan not pulled: %q", fh.callList())
+			}
+		})
+	}
+}
+
+// A module turned off while the run waits for core's switch: its service is not started after it (the stop of its guard
+// may already have gone through), and the run still ends done.
+func TestUpdateLeavesOutAServiceWhoseModuleWentOffDuringTheRun(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	fh.hold["start core"] = true
+	wantOK(t, e.admin.post("/core/updates/apply", map[string]any{"component": "software"}), 200)
+	waitCall(t, fh, "start core")
+	e.setModule("sensor-passive", false)
+	fh.release("start core")
+	if run := endedRun(t, e); run["status"] != "done" || run["error"] != nil {
+		t.Fatalf("run = %v", run)
+	}
+	if c := fh.callList(); slices.Contains(c, "start sensor 1.4.0") || !slices.Contains(c, "start scan 1.4.0") {
+		t.Errorf("calls = %q, want the scanner started and not the sensor", c)
+	}
+}
+
+// A rollback does not take back a service whose module is off: container.rollback restarts the unit, which would turn
+// the service on again while systemd still stops it.
+func TestUpdateRollbackLeavesOutAServiceWhoseModuleIsOff(t *testing.T) {
+	t.Parallel()
+	st := lockstep("1.4.0", "1.3.0")
+	fh := newUpdHost(t, st)
+	sn := fh.svc(api.ServiceSensor)
+	sn.UnitState, sn.Enabled = ops.ClassifyActive([]byte("deactivating")), false
+	e, _ := newRunEnvWith(t, fh, "1.3.0", true, nil)
+	e.setModule("sensor-passive", false)
+	wantOK(t, e.admin.post("/core/updates/rollback", map[string]any{"component": "software"}), 200)
+	if run := endedRun(t, e); run["status"] != "done" {
+		t.Fatalf("run = %v", run)
+	}
+	if c := fh.callList(); slices.Contains(c, "rollback sensor") || !slices.Contains(c, "rollback scan") || !slices.Contains(c, "rollback core") {
+		t.Errorf("calls = %q, want scan and core rolled back and not the sensor", c)
 	}
 }
 

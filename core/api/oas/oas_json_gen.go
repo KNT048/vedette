@@ -60273,6 +60273,10 @@ func (s *CorePostCoreSetupRestoreUploadOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.ID)
 	}
 	{
+		e.FieldStart("key_included")
+		e.Bool(s.KeyIncluded)
+	}
+	{
 		e.FieldStart("org")
 		e.Str(s.Org)
 	}
@@ -60290,14 +60294,15 @@ func (s *CorePostCoreSetupRestoreUploadOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreSetupRestoreUploadOK = [7]string{
+var jsonFieldsNameOfCorePostCoreSetupRestoreUploadOK = [8]string{
 	0: "admins_without_key",
 	1: "created_at",
 	2: "id",
-	3: "org",
-	4: "secrets",
-	5: "twofa_users",
-	6: "users",
+	3: "key_included",
+	4: "org",
+	5: "secrets",
+	6: "twofa_users",
+	7: "users",
 }
 
 // Decode decodes CorePostCoreSetupRestoreUploadOK from json.
@@ -60345,8 +60350,20 @@ func (s *CorePostCoreSetupRestoreUploadOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "org":
+		case "key_included":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.KeyIncluded = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key_included\"")
+			}
+		case "org":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Org = string(v)
@@ -60358,7 +60375,7 @@ func (s *CorePostCoreSetupRestoreUploadOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"org\"")
 			}
 		case "secrets":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.Secrets = int(v)
@@ -60370,7 +60387,7 @@ func (s *CorePostCoreSetupRestoreUploadOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"secrets\"")
 			}
 		case "twofa_users":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.TwofaUsers = int(v)
@@ -60382,7 +60399,7 @@ func (s *CorePostCoreSetupRestoreUploadOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"twofa_users\"")
 			}
 		case "users":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Int()
 				s.Users = int(v)
@@ -60403,7 +60420,7 @@ func (s *CorePostCoreSetupRestoreUploadOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

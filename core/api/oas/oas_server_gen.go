@@ -357,8 +357,8 @@ type Handler interface {
 	CoreGetCoreConnections(ctx context.Context) (*CoreGetCoreConnectionsOK, error)
 	// CoreGetCoreDataBackup implements core_get_core_data_backup operation.
 	//
-	// Download a backup without a password (password hashes, never passwords or keys): the same as POST
-	// /core/data/backup with no password.
+	// Download a backup without a password (password hashes, never passwords or the decryption key): the
+	// same as POST /core/data/backup with no password.
 	//
 	// GET /core/data/backup
 	CoreGetCoreDataBackup(ctx context.Context) (CoreGetCoreDataBackupOK, error)
@@ -644,10 +644,13 @@ type Handler interface {
 	CorePostCoreConnectionsIDTest(ctx context.Context, params CorePostCoreConnectionsIDTestParams) (*CorePostCoreConnectionsIDTestOK, error)
 	// CorePostCoreDataBackup implements core_post_core_data_backup operation.
 	//
-	// Download a backup (password hashes, never passwords or keys). With password, the file is encrypted
-	// while it streams in the age format (age-encryption.org/v1, scrypt passphrase;
-	// vedette-backup--.tar.gz.age): the first-run restore asks for the password, and `age -d` opens it
-	// offline. The password follows the sign-in password policy (400 weak_password) and is never stored,
+	// Download a backup (password hashes, never passwords). With password, the file is encrypted while it
+	// streams in the age format (age-encryption.org/v1, scrypt passphrase; vedette-backup--.tar.gz.age)
+	// and carries the decryption key inside the encryption, so a restore on a new box keeps the saved
+	// secrets and two-step sign-in: the first-run restore asks for the password, and `age -d` opens it
+	// offline into one tar.gz stream of vedette.key, manifest.json and vedette.db. 409 key_unreadable when
+	// the key file cannot be read (before anything is made). Without password the file never holds the
+	// key. The password follows the sign-in password policy (400 weak_password) and is never stored,
 	// logged or audited; it cannot be recovered. Without password, the plain .tar.gz as GET. 409 busy, 429
 	// rate_limited, 409 low_disk, 409 not_appliance as GET.
 	//
@@ -731,11 +734,12 @@ type Handler interface {
 	// CorePostCoreSetupRestore implements core_post_core_setup_restore operation.
 	//
 	// First-run restore, step 2: restore the uploaded backup as the box's data, with the setup code. With
-	// key (the key file downloaded from Settings -> Data, base64) the saved secrets and two-step sign-in
-	// come back; a key that is not 32 bytes is 400 invalid_key, one that opens none of the backup's
-	// secrets 400 wrong_key, before anything changes. Without key, a backup that holds secrets needs
-	// confirm_without_key: true (409 confirm_required). 404 upload_unknown when the upload is gone (older
-	// than an hour); 409 already_setup, busy, low_disk, schema_newer, not_appliance as for a restore.
+	// key (the key file downloaded from Settings -> Data, base64), or without one when the upload carried
+	// the key (key_included), the saved secrets and two-step sign-in come back; a key that is not 32 bytes
+	// is 400 invalid_key, one that opens none of the backup's secrets 400 wrong_key, before anything
+	// changes. Without key, a backup that holds secrets needs confirm_without_key: true (409
+	// confirm_required). 404 upload_unknown when the upload is gone (older than an hour); 409
+	// already_setup, busy, low_disk, schema_newer, not_appliance as for a restore.
 	//
 	// POST /core/setup/restore
 	CorePostCoreSetupRestore(ctx context.Context, req *CorePostCoreSetupRestoreReq) (*CorePostCoreSetupRestoreAccepted, error)
@@ -746,8 +750,10 @@ type Handler interface {
 	// already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The
 	// box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409
 	// schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the
-	// decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload
-	// is checked, 409 low_disk, 413 over 4 GiB.
+	// decryption key changes. A password-protected file carries the decryption key inside its encryption
+	// (key_included); a key inside it that opens none of the saved secrets of the backup, or a damaged
+	// one, is 400 not_a_backup. 409 not_appliance on a container-only install, 409 busy while another
+	// upload is checked, 409 low_disk, 413 over 4 GiB.
 	//
 	// POST /core/setup/restore/upload
 	CorePostCoreSetupRestoreUpload(ctx context.Context, req CorePostCoreSetupRestoreUploadReq, params CorePostCoreSetupRestoreUploadParams) (*CorePostCoreSetupRestoreUploadOK, error)

@@ -49,7 +49,10 @@ const (
 	uploadTimeout  = 30 * time.Minute
 	uploadMaxAge   = time.Hour
 	uploadMetaFile = "upload.json"
-	setupActor     = "setup" // the audit user of the first-run restore: nobody is signed in yet
+	// uploadKeyFile is the decryption key a password-protected upload carried (0600), kept with the staged upload until step 2
+	// seals it as the snapshot's vedette.key; removed with the upload.
+	uploadKeyFile = "upload.key"
+	setupActor    = "setup" // the audit user of the first-run restore: nobody is signed in yet
 
 	codeNotABackup    = "not_a_backup"
 	codeUploadUnknown = "upload_unknown"
@@ -80,11 +83,14 @@ type uploadMeta struct {
 type upload struct {
 	snapshot
 	meta uploadMeta
+	key  []byte // the decryption key the file carried (upload.key); nil when it carried none
 }
 
 func (u upload) db() string { return filepath.Join(u.dir, snapshotDBFile) }
 
-// errKeyInside: an archive that carries a key is not a file Download backup makes (INV-6); the host keeps those on the box.
+// errKeyInside: an archive that carries a key in the host's own place (after the database) is not a file Download backup
+// makes (INV-6); the host keeps those on the box. A password-protected download carries its key in front, inside the
+// encryption (splitKeyMember), never here.
 var errKeyInside = errors.New("core: the archive holds a key")
 
 // stageUpload reads an uploaded backup archive from r into a new snapshots/<id>/: the manifest is checked, the database is
@@ -204,7 +210,38 @@ func (s *snapshotter) openUpload(id string) (upload, error) {
 	if err := json.Unmarshal(b, &m); err != nil || s.now().Sub(m.UploadedAt) > uploadMaxAge {
 		return upload{}, uploadUnknown()
 	}
-	return upload{snapshot: snapshot{ID: id, dir: dir}, meta: m}, nil
+	up := upload{snapshot: snapshot{ID: id, dir: dir}, meta: m}
+	if key, err := secrets.LoadKeyFile(filepath.Join(dir, uploadKeyFile)); err == nil {
+		up.key = key
+	} else if !errors.Is(err, fs.ErrNotExist) { // step 1 wrote it 0600 and 32 bytes: anything else is not ours
+		return upload{}, uploadUnknown()
+	}
+	return up, nil
+}
+
+// keepKey writes the key a password-protected upload carried next to its database (0600, a new file).
+func (u *upload) keepKey(key []byte) error {
+	f, err := os.OpenFile(filepath.Join(u.dir, uploadKeyFile), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return fmt.Errorf("core: stage the key: %w", err)
+	}
+	_, err = f.Write(key)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		return fmt.Errorf("core: stage the key: %w", err)
+	}
+	u.key = key
+	return nil
+}
+
+// dropKey removes the staged key: not needed (the backup holds no secret to open), or sealed as the snapshot's own copy.
+func (u *upload) dropKey() {
+	if u.key != nil {
+		_ = os.Remove(filepath.Join(u.dir, uploadKeyFile))
+		u.key = nil
+	}
 }
 
 // dropUploads removes every staged upload: the box keeps one at a time, and none once setup is done.
@@ -233,7 +270,9 @@ func (s *snapshotter) dropUpload(id string) {
 }
 
 // seal turns the staged upload into a snapshot of the host contract: the key (when given) and snapshot.json, written last.
+// The key the upload carried leaves its staging name: the snapshot's vedette.key is the one copy the host reads.
 func (s *snapshotter) seal(up upload, key []byte, schema string) error {
+	up.dropKey()
 	if key != nil {
 		f, err := os.OpenFile(filepath.Join(up.dir, snapshotKeyFile), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 		if err != nil {
@@ -473,19 +512,30 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 	if err != nil {
 		return nil, err
 	}
-	data, err := h.openBackupUpload(ctx, req.Data, params.XBackupPassword.Or(""))
+	data, key, err := h.openBackupUpload(ctx, req.Data, params.XBackupPassword.Or(""))
 	if err != nil {
 		return nil, err
 	}
+	defer clear(key)
 	h.snaps.dropUploads()
 	up, err := h.snaps.stageUpload(ctx, data)
 	if err != nil {
 		return nil, err
 	}
-	ins, err := inspectBackup(ctx, up.db(), live, nil, h.schemaObjects)
+	ins, err := inspectBackup(ctx, up.db(), live, key, h.schemaObjects)
 	if err != nil {
 		up.remove()
 		return nil, err
+	}
+	if key != nil && ins.secrets > 0 && ins.opened > 0 {
+		// The key a protected file carries is checked as a key file is in step 2: it is kept only when it opens some of the
+		// backup's secrets. One that opens none (a box restored without its key that has sealed nothing since, or a file
+		// changed by hand) and one with no secret to check it against are not kept: the box keeps its own key, and the page
+		// says what is lost and takes a key file as for a file without one. An unchecked key never becomes the master key.
+		if err := up.keepKey(key); err != nil {
+			up.remove()
+			return nil, h.snapshotFailure(ctx, err)
+		}
 	}
 	id := up.ID
 	time.AfterFunc(uploadMaxAge, func() { h.snaps.dropUpload(id) }) // not kept past the hour step 2 accepts it for
@@ -496,7 +546,7 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 	}
 	return &oas.CorePostCoreSetupRestoreUploadOK{
 		ID: up.ID, CreatedAt: up.meta.CreatedAt, Org: ins.org, Users: ins.users, TwofaUsers: ins.twofaUsers,
-		AdminsWithoutKey: ins.adminsWithoutKey, Secrets: ins.secrets,
+		AdminsWithoutKey: ins.adminsWithoutKey, Secrets: ins.secrets, KeyIncluded: up.key != nil,
 	}, nil
 }
 
@@ -506,35 +556,45 @@ func (h *OSHandlers) CorePostCoreSetupRestoreUpload(ctx context.Context, req oas
 // a guess on the setup-code limit of the caller's address (BeginSetupAttempt, given back when the password is right): the
 // upload already needs the setup code, scrypt costs about a second per try, and the limit keeps guessing online slower
 // than guessing on a copy of the file. A plain file with a password is taken as it is (the password protects nothing).
-func (h *OSHandlers) openBackupUpload(ctx context.Context, body io.Reader, header string) (io.Reader, error) {
+// A protected file's key member (splitKeyMember) is taken off the front: key is the decryption key it carried, nil for a
+// plain file or a protected one without it. A plain file never yields a key: its archive is read by host/archive's rules,
+// which refuse anything in front of the manifest.
+func (h *OSHandlers) openBackupUpload(ctx context.Context, body io.Reader, header string) (_ io.Reader, key []byte, _ error) {
 	br := bufio.NewReaderSize(body, maxAgeHeader)
 	if !isAgeFile(br) {
-		return br, nil
+		return br, nil, nil
 	}
 	password, err := backupPasswordHeader(header)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if password == "" {
-		return nil, passwordRequired()
+		return nil, nil, passwordRequired()
 	}
 	_, ip, err := exchange(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	refund, err := h.auth.BeginSetupAttempt(ip)
 	if err != nil {
-		return nil, err //nolint:wrapcheck // 429 rate_limited as for the setup code
+		return nil, nil, err //nolint:wrapcheck // 429 rate_limited as for the setup code
 	}
 	r, err := decryptBackup(br, password)
 	if ae, ok := apierr.As(err); ok && ae.Code == codeWrongBackupPassword {
-		return nil, err // a wrong guess keeps its count
+		return nil, nil, err // a wrong guess keeps its count
 	}
 	refund() // the right password, or a file that is not one to guess at
 	if errors.Is(err, errAgeNotPassword) {
-		return nil, notABackup("This file is encrypted with a key, not with a password, so it is not a file Download backup saved.")
+		return nil, nil, notABackup("This file is encrypted with a key, not with a password, so it is not a file Download backup saved.")
 	}
-	return r, err
+	if err != nil {
+		return nil, nil, err
+	}
+	plain := bufio.NewReaderSize(r, maxKeyMember)
+	if key, err = splitKeyMember(plain); err != nil {
+		return nil, nil, notABackup("The decryption key inside this backup is damaged. Choose the file that Download backup saved.")
+	}
+	return plain, key, nil
 }
 
 // ---- POST /core/setup/restore ----
@@ -572,6 +632,10 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	if err != nil {
 		return nil, err
 	}
+	carried := key == nil && up.key != nil // a key file given in the request is checked as before; without one, the backup's own
+	if carried {
+		key = up.key
+	}
 	ins, err := inspectBackup(ctx, up.db(), live, key, h.schemaObjects)
 	if err != nil {
 		return nil, err
@@ -604,7 +668,10 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	b := api.Backup{CreatedAt: up.meta.CreatedAt}
 	keep := false
 	detail := "backup of " + up.meta.CreatedAt.Format(time.RFC3339) + ", without the key"
-	if key != nil {
+	switch {
+	case carried:
+		detail = "backup of " + up.meta.CreatedAt.Format(time.RFC3339) + ", with the key inside the protected backup"
+	case key != nil:
 		detail = "backup of " + up.meta.CreatedAt.Format(time.RFC3339) + ", with the key"
 	}
 	// The acceptance is said here, in the fresh database the pre_restore backup keeps; the restored database gets its
@@ -793,14 +860,10 @@ func (h *OSHandlers) CorePostCoreDataKey(ctx context.Context, req *oas.CorePostC
 			return oas.CorePostCoreDataKeyOK{}, err
 		}
 	}
-	unreadable := apierr.New(409, codeKeyUnreadable, "The decryption key file cannot be read on this box. The details are in the box log.")
-	if h.keyPath == "" {
-		return oas.CorePostCoreDataKeyOK{}, unreadable
-	}
-	key, err := secrets.LoadKeyFile(h.keyPath)
+	key, err := h.loadKey()
 	if err != nil {
 		h.log.ErrorContext(ctx, "core: the key file cannot be read for its download", "error", err) // the error names the path, never the bytes
-		return oas.CorePostCoreDataKeyOK{}, unreadable
+		return oas.CorePostCoreDataKeyOK{}, apierr.New(409, codeKeyUnreadable, "The decryption key file cannot be read on this box. The details are in the box log.")
 	}
 	if err := h.record(ctx, c, true, "data.key_download", "decryption key", ""); err != nil {
 		return oas.CorePostCoreDataKeyOK{}, err
@@ -811,4 +874,13 @@ func (h *OSHandlers) CorePostCoreDataKey(ctx context.Context, req *oas.CorePostC
 		hd.Set("Content-Length", strconv.Itoa(len(key)))
 	}
 	return oas.CorePostCoreDataKeyOK{Data: bytes.NewReader(key)}, nil
+}
+
+// loadKey reads the master key file (0600, 32 bytes): for its own download and for the inside of a password-protected backup,
+// nothing else. The bytes go only where the caller puts them; an error names the path, never the bytes.
+func (h *OSHandlers) loadKey() ([]byte, error) {
+	if h.keyPath == "" {
+		return nil, errors.New("core: no key file is configured")
+	}
+	return secrets.LoadKeyFile(h.keyPath) //nolint:wrapcheck // secrets names the file and what is wrong with it
 }

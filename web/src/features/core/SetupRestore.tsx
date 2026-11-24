@@ -28,8 +28,9 @@ async function keyBase64(f: File): Promise<string | null> {
 
 /**
  * First-run restore from a backup file (S-CORE-1): the setup code, the backup downloaded from Settings → Data and,
- * kept apart, the decryption key file. Check the backup uploads it and the box says what it holds; without the key the page
- * says what is lost before Restore is possible; Restore follows the run across Vedette's restart to the sign-in page.
+ * kept apart, the decryption key file. A password-protected backup carries the key inside it, so the key file is not asked
+ * for unless the box says this one did not (key_included). Check the backup uploads it and the box says what it holds;
+ * without the key the page says what is lost before Restore is possible; Restore follows the run across Vedette's restart to the sign-in page.
  * It is reached from the Account step of setup, after the terms of use were accepted on the first; the box refuses a
  * restore without that acceptance.
  */
@@ -92,13 +93,13 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
     if (!checked) return
     setErrors({})
     let key: string | undefined
-    if (keyFile && checked.secrets > 0) { // nothing to check a key against: the box keeps its own
+    if (keyFile && checked.secrets > 0 && !checked.key_included) { // nothing to check a key against: the box keeps its own
       const k = await keyBase64(keyFile)
       if (!k) { setErrors({ key: t('setup.restore.keyBad') }); return }
       key = k
     }
     try {
-      await restore.mutateAsync({ setup_code: code.trim(), upload_id: checked.id, accept_terms: termsAccepted, ...(key ? { key } : { confirm_without_key: sure }) })
+      await restore.mutateAsync({ setup_code: code.trim(), upload_id: checked.id, accept_terms: termsAccepted, ...(key ? { key } : checked.key_included ? {} : { confirm_without_key: sure }) })
       setStarted(true)
     } catch (err) {
       if (err instanceof ApiError && (err.code === 'invalid_key' || err.code === 'wrong_key')) setErrors({ key: errMsg(err, t) })
@@ -132,7 +133,10 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
     )
   }
 
-  const noKeyLoss = !keyFile && checked !== null && checked.secrets > 0
+  // A protected file the box made carries the key: the key file is asked for only when the box says this one did not.
+  const carried = checked?.key_included === true
+  const askKey = locked ? checked !== null && !carried : true
+  const noKeyLoss = !carried && !keyFile && checked !== null && checked.secrets > 0
   return (
     <div className="mt-4 grid gap-4">
       <Field label={t('setup.account.code')} hint={t('setup.account.codeHint')} info={t('setup.account.codeInfoAppliance')} htmlFor="r-code" error={errors.code}>
@@ -148,10 +152,12 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
             onChange={(e) => { setBackupPassword(e.target.value); setChecked(null) }} />
         </Field>
       ) : null}
-      <Field label={t('setup.restore.key')} hint={t('setup.restore.keyHint')} info={t('setup.restore.keyInfo')} htmlFor="r-key" error={errors.key}>
-        <input id="r-key" type="file" accept=".key" className={FILE_INPUT} aria-invalid={!!errors.key} onChange={(e) => { setKeyFile(e.target.files?.[0] ?? null); setErrors((x) => ({ ...x, key: '' })) }} />
-      </Field>
-      {!keyFile ? (
+      {askKey ? (
+        <Field label={t('setup.restore.key')} hint={t('setup.restore.keyHint')} info={t('setup.restore.keyInfo')} htmlFor="r-key" error={errors.key}>
+          <input id="r-key" type="file" accept=".key" className={FILE_INPUT} aria-invalid={!!errors.key} onChange={(e) => { setKeyFile(e.target.files?.[0] ?? null); setErrors((x) => ({ ...x, key: '' })) }} />
+        </Field>
+      ) : locked && !checked ? <p className="text-meta text-muted">{t('setup.restore.keyInsideFile')}</p> : null}
+      {askKey && !keyFile ? (
         <Notice tone="warn" role="note" className="mb-0" title={t('setup.restore.noKey.title')}>
           <ul className="list-disc pl-5 text-meta"><li>{t('setup.restore.noKey.secrets')}</li><li>{t('setup.restore.noKey.twofa')}</li></ul>
         </Notice>
@@ -159,7 +165,8 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
       {checked ? (
         <div role="group" className="grid gap-2 border-y border-rule py-3 text-sm" aria-label={t('setup.restore.checkedLabel')}>
           <p>{t('setup.restore.checked', { org: checked.org, when: fmtDateTime(checked.created_at), users: checked.users })}</p>
-          {keyFile ? <p className="text-meta text-muted">{t(checked.secrets > 0 ? 'setup.restore.withKey' : 'setup.restore.keyNotNeeded')}</p> : null}
+          {carried ? <p className="text-meta">{t('setup.restore.keyInside')}</p>
+            : keyFile ? <p className="text-meta text-muted">{t(checked.secrets > 0 ? 'setup.restore.withKey' : 'setup.restore.keyNotNeeded')}</p> : null}
           {noKeyLoss ? (
             <>
               <ul className="list-disc pl-5 text-meta">

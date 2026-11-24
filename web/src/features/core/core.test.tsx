@@ -622,6 +622,8 @@ describe('core: data', () => {
       await u.click(within(dlg).getByLabelText('Protect the file with a password (recommended)'))
       expect(within(dlg).getByText('Without a password the file is not encrypted')).toBeInTheDocument()
       expect(within(dlg).getByText(/^It holds every device, finding and log line, .* password hashes/)).toBeInTheDocument()
+      expect(within(dlg).getByText(/On a new box those secrets are lost and two-step users cannot sign in/)).toBeInTheDocument()
+      expect(within(dlg).queryByText(/The password also protects the decryption key/)).toBeNull()
       await u.click(within(dlg).getByRole('button', { name: 'Download' }))
       expect(await screen.findByText(/^Downloaded vedette-backup-\d{4}-\d\d-\d\d-\d{4}\.tar\.gz\. A copy stays on this box/)).toBeInTheDocument()
       expect(screen.queryByRole('dialog')).toBeNull()
@@ -644,6 +646,8 @@ describe('core: data', () => {
       const dlg = await screen.findByRole('dialog', { name: 'Download backup' })
       expect(within(dlg).getByLabelText('Protect the file with a password (recommended)')).toBeChecked()
       expect(within(dlg).getByText('A lost password cannot be recovered')).toBeInTheDocument()
+      // the password protects every saved secret too: the file carries the decryption key
+      expect(within(dlg).getByText(/^The password also protects the decryption key, which the file carries: .*two-step sign-in come back, with no separate key file\.$/)).toBeInTheDocument()
       expect(within(dlg).getByText(/age -d/)).toBeInTheDocument()
       const download = within(dlg).getByRole('button', { name: 'Download' })
       await u.type(within(dlg).getByLabelText('Backup password'), 'too short')

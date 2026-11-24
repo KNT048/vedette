@@ -116,6 +116,42 @@ describe('first-run restore of a backup downloaded with a password', () => {
     } finally { server.events.removeAllListeners() }
   })
 
+  it('the key travels inside: no key file is asked for, nothing is lost, and Restore sends neither a key nor a confirmation', async () => {
+    const u = user()
+    let sent: Record<string, unknown> = {}
+    server.use(http.post('*/api/v1/core/setup/restore', async ({ request }) => { sent = await request.json() as Record<string, unknown>; return HttpResponse.json({ status: 'running', error: null }, { status: 202 }) }))
+    await openRestore(u)
+    await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
+    await u.upload(screen.getByLabelText('Backup file'), await protectedFile('river lamp orbit cactus'))
+    await u.type(await screen.findByLabelText('Backup password'), 'river lamp orbit cactus')
+    expect(screen.queryByLabelText('Decryption key file (optional)')).toBeNull()
+    expect(screen.queryByText('Without the decryption key:')).toBeNull()
+    expect(screen.getByText('A backup downloaded with a password carries its decryption key, so no key file is needed.')).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Check the backup' }))
+    const held = await screen.findByLabelText('What the backup holds')
+    within(held).getByText('The decryption key is inside this backup: the saved secrets and two-step sign-in come back with it.')
+    expect(within(held).queryByText(/will be lost/)).toBeNull()
+    expect(screen.queryByLabelText(/I understand/)).toBeNull()
+    await u.click(screen.getByRole('button', { name: 'Restore' }))
+    await waitFor(() => expect(sent.upload_id).toMatch(/^[0-9a-f]{32}$/))
+    expect(sent.key).toBeUndefined()
+    expect(sent.confirm_without_key).toBeUndefined()
+  })
+
+  it('a protected file without the key inside (key_included false): the key file and what is lost come back after the check', async () => {
+    const u = user()
+    server.use(http.post('*/api/v1/core/setup/restore/upload', () => HttpResponse.json({ id: 'b'.repeat(32), created_at: '2026-11-01T08:30:00Z', org: 'Acme Manufacturing', users: 2, twofa_users: 1, admins_without_key: 1, secrets: 3, key_included: false })))
+    await openRestore(u)
+    await u.type(screen.getByLabelText('Setup code'), MOCK_SETUP_CODE)
+    await u.upload(screen.getByLabelText('Backup file'), await protectedFile('river lamp orbit cactus'))
+    await u.type(await screen.findByLabelText('Backup password'), 'river lamp orbit cactus')
+    await u.click(screen.getByRole('button', { name: 'Check the backup' }))
+    const held = await screen.findByLabelText('What the backup holds')
+    within(held).getByText('3 saved secrets will be lost and must be entered again.')
+    expect(screen.getByLabelText('Decryption key file (optional)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Restore' })).toBeDisabled()
+  })
+
   it('a plain backup asks for no password; when the box says one is needed, the field appears with its sentence', async () => {
     const u = user()
     await checkBackup(u)

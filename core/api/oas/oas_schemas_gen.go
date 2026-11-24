@@ -29912,6 +29912,10 @@ type CorePostCoreSetupRestoreUploadOK struct {
 	CreatedAt time.Time `json:"created_at"`
 	// The uploaded backup, kept on the box for an hour; POST /core/setup/restore names it.
 	ID string `json:"id"`
+	// The password-protected file carried the decryption key and it opens the saved secrets: the restore
+	// keeps them and two-step sign-in, and needs no key file. false for a plain file, or when the backup
+	// holds no secret.
+	KeyIncluded bool `json:"key_included"`
 	// The organization the backup holds.
 	Org string `json:"org"`
 	// Saved secrets (AI and feed keys, channel passwords, tokens, two-step keys): without the key they
@@ -29936,6 +29940,11 @@ func (s *CorePostCoreSetupRestoreUploadOK) GetCreatedAt() time.Time {
 // GetID returns the value of ID.
 func (s *CorePostCoreSetupRestoreUploadOK) GetID() string {
 	return s.ID
+}
+
+// GetKeyIncluded returns the value of KeyIncluded.
+func (s *CorePostCoreSetupRestoreUploadOK) GetKeyIncluded() bool {
+	return s.KeyIncluded
 }
 
 // GetOrg returns the value of Org.
@@ -29971,6 +29980,11 @@ func (s *CorePostCoreSetupRestoreUploadOK) SetCreatedAt(val time.Time) {
 // SetID sets the value of ID.
 func (s *CorePostCoreSetupRestoreUploadOK) SetID(val string) {
 	s.ID = val
+}
+
+// SetKeyIncluded sets the value of KeyIncluded.
+func (s *CorePostCoreSetupRestoreUploadOK) SetKeyIncluded(val bool) {
+	s.KeyIncluded = val
 }
 
 // SetOrg sets the value of Org.

@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -235,9 +237,9 @@ func (s *Service) firstRunPass(ctx context.Context, key, prefix string, at time.
 			unlisted += len(keep) - maxNoticeItems
 			keep = keep[:maxNoticeItems]
 		}
-		var sent sql.NullString // the last summary of this load a channel delivered
-		if err := tx.QueryRowContext(ctx, `SELECT max(at) FROM notify_send WHERE kind = 'vuln' AND ok = 1 AND substr(ref_id, 1, ?) = ?`, len(prefix), prefix).Scan(&sent); err != nil {
-			return fmt.Errorf("notify: read first-run summaries: %w", err)
+		prior, err := s.priorSummary(ctx, tx, prefix)
+		if err != nil {
+			return err
 		}
 		first := at
 		if w != nil {
@@ -246,17 +248,60 @@ func (s *Service) firstRunPass(ctx context.Context, key, prefix string, at time.
 			}
 			first = w.At
 		}
-		n := s.summaryNotice(ctx, key, keep, infos, unlisted, devices, eventLayer, sent)
+		n := s.summaryNotice(key, keep, infos, unlisted, devices, eventLayer, prior)
 		n.ID, n.At = prefix+at.UTC().Format("20060102T150405.000"), first
 		return s.enqueue(ctx, tx, n)
 	})
 }
 
+// priorSummary names the summary of the load (its id prefix) the customer already got, or is getting, for the words of the next one
+// ("Since the summary sent at 10:03"; "Since the previous summary" while a delivery run is sending it); "" when there is none: the next
+// summary is then the load's first look ("Patch first: …"). A summary waiting in the queue is not one: the next pass replaces it.
+func (s *Service) priorSummary(ctx context.Context, tx *sql.Tx, prefix string) (string, error) {
+	var sent sql.NullString // the last summary of this load a channel delivered
+	if err := tx.QueryRowContext(ctx, `SELECT max(at) FROM notify_send WHERE kind = 'vuln' AND ok = 1 AND substr(ref_id, 1, ?) = ?`, len(prefix), prefix).Scan(&sent); err != nil {
+		return "", fmt.Errorf("notify: read first-run summaries: %w", err)
+	}
+	if t, err := time.Parse(time.RFC3339, sent.String); sent.Valid && err == nil {
+		return "the summary sent at " + orgtime.Stamp(t, s.loc(ctx)), nil
+	}
+	// Claimed or being sent by a delivery run, or queued to go now (Send now, a rate-limited retry): it is on its way.
+	var going bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM notify_pending WHERE substr(notice_id, 1, ?) = ? AND (state <> 'pending' OR reason = 'now'))`,
+		len(prefix), prefix).Scan(&going); err != nil {
+		return "", fmt.Errorf("notify: read first-run summaries: %w", err)
+	}
+	if going {
+		return "the previous summary", nil
+	}
+	return "", nil
+}
+
+// The titles of a first-run summary: the load's first look, and a later one of the same load. summaryCounts reads the counts back.
+const (
+	summaryFirstTitle = "Patch first: %s on %s"
+	summaryMoreTitle  = "%s on %s to patch first"
+)
+
+var summaryTitleCounts = regexp.MustCompile(`^(?:Patch first: )?(\d+) (?:more )?urgent findings? on (\d+) devices?(?: to patch first)?$`)
+
+// summaryCounts is how many findings on how many devices a first-run summary's title counts (summaryFirstTitle, summaryMoreTitle), the
+// ones it lists and the ones it only counts; ok is false for a title of another form.
+func summaryCounts(title string) (found, devices int, ok bool) {
+	m := summaryTitleCounts.FindStringSubmatch(title)
+	if m == nil {
+		return 0, 0, false
+	}
+	found, err1 := strconv.Atoi(m[1])
+	devices, err2 := strconv.Atoi(m[2])
+	return found, devices, err1 == nil && err2 == nil
+}
+
 // summaryNotice words the summary of a load's findings keep (in that order of reading): most urgent first, one line each. unlisted
-// findings are counted but not named (eventDevices and eventLayer then count them too); sent is when the last summary of the load was
-// delivered, if one was.
-func (s *Service) summaryNotice(ctx context.Context, key string, keep []string, infos map[string]FindingInfo, unlisted, eventDevices, eventLayer int,
-	sent sql.NullString) Notice {
+// findings are counted but not named (eventDevices and eventLayer then count them too); prior names the summary of the load the customer
+// got or is getting (priorSummary), "" when there is none.
+func (s *Service) summaryNotice(key string, keep []string, infos map[string]FindingInfo, unlisted, eventDevices, eventLayer int,
+	prior string) Notice {
 	keep = slices.Clone(keep)
 	slices.SortStableFunc(keep, func(a, b string) int { return infos[a].Layer - infos[b].Layer })
 	n := Notice{Kind: KindVuln, Event: NoticeFirstRun, Action: "Patch them from the top of this list: the most urgent come first."}
@@ -301,7 +346,7 @@ func (s *Service) summaryNotice(ctx context.Context, key string, keep []string, 
 	n.Severity = AlertSeverity(Medium, n.Layer)
 	n.Link = s.link(findingsListOf(append(slices.Clone(n.FindingLayers), n.Layer)))
 	const urgent = "as exploited, with a public exploit or critical on an edge device"
-	if t, err := time.Parse(time.RFC3339, sent.String); sent.Valid && err == nil {
+	if prior != "" {
 		why := "Like those, they come from the first load of a source of exploitation news, so they are listed together here instead of one alert each."
 		switch {
 		case key == "install":
@@ -309,8 +354,8 @@ func (s *Service) summaryNotice(ctx context.Context, key string, keep []string, 
 		case strings.HasPrefix(key, "catalogue-"):
 			why = "Like those, they come from the first load of its catalogue of vulnerabilities, so they are listed together here instead of one alert each."
 		}
-		n.Title = fmt.Sprintf("%s on %s to patch first", plural(found, "more urgent finding", "more urgent findings"), plural(devices, "device", "devices"))
-		n.What = fmt.Sprintf("Since the summary sent at %s, Vedette rated %s on %s %s. %s", orgtime.Stamp(t, s.loc(ctx)),
+		n.Title = fmt.Sprintf(summaryMoreTitle, plural(found, "more urgent finding", "more urgent findings"), plural(devices, "device", "devices"))
+		n.What = fmt.Sprintf("Since %s, Vedette rated %s on %s %s. %s", prior,
 			plural(found, "more finding", "more findings"), plural(devices, "device", "devices"), urgent, why)
 		return n
 	}
@@ -321,7 +366,7 @@ func (s *Service) summaryNotice(ctx context.Context, key string, keep []string, 
 	case strings.HasPrefix(key, "catalogue-"):
 		lead = "Vedette has just loaded its catalogue of vulnerabilities for the first time"
 	}
-	n.Title = fmt.Sprintf("Patch first: %s on %s", plural(found, "urgent finding", "urgent findings"), plural(devices, "device", "devices"))
+	n.Title = fmt.Sprintf(summaryFirstTitle, plural(found, "urgent finding", "urgent findings"), plural(devices, "device", "devices"))
 	n.What = fmt.Sprintf("%s, so instead of one alert each, the %s it rated %s are listed together here, most urgent first.", lead,
 		plural(found, "finding", "findings"), urgent)
 	return n

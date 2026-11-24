@@ -25,13 +25,16 @@ function statusesOf(link: string): OpenFindingStatus[] {
   return q.split(',').filter((s): s is OpenFindingStatus => (OPEN_FINDING_STATUSES as readonly string[]).includes(s))
 }
 
-/** One line of where the summary is: delivered (when, through which channels), waiting in the queue (until when), or why it was not sent. */
+/**
+ * One line of where the summary is: delivered (when, and to an administrator through which channels: they set them up), waiting in the
+ * queue (until when), or why it was not sent.
+ */
 function StateLine({ f }: { f: FirstRunSummary }) {
   const { t } = useTranslation(['feeds', 'notify'])
   const admin = useCan('admin')
   const link = 'text-accent underline-offset-4 hover:underline'
   if (f.state === 'sent') {
-    const by = new Intl.ListFormat('en', { type: 'conjunction' }).format(f.channels.map((c) => t(`notify:ch.${c}`, { defaultValue: c })))
+    const by = admin ? new Intl.ListFormat('en', { type: 'conjunction' }).format(f.channels.map((c) => t(`notify:ch.${c}`, { defaultValue: c }))) : ''
     return <p className="text-meta text-muted">{by ? t('firstRun.sentBy', { when: fmtWhen(f.sent_at), by }) : t('firstRun.sent', { when: fmtWhen(f.sent_at) })}</p>
   }
   if (f.state === 'waiting') {
@@ -43,12 +46,13 @@ function StateLine({ f }: { f: FirstRunSummary }) {
     )
   }
   // Not sent: it is still the box's own finding, so the card shows it, says why, and offers the fix to an administrator.
-  const fix = f.reason === 'no_channel' || f.reason === 'channels_off' || f.reason === 'below_min_severity' ? 'setUp'
-    : f.reason === 'failed' ? 'history' : null
+  const fix = f.reason === 'no_channel' || f.reason === 'channels_off' ? 'setUp'
+    : f.reason === 'below_min_severity' ? 'minimum' : f.reason === 'failed' ? 'history' : null
   return (
     <p className="text-meta text-warn">
       {f.not_sent ?? t('firstRun.notSent')}{' '}
       {admin && fix === 'setUp' ? <Link to="/settings/channels#channels" className={link}>{t('firstRun.setUp')}</Link> : null}
+      {admin && fix === 'minimum' ? <Link to="/settings/channels#channels" className={link}>{t('firstRun.minimum')}</Link> : null}
       {admin && fix === 'history' ? <Link to="/settings/channels#history" className={link}>{t('firstRun.history')}</Link> : null}
     </p>
   )

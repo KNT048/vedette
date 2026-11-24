@@ -38,6 +38,23 @@ describe('feeds: the first-run summary on Home', () => {
     await expectNoA11yViolations()
   })
 
+  it('a viewer sees that it was sent, not the channels: those are set up by an administrator', async () => {
+    await withSummary(sent)
+    renderApp('/', { role: 'viewer' })
+    const c = await card()
+    expect(await within(c).findByText(/^Sent .+\.$/)).toBeInTheDocument()
+    expect(within(c).queryByText(/Email|Telegram/)).toBeNull()
+  })
+
+  it('a summary below the channels\' minimum severity: an administrator is sent to change the minimum, not to set up a channel', async () => {
+    await withSummary({ ...sent, state: 'not_sent', sent_at: null, channels: [], reason: 'below_min_severity',
+      not_sent: 'Not sent: rated high for alerts, and your channels only send critical and above.' })
+    renderApp('/')
+    const c = await card()
+    expect(within(c).getByRole('link', { name: 'Change the minimum severity in Alert channels' })).toHaveAttribute('href', '/settings/channels#channels')
+    expect(within(c).queryByRole('link', { name: 'Set up an alert channel' })).toBeNull()
+  })
+
   it('a summary still waiting says when it goes out, or that quiet hours hold it', async () => {
     const due = new Date(Date.now() + 5 * 60_000).toISOString()
     await withSummary({ ...sent, state: 'waiting', sent_at: null, channels: [], due_at: due })

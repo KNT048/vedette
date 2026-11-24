@@ -10,8 +10,8 @@ import (
 )
 
 // Fixtures, docs and examples use only documentation and private-use address ranges (192.0.2.0/24, 198.51.100.0/24,
-// 10.0.0.0/8, 192.168.1.0/24, 100.64.0.0/10 outside the ranges below). The prefixes below belong to a real network and must
-// not appear in any file of the repository. They are assembled from parts so this file does not contain them itself.
+// 10.0.0.0/8, 192.168.1.0/24, 100.64.0.0/10 outside the ranges below). The prefixes below are retired fixture ranges that must
+// not come back into any file of the repository. They are assembled from parts so this file does not contain them itself.
 var forbiddenAddressPrefixes = []string{
 	"192.168." + "18.",
 	"100." + "65.",
@@ -70,7 +70,7 @@ func addressHits(root string) ([]string, error) {
 	return hits, nil
 }
 
-func TestNoRealNetworkAddressesInTheRepository(t *testing.T) {
+func TestNoRetiredFixtureAddressesInTheRepository(t *testing.T) {
 	hits, err := addressHits(repoRoot)
 	if err != nil {
 		t.Fatal(err)

@@ -16823,7 +16823,11 @@ func (s CoreGetCoreUpdatesBundleOK) Read(p []byte) (n int, err error) {
 }
 
 type CoreGetCoreUpdatesOK struct {
-	Advisories   []CoreGetCoreUpdatesOKAdvisoriesItem `json:"advisories"`
+	Advisories []CoreGetCoreUpdatesOKAdvisoriesItem `json:"advisories"`
+	// Automatic mode only: the release on offer waits for a restart of the box (written once per release
+	// and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null
+	// when nothing waits, the restart is no longer scheduled, or a run is going.
+	AutoWait     NilCoreGetCoreUpdatesOKAutoWait      `json:"auto_wait"`
 	Available    []CoreGetCoreUpdatesOKAvailableItem  `json:"available"`
 	Channel      CoreGetCoreUpdatesOKChannel          `json:"channel"`
 	CheckEnabled bool                                 `json:"check_enabled"`
@@ -16852,6 +16856,11 @@ type CoreGetCoreUpdatesOK struct {
 // GetAdvisories returns the value of Advisories.
 func (s *CoreGetCoreUpdatesOK) GetAdvisories() []CoreGetCoreUpdatesOKAdvisoriesItem {
 	return s.Advisories
+}
+
+// GetAutoWait returns the value of AutoWait.
+func (s *CoreGetCoreUpdatesOK) GetAutoWait() NilCoreGetCoreUpdatesOKAutoWait {
+	return s.AutoWait
 }
 
 // GetAvailable returns the value of Available.
@@ -16917,6 +16926,11 @@ func (s *CoreGetCoreUpdatesOK) GetStaleSince() NilDateTime {
 // SetAdvisories sets the value of Advisories.
 func (s *CoreGetCoreUpdatesOK) SetAdvisories(val []CoreGetCoreUpdatesOKAdvisoriesItem) {
 	s.Advisories = val
+}
+
+// SetAutoWait sets the value of AutoWait.
+func (s *CoreGetCoreUpdatesOK) SetAutoWait(val NilCoreGetCoreUpdatesOKAutoWait) {
+	s.AutoWait = val
 }
 
 // SetAvailable sets the value of Available.
@@ -17142,6 +17156,82 @@ func (s *CoreGetCoreUpdatesOKAdvisoriesItemStatus) UnmarshalText(data []byte) er
 		return nil
 	case CoreGetCoreUpdatesOKAdvisoriesItemStatusFixed:
 		*s = CoreGetCoreUpdatesOKAdvisoriesItemStatusFixed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CoreGetCoreUpdatesOKAutoWait struct {
+	// Os_reboot = the box restarts for operating system updates before an install could end, so the
+	// automatic mode does not start one now.
+	Reason CoreGetCoreUpdatesOKAutoWaitReason `json:"reason"`
+	// When the box restarts, as the system helper has it scheduled now.
+	RebootAt time.Time `json:"reboot_at"`
+	// The release on offer that the automatic mode installs once the restart is over.
+	Version string `json:"version"`
+}
+
+// GetReason returns the value of Reason.
+func (s *CoreGetCoreUpdatesOKAutoWait) GetReason() CoreGetCoreUpdatesOKAutoWaitReason {
+	return s.Reason
+}
+
+// GetRebootAt returns the value of RebootAt.
+func (s *CoreGetCoreUpdatesOKAutoWait) GetRebootAt() time.Time {
+	return s.RebootAt
+}
+
+// GetVersion returns the value of Version.
+func (s *CoreGetCoreUpdatesOKAutoWait) GetVersion() string {
+	return s.Version
+}
+
+// SetReason sets the value of Reason.
+func (s *CoreGetCoreUpdatesOKAutoWait) SetReason(val CoreGetCoreUpdatesOKAutoWaitReason) {
+	s.Reason = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CoreGetCoreUpdatesOKAutoWait) SetRebootAt(val time.Time) {
+	s.RebootAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CoreGetCoreUpdatesOKAutoWait) SetVersion(val string) {
+	s.Version = val
+}
+
+// Os_reboot = the box restarts for operating system updates before an install could end, so the
+// automatic mode does not start one now.
+type CoreGetCoreUpdatesOKAutoWaitReason string
+
+const (
+	CoreGetCoreUpdatesOKAutoWaitReasonOsReboot CoreGetCoreUpdatesOKAutoWaitReason = "os_reboot"
+)
+
+// AllValues returns all CoreGetCoreUpdatesOKAutoWaitReason values.
+func (CoreGetCoreUpdatesOKAutoWaitReason) AllValues() []CoreGetCoreUpdatesOKAutoWaitReason {
+	return []CoreGetCoreUpdatesOKAutoWaitReason{
+		CoreGetCoreUpdatesOKAutoWaitReasonOsReboot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreUpdatesOKAutoWaitReason) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreUpdatesOKAutoWaitReasonOsReboot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreUpdatesOKAutoWaitReason) UnmarshalText(data []byte) error {
+	switch CoreGetCoreUpdatesOKAutoWaitReason(data) {
+	case CoreGetCoreUpdatesOKAutoWaitReasonOsReboot:
+		*s = CoreGetCoreUpdatesOKAutoWaitReasonOsReboot
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -21036,7 +21126,11 @@ func (s *CorePatchCorePrivacyReq) SetUpdateCheck(val OptBool) {
 }
 
 type CorePatchCoreUpdatesOK struct {
-	Advisories   []CorePatchCoreUpdatesOKAdvisoriesItem `json:"advisories"`
+	Advisories []CorePatchCoreUpdatesOKAdvisoriesItem `json:"advisories"`
+	// Automatic mode only: the release on offer waits for a restart of the box (written once per release
+	// and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null
+	// when nothing waits, the restart is no longer scheduled, or a run is going.
+	AutoWait     NilCorePatchCoreUpdatesOKAutoWait      `json:"auto_wait"`
 	Available    []CorePatchCoreUpdatesOKAvailableItem  `json:"available"`
 	Channel      CorePatchCoreUpdatesOKChannel          `json:"channel"`
 	CheckEnabled bool                                   `json:"check_enabled"`
@@ -21065,6 +21159,11 @@ type CorePatchCoreUpdatesOK struct {
 // GetAdvisories returns the value of Advisories.
 func (s *CorePatchCoreUpdatesOK) GetAdvisories() []CorePatchCoreUpdatesOKAdvisoriesItem {
 	return s.Advisories
+}
+
+// GetAutoWait returns the value of AutoWait.
+func (s *CorePatchCoreUpdatesOK) GetAutoWait() NilCorePatchCoreUpdatesOKAutoWait {
+	return s.AutoWait
 }
 
 // GetAvailable returns the value of Available.
@@ -21130,6 +21229,11 @@ func (s *CorePatchCoreUpdatesOK) GetStaleSince() NilDateTime {
 // SetAdvisories sets the value of Advisories.
 func (s *CorePatchCoreUpdatesOK) SetAdvisories(val []CorePatchCoreUpdatesOKAdvisoriesItem) {
 	s.Advisories = val
+}
+
+// SetAutoWait sets the value of AutoWait.
+func (s *CorePatchCoreUpdatesOK) SetAutoWait(val NilCorePatchCoreUpdatesOKAutoWait) {
+	s.AutoWait = val
 }
 
 // SetAvailable sets the value of Available.
@@ -21355,6 +21459,82 @@ func (s *CorePatchCoreUpdatesOKAdvisoriesItemStatus) UnmarshalText(data []byte) 
 		return nil
 	case CorePatchCoreUpdatesOKAdvisoriesItemStatusFixed:
 		*s = CorePatchCoreUpdatesOKAdvisoriesItemStatusFixed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePatchCoreUpdatesOKAutoWait struct {
+	// Os_reboot = the box restarts for operating system updates before an install could end, so the
+	// automatic mode does not start one now.
+	Reason CorePatchCoreUpdatesOKAutoWaitReason `json:"reason"`
+	// When the box restarts, as the system helper has it scheduled now.
+	RebootAt time.Time `json:"reboot_at"`
+	// The release on offer that the automatic mode installs once the restart is over.
+	Version string `json:"version"`
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePatchCoreUpdatesOKAutoWait) GetReason() CorePatchCoreUpdatesOKAutoWaitReason {
+	return s.Reason
+}
+
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePatchCoreUpdatesOKAutoWait) GetRebootAt() time.Time {
+	return s.RebootAt
+}
+
+// GetVersion returns the value of Version.
+func (s *CorePatchCoreUpdatesOKAutoWait) GetVersion() string {
+	return s.Version
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePatchCoreUpdatesOKAutoWait) SetReason(val CorePatchCoreUpdatesOKAutoWaitReason) {
+	s.Reason = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePatchCoreUpdatesOKAutoWait) SetRebootAt(val time.Time) {
+	s.RebootAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CorePatchCoreUpdatesOKAutoWait) SetVersion(val string) {
+	s.Version = val
+}
+
+// Os_reboot = the box restarts for operating system updates before an install could end, so the
+// automatic mode does not start one now.
+type CorePatchCoreUpdatesOKAutoWaitReason string
+
+const (
+	CorePatchCoreUpdatesOKAutoWaitReasonOsReboot CorePatchCoreUpdatesOKAutoWaitReason = "os_reboot"
+)
+
+// AllValues returns all CorePatchCoreUpdatesOKAutoWaitReason values.
+func (CorePatchCoreUpdatesOKAutoWaitReason) AllValues() []CorePatchCoreUpdatesOKAutoWaitReason {
+	return []CorePatchCoreUpdatesOKAutoWaitReason{
+		CorePatchCoreUpdatesOKAutoWaitReasonOsReboot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePatchCoreUpdatesOKAutoWaitReason) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePatchCoreUpdatesOKAutoWaitReasonOsReboot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePatchCoreUpdatesOKAutoWaitReason) UnmarshalText(data []byte) error {
+	switch CorePatchCoreUpdatesOKAutoWaitReason(data) {
+	case CorePatchCoreUpdatesOKAutoWaitReasonOsReboot:
+		*s = CorePatchCoreUpdatesOKAutoWaitReasonOsReboot
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -29799,7 +29979,11 @@ func (s CorePostCoreSetupRestoreUploadReq) Read(p []byte) (n int, err error) {
 }
 
 type CorePostCoreUpdatesApplyOK struct {
-	Advisories   []CorePostCoreUpdatesApplyOKAdvisoriesItem `json:"advisories"`
+	Advisories []CorePostCoreUpdatesApplyOKAdvisoriesItem `json:"advisories"`
+	// Automatic mode only: the release on offer waits for a restart of the box (written once per release
+	// and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null
+	// when nothing waits, the restart is no longer scheduled, or a run is going.
+	AutoWait     NilCorePostCoreUpdatesApplyOKAutoWait      `json:"auto_wait"`
 	Available    []CorePostCoreUpdatesApplyOKAvailableItem  `json:"available"`
 	Channel      CorePostCoreUpdatesApplyOKChannel          `json:"channel"`
 	CheckEnabled bool                                       `json:"check_enabled"`
@@ -29828,6 +30012,11 @@ type CorePostCoreUpdatesApplyOK struct {
 // GetAdvisories returns the value of Advisories.
 func (s *CorePostCoreUpdatesApplyOK) GetAdvisories() []CorePostCoreUpdatesApplyOKAdvisoriesItem {
 	return s.Advisories
+}
+
+// GetAutoWait returns the value of AutoWait.
+func (s *CorePostCoreUpdatesApplyOK) GetAutoWait() NilCorePostCoreUpdatesApplyOKAutoWait {
+	return s.AutoWait
 }
 
 // GetAvailable returns the value of Available.
@@ -29893,6 +30082,11 @@ func (s *CorePostCoreUpdatesApplyOK) GetStaleSince() NilDateTime {
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesApplyOK) SetAdvisories(val []CorePostCoreUpdatesApplyOKAdvisoriesItem) {
 	s.Advisories = val
+}
+
+// SetAutoWait sets the value of AutoWait.
+func (s *CorePostCoreUpdatesApplyOK) SetAutoWait(val NilCorePostCoreUpdatesApplyOKAutoWait) {
+	s.AutoWait = val
 }
 
 // SetAvailable sets the value of Available.
@@ -30118,6 +30312,82 @@ func (s *CorePostCoreUpdatesApplyOKAdvisoriesItemStatus) UnmarshalText(data []by
 		return nil
 	case CorePostCoreUpdatesApplyOKAdvisoriesItemStatusFixed:
 		*s = CorePostCoreUpdatesApplyOKAdvisoriesItemStatusFixed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesApplyOKAutoWait struct {
+	// Os_reboot = the box restarts for operating system updates before an install could end, so the
+	// automatic mode does not start one now.
+	Reason CorePostCoreUpdatesApplyOKAutoWaitReason `json:"reason"`
+	// When the box restarts, as the system helper has it scheduled now.
+	RebootAt time.Time `json:"reboot_at"`
+	// The release on offer that the automatic mode installs once the restart is over.
+	Version string `json:"version"`
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) GetReason() CorePostCoreUpdatesApplyOKAutoWaitReason {
+	return s.Reason
+}
+
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) GetRebootAt() time.Time {
+	return s.RebootAt
+}
+
+// GetVersion returns the value of Version.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) GetVersion() string {
+	return s.Version
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) SetReason(val CorePostCoreUpdatesApplyOKAutoWaitReason) {
+	s.Reason = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) SetRebootAt(val time.Time) {
+	s.RebootAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) SetVersion(val string) {
+	s.Version = val
+}
+
+// Os_reboot = the box restarts for operating system updates before an install could end, so the
+// automatic mode does not start one now.
+type CorePostCoreUpdatesApplyOKAutoWaitReason string
+
+const (
+	CorePostCoreUpdatesApplyOKAutoWaitReasonOsReboot CorePostCoreUpdatesApplyOKAutoWaitReason = "os_reboot"
+)
+
+// AllValues returns all CorePostCoreUpdatesApplyOKAutoWaitReason values.
+func (CorePostCoreUpdatesApplyOKAutoWaitReason) AllValues() []CorePostCoreUpdatesApplyOKAutoWaitReason {
+	return []CorePostCoreUpdatesApplyOKAutoWaitReason{
+		CorePostCoreUpdatesApplyOKAutoWaitReasonOsReboot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesApplyOKAutoWaitReason) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesApplyOKAutoWaitReasonOsReboot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesApplyOKAutoWaitReason) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesApplyOKAutoWaitReason(data) {
+	case CorePostCoreUpdatesApplyOKAutoWaitReasonOsReboot:
+		*s = CorePostCoreUpdatesApplyOKAutoWaitReasonOsReboot
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -31367,7 +31637,11 @@ func (s *CorePostCoreUpdatesBundleOK) SetState(val CorePostCoreUpdatesBundleOKSt
 }
 
 type CorePostCoreUpdatesBundleOKState struct {
-	Advisories   []CorePostCoreUpdatesBundleOKStateAdvisoriesItem `json:"advisories"`
+	Advisories []CorePostCoreUpdatesBundleOKStateAdvisoriesItem `json:"advisories"`
+	// Automatic mode only: the release on offer waits for a restart of the box (written once per release
+	// and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null
+	// when nothing waits, the restart is no longer scheduled, or a run is going.
+	AutoWait     NilCorePostCoreUpdatesBundleOKStateAutoWait      `json:"auto_wait"`
 	Available    []CorePostCoreUpdatesBundleOKStateAvailableItem  `json:"available"`
 	Channel      CorePostCoreUpdatesBundleOKStateChannel          `json:"channel"`
 	CheckEnabled bool                                             `json:"check_enabled"`
@@ -31396,6 +31670,11 @@ type CorePostCoreUpdatesBundleOKState struct {
 // GetAdvisories returns the value of Advisories.
 func (s *CorePostCoreUpdatesBundleOKState) GetAdvisories() []CorePostCoreUpdatesBundleOKStateAdvisoriesItem {
 	return s.Advisories
+}
+
+// GetAutoWait returns the value of AutoWait.
+func (s *CorePostCoreUpdatesBundleOKState) GetAutoWait() NilCorePostCoreUpdatesBundleOKStateAutoWait {
+	return s.AutoWait
 }
 
 // GetAvailable returns the value of Available.
@@ -31461,6 +31740,11 @@ func (s *CorePostCoreUpdatesBundleOKState) GetStaleSince() NilDateTime {
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesBundleOKState) SetAdvisories(val []CorePostCoreUpdatesBundleOKStateAdvisoriesItem) {
 	s.Advisories = val
+}
+
+// SetAutoWait sets the value of AutoWait.
+func (s *CorePostCoreUpdatesBundleOKState) SetAutoWait(val NilCorePostCoreUpdatesBundleOKStateAutoWait) {
+	s.AutoWait = val
 }
 
 // SetAvailable sets the value of Available.
@@ -31686,6 +31970,82 @@ func (s *CorePostCoreUpdatesBundleOKStateAdvisoriesItemStatus) UnmarshalText(dat
 		return nil
 	case CorePostCoreUpdatesBundleOKStateAdvisoriesItemStatusFixed:
 		*s = CorePostCoreUpdatesBundleOKStateAdvisoriesItemStatusFixed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesBundleOKStateAutoWait struct {
+	// Os_reboot = the box restarts for operating system updates before an install could end, so the
+	// automatic mode does not start one now.
+	Reason CorePostCoreUpdatesBundleOKStateAutoWaitReason `json:"reason"`
+	// When the box restarts, as the system helper has it scheduled now.
+	RebootAt time.Time `json:"reboot_at"`
+	// The release on offer that the automatic mode installs once the restart is over.
+	Version string `json:"version"`
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) GetReason() CorePostCoreUpdatesBundleOKStateAutoWaitReason {
+	return s.Reason
+}
+
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) GetRebootAt() time.Time {
+	return s.RebootAt
+}
+
+// GetVersion returns the value of Version.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) GetVersion() string {
+	return s.Version
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) SetReason(val CorePostCoreUpdatesBundleOKStateAutoWaitReason) {
+	s.Reason = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) SetRebootAt(val time.Time) {
+	s.RebootAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) SetVersion(val string) {
+	s.Version = val
+}
+
+// Os_reboot = the box restarts for operating system updates before an install could end, so the
+// automatic mode does not start one now.
+type CorePostCoreUpdatesBundleOKStateAutoWaitReason string
+
+const (
+	CorePostCoreUpdatesBundleOKStateAutoWaitReasonOsReboot CorePostCoreUpdatesBundleOKStateAutoWaitReason = "os_reboot"
+)
+
+// AllValues returns all CorePostCoreUpdatesBundleOKStateAutoWaitReason values.
+func (CorePostCoreUpdatesBundleOKStateAutoWaitReason) AllValues() []CorePostCoreUpdatesBundleOKStateAutoWaitReason {
+	return []CorePostCoreUpdatesBundleOKStateAutoWaitReason{
+		CorePostCoreUpdatesBundleOKStateAutoWaitReasonOsReboot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesBundleOKStateAutoWaitReason) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesBundleOKStateAutoWaitReasonOsReboot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWaitReason) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesBundleOKStateAutoWaitReason(data) {
+	case CorePostCoreUpdatesBundleOKStateAutoWaitReasonOsReboot:
+		*s = CorePostCoreUpdatesBundleOKStateAutoWaitReasonOsReboot
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -32946,7 +33306,11 @@ func (s *CorePostCoreUpdatesBundleReq) SetSize(val float64) {
 type CorePostCoreUpdatesCheckOK struct {
 	Advisories []CorePostCoreUpdatesCheckOKAdvisoriesItem `json:"advisories"`
 	// Items installed automatically in automatic mode.
-	Applied      float64                                    `json:"applied"`
+	Applied float64 `json:"applied"`
+	// Automatic mode only: the release on offer waits for a restart of the box (written once per release
+	// and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null
+	// when nothing waits, the restart is no longer scheduled, or a run is going.
+	AutoWait     NilCorePostCoreUpdatesCheckOKAutoWait      `json:"auto_wait"`
 	Available    []CorePostCoreUpdatesCheckOKAvailableItem  `json:"available"`
 	Channel      CorePostCoreUpdatesCheckOKChannel          `json:"channel"`
 	CheckEnabled bool                                       `json:"check_enabled"`
@@ -32980,6 +33344,11 @@ func (s *CorePostCoreUpdatesCheckOK) GetAdvisories() []CorePostCoreUpdatesCheckO
 // GetApplied returns the value of Applied.
 func (s *CorePostCoreUpdatesCheckOK) GetApplied() float64 {
 	return s.Applied
+}
+
+// GetAutoWait returns the value of AutoWait.
+func (s *CorePostCoreUpdatesCheckOK) GetAutoWait() NilCorePostCoreUpdatesCheckOKAutoWait {
+	return s.AutoWait
 }
 
 // GetAvailable returns the value of Available.
@@ -33050,6 +33419,11 @@ func (s *CorePostCoreUpdatesCheckOK) SetAdvisories(val []CorePostCoreUpdatesChec
 // SetApplied sets the value of Applied.
 func (s *CorePostCoreUpdatesCheckOK) SetApplied(val float64) {
 	s.Applied = val
+}
+
+// SetAutoWait sets the value of AutoWait.
+func (s *CorePostCoreUpdatesCheckOK) SetAutoWait(val NilCorePostCoreUpdatesCheckOKAutoWait) {
+	s.AutoWait = val
 }
 
 // SetAvailable sets the value of Available.
@@ -33275,6 +33649,82 @@ func (s *CorePostCoreUpdatesCheckOKAdvisoriesItemStatus) UnmarshalText(data []by
 		return nil
 	case CorePostCoreUpdatesCheckOKAdvisoriesItemStatusFixed:
 		*s = CorePostCoreUpdatesCheckOKAdvisoriesItemStatusFixed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesCheckOKAutoWait struct {
+	// Os_reboot = the box restarts for operating system updates before an install could end, so the
+	// automatic mode does not start one now.
+	Reason CorePostCoreUpdatesCheckOKAutoWaitReason `json:"reason"`
+	// When the box restarts, as the system helper has it scheduled now.
+	RebootAt time.Time `json:"reboot_at"`
+	// The release on offer that the automatic mode installs once the restart is over.
+	Version string `json:"version"`
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) GetReason() CorePostCoreUpdatesCheckOKAutoWaitReason {
+	return s.Reason
+}
+
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) GetRebootAt() time.Time {
+	return s.RebootAt
+}
+
+// GetVersion returns the value of Version.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) GetVersion() string {
+	return s.Version
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) SetReason(val CorePostCoreUpdatesCheckOKAutoWaitReason) {
+	s.Reason = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) SetRebootAt(val time.Time) {
+	s.RebootAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) SetVersion(val string) {
+	s.Version = val
+}
+
+// Os_reboot = the box restarts for operating system updates before an install could end, so the
+// automatic mode does not start one now.
+type CorePostCoreUpdatesCheckOKAutoWaitReason string
+
+const (
+	CorePostCoreUpdatesCheckOKAutoWaitReasonOsReboot CorePostCoreUpdatesCheckOKAutoWaitReason = "os_reboot"
+)
+
+// AllValues returns all CorePostCoreUpdatesCheckOKAutoWaitReason values.
+func (CorePostCoreUpdatesCheckOKAutoWaitReason) AllValues() []CorePostCoreUpdatesCheckOKAutoWaitReason {
+	return []CorePostCoreUpdatesCheckOKAutoWaitReason{
+		CorePostCoreUpdatesCheckOKAutoWaitReasonOsReboot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesCheckOKAutoWaitReason) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesCheckOKAutoWaitReasonOsReboot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesCheckOKAutoWaitReason) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesCheckOKAutoWaitReason(data) {
+	case CorePostCoreUpdatesCheckOKAutoWaitReasonOsReboot:
+		*s = CorePostCoreUpdatesCheckOKAutoWaitReasonOsReboot
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -35754,7 +36204,11 @@ func (s *CorePostCoreUpdatesOsRebootReqWhen) UnmarshalText(data []byte) error {
 }
 
 type CorePostCoreUpdatesRollbackOK struct {
-	Advisories   []CorePostCoreUpdatesRollbackOKAdvisoriesItem `json:"advisories"`
+	Advisories []CorePostCoreUpdatesRollbackOKAdvisoriesItem `json:"advisories"`
+	// Automatic mode only: the release on offer waits for a restart of the box (written once per release
+	// and restart time, audit update.auto_wait) and installs after it, inside the maintenance window. Null
+	// when nothing waits, the restart is no longer scheduled, or a run is going.
+	AutoWait     NilCorePostCoreUpdatesRollbackOKAutoWait      `json:"auto_wait"`
 	Available    []CorePostCoreUpdatesRollbackOKAvailableItem  `json:"available"`
 	Channel      CorePostCoreUpdatesRollbackOKChannel          `json:"channel"`
 	CheckEnabled bool                                          `json:"check_enabled"`
@@ -35783,6 +36237,11 @@ type CorePostCoreUpdatesRollbackOK struct {
 // GetAdvisories returns the value of Advisories.
 func (s *CorePostCoreUpdatesRollbackOK) GetAdvisories() []CorePostCoreUpdatesRollbackOKAdvisoriesItem {
 	return s.Advisories
+}
+
+// GetAutoWait returns the value of AutoWait.
+func (s *CorePostCoreUpdatesRollbackOK) GetAutoWait() NilCorePostCoreUpdatesRollbackOKAutoWait {
+	return s.AutoWait
 }
 
 // GetAvailable returns the value of Available.
@@ -35848,6 +36307,11 @@ func (s *CorePostCoreUpdatesRollbackOK) GetStaleSince() NilDateTime {
 // SetAdvisories sets the value of Advisories.
 func (s *CorePostCoreUpdatesRollbackOK) SetAdvisories(val []CorePostCoreUpdatesRollbackOKAdvisoriesItem) {
 	s.Advisories = val
+}
+
+// SetAutoWait sets the value of AutoWait.
+func (s *CorePostCoreUpdatesRollbackOK) SetAutoWait(val NilCorePostCoreUpdatesRollbackOKAutoWait) {
+	s.AutoWait = val
 }
 
 // SetAvailable sets the value of Available.
@@ -36073,6 +36537,82 @@ func (s *CorePostCoreUpdatesRollbackOKAdvisoriesItemStatus) UnmarshalText(data [
 		return nil
 	case CorePostCoreUpdatesRollbackOKAdvisoriesItemStatusFixed:
 		*s = CorePostCoreUpdatesRollbackOKAdvisoriesItemStatusFixed
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type CorePostCoreUpdatesRollbackOKAutoWait struct {
+	// Os_reboot = the box restarts for operating system updates before an install could end, so the
+	// automatic mode does not start one now.
+	Reason CorePostCoreUpdatesRollbackOKAutoWaitReason `json:"reason"`
+	// When the box restarts, as the system helper has it scheduled now.
+	RebootAt time.Time `json:"reboot_at"`
+	// The release on offer that the automatic mode installs once the restart is over.
+	Version string `json:"version"`
+}
+
+// GetReason returns the value of Reason.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) GetReason() CorePostCoreUpdatesRollbackOKAutoWaitReason {
+	return s.Reason
+}
+
+// GetRebootAt returns the value of RebootAt.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) GetRebootAt() time.Time {
+	return s.RebootAt
+}
+
+// GetVersion returns the value of Version.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) GetVersion() string {
+	return s.Version
+}
+
+// SetReason sets the value of Reason.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) SetReason(val CorePostCoreUpdatesRollbackOKAutoWaitReason) {
+	s.Reason = val
+}
+
+// SetRebootAt sets the value of RebootAt.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) SetRebootAt(val time.Time) {
+	s.RebootAt = val
+}
+
+// SetVersion sets the value of Version.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) SetVersion(val string) {
+	s.Version = val
+}
+
+// Os_reboot = the box restarts for operating system updates before an install could end, so the
+// automatic mode does not start one now.
+type CorePostCoreUpdatesRollbackOKAutoWaitReason string
+
+const (
+	CorePostCoreUpdatesRollbackOKAutoWaitReasonOsReboot CorePostCoreUpdatesRollbackOKAutoWaitReason = "os_reboot"
+)
+
+// AllValues returns all CorePostCoreUpdatesRollbackOKAutoWaitReason values.
+func (CorePostCoreUpdatesRollbackOKAutoWaitReason) AllValues() []CorePostCoreUpdatesRollbackOKAutoWaitReason {
+	return []CorePostCoreUpdatesRollbackOKAutoWaitReason{
+		CorePostCoreUpdatesRollbackOKAutoWaitReasonOsReboot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePostCoreUpdatesRollbackOKAutoWaitReason) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePostCoreUpdatesRollbackOKAutoWaitReasonOsReboot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKAutoWaitReason) UnmarshalText(data []byte) error {
+	switch CorePostCoreUpdatesRollbackOKAutoWaitReason(data) {
+	case CorePostCoreUpdatesRollbackOKAutoWaitReasonOsReboot:
+		*s = CorePostCoreUpdatesRollbackOKAutoWaitReasonOsReboot
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -167402,6 +167942,51 @@ func (o NilCoreGetCoreTermsOKAccepted) Or(d CoreGetCoreTermsOKAccepted) CoreGetC
 	return d
 }
 
+// NewNilCoreGetCoreUpdatesOKAutoWait returns new NilCoreGetCoreUpdatesOKAutoWait with value set to v.
+func NewNilCoreGetCoreUpdatesOKAutoWait(v CoreGetCoreUpdatesOKAutoWait) NilCoreGetCoreUpdatesOKAutoWait {
+	return NilCoreGetCoreUpdatesOKAutoWait{
+		Value: v,
+	}
+}
+
+// NilCoreGetCoreUpdatesOKAutoWait is nullable CoreGetCoreUpdatesOKAutoWait.
+type NilCoreGetCoreUpdatesOKAutoWait struct {
+	Value CoreGetCoreUpdatesOKAutoWait
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCoreGetCoreUpdatesOKAutoWait) SetTo(v CoreGetCoreUpdatesOKAutoWait) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCoreGetCoreUpdatesOKAutoWait) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCoreGetCoreUpdatesOKAutoWait) SetToNull() {
+	o.Null = true
+	var v CoreGetCoreUpdatesOKAutoWait
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCoreGetCoreUpdatesOKAutoWait) Get() (v CoreGetCoreUpdatesOKAutoWait, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCoreGetCoreUpdatesOKAutoWait) Or(d CoreGetCoreUpdatesOKAutoWait) CoreGetCoreUpdatesOKAutoWait {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCoreGetCoreUpdatesOKLastCheckError returns new NilCoreGetCoreUpdatesOKLastCheckError with value set to v.
 func NewNilCoreGetCoreUpdatesOKLastCheckError(v CoreGetCoreUpdatesOKLastCheckError) NilCoreGetCoreUpdatesOKLastCheckError {
 	return NilCoreGetCoreUpdatesOKLastCheckError{
@@ -167846,6 +168431,51 @@ func (o NilCoreGetMeOKTwofaMethod) Get() (v CoreGetMeOKTwofaMethod, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCoreGetMeOKTwofaMethod) Or(d CoreGetMeOKTwofaMethod) CoreGetMeOKTwofaMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePatchCoreUpdatesOKAutoWait returns new NilCorePatchCoreUpdatesOKAutoWait with value set to v.
+func NewNilCorePatchCoreUpdatesOKAutoWait(v CorePatchCoreUpdatesOKAutoWait) NilCorePatchCoreUpdatesOKAutoWait {
+	return NilCorePatchCoreUpdatesOKAutoWait{
+		Value: v,
+	}
+}
+
+// NilCorePatchCoreUpdatesOKAutoWait is nullable CorePatchCoreUpdatesOKAutoWait.
+type NilCorePatchCoreUpdatesOKAutoWait struct {
+	Value CorePatchCoreUpdatesOKAutoWait
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePatchCoreUpdatesOKAutoWait) SetTo(v CorePatchCoreUpdatesOKAutoWait) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePatchCoreUpdatesOKAutoWait) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePatchCoreUpdatesOKAutoWait) SetToNull() {
+	o.Null = true
+	var v CorePatchCoreUpdatesOKAutoWait
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePatchCoreUpdatesOKAutoWait) Get() (v CorePatchCoreUpdatesOKAutoWait, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePatchCoreUpdatesOKAutoWait) Or(d CorePatchCoreUpdatesOKAutoWait) CorePatchCoreUpdatesOKAutoWait {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -168392,6 +169022,51 @@ func (o NilCorePostCoreNetworkManagementRevertOKPending) Or(d CorePostCoreNetwor
 	return d
 }
 
+// NewNilCorePostCoreUpdatesApplyOKAutoWait returns new NilCorePostCoreUpdatesApplyOKAutoWait with value set to v.
+func NewNilCorePostCoreUpdatesApplyOKAutoWait(v CorePostCoreUpdatesApplyOKAutoWait) NilCorePostCoreUpdatesApplyOKAutoWait {
+	return NilCorePostCoreUpdatesApplyOKAutoWait{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesApplyOKAutoWait is nullable CorePostCoreUpdatesApplyOKAutoWait.
+type NilCorePostCoreUpdatesApplyOKAutoWait struct {
+	Value CorePostCoreUpdatesApplyOKAutoWait
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesApplyOKAutoWait) SetTo(v CorePostCoreUpdatesApplyOKAutoWait) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesApplyOKAutoWait) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesApplyOKAutoWait) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesApplyOKAutoWait
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesApplyOKAutoWait) Get() (v CorePostCoreUpdatesApplyOKAutoWait, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesApplyOKAutoWait) Or(d CorePostCoreUpdatesApplyOKAutoWait) CorePostCoreUpdatesApplyOKAutoWait {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCorePostCoreUpdatesApplyOKLastCheckError returns new NilCorePostCoreUpdatesApplyOKLastCheckError with value set to v.
 func NewNilCorePostCoreUpdatesApplyOKLastCheckError(v CorePostCoreUpdatesApplyOKLastCheckError) NilCorePostCoreUpdatesApplyOKLastCheckError {
 	return NilCorePostCoreUpdatesApplyOKLastCheckError{
@@ -168572,6 +169247,51 @@ func (o NilCorePostCoreUpdatesApplyOKRunningRevoked) Or(d CorePostCoreUpdatesApp
 	return d
 }
 
+// NewNilCorePostCoreUpdatesBundleOKStateAutoWait returns new NilCorePostCoreUpdatesBundleOKStateAutoWait with value set to v.
+func NewNilCorePostCoreUpdatesBundleOKStateAutoWait(v CorePostCoreUpdatesBundleOKStateAutoWait) NilCorePostCoreUpdatesBundleOKStateAutoWait {
+	return NilCorePostCoreUpdatesBundleOKStateAutoWait{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesBundleOKStateAutoWait is nullable CorePostCoreUpdatesBundleOKStateAutoWait.
+type NilCorePostCoreUpdatesBundleOKStateAutoWait struct {
+	Value CorePostCoreUpdatesBundleOKStateAutoWait
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesBundleOKStateAutoWait) SetTo(v CorePostCoreUpdatesBundleOKStateAutoWait) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesBundleOKStateAutoWait) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesBundleOKStateAutoWait) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesBundleOKStateAutoWait
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesBundleOKStateAutoWait) Get() (v CorePostCoreUpdatesBundleOKStateAutoWait, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesBundleOKStateAutoWait) Or(d CorePostCoreUpdatesBundleOKStateAutoWait) CorePostCoreUpdatesBundleOKStateAutoWait {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilCorePostCoreUpdatesBundleOKStateLastCheckError returns new NilCorePostCoreUpdatesBundleOKStateLastCheckError with value set to v.
 func NewNilCorePostCoreUpdatesBundleOKStateLastCheckError(v CorePostCoreUpdatesBundleOKStateLastCheckError) NilCorePostCoreUpdatesBundleOKStateLastCheckError {
 	return NilCorePostCoreUpdatesBundleOKStateLastCheckError{
@@ -168746,6 +169466,51 @@ func (o NilCorePostCoreUpdatesBundleOKStateRunningRevoked) Get() (v CorePostCore
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePostCoreUpdatesBundleOKStateRunningRevoked) Or(d CorePostCoreUpdatesBundleOKStateRunningRevoked) CorePostCoreUpdatesBundleOKStateRunningRevoked {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesCheckOKAutoWait returns new NilCorePostCoreUpdatesCheckOKAutoWait with value set to v.
+func NewNilCorePostCoreUpdatesCheckOKAutoWait(v CorePostCoreUpdatesCheckOKAutoWait) NilCorePostCoreUpdatesCheckOKAutoWait {
+	return NilCorePostCoreUpdatesCheckOKAutoWait{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesCheckOKAutoWait is nullable CorePostCoreUpdatesCheckOKAutoWait.
+type NilCorePostCoreUpdatesCheckOKAutoWait struct {
+	Value CorePostCoreUpdatesCheckOKAutoWait
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesCheckOKAutoWait) SetTo(v CorePostCoreUpdatesCheckOKAutoWait) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesCheckOKAutoWait) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesCheckOKAutoWait) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesCheckOKAutoWait
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesCheckOKAutoWait) Get() (v CorePostCoreUpdatesCheckOKAutoWait, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesCheckOKAutoWait) Or(d CorePostCoreUpdatesCheckOKAutoWait) CorePostCoreUpdatesCheckOKAutoWait {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -169151,6 +169916,51 @@ func (o NilCorePostCoreUpdatesOsRebootOKReleaseUpgrade) Get() (v CorePostCoreUpd
 
 // Or returns value if set, or given parameter if does not.
 func (o NilCorePostCoreUpdatesOsRebootOKReleaseUpgrade) Or(d CorePostCoreUpdatesOsRebootOKReleaseUpgrade) CorePostCoreUpdatesOsRebootOKReleaseUpgrade {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilCorePostCoreUpdatesRollbackOKAutoWait returns new NilCorePostCoreUpdatesRollbackOKAutoWait with value set to v.
+func NewNilCorePostCoreUpdatesRollbackOKAutoWait(v CorePostCoreUpdatesRollbackOKAutoWait) NilCorePostCoreUpdatesRollbackOKAutoWait {
+	return NilCorePostCoreUpdatesRollbackOKAutoWait{
+		Value: v,
+	}
+}
+
+// NilCorePostCoreUpdatesRollbackOKAutoWait is nullable CorePostCoreUpdatesRollbackOKAutoWait.
+type NilCorePostCoreUpdatesRollbackOKAutoWait struct {
+	Value CorePostCoreUpdatesRollbackOKAutoWait
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilCorePostCoreUpdatesRollbackOKAutoWait) SetTo(v CorePostCoreUpdatesRollbackOKAutoWait) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilCorePostCoreUpdatesRollbackOKAutoWait) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilCorePostCoreUpdatesRollbackOKAutoWait) SetToNull() {
+	o.Null = true
+	var v CorePostCoreUpdatesRollbackOKAutoWait
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilCorePostCoreUpdatesRollbackOKAutoWait) Get() (v CorePostCoreUpdatesRollbackOKAutoWait, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilCorePostCoreUpdatesRollbackOKAutoWait) Or(d CorePostCoreUpdatesRollbackOKAutoWait) CorePostCoreUpdatesRollbackOKAutoWait {
 	if v, ok := o.Get(); ok {
 		return v
 	}

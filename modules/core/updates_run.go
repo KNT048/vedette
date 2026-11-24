@@ -363,12 +363,34 @@ func (r *updateRunRec) add(step, command, service string, undo bool) error {
 	return nil
 }
 
-// runs reports whether a service is on: its unit has [Install] (it starts at boot), or systemd runs it now. A unit that
-// runs without [Install] (left so by an interrupted stop, or written before the module's guard put [Install] back) still
-// takes core's heartbeat, so an update or a rollback that skipped it would leave it on another version than core until its
-// module's guard noticed; switching it with the others is what its module asks for anyway.
-func runs(s api.ContainerState) bool {
-	return s.Enabled || s.UnitState == api.UnitActive || s.UnitState == api.UnitOther
+// serviceModule is the module whose switch decides whether a service's container runs (cmd/vedette's guards and the
+// honeypot module start and stop them). Core and OpenVAS have none here.
+var serviceModule = map[string]string{
+	api.ServiceSensor:   "sensor-passive",
+	api.ServiceScan:     "sensor-active",
+	api.ServiceHoneypot: "honeypot",
+}
+
+// moduleOff reports whether the person turned off the module that runs service: an update or a rollback must not start
+// it (SYS-5), even while systemd still shows its unit going down.
+func (h *OSHandlers) moduleOff(service string) bool {
+	id, ok := serviceModule[service]
+	return ok && h.moduleOn != nil && !h.moduleOn(id)
+}
+
+// runs reports whether a service is on, so an update or a rollback switches it with core. Off when its module is off
+// (moduleOff): what the person asked for decides, not a passing state of systemd. Otherwise on when its unit has
+// [Install] (it starts at boot; a unit coming up or restarting has it too, since a start puts it back first), or
+// systemd runs it now. A unit that runs without [Install] (left so by an interrupted stop, or written before the
+// module's guard put [Install] back) still takes core's heartbeat, so an update or a rollback that skipped it would leave
+// it on another version than core until its module's guard noticed. A unit in a passing state ("other": activating,
+// deactivating, reloading) without [Install] is a stop going on: a stop that keeps the service off removes [Install]
+// before it stops the unit, and a start would turn the service back on.
+func (h *OSHandlers) runs(s api.ContainerState) bool {
+	if h.moduleOff(s.Service) {
+		return false
+	}
+	return s.Enabled || s.UnitState == api.UnitActive
 }
 
 // planApply: host = host.self_update when the release brings a newer system helper (planHost); download =
@@ -424,7 +446,7 @@ func (h *OSHandlers) planApply(ctx context.Context, c caller, rel *verifiedRelea
 		if s.Service == api.ServiceCore || !s.Installed || !inRelease[s.Service] {
 			continue
 		}
-		if !runs(s) {
+		if !h.runs(s) {
 			off = append(off, s.Service)
 			continue
 		}
@@ -477,7 +499,7 @@ func (h *OSHandlers) planRollback(ctx context.Context, c caller, confirmed bool)
 	}
 	rec.StartedAt, rec.Progress = h.now(), h.now()
 	for _, s := range st.Services {
-		if s.Service == api.ServiceCore || !s.Installed || !runs(s) || s.Version == nil || *s.Version != cur ||
+		if s.Service == api.ServiceCore || !s.Installed || !h.runs(s) || s.Version == nil || *s.Version != cur ||
 			s.Previous == nil || s.Previous.Version == nil || *s.Previous.Version != prev {
 			continue
 		}
@@ -666,6 +688,16 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 				break
 			}
 		}
+		if h.offNow(c) {
+			// The module was turned off after the plan was made: starting or rolling back its service would turn it on
+			// again. Not an error: the service stays off on the version it has, as one that was off at the plan.
+			h.log.InfoContext(ctx, "core: a service whose module is off is left out of the software run", "run", rec.ID, "service", c.Service, "command", c.Command)
+			rec.Calls[i].Status = callSkipped
+			if err := h.saveUpdateRun(ctx, rec); err != nil {
+				return false, err
+			}
+			continue
+		}
 		if !c.Undo && (rec.Step == nil || *rec.Step != c.Step) {
 			step := c.Step
 			rec.Step, rec.Progress = &step, h.now()
@@ -712,6 +744,13 @@ func (f *updFollower) advance(ctx context.Context) (done bool, err error) {
 		}
 	}
 	return err == nil, err // not stored: the next try settles it again
+}
+
+// offNow: call c of a run would start a service (container.start, or container.rollback, which restarts it) whose module
+// is off now, and has not reached the host. An undo call puts back what the run itself switched and always goes.
+func (h *OSHandlers) offNow(c updateCall) bool {
+	return !c.Undo && !c.Sent && c.RunID == "" && c.Service != api.ServiceCore &&
+		(c.Command == api.CmdContainerStart || c.Command == api.CmdContainerRollback) && h.moduleOff(c.Service)
 }
 
 // coreVersion is the version the host reports for core: nil while it does not know (a rollback of core still runs).

@@ -2,6 +2,7 @@ package core_test
 
 import (
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -380,5 +381,93 @@ func TestUpdateCheckNowInAutoModeStartsTheRun(t *testing.T) {
 	}
 	if run := endedRun(t, e); run["status"] != "done" {
 		t.Fatalf("run = %v", run)
+	}
+}
+
+// A restart of the box for operating system updates due within a run's longest time holds the automatic install back, and
+// the page says so: UpdatesState.auto_wait names the release and the restart time, the Check answer carries it, and one
+// update.auto_wait audit row is written per release and restart time, not one per tick. After the restart (none
+// scheduled any more) the next tick installs it and the note is gone.
+func TestUpdateAutoWaitForARestartIsShownAndAuditedOnce(t *testing.T) {
+	t.Parallel()
+	e, fh := newRunEnv(t, lockstep("1.3.0", "1.2.0"), "1.3.0", true)
+	tick := func() {
+		t.Helper()
+		if err := e.handler.UpdateTick(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setReboot := func(at *time.Time) {
+		fh.mu.Lock()
+		fh.rebootAt = at
+		fh.mu.Unlock()
+		e.clock.Advance(11 * time.Second) // the copy of state/os lives 10 s
+	}
+	waitOf := func(r reply) map[string]any {
+		t.Helper()
+		w, _ := r.JSON["auto_wait"].(map[string]any)
+		return w
+	}
+	// The clock is Monday 2026-11-09 12:00 UTC (the organization's zone).
+	e.setting("os.settings", `{"window":{"mode":"window","days":[1],"from":"11:00","to":"15:00"}}`)
+	wantOK(t, e.admin.patch("/core/updates", map[string]any{"mode": "auto"}), 200)
+	if w := waitOf(e.admin.get("/core/updates")); w != nil {
+		t.Fatalf("auto_wait before any restart = %v", w)
+	}
+	at := e.clock.Now().Add(time.Hour)
+	setReboot(&at)
+	tick()
+	tick()
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	w := waitOf(r)
+	if w == nil || w["version"] != "1.4.0" || w["reason"] != "os_reboot" || w["reboot_at"] != at.UTC().Format(time.RFC3339) {
+		t.Fatalf("auto_wait in the Check answer = %v", w)
+	}
+	if r.JSON["run"] != nil || len(fh.callList()) != 0 {
+		t.Fatalf("a run started with a restart due: run %v, calls %q", r.JSON["run"], fh.callList())
+	}
+	if d := e.auditDetails("update.auto_wait"); len(d) != 1 || !strings.Contains(d[0], "1.4.0 waits") {
+		t.Fatalf("update.auto_wait rows = %q, want one", d)
+	}
+	if u := e.auditUsers("update.auto_wait"); !slices.Equal(u, []string{"system"}) {
+		t.Errorf("update.auto_wait users = %q", u)
+	}
+	// Manual mode installs nothing by itself: nothing waits.
+	wantOK(t, e.admin.patch("/core/updates", map[string]any{"mode": "manual"}), 200)
+	if w := waitOf(e.admin.get("/core/updates")); w != nil {
+		t.Errorf("auto_wait in manual mode = %v", w)
+	}
+	wantOK(t, e.admin.patch("/core/updates", map[string]any{"mode": "auto"}), 200)
+	// The restart moved: the page follows the host's time, and the new time is audited once.
+	later := at.Add(time.Hour)
+	setReboot(&later)
+	if w := waitOf(e.admin.get("/core/updates")); w == nil || w["reboot_at"] != later.UTC().Format(time.RFC3339) {
+		t.Errorf("auto_wait after the restart moved = %v", w)
+	}
+	tick()
+	tick()
+	if d := e.auditDetails("update.auto_wait"); len(d) != 2 {
+		t.Errorf("update.auto_wait rows after the restart moved = %q, want two", d)
+	}
+	// The restart is over (nothing scheduled): the note goes, and the next tick installs.
+	setReboot(nil)
+	if w := waitOf(e.admin.get("/core/updates")); w != nil {
+		t.Errorf("auto_wait with no restart scheduled = %v", w)
+	}
+	fh.hold["start core"] = true
+	tick()
+	waitCall(t, fh, "start core")
+	if run := runOf(t, e.admin.get("/core/updates")); run["user"] != "system" || run["to"] != "1.4.0" {
+		t.Fatalf("automatic run = %v", run)
+	}
+	fh.release("start core")
+	if run := endedRun(t, e); run["status"] != "done" {
+		t.Fatalf("run = %v", run)
+	}
+	var raw string
+	_ = e.env.DB.Reader().QueryRowContext(t.Context(), "SELECT value FROM core_setting WHERE key = 'core_update_wait'").Scan(&raw)
+	if raw != "null" {
+		t.Errorf("the note after the run started = %q, want null", raw)
 	}
 }

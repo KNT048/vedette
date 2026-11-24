@@ -9748,6 +9748,24 @@ func (s *CoreGetCoreUpdatesOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.AutoWait.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "auto_wait",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Available == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -9993,6 +10011,38 @@ func (s CoreGetCoreUpdatesOKAdvisoriesItemStatus) Validate() error {
 	case "affected":
 		return nil
 	case "fixed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CoreGetCoreUpdatesOKAutoWait) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CoreGetCoreUpdatesOKAutoWaitReason) Validate() error {
+	switch s {
+	case "os_reboot":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -11996,6 +12046,24 @@ func (s *CorePatchCoreUpdatesOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.AutoWait.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "auto_wait",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Available == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -12241,6 +12309,38 @@ func (s CorePatchCoreUpdatesOKAdvisoriesItemStatus) Validate() error {
 	case "affected":
 		return nil
 	case "fixed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePatchCoreUpdatesOKAutoWait) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePatchCoreUpdatesOKAutoWaitReason) Validate() error {
+	switch s {
+	case "os_reboot":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -16537,6 +16637,24 @@ func (s *CorePostCoreUpdatesApplyOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.AutoWait.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "auto_wait",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Available == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -16782,6 +16900,38 @@ func (s CorePostCoreUpdatesApplyOKAdvisoriesItemStatus) Validate() error {
 	case "affected":
 		return nil
 	case "fixed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePostCoreUpdatesApplyOKAutoWait) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesApplyOKAutoWaitReason) Validate() error {
+	switch s {
+	case "os_reboot":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -17266,6 +17416,24 @@ func (s *CorePostCoreUpdatesBundleOKState) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.AutoWait.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "auto_wait",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Available == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -17511,6 +17679,38 @@ func (s CorePostCoreUpdatesBundleOKStateAdvisoriesItemStatus) Validate() error {
 	case "affected":
 		return nil
 	case "fixed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesBundleOKStateAutoWaitReason) Validate() error {
+	switch s {
+	case "os_reboot":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -17995,6 +18195,24 @@ func (s *CorePostCoreUpdatesCheckOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.AutoWait.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "auto_wait",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Available == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -18240,6 +18458,38 @@ func (s CorePostCoreUpdatesCheckOKAdvisoriesItemStatus) Validate() error {
 	case "affected":
 		return nil
 	case "fixed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePostCoreUpdatesCheckOKAutoWait) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesCheckOKAutoWaitReason) Validate() error {
+	switch s {
+	case "os_reboot":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -19526,6 +19776,24 @@ func (s *CorePostCoreUpdatesRollbackOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.AutoWait.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "auto_wait",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Available == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -19771,6 +20039,38 @@ func (s CorePostCoreUpdatesRollbackOKAdvisoriesItemStatus) Validate() error {
 	case "affected":
 		return nil
 	case "fixed":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Reason.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "reason",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s CorePostCoreUpdatesRollbackOKAutoWaitReason) Validate() error {
+	switch s {
+	case "os_reboot":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

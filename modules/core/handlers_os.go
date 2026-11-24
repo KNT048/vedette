@@ -43,6 +43,8 @@ type OSHandlers struct {
 	snaps *snapshotter
 	// installed is OSConfig.Installed (nil: none).
 	installed func()
+	// moduleOn is OSConfig.ModuleOn (nil: none known to be off).
+	moduleOn func(id string) bool
 	// pkgDir is <core_data>/host-packages: the system helper package a software run downloads for the host
 	// (host.self_update); empty without a host.
 	pkgDir string
@@ -140,6 +142,10 @@ type OSConfig struct {
 	// Installed is called once after an OS update run that succeeded has been audited: the box's packages changed, so its
 	// package list is read again now (wiring: the inventory/box job) instead of at the next hourly run. nil: nothing.
 	Installed func()
+	// ModuleOn reports whether a module is on (modreg.Registry.Enabled): a software update or rollback never starts the
+	// container of a service whose module is off (serviceModule), whatever state systemd shows for its unit. nil: no module
+	// is known to be off (the unit's own state decides).
+	ModuleOn func(id string) bool
 }
 
 // NewOSHandlers returns the handlers and sweeps the snapshot directories an earlier run left behind.
@@ -150,7 +156,7 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 	if c.Clock == nil {
 		c.Clock = time.Now
 	}
-	h := &OSHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout, started: time.Now(), installed: c.Installed, setup: c.Setup, keyPath: c.KeyPath}
+	h := &OSHandlers{gate: c.Gate, db: c.DB, auth: c.Auth, audit: c.Audit, host: c.Host, zone: c.Zone, log: c.Log, now: c.Clock, loadTimeout: loadTimeout, started: time.Now(), installed: c.Installed, setup: c.Setup, keyPath: c.KeyPath, moduleOn: c.ModuleOn}
 	if err := h.upd.init(c, c.Clock()); err != nil {
 		return nil, err
 	}

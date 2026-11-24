@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/host/api"
 )
@@ -133,8 +135,7 @@ func (h *OSHandlers) autoInstall(ctx context.Context, by string) error {
 		return err
 	}
 	if at := st.RebootScheduledAt; at != nil && at.Before(h.now().Add(updateRunMax)) {
-		h.skipOnce(ctx, "auto-reboot", "a reboot is scheduled", "reboot_at", *at)
-		return nil
+		return h.waitForReboot(ctx, *at)
 	}
 	err = h.beginUpdate(ctx, systemCaller, func(ctx context.Context) (*updateRunRec, string, func(*sql.Tx) error, error) {
 		rel, err := h.autoPlan(ctx)
@@ -151,7 +152,9 @@ func (h *OSHandlers) autoInstall(ctx context.Context, by string) error {
 	if err == nil {
 		h.log.InfoContext(ctx, "core: the automatic mode started the software update")
 		h.upd.warned.Delete("auto-stale")
-		h.upd.warned.Delete("auto-reboot")
+		if err := h.clearAutoWait(ctx); err != nil { // the page reads it only with an offer and a reboot still due: a stale one shows nothing
+			h.log.WarnContext(ctx, "core: the note of an update that waited for a restart could not be cleared", "error", err)
+		}
 		return nil
 	}
 	ae, ok := apierr.As(err)
@@ -163,6 +166,85 @@ func (h *OSHandlers) autoInstall(ctx context.Context, by string) error {
 		return nil
 	}
 	return err
+}
+
+// autoWaitRec is core_setting keyUpdateWait: the automatic mode leaves the release on offer alone because the operating
+// system restarts for its own updates (state/os reboot_scheduled_at) before a run could end. One record per release and
+// restart time: the audit row and the log line are written when it changes, not at every tick.
+type autoWaitRec struct {
+	Version  string    `json:"version"`
+	RebootAt time.Time `json:"reboot_at"`
+	Since    time.Time `json:"since"`
+}
+
+// autoWaitView is UpdatesState.auto_wait (contract.ts AutoUpdateWait).
+type autoWaitView struct {
+	Version  string    `json:"version"`
+	Reason   string    `json:"reason"` // os_reboot
+	RebootAt time.Time `json:"reboot_at"`
+}
+
+// waitForReboot: a restart of the box for operating system updates is due at at, within a run's longest time, so the
+// automatic mode does not start the run now (a restart in the middle of core's switch would cut it). When a release is
+// on offer that the automatic mode would install (autoPlan), it is written down for the page (UpdatesState.auto_wait) and audited
+// once (update.auto_wait, user system); the next tick after the restart installs it, inside the maintenance window.
+func (h *OSHandlers) waitForReboot(ctx context.Context, at time.Time) error {
+	rel, err := h.autoPlan(ctx) // what a run would install now; nothing (or a release left to an administrator) waits for nothing
+	if errors.Is(err, errAutoSkip) || errors.Is(err, errNoUpdate) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	v := rel.M.Version
+	var w *autoWaitRec
+	if err := h.loadJSON(ctx, keyUpdateWait, &w); err != nil {
+		return err
+	}
+	if w != nil && w.Version == v && w.RebootAt.Equal(at) {
+		return nil
+	}
+	rec := autoWaitRec{Version: v, RebootAt: at.UTC(), Since: h.now().UTC()}
+	detail := fmt.Sprintf("%s waits: the box restarts for operating system updates at %s; it installs after that", v, at.UTC().Format(time.RFC3339))
+	err = h.db.Write(ctx, func(tx *sql.Tx) error {
+		if err := h.audit.Append(ctx, tx, audit.Entry{User: userSystem, Action: "update.auto_wait", Target: "updates", Detail: cutAtRune(detail, auditMaxDetail)}); err != nil {
+			return err
+		}
+		return h.putSetting(ctx, tx, keyUpdateWait, rec, userSystem)
+	})
+	if err != nil {
+		return err
+	}
+	h.log.InfoContext(ctx, "core: the automatic software update waits for the operating system restart", "version", v, "reboot_at", at)
+	return nil
+}
+
+// clearAutoWait drops the note of waitForReboot once a run started.
+func (h *OSHandlers) clearAutoWait(ctx context.Context) error {
+	var w *autoWaitRec
+	if err := h.loadJSON(ctx, keyUpdateWait, &w); err != nil || w == nil {
+		return err
+	}
+	return h.db.Write(ctx, func(tx *sql.Tx) error { return h.putSetting(ctx, tx, keyUpdateWait, nil, userSystem) })
+}
+
+// autoWaitOf is UpdatesState.auto_wait: the release on offer still waits for the operating system restart that
+// waitForReboot saw. Only in automatic mode with update checks on, no run going, the same release on offer and a restart
+// the host still has scheduled (its time now, which an administrator may have moved); null otherwise, so a note that
+// went stale shows nothing.
+func (h *OSHandlers) autoWaitOf(ctx context.Context, s updateSettings, on bool, offer *verifiedRelease, run *updateRunView) *autoWaitView {
+	if s.Mode != "auto" || !on || offer == nil || (run != nil && run.Status == runRunning) || h.host == nil {
+		return nil
+	}
+	var w *autoWaitRec
+	if err := h.loadJSON(ctx, keyUpdateWait, &w); err != nil || w == nil || w.Version != offer.M.Version {
+		return nil
+	}
+	st, err := h.hostState(ctx)
+	if err != nil || st.RebootScheduledAt == nil || !st.RebootScheduledAt.After(h.now()) {
+		return nil
+	}
+	return &autoWaitView{Version: w.Version, Reason: "os_reboot", RebootAt: st.RebootScheduledAt.UTC()}
 }
 
 // autoPlan is the release the automatic mode installs now, read under urun.mu: the mode is still automatic, the latest

@@ -28,9 +28,11 @@ func oneLine(s string, n int) string {
 	return s
 }
 
-// FixWords says a fix in words: what to do, with the release. "" for a fix that names no release to install (none yet, not known).
+// FixWords says a fix in words: what to do, with the release. "" for a fix that names no release to install (none yet, not known). A
+// Windows update without a build names its KB, or the latest cumulative update when the data names neither (as the finding page does).
 func FixWords(kind FixKind, product, installed, version, ref string) string {
-	product, installed, version = oneLine(cmp.Or(product, "the software"), 100), oneLine(installed, 60), oneLine(version, 100)
+	named := oneLine(product, 100) // "" when the device's product is not known
+	product, installed, version = cmp.Or(named, "the software"), oneLine(installed, 60), oneLine(version, 100)
 	switch kind {
 	case FixUpdate:
 		if version == "" {
@@ -46,8 +48,17 @@ func FixWords(kind FixKind, product, installed, version, ref string) string {
 		}
 		return "install the distribution's security updates of " + product + " (it has not published a fixed package yet; they arrive with its updates)"
 	case FixOSUpdate:
+		kb := oneLine(ref, 20)
+		switch {
+		case version == "" && kb != "":
+			return "install the Windows update " + kb
+		case version == "" && named != "": // the data names neither the build nor the KB: the newest monthly update has the fix
+			return "install the latest Windows cumulative update on " + named
+		case version == "":
+			return "install the latest Windows cumulative update"
+		}
 		s := "install the Windows update that brings the build to " + version
-		if kb := oneLine(ref, 20); kb != "" {
+		if kb != "" {
 			s += " (" + kb + ")"
 		}
 		return s

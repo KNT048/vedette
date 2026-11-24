@@ -66,6 +66,31 @@ describe('core: withdrawn running release and stale update information (S-CORE-2
     expect(screen.queryByText('None: no known vulnerability in Vedette.')).toBeNull()
   })
 
+  it('automatic mode waiting for a restart of the box: the page says which release waits, until when and why; Check says it too', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
+    const sw = { component: 'software', version: '1.0.0', channel: 'stable', size_kb: 1000, note: '', images: [] }
+    const state = { ...s, mode: 'auto', available: [sw], run: null, auto_wait: { version: '1.0.0', reason: 'os_reboot', reboot_at: '2026-11-10T03:00:00Z' } }
+    server.use(
+      http.get('*/api/v1/core/updates', () => HttpResponse.json(state)),
+      http.post('*/api/v1/core/updates/check', () => HttpResponse.json({ ...state, applied: 0 })),
+    )
+    renderApp('/settings/updates')
+    const note = (await screen.findByText('Vedette 1.0.0 installs after the box restarts')).closest('[role="status"]') as HTMLElement
+    expect(note).toHaveTextContent(/^Vedette 1\.0\.0 installs after the box restartsThe box restarts for operating system updates at 10 Nov 2026, \d\d:\d\d\. An update started now could be cut off by that restart, so the automatic update waits and installs 1\.0\.0 after it, in the maintenance window\. You can also press Update now\.$/)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Check and install new releases' }))
+    expect(await screen.findByText(/^Found Vedette 1\.0\.0\. The box restarts for operating system updates at 10 Nov 2026, \d\d:\d\d, so it installs after that restart, or press Update now\.$/)).toBeInTheDocument()
+  })
+
+  it('a note of a wait left from automatic mode is not shown in manual mode', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...s, mode: 'manual', auto_wait: { version: '1.0.0', reason: 'os_reboot', reboot_at: '2026-11-10T03:00:00Z' } })))
+    renderApp('/settings/updates')
+    await screen.findByRole('table', { name: 'Versions in use' })
+    expect(screen.queryByText(/installs after the box restarts/)).toBeNull()
+  })
+
   it('container-only: the same notices, without the offline bundle', async () => {
     installStore.set({ kind: 'container' })
     revoke('block_install')

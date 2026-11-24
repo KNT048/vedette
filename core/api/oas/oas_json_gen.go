@@ -34366,6 +34366,10 @@ func (s *CoreGetCoreUpdatesOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("auto_wait")
+		s.AutoWait.Encode(e)
+	}
+	{
 		e.FieldStart("available")
 		e.ArrStart()
 		for _, elem := range s.Available {
@@ -34431,20 +34435,21 @@ func (s *CoreGetCoreUpdatesOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCoreGetCoreUpdatesOK = [13]string{
+var jsonFieldsNameOfCoreGetCoreUpdatesOK = [14]string{
 	0:  "advisories",
-	1:  "available",
-	2:  "channel",
-	3:  "check_enabled",
-	4:  "components",
-	5:  "history",
-	6:  "last_check",
-	7:  "last_check_error",
-	8:  "managed",
-	9:  "mode",
-	10: "run",
-	11: "running_revoked",
-	12: "stale_since",
+	1:  "auto_wait",
+	2:  "available",
+	3:  "channel",
+	4:  "check_enabled",
+	5:  "components",
+	6:  "history",
+	7:  "last_check",
+	8:  "last_check_error",
+	9:  "managed",
+	10: "mode",
+	11: "run",
+	12: "running_revoked",
+	13: "stale_since",
 }
 
 // Decode decodes CoreGetCoreUpdatesOK from json.
@@ -34474,8 +34479,18 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"advisories\"")
 			}
-		case "available":
+		case "auto_wait":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.AutoWait.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"auto_wait\"")
+			}
+		case "available":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.Available = make([]CoreGetCoreUpdatesOKAvailableItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -34493,7 +34508,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"available\"")
 			}
 		case "channel":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Channel.Decode(d); err != nil {
 					return err
@@ -34503,7 +34518,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"channel\"")
 			}
 		case "check_enabled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.CheckEnabled = bool(v)
@@ -34515,7 +34530,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"check_enabled\"")
 			}
 		case "components":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Components = make([]CoreGetCoreUpdatesOKComponentsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -34533,7 +34548,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"components\"")
 			}
 		case "history":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.History = make([]CoreGetCoreUpdatesOKHistoryItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -34551,7 +34566,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"history\"")
 			}
 		case "last_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -34561,7 +34576,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_check_error":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.LastCheckError.Decode(d); err != nil {
 					return err
@@ -34571,7 +34586,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check_error\"")
 			}
 		case "managed":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Managed = make([]CoreGetCoreUpdatesOKManagedItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -34589,7 +34604,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"managed\"")
 			}
 		case "mode":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Mode.Decode(d); err != nil {
 					return err
@@ -34599,7 +34614,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "run":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -34609,7 +34624,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "running_revoked":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.RunningRevoked.Decode(d); err != nil {
 					return err
@@ -34619,7 +34634,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"running_revoked\"")
 			}
 		case "stale_since":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -34639,7 +34654,7 @@ func (s *CoreGetCoreUpdatesOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -34957,6 +34972,172 @@ func (s CoreGetCoreUpdatesOKAdvisoriesItemStatus) MarshalJSON() ([]byte, error) 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CoreGetCoreUpdatesOKAdvisoriesItemStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CoreGetCoreUpdatesOKAutoWait) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CoreGetCoreUpdatesOKAutoWait) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("reboot_at")
+		json.EncodeDateTime(e, s.RebootAt)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCoreGetCoreUpdatesOKAutoWait = [3]string{
+	0: "reason",
+	1: "reboot_at",
+	2: "version",
+}
+
+// Decode decodes CoreGetCoreUpdatesOKAutoWait from json.
+func (s *CoreGetCoreUpdatesOKAutoWait) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreUpdatesOKAutoWait to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "reason":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.RebootAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CoreGetCoreUpdatesOKAutoWait")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCoreGetCoreUpdatesOKAutoWait) {
+					name = jsonFieldsNameOfCoreGetCoreUpdatesOKAutoWait[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CoreGetCoreUpdatesOKAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreUpdatesOKAutoWait) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CoreGetCoreUpdatesOKAutoWaitReason as json.
+func (s CoreGetCoreUpdatesOKAutoWaitReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CoreGetCoreUpdatesOKAutoWaitReason from json.
+func (s *CoreGetCoreUpdatesOKAutoWaitReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CoreGetCoreUpdatesOKAutoWaitReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CoreGetCoreUpdatesOKAutoWaitReason(v) {
+	case CoreGetCoreUpdatesOKAutoWaitReasonOsReboot:
+		*s = CoreGetCoreUpdatesOKAutoWaitReasonOsReboot
+	default:
+		*s = CoreGetCoreUpdatesOKAutoWaitReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CoreGetCoreUpdatesOKAutoWaitReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CoreGetCoreUpdatesOKAutoWaitReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -41885,6 +42066,10 @@ func (s *CorePatchCoreUpdatesOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("auto_wait")
+		s.AutoWait.Encode(e)
+	}
+	{
 		e.FieldStart("available")
 		e.ArrStart()
 		for _, elem := range s.Available {
@@ -41950,20 +42135,21 @@ func (s *CorePatchCoreUpdatesOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePatchCoreUpdatesOK = [13]string{
+var jsonFieldsNameOfCorePatchCoreUpdatesOK = [14]string{
 	0:  "advisories",
-	1:  "available",
-	2:  "channel",
-	3:  "check_enabled",
-	4:  "components",
-	5:  "history",
-	6:  "last_check",
-	7:  "last_check_error",
-	8:  "managed",
-	9:  "mode",
-	10: "run",
-	11: "running_revoked",
-	12: "stale_since",
+	1:  "auto_wait",
+	2:  "available",
+	3:  "channel",
+	4:  "check_enabled",
+	5:  "components",
+	6:  "history",
+	7:  "last_check",
+	8:  "last_check_error",
+	9:  "managed",
+	10: "mode",
+	11: "run",
+	12: "running_revoked",
+	13: "stale_since",
 }
 
 // Decode decodes CorePatchCoreUpdatesOK from json.
@@ -41993,8 +42179,18 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"advisories\"")
 			}
-		case "available":
+		case "auto_wait":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.AutoWait.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"auto_wait\"")
+			}
+		case "available":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.Available = make([]CorePatchCoreUpdatesOKAvailableItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -42012,7 +42208,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"available\"")
 			}
 		case "channel":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Channel.Decode(d); err != nil {
 					return err
@@ -42022,7 +42218,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"channel\"")
 			}
 		case "check_enabled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.CheckEnabled = bool(v)
@@ -42034,7 +42230,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"check_enabled\"")
 			}
 		case "components":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Components = make([]CorePatchCoreUpdatesOKComponentsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -42052,7 +42248,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"components\"")
 			}
 		case "history":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.History = make([]CorePatchCoreUpdatesOKHistoryItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -42070,7 +42266,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"history\"")
 			}
 		case "last_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -42080,7 +42276,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_check_error":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.LastCheckError.Decode(d); err != nil {
 					return err
@@ -42090,7 +42286,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check_error\"")
 			}
 		case "managed":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Managed = make([]CorePatchCoreUpdatesOKManagedItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -42108,7 +42304,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"managed\"")
 			}
 		case "mode":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Mode.Decode(d); err != nil {
 					return err
@@ -42118,7 +42314,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "run":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -42128,7 +42324,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "running_revoked":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.RunningRevoked.Decode(d); err != nil {
 					return err
@@ -42138,7 +42334,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"running_revoked\"")
 			}
 		case "stale_since":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -42158,7 +42354,7 @@ func (s *CorePatchCoreUpdatesOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -42476,6 +42672,172 @@ func (s CorePatchCoreUpdatesOKAdvisoriesItemStatus) MarshalJSON() ([]byte, error
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePatchCoreUpdatesOKAdvisoriesItemStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePatchCoreUpdatesOKAutoWait) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePatchCoreUpdatesOKAutoWait) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("reboot_at")
+		json.EncodeDateTime(e, s.RebootAt)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCorePatchCoreUpdatesOKAutoWait = [3]string{
+	0: "reason",
+	1: "reboot_at",
+	2: "version",
+}
+
+// Decode decodes CorePatchCoreUpdatesOKAutoWait from json.
+func (s *CorePatchCoreUpdatesOKAutoWait) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePatchCoreUpdatesOKAutoWait to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "reason":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.RebootAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePatchCoreUpdatesOKAutoWait")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePatchCoreUpdatesOKAutoWait) {
+					name = jsonFieldsNameOfCorePatchCoreUpdatesOKAutoWait[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePatchCoreUpdatesOKAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePatchCoreUpdatesOKAutoWait) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePatchCoreUpdatesOKAutoWaitReason as json.
+func (s CorePatchCoreUpdatesOKAutoWaitReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePatchCoreUpdatesOKAutoWaitReason from json.
+func (s *CorePatchCoreUpdatesOKAutoWaitReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePatchCoreUpdatesOKAutoWaitReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePatchCoreUpdatesOKAutoWaitReason(v) {
+	case CorePatchCoreUpdatesOKAutoWaitReasonOsReboot:
+		*s = CorePatchCoreUpdatesOKAutoWaitReasonOsReboot
+	default:
+		*s = CorePatchCoreUpdatesOKAutoWaitReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePatchCoreUpdatesOKAutoWaitReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePatchCoreUpdatesOKAutoWaitReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -60042,6 +60404,10 @@ func (s *CorePostCoreUpdatesApplyOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("auto_wait")
+		s.AutoWait.Encode(e)
+	}
+	{
 		e.FieldStart("available")
 		e.ArrStart()
 		for _, elem := range s.Available {
@@ -60107,20 +60473,21 @@ func (s *CorePostCoreUpdatesApplyOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesApplyOK = [13]string{
+var jsonFieldsNameOfCorePostCoreUpdatesApplyOK = [14]string{
 	0:  "advisories",
-	1:  "available",
-	2:  "channel",
-	3:  "check_enabled",
-	4:  "components",
-	5:  "history",
-	6:  "last_check",
-	7:  "last_check_error",
-	8:  "managed",
-	9:  "mode",
-	10: "run",
-	11: "running_revoked",
-	12: "stale_since",
+	1:  "auto_wait",
+	2:  "available",
+	3:  "channel",
+	4:  "check_enabled",
+	5:  "components",
+	6:  "history",
+	7:  "last_check",
+	8:  "last_check_error",
+	9:  "managed",
+	10: "mode",
+	11: "run",
+	12: "running_revoked",
+	13: "stale_since",
 }
 
 // Decode decodes CorePostCoreUpdatesApplyOK from json.
@@ -60150,8 +60517,18 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"advisories\"")
 			}
-		case "available":
+		case "auto_wait":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.AutoWait.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"auto_wait\"")
+			}
+		case "available":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.Available = make([]CorePostCoreUpdatesApplyOKAvailableItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -60169,7 +60546,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"available\"")
 			}
 		case "channel":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Channel.Decode(d); err != nil {
 					return err
@@ -60179,7 +60556,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"channel\"")
 			}
 		case "check_enabled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.CheckEnabled = bool(v)
@@ -60191,7 +60568,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"check_enabled\"")
 			}
 		case "components":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Components = make([]CorePostCoreUpdatesApplyOKComponentsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -60209,7 +60586,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"components\"")
 			}
 		case "history":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.History = make([]CorePostCoreUpdatesApplyOKHistoryItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -60227,7 +60604,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"history\"")
 			}
 		case "last_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -60237,7 +60614,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_check_error":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.LastCheckError.Decode(d); err != nil {
 					return err
@@ -60247,7 +60624,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check_error\"")
 			}
 		case "managed":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Managed = make([]CorePostCoreUpdatesApplyOKManagedItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -60265,7 +60642,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"managed\"")
 			}
 		case "mode":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Mode.Decode(d); err != nil {
 					return err
@@ -60275,7 +60652,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "run":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -60285,7 +60662,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "running_revoked":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.RunningRevoked.Decode(d); err != nil {
 					return err
@@ -60295,7 +60672,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"running_revoked\"")
 			}
 		case "stale_since":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -60315,7 +60692,7 @@ func (s *CorePostCoreUpdatesApplyOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -60633,6 +61010,172 @@ func (s CorePostCoreUpdatesApplyOKAdvisoriesItemStatus) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreUpdatesApplyOKAdvisoriesItemStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("reboot_at")
+		json.EncodeDateTime(e, s.RebootAt)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesApplyOKAutoWait = [3]string{
+	0: "reason",
+	1: "reboot_at",
+	2: "version",
+}
+
+// Decode decodes CorePostCoreUpdatesApplyOKAutoWait from json.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesApplyOKAutoWait to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "reason":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.RebootAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesApplyOKAutoWait")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesApplyOKAutoWait) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesApplyOKAutoWait[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesApplyOKAutoWait) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesApplyOKAutoWaitReason as json.
+func (s CorePostCoreUpdatesApplyOKAutoWaitReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreUpdatesApplyOKAutoWaitReason from json.
+func (s *CorePostCoreUpdatesApplyOKAutoWaitReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesApplyOKAutoWaitReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreUpdatesApplyOKAutoWaitReason(v) {
+	case CorePostCoreUpdatesApplyOKAutoWaitReasonOsReboot:
+		*s = CorePostCoreUpdatesApplyOKAutoWaitReasonOsReboot
+	default:
+		*s = CorePostCoreUpdatesApplyOKAutoWaitReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreUpdatesApplyOKAutoWaitReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesApplyOKAutoWaitReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -62814,6 +63357,10 @@ func (s *CorePostCoreUpdatesBundleOKState) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("auto_wait")
+		s.AutoWait.Encode(e)
+	}
+	{
 		e.FieldStart("available")
 		e.ArrStart()
 		for _, elem := range s.Available {
@@ -62879,20 +63426,21 @@ func (s *CorePostCoreUpdatesBundleOKState) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesBundleOKState = [13]string{
+var jsonFieldsNameOfCorePostCoreUpdatesBundleOKState = [14]string{
 	0:  "advisories",
-	1:  "available",
-	2:  "channel",
-	3:  "check_enabled",
-	4:  "components",
-	5:  "history",
-	6:  "last_check",
-	7:  "last_check_error",
-	8:  "managed",
-	9:  "mode",
-	10: "run",
-	11: "running_revoked",
-	12: "stale_since",
+	1:  "auto_wait",
+	2:  "available",
+	3:  "channel",
+	4:  "check_enabled",
+	5:  "components",
+	6:  "history",
+	7:  "last_check",
+	8:  "last_check_error",
+	9:  "managed",
+	10: "mode",
+	11: "run",
+	12: "running_revoked",
+	13: "stale_since",
 }
 
 // Decode decodes CorePostCoreUpdatesBundleOKState from json.
@@ -62922,8 +63470,18 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"advisories\"")
 			}
-		case "available":
+		case "auto_wait":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.AutoWait.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"auto_wait\"")
+			}
+		case "available":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.Available = make([]CorePostCoreUpdatesBundleOKStateAvailableItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -62941,7 +63499,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"available\"")
 			}
 		case "channel":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Channel.Decode(d); err != nil {
 					return err
@@ -62951,7 +63509,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"channel\"")
 			}
 		case "check_enabled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.CheckEnabled = bool(v)
@@ -62963,7 +63521,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"check_enabled\"")
 			}
 		case "components":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Components = make([]CorePostCoreUpdatesBundleOKStateComponentsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -62981,7 +63539,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"components\"")
 			}
 		case "history":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.History = make([]CorePostCoreUpdatesBundleOKStateHistoryItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -62999,7 +63557,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"history\"")
 			}
 		case "last_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -63009,7 +63567,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_check_error":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.LastCheckError.Decode(d); err != nil {
 					return err
@@ -63019,7 +63577,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check_error\"")
 			}
 		case "managed":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Managed = make([]CorePostCoreUpdatesBundleOKStateManagedItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -63037,7 +63595,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"managed\"")
 			}
 		case "mode":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Mode.Decode(d); err != nil {
 					return err
@@ -63047,7 +63605,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "run":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -63057,7 +63615,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "running_revoked":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.RunningRevoked.Decode(d); err != nil {
 					return err
@@ -63067,7 +63625,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"running_revoked\"")
 			}
 		case "stale_since":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -63087,7 +63645,7 @@ func (s *CorePostCoreUpdatesBundleOKState) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -63405,6 +63963,172 @@ func (s CorePostCoreUpdatesBundleOKStateAdvisoriesItemStatus) MarshalJSON() ([]b
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreUpdatesBundleOKStateAdvisoriesItemStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("reboot_at")
+		json.EncodeDateTime(e, s.RebootAt)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateAutoWait = [3]string{
+	0: "reason",
+	1: "reboot_at",
+	2: "version",
+}
+
+// Decode decodes CorePostCoreUpdatesBundleOKStateAutoWait from json.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesBundleOKStateAutoWait to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "reason":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.RebootAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesBundleOKStateAutoWait")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateAutoWait) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesBundleOKStateAutoWait[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWait) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesBundleOKStateAutoWaitReason as json.
+func (s CorePostCoreUpdatesBundleOKStateAutoWaitReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreUpdatesBundleOKStateAutoWaitReason from json.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWaitReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesBundleOKStateAutoWaitReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreUpdatesBundleOKStateAutoWaitReason(v) {
+	case CorePostCoreUpdatesBundleOKStateAutoWaitReasonOsReboot:
+		*s = CorePostCoreUpdatesBundleOKStateAutoWaitReasonOsReboot
+	default:
+		*s = CorePostCoreUpdatesBundleOKStateAutoWaitReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreUpdatesBundleOKStateAutoWaitReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesBundleOKStateAutoWaitReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -65530,6 +66254,10 @@ func (s *CorePostCoreUpdatesCheckOK) encodeFields(e *jx.Encoder) {
 		e.Float64(s.Applied)
 	}
 	{
+		e.FieldStart("auto_wait")
+		s.AutoWait.Encode(e)
+	}
+	{
 		e.FieldStart("available")
 		e.ArrStart()
 		for _, elem := range s.Available {
@@ -65595,21 +66323,22 @@ func (s *CorePostCoreUpdatesCheckOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesCheckOK = [14]string{
+var jsonFieldsNameOfCorePostCoreUpdatesCheckOK = [15]string{
 	0:  "advisories",
 	1:  "applied",
-	2:  "available",
-	3:  "channel",
-	4:  "check_enabled",
-	5:  "components",
-	6:  "history",
-	7:  "last_check",
-	8:  "last_check_error",
-	9:  "managed",
-	10: "mode",
-	11: "run",
-	12: "running_revoked",
-	13: "stale_since",
+	2:  "auto_wait",
+	3:  "available",
+	4:  "channel",
+	5:  "check_enabled",
+	6:  "components",
+	7:  "history",
+	8:  "last_check",
+	9:  "last_check_error",
+	10: "managed",
+	11: "mode",
+	12: "run",
+	13: "running_revoked",
+	14: "stale_since",
 }
 
 // Decode decodes CorePostCoreUpdatesCheckOK from json.
@@ -65651,8 +66380,18 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"applied\"")
 			}
-		case "available":
+		case "auto_wait":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.AutoWait.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"auto_wait\"")
+			}
+		case "available":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.Available = make([]CorePostCoreUpdatesCheckOKAvailableItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -65670,7 +66409,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"available\"")
 			}
 		case "channel":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Channel.Decode(d); err != nil {
 					return err
@@ -65680,7 +66419,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"channel\"")
 			}
 		case "check_enabled":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Bool()
 				s.CheckEnabled = bool(v)
@@ -65692,7 +66431,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"check_enabled\"")
 			}
 		case "components":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Components = make([]CorePostCoreUpdatesCheckOKComponentsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -65710,7 +66449,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"components\"")
 			}
 		case "history":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				s.History = make([]CorePostCoreUpdatesCheckOKHistoryItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -65728,7 +66467,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"history\"")
 			}
 		case "last_check":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -65738,7 +66477,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_check_error":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.LastCheckError.Decode(d); err != nil {
 					return err
@@ -65748,7 +66487,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check_error\"")
 			}
 		case "managed":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				s.Managed = make([]CorePostCoreUpdatesCheckOKManagedItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -65766,7 +66505,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"managed\"")
 			}
 		case "mode":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Mode.Decode(d); err != nil {
 					return err
@@ -65776,7 +66515,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "run":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -65786,7 +66525,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "running_revoked":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.RunningRevoked.Decode(d); err != nil {
 					return err
@@ -65796,7 +66535,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"running_revoked\"")
 			}
 		case "stale_since":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -65816,7 +66555,7 @@ func (s *CorePostCoreUpdatesCheckOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -66134,6 +66873,172 @@ func (s CorePostCoreUpdatesCheckOKAdvisoriesItemStatus) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreUpdatesCheckOKAdvisoriesItemStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("reboot_at")
+		json.EncodeDateTime(e, s.RebootAt)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesCheckOKAutoWait = [3]string{
+	0: "reason",
+	1: "reboot_at",
+	2: "version",
+}
+
+// Decode decodes CorePostCoreUpdatesCheckOKAutoWait from json.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesCheckOKAutoWait to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "reason":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.RebootAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesCheckOKAutoWait")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesCheckOKAutoWait) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesCheckOKAutoWait[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesCheckOKAutoWait) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesCheckOKAutoWaitReason as json.
+func (s CorePostCoreUpdatesCheckOKAutoWaitReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreUpdatesCheckOKAutoWaitReason from json.
+func (s *CorePostCoreUpdatesCheckOKAutoWaitReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesCheckOKAutoWaitReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreUpdatesCheckOKAutoWaitReason(v) {
+	case CorePostCoreUpdatesCheckOKAutoWaitReasonOsReboot:
+		*s = CorePostCoreUpdatesCheckOKAutoWaitReasonOsReboot
+	default:
+		*s = CorePostCoreUpdatesCheckOKAutoWaitReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreUpdatesCheckOKAutoWaitReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesCheckOKAutoWaitReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -71051,6 +71956,10 @@ func (s *CorePostCoreUpdatesRollbackOK) encodeFields(e *jx.Encoder) {
 		e.ArrEnd()
 	}
 	{
+		e.FieldStart("auto_wait")
+		s.AutoWait.Encode(e)
+	}
+	{
 		e.FieldStart("available")
 		e.ArrStart()
 		for _, elem := range s.Available {
@@ -71116,20 +72025,21 @@ func (s *CorePostCoreUpdatesRollbackOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfCorePostCoreUpdatesRollbackOK = [13]string{
+var jsonFieldsNameOfCorePostCoreUpdatesRollbackOK = [14]string{
 	0:  "advisories",
-	1:  "available",
-	2:  "channel",
-	3:  "check_enabled",
-	4:  "components",
-	5:  "history",
-	6:  "last_check",
-	7:  "last_check_error",
-	8:  "managed",
-	9:  "mode",
-	10: "run",
-	11: "running_revoked",
-	12: "stale_since",
+	1:  "auto_wait",
+	2:  "available",
+	3:  "channel",
+	4:  "check_enabled",
+	5:  "components",
+	6:  "history",
+	7:  "last_check",
+	8:  "last_check_error",
+	9:  "managed",
+	10: "mode",
+	11: "run",
+	12: "running_revoked",
+	13: "stale_since",
 }
 
 // Decode decodes CorePostCoreUpdatesRollbackOK from json.
@@ -71159,8 +72069,18 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"advisories\"")
 			}
-		case "available":
+		case "auto_wait":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.AutoWait.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"auto_wait\"")
+			}
+		case "available":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.Available = make([]CorePostCoreUpdatesRollbackOKAvailableItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -71178,7 +72098,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"available\"")
 			}
 		case "channel":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Channel.Decode(d); err != nil {
 					return err
@@ -71188,7 +72108,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"channel\"")
 			}
 		case "check_enabled":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Bool()
 				s.CheckEnabled = bool(v)
@@ -71200,7 +72120,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"check_enabled\"")
 			}
 		case "components":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Components = make([]CorePostCoreUpdatesRollbackOKComponentsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -71218,7 +72138,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"components\"")
 			}
 		case "history":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.History = make([]CorePostCoreUpdatesRollbackOKHistoryItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -71236,7 +72156,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"history\"")
 			}
 		case "last_check":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.LastCheck.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -71246,7 +72166,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check\"")
 			}
 		case "last_check_error":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				if err := s.LastCheckError.Decode(d); err != nil {
 					return err
@@ -71256,7 +72176,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_check_error\"")
 			}
 		case "managed":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Managed = make([]CorePostCoreUpdatesRollbackOKManagedItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -71274,7 +72194,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"managed\"")
 			}
 		case "mode":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Mode.Decode(d); err != nil {
 					return err
@@ -71284,7 +72204,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"mode\"")
 			}
 		case "run":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Run.Decode(d); err != nil {
 					return err
@@ -71294,7 +72214,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"run\"")
 			}
 		case "running_revoked":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.RunningRevoked.Decode(d); err != nil {
 					return err
@@ -71304,7 +72224,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"running_revoked\"")
 			}
 		case "stale_since":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.StaleSince.Decode(d, json.DecodeDateTime); err != nil {
 					return err
@@ -71324,7 +72244,7 @@ func (s *CorePostCoreUpdatesRollbackOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -71642,6 +72562,172 @@ func (s CorePostCoreUpdatesRollbackOKAdvisoriesItemStatus) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CorePostCoreUpdatesRollbackOKAdvisoriesItemStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("reason")
+		s.Reason.Encode(e)
+	}
+	{
+		e.FieldStart("reboot_at")
+		json.EncodeDateTime(e, s.RebootAt)
+	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+}
+
+var jsonFieldsNameOfCorePostCoreUpdatesRollbackOKAutoWait = [3]string{
+	0: "reason",
+	1: "reboot_at",
+	2: "version",
+}
+
+// Decode decodes CorePostCoreUpdatesRollbackOKAutoWait from json.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesRollbackOKAutoWait to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "reason":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Reason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reason\"")
+			}
+		case "reboot_at":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.RebootAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"reboot_at\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode CorePostCoreUpdatesRollbackOKAutoWait")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfCorePostCoreUpdatesRollbackOKAutoWait) {
+					name = jsonFieldsNameOfCorePostCoreUpdatesRollbackOKAutoWait[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKAutoWait) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesRollbackOKAutoWaitReason as json.
+func (s CorePostCoreUpdatesRollbackOKAutoWaitReason) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CorePostCoreUpdatesRollbackOKAutoWaitReason from json.
+func (s *CorePostCoreUpdatesRollbackOKAutoWaitReason) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CorePostCoreUpdatesRollbackOKAutoWaitReason to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CorePostCoreUpdatesRollbackOKAutoWaitReason(v) {
+	case CorePostCoreUpdatesRollbackOKAutoWaitReasonOsReboot:
+		*s = CorePostCoreUpdatesRollbackOKAutoWaitReasonOsReboot
+	default:
+		*s = CorePostCoreUpdatesRollbackOKAutoWaitReason(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CorePostCoreUpdatesRollbackOKAutoWaitReason) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CorePostCoreUpdatesRollbackOKAutoWaitReason) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -278332,6 +279418,50 @@ func (s *NilCoreGetCoreTermsOKAccepted) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes CoreGetCoreUpdatesOKAutoWait as json.
+func (o NilCoreGetCoreUpdatesOKAutoWait) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CoreGetCoreUpdatesOKAutoWait from json.
+func (o *NilCoreGetCoreUpdatesOKAutoWait) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCoreGetCoreUpdatesOKAutoWait to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CoreGetCoreUpdatesOKAutoWait
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCoreGetCoreUpdatesOKAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCoreGetCoreUpdatesOKAutoWait) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes CoreGetCoreUpdatesOKLastCheckError as json.
 func (o NilCoreGetCoreUpdatesOKLastCheckError) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -278768,6 +279898,50 @@ func (s NilCoreGetMeOKTwofaMethod) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilCoreGetMeOKTwofaMethod) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePatchCoreUpdatesOKAutoWait as json.
+func (o NilCorePatchCoreUpdatesOKAutoWait) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePatchCoreUpdatesOKAutoWait from json.
+func (o *NilCorePatchCoreUpdatesOKAutoWait) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePatchCoreUpdatesOKAutoWait to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePatchCoreUpdatesOKAutoWait
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePatchCoreUpdatesOKAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePatchCoreUpdatesOKAutoWait) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -279300,6 +280474,50 @@ func (s *NilCorePostCoreNetworkManagementRevertOKPending) UnmarshalJSON(data []b
 	return s.Decode(d)
 }
 
+// Encode encodes CorePostCoreUpdatesApplyOKAutoWait as json.
+func (o NilCorePostCoreUpdatesApplyOKAutoWait) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreUpdatesApplyOKAutoWait from json.
+func (o *NilCorePostCoreUpdatesApplyOKAutoWait) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreUpdatesApplyOKAutoWait to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreUpdatesApplyOKAutoWait
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreUpdatesApplyOKAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreUpdatesApplyOKAutoWait) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes CorePostCoreUpdatesApplyOKLastCheckError as json.
 func (o NilCorePostCoreUpdatesApplyOKLastCheckError) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -279476,6 +280694,50 @@ func (s *NilCorePostCoreUpdatesApplyOKRunningRevoked) UnmarshalJSON(data []byte)
 	return s.Decode(d)
 }
 
+// Encode encodes CorePostCoreUpdatesBundleOKStateAutoWait as json.
+func (o NilCorePostCoreUpdatesBundleOKStateAutoWait) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreUpdatesBundleOKStateAutoWait from json.
+func (o *NilCorePostCoreUpdatesBundleOKStateAutoWait) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreUpdatesBundleOKStateAutoWait to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreUpdatesBundleOKStateAutoWait
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreUpdatesBundleOKStateAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreUpdatesBundleOKStateAutoWait) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes CorePostCoreUpdatesBundleOKStateLastCheckError as json.
 func (o NilCorePostCoreUpdatesBundleOKStateLastCheckError) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -279648,6 +280910,50 @@ func (s NilCorePostCoreUpdatesBundleOKStateRunningRevoked) MarshalJSON() ([]byte
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilCorePostCoreUpdatesBundleOKStateRunningRevoked) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesCheckOKAutoWait as json.
+func (o NilCorePostCoreUpdatesCheckOKAutoWait) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreUpdatesCheckOKAutoWait from json.
+func (o *NilCorePostCoreUpdatesCheckOKAutoWait) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreUpdatesCheckOKAutoWait to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreUpdatesCheckOKAutoWait
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreUpdatesCheckOKAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreUpdatesCheckOKAutoWait) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -280044,6 +281350,50 @@ func (s NilCorePostCoreUpdatesOsRebootOKReleaseUpgrade) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilCorePostCoreUpdatesOsRebootOKReleaseUpgrade) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CorePostCoreUpdatesRollbackOKAutoWait as json.
+func (o NilCorePostCoreUpdatesRollbackOKAutoWait) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes CorePostCoreUpdatesRollbackOKAutoWait from json.
+func (o *NilCorePostCoreUpdatesRollbackOKAutoWait) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilCorePostCoreUpdatesRollbackOKAutoWait to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CorePostCoreUpdatesRollbackOKAutoWait
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilCorePostCoreUpdatesRollbackOKAutoWait) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilCorePostCoreUpdatesRollbackOKAutoWait) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

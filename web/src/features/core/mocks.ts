@@ -783,7 +783,7 @@ function updView(): UpdatesState {
     const host = container ? undefined : hostTarget(a.version)
     return { ...a, images: releaseImages(a.version), ...(host ? { host_version: host } : {}) }
   })
-  return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, last_check_error: s.last_check_error ?? null, components: container ? s.components.filter((c) => c.id !== 'host') : s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest), running_revoked: runningRevoked(sw), stale_since: staleSince(), run: s.run && (s.run.status === 'running' || Date.now() - Date.parse(s.run.finished_at ?? s.run.started_at) < 864e5) ? s.run : null }
+  return { channel: s.channel, mode: s.mode, check_enabled: p.update_check, last_check: s.last_check, last_check_error: s.last_check_error ?? null, components: container ? s.components.filter((c) => c.id !== 'host') : s.components, available: latest, history: s.history.slice(0, 20), advisories: ADVISORIES.map((a) => ({ ...a, status: compareVersion(sw, a.fixed_in) < 0 ? 'affected' : 'fixed' })), managed: managedOf(s.components, latest), running_revoked: runningRevoked(sw), stale_since: staleSince(), auto_wait: null, run: s.run && (s.run.status === 'running' || Date.now() - Date.parse(s.run.finished_at ?? s.run.started_at) < 864e5) ? s.run : null }
 }
 
 function applyOne(component: string, version: string, action: UpdateHistory['action'], user: string) {

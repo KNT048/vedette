@@ -135,6 +135,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       const found = r.available.find((a) => a.component === 'software')?.version
       toast.success(started ? t('updates.checkedInstalling', { version: started.to })
         : r.applied ? t('updates.checkedApplied', { count: r.applied })
+        : found && r.mode === 'auto' && r.auto_wait ? t('updates.checkedWaitsRestart', { version: r.auto_wait.version, time: fmtDateTime(r.auto_wait.reboot_at) })
         : found && r.mode === 'auto' ? t('updates.checkedNewAuto', { version: found })
         : r.available.length ? t('updates.checkedNew', { count: r.available.length })
         : t('updates.checkedNone', { version: r.components.find((c) => c.id === 'software')?.version ?? '' }))

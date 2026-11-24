@@ -43,12 +43,12 @@ The groups below are what the web interface offers (`web/src/lib/v1.ts`). Every 
 
 The `post-v1` issues hold the work planned after the v1 tag. The larger items:
 
-- Offer the "After v1" modules again and recheck their stories (#838).
-- A review of every screen against "only the action by default, details one click away" (#1066).
-- Scheduled backups (#1068).
-- Agentless package reads over a read-only SSH login (#971), and an osquery agent for macOS (#954).
-- Linux package matching from OSV.dev for more distributions (#963), and Windows matching from Microsoft's update data (#964).
-- More confirmed mitigation packs for the exploited CVEs that boxes match (#895).
+- Offer the "After v1" modules again and recheck their stories ([#838](https://github.com/KNT048/vedette/issues/838)).
+- A review of every screen against "only the action by default, details one click away" ([#1066](https://github.com/KNT048/vedette/issues/1066)).
+- Scheduled backups ([#1068](https://github.com/KNT048/vedette/issues/1068)).
+- Agentless package reads over a read-only SSH login ([#971](https://github.com/KNT048/vedette/issues/971)), and an osquery agent for macOS ([#954](https://github.com/KNT048/vedette/issues/954)).
+- Linux package matching from OSV.dev for more distributions ([#963](https://github.com/KNT048/vedette/issues/963)), and Windows matching from Microsoft's update data ([#964](https://github.com/KNT048/vedette/issues/964)).
+- More confirmed mitigation packs for the exploited CVEs that boxes match ([#895](https://github.com/KNT048/vedette/issues/895)).
 
 ## Known risks
 

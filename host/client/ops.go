@@ -33,6 +33,19 @@ func (c *Client) OSAutoSecuritySet(ctx context.Context, enabled bool, requestID,
 	return c.Run(ctx, api.CmdOSAutoSecuritySet, api.OSAutoSecurityArgs{Enabled: enabled}, requestID, actor)
 }
 
+// OSTimezoneSet runs os.timezone.set: the operating system's time zone becomes zone. A host older than the command answers 404
+// unknown_command.
+func (c *Client) OSTimezoneSet(ctx context.Context, zone, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdOSTimezoneSet, api.OSTimezoneArgs{Zone: zone}, requestID, actor)
+}
+
+// StateTime returns GET /v1/state/time: the operating system's time zone. A host older than it answers 404 unknown_command.
+func (c *Client) StateTime(ctx context.Context) (api.TimeState, error) {
+	var out api.TimeState
+	err := c.getJSON(ctx, "/v1/state/time", &out)
+	return out, err
+}
+
 // OSReboot runs os.reboot.
 func (c *Client) OSReboot(ctx context.Context, args api.OSRebootArgs, requestID, actor string) (api.Run, error) {
 	return c.Run(ctx, api.CmdOSReboot, args, requestID, actor)

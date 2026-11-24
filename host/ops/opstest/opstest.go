@@ -30,7 +30,7 @@ import (
 
 // Bins are the binary names of the command runner.
 var Bins = []string{"apt-get", "apt-config", "dpkg", "systemctl", "journalctl", "netplan", "chronyc", ops.BinIP, "podman", ops.BinIptables, ops.BinConntrack,
-	"systemd-run", "dpkg-deb", "dpkg-query", "busctl", ops.BinAppArmorParser, ops.BinNft}
+	"systemd-run", "dpkg-deb", "dpkg-query", "busctl", ops.BinAppArmorParser, ops.BinNft, "timedatectl"}
 
 // BootID is the boot id a fresh machine has.
 const BootID = "11111111-2222-4333-8444-555555555555"
@@ -83,11 +83,12 @@ func NewMachine(t testing.TB) *Machine {
 		m.WriteRoot(f, "")
 	}
 	for _, name := range Bins {
-		if name != ops.BinIptables {
+		if name != ops.BinIptables && name != "timedatectl" {
 			m.writeFake(name)
 		}
 	}
 	m.StatefulIptables()
+	m.StatefulTimedatectl()
 	m.StatefulIP() // Start makes the honeypot namespace, so every machine has an ip that remembers it
 	m.WriteDB("db: first")
 	m.must(os.WriteFile(filepath.Join(m.CoreData, "vedette.key"), []byte(Key), 0o600))
@@ -374,6 +375,34 @@ func (m *Machine) AppArmor(listed ...string) {
 echo '`+ops.AppArmorProfile+` (enforce)' >> '`+filepath.Join(m.Root, "sys/kernel/security/apparmor/profiles")+`'
 exit 0
 `)
+}
+
+// Zones are the zones of the fake machine's database (usr/share/zoneinfo); UTC is a link to Etc/UTC, as on Debian and Ubuntu.
+var Zones = []string{"Etc/UTC", "Asia/Ho_Chi_Minh", "Europe/Berlin", "America/Argentina/Buenos_Aires"}
+
+// StatefulTimedatectl (NewMachine does it) gives the machine a zone database of Zones and an /etc/localtime that links to Etc/UTC,
+// and makes the fake timedatectl one that, for "set-timezone <zone>" with a zone file there, points /etc/localtime at it the way
+// timedated does (a relative link); for an unknown zone it fails like timedatectl. Rules added with Rule fire first.
+func (m *Machine) StatefulTimedatectl() {
+	for _, z := range Zones {
+		m.WriteRoot("usr/share/zoneinfo/"+z, "TZif2 fake zone data of "+z+"\n")
+	}
+	m.must(os.Symlink("Etc/UTC", filepath.Join(m.Root, "usr/share/zoneinfo/UTC")))
+	m.SetLocaltime("/usr/share/zoneinfo/Etc/UTC")
+	m.writeFakeWith("timedatectl", `ROOT='`+m.Root+`'
+if [ "$1" = set-timezone ] && [ $# -eq 2 ]; then
+  if [ ! -f "$ROOT/usr/share/zoneinfo/$2" ]; then echo "Failed to set time zone: Invalid or not installed time zone '$2'" >&2; exit 1; fi
+  ln -sfn "../usr/share/zoneinfo/$2" "$ROOT/etc/localtime"
+fi
+`)
+}
+
+// SetLocaltime points the machine's /etc/localtime at target (a link, as the distributions keep it).
+func (m *Machine) SetLocaltime(target string) {
+	p := filepath.Join(m.Root, "etc/localtime")
+	_ = os.Remove(p)
+	m.must(os.MkdirAll(filepath.Dir(p), 0o750))
+	m.must(os.Symlink(target, p))
 }
 
 // BinPaths is the Deps.BinPaths of the fakes.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/host/api"
 )
@@ -205,7 +206,11 @@ func (h *OSHandlers) waitForReboot(ctx context.Context, at time.Time) error {
 		return nil
 	}
 	rec := autoWaitRec{Version: v, RebootAt: at.UTC(), Since: h.now().UTC()}
-	detail := fmt.Sprintf("%s waits: the box restarts for operating system updates at %s; it installs after that", v, at.UTC().Format(time.RFC3339))
+	loc, lerr := h.location(ctx) // the audit page and its export read the box's zone; the time names it
+	if lerr != nil {
+		loc = time.UTC
+	}
+	detail := fmt.Sprintf("%s waits: the box restarts for operating system updates at %s; it installs after that", v, orgtime.StampZone(at, loc))
 	err = h.db.Write(ctx, func(tx *sql.Tx) error {
 		if err := h.audit.Append(ctx, tx, audit.Entry{User: userSystem, Action: "update.auto_wait", Target: "updates", Detail: cutAtRune(detail, auditMaxDetail)}); err != nil {
 			return err

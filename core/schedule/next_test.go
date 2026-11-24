@@ -201,7 +201,6 @@ func TestValidate(t *testing.T) {
 		"weekly day 8":                {schedule.WeeklyAt("02:00", 8), "weekdays"},
 		"monthly day 32":              {schedule.MonthlyAt("02:00", 32), "month_day"},
 		"once without a time":         {schedule.Rule{Freq: schedule.Once}, "once_at"},
-		"unknown zone":                {func() schedule.Rule { r := schedule.DailyAt("02:00"); r.TZ = "Mars/Olympus"; return r }(), "tz"},
 		"custom window without days":  {custom(schedule.DailyAt("02:00"), "01:00", "02:00"), "window_days"},
 		"custom window bad hour":      {custom(schedule.DailyAt("02:00"), "1:00", "02:00", 1), "window_from"},
 		"unknown window":              {func() schedule.Rule { r := schedule.DailyAt("02:00"); r.Window = "night"; return r }(), "window"},
@@ -221,6 +220,15 @@ func TestValidate(t *testing.T) {
 	}
 	if got.MonthDay != nil || got.EveryMinutes != nil || len(got.Weekdays) != 2 || got.Weekdays[0] != 1 || got.TZ != schedule.OrgZone || got.Window != schedule.WindowNone {
 		t.Errorf("normalized %+v", got)
+	}
+	// The box has one time zone: a zone a client of an earlier version still sends, known or not, is not refused and not kept.
+	for _, tz := range []string{"America/New_York", "Mars/Olympus", "../../etc/passwd", "org", ""} {
+		r := schedule.DailyAt("02:00")
+		r.TZ = tz
+		got, err := schedule.Validate(r)
+		if err != nil || got.TZ != schedule.OrgZone {
+			t.Errorf("tz %q: %+v %v", tz, got, err)
+		}
 	}
 }
 

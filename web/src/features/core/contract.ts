@@ -35,6 +35,7 @@ export const SetupPayload = z.object({
   lan: z.array(z.string()).optional(),
   commitment: z.boolean().optional().describe('true = the user confirms the ranges belong to their company and they may scan them actively'),
   bundle: BundleId.optional(),
+  timezone: z.string().optional().describe('The box\'s time zone (an IANA name such as Europe/Berlin): every page, mail, log and schedule reads it, and the operating system is set to it. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh). Absent: Asia/Ho_Chi_Minh. Not a known zone: 400 invalid_timezone'),
   modules: z.array(ModuleId).optional(),
   setup_code: z.string().optional().describe('The one-time setup code the box prints in its log while setup is open. Required to create the first administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated wrong tries'),
   accept_terms: z.boolean().optional().describe('true = the administrator read, understood and agrees to the terms of use (TERMS.md). Required to create the first administrator: anything else gives 400 terms_not_accepted, judged right after the setup code'),
@@ -51,7 +52,13 @@ export const TermsState = z.object({
 })
 
 // ---- chung ----
-export const GeneralSettings = z.object({ name: z.string(), timezone: z.string() })
+export const GeneralSettings = z.object({ name: z.string(), timezone: z.string().describe('The box\'s one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh)') })
+export const OsTimeZone = z.object({
+  state: z.enum(['in_sync', 'pending', 'failed', 'not_managed']).describe('in_sync: the operating system uses the box\'s zone; pending: not yet, the box tries again by itself (the system helper is busy or not answering); failed: the system helper could not set it (message says why); not_managed: this install has no system helper that can set it (a container-only install, or a helper older than this version), so the operating system keeps its own zone'),
+  zone: z.string().nullable().describe('The zone the operating system uses now; null when it could not be read'),
+  message: z.string().nullable().describe('Why it is not in sync, a sentence for the person; null when it is'),
+}).describe('The operating system side of the box\'s time zone')
+export const GeneralView = GeneralSettings.extend({ os_time_zone: OsTimeZone })
 export const AuthOptions = z.object({ oidc: z.boolean() })
 
 // ---- account ----
@@ -296,7 +303,7 @@ export const ManagementBody = z.object({
 })
 
 // ---- schedules (core/schedule): every schedule a person can set, one model and one editor ----
-const clockTime = z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/).describe('HH:MM, 00:00 to 23:59, in the rule\'s zone')
+const clockTime = z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/).describe('HH:MM, 00:00 to 23:59, in the box\'s time zone')
 const isoWeekday = z.number().int().min(1).max(7).describe('1 = Monday ... 7 = Sunday')
 export const ScheduleFreq = z.enum(['interval', 'daily', 'weekly', 'monthly', 'once']).describe('interval: every every_minutes (with at_time, a whole number of days: every N days at that time); daily at at_time; weekly on weekdays at at_time; monthly on month_day at at_time; once at once_at')
 export const ScheduleWindowMode = z.enum(['global', 'none', 'custom']).describe('global: it starts only inside the box\'s scan window (Settings › Scanning › Safety), and a due time outside it waits for it to open; none: at any time; custom: only inside its own days and hours (window_days, window_from, window_to), and a due time outside them moves to their next opening')
@@ -307,7 +314,7 @@ export const ScheduleRule = z.object({
   weekdays: z.array(isoWeekday).min(1).max(7).nullable().describe('weekly only'),
   month_day: z.number().int().min(0).max(31).nullable().describe('monthly only: 1 to 31, a month without that day runs on its last day; 0 = the last day'),
   once_at: ts.nullable().describe('once only'),
-  tz: z.string().max(64).describe('"org" (the organization\'s time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin'),
+  tz: z.string().max(64).optional().describe('Always "org": every schedule reads its times in the box\'s time zone (Settings › General). Kept for clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read as the box\'s'),
   window: ScheduleWindowMode,
   window_days: z.array(isoWeekday).min(1).max(7).nullable().describe('custom window only'),
   window_from: clockTime.nullable().describe('custom window only: when it opens'),
@@ -326,7 +333,7 @@ export const Schedule = z.object({
   enabled: z.boolean(),
   paused_until: ts.nullable().describe('Due times before it are skipped: the next one counts from it'),
   rule: ScheduleRule,
-  zone: z.string().describe('The IANA zone the rule is read in (the organization\'s for tz "org")'),
+  zone: z.string().describe('The IANA zone the rule is read in: the box\'s (Settings › General)'),
   next_due_at: ts.nullable().describe('null while off or when it never comes due again (a once rule that ran)'),
   upcoming: z.array(ts).max(3).describe('The next three start times: a due time in the past starts now, and one outside the scan window when it opens'),
   waiting_for: z.string().nullable().describe('Due, and held: what it waits for ("The scan window to open")'),
@@ -375,8 +382,8 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/auth/oidc/callback', summary: 'Finish an SSO sign-in: the page posts the code and state from /sso/callback with its binding; the box exchanges the code, checks the ID token and signs the person in like a password sign-in (session and CSRF cookies). 400 sso_expired, 400 sso_failed, 403 no_access, 403 email_unverified, 403 disabled, 409 email_in_use, 502 idp_unreachable', stories: ['S-CORE-3'], role: 'public', body: OidcCallback, response: Ok },
   // chung
   { method: 'get', path: '/core/terms', summary: 'The terms of use this box ships and who accepted them, when and which version; the text is TERMS.md, which the interface carries', stories: ['S-CORE-1'], role: 'viewer', response: TermsState },
-  { method: 'get', path: '/core/general', summary: 'Organization name and time zone', stories: ['S-CORE-1'], role: 'viewer', response: GeneralSettings },
-  { method: 'put', path: '/core/general', summary: 'Save organization name and time zone', stories: ['S-CORE-1'], role: 'admin', body: GeneralSettings, response: GeneralSettings },
+  { method: 'get', path: '/core/general', summary: 'Organization name and the box\'s time zone, and whether the operating system uses that zone too', stories: ['S-CORE-1'], role: 'viewer', response: GeneralView },
+  { method: 'put', path: '/core/general', summary: 'Save organization name and the box\'s time zone: the schedules move with it and the box sets the operating system to it (os_time_zone says how that went; the save stands either way)', stories: ['S-CORE-1'], role: 'admin', body: GeneralSettings, response: GeneralView },
   // account
   { method: 'get', path: '/core/account', summary: 'My profile and sign-in sessions', stories: ['S-CORE-3'], role: 'viewer', response: Account },
   { method: 'patch', path: '/core/account', summary: 'Change display name', stories: ['S-CORE-3'], role: 'viewer', body: z.object({ name: z.string() }), response: Ok },

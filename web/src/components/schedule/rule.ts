@@ -20,19 +20,15 @@ export interface Draft {
   weekdays: number[]
   /** 1 to 31, 0 = the last day of the month. */
   monthDay: number
-  /** 'YYYY-MM-DDTHH:MM' read in the rule's zone. */
+  /** 'YYYY-MM-DDTHH:MM' read in the box's zone. */
   onceAt: string
-  tz: string
   window: WindowMode
   windowDays: number[]
   windowFrom: string
   windowTo: string
-  /** 'YYYY-MM-DD' in the rule's zone: it starts again on that day; '' = not paused. */
+  /** 'YYYY-MM-DD' in the box's zone: it starts again on that day; '' = not paused. */
   resumeOn: string
 }
-
-/** The zone a rule is read in: its own, or the organization's for "org". */
-export const zoneOf = (tz: string, orgZone: string) => (tz === 'org' ? orgZone : tz)
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -69,22 +65,23 @@ export function split(minutes: number, units: Unit[]): { every: number; unit: Un
   return { every: minutes, unit: 'minutes' }
 }
 
-export function toDraft(s: Schedule, orgZone: string, now = Date.now()): Draft {
+/** The draft of a schedule; zone is the box's (Schedule.zone), the one every schedule is read in. */
+export function toDraft(s: Schedule, zone: string, now = Date.now()): Draft {
   const r = s.rule
-  const zone = zoneOf(r.tz, orgZone)
   const { every, unit } = split(r.every_minutes ?? Math.max(60, s.limits.min_every_minutes), unitsFor(s.limits))
   const tomorrow = isoToZoned(new Date(now + 864e5).toISOString(), zone).slice(0, 10)
   return {
     enabled: s.enabled, freq: r.freq, every: String(every), unit, at: r.at_time ?? (r.freq === 'interval' ? '' : '02:00'),
     weekdays: r.weekdays ?? [1], monthDay: r.month_day ?? 1,
     onceAt: r.once_at ? isoToZoned(r.once_at, zone) : `${tomorrow}T${r.at_time ?? '02:00'}`,
-    tz: r.tz, window: r.window, windowDays: r.window_days?.length ? r.window_days : [...DAYS], windowFrom: r.window_from ?? '22:00', windowTo: r.window_to ?? '06:00',
+    window: r.window, windowDays: r.window_days?.length ? r.window_days : [...DAYS], windowFrom: r.window_from ?? '22:00', windowTo: r.window_to ?? '06:00',
     resumeOn: s.paused_until && Date.parse(s.paused_until) > now ? isoToZoned(s.paused_until, zone).slice(0, 10) : '',
   }
 }
 
-/** The rule the draft says, with the fields its frequency does not use set to null (as the box stores it). */
-export function toRule(d: Draft, orgZone: string): ScheduleRule {
+/** The rule the draft says, with the fields its frequency does not use set to null (as the box stores it). It names no zone: every
+ *  schedule follows the box's time zone (Settings › General). */
+export function toRule(d: Draft, zone: string): ScheduleRule {
   const n = Number(d.every)
   const interval = d.freq === 'interval'
   return {
@@ -93,8 +90,7 @@ export function toRule(d: Draft, orgZone: string): ScheduleRule {
     at_time: interval ? (d.unit === 'days' && d.at ? d.at : null) : d.freq === 'once' ? null : d.at || null,
     weekdays: d.freq === 'weekly' ? [...d.weekdays].sort() : null,
     month_day: d.freq === 'monthly' ? d.monthDay : null,
-    once_at: d.freq === 'once' ? zonedToIso(d.onceAt, zoneOf(d.tz, orgZone)) : null,
-    tz: d.tz,
+    once_at: d.freq === 'once' ? zonedToIso(d.onceAt, zone) : null,
     window: d.window,
     window_days: d.window === 'custom' ? [...d.windowDays].sort() : null,
     window_from: d.window === 'custom' ? d.windowFrom : null,
@@ -102,8 +98,8 @@ export function toRule(d: Draft, orgZone: string): ScheduleRule {
   }
 }
 
-export function toSave(d: Draft, orgZone: string): ScheduleSave {
-  return { enabled: d.enabled, paused_until: d.resumeOn ? zonedToIso(`${d.resumeOn}T00:00`, zoneOf(d.tz, orgZone)) : null, rule: toRule(d, orgZone) }
+export function toSave(d: Draft, zone: string): ScheduleSave {
+  return { enabled: d.enabled, paused_until: d.resumeOn ? zonedToIso(`${d.resumeOn}T00:00`, zone) : null, rule: toRule(d, zone) }
 }
 
 /** The days of a list in short names, a run of three or more as a range: "Mon–Fri", "Mon, Wed", "every day". */
@@ -131,8 +127,7 @@ export function describeRule(r: ScheduleRule, t: TFunction<'schedule'>, when: (i
   }
   const win = r.window === 'global' ? t('describe.window.global')
     : r.window === 'custom' ? t('describe.window.custom', { days: daysText(r.window_days ?? [], t), hours: r.window_from === r.window_to ? t('describe.allDay') : `${r.window_from}–${r.window_to}` }) : ''
-  const zone = r.tz === 'org' ? '' : ` (${r.tz})`
-  return `${main}${win ? `, ${win}` : ''}${zone}`
+  return `${main}${win ? `, ${win}` : ''}`
 }
 
 /** An interval the owner does not allow (0, below its minimum, above its maximum) is said in the form, in the same plain words for

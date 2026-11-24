@@ -382,7 +382,7 @@ type Handler interface {
 	CoreGetCoreDataRestoreRun(ctx context.Context) (NilCoreGetCoreDataRestoreRunOK, error)
 	// CoreGetCoreGeneral implements core_get_core_general operation.
 	//
-	// Organization name and time zone.
+	// Organization name and the box's time zone, and whether the operating system uses that zone too.
 	//
 	// GET /core/general
 	CoreGetCoreGeneral(ctx context.Context) (*CoreGetCoreGeneralOK, error)
@@ -880,7 +880,8 @@ type Handler interface {
 	CorePutCoreConnectionsID(ctx context.Context, req *CorePutCoreConnectionsIDReq, params CorePutCoreConnectionsIDParams) (*CorePutCoreConnectionsIDOK, error)
 	// CorePutCoreGeneral implements core_put_core_general operation.
 	//
-	// Save organization name and time zone.
+	// Save organization name and the box's time zone: the schedules move with it and the box sets the
+	// operating system to it (os_time_zone says how that went; the save stands either way).
 	//
 	// PUT /core/general
 	CorePutCoreGeneral(ctx context.Context, req *CorePutCoreGeneralReq) (*CorePutCoreGeneralOK, error)

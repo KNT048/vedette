@@ -10,7 +10,8 @@
 ## Modifying: schedules (`core/schedule`, `ScheduleHandlers`; INV-42)
 - **A module adopting schedules** registers a `schedule.Owner` on `deps.Schedules` in `buildServices` (before `serve` calls `Start`, which saves the defaults that are on). An owner with one schedule per subject calls `EnsureTx` when it creates the subject and `schedule.DeleteTx` when it deletes it, in the same transaction. Its `Start` runs inside the schedule's transaction: queue a run with `CreateTx` and pass `f.Trigger`, `f.By`, `f.ScheduleID`; return `schedule.Skip(reason)` to skip with a reason.
 - **`Next`** is the one function of a due time: a change of it changes every stored `next_due_at`, which `Start` brings up to date with `Recompute` at the next start (the self-check fails until then). Its table test covers summer time, month ends and windows over midnight.
-- **The organization's time zone**: whatever writes `core_org.timezone` calls `schedule.Recompute` in the same transaction (today `PUT /core/general`).
+- **The organization's time zone**: whatever writes `core_org.timezone` calls `schedule.Recompute` in the same transaction (today `PUT /core/general`; the first-run setup creates the row before any schedule is saved) and asks the operating system to follow (`OSHandlers.zoneSaved`, `WakeZoneAlignment`; INV-43). A rule has no zone of its own: do not read `core_schedule.tz` (an earlier version's value is read as the box's zone).
+- **The box's one time zone (INV-43)**: `core.Host` gains `StateTime` and `OSTimezoneSet` (every fake host implements them: a fake that embeds a nil `core.Host` would panic in the alignment loop at start); `GET`/`PUT /core/general` answer `os_time_zone`; `orgtime.CanonicalZone` and `web/src/lib/zoneNames.ts` change together.
 - **`core/server/modules.go`** maps `/schedules` to core (and `web/src/lib/apiModules.ts`, `api/route-modules.json`).
 
 ## Modifying: runs (`core/run`, `RunHandlers`; INV-41)

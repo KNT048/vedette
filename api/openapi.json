@@ -10093,7 +10093,7 @@
     "/core/general": {
       "get": {
         "operationId": "core_get_core_general",
-        "summary": "Organization name and time zone",
+        "summary": "Organization name and the box's time zone, and whether the operating system uses that zone too",
         "tags": [
           "core"
         ],
@@ -10113,12 +10113,50 @@
                       "type": "string"
                     },
                     "timezone": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh)"
+                    },
+                    "os_time_zone": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "in_sync",
+                            "pending",
+                            "failed",
+                            "not_managed"
+                          ],
+                          "description": "in_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself (the system helper is busy or not answering); failed: the system helper could not set it (message says why); not_managed: this install has no system helper that can set it (a container-only install, or a helper older than this version), so the operating system keeps its own zone"
+                        },
+                        "zone": {
+                          "description": "The zone the operating system uses now; null when it could not be read",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "message": {
+                          "description": "Why it is not in sync, a sentence for the person; null when it is",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "zone",
+                        "message"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The operating system side of the box's time zone"
                     }
                   },
                   "required": [
                     "name",
-                    "timezone"
+                    "timezone",
+                    "os_time_zone"
                   ],
                   "additionalProperties": false
                 }
@@ -10139,7 +10177,7 @@
       },
       "put": {
         "operationId": "core_put_core_general",
-        "summary": "Save organization name and time zone",
+        "summary": "Save organization name and the box's time zone: the schedules move with it and the box sets the operating system to it (os_time_zone says how that went; the save stands either way)",
         "tags": [
           "core"
         ],
@@ -10158,7 +10196,8 @@
                     "type": "string"
                   },
                   "timezone": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh)"
                   }
                 },
                 "required": [
@@ -10182,12 +10221,50 @@
                       "type": "string"
                     },
                     "timezone": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh)"
+                    },
+                    "os_time_zone": {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "in_sync",
+                            "pending",
+                            "failed",
+                            "not_managed"
+                          ],
+                          "description": "in_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself (the system helper is busy or not answering); failed: the system helper could not set it (message says why); not_managed: this install has no system helper that can set it (a container-only install, or a helper older than this version), so the operating system keeps its own zone"
+                        },
+                        "zone": {
+                          "description": "The zone the operating system uses now; null when it could not be read",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "message": {
+                          "description": "Why it is not in sync, a sentence for the person; null when it is",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "zone",
+                        "message"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The operating system side of the box's time zone"
                     }
                   },
                   "required": [
                     "name",
-                    "timezone"
+                    "timezone",
+                    "os_time_zone"
                   ],
                   "additionalProperties": false
                 }
@@ -15353,6 +15430,10 @@
                       "mid",
                       "custom"
                     ]
+                  },
+                  "timezone": {
+                    "description": "The box's time zone (an IANA name such as Europe/Berlin): every page, mail, log and schedule reads it, and the operating system is set to it. An old alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh). Absent: Asia/Ho_Chi_Minh. Not a known zone: 400 invalid_timezone",
+                    "type": "string"
                   },
                   "modules": {
                     "type": "array",
@@ -105188,7 +105269,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105242,9 +105323,9 @@
                           "description": "once only"
                         },
                         "tz": {
+                          "description": "Always \"org\": every schedule reads its times in the box's time zone (Settings › General). Kept for clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read as the box's",
                           "type": "string",
-                          "maxLength": 64,
-                          "description": "\"org\" (the organization's time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin"
+                          "maxLength": 64
                         },
                         "window": {
                           "type": "string",
@@ -105279,7 +105360,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105292,7 +105373,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105308,7 +105389,6 @@
                         "weekdays",
                         "month_day",
                         "once_at",
-                        "tz",
                         "window",
                         "window_days",
                         "window_from",
@@ -105319,7 +105399,7 @@
                     },
                     "zone": {
                       "type": "string",
-                      "description": "The IANA zone the rule is read in (the organization's for tz \"org\")"
+                      "description": "The IANA zone the rule is read in: the box's (Settings › General)"
                     },
                     "next_due_at": {
                       "anyOf": [
@@ -105586,7 +105666,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -105640,9 +105720,9 @@
                         "description": "once only"
                       },
                       "tz": {
+                        "description": "Always \"org\": every schedule reads its times in the box's time zone (Settings › General). Kept for clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read as the box's",
                         "type": "string",
-                        "maxLength": 64,
-                        "description": "\"org\" (the organization's time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin"
+                        "maxLength": 64
                       },
                       "window": {
                         "type": "string",
@@ -105677,7 +105757,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -105690,7 +105770,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -105706,7 +105786,6 @@
                       "weekdays",
                       "month_day",
                       "once_at",
-                      "tz",
                       "window",
                       "window_days",
                       "window_from",
@@ -105793,7 +105872,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105847,9 +105926,9 @@
                           "description": "once only"
                         },
                         "tz": {
+                          "description": "Always \"org\": every schedule reads its times in the box's time zone (Settings › General). Kept for clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read as the box's",
                           "type": "string",
-                          "maxLength": 64,
-                          "description": "\"org\" (the organization's time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin"
+                          "maxLength": 64
                         },
                         "window": {
                           "type": "string",
@@ -105884,7 +105963,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105897,7 +105976,7 @@
                             {
                               "type": "string",
                               "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                              "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                              "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                             },
                             {
                               "type": "null"
@@ -105913,7 +105992,6 @@
                         "weekdays",
                         "month_day",
                         "once_at",
-                        "tz",
                         "window",
                         "window_days",
                         "window_from",
@@ -105924,7 +106002,7 @@
                     },
                     "zone": {
                       "type": "string",
-                      "description": "The IANA zone the rule is read in (the organization's for tz \"org\")"
+                      "description": "The IANA zone the rule is read in: the box's (Settings › General)"
                     },
                     "next_due_at": {
                       "anyOf": [
@@ -106229,7 +106307,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -106283,9 +106361,9 @@
                         "description": "once only"
                       },
                       "tz": {
+                        "description": "Always \"org\": every schedule reads its times in the box's time zone (Settings › General). Kept for clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read as the box's",
                         "type": "string",
-                        "maxLength": 64,
-                        "description": "\"org\" (the organization's time zone, Settings › General, the default) or an IANA zone such as Europe/Berlin"
+                        "maxLength": 64
                       },
                       "window": {
                         "type": "string",
@@ -106320,7 +106398,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -106333,7 +106411,7 @@
                           {
                             "type": "string",
                             "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
-                            "description": "HH:MM, 00:00 to 23:59, in the rule's zone"
+                            "description": "HH:MM, 00:00 to 23:59, in the box's time zone"
                           },
                           {
                             "type": "null"
@@ -106349,7 +106427,6 @@
                       "weekdays",
                       "month_day",
                       "once_at",
-                      "tz",
                       "window",
                       "window_days",
                       "window_from",

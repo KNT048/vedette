@@ -88,6 +88,8 @@ type OSHandlers struct {
 
 	upd updCheck // the check side of the software update (updates_check.go)
 
+	tz zoneAligner // the operating system side of the box's time zone (boxzone.go)
+
 	fileMu  sync.Mutex   // one restore from a file at a time on a set-up box, from its upload to the start of its restore (restore_upload.go)
 	setup   *APIHandlers // the setup code gate, the first-run lock and the migrations of the first-run restore (restore_upload.go)
 	keyPath string       // the master key file, for its download (POST /core/data/key)
@@ -186,6 +188,12 @@ func NewOSHandlers(c OSConfig) (*OSHandlers, error) {
 	}
 	h.ctx, h.cancel = context.WithCancel(context.Background())
 	h.urun.retry = c.UpdateRetry
+	h.tz.wake = make(chan struct{}, 1)
+	c.Setup.osZone = h
+	if c.Host != nil {
+		h.wg.Add(1)
+		go h.zoneLoop()
+	}
 	if c.Host != nil {
 		if m, err := h.loadRunMeta(h.ctx); err == nil && (m.Snapshot != "" || !m.Audited) {
 			h.wg.Add(1)

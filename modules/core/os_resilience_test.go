@@ -98,6 +98,14 @@ func (h *hookHost) OSAutoSecuritySet(ctx context.Context, enabled bool, requestI
 	return h.h().OSAutoSecuritySet(ctx, enabled, requestID, actor)
 }
 
+func (h *hookHost) StateTime(ctx context.Context) (api.TimeState, error) {
+	return h.h().StateTime(ctx)
+}
+
+func (h *hookHost) OSTimezoneSet(ctx context.Context, zone, requestID, actor string) (api.Run, error) {
+	return h.h().OSTimezoneSet(ctx, zone, requestID, actor)
+}
+
 func (h *hookHost) OSReboot(ctx context.Context, args api.OSRebootArgs, requestID, actor string) (api.Run, error) {
 	return h.h().OSReboot(ctx, args, requestID, actor)
 }

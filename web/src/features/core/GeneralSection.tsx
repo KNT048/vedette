@@ -11,14 +11,25 @@ import { fmtDateTime } from '@/lib/format'
 import { useGeneral, useSaveGeneral, useTerms } from './api'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 import { browserTimeZone, sameTimeZone, TIMEZONES, validTimeZone } from './util'
-import type { GeneralSettings, TermsState } from './types'
+import type { GeneralSettings, GeneralView, OsTimeZone, TermsState } from './types'
 import { TermsText } from './TermsText'
 
-function Form({ initial }: { initial: GeneralSettings }) {
+/** Whether the operating system of the box uses the box's zone too (its logs, its timers, a shell on the box): one zone everywhere. */
+function OsZoneLine({ os, saved }: { os: OsTimeZone; saved: string }) {
+  const { t } = useTranslation('core')
+  const head = os.state === 'in_sync' ? t('general.os.in_sync')
+    : os.state === 'pending' ? (os.zone && os.zone !== saved ? t('general.os.pending', { zone: os.zone }) : t('general.os.pendingUnknown'))
+    : os.state === 'failed' ? t('general.os.failed')
+    : t('general.os.not_managed')
+  const tone = os.state === 'failed' ? 'text-danger' : os.state === 'pending' ? 'text-warn' : 'text-muted'
+  return <p role="status" data-state={os.state} className={`mt-1 text-meta ${tone}`}>{[head, os.message].filter(Boolean).join(' ')}</p>
+}
+
+function Form({ initial }: { initial: GeneralView }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const save = useSaveGeneral()
-  const [v, setV] = useState(initial)
+  const [v, setV] = useState<GeneralSettings>({ name: initial.name, timezone: initial.timezone })
   const [error, setError] = useState<string | null>(null)
   const [tzError, setTzError] = useState<string | null>(null)
   const here = browserTimeZone()
@@ -30,8 +41,9 @@ function Form({ initial }: { initial: GeneralSettings }) {
     if (!validTimeZone(v.timezone)) { setTzError(t('general.timezoneError')); return }
     setTzError(null)
     try {
-      await save.mutateAsync({ ...v, name: v.name.trim() })
+      const r = await save.mutateAsync({ ...v, name: v.name.trim() })
       toast.success(t('common:saved'))
+      setV({ name: r.name, timezone: r.timezone }) // an old alias comes back under its current name
     } catch (err) { // under the field it is about
       if (err instanceof ApiError && /timezone/.test(`${err.code} ${String(err.details.field ?? '')}`)) setTzError(errMsg(err, t))
       else setError(errMsg(err, t))
@@ -47,6 +59,7 @@ function Form({ initial }: { initial: GeneralSettings }) {
         <Input id="org-tz" list="org-tz-list" autoComplete="off" spellCheck={false} value={v.timezone} disabled={gate.disabled} aria-invalid={!!tzError} onChange={(e) => setV({ ...v, timezone: e.target.value })} />
         <datalist id="org-tz-list">{TIMEZONES.map((z) => <option key={z} value={z} />)}</datalist>
         {here && !sameTimeZone(here, v.timezone) && !gate.disabled ? <button type="button" className="mt-1 w-fit text-meta text-accent underline-offset-4 hover:underline" onClick={() => setV({ ...v, timezone: here })}>{t('general.useBrowserZone', { zone: here })}</button> : null}
+        <OsZoneLine os={initial.os_time_zone} saved={initial.timezone} />
       </Field>
       <div><Button type="submit" variant="primary" disabled={gate.disabled || !dirty} busy={save.isPending} busyLabel={t('common:busy.saving')} title={gate.title}>{t('common:save')}</Button></div>
     </form>

@@ -16,6 +16,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/logexport"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/server"
 )
 
@@ -149,7 +150,7 @@ func (h *APIHandlers) CoreGetCoreLogsExport(ctx context.Context, params oas.Core
 	handedOver = true
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		hd := x.W.Header()
-		hd.Set("Content-Disposition", fmt.Sprintf("attachment; filename=vedette-logs-%s.%s", h.now().UTC().Format(dateLayout), format))
+		hd.Set("Content-Disposition", fmt.Sprintf("attachment; filename=vedette-logs-%s.%s", orgtime.ISODay(h.now(), loc), format))
 		hd.Set("Cache-Control", "no-store")
 		if format == logexport.CSV { // the generated file encoder says octet-stream (API_CONVENTIONS §11)
 			x.SetContentType("text/csv; charset=utf-8")

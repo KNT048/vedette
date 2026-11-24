@@ -156,6 +156,7 @@ type Ops struct {
 	runner *vexec.Runner
 
 	installing *atomic.Bool // true while os.install runs (shared with Deps.Installing so a test can raise it)
+	tzMu       sync.Mutex   // one os.timezone.set at a time (it takes no shared write lock)
 
 	mu       sync.Mutex // guards the notifier and the export sweep timer
 	notifier Notifier
@@ -384,7 +385,7 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 // Commands are the registry entries of this part, for server.NewRegistry.
 func (o *Ops) Commands() []server.Command {
 	return []server.Command{
-		o.cmdOSCheck(), o.cmdOSInstall(), o.cmdAutoSecurity(), o.cmdReboot(), o.cmdRebootCancel(),
+		o.cmdOSCheck(), o.cmdOSInstall(), o.cmdAutoSecurity(), o.cmdTimezoneSet(), o.cmdReboot(), o.cmdRebootCancel(),
 		o.cmdBackupCreate(), o.cmdBackupRestore(), o.cmdBackupPurge(), o.cmdLogsExport(),
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(), o.cmdDecoySetPorts(),
@@ -397,7 +398,7 @@ func (o *Ops) Commands() []server.Command {
 // Readers are the state endpoints of this part, for server.Options.Readers.
 func (o *Ops) Readers() server.Readers {
 	return server.Readers{
-		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, Containers: o.readContainers, Host: o.readHost, Packages: o.readPackages, Ports: o.readPorts, HPTouches: o.readHPTouches,
+		OS: o.readOS, Time: o.readTime, Backups: o.readBackups, Net: o.readNet, Containers: o.readContainers, Host: o.readHost, Packages: o.readPackages, Ports: o.readPorts, HPTouches: o.readHPTouches,
 		BackupContent: o.backupContent, ExportContent: o.exportContent, ZapReport: o.zapReport,
 	}
 }

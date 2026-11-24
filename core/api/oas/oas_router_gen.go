@@ -13728,7 +13728,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						switch method {
 						case "GET":
 							r.name = CoreGetCoreGeneralOperation
-							r.summary = "Organization name and time zone"
+							r.summary = "Organization name and the box's time zone, and whether the operating system uses that zone too"
 							r.operationID = "core_get_core_general"
 							r.operationGroup = ""
 							r.pathPattern = "/core/general"
@@ -13737,7 +13737,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							return r, true
 						case "PUT":
 							r.name = CorePutCoreGeneralOperation
-							r.summary = "Save organization name and time zone"
+							r.summary = "Save organization name and the box's time zone: the schedules move with it and the box sets the operating system to it (os_time_zone says how that went; the save stands either way)"
 							r.operationID = "core_put_core_general"
 							r.operationGroup = ""
 							r.pathPattern = "/core/general"

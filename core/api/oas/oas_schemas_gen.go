@@ -14380,13 +14380,22 @@ func (s *CoreGetCoreDataRestoreRunOKStatus) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCoreGeneralOK struct {
-	Name     string `json:"name"`
+	Name string `json:"name"`
+	// The operating system side of the box's time zone.
+	OsTimeZone CoreGetCoreGeneralOKOsTimeZone `json:"os_time_zone"`
+	// The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old
+	// alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh).
 	Timezone string `json:"timezone"`
 }
 
 // GetName returns the value of Name.
 func (s *CoreGetCoreGeneralOK) GetName() string {
 	return s.Name
+}
+
+// GetOsTimeZone returns the value of OsTimeZone.
+func (s *CoreGetCoreGeneralOK) GetOsTimeZone() CoreGetCoreGeneralOKOsTimeZone {
+	return s.OsTimeZone
 }
 
 // GetTimezone returns the value of Timezone.
@@ -14399,9 +14408,116 @@ func (s *CoreGetCoreGeneralOK) SetName(val string) {
 	s.Name = val
 }
 
+// SetOsTimeZone sets the value of OsTimeZone.
+func (s *CoreGetCoreGeneralOK) SetOsTimeZone(val CoreGetCoreGeneralOKOsTimeZone) {
+	s.OsTimeZone = val
+}
+
 // SetTimezone sets the value of Timezone.
 func (s *CoreGetCoreGeneralOK) SetTimezone(val string) {
 	s.Timezone = val
+}
+
+// The operating system side of the box's time zone.
+type CoreGetCoreGeneralOKOsTimeZone struct {
+	// Why it is not in sync, a sentence for the person; null when it is.
+	Message NilString `json:"message"`
+	// In_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself
+	// (the system helper is busy or not answering); failed: the system helper could not set it (message
+	// says why); not_managed: this install has no system helper that can set it (a container-only install,
+	// or a helper older than this version), so the operating system keeps its own zone.
+	State CoreGetCoreGeneralOKOsTimeZoneState `json:"state"`
+	// The zone the operating system uses now; null when it could not be read.
+	Zone NilString `json:"zone"`
+}
+
+// GetMessage returns the value of Message.
+func (s *CoreGetCoreGeneralOKOsTimeZone) GetMessage() NilString {
+	return s.Message
+}
+
+// GetState returns the value of State.
+func (s *CoreGetCoreGeneralOKOsTimeZone) GetState() CoreGetCoreGeneralOKOsTimeZoneState {
+	return s.State
+}
+
+// GetZone returns the value of Zone.
+func (s *CoreGetCoreGeneralOKOsTimeZone) GetZone() NilString {
+	return s.Zone
+}
+
+// SetMessage sets the value of Message.
+func (s *CoreGetCoreGeneralOKOsTimeZone) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetState sets the value of State.
+func (s *CoreGetCoreGeneralOKOsTimeZone) SetState(val CoreGetCoreGeneralOKOsTimeZoneState) {
+	s.State = val
+}
+
+// SetZone sets the value of Zone.
+func (s *CoreGetCoreGeneralOKOsTimeZone) SetZone(val NilString) {
+	s.Zone = val
+}
+
+// In_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself
+// (the system helper is busy or not answering); failed: the system helper could not set it (message
+// says why); not_managed: this install has no system helper that can set it (a container-only install,
+// or a helper older than this version), so the operating system keeps its own zone.
+type CoreGetCoreGeneralOKOsTimeZoneState string
+
+const (
+	CoreGetCoreGeneralOKOsTimeZoneStateInSync     CoreGetCoreGeneralOKOsTimeZoneState = "in_sync"
+	CoreGetCoreGeneralOKOsTimeZoneStatePending    CoreGetCoreGeneralOKOsTimeZoneState = "pending"
+	CoreGetCoreGeneralOKOsTimeZoneStateFailed     CoreGetCoreGeneralOKOsTimeZoneState = "failed"
+	CoreGetCoreGeneralOKOsTimeZoneStateNotManaged CoreGetCoreGeneralOKOsTimeZoneState = "not_managed"
+)
+
+// AllValues returns all CoreGetCoreGeneralOKOsTimeZoneState values.
+func (CoreGetCoreGeneralOKOsTimeZoneState) AllValues() []CoreGetCoreGeneralOKOsTimeZoneState {
+	return []CoreGetCoreGeneralOKOsTimeZoneState{
+		CoreGetCoreGeneralOKOsTimeZoneStateInSync,
+		CoreGetCoreGeneralOKOsTimeZoneStatePending,
+		CoreGetCoreGeneralOKOsTimeZoneStateFailed,
+		CoreGetCoreGeneralOKOsTimeZoneStateNotManaged,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CoreGetCoreGeneralOKOsTimeZoneState) MarshalText() ([]byte, error) {
+	switch s {
+	case CoreGetCoreGeneralOKOsTimeZoneStateInSync:
+		return []byte(s), nil
+	case CoreGetCoreGeneralOKOsTimeZoneStatePending:
+		return []byte(s), nil
+	case CoreGetCoreGeneralOKOsTimeZoneStateFailed:
+		return []byte(s), nil
+	case CoreGetCoreGeneralOKOsTimeZoneStateNotManaged:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CoreGetCoreGeneralOKOsTimeZoneState) UnmarshalText(data []byte) error {
+	switch CoreGetCoreGeneralOKOsTimeZoneState(data) {
+	case CoreGetCoreGeneralOKOsTimeZoneStateInSync:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStateInSync
+		return nil
+	case CoreGetCoreGeneralOKOsTimeZoneStatePending:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStatePending
+		return nil
+	case CoreGetCoreGeneralOKOsTimeZoneStateFailed:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStateFailed
+		return nil
+	case CoreGetCoreGeneralOKOsTimeZoneStateNotManaged:
+		*s = CoreGetCoreGeneralOKOsTimeZoneStateNotManaged
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type CoreGetCoreLogsExportOK struct {
@@ -20110,7 +20226,7 @@ type CoreGetSchedulesOwnerKeyOK struct {
 	UpdatedBy NilString `json:"updated_by"`
 	// Due, and held: what it waits for ("The scan window to open").
 	WaitingFor NilString `json:"waiting_for"`
-	// The IANA zone the rule is read in (the organization's for tz "org").
+	// The IANA zone the rule is read in: the box's (Settings › General).
 	Zone string `json:"zone"`
 }
 
@@ -20528,9 +20644,10 @@ type CoreGetSchedulesOwnerKeyOKRule struct {
 	MonthDay NilInt `json:"month_day"`
 	// Once only.
 	OnceAt NilDateTime `json:"once_at"`
-	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
-	// Europe/Berlin.
-	Tz string `json:"tz"`
+	// Always "org": every schedule reads its times in the box's time zone (Settings › General). Kept for
+	// clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read
+	// as the box's.
+	Tz OptString `json:"tz"`
 	// Weekly only.
 	Weekdays []int `json:"weekdays"`
 	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
@@ -20572,7 +20689,7 @@ func (s *CoreGetSchedulesOwnerKeyOKRule) GetOnceAt() NilDateTime {
 }
 
 // GetTz returns the value of Tz.
-func (s *CoreGetSchedulesOwnerKeyOKRule) GetTz() string {
+func (s *CoreGetSchedulesOwnerKeyOKRule) GetTz() OptString {
 	return s.Tz
 }
 
@@ -20627,7 +20744,7 @@ func (s *CoreGetSchedulesOwnerKeyOKRule) SetOnceAt(val NilDateTime) {
 }
 
 // SetTz sets the value of Tz.
-func (s *CoreGetSchedulesOwnerKeyOKRule) SetTz(val string) {
+func (s *CoreGetSchedulesOwnerKeyOKRule) SetTz(val OptString) {
 	s.Tz = val
 }
 
@@ -29780,6 +29897,10 @@ type CorePostCoreSetupReq struct {
 	// administrator: missing or wrong gives 403 invalid_setup_code, 429 rate_limited after repeated wrong
 	// tries.
 	SetupCode OptString `json:"setup_code"`
+	// The box's time zone (an IANA name such as Europe/Berlin): every page, mail, log and schedule reads
+	// it, and the operating system is set to it. An old alias is stored under its current name
+	// (Asia/Saigon as Asia/Ho_Chi_Minh). Absent: Asia/Ho_Chi_Minh. Not a known zone: 400 invalid_timezone.
+	Timezone OptString `json:"timezone"`
 }
 
 // GetAcceptTerms returns the value of AcceptTerms.
@@ -29827,6 +29948,11 @@ func (s *CorePostCoreSetupReq) GetSetupCode() OptString {
 	return s.SetupCode
 }
 
+// GetTimezone returns the value of Timezone.
+func (s *CorePostCoreSetupReq) GetTimezone() OptString {
+	return s.Timezone
+}
+
 // SetAcceptTerms sets the value of AcceptTerms.
 func (s *CorePostCoreSetupReq) SetAcceptTerms(val OptBool) {
 	s.AcceptTerms = val
@@ -29870,6 +29996,11 @@ func (s *CorePostCoreSetupReq) SetSample(val OptBool) {
 // SetSetupCode sets the value of SetupCode.
 func (s *CorePostCoreSetupReq) SetSetupCode(val OptString) {
 	s.SetupCode = val
+}
+
+// SetTimezone sets the value of Timezone.
+func (s *CorePostCoreSetupReq) SetTimezone(val OptString) {
+	s.Timezone = val
 }
 
 type CorePostCoreSetupReqAdmin struct {
@@ -38693,9 +38824,10 @@ type CorePostSchedulesPreviewReqRule struct {
 	MonthDay NilInt `json:"month_day"`
 	// Once only.
 	OnceAt NilDateTime `json:"once_at"`
-	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
-	// Europe/Berlin.
-	Tz string `json:"tz"`
+	// Always "org": every schedule reads its times in the box's time zone (Settings › General). Kept for
+	// clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read
+	// as the box's.
+	Tz OptString `json:"tz"`
 	// Weekly only.
 	Weekdays []int `json:"weekdays"`
 	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
@@ -38737,7 +38869,7 @@ func (s *CorePostSchedulesPreviewReqRule) GetOnceAt() NilDateTime {
 }
 
 // GetTz returns the value of Tz.
-func (s *CorePostSchedulesPreviewReqRule) GetTz() string {
+func (s *CorePostSchedulesPreviewReqRule) GetTz() OptString {
 	return s.Tz
 }
 
@@ -38792,7 +38924,7 @@ func (s *CorePostSchedulesPreviewReqRule) SetOnceAt(val NilDateTime) {
 }
 
 // SetTz sets the value of Tz.
-func (s *CorePostSchedulesPreviewReqRule) SetTz(val string) {
+func (s *CorePostSchedulesPreviewReqRule) SetTz(val OptString) {
 	s.Tz = val
 }
 
@@ -39846,13 +39978,22 @@ func (s *CorePutCoreConnectionsIDReqToolsItemAccess) UnmarshalText(data []byte) 
 }
 
 type CorePutCoreGeneralOK struct {
-	Name     string `json:"name"`
+	Name string `json:"name"`
+	// The operating system side of the box's time zone.
+	OsTimeZone CorePutCoreGeneralOKOsTimeZone `json:"os_time_zone"`
+	// The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old
+	// alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh).
 	Timezone string `json:"timezone"`
 }
 
 // GetName returns the value of Name.
 func (s *CorePutCoreGeneralOK) GetName() string {
 	return s.Name
+}
+
+// GetOsTimeZone returns the value of OsTimeZone.
+func (s *CorePutCoreGeneralOK) GetOsTimeZone() CorePutCoreGeneralOKOsTimeZone {
+	return s.OsTimeZone
 }
 
 // GetTimezone returns the value of Timezone.
@@ -39865,13 +40006,122 @@ func (s *CorePutCoreGeneralOK) SetName(val string) {
 	s.Name = val
 }
 
+// SetOsTimeZone sets the value of OsTimeZone.
+func (s *CorePutCoreGeneralOK) SetOsTimeZone(val CorePutCoreGeneralOKOsTimeZone) {
+	s.OsTimeZone = val
+}
+
 // SetTimezone sets the value of Timezone.
 func (s *CorePutCoreGeneralOK) SetTimezone(val string) {
 	s.Timezone = val
 }
 
+// The operating system side of the box's time zone.
+type CorePutCoreGeneralOKOsTimeZone struct {
+	// Why it is not in sync, a sentence for the person; null when it is.
+	Message NilString `json:"message"`
+	// In_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself
+	// (the system helper is busy or not answering); failed: the system helper could not set it (message
+	// says why); not_managed: this install has no system helper that can set it (a container-only install,
+	// or a helper older than this version), so the operating system keeps its own zone.
+	State CorePutCoreGeneralOKOsTimeZoneState `json:"state"`
+	// The zone the operating system uses now; null when it could not be read.
+	Zone NilString `json:"zone"`
+}
+
+// GetMessage returns the value of Message.
+func (s *CorePutCoreGeneralOKOsTimeZone) GetMessage() NilString {
+	return s.Message
+}
+
+// GetState returns the value of State.
+func (s *CorePutCoreGeneralOKOsTimeZone) GetState() CorePutCoreGeneralOKOsTimeZoneState {
+	return s.State
+}
+
+// GetZone returns the value of Zone.
+func (s *CorePutCoreGeneralOKOsTimeZone) GetZone() NilString {
+	return s.Zone
+}
+
+// SetMessage sets the value of Message.
+func (s *CorePutCoreGeneralOKOsTimeZone) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetState sets the value of State.
+func (s *CorePutCoreGeneralOKOsTimeZone) SetState(val CorePutCoreGeneralOKOsTimeZoneState) {
+	s.State = val
+}
+
+// SetZone sets the value of Zone.
+func (s *CorePutCoreGeneralOKOsTimeZone) SetZone(val NilString) {
+	s.Zone = val
+}
+
+// In_sync: the operating system uses the box's zone; pending: not yet, the box tries again by itself
+// (the system helper is busy or not answering); failed: the system helper could not set it (message
+// says why); not_managed: this install has no system helper that can set it (a container-only install,
+// or a helper older than this version), so the operating system keeps its own zone.
+type CorePutCoreGeneralOKOsTimeZoneState string
+
+const (
+	CorePutCoreGeneralOKOsTimeZoneStateInSync     CorePutCoreGeneralOKOsTimeZoneState = "in_sync"
+	CorePutCoreGeneralOKOsTimeZoneStatePending    CorePutCoreGeneralOKOsTimeZoneState = "pending"
+	CorePutCoreGeneralOKOsTimeZoneStateFailed     CorePutCoreGeneralOKOsTimeZoneState = "failed"
+	CorePutCoreGeneralOKOsTimeZoneStateNotManaged CorePutCoreGeneralOKOsTimeZoneState = "not_managed"
+)
+
+// AllValues returns all CorePutCoreGeneralOKOsTimeZoneState values.
+func (CorePutCoreGeneralOKOsTimeZoneState) AllValues() []CorePutCoreGeneralOKOsTimeZoneState {
+	return []CorePutCoreGeneralOKOsTimeZoneState{
+		CorePutCoreGeneralOKOsTimeZoneStateInSync,
+		CorePutCoreGeneralOKOsTimeZoneStatePending,
+		CorePutCoreGeneralOKOsTimeZoneStateFailed,
+		CorePutCoreGeneralOKOsTimeZoneStateNotManaged,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CorePutCoreGeneralOKOsTimeZoneState) MarshalText() ([]byte, error) {
+	switch s {
+	case CorePutCoreGeneralOKOsTimeZoneStateInSync:
+		return []byte(s), nil
+	case CorePutCoreGeneralOKOsTimeZoneStatePending:
+		return []byte(s), nil
+	case CorePutCoreGeneralOKOsTimeZoneStateFailed:
+		return []byte(s), nil
+	case CorePutCoreGeneralOKOsTimeZoneStateNotManaged:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CorePutCoreGeneralOKOsTimeZoneState) UnmarshalText(data []byte) error {
+	switch CorePutCoreGeneralOKOsTimeZoneState(data) {
+	case CorePutCoreGeneralOKOsTimeZoneStateInSync:
+		*s = CorePutCoreGeneralOKOsTimeZoneStateInSync
+		return nil
+	case CorePutCoreGeneralOKOsTimeZoneStatePending:
+		*s = CorePutCoreGeneralOKOsTimeZoneStatePending
+		return nil
+	case CorePutCoreGeneralOKOsTimeZoneStateFailed:
+		*s = CorePutCoreGeneralOKOsTimeZoneStateFailed
+		return nil
+	case CorePutCoreGeneralOKOsTimeZoneStateNotManaged:
+		*s = CorePutCoreGeneralOKOsTimeZoneStateNotManaged
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type CorePutCoreGeneralReq struct {
-	Name     string `json:"name"`
+	Name string `json:"name"`
+	// The box's one time zone (IANA name): pages, mails, logs, schedules and the operating system. An old
+	// alias is stored under its current name (Asia/Saigon as Asia/Ho_Chi_Minh).
 	Timezone string `json:"timezone"`
 }
 
@@ -45050,7 +45300,7 @@ type CorePutSchedulesOwnerKeyOK struct {
 	UpdatedBy NilString `json:"updated_by"`
 	// Due, and held: what it waits for ("The scan window to open").
 	WaitingFor NilString `json:"waiting_for"`
-	// The IANA zone the rule is read in (the organization's for tz "org").
+	// The IANA zone the rule is read in: the box's (Settings › General).
 	Zone string `json:"zone"`
 }
 
@@ -45468,9 +45718,10 @@ type CorePutSchedulesOwnerKeyOKRule struct {
 	MonthDay NilInt `json:"month_day"`
 	// Once only.
 	OnceAt NilDateTime `json:"once_at"`
-	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
-	// Europe/Berlin.
-	Tz string `json:"tz"`
+	// Always "org": every schedule reads its times in the box's time zone (Settings › General). Kept for
+	// clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read
+	// as the box's.
+	Tz OptString `json:"tz"`
 	// Weekly only.
 	Weekdays []int `json:"weekdays"`
 	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
@@ -45512,7 +45763,7 @@ func (s *CorePutSchedulesOwnerKeyOKRule) GetOnceAt() NilDateTime {
 }
 
 // GetTz returns the value of Tz.
-func (s *CorePutSchedulesOwnerKeyOKRule) GetTz() string {
+func (s *CorePutSchedulesOwnerKeyOKRule) GetTz() OptString {
 	return s.Tz
 }
 
@@ -45567,7 +45818,7 @@ func (s *CorePutSchedulesOwnerKeyOKRule) SetOnceAt(val NilDateTime) {
 }
 
 // SetTz sets the value of Tz.
-func (s *CorePutSchedulesOwnerKeyOKRule) SetTz(val string) {
+func (s *CorePutSchedulesOwnerKeyOKRule) SetTz(val OptString) {
 	s.Tz = val
 }
 
@@ -45765,9 +46016,10 @@ type CorePutSchedulesOwnerKeyReqRule struct {
 	MonthDay NilInt `json:"month_day"`
 	// Once only.
 	OnceAt NilDateTime `json:"once_at"`
-	// "org" (the organization's time zone, Settings › General, the default) or an IANA zone such as
-	// Europe/Berlin.
-	Tz string `json:"tz"`
+	// Always "org": every schedule reads its times in the box's time zone (Settings › General). Kept for
+	// clients of earlier versions: a value sent is ignored, and a zone an earlier version stored is read
+	// as the box's.
+	Tz OptString `json:"tz"`
 	// Weekly only.
 	Weekdays []int `json:"weekdays"`
 	// Global: it starts only inside the box's scan window (Settings › Scanning › Safety), and a due
@@ -45809,7 +46061,7 @@ func (s *CorePutSchedulesOwnerKeyReqRule) GetOnceAt() NilDateTime {
 }
 
 // GetTz returns the value of Tz.
-func (s *CorePutSchedulesOwnerKeyReqRule) GetTz() string {
+func (s *CorePutSchedulesOwnerKeyReqRule) GetTz() OptString {
 	return s.Tz
 }
 
@@ -45864,7 +46116,7 @@ func (s *CorePutSchedulesOwnerKeyReqRule) SetOnceAt(val NilDateTime) {
 }
 
 // SetTz sets the value of Tz.
-func (s *CorePutSchedulesOwnerKeyReqRule) SetTz(val string) {
+func (s *CorePutSchedulesOwnerKeyReqRule) SetTz(val OptString) {
 	s.Tz = val
 }
 

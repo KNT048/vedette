@@ -202,6 +202,8 @@ func fixChangeNote(key string) string {
 		return "Now: install the operating system update to build " + version + " or later."
 	case kind == FixFeatureUpdate:
 		return "Now: move to " + version + ", a release that has the fix."
+	case kind == FixRestart: // the fixed kernel is installed already: nothing to install, the device must run it
+		return "Now: restart the device to run the installed " + version + "."
 	}
 	return "Now: update to " + version + " or later."
 }

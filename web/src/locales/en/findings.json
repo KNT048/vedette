@@ -270,7 +270,9 @@
       "mikrotik": "MikroTik configuration",
       "generic": "general guidance"
     },
-    "risk_accepted": "Risk accepted"
+    "risk_accepted": "Risk accepted",
+    "urgency_changed": "Urgency changed",
+    "fix_changed": "Fix changed"
   },
   "explain": {
     "title": "Explain in plain language",

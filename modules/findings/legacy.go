@@ -2,6 +2,7 @@ package findings
 
 import (
 	"math"
+	"strings"
 	"time"
 )
 
@@ -172,8 +173,37 @@ func historyEntry(e Event) HistoryEntry {
 		h.Action = "no_longer_matches"
 	case EvRedetected:
 		h.Action = "matches_again"
+	case EvUrgencyChanged:
+		if e.Detail.Layer >= UrgencyUnderAttack && e.Detail.Layer <= UrgencyUpdate {
+			h.Note = "Now: " + StatusName(e.Detail.Layer) + "."
+		}
+	case EvFixChanged:
+		h.Note = fixChangeNote(e.Detail.To)
 	}
 	return h
+}
+
+// fixChangeNote says the fix a fix_changed event moved to, from its fix key (FixKey: "<product>|<kind>|<version>"), in the words the
+// fix is shown with elsewhere; "" when the key cannot be read.
+func fixChangeNote(key string) string {
+	parts := strings.Split(key, "|")
+	if len(parts) < 3 {
+		return ""
+	}
+	kind, version := FixKind(parts[len(parts)-2]), parts[len(parts)-1]
+	switch {
+	case kind == FixNoneYet:
+		return "Now: no fix from the vendor yet."
+	case version == "" || kind == FixUnknown:
+		return "Now: Vedette's data names no fixed release."
+	case kind == FixDistroUpdate:
+		return "Now: install the distribution's package " + version + " or later."
+	case kind == FixOSUpdate:
+		return "Now: install the operating system update to build " + version + " or later."
+	case kind == FixFeatureUpdate:
+		return "Now: move to " + version + ", a release that has the fix."
+	}
+	return "Now: update to " + version + " or later."
 }
 
 // legacyEvent is the older status_changed payload of one transition, or ok false when the older status did not change and no person

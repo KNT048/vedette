@@ -49,7 +49,7 @@ export function VulnChecksButton({ targets, size = 'sm', here = false, showProgr
     : targets === 'lan' && all.data && of.length === 0 ? t('checks.none')
     : targets !== 'lan' && of.length === 0 ? t('start.none')
     : ids.length > MAX ? t('start.tooMany', { max: MAX, count: ids.length }) : null
-  // with nothing to check there is no button: only why (#83)
+  // with nothing to check there is no button: only why
   if (nothing && !ours) return <p role="status" className="text-meta text-muted">{nothing}</p>
   const leftOut = c.counted && !c.none && ids.length < of.length ? t('checks.leftOut', { count: of.length - ids.length }) : null
   return (

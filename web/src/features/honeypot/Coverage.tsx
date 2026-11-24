@@ -35,7 +35,7 @@ const FIX: Record<string, { to: string; label: string }> = {
 
 /** What really fires now (Coverage claims only that). services: the services some Trap IP listens on; listeningIps: how many Trap IPs listen;
  * bait: how many decoy files and URL tokens exist (undefined while unknown); admin: the reader may add Trap IPs and tokens.
- * Without a listening Trap IP, nothing the traps would see is covered (2026-11-12 walk); URL tokens are answered by the box itself, so bait stays
+ * Without a listening Trap IP, nothing the traps would see is covered; URL tokens are answered by the box itself, so bait stays
  * partly covered, and only once a decoy file or URL token exists. Moving to shares needs SMB, stolen credentials need a service whose login
  * names an account, and a sweep alert needs two Trap IPs: one alone still alerts on each touch. Each gap a person can close carries its action. */
 export default function CoverageSection({ services, listeningIps, bait, admin = false }: { services: HpService[]; listeningIps: number; bait?: number; admin?: boolean }) {

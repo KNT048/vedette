@@ -980,7 +980,6 @@ function privacyView() {
     { id: 1, state: 'on', control: 'reason' },
     { id: 2, state: p.telemetry ? 'on' : 'off', control: 'switch' },
     { id: 3, state: ai ? 'on' : 'off', control: 'reason', configured: ai },
-    { id: 4, state: 'conditional', control: 'reason' },
     { id: 5, state: 'conditional', control: 'reason' },
     { id: 6, state: p.update_check ? 'on' : 'off', control: 'switch' },
     { id: 7, state: 'conditional', control: 'reason' },

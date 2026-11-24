@@ -1,6 +1,6 @@
 // Package ai is the library behind the AI assistant module: provider profiles, per-job routing with
 // fallback, the token meter, the hook runner, the read-only tool filter, prompt assembly and the
-// hash-chained activity log. It has no HTTP, no database and no scheduler; WP-25 wires it to core.
+// hash-chained activity log. It has no HTTP, no database and no scheduler; the module wiring connects it to core.
 package ai
 
 // Job is one of the ten AI jobs (INV-2).

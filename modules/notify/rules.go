@@ -1,8 +1,8 @@
-// Package notify is the library part of the notify module (WP-22a): delivery
+// Package notify is the library part of the notify module: delivery
 // rules as pure functions (severity filter, quiet hours, grouping), the notice
 // model, the send record and the email approval tokens. The channel adapters
 // live in the channel subpackage. Nothing here touches a database or core;
-// WP-22 wires these functions to them.
+// The module wiring connects these functions to them.
 package notify
 
 import (

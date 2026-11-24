@@ -1,4 +1,4 @@
-// Internal traps on the real backend through vedette-host (S-HP-1, S-HP-2, WP-30). The host is the fake machine of
+// Internal traps on the real backend through vedette-host. The host is the fake machine of
 // cmd/vedette/e2ehost_test.go: the real decoy_ip.* and container.* commands of host/ops over a temporary root, with a systemctl and a podman that
 // remember what start and stop did. No container runs: the spec plays the container and appends OpenCanary JSON lines to <honeypot_dir>/log/opencanary.jsonl,
 // the way the container would (append, newline), and the real run job reads them (poll every 15 s, honeypot.go).

@@ -24,16 +24,16 @@ func (f *fakeIncidents) Incident(_ context.Context, id string) (response.Inciden
 func incidentEnv(t *testing.T) *env {
 	t.Helper()
 	inc := &fakeIncidents{m: map[string]response.IncidentInfo{
-		"in-lan":     {ID: "in-lan", Kind: "trap", Title: "192.168.142.145 touched the SSH trap", Action: "Take the machine off the network.", SourceIP: "192.168.142.145", AssetID: "a-pc"},
+		"in-lan":     {ID: "in-lan", Kind: "trap", Title: "10.142.0.145 touched the SSH trap", Action: "Take the machine off the network.", SourceIP: "10.142.0.145", AssetID: "a-pc"},
 		"in-public":  {ID: "in-public", Kind: "trap", Title: "203.0.113.9 touched the SSH trap", Action: "Block it.", SourceIP: "203.0.113.9"},
 		"in-log":     {ID: "in-log", Kind: "log_anomaly", Title: "WEB01 logged far more failed sign-ins than usual"},
 		"in-gw":      {ID: "in-gw", Kind: "trap", Title: "10.0.0.1 touched the SSH trap", SourceIP: "10.0.0.1"},
-		"in-scan":    {ID: "in-scan", Kind: "trap", Title: "192.168.142.150 scanned the Trap IPs", SourceIP: "192.168.142.150", HitKind: "scan", Unconfirmed: true},
-		"in-scan-ok": {ID: "in-scan-ok", Kind: "trap", Title: "192.168.142.151 scanned the Trap IPs", SourceIP: "192.168.142.151", HitKind: "scan"},
-		"in-done":    {ID: "in-done", Kind: "trap", Status: "resolved", Title: "192.168.142.152 touched the SSH trap", SourceIP: "192.168.142.152"},
+		"in-scan":    {ID: "in-scan", Kind: "trap", Title: "10.142.0.150 scanned the Trap IPs", SourceIP: "10.142.0.150", HitKind: "scan", Unconfirmed: true},
+		"in-scan-ok": {ID: "in-scan-ok", Kind: "trap", Title: "10.142.0.151 scanned the Trap IPs", SourceIP: "10.142.0.151", HitKind: "scan"},
+		"in-done":    {ID: "in-done", Kind: "trap", Status: "resolved", Title: "10.142.0.152 touched the SSH trap", SourceIP: "10.142.0.152"},
 	}}
 	e := newEnv(t, func(c *response.Config) { c.Incidents = inc })
-	e.dir.devices["a-pc"] = response.DeviceInfo{ID: "a-pc", Name: "PC-HR-01", IP: "192.168.142.145", Kind: "workstation"}
+	e.dir.devices["a-pc"] = response.DeviceInfo{ID: "a-pc", Name: "PC-HR-01", IP: "10.142.0.145", Kind: "workstation"}
 	return e
 }
 
@@ -59,7 +59,7 @@ func TestLANSourceWithoutAConnectionOffersNothing(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
 	p := e.panel("in-lan")
-	if p.Source == nil || p.Source.IP != "192.168.142.145" || p.Source.Scope != "lan" || p.Source.Device == nil || *p.Source.Device != "PC-HR-01" {
+	if p.Source == nil || p.Source.IP != "10.142.0.145" || p.Source.Scope != "lan" || p.Source.Device == nil || *p.Source.Device != "PC-HR-01" {
 		t.Fatalf("source: %+v", p.Source)
 	}
 	if len(p.Options) != 0 || p.Incident.Action != "Take the machine off the network." {
@@ -80,7 +80,7 @@ func TestLANSourceWithAFirewallMakesAPendingRequest(t *testing.T) {
 	e.firewall("fgt_addrgrp_add")
 	e.turnOn()
 	o := option(e.panel("in-lan"), "fgt_addrgrp_add")
-	if o == nil || !o.Ready || o.Why != nil || o.Connection == nil || *o.Connection != "Office firewall" || !strings.Contains(o.Title, "192.168.142.145") || o.TTLMin != 1440 {
+	if o == nil || !o.Ready || o.Why != nil || o.Connection == nil || *o.Connection != "Office firewall" || !strings.Contains(o.Title, "10.142.0.145") || o.TTLMin != 1440 {
 		t.Fatalf("option: %+v", o)
 	}
 	a, err := e.svc.RequestFromIncident(e.ctx(), oper, "in-lan", "fgt_addrgrp_add")
@@ -181,7 +181,7 @@ func TestNoSourceAndUnknownIncident(t *testing.T) {
 	wantCode(t, err, http.StatusNotFound, "not_found")
 }
 
-// M1 (review of #702): a scan made only of attempts can carry a forged source, so nothing is offered or asked for it; a scan whose
+// A scan made only of attempts can carry a forged source, so nothing is offered or asked for it; a scan whose
 // source also completed a connection is offered, and its request says why the source is trusted.
 func TestAForgeableScanSourceIsNeverBlocked(t *testing.T) {
 	t.Parallel()
@@ -208,7 +208,7 @@ func TestAForgeableScanSourceIsNeverBlocked(t *testing.T) {
 	}
 }
 
-// L2: a resolved incident offers nothing and says why; asking is refused.
+// A resolved incident offers nothing and says why; asking is refused.
 func TestAResolvedIncidentOffersNothing(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
@@ -222,7 +222,7 @@ func TestAResolvedIncidentOffersNothing(t *testing.T) {
 	wantCode(t, err, http.StatusConflict, "incident_resolved")
 }
 
-// L1: a maintenance window and an open circuit breaker are shown as the reason an option is not ready.
+// A maintenance window and an open circuit breaker are shown as the reason an option is not ready.
 func TestMaintenanceAndBreakerAreReasons(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)
@@ -241,7 +241,7 @@ func TestMaintenanceAndBreakerAreReasons(t *testing.T) {
 	}
 }
 
-// M2: a person's request is neither an AI nor a rule request in the metrics.
+// A person's request is neither an AI nor a rule request in the metrics.
 func TestMetricsDoNotCountAPersonAsARule(t *testing.T) {
 	t.Parallel()
 	e := incidentEnv(t)

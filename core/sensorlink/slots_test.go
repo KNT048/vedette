@@ -17,7 +17,7 @@ import (
 	"github.com/knt048/vedette/core/sensorlink"
 )
 
-// WP-31 M3: a sensor cannot hold the connection slots of the link.
+// A sensor cannot hold the connection slots of the link.
 
 // send writes one request head (and the start of a chunked body when chunked), leaving the body unfinished.
 func (rc *rawConn) send(t *testing.T, method, path string, hdr []string, chunked bool) {

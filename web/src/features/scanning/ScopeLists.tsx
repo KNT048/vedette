@@ -61,7 +61,7 @@ function EntryDialog({ title, label, hint, info, initial, placeholder, submitLab
 }
 
 /**
- * The network ranges: "192.168.142.5/24" becomes 192.168.142.0/24 and says so; a bare address is refused (the size of the network is
+ * The network ranges: "10.142.0.5/24" becomes 10.142.0.0/24 and says so; a bare address is refused (the size of the network is
  * not guessed); every range can be edited or removed; a range stored wrongly (an older version) shows its error on its row without
  * blocking the others. `cost` renders the cost of the ranges with the one typed in the dialog (null: none typed or not valid yet).
  */

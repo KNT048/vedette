@@ -37,7 +37,7 @@ async function clean(page: Page) {
   await page.getByLabel('Password', { exact: true }).fill('a-long-test-password-123')
   await page.getByLabel('Repeat password', { exact: true }).fill('a-long-test-password-123')
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel(/^Range 1/).fill('192.168.142.0/24')
+  await page.getByLabel(/^Range 1/).fill('10.142.0.0/24')
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/)

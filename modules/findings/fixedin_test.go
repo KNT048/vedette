@@ -140,7 +140,7 @@ func TestFixedIn_ReviewCases(t *testing.T) {
 	}
 	jenkins.Version = "2.426.1"
 	// Ubuntu kernel and OpenSSH rows from the agent carry upstream numbers: the number plus the condition.
-	ub := Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
+	ub := Asset{ID: "a", Name: "srv01", OS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}
 	if f := FixedInFor(ub, vuln("CVE-2026-46300")); f == nil || f.Kind != "fixed" || f.Fixed != "7.0.10" || f.Distro != "Ubuntu" {
 		t.Errorf("ubuntu kernel: %+v, want fixed 7.0.10 with distro Ubuntu", f)
 	}

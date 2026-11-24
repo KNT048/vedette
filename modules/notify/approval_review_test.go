@@ -10,7 +10,7 @@ import (
 
 // Response decides whether a chat message may carry buttons (NoChatButtons); notify obeys, and an approval message holds the
 // text of the whole change (up to MaxApprovalWhat), not the 1000 characters of an alert.
-func TestWP31_NoChatButtonsAndTheWholeChangeInTheMessage(t *testing.T) {
+func TestNoChatButtonsAndTheWholeChangeInTheMessage(t *testing.T) {
 	var l []string
 	for i := range 60 {
 		l = append(l, fmt.Sprintf("show clock %02d", i))

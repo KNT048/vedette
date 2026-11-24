@@ -438,7 +438,7 @@ func exec(t *testing.T, env *authtest.Env, q string, args ...any) {
 	}
 }
 
-// M1: the email path re-reads the user in the transaction that writes auth.stepup. A disable (or an admin password
+// The email path re-reads the user in the transaction that writes auth.stepup. A disable (or an admin password
 // reset) that commits after VerifyTwoStep read the user but before the code is judged does not win: the
 // step-up passes, auth.stepup is written for a disabled account, and the caller (response 13b-9) gets nil
 // and approves. The app path re-reads the user in the AdvanceTotpStep transaction and refuses
@@ -495,7 +495,7 @@ func TestStepUpEmailSendsDoNotUseUpTheSignInBudget(t *testing.T) {
 	}
 }
 
-// L4 (documentation of what happens): a disabled email-method user gets the generic 400 invalid_code, not the
+// A disabled email-method user gets the generic 400 invalid_code, not the
 // wrong_code of a live user. That is no oracle: userID comes from the caller's own session.
 func TestStepUpDisabledEmailUserIsInvalidCodeNotWrongCode(t *testing.T) {
 	t.Parallel()
@@ -637,7 +637,7 @@ func TestStepUpSignInSendReplacingAStepUpCodeDoesNotLetItApprove(t *testing.T) {
 	}
 }
 
-// M2 (continued): each kind has its own five an hour, the sixth is 429 too_many_codes with retry_after, and
+// Each kind has its own five an hour, the sixth is 429 too_many_codes with retry_after, and
 // every step-up send leaves an auth.stepup_code_sent row without the code.
 func TestStepUpEmailSendBudgetIsItsOwn(t *testing.T) {
 	t.Parallel()
@@ -675,7 +675,7 @@ func TestStepUpEmailSendBudgetIsItsOwn(t *testing.T) {
 	}
 }
 
-// L7: the sign-in 429 too_many_codes carries retry_after too.
+// The sign-in 429 too_many_codes carries retry_after too.
 func TestSignInTooManyCodesHasRetryAfter(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
@@ -697,7 +697,7 @@ func TestSignInTooManyCodesHasRetryAfter(t *testing.T) {
 	}
 }
 
-// M3: the summary reaches the step-up mailer verbatim, the code is not in it, and a sign-in code mail has none.
+// The summary reaches the step-up mailer verbatim, the code is not in it, and a sign-in code mail has none.
 func TestStepUpEmailMailsTheSummaryWithTheCode(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
@@ -779,7 +779,7 @@ func TestStepUpRefusesAnInvalidSummary(t *testing.T) {
 	}
 }
 
-// L5: a code mailed for one request does not pass for another with the same prefix.
+// A code mailed for one request does not pass for another with the same prefix.
 func TestStepUpEmailCodeIsBoundToTheRequest(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)
@@ -794,7 +794,7 @@ func TestStepUpEmailCodeIsBoundToTheRequest(t *testing.T) {
 	}
 }
 
-// L7: the limiter's 429 on step-up does not talk about signing in.
+// The limiter's 429 on step-up does not talk about signing in.
 func TestStepUpRateLimitedMessageDoesNotMentionSignIn(t *testing.T) {
 	t.Parallel()
 	env := authtest.New(t)

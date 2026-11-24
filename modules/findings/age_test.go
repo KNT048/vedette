@@ -124,7 +124,7 @@ func TestGolden_WhatTheAgeRuleCloses(t *testing.T) {
 		{"NetScaler 13.1-49.13 (banner)", Asset{ID: "a", Name: "adc", Software: []Software{netScaler(golden, "13.1-49.13")}}, golden},
 		{"EX4200 JUNOS 15.1R7.9 (LLDP)", labEX4200(), junos},
 		{"EX4200 JUNOS 15.1R7.9 (SNMP)", ex4200SNMP, junos},
-		{"Ubuntu 26.04.1 server (agent)", Asset{ID: "a", Name: "byn", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}, golden},
+		{"Ubuntu 26.04.1 server (agent)", Asset{ID: "a", Name: "srv01", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}, golden},
 	}
 	var totP, totV, totN, totKept, totOpen int
 	for _, d := range devices {

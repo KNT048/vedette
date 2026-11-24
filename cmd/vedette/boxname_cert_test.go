@@ -259,8 +259,8 @@ func TestLinksCarryTheBoxAddressNeverTheCertificateName(t *testing.T) {
 	if !server.HostMatcher(hosts, nil)("vedette:8443") {
 		t.Fatalf("an old bookmark of https://vedette:8443 is refused (allowlist %v)", hosts)
 	}
-	mgmt := newBoxAddr(func(context.Context) (string, []string, error) { return "192.168.142.141", nil, nil }, flagAddress(nil))
-	if got := mgmt.URL(t.Context(), "0.0.0.0:8443"); got != "https://192.168.142.141:8443" {
+	mgmt := newBoxAddr(func(context.Context) (string, []string, error) { return "10.142.0.141", nil, nil }, flagAddress(nil))
+	if got := mgmt.URL(t.Context(), "0.0.0.0:8443"); got != "https://10.142.0.141:8443" {
 		t.Fatalf("default Box address: links start %q, want the management address", got)
 	}
 	// no Box address and no -hosts (an appliance whose host has not answered): no link at all, never one from the certificate's names

@@ -33,7 +33,7 @@ type ModuleGate interface {
 // Config is what New needs; every field except MaxBody is required.
 type Config struct {
 	API     oas.Handler   // the composite handler: see Fallback
-	Auth    Authenticator // sessions and CSRF (WP-04b)
+	Auth    Authenticator // sessions and CSRF
 	Modules ModuleGate
 	Log     *slog.Logger
 	MaxBody int64 // bytes; 0 = DefaultMaxBody

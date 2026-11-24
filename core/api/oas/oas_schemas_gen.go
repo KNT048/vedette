@@ -15982,7 +15982,7 @@ func (s *CoreGetCoreOidcOKRoleMapItemRole) UnmarshalText(data []byte) error {
 }
 
 type CoreGetCorePrivacyOK struct {
-	// Exactly the 16 flows listed in PRIVACY.md.
+	// Exactly the flows listed in PRIVACY.md.
 	Flows       []CoreGetCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CoreGetCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                            `json:"update_check"`
@@ -16207,9 +16207,9 @@ type CoreGetCoreSetupModulesOK struct {
 	// Appliance: installed by install.sh, with the system helper vedette-host; container: container-only
 	// install on the customer's Docker or Podman, no helper. The one place the GUI learns it.
 	Install CoreGetCoreSetupModulesOKInstall `json:"install"`
-	// The network of the box's management address (CIDR, like 192.168.142.0/24), offered as the first
-	// range of the network step; null when setup is done, on a container-only install, or when the box has
-	// no private IPv4 address.
+	// The network of the box's management address (CIDR, like 10.142.0.0/24), offered as the first range
+	// of the network step; null when setup is done, on a container-only install, or when the box has no
+	// private IPv4 address.
 	Lan     NilString                              `json:"lan"`
 	Modules []CoreGetCoreSetupModulesOKModulesItem `json:"modules"`
 }
@@ -20996,7 +20996,7 @@ func (s *CorePatchCoreAccountReq) SetName(val string) {
 }
 
 type CorePatchCorePrivacyOK struct {
-	// Exactly the 16 flows listed in PRIVACY.md.
+	// Exactly the flows listed in PRIVACY.md.
 	Flows       []CorePatchCorePrivacyOKFlowsItem `json:"flows"`
 	Telemetry   CorePatchCorePrivacyOKTelemetry   `json:"telemetry"`
 	UpdateCheck bool                              `json:"update_check"`
@@ -160321,7 +160321,7 @@ func (s *InventoryPutInventoryNotifyNewReq) SetEnabled(val bool) {
 
 type InventoryPutInventorySettingsOK struct {
 	Active InventoryPutInventorySettingsOKActive `json:"active"`
-	// Ranges normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24.
+	// Ranges normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24.
 	Adjusted []InventoryPutInventorySettingsOKAdjustedItem `json:"adjusted"`
 	// Device types scanned only once, gently, when first seen; passive-only after that. Every type acting
 	// as one of them counts.
@@ -266882,7 +266882,7 @@ type ScanningGetScanningHistoryOKItemsItem struct {
 	// Check this device now, the first step of Scan now); snmp: SNMP reads; external: a scan of a public
 	// target (one per target and day).
 	Kind ScanningGetScanningHistoryOKItemsItemKind `json:"kind"`
-	// What it scanned: "LAN 192.168.142.0/24", "192.168.142.20", "SNMP read of 3 devices", "203.0.113.10".
+	// What it scanned: "LAN 10.142.0.0/24", "10.142.0.20", "SNMP read of 3 devices", "203.0.113.10".
 	Label string `json:"label"`
 	// Partial: it ended, but part of it found nothing usable (an SNMP device of several that did not
 	// answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that
@@ -266894,12 +266894,12 @@ type ScanningGetScanningHistoryOKItemsItem struct {
 	TargetID NilString `json:"target_id"`
 	// The outcome in words, only from what the run stored: "Swept 254 addresses: 12 hosts answered, 2 new
 	// devices", "2 of 3 devices answered over SNMP", "Failed: the device did not answer over SNMP." (an
-	// SNMP read nothing answered is failed, never partial), "Scanned 192.168.142.20: 3 open ports (22 ssh,
-	// 80 http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check" (a device
+	// SNMP read nothing answered is failed, never partial), "Scanned 10.142.0.20: 3 open ports (22 ssh, 80
+	// http, 443 https); OS guess <nmap's guess>; nothing changed since the previous check" (a device
 	// check: its open ports; the OS it recorded only when it is the OS the device page shows now, "OS
 	// guess " for nmap's fingerprint, "OS " for the device's own answer, "OS guess now (changed since the
 	// previous check)"; otherwise "OS: scan guess not used now", never a second OS value; "since the
-	// previous check: port 8080 newly open, port 23 no longer open"), "Scanned 192.168.142.20: it did not
+	// previous check: port 8080 newly open, port 23 no longer open"), "Scanned 10.142.0.20: it did not
 	// answer", "Stopped: . Swept 64 addresses … before it ended", "Failed: .".
 	Text string `json:"text"`
 	// Sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart);
@@ -268221,7 +268221,7 @@ type ScanningGetScanningOKRunningItem struct {
 	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
 	// /scanning/engines/nmap-discovery/run.
 	ID string `json:"id"`
-	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
+	// What it scans, e.g. "LAN sweep 10.142.0.0/24", "Check 10.142.0.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
 	Progress NilScanningGetScanningOKRunningItemProgress `json:"progress"`
@@ -270165,7 +270165,7 @@ type ScanningPatchScanningEnginesIDOKRunningItem struct {
 	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
 	// /scanning/engines/nmap-discovery/run.
 	ID string `json:"id"`
-	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
+	// What it scans, e.g. "LAN sweep 10.142.0.0/24", "Check 10.142.0.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
 	Progress NilScanningPatchScanningEnginesIDOKRunningItemProgress `json:"progress"`
@@ -272135,7 +272135,7 @@ type ScanningPostScanningEnginesNmapDiscoveryRunAccepted struct {
 	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
 	// /scanning/engines/nmap-discovery/run.
 	ID string `json:"id"`
-	// What it scans, e.g. "LAN sweep 192.168.142.0/24", "Check 192.168.142.20", "203.0.113.10".
+	// What it scans, e.g. "LAN sweep 10.142.0.0/24", "Check 10.142.0.20", "203.0.113.10".
 	Label string `json:"label"`
 	// Null until the run reports a step, and for runs that do not report one.
 	Progress NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress `json:"progress"`
@@ -273250,8 +273250,8 @@ func (s *ScanningPostScanningSafetyExclusionsOKWindow) SetTo(val string) {
 }
 
 type ScanningPostScanningSafetyExclusionsReq struct {
-	// One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g.
-	// 192.168.142.9 or 192.168.142.64/28.
+	// One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 10.142.0.9
+	// or 10.142.0.64/28.
 	Entry string `json:"entry"`
 }
 
@@ -273266,7 +273266,7 @@ func (s *ScanningPostScanningSafetyExclusionsReq) SetEntry(val string) {
 }
 
 type ScanningPostScanningSafetyRangesOK struct {
-	// Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24.
+	// Ranges and exclusions normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24.
 	Adjusted []ScanningPostScanningSafetyRangesOKAdjustedItem `json:"adjusted"`
 	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
 	// 200 a save accepts).
@@ -273831,7 +273831,7 @@ func (s *ScanningPostScanningSafetyRangesReq) SetShownRanges(val []string) {
 }
 
 type ScanningPutScanningSafetyOK struct {
-	// Ranges and exclusions normalized on save, e.g. 192.168.142.0 → 192.168.142.0/24.
+	// Ranges and exclusions normalized on save, e.g. 10.142.0.0 → 10.142.0.0/24.
 	Adjusted []ScanningPutScanningSafetyOKAdjustedItem `json:"adjusted"`
 	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
 	// 200 a save accepts).

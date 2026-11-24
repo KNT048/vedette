@@ -14,6 +14,7 @@ import (
 // not come back into any file of the repository. They are assembled from parts so this file does not contain them itself.
 var forbiddenAddressPrefixes = []string{
 	"192.168." + "18.",
+	"192.168." + "142.",
 	"100." + "65.",
 }
 

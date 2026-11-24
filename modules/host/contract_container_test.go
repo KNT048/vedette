@@ -23,8 +23,7 @@ import (
 	"github.com/knt048/vedette/host/server"
 )
 
-// container.start (the current image), container.stop and GET /v1/state/containers (WP-07b part 3, slice
-// 3-6; spec 6.8, 6.9; host CONTRACT INV-17). The machine is the fake of opstest with a
+// container.start (the current image), container.stop and GET /v1/state/containers (spec 6.8, 6.9; host CONTRACT INV-17). The machine is the fake of opstest with a
 // stateful systemctl and podman: restart copies the unit file as the container's own record, and the
 // fake podman reports that record's digest. The tests assert the argv of every step, the unit text,
 // the journal and the effect.
@@ -412,7 +411,7 @@ func TestContract_Container_AnUnsafeQuadletDirectoryIsRefusedBeforeAnythingRuns(
 	}
 }
 
-// L2: "ours" means identical bytes. A unit with one extra line, other ids, or an older template is read
+// "ours" means identical bytes. A unit with one extra line, other ids, or an older template is read
 // by nothing: the commands refuse it and the state does not call it installed.
 func TestContract_Container_AUnitThatDiffersByOneByteIsNotOurs(t *testing.T) {
 	t.Parallel()
@@ -1111,7 +1110,7 @@ func mustJSONBytes(v any) []byte {
 	return b
 }
 
-// M3: a journal that has not been recovered blocks that service only, in both commands, and an
+// A journal that has not been recovered blocks that service only, in both commands, and an
 // old or overwritten journal is never silently reused by a new change.
 func TestContract_Container_AJournalOfOneServiceRefusesItsCommandsOnly(t *testing.T) {
 	t.Parallel()
@@ -1133,7 +1132,7 @@ func TestContract_Container_AJournalOfOneServiceRefusesItsCommandsOnly(t *testin
 	}
 }
 
-// M3: the fast path (a healthy service that only gets its [Install] back) is journaled too.
+// The fast path (a healthy service that only gets its [Install] back) is journaled too.
 func TestContract_Container_TheFastPathWritesAJournalAndClearsIt(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
@@ -1149,7 +1148,7 @@ func TestContract_Container_TheFastPathWritesAJournalAndClearsIt(t *testing.T) {
 	}
 }
 
-// M1: a persist-stopped service whose enabling fails stays stopped (SYS-5); one that was running is restarted.
+// A persist-stopped service whose enabling fails stays stopped (SYS-5); one that was running is restarted.
 func TestContract_Container_AFailedStartReturnsTheServiceToTheStateItHad(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
@@ -1201,7 +1200,7 @@ func TestContract_Container_ATimeoutIsFollowedByARevert(t *testing.T) {
 	}
 }
 
-// M2: a unit that failed has nothing running: it counts as stopped, in the check and in the effect.
+// A unit that failed has nothing running: it counts as stopped, in the check and in the effect.
 func TestContract_Container_AFailedUnitCountsAsStopped(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)

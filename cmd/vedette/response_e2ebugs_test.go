@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/honeypot"
 )
 
-// The bugs the WP-30 e2e-real specs found in the response module, each through the generated HTTP handler (the service-level tests
+// The bugs the real-backend end-to-end specs found in the response module, each through the generated HTTP handler (the service-level tests
 // never went through the generated encoder, so they stayed green).
 
 func responseOn(t *testing.T) *stack {

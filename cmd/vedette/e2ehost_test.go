@@ -1,6 +1,6 @@
 package main
 
-// The fakes of the real-backend run that stand for the machine around the box (WP-30 slice 4): an in-process vedette-host on a
+// The fakes of the real-backend run that stand for the machine around the box: an in-process vedette-host on a
 // fake machine (the real host/ops commands on a temporary root, as modules/core/os_test.go and network_test.go build it), a small
 // control endpoint to make that host fail, and a second box with no host at all. Test binary only: the product never imports them.
 // Opt-in: VEDETTE_E2E_HOST=1 (make e2e-real sets it), so the plain harness test and the other slices are not slowed down.

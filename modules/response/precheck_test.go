@@ -129,7 +129,7 @@ func TestContract_INV14c_PrecheckAndExpectAreTypedAndChecked(t *testing.T) {
 	}
 }
 
-// INV-14c (M4 of the WP-13a review): a device action that names a port needs a check before it with at least one refusal
+// INV-14c (M4 of the review): a device action that names a port needs a check before it with at least one refusal
 // text, so a trunk or uplink port is never touched. Refused when saved; an older row without one is "not available".
 func TestContract_INV14c_PortActionNeedsACheckBefore(t *testing.T) {
 	t.Parallel()
@@ -592,7 +592,7 @@ func TestContract_INV14_MCPActionWithACheckOrReadBackIsNotAvailable(t *testing.T
 	}
 }
 
-// L8: a read-back or check before that holds only headers is not empty: it is validated, so it cannot carry a credential header or raw
+// A read-back or check before that holds only headers is not empty: it is validated, so it cannot carry a credential header or raw
 // control characters past the checks.
 func TestContract_INV14b_HeaderOnlyStepsAreRefused(t *testing.T) {
 	t.Parallel()
@@ -621,7 +621,7 @@ func TestContract_INV14b_HeaderOnlyStepsAreRefused(t *testing.T) {
 	}
 }
 
-// L9: headers that make a server act as another method, client or path are refused like the credential headers, in every
+// Headers that make a server act as another method, client or path are refused like the credential headers, in every
 // step, the check before included.
 func TestContract_INV14b_MethodOverrideAndForwardingHeadersAreRefused(t *testing.T) {
 	t.Parallel()
@@ -734,7 +734,7 @@ func TestContract_INV14c_ApprovalShowsTheCheckBeforeAndTheReadBack(t *testing.T)
 	}
 }
 
-// L10: an action whose check before has no form the bound connection can run is not available on that connection.
+// An action whose check before has no form the bound connection can run is not available on that connection.
 func TestContract_INV14c_PrecheckMustFitTheConnectionKind(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)

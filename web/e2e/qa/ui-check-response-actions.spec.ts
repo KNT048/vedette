@@ -1,12 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible } from '../helpers'
-import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
+import { begin, noHScroll, stepper, THEMES } from './ui-check-shared'
 import { POST_V1_IN_UI } from '../../src/lib/postV1'
 
 // AI response is read-only in the v1 GUI and these walks edit its catalog and rules.
 test.skip(!POST_V1_IN_UI, 'post-v1 hidden')
 
-// WP-06 independent check, area 2: "As the admin I add my own response action for each kind of connection, and I use the template gallery."
+// "As the admin I add my own response action for each kind of connection, and I use the template gallery."
 // Connections: Settings -> Connections (a command-started MCP server is not supported, so it is not in this list). Settings -> AI response -> Action catalog -> Add a custom action; Response -> Rules -> Template gallery; rule editor parameter types.
 
 const KINDS = [

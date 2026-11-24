@@ -132,7 +132,7 @@ func FuzzFloodBudget(f *testing.F) {
 	})
 }
 
-// M4: one MAC that says many addresses is a flood like one that says many names: 4 new addresses an hour, the rest is over budget;
+// One MAC that says many addresses is a flood like one that says many names: 4 new addresses an hour, the rest is over budget;
 // a repeat of an address is not new.
 func TestFloodBudgetBoundsTheAddressesOfOneMAC(t *testing.T) {
 	t.Parallel()
@@ -186,7 +186,7 @@ func TestEngineBoundsTheAddressesOfOneMAC(t *testing.T) {
 	}
 }
 
-// L1: the kinds a parser emits, each capped at the highest confidence a parser gives it.
+// The kinds a parser emits, each capped at the highest confidence a parser gives it.
 func TestMaxConfidenceKnowsOnlyTheKindsTheParsersEmit(t *testing.T) {
 	t.Parallel()
 	for kind, want := range map[string]float64{"ap": 0.6, "switch": 0.6, "router": 0.6, "printer": 0.5, "iot": 0.6} { // iot 0.6: the LLDP Telephone bit
@@ -201,7 +201,7 @@ func TestMaxConfidenceKnowsOnlyTheKindsTheParsersEmit(t *testing.T) {
 	}
 }
 
-// L6: devices the budget was seeded with are known: they pass although the minute is spent.
+// Devices the budget was seeded with are known: they pass although the minute is spent.
 func TestFloodBudgetSeedMakesDevicesKnown(t *testing.T) {
 	t.Parallel()
 	b := NewFloodBudget()

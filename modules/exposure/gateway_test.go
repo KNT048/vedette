@@ -30,7 +30,7 @@ func withPorts(kind Kind, n int) TargetView {
 // What the gateway note says in each case, and that it is asked only when the box's own IP has an open port.
 func TestGatewayNote(t *testing.T) {
 	t.Parallel()
-	gw := netip.MustParseAddr("192.168.142.1")
+	gw := netip.MustParseAddr("10.142.0.1")
 	cases := []struct {
 		name  string
 		g     *fakeGateway
@@ -39,11 +39,11 @@ func TestGatewayNote(t *testing.T) {
 		asked bool
 	}{
 		{"known with findings", &fakeGateway{g: GatewayDevice{IP: gw, DeviceID: "d1", Name: "fortigate-hq", OpenExploited: 3}}, []TargetView{withPorts(KindIP, 2)},
-			&GatewayView{IP: new("192.168.142.1"), DeviceID: new("d1"), Name: new("fortigate-hq"), OpenExploited: 3}, true},
+			&GatewayView{IP: new("10.142.0.1"), DeviceID: new("d1"), Name: new("fortigate-hq"), OpenExploited: 3}, true},
 		{"known without findings", &fakeGateway{g: GatewayDevice{IP: gw, DeviceID: "d1", Name: "fortigate-hq"}}, []TargetView{withPorts(KindIP, 1)},
-			&GatewayView{IP: new("192.168.142.1"), DeviceID: new("d1"), Name: new("fortigate-hq")}, true},
+			&GatewayView{IP: new("10.142.0.1"), DeviceID: new("d1"), Name: new("fortigate-hq")}, true},
 		{"not in inventory", &fakeGateway{g: GatewayDevice{IP: gw, OpenExploited: 5}}, []TargetView{withPorts(KindIP, 1)},
-			&GatewayView{IP: new("192.168.142.1")}, true},
+			&GatewayView{IP: new("10.142.0.1")}, true},
 		{"gateway unknown", &fakeGateway{}, []TargetView{withPorts(KindIP, 1)}, &GatewayView{}, true},
 		{"lookup fails", &fakeGateway{err: errors.New("host down")}, []TargetView{withPorts(KindIP, 1)}, &GatewayView{}, true},
 		{"no open ports", &fakeGateway{g: GatewayDevice{IP: gw}}, []TargetView{withPorts(KindIP, 0)}, nil, false},
@@ -86,7 +86,7 @@ func ptrText(p *string) string {
 func TestGatewayNote_NameIsCleaned(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.svc.cfg.Gateway = &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("192.168.142.1"), DeviceID: "d1", Name: "fw\x00\x1b[31m\n" + strings.Repeat("é", 200)}}
+	e.svc.cfg.Gateway = &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("10.142.0.1"), DeviceID: "d1", Name: "fw\x00\x1b[31m\n" + strings.Repeat("é", 200)}}
 	got := e.svc.GatewayNote(e.ctx(), []TargetView{withPorts(KindIP, 1)})
 	if got == nil || got.Name == nil {
 		t.Fatalf("got %+v", got)
@@ -100,7 +100,7 @@ func TestGatewayNote_NameIsCleaned(t *testing.T) {
 func TestHandlers_GatewayInTargetList(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
-	e.svc.cfg.Gateway = &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("192.168.142.1"), DeviceID: "d1", Name: "fortigate-hq", OpenExploited: 2}}
+	e.svc.cfg.Gateway = &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("10.142.0.1"), DeviceID: "d1", Name: "fortigate-hq", OpenExploited: 2}}
 	e.svc.SetRunner(&fakeRunner{content: sampleContent()})
 	if code, b := e.call("GET", "/exposure/targets", "viewer", ""); code != 200 || b["gateway"] != nil {
 		t.Fatalf("before any scan: %d %v", code, b)
@@ -114,7 +114,7 @@ func TestHandlers_GatewayInTargetList(t *testing.T) {
 	}
 	code, b := e.call("GET", "/exposure/targets", "viewer", "")
 	g, _ := b["gateway"].(map[string]any)
-	if code != 200 || g["ip"] != "192.168.142.1" || g["device_id"] != "d1" || g["name"] != "fortigate-hq" || g["open_exploited"] != float64(2) {
+	if code != 200 || g["ip"] != "10.142.0.1" || g["device_id"] != "d1" || g["name"] != "fortigate-hq" || g["open_exploited"] != float64(2) {
 		t.Fatalf("after a scan: %d %v", code, b)
 	}
 }

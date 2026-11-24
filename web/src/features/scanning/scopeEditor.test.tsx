@@ -38,9 +38,9 @@ describe('scan scope: one editor, ranges in a dialog', () => {
     const input = await openAdd(user)
     await submitDialog(user)
     expect(await screen.findByText(/Type a range first/, undefined, T)).toBeInTheDocument()
-    await user.type(input, '192.168.142.0')
+    await user.type(input, '10.142.0.0')
     await submitDialog(user)
-    expect(await screen.findByText(/"192\.168\.142\.0" has no prefix length/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText(/"10\.142\.0\.0" has no prefix length/, undefined, T)).toBeInTheDocument()
     await user.clear(input)
     await user.type(input, '192.168.10.0/24')
     await submitDialog(user)
@@ -79,24 +79,24 @@ describe('scan scope: one editor, ranges in a dialog', () => {
   })
 
   it('a stored range that is not valid shows its error on its row, turns Save off with the reason, and never blocks the others', async () => {
-    inventorySettingsStore.update((s) => ({ ...s, lan_ranges: ['192.168.10.0/24', '192.168.142.0'] }))
+    inventorySettingsStore.update((s) => ({ ...s, lan_ranges: ['192.168.10.0/24', '10.142.0.0'] }))
     const user = userEvent.setup()
     renderApp(PAGE)
-    const bad = (await screen.findByRole('button', { name: 'Remove range 192.168.142.0' }, T)).closest('li')!
-    expect(within(bad).getByRole('alert')).toHaveTextContent('"192.168.142.0" has no prefix length')
+    const bad = (await screen.findByRole('button', { name: 'Remove range 10.142.0.0' }, T)).closest('li')!
+    expect(within(bad).getByRole('alert')).toHaveTextContent('"10.142.0.0" has no prefix length')
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled()
     expect(screen.getByText('Fix or remove the range marked in red to save.')).toBeInTheDocument()
     const input = await openAdd(user)
     await user.type(input, '10.9.0.0/16')
     await submitDialog(user)
-    await user.click(screen.getByRole('button', { name: 'Edit range 192.168.142.0' }))
+    await user.click(screen.getByRole('button', { name: 'Edit range 10.142.0.0' }))
     await user.type(await screen.findByLabelText('Network range'), '/24')
     await submitDialog(user)
     expect(screen.queryByText(/marked in red/)).toBeNull()
     await user.click(confirm())
     await save(user)
     await saved()
-    expect(inventorySettingsStore.get().lan_ranges).toEqual(['192.168.10.0/24', '192.168.142.0/24', '10.9.0.0/16'])
+    expect(inventorySettingsStore.get().lan_ranges).toEqual(['192.168.10.0/24', '10.142.0.0/24', '10.9.0.0/16'])
   })
 
   it('the Add range dialog shows what one pass costs with the range as typed', async () => {

@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// WP-31 review, slice R2, L9 ((8)): response's never-touch list holds the honeypot's decoy addresses and the host's addresses, not only the
+// Response's never-touch list holds the honeypot's decoy addresses and the host's addresses, not only the
 // interfaces of the container, and an unknown set is an error (response then refuses), never a smaller set.
 func TestResponseBoxAddrsHoldTheDecoysAndTheHost(t *testing.T) {
 	t.Parallel()

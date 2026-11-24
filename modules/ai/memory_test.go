@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// Slice 4b of WP-25: memory and skills (S-AI-7, INV-8, INV-20). The GUI mock is the contract.
+// Memory and skills (S-AI-7, INV-8, INV-20). The GUI mock is the contract.
 
 func memBody(text string) string {
 	raw, err := json.Marshal(map[string]string{"text": text})

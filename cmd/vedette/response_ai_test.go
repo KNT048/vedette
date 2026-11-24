@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-9 (response INV-16, INV-18) in the real wiring: the two-step code of core/auth (authenticator app)
+// Response INV-16, INV-18 in the real wiring: the two-step code of core/auth (authenticator app)
 // guards the approval of a high-risk AI request, once per person, once per code.
 
 type aiPerson struct {

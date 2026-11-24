@@ -39,12 +39,12 @@ type Config struct {
 	Risk    RiskSource
 	Modules ModuleGate // to tell whether notify is on (notify_available)
 	// BoxOwnedIPs lists the addresses the box itself answers on besides its own device (the decoy addresses of the
-	// honeypot, WP-14). Nothing observed at one of them is a device: Record and ReplaceSoftware ignore such an
+	// honeypot). Nothing observed at one of them is a device: Record and ReplaceSoftware ignore such an
 	// observation (counted, BoxOwnedSkipped) and ProtectedIPs lists the address. nil means none.
 	BoxOwnedIPs func(ctx context.Context) []netip.Addr
 	// BoxOwnedMACs lists the box's own MAC addresses: its cards and the decoys' macvlan links (vedette-host state/net). An
 	// observation at a box-owned address is the box only when it carries no MAC or one of these; a foreign MAC there is a
-	// device sitting on the decoy's address, and is recorded (WP-31 M7), so the honeypot sees the conflict and pulls the
+	// device sitting on the decoy's address, and is recorded, so the honeypot sees the conflict and pulls the
 	// decoy (INV-6). nil, or an error (the host has not answered yet), means unknown: everything at the address is dropped.
 	// fresh asks for an answer newer than the cache (a decoy added a moment ago has a MAC the cached answer lacks); the provider
 	// bounds how often that reaches the host. A MAC the cached answer does not hold is asked again with fresh before it counts.

@@ -7,7 +7,7 @@ depends: []
 permissions: [outbound:https, outbound:lan]   # update check; apt/OS goes through vedette-host, not core; outbound:lan = connections to devices/services the admin declares (core/conn)
 helpers: [vedette-host]         # OS updates, backup, network; called over an internal socket, with a fixed command list
 ports: ["tcp/8443"]
-container: core        # Go + SPA, SQLite trên volume
+container: core        # Go + SPA, SQLite on a volume
 tables_prefix: core_
 stories: [S-CORE-1, S-CORE-2, S-CORE-3, S-CORE-4, S-CORE-5, S-CORE-6, S-CORE-7, S-AI-7, S-RESP-4]
 milestone: M2

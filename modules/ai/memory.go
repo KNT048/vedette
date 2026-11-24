@@ -14,7 +14,7 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// Slice 4b of WP-25 (S-AI-7, INV-8): what an administrator told the box about the network (ai_memory), what the AI proposes to
+// What an administrator told the box about the network (ai_memory), what the AI proposes to
 // remember (ai_memory_suggestion, never part of a prompt), and the switch that lets the AI propose (ai_setting key `memory`).
 // Nothing is cached: a prompt reads the rows when the call starts, so an edit, a switch-off or a delete takes effect on the next call.
 

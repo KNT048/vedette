@@ -1,6 +1,6 @@
 package response_test
 
-// Permanent tests of the findings of the independent security review of WP-13a. Each test names
+// Permanent tests of the findings of the independent security review. Each test names
 // the invariant it proves; see modules/response/CONTRACT.md.
 
 import (

@@ -1,6 +1,6 @@
 package main
 
-// The exposure fakes of the box of the real-backend end-to-end run (WP-30, #263): the box never calls the three public "what is my IP"
+// The exposure fakes of the box of the real-backend end-to-end run: the box never calls the three public "what is my IP"
 // services, the real DNS or a real scan. Exposure gets a fake EgressProber, a fake Resolver and a fake scan Runner through the
 // exposureTestConfig seam of exposure.go; the specs steer them through the control server (e2ebox_test.go). Defaults: the prober says "the
 // services are down" (the first-start detection of INV-11 fires during the setup wizard and must find no address), no domain has a TXT

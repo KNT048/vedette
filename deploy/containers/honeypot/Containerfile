@@ -1,4 +1,4 @@
-# The `honeypot` image (WP-08e): OpenCanary (Python, BSD-3) and Samba (GPL-3, a separate process, never linked) in one container, which the
+# The `honeypot` image: OpenCanary (Python, BSD-3) and Samba (GPL-3, a separate process, never linked) in one container, which the
 # unit runs inside the network namespace vedette-hp with every capability dropped, a read-only root and a tmpfs /tmp.
 # Build from the repository root: `make honeypot-image` (passes the pins of deploy/containers/pins.env as build arguments); `make images` builds it
 # for amd64 and arm64 with the others.

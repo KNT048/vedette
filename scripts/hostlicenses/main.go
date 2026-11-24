@@ -1,5 +1,5 @@
 // Command hostlicenses writes the third-party license file that the vedette-host .deb ships as
-// /usr/share/doc/vedette-host/third-party-licenses (WP-08g): the Go license for the standard library and runtime that
+// /usr/share/doc/vedette-host/third-party-licenses: the Go license for the standard library and runtime that
 // the static binary contains, then the license files of every module linked into ./cmd/vedette-host (the main module
 // included), found with `go list -deps` in the module cache. A linked module without a license file is an error, so a new
 // dependency cannot ship unlicensed (one recorded exception at one exact version: noLicenseFile). Run by `make host-deb`; the file is generated into dist/, never committed.

@@ -10,7 +10,7 @@
 //   HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\UBR. https://github.com/osquery/osquery/blob/5.12.1/specs/os_version.table)
 //   (the `programs` query also reads exactly one registry value, PatchLevel of the Setup key of each SQL Server version
 //   HKLM\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL<n>.<instance>\Setup: the installed build including the CU; the shared Uninstall entry
-//   "Microsoft SQL Server 2022 (64-bit)" không có DisplayVersion. https://learn.microsoft.com/en-us/troubleshoot/sql/releases/components-client-tools-versions ,
+//   "Microsoft SQL Server 2022 (64-bit)" has no DisplayVersion. https://learn.microsoft.com/en-us/troubleshoot/sql/releases/components-client-tools-versions ,
 //   https://github.com/osquery/osquery/blob/5.12.1/specs/windows/registry.table)
 //   (INV-22: `listening_ports` JOIN `processes` for Open services of a machine that has only an agent; on Linux only the network namespace of
 //   pid 1 (process_namespaces), Windows has no net_namespace column so it has its own query. https://osquery.io/schema/ listening_ports, process_namespaces)

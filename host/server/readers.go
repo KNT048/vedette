@@ -49,7 +49,7 @@ type Readers struct {
 	OS            func(ctx context.Context) (any, error) // GET /v1/state/os
 	Time          func(ctx context.Context) (any, error) // GET /v1/state/time (the operating system's time zone)
 	Backups       func(ctx context.Context) (any, error) // GET /v1/state/backups
-	Net           func(ctx context.Context) (any, error) // GET /v1/state/net (WP-07b part 3, slice 3-3)
+	Net           func(ctx context.Context) (any, error) // GET /v1/state/net
 	Containers    func(ctx context.Context) (any, error) // GET /v1/state/containers (slice 3-6)
 	Host          func(ctx context.Context) (any, error) // GET /v1/state/host (host.self_update)
 	Packages      func(ctx context.Context) (any, error) // GET /v1/state/packages (the box's dpkg list)

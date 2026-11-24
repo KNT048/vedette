@@ -1,6 +1,6 @@
 package auth_test
 
-// Tests of the fixes of the independent security review (WP-04b part 1): one test per finding, named
+// Tests of the fixes of the independent security review: one test per finding, named
 // after what must hold.
 
 import (

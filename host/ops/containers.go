@@ -1205,7 +1205,7 @@ func (o *Ops) forgetRecoveryNotes(svc string) {
 // markUnrecoverable records that the host stopped trying to put core's data back: the journal says so
 // (it stays, so commands for core keep refusing, and nothing retries), core is left as it is, and one audit
 // line names what is wrong (names only, never paths of core's data or its content). An operator follows
-// the RUNBOOK entry core_data_unrecoverable (WP-32).
+// the RUNBOOK entry core_data_unrecoverable.
 func (o *Ops) markUnrecoverable(t transition) {
 	t.Unrecoverable = true
 	if err := o.saveJournal(t); err != nil {

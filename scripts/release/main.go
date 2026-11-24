@@ -1,4 +1,4 @@
-// Command release is the release builder (WP-08f): it turns a release description, the built image digests, the cosign
+// Command release is the release builder: it turns a release description, the built image digests, the cosign
 // signatures and the previous release into the documents the box verifies (release-manifest.json, index.json), signs them
 // with the pinned minisign tool, and verifies the result with the box-side verifier (internal/release) before anything is
 // published. It runs on the maintainer's machine, offline except push and publish; it creates no tag and holds no key.

@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// M3: a name the network gave the device never reaches the evidence summary; the recheck line is built only from the
+// A name the network gave the device never reaches the evidence summary; the recheck line is built only from the
 // template path and the job's target.
 func TestReview_M3_LabelNeverInTheSummary(t *testing.T) {
 	t.Parallel()

@@ -413,7 +413,7 @@ func tsBundle(t *testing.T, src, name string) []string {
 	return ids
 }
 
-// Review of WP-04b part 2: wrong setup codes are counted per client address, so a
+// Review: wrong setup codes are counted per client address, so a
 // stranger who reaches the port before the owner cannot keep setup closed for everyone. (One global counter
 // let 10 wrong guesses, then one per lifted wait, answer 429 to the owner at another address with the right code.)
 func TestSetup_ACodeGuesserCannotLockTheOwnerOut(t *testing.T) {
@@ -745,7 +745,7 @@ func TestContract_INV15_SetupOffersTheBoxNetwork(t *testing.T) {
 		lan  func(context.Context) (netip.Prefix, bool)
 		want any
 	}{
-		{"private", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("192.168.142.141/24"), true }, "192.168.142.0/24"},
+		{"private", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("10.142.0.141/24"), true }, "10.142.0.0/24"},
 		{"shared", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.66.254.17/24"), true }, "100.66.254.0/24"},
 		{"public", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("203.0.113.5/24"), true }, nil},
 		{"public 100/8", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.128.4.5/24"), true }, nil},

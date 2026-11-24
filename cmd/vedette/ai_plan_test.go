@@ -54,7 +54,7 @@ func TestParsePlan(t *testing.T) {
 	}
 }
 
-// L1: only "no profile can run the job" and "the daily cap is spent" stop the run. A format failure or a hook that stopped the answer
+// Only "no profile can run the job" and "the daily cap is spent" stop the run. A format failure or a hook that stopped the answer
 // also arrives as 409 ai_unavailable (RunJob); with a profile that is ready it is about this finding only.
 func TestPlanErrorStopsTheRunOnlyWhenTheAIIsUnavailable(t *testing.T) {
 	perFinding := apierr.New(409, "ai_unavailable", "The AI answered, but not in the format Vedette needs, so the answer was discarded.")

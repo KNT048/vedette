@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// WP-31 close-out: the inventory asks for the box's MACs on the passive ingest path. A failed ask is remembered for
+// The inventory asks for the box's MACs on the passive ingest path. A failed ask is remembered for
 // hostNetBackoff (a hung host costs one timeout, not one per batch), and Fresh skips the TTL at most every hostMACsFreshEvery.
 func TestHostMACsBackoffAndFresh(t *testing.T) {
 	now := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)

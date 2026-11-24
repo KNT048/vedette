@@ -18,7 +18,7 @@ import (
 	"github.com/knt048/vedette/host/server/servertest"
 )
 
-// Tests of what WP-07b part 1 added to the framework: results on failed and reverted runs, the
+// Tests of what was added to the framework: results on failed and reverted runs, the
 // reverted status, refusal hints, after-finish callbacks, state endpoints and host-originated audit lines.
 
 func part1Commands(t testing.TB) (cmds []server.Command, after chan api.Status) {

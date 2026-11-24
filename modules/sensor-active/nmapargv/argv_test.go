@@ -245,7 +245,7 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-// L1: lan_ranges can only be RFC 1918 or RFC 6598 shared address space ranges, so no legitimate argv names a
+// Lan_ranges can only be RFC 1918 or RFC 6598 shared address space ranges, so no legitimate argv names a
 // public (the rest of 100/8 too), loopback, link-local, multicast, reserved, broadcast or unspecified address, and the
 // validator refuses them all.
 func TestValidateRefusesNonPrivateTargets(t *testing.T) {

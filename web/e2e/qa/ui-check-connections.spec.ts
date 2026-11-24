@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { collectErrors, expectAccessible } from '../helpers'
-import { begin, BRANDS, noHScroll, stepper, THEMES } from './wp06-shared'
+import { begin, BRANDS, noHScroll, stepper, THEMES } from './ui-check-shared'
 
-// WP-06 independent check, area 1: "As the admin I add a connection of each kind so the AI (and response actions) can reach my equipment."
+// "As the admin I add a connection of each kind so the AI (and response actions) can reach my equipment."
 // Settings -> Connections (core). Generic kinds, no vendor kinds or defaults. The command-started MCP kind is not supported: its option is locked.
 const KINDS = [
   { label: 'HTTP API', value: 'http', auth: ['none', 'token', 'basic'], target: 'https://192.168.10.1' },

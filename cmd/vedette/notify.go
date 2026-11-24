@@ -57,7 +57,7 @@ func (u notifyUsers) EmailCodeUsers(ctx context.Context) (int, error) {
 }
 
 // notifyDevices implements notify.DeviceDirectory over the inventory: the device as the Devices page names it, with its
-// address when that is not the name already, so a notice says "byn (192.168.142.181)" and not an asset id.
+// address when that is not the name already, so a notice says "srv01 (10.142.0.181)" and not an asset id.
 type notifyDevices struct{ inv *inventory.Service }
 
 func (a notifyDevices) DeviceName(ctx context.Context, assetID string) (string, bool, error) {

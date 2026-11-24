@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/api/routes"
 )
 
-// Principal is the signed-in user of a request. WP-04b's session authenticator fills it; the role
+// Principal is the signed-in user of a request. The session authenticator fills it; the role
 // is read from the database on every request (API_CONVENTIONS 7.4), never from the cookie.
 type Principal struct {
 	ID    string
@@ -27,7 +27,7 @@ var limitedSessionOps = map[string]bool{"core_get_me": true, "core_post_core_acc
 // the response is 401 unauthenticated.
 var ErrNoSession = errors.New("server: no valid session")
 
-// Authenticator is the hook WP-04b implements with sessions and CSRF tokens.
+// Authenticator is the hook the session layer implements with sessions and CSRF tokens.
 type Authenticator interface {
 	// Authenticate returns the principal of the request. ErrNoSession (or any error wrapping it)
 	// gives 401; an *apierr.Error is sent as it is (for example 403 disabled); anything else is a 500.

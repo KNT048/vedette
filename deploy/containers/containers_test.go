@@ -253,7 +253,7 @@ func (s containerStage) hasRun() bool {
 	return false
 }
 
-// Multi-arch without CPU emulation (WP-08d): a stage that runs anything (RUN) is on the build machine, so cross-compiling needs
+// Multi-arch without CPU emulation: a stage that runs anything (RUN) is on the build machine, so cross-compiling needs
 // no qemu; the last stage, the one of the target architecture, only COPYs. A Go build stage compiles for TARGETOS/TARGETARCH.
 func TestPublishedImagesBuildWithoutEmulation(t *testing.T) {
 	t.Parallel()
@@ -497,7 +497,7 @@ func TestToolPinsAreExact(t *testing.T) {
 	}
 }
 
-// The core image carries the pinned osquery packages (WP-26 slice 3): the build stage reads deploy/osquery/PINS (not a copy of the
+// The core image carries the pinned osquery packages: the build stage reads deploy/osquery/PINS (not a copy of the
 // numbers), downloads from the official release, checks each file against its pinned SHA-256 before anything is copied, and the final stage
 // copies the folder to the default of -osquery-dir. Nothing is downloaded when the box runs.
 func TestCoreImageShipsThePinnedOsqueryPackages(t *testing.T) {

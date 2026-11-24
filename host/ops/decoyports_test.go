@@ -290,8 +290,8 @@ func TestRulesetIsAcceptsTheRealUbuntu2604Listing(t *testing.T) {
 		t.Fatal(err)
 	}
 	list := []decoyEntry{
-		{IP: "192.168.142.240", MAC: "f8:bc:12:00:00:01", Table: 100, Iface: "enp0s2", Ports: ports("tcp", 445, "tcp", 3389)},
-		{IP: "192.168.142.241", MAC: "00:11:32:00:00:01", Table: 101, Iface: "enp0s2", Ports: ports("tcp", 80, "tcp", 445)},
+		{IP: "10.142.0.240", MAC: "f8:bc:12:00:00:01", Table: 100, Iface: "enp0s2", Ports: ports("tcp", 445, "tcp", 3389)},
+		{IP: "10.142.0.241", MAC: "00:11:32:00:00:01", Table: 101, Iface: "enp0s2", Ports: ports("tcp", 80, "tcp", 445)},
 	}
 	// The capture predates the touched set (M2): it is refused now, so the host loads the new ruleset over it; its egress part
 	// is still read. With the set and the rule printed in, the rest of it is what nft 1.1 prints.
@@ -303,7 +303,7 @@ func TestRulesetIsAcceptsTheRealUbuntu2604Listing(t *testing.T) {
 	if !rulesetIs(listed, list) {
 		t.Fatalf("the effect check refuses the real listing with the touched set:\n%s", listed)
 	}
-	if rulesetIs(listed, list[:1]) || rulesetIs(listed, append(slices.Clone(list), decoyEntry{IP: "192.168.142.242", MAC: "00:50:56:00:00:01", Table: 102, Iface: "enp0s2", Ports: ports("tcp", 22)})) {
+	if rulesetIs(listed, list[:1]) || rulesetIs(listed, append(slices.Clone(list), decoyEntry{IP: "10.142.0.242", MAC: "00:50:56:00:00:01", Table: 102, Iface: "enp0s2", Ports: ports("tcp", 22)})) {
 		t.Fatal("the real listing was taken for another decoy list")
 	}
 }
@@ -351,9 +351,9 @@ func TestTheRealTouchedListingsOfUbuntu2604(t *testing.T) {
 		t.Fatal(err)
 	}
 	list := []decoyEntry{
-		{IP: "192.168.142.240", MAC: "f8:bc:12:f0:6c:d1", Table: 100, Iface: "enp0s2", Ports: ports("tcp", 445, "tcp", 3389)},
-		{IP: "192.168.142.241", MAC: "00:11:32:ff:a9:bc", Table: 101, Iface: "enp0s2", Ports: ports("tcp", 80, "tcp", 445)},
-		{IP: "192.168.142.242", MAC: "00:50:56:22:e9:d1", Table: 102, Iface: "enp0s2", Ports: ports("tcp", 22)},
+		{IP: "10.142.0.240", MAC: "f8:bc:12:f0:6c:d1", Table: 100, Iface: "enp0s2", Ports: ports("tcp", 445, "tcp", 3389)},
+		{IP: "10.142.0.241", MAC: "00:11:32:ff:a9:bc", Table: 101, Iface: "enp0s2", Ports: ports("tcp", 80, "tcp", 445)},
+		{IP: "10.142.0.242", MAC: "00:50:56:22:e9:d1", Table: 102, Iface: "enp0s2", Ports: ports("tcp", 22)},
 	}
 	// The capture has the rule of 7712c63f (no pkttype): it is refused, so the host loads the current rule over it; with the
 	// current rule in nft's print style the rest of it is accepted.
@@ -369,8 +369,8 @@ func TestTheRealTouchedListingsOfUbuntu2604(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := parseTouched(raw)
-	if err != nil || len(got) != 6 || got[0] != (api.HPTouch{Src: "192.168.142.250", Dst: "192.168.142.240", AgeS: 79}) ||
-		got[1] != (api.HPTouch{Src: "192.168.142.251", Dst: "192.168.142.240", AgeS: 21}) {
+	if err != nil || len(got) != 6 || got[0] != (api.HPTouch{Src: "10.142.0.250", Dst: "10.142.0.240", AgeS: 79}) ||
+		got[1] != (api.HPTouch{Src: "10.142.0.251", Dst: "10.142.0.240", AgeS: 21}) {
 		t.Fatalf("parseTouched: %+v %v", got, err)
 	}
 }

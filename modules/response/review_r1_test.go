@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-31 review, slice R1: header values never reach a reader, an approver reads the whole change.
+// Header values never reach a reader, an approver reads the whole change.
 
 // keyedRequest makes one open request whose API call carries the header "X-Trace: abc123secret".
 func keyedRequest(t *testing.T) *env {
@@ -42,9 +42,9 @@ func actionsJSON(t *testing.T, e *env, role routes.Role) string {
 	return string(b)
 }
 
-// M1: GET /response/actions is a viewer's call. A viewer reads header names only; the people who approve (operators, administrators) read
+// GET /response/actions is a viewer's call. A viewer reads header names only; the people who approve (operators, administrators) read
 // every value of what they approve, except a credential's.
-func TestWP31_M1_ViewerReadsActionsWithoutHeaderValues(t *testing.T) {
+func TestViewerReadsActionsWithoutHeaderValues(t *testing.T) {
 	t.Parallel()
 	e := keyedRequest(t)
 	if got := e.only().Items[0].Change.Rest.Headers["X-Trace"]; got != "abc123secret" {
@@ -62,7 +62,7 @@ func TestWP31_M1_ViewerReadsActionsWithoutHeaderValues(t *testing.T) {
 }
 
 // GET /response/plans is a viewer's call too: a proposal holds the exact change.
-func TestWP31_M1_ViewerReadsPlansWithoutHeaderValues(t *testing.T) {
+func TestViewerReadsPlansWithoutHeaderValues(t *testing.T) {
 	t.Parallel()
 	e := planEnv(t)
 	e.exec1(`UPDATE resp_catalog SET run = json_set(run, '$.headers', 'X-Trace: abc123secret') WHERE id = 'fgt_ban_ip'`)
@@ -85,7 +85,7 @@ func TestWP31_M1_ViewerReadsPlansWithoutHeaderValues(t *testing.T) {
 }
 
 // A request stored before credential headers were refused keeps its header, but no read shows its value, an admin's included.
-func TestWP31_M1_AStoredCredentialHeaderIsHiddenFromEveryone(t *testing.T) {
+func TestAStoredCredentialHeaderIsHiddenFromEveryone(t *testing.T) {
 	t.Parallel()
 	e := keyedRequest(t)
 	e.exec1(`UPDATE resp_actions SET items = replace(items, 'X-Trace', 'X-Api-Key')`)
@@ -97,7 +97,7 @@ func TestWP31_M1_AStoredCredentialHeaderIsHiddenFromEveryone(t *testing.T) {
 }
 
 // The simulation of a rule shows the exact call: an operator or an administrator reads every value except a credential's.
-func TestWP31_M1_SimulateHidesCredentialHeaderValues(t *testing.T) {
+func TestSimulateHidesCredentialHeaderValues(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)
 	in := apiAction()
@@ -123,7 +123,7 @@ func TestWP31_M1_SimulateHidesCredentialHeaderValues(t *testing.T) {
 }
 
 // A template cannot hold a credential header with a literal value, in any step; its value is exactly one placeholder.
-func TestWP31_M1_TemplateWithACredentialHeaderIsRefused(t *testing.T) {
+func TestTemplateWithACredentialHeaderIsRefused(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)
 	for _, h := range []string{"X-API-Key: abc", "x-api-key: abc", "X-ApiKey: abc", "Apikey: abc", "Token: abc", "X-Auth: abc", "X-Password: abc", "X-Session: abc", "X-Auth-Token: abc", "Api-Key: abc",
@@ -189,8 +189,8 @@ func sshRequest(t *testing.T, e *env, run string, risk response.Risk, undo ...st
 	return e.only()
 }
 
-// M2: a high-risk, ten-line change reaches the approver in full and with no button.
-func TestWP31_M2_HighRiskMultiLineChangeIsInFullWithoutButtons(t *testing.T) {
+// A high-risk, ten-line change reaches the approver in full and with no button.
+func TestHighRiskMultiLineChangeIsInFullWithoutButtons(t *testing.T) {
 	t.Parallel()
 	e := telegramEnv(t)
 	sshRequest(t, e, lines(10), response.RiskHigh)
@@ -208,7 +208,7 @@ func TestWP31_M2_HighRiskMultiLineChangeIsInFullWithoutButtons(t *testing.T) {
 	}
 }
 
-func TestWP31_M2_LowRiskShortChangeKeepsTheButtons(t *testing.T) {
+func TestLowRiskShortChangeKeepsTheButtons(t *testing.T) {
 	t.Parallel()
 	e := telegramEnv(t)
 	sshRequest(t, e, lines(3), response.RiskLow)
@@ -219,7 +219,7 @@ func TestWP31_M2_LowRiskShortChangeKeepsTheButtons(t *testing.T) {
 }
 
 // A change that does not fit one message gets no button, and the message says to open Vedette.
-func TestWP31_M2_LowRiskChangeOverTheLimitHasNoButtons(t *testing.T) {
+func TestLowRiskChangeOverTheLimitHasNoButtons(t *testing.T) {
 	t.Parallel()
 	e := telegramEnv(t)
 	long := func(tag string) string {
@@ -236,8 +236,8 @@ func TestWP31_M2_LowRiskChangeOverTheLimitHasNoButtons(t *testing.T) {
 	}
 }
 
-// L6: an AI request carries the label in the message and on the page of the link.
-func TestWP31_L6_AIRequestCarriesTheLabel(t *testing.T) {
+// An AI request carries the label in the message and on the page of the link.
+func TestAIRequestCarriesTheLabel(t *testing.T) {
 	t.Parallel()
 	e, _, _ := propEnv(t, true)
 	e.note.chs = []response.NotifyChannel{{Type: "email", Label: "Email", Configured: true, Enabled: true, Approvals: true, Approvers: 1}}
@@ -251,7 +251,7 @@ func TestWP31_L6_AIRequestCarriesTheLabel(t *testing.T) {
 }
 
 // The rows of the chain hold the whole call; a cap that cuts keeps the SHA-256 of the whole text.
-func TestWP31_M2_ChainRowsHoldTheFullCall(t *testing.T) {
+func TestChainRowsHoldTheFullCall(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)
 	req := sshRequest(t, e, lines(10), response.RiskLow)
@@ -266,7 +266,7 @@ func TestWP31_M2_ChainRowsHoldTheFullCall(t *testing.T) {
 	}
 }
 
-func TestWP31_M2_ACutCallKeepsItsHash(t *testing.T) {
+func TestACutCallKeepsItsHash(t *testing.T) {
 	t.Parallel()
 	e := precheckEnv(t)
 	var l []string
@@ -290,7 +290,7 @@ func TestWP31_M2_ACutCallKeepsItsHash(t *testing.T) {
 	}
 }
 
-func TestWP31_L6_LinkPageOfAnAIRequestCarriesTheLabel(t *testing.T) {
+func TestLinkPageOfAnAIRequestCarriesTheLabel(t *testing.T) {
 	t.Parallel()
 	e := newLinkEnv(t)
 	a := e.pending()
@@ -305,7 +305,7 @@ func TestWP31_L6_LinkPageOfAnAIRequestCarriesTheLabel(t *testing.T) {
 }
 
 // The link page is an approver's: it shows the values of the call, never a credential's.
-func TestWP31_M1_LinkPageShowsValuesButNoCredential(t *testing.T) {
+func TestLinkPageShowsValuesButNoCredential(t *testing.T) {
 	t.Parallel()
 	e := newLinkEnv(t)
 	e.conns.list = []response.ConnectionInfo{{Connection: response.Connection{ID: "cn-http", Name: "API", Enabled: true, Kind: "http", WriteTools: []string{"w"}}, Target: "https://api.lan"}}

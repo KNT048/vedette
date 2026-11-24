@@ -1,4 +1,4 @@
-// Release-build gate (WP-08a): fails when the build output carries the mock layer.
+// Release-build gate: fails when the build output carries the mock layer.
 // Usage: node scripts/check-release.mjs <distDir>
 // Strings measured in a normal (mock) `pnpm build`: the MSW runtime chunks (assets/browser-*.js, assets/state-*.js)
 // and public/mockServiceWorker.js all contain `[MSW]` (log prefix), `mswjs` (github.com/mswjs/msw, mswjs.io) and `msw/` (msw/passthrough).

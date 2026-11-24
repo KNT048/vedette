@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make install-artifacts (WP-08h): build the TEST release that `install.sh --test-artifacts DIR` installs, into dist/install/.
+# make install-artifacts: build the TEST release that `install.sh --test-artifacts DIR` installs, into dist/install/.
 # The real release keys and the published images do not exist yet, so this makes everything locally and signs it with throwaway keys:
 #   1. throwaway keys + a Go build overlay (scripts/testchannel keys): the private halves live in a work folder that is deleted at the end (or in KEYS=<dir>, kept)
 #   2. the vedette-host .deb, built with that overlay so that this one build trusts exactly those keys (the source tree is untouched); the core image gets
@@ -106,7 +106,7 @@ else
 	make --no-print-directory images PLATFORMS="linux/$arch" IMAGE_TAG="$version" IMAGE_VERSION="$version" TEST_KEYS_B64="$test_keys_b64" >/dev/null
 	built+=("localhost/vedette-sensor:$version" "localhost/vedette-scan-base:$version" "localhost/vedette-core:$version" "localhost/vedette-honeypot:$version") # make images builds the honeypot too
 fi
-# the honeypot image belongs to WP-08e: used when it was built with the same tag, else the install has no honeypot
+# the honeypot image belongs to: used when it was built with the same tag, else the install has no honeypot
 if "$c" image exists "localhost/vedette-honeypot:$version" || "$c" manifest exists "localhost/vedette-honeypot:$version" 2>/dev/null; then
 	services="$services honeypot"
 else

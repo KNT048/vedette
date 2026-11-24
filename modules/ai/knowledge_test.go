@@ -15,7 +15,7 @@ import (
 	"github.com/knt048/vedette/modules/ai/provider"
 )
 
-// Slice 4c of WP-25: the knowledge base (S-AI-7, INV-10). The GUI mock is the contract; the upload carries the file as base64.
+// The knowledge base (S-AI-7, INV-10). The GUI mock is the contract; the upload carries the file as base64.
 
 const (
 	mdFirewall = "# Firewall changes\n\nMọi thay đổi cấu hình tường lửa phải có phiếu duyệt. Tường lửa FortiGate đặt tại phòng server tầng 2.\n"

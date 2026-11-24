@@ -1,4 +1,4 @@
-// Shared by exposure.spec.ts and exposure.global.spec.ts (WP-30): what the box says about the exposure module, read through the API,
+// Shared by exposure.spec.ts and exposure.global.spec.ts: what the box says about the exposure module, read through the API,
 // and the texts of the page worked out from it, so a test never guesses what is on the box.
 // Nothing here (or in the two specs) makes the box reach the internet: Detect now, Verify again, the DNS Check of a domain and auto-detect
 // being turned on all call the public IP services or real DNS from the box, and the box has no setting that points them at loopback

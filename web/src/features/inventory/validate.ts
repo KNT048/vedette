@@ -24,7 +24,7 @@ export function overlapping(c: string, list: string[]): string | undefined {
 }
 
 /**
- * Normalise a network range the user typed. ONLY clears the host bits: "192.168.142.5/24" → "192.168.142.0/24" (note 'network', the UI says so plainly).
+ * Normalise a network range the user typed. ONLY clears the host bits: "10.142.0.5/24" → "10.142.0.0/24" (note 'network', the UI says so plainly).
  * An address without /prefix is NOT guessed (the network could be /23, /24 or /25): kept as is to report the 'noPrefix' error (a product decision).
  */
 export function normalizeRange(raw: string): { value: string; note: 'network' | null } {

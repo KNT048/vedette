@@ -69,8 +69,8 @@ func (e *env) auditBy(action string) []string {
 // new lease under the same generic name "iPhone", which the join rules never take. It returns the approved row and the new one.
 func phonePair(e *env) (old, newer string) {
 	e.t.Helper()
-	e.record(dhcp(privMac1, "192.168.142.10", "iPhone")...)
-	old = e.idOf("192.168.142.10")
+	e.record(dhcp(privMac1, "10.142.0.10", "iPhone")...)
+	old = e.idOf("10.142.0.10")
 	if err := e.svc.Approve(e.ctx(), "anna", old); err != nil {
 		e.t.Fatal(err)
 	}
@@ -79,8 +79,8 @@ func phonePair(e *env) (old, newer string) {
 		e.t.Fatal(err)
 	}
 	e.tick(time.Hour)
-	e.record(dhcp(privMac2, "192.168.142.11", "iPhone")...)
-	newer = e.idOf("192.168.142.11")
+	e.record(dhcp(privMac2, "10.142.0.11", "iPhone")...)
+	newer = e.idOf("10.142.0.11")
 	if e.devices() != 2 {
 		e.t.Fatalf("%d devices before the merge, want 2", e.devices())
 	}
@@ -118,7 +118,7 @@ func TestContract_PossibleSameIsOfferedAndMerged(t *testing.T) {
 		t.Fatal(err)
 	}
 	k := e.only()
-	if k.ID != old || !k.Approved || k.Notes == nil || *k.Notes != "Anna's phone" || k.IP != "192.168.142.11" || k.MAC == nil || *k.MAC != privMac2 {
+	if k.ID != old || !k.Approved || k.Notes == nil || *k.Notes != "Anna's phone" || k.IP != "10.142.0.11" || k.MAC == nil || *k.MAC != privMac2 {
 		t.Errorf("kept device: id %s approved %v notes %v ip %s mac %v", k.ID, k.Approved, k.Notes, k.IP, k.MAC)
 	}
 	var names []string
@@ -186,10 +186,10 @@ func TestContract_MergeRefusesTwoMachines(t *testing.T) {
 	t.Run("burned-in MACs", func(t *testing.T) {
 		t.Parallel()
 		e := newEnv(t)
-		e.record(dhcp(burnt1, "192.168.142.10", "accounting-pc")...)
+		e.record(dhcp(burnt1, "10.142.0.10", "accounting-pc")...)
 		e.tick(time.Hour)
-		e.record(dhcp(burnt2, "192.168.142.11", "accounting-pc")...)
-		a, b := e.idOf("192.168.142.10"), e.idOf("192.168.142.11")
+		e.record(dhcp(burnt2, "10.142.0.11", "accounting-pc")...)
+		a, b := e.idOf("10.142.0.10"), e.idOf("10.142.0.11")
 		got := e.sameAs(a)
 		if len(got) != 1 || got[0].ID != b || got[0].Reason != inventory.ReasonSameNameCards || !strings.Contains(got[0].Why, `Same name "accounting-pc" on two network cards`) {
 			t.Fatalf("offered: %+v", got)
@@ -198,7 +198,7 @@ func TestContract_MergeRefusesTwoMachines(t *testing.T) {
 			t.Fatalf("merge: %v; %d devices", err, e.devices())
 		}
 		// both cards stay; the one seen last is the main address, as a merge of one machine's rows always had it
-		if got := e.addresses(a); !slices.Equal(got, []string{"192.168.142.11 " + burnt2 + " main", "192.168.142.10 " + burnt1}) {
+		if got := e.addresses(a); !slices.Equal(got, []string{"10.142.0.11 " + burnt2 + " main", "10.142.0.10 " + burnt1}) {
 			t.Errorf("addresses after the merge: %v", got)
 		}
 	})
@@ -220,7 +220,7 @@ func TestContract_MergeRefusesTwoMachines(t *testing.T) {
 	t.Run("bad pairs", func(t *testing.T) {
 		t.Parallel()
 		e := newEnv(t)
-		box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette", IP: "192.168.142.2"})
+		box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette", IP: "10.142.0.2"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -242,23 +242,23 @@ func TestContract_WhatIsNotOffered(t *testing.T) {
 	t.Run("burned-in only", func(t *testing.T) {
 		t.Parallel()
 		e := newEnv(t)
-		e.record(dhcp(burnt1, "192.168.142.10", "nas01")...)
+		e.record(dhcp(burnt1, "10.142.0.10", "nas01")...)
 		e.tick(time.Hour)
-		e.record(dhcp(privMac1, "192.168.142.11", "nas01")...)
-		if got := e.sameAs(e.idOf("192.168.142.11")); len(got) != 0 {
+		e.record(dhcp(privMac1, "10.142.0.11", "nas01")...)
+		if got := e.sameAs(e.idOf("10.142.0.11")); len(got) != 0 {
 			t.Errorf("offered: %+v", got)
 		}
 	})
 	t.Run("online together", func(t *testing.T) {
 		t.Parallel()
 		e := newEnv(t)
-		e.record(dhcp(privMac1, "192.168.142.10", "iPhone")...)
-		e.record(dhcp(privMac2, "192.168.142.11", "iPhone")...)
+		e.record(dhcp(privMac1, "10.142.0.10", "iPhone")...)
+		e.record(dhcp(privMac2, "10.142.0.11", "iPhone")...)
 		e.tick(time.Hour)
-		e.record(dhcp(privMac1, "192.168.142.10", "iPhone")...)
-		e.record(dhcp(privMac2, "192.168.142.11", "iPhone")...)
+		e.record(dhcp(privMac1, "10.142.0.10", "iPhone")...)
+		e.record(dhcp(privMac2, "10.142.0.11", "iPhone")...)
 		e.tick(time.Hour)
-		if got := e.sameAs(e.idOf("192.168.142.11")); len(got) != 0 {
+		if got := e.sameAs(e.idOf("10.142.0.11")); len(got) != 0 {
 			t.Errorf("offered: %+v", got)
 		}
 	})
@@ -277,7 +277,7 @@ func TestContract_KeepSeparateIsNeverOfferedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.tick(time.Hour)
-	e.record(dhcp(privMac2, "192.168.142.11", "iPhone")...)
+	e.record(dhcp(privMac2, "10.142.0.11", "iPhone")...)
 	e.tick(time.Hour)
 	if a, b := e.sameAs(old), e.sameAs(newer); len(a)+len(b) != 0 {
 		t.Errorf("offered again: %+v %+v", a, b)
@@ -337,11 +337,11 @@ func TestHandlers_MergeAndKeepSeparateAreForAdmins(t *testing.T) {
 func TestContract_KeepSeparateStopsTheJoinRules(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.record(dhcp(privMac1, "192.168.142.10", "annas-macbook-air")...)
-	a := e.idOf("192.168.142.10")
+	e.record(dhcp(privMac1, "10.142.0.10", "annas-macbook-air")...)
+	a := e.idOf("10.142.0.10")
 	e.tick(10 * time.Minute)
-	e.record(dhcp(privMac2, "192.168.142.11", "annas-macbook-air")...)
-	b := e.idOf("192.168.142.11")
+	e.record(dhcp(privMac2, "10.142.0.11", "annas-macbook-air")...)
+	b := e.idOf("10.142.0.11")
 	e.tick(30 * time.Minute)
 	if got := e.sameAs(b); len(got) != 1 || got[0].ID != a {
 		t.Fatalf("offered: %+v", got)
@@ -350,9 +350,9 @@ func TestContract_KeepSeparateStopsTheJoinRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.tick(time.Hour)
-	e.record(dhcp(privMac2, "192.168.142.11", "annas-macbook-air")...)
+	e.record(dhcp(privMac2, "10.142.0.11", "annas-macbook-air")...)
 	e.tick(time.Hour)
-	e.record(dhcp(privMac1, "192.168.142.12", "annas-macbook-air")...)
+	e.record(dhcp(privMac1, "10.142.0.12", "annas-macbook-air")...)
 	if n := e.devices(); n != 2 {
 		t.Errorf("%d devices after Keep separate and new sightings, want 2", n)
 	}
@@ -363,20 +363,20 @@ func TestContract_KeepSeparateStopsTheJoinRules(t *testing.T) {
 func TestContract_AVisitorSeenWhileTheDeviceWasOnlineIsNotOffered(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.record(dhcp(privMac1, "192.168.142.10", "iPhone")...)
-	old := e.idOf("192.168.142.10")
+	e.record(dhcp(privMac1, "10.142.0.10", "iPhone")...)
+	old := e.idOf("10.142.0.10")
 	if err := e.svc.Approve(e.ctx(), "anna", old); err != nil {
 		t.Fatal(err)
 	}
 	for i := range 4 {
 		e.tick(15 * time.Minute)
-		e.record(dhcp(privMac1, "192.168.142.10", "iPhone")...)
+		e.record(dhcp(privMac1, "10.142.0.10", "iPhone")...)
 		if i == 1 {
-			e.record(dhcp(privMac2, "192.168.142.11", "iPhone")...)
+			e.record(dhcp(privMac2, "10.142.0.11", "iPhone")...)
 		}
 	}
 	e.tick(25 * time.Minute)
-	if got := e.sameAs(e.idOf("192.168.142.11")); len(got) != 0 {
+	if got := e.sameAs(e.idOf("10.142.0.11")); len(got) != 0 {
 		t.Errorf("the visitor is offered as the approved phone: %+v", got)
 	}
 }
@@ -388,14 +388,14 @@ func TestContract_OldRowsDoNotSilenceTheOffer(t *testing.T) {
 	e := newEnv(t)
 	var olds []string
 	for i := range 9 {
-		ip := fmt.Sprintf("192.168.142.%d", 20+i)
+		ip := fmt.Sprintf("10.142.0.%d", 20+i)
 		e.record(dhcp(fmt.Sprintf("b2:f0:09:00:00:%02x", i), ip, "iPhone")...)
 		olds = append(olds, e.idOf(ip))
 		e.tick(24 * time.Hour)
 	}
 	e.tick(40 * 24 * time.Hour)
-	e.record(dhcp(privMac1, "192.168.142.60", "iPhone")...)
-	got := e.sameAs(e.idOf("192.168.142.60"))
+	e.record(dhcp(privMac1, "10.142.0.60", "iPhone")...)
+	got := e.sameAs(e.idOf("10.142.0.60"))
 	if len(got) != 5 || got[0].ID != olds[8] || got[4].ID != olds[4] {
 		t.Errorf("offered: %+v; want the five old rows seen last", got)
 	}
@@ -407,20 +407,20 @@ func TestContract_KeepSeparateKeepsTheNameAmbiguous(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	for range 3 { // two Macs of one name, online together: two devices
-		e.record(dhcp(privMac1, "192.168.142.10", "annas-macbook-air")...)
-		e.record(dhcp(privMac2, "192.168.142.11", "annas-macbook-air")...)
+		e.record(dhcp(privMac1, "10.142.0.10", "annas-macbook-air")...)
+		e.record(dhcp(privMac2, "10.142.0.11", "annas-macbook-air")...)
 		e.tick(30 * time.Minute)
 	}
-	first := e.idOf("192.168.142.10")
+	first := e.idOf("10.142.0.10")
 	e.tick(time.Hour)
-	e.record(dhcp(privMac3, "192.168.142.12", "annas-macbook-air")...)
-	third := e.idOf("192.168.142.12")
+	e.record(dhcp(privMac3, "10.142.0.12", "annas-macbook-air")...)
+	third := e.idOf("10.142.0.12")
 	e.tick(30 * time.Minute)
 	if err := e.svc.KeepSeparate(e.ctx(), admin, third, first); err != nil {
 		t.Fatal(err)
 	}
 	e.tick(time.Hour)
-	e.record(dhcp(privMac3, "192.168.142.12", "annas-macbook-air")...)
+	e.record(dhcp(privMac3, "10.142.0.12", "annas-macbook-air")...)
 	if n := e.devices(); n != 3 {
 		t.Errorf("%d devices, want 3: a pair nobody answered was joined", n)
 	}
@@ -432,11 +432,11 @@ func TestContract_PageFindsUnicodeNamesAndIgnoresLateLists(t *testing.T) {
 	t.Parallel()
 	for _, names := range [][2]string{{"BÌNH-PC", "bình-pc"}, {"iPhone ", "iPhone"}} {
 		e := newEnv(t)
-		e.record(dhcp(privMac1, "192.168.142.10", names[0])...)
-		a := e.idOf("192.168.142.10")
+		e.record(dhcp(privMac1, "10.142.0.10", names[0])...)
+		a := e.idOf("10.142.0.10")
 		e.tick(time.Hour)
-		e.record(dhcp(privMac2, "192.168.142.11", names[1])...)
-		b := e.idOf("192.168.142.11")
+		e.record(dhcp(privMac2, "10.142.0.11", names[1])...)
+		b := e.idOf("10.142.0.11")
 		e.tick(time.Minute)
 		e.exec(`UPDATE inv_asset SET last_seen = ? WHERE id = ?`, store.FormatTS(e.now), a) // a queued list for the old row
 		e.tick(30 * time.Minute)

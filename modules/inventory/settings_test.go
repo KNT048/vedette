@@ -47,7 +47,7 @@ func TestContract_INV6_NetworkRanges(t *testing.T) {
 		ranges []string
 		code   string
 	}{
-		{"no prefix is never guessed", []string{"192.168.142.0"}, "no_prefix"},
+		{"no prefix is never guessed", []string{"10.142.0.0"}, "no_prefix"},
 		{"public range", []string{"8.8.8.0/24"}, "public_range"},
 		{"a range that straddles the private block", []string{"172.0.0.0/8"}, "public_range"},
 		{"100/8 outside the shared address space", []string{"100.128.0.0/24"}, "public_range"},
@@ -76,12 +76,12 @@ func TestContract_INV6_NetworkRanges(t *testing.T) {
 			adjusted []inventory.Adjustment
 			code     string
 		}{
-			{"host bits", []string{" 192.168.142.5/24 "}, []string{"192.168.142.0/24"}, []inventory.Adjustment{{From: "192.168.142.5/24", To: "192.168.142.0/24"}}, ""},
+			{"host bits", []string{" 10.142.0.5/24 "}, []string{"10.142.0.0/24"}, []inventory.Adjustment{{From: "10.142.0.5/24", To: "10.142.0.0/24"}}, ""},
 			{"keeps the typed prefix length", []string{"10.1.2.3/25"}, []string{"10.1.2.0/25"}, []inventory.Adjustment{{From: "10.1.2.3/25", To: "10.1.2.0/25"}}, ""},
-			{"a duplicate that collapses after masking", []string{"192.168.142.0/24", "192.168.142.77/24"}, []string{"192.168.142.0/24"}, []inventory.Adjustment{{From: "192.168.142.77/24", To: "192.168.142.0/24"}}, ""},
-			{"an overlap only found after masking", []string{"192.168.142.0/24", "192.168.142.130/25"}, nil, nil, "overlap_range"},
-			{"no host bits, nothing adjusted", []string{"192.168.142.0/24"}, []string{"192.168.142.0/24"}, []inventory.Adjustment{}, ""},
-			{"no prefix is still refused", []string{"192.168.142.5"}, nil, nil, "no_prefix"},
+			{"a duplicate that collapses after masking", []string{"10.142.0.0/24", "10.142.0.77/24"}, []string{"10.142.0.0/24"}, []inventory.Adjustment{{From: "10.142.0.77/24", To: "10.142.0.0/24"}}, ""},
+			{"an overlap only found after masking", []string{"10.142.0.0/24", "10.142.0.130/25"}, nil, nil, "overlap_range"},
+			{"no host bits, nothing adjusted", []string{"10.142.0.0/24"}, []string{"10.142.0.0/24"}, []inventory.Adjustment{}, ""},
+			{"no prefix is still refused", []string{"10.142.0.5"}, nil, nil, "no_prefix"},
 			{"a public range is refused after masking", []string{"8.8.8.9/24"}, nil, nil, "public_range"},
 			{"a shared address space range is local (RFC 6598)", []string{"100.66.254.0/24", "100.64.0.0/16"}, []string{"100.66.254.0/24", "100.64.0.0/16"}, []inventory.Adjustment{}, ""},
 		} {
@@ -111,11 +111,11 @@ func TestContract_INV6_NetworkRanges(t *testing.T) {
 		t.Fatal("an exclusion with host bits was accepted")
 	}
 	// the prefix the person typed is kept (a /25 stays a /25)
-	if err := save("192.168.142.0/25", "10.0.0.0/8", "172.16.0.0/12"); err != nil {
+	if err := save("192.168.1.0/25", "10.0.0.0/8", "172.16.0.0/12"); err != nil {
 		t.Fatal(err)
 	}
 	st, _ := e.svc.Settings(e.ctx())
-	if strings.Join(st.LANRanges, ",") != "192.168.142.0/25,10.0.0.0/8,172.16.0.0/12" {
+	if strings.Join(st.LANRanges, ",") != "192.168.1.0/25,10.0.0.0/8,172.16.0.0/12" {
 		t.Fatalf("ranges = %v", st.LANRanges)
 	}
 	// 16 ranges are fine
@@ -461,7 +461,7 @@ func TestContract_INV8_UnclassifiedDevicesAreScannedOnceGently(t *testing.T) {
 	}
 }
 
-// M2: ProtectedIPs lists, by address, what a sweep must not probe: the box, devices declared by hand, devices
+// ProtectedIPs lists, by address, what a sweep must not probe: the box, devices declared by hand, devices
 // with regular_scan=never, and fragile or unclassified devices after their gentle scan; not a fragile device that
 // has not had its gentle scan, nor an ordinary device.
 func TestContract_INV8_ProtectedIPs(t *testing.T) {

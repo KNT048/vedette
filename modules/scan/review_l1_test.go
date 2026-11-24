@@ -6,7 +6,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 )
 
-// L1: the job is skipped when the inventory decided on another address than the one the scan would use. The device
+// The job is skipped when the inventory decided on another address than the one the scan would use. The device
 // moves while the run is under way (it was pickable when the run started).
 func TestReview_L1_AddressMustBeTheOneDecidedOn(t *testing.T) {
 	t.Parallel()

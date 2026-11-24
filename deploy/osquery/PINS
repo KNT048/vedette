@@ -1,4 +1,4 @@
-# The osquery packages the core image ships to the servers of the customer (WP-26 slice 3). The core Containerfile sources this
+# The osquery packages the core image ships to the servers of the customer. The core Containerfile sources this
 # file (KEY=VALUE only, no spaces, quotes or $: a test holds it to that), downloads the five package files from the official release, checks each
 # against the SHA-256 below BEFORE it copies it into the image, and fails the build on any mismatch. Nothing is downloaded at run time.
 #

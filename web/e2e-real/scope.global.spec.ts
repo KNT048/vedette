@@ -51,10 +51,10 @@ test('ranges: invalid, public, overlapping and duplicate ones are refused with t
     await expect(err, value).toContainText(msg)
   }
   await expect(rows(page)).toHaveCount(2)
-  await input.fill('192.168.142.0'); await input.press('Enter')
+  await input.fill('10.142.0.0'); await input.press('Enter')
   await expect(err).toContainText('has no prefix length')
   await expect(rows(page)).toHaveCount(2)
-  await input.fill('192.168.142.0/25'); await input.press('Enter')
+  await input.fill('10.142.0.0/25'); await input.press('Enter')
   await expect(rows(page)).toHaveCount(3)
   await input.fill('192.168.30.77/24'); await input.press('Enter')
   await expect(page.getByRole('status').filter({ hasText: '192.168.30.0/24' })).toBeVisible()
@@ -62,7 +62,7 @@ test('ranges: invalid, public, overlapping and duplicate ones are refused with t
   await page.getByRole('button', { name: 'Edit range 192.168.30.0/24' }).click()
   await expect(input).toHaveValue('192.168.30.0/24')
   await input.fill('192.168.31.0/24'); await input.press('Enter')
-  await page.getByRole('button', { name: 'Remove range 192.168.142.0/25' }).click()
+  await page.getByRole('button', { name: 'Remove range 10.142.0.0/25' }).click()
   await expect(rows(page)).toHaveCount(3)
   await shot(page, 'real-scope', 'ranges-edited')
   // the set of ranges changed, so the scope must be confirmed again before Save

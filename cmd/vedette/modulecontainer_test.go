@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// M3: the sensor and scan containers follow their module, over the real host server and client (as the honeypot's
+// The sensor and scan containers follow their module, over the real host server and client (as the honeypot's
 // tests do): on starts the unit and gives it [Install] back, off stops it with persist, the module is looked at again under
 // the lock, and a host that fails to stop is an error for the guard to retry.
 

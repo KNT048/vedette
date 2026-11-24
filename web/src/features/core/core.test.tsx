@@ -308,14 +308,14 @@ describe('core: initial setup', () => {
     await u.type(screen.getByLabelText('Repeat password'), 'mot-cau-mat-khau-dai')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     await u.clear(await screen.findByLabelText('Range 1'))
-    await u.type(screen.getByLabelText('Range 1'), '192.168.0.0/16') // overlaps row 2: only the box checks that (overlap_range)
+    await u.type(screen.getByLabelText('Range 1'), '10.142.0.0/16') // overlaps row 2: only the box checks that (overlap_range)
     await u.click(screen.getByRole('button', { name: 'Add range' }))
-    await u.type(screen.getByLabelText('Range 2'), '192.168.142.0/24')
+    await u.type(screen.getByLabelText('Range 2'), '10.142.0.0/24')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 2, name: 'Network to watch' })).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent(/Range 192.168.0.0\/16 overlaps 192.168.142.0\/24/)
-    expect(screen.getByLabelText('Range 2')).toHaveValue('192.168.142.0/24') // what was typed is kept
+    expect(screen.getByRole('alert')).toHaveTextContent(/Range 10.142.0.0\/16 overlaps 10.142.0.0\/24/)
+    expect(screen.getByLabelText('Range 2')).toHaveValue('10.142.0.0/24') // what was typed is kept
     expect(orgStore.get().setup_complete).toBe(false)
   })
 
@@ -357,14 +357,14 @@ describe('core: initial setup', () => {
 
   it('the LAN range typed in setup is stored where Settings › Scanning › Safety keeps ranges, and the commitment with it', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.142.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['10.142.0.0/24', '10.1.0.0/16'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(200)
     const st = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; scope_confirmed_at: string | null; scope_confirmed_by: string | null }
-    expect(st.lan_ranges).toEqual(['192.168.142.0/24', '10.1.0.0/16'])
+    expect(st.lan_ranges).toEqual(['10.142.0.0/24', '10.1.0.0/16'])
     expect(st).toMatchObject({ scope_confirmed_by: 'lan@abc.vn' })
     expect(st.scope_confirmed_at).not.toBeNull()
     const scan = (await (await fetch(`${location.origin}/api/v1/scans/config`)).json()) as { scope: { networks: string[] } }
-    expect(scan.scope.networks).toEqual(['192.168.142.0/24', '10.1.0.0/16'])
+    expect(scan.scope.networks).toEqual(['10.142.0.0/24', '10.1.0.0/16'])
   })
 
   it('setup takes a network in the RFC 6598 shared address space (100.64/10) and refuses the rest of 100/8, with the backend sentence', async () => {
@@ -381,17 +381,17 @@ describe('core: initial setup', () => {
 
   it('setup refuses overlapping LAN ranges like Settings › Scanning › Safety does, and nothing is set up (#350)', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.0.0/16', '192.168.142.0/24'], bundle: 'smb', commitment: true }) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['10.142.0.0/16', '10.142.0.0/24'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(400)
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('overlap_range')
     expect(orgStore.get().setup_complete).toBe(false)
-    const same = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.142.0/24', '192.168.142.7/24'], bundle: 'smb', commitment: true }) })
+    const same = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['10.142.0.0/24', '10.142.0.7/24'], bundle: 'smb', commitment: true }) })
     expect(same.status).toBe(200) // the same network written twice is not an overlap
   })
 
   it('setup writes the same audit rows as the backend, oldest first: the administrator, the sign-in, the setup', async () => {
     orgStore.update((o) => ({ ...o, setup_complete: false }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['192.168.142.0/24'], bundle: 'smb', commitment: true }) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ setup_code: MOCK_SETUP_CODE, accept_terms: true, org: 'ABC Company', admin: { name: 'Lan', email: 'lan@abc.vn', password: 'mat-khau-dai-123' }, lan: ['10.142.0.0/24'], bundle: 'smb', commitment: true }) })
     expect(res.status).toBe(200)
     const rows = [...auditStore.get()].reverse()
     expect(rows.map((r) => [r.user, r.action, r.target])).toEqual([
@@ -546,11 +546,11 @@ describe('core: privacy (S-CORE-4)', () => {
     expect((await screen.findAllByText('Your own feeds right now: intel.partner.example.')).length).toBeGreaterThan(0)
     expect(document.body.textContent).not.toContain('s3cret')
   })
-  it('shows all 16 flows; the anonymous signal says "not sent", no switch, no payload', async () => {
+  it('shows all 15 flows; the anonymous signal says "not sent", no switch, no payload', async () => {
     renderApp('/settings/privacy')
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
-    expect(within(table).getAllByRole('row')).toHaveLength(17)
-    for (const n of ['MCP server, read by tools you connect', 'Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Data sources that need a key', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on', 'Connections you add', 'Outside view of your public IP']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
+    expect(within(table).getAllByRole('row')).toHaveLength(16)
+    for (const n of ['MCP server, read by tools you connect', 'Pull feeds directly from their sources', 'Anonymous signal', 'AI assistant', 'Notifications', 'Update check', 'Forwarding to a SIEM', 'News about a CVE', 'External exposure', 'Time sync', 'Single sign-on', 'Connections you add', 'Outside view of your public IP']) expect(within(table).getAllByText(new RegExp(n)).length).toBeGreaterThan(0)
     expect(screen.queryByRole('switch', { name: 'Send anonymous signal' })).toBeNull()
     expect(document.querySelector('pre code')).toBeNull()
     expect(screen.getByText(/Anonymous signal: not sent\. The box sends nothing to the Vedette project\./)).toBeInTheDocument()

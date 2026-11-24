@@ -5,7 +5,7 @@ import "unicode"
 // Ignorable reports whether r has the Unicode property Default_Ignorable_Code_Point: invisible or layout-only characters
 // (soft hyphen, zero-width and bidi controls, hangul fillers, variation selectors, the tag block and others) that let
 // untrusted text hide or read as something else. One table for every module that cleans or checks such text (core/auth
-// names, honeypot hit text; WP-31 L13).
+// names, honeypot hit text).
 func Ignorable(r rune) bool { return unicode.Is(defaultIgnorable, r) }
 
 // defaultIgnorable is the Unicode property Default_Ignorable_Code_Point (Unicode 16.0, DerivedCoreProperties.txt,

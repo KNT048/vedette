@@ -51,7 +51,7 @@ func TestMigrationsUsePrefix(t *testing.T) {
 
 // INV-1 (code side): the module cannot connect anywhere. It imports no dialer (net, net/http, os/exec) and never
 // calls Dial; the host is a port. syscall is imported by tail.go alone, for the open flags O_NOFOLLOW and O_NONBLOCK of
-// the log (the log folder belongs to the container), and nothing else of it is used. The packet-level proof (no packet leaves the container towards a source) is WP-08's.
+// the log (the log folder belongs to the container), and nothing else of it is used. The packet-level proof (no packet leaves the container towards a source) belongs to the container tests.
 // INV-14: no signal is sent either: that would need a connection.
 func TestContract_INV1_NoDialer(t *testing.T) {
 	t.Parallel()

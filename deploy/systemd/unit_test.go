@@ -163,7 +163,7 @@ func TestUnitKeepsWhatTheHostNeeds(t *testing.T) {
 			t.Errorf("%s = %q, want exactly %q", k, got, want)
 		}
 	}
-	// No RuntimeDirectory* (WP-31 L10): systemd would make /run/vedette root:root at every start and the host
+	// No RuntimeDirectory*: systemd would make /run/vedette root:root at every start and the host
 	// (Listen) refuses a directory that is not owned by root and socket_gid; the host creates and checks it itself.
 	for _, k := range []string{"RuntimeDirectory", "RuntimeDirectoryMode", "RuntimeDirectoryPreserve", "User", "Group"} {
 		if len(opts[k]) != 0 {

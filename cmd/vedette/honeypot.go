@@ -22,7 +22,7 @@ import (
 	"github.com/knt048/vedette/modules/notify/channel"
 )
 
-// The two folders under -honeypot-dir: core writes ConfigDir (opencanary.conf, honeytokens.json; WP-08 mounts it read-only
+// The two folders under -honeypot-dir: core writes ConfigDir (opencanary.conf, honeytokens.json; the container mounts it read-only
 // into the honeypot container), the container writes LogDir (opencanary.jsonl; core only reads it).
 const (
 	HoneypotConfigDir = "config"
@@ -42,7 +42,7 @@ func newHoneypot(d *deps) (*honeypot.Service, error) {
 		return d.Honeypot.DecoyIPs(ctx)
 	}, box: d.BoxName}, Host: newHoneypotHost(d),
 		Clock: d.Clock, Log: d.Log, Location: orgLocationAt(*d), BoxURL: d.BaseURL} // URL tokens carry the Box address
-	if d.HoneypotDir != "" { // two folders (WP-14 review): core writes config/ (the container mounts it read-only), the container writes log/
+	if d.HoneypotDir != "" { // two folders: core writes config/ (the container mounts it read-only), the container writes log/
 		cfg.ConfigDir, cfg.LogDir = filepath.Join(d.HoneypotDir, HoneypotConfigDir), filepath.Join(d.HoneypotDir, HoneypotLogDir)
 	}
 	if d.Reg != nil {

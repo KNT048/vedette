@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// Publishing (WP-08k): the assets of a release go to the GitHub release v<version> (the maintainer's tag), created as a draft, filled,
+// Publishing: the assets of a release go to the GitHub release v<version> (the maintainer's tag), created as a draft, filled,
 // checked, then published; index.json and its signature go to the fixed release "index" last, so a box never sees an index that
 // announces a release whose files are not there yet. A published version is never changed.
 

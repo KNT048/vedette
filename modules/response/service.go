@@ -31,7 +31,7 @@ import (
 const ModuleID = "response"
 
 // This module is the one place where Vedette may change another device (the single exception to SYS-8), so every
-// path that writes to a device goes through Service.runItem (FORBID-1). Part 1 (WP-13a) holds the execution switch, the
+// path that writes to a device goes through Service.runItem (FORBID-1). Part 1 holds the execution switch, the
 // catalog, the rules and the engine, the request and approval flow in the app, the box actions (block list, message,
 // webhook) and the log. Part 13b added the device steps through the Executor port (cmd/vedette wires core/conn/write), the
 // connections, approval links (links.go) and chat decisions (chat.go), approver identities, and the AI proposals (Propose

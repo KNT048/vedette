@@ -80,7 +80,7 @@ func TestOnlyPKINamesTheCAPurpose(t *testing.T) {
 	}
 }
 
-// L4: the purpose is closed in this process before any pki.Open: a store that was never given to pki refuses it, and so does the
+// The purpose is closed in this process before any pki.Open: a store that was never given to pki refuses it, and so does the
 // store pki.Open runs on (only its Opener reads).
 func TestACAPurposeIsClosedWithoutPKIOpen(t *testing.T) {
 	t.Parallel()

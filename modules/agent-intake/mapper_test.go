@@ -249,7 +249,7 @@ func TestMapPackagesKernelFollowsTheRunningKernel(t *testing.T) {
 	}
 	// Wazuh: the running kernel is the third field of the agent's uname
 	var a wzAgent
-	a.OS.Uname = "Linux |byn |7.0.0-43-generic |#43-Ubuntu SMP PREEMPT_DYNAMIC |x86_64"
+	a.OS.Uname = "Linux |srv01 |7.0.0-43-generic |#43-Ubuntu SMP PREEMPT_DYNAMIC |x86_64"
 	if k := wazuhKernel(a); k != "7.0.0-43-generic" {
 		t.Fatalf("wazuhKernel = %q", k)
 	}

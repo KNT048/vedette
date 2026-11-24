@@ -19,11 +19,11 @@ import (
 func TestDisplayName_TheNameInVedetteWins(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct{ name, host, vendor, model, ip, origin, product, want string }{
-		{"Office firewall", "fw-core", "Fortinet", "FortiGate 60F", "192.168.142.1", "discovered", "", "Office firewall"},
-		{"  Office firewall ", "", "", "", "192.168.142.1", "discovered", "", "Office firewall"},
+		{"Office firewall", "fw-core", "Fortinet", "FortiGate 60F", "10.142.0.1", "discovered", "", "Office firewall"},
+		{"  Office firewall ", "", "", "", "10.142.0.1", "discovered", "", "Office firewall"},
 		{"Accounting PC", "", "", "", "—", "manual", "Microsoft Office", "Accounting PC"}, // no "(no device)" once a person named it
-		{"", "fw-core", "Fortinet", "", "192.168.142.1", "discovered", "", "fw-core"},     // empty: the naming rule
-		{" ", "", "", "", "192.168.142.1", "discovered", "", "192.168.142.1"},
+		{"", "fw-core", "Fortinet", "", "10.142.0.1", "discovered", "", "fw-core"},        // empty: the naming rule
+		{" ", "", "", "", "10.142.0.1", "discovered", "", "10.142.0.1"},
 	} {
 		f := inventory.NameFacts{UserName: c.name, Hostname: c.host, Vendor: c.vendor, Model: c.model, IP: c.ip, Origin: c.origin, Product: c.product}
 		if got := inventory.DisplayName(f); got != c.want {
@@ -32,10 +32,10 @@ func TestDisplayName_TheNameInVedetteWins(t *testing.T) {
 	}
 }
 
-// firewall is a device found on the network at 192.168.142.1 with a host name a sensor heard.
+// firewall is a device found on the network at 10.142.0.1 with a host name a sensor heard.
 func (e *env) firewall() string {
 	e.t.Helper()
-	ip := netip.MustParseAddr("192.168.142.1")
+	ip := netip.MustParseAddr("10.142.0.1")
 	e.record(obs(ip, macA, observe.Kind, "firewall", observe.Nmap, 0.9), obs(ip, macA, observe.Hostname, "fw-core", observe.Passive, 0.6))
 	return e.idByMAC(macA)
 }
@@ -226,11 +226,11 @@ func TestContract_CSVKeepsBothNames(t *testing.T) {
 	}
 	var row string
 	for _, l := range lines {
-		if strings.Contains(l, "192.168.142.1") {
+		if strings.Contains(l, "10.142.0.1") {
 			row = l
 		}
 	}
-	if !strings.HasPrefix(row, "fw-core,192.168.142.1,") || !strings.HasSuffix(row, ",Office firewall,") {
+	if !strings.HasPrefix(row, "fw-core,10.142.0.1,") || !strings.HasSuffix(row, ",Office firewall,") {
 		t.Fatalf("row = %q", row)
 	}
 	// Imported on a fresh box: the host name is fw-core (typed), the name in Vedette "Office firewall".
@@ -238,7 +238,7 @@ func TestContract_CSVKeepsBothNames(t *testing.T) {
 	if r := other.importCSV(string(raw)); r.Created != 1 || len(r.Errors) != 0 {
 		t.Fatalf("import = %+v", r)
 	}
-	f, err := inventory.ParseDeviceFilter("", "", "", "", "", "", "192.168.142.1")
+	f, err := inventory.ParseDeviceFilter("", "", "", "", "", "", "10.142.0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +254,7 @@ func TestContract_CSVKeepsBothNames(t *testing.T) {
 		t.Error("the name in Vedette became a host name observation")
 	}
 	// A refused name in the column is the row's error, as a bad name is.
-	if r := other.importCSV("name_in_vedette,ip\n\u202eevil,192.168.142.77\n"); r.Created != 0 || len(r.Errors) != 1 {
+	if r := other.importCSV("name_in_vedette,ip\n\u202eevil,10.142.0.77\n"); r.Created != 0 || len(r.Errors) != 1 {
 		t.Errorf("bad name_in_vedette = %+v", r)
 	}
 }
@@ -263,17 +263,17 @@ func TestContract_CSVKeepsBothNames(t *testing.T) {
 func TestContract_DuplicateIPNamesTheDevice(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	ip := netip.MustParseAddr("192.168.142.1")
+	ip := netip.MustParseAddr("10.142.0.1")
 	e.record(obs(ip, macA, observe.Kind, "firewall", observe.Nmap, 0.9))
 	id := e.idByMAC(macA)
 	if err := e.rename(id, "Office firewall"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := e.svc.AddDevice(e.ctx(), "it@acme.example", inventory.AddInput{CatalogID: "fortigate", IP: "192.168.142.1"})
+	_, err := e.svc.AddDevice(e.ctx(), "it@acme.example", inventory.AddInput{CatalogID: "fortigate", IP: "10.142.0.1"})
 	if err == nil || !strings.Contains(err.Error(), "(Office firewall)") {
 		t.Errorf("add = %v", err)
 	}
-	if r := e.importCSV("name,ip\nfw2,192.168.142.1\n"); len(r.Errors) != 1 || !strings.Contains(r.Errors[0].Message, "Office firewall") {
+	if r := e.importCSV("name,ip\nfw2,10.142.0.1\n"); len(r.Errors) != 1 || !strings.Contains(r.Errors[0].Message, "Office firewall") {
 		t.Errorf("import = %+v", r)
 	}
 }

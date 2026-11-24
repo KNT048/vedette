@@ -81,7 +81,6 @@ func (h *APIHandlers) privacyFlows(ctx context.Context, p privacySetting) []oas.
 		{ID: 1, State: oas.CoreGetCorePrivacyOKFlowsItemStateOn, Control: rs},
 		{ID: 2, State: state(p.telemetry()), Control: sw},
 		{ID: 3, State: state(ai), Control: rs, Configured: oas.NewOptBool(ai)},
-		{ID: 4, State: always, Control: rs},
 		{ID: 5, State: always, Control: rs},
 		{ID: 6, State: state(p.updateCheck()), Control: sw},
 		{ID: 7, State: always, Control: rs},

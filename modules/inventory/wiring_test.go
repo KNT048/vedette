@@ -21,7 +21,7 @@ func (e *env) manual(d inventory.ManualDevice, fail bool) error {
 	var txp *sql.Tx
 	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
 		txp = tx
-		if _, err := e.svc.AddManualDevice(e.ctx(), tx, "emily@acme.example", d); err != nil {
+		if _, err := e.svc.AddManualDevice(e.ctx(), tx, "admin@acme.example", d); err != nil {
 			return err
 		}
 		if fail {
@@ -326,7 +326,7 @@ func TestNeverTouchIsTheUnionOfTrustedKinds(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := e.svc.Approve(e.ctx(), "emily@acme.example", addrs[ip]); err != nil {
+		if err := e.svc.Approve(e.ctx(), "admin@acme.example", addrs[ip]); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -357,7 +357,7 @@ func TestNeverTouchIsTheUnionOfTrustedKinds(t *testing.T) {
 	}
 	e.tick(time.Minute)
 	printer := "printer"
-	if err := e.svc.PatchDevice(e.ctx(), "emily@acme.example", addrs["192.168.10.70"], inventory.Patch{Kind: &printer}); err != nil {
+	if err := e.svc.PatchDevice(e.ctx(), "admin@acme.example", addrs["192.168.10.70"], inventory.Patch{Kind: &printer}); err != nil {
 		t.Fatal(err)
 	}
 	if d, ok := gateways()["192.168.10.70"]; ok {
@@ -517,7 +517,7 @@ func TestDevicesOfKindTellsWhereTheKindCame(t *testing.T) {
 	if d.TrustedKind() || d.Approved || d.KindSource != "passive" {
 		t.Fatalf("a passive-only router is trusted: %+v", d)
 	}
-	if err := e.svc.Approve(e.ctx(), "emily@acme.example", d.ID); err != nil {
+	if err := e.svc.Approve(e.ctx(), "admin@acme.example", d.ID); err != nil {
 		t.Fatal(err)
 	}
 	if d = get("192.168.10.66"); d.TrustedKind() || !d.Approved {
@@ -529,7 +529,7 @@ func TestDevicesOfKindTellsWhereTheKindCame(t *testing.T) {
 	if err != nil || len(l) != 1 {
 		t.Fatalf("%v %v", l, err)
 	}
-	if err := e.svc.Approve(e.ctx(), "emily@acme.example", l[0].ID); err != nil {
+	if err := e.svc.Approve(e.ctx(), "admin@acme.example", l[0].ID); err != nil {
 		t.Fatal(err)
 	}
 	recKind("192.168.10.21", "02:21:21:21:21:21", "router", observe.Passive, 0.99)
@@ -541,7 +541,7 @@ func TestDevicesOfKindTellsWhereTheKindCame(t *testing.T) {
 	if d = get("192.168.10.67"); d.TrustedKind() || d.KindSource != "nmap" {
 		t.Fatalf("an unapproved nmap router is trusted: %+v", d)
 	}
-	if err := e.svc.Approve(e.ctx(), "emily@acme.example", d.ID); err != nil {
+	if err := e.svc.Approve(e.ctx(), "admin@acme.example", d.ID); err != nil {
 		t.Fatal(err)
 	}
 	if d = get("192.168.10.67"); !d.TrustedKind() {
@@ -550,7 +550,7 @@ func TestDevicesOfKindTellsWhereTheKindCame(t *testing.T) {
 	// the operator re-picks the kind the passive-only router already has: it becomes manual and trusted
 	r := "router"
 	id := get("192.168.10.66").ID
-	if err := e.svc.PatchDevice(e.ctx(), "emily@acme.example", id, inventory.Patch{Kind: &r}); err != nil {
+	if err := e.svc.PatchDevice(e.ctx(), "admin@acme.example", id, inventory.Patch{Kind: &r}); err != nil {
 		t.Fatal(err)
 	}
 	if d = get("192.168.10.66"); !d.TrustedKind() || d.KindSource != "manual" {
@@ -602,7 +602,7 @@ func (e *env) exec(query string, args ...any) {
 	}
 }
 
-// L12: a software name with an invisible character drops that item only; the rest of the device's list is kept. Another bad item is
+// A software name with an invisible character drops that item only; the rest of the device's list is kept. Another bad item is
 // still refused.
 func TestUpsertSoftwareDropsOnlyTheItemWithAnInvisibleCharacter(t *testing.T) {
 	t.Parallel()

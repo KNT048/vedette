@@ -1,4 +1,4 @@
-// Mock API module inventory (S-INV-1..4). Tài sản nằm ở assetsStore dùng chung; bảng riêng của module tiền tố inv_.
+// Mock API for the inventory module. Assets live in the shared assetsStore; the module's own tables are prefixed inv_.
 // An observation is never overwritten (ARCHITECTURE §4): a manual edit only adds one observation with the source "manual".
 import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
@@ -137,7 +137,7 @@ const rand = (n: number, alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789') => {
 const LABEL_RE = /^[^<>\u0000-\u001f]{1,64}$/
 const VERSION_RE = /^[\w.\-+() ]{1,40}$/u
 const hasIp = (a: Asset) => a.ip !== '' && a.ip !== '—'
-/** Reads the settings; a range stored with host bits ("192.168.142.5/24") is reduced to the network address. A range without /prefix is kept as is so the UI shows the error on that row and does not block other actions. */
+/** Reads the settings; a range stored with host bits ("10.142.0.5/24") is reduced to the network address. A range without /prefix is kept as is so the UI shows the error on that row and does not block other actions. */
 /** A short hash of a string (FNV-1a), for the mock's versions. */
 export function hashOf(s: string): string {
   let h = 0x811c9dc5
@@ -1475,7 +1475,7 @@ export const handlers = [
     const b = await body<SettingsInput>(request)
     if (b.version && b.version !== safetyVersion()) return fail(409, 'safety_changed', SAFETY_CHANGED)
     const adjusted: { from: string; to: string }[] = []
-    // "192.168.142.5/24" is reduced to "192.168.142.0/24" (the response says what was changed); an address without /prefix is rejected below, not guessed.
+    // "10.142.0.5/24" is reduced to "10.142.0.0/24" (the response says what was changed); an address without /prefix is rejected below, not guessed.
     const ranges = Array.isArray(b.lan_ranges) ? [...new Set(b.lan_ranges.map((x) => { const raw = String(x).trim(); const n = normalizeRange(raw); if (n.value !== raw) adjusted.push({ from: raw, to: n.value }); return n.value }))] : null
     if (!ranges) return fail(400, 'bad_ranges', 'The list of network ranges is missing.')
     if (ranges.length > 16) return fail(400, 'too_many_ranges', 'At most 16 network ranges.')

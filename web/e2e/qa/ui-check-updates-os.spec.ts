@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { collectErrors, expectAccessible } from '../helpers'
-import { begin, noHScroll, stepper, THEMES } from './wp06-shared'
+import { begin, noHScroll, stepper, THEMES } from './ui-check-shared'
 
-// WP-06 independent check, area 8: "As the admin I update the operating system of the box and want to know what does it."
+// "As the admin I update the operating system of the box and want to know what does it."
 // Settings -> Updates -> Operating system: the privileged helper is named `vedette-host`, never `vedette-updater`.
 for (const theme of THEMES) {
   test(`updates OS [${theme}]: helper called vedette-host everywhere, never vedette-updater`, async ({ page }, info) => {

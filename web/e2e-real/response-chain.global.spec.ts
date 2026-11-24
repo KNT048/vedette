@@ -1,4 +1,4 @@
-// Response chains on the real backend (S-RESP-3, INV-4, INV-17, INV-2; WP-30). A rule fires, the request goes out by email to a listed approver, the approver decides
+// Response chains on the real backend (S-RESP-3, INV-4, INV-17, INV-2). A rule fires, the request goes out by email to a listed approver, the approver decides
 // from the link in the mail (the link points at THIS box: the loopback BaseURL seam of cmd/vedette/notify.go) or in the app, the box publishes the address on its block list, and the
 // firewall's pull (a plain GET with the token in the URL) shows it. The email is the real one: notify mails it to the box's own SMTP sink (control server of cmd/vedette/e2ebox_test.go).
 // The rule uses the `manual` trigger on purpose: it is the one that fires without a sensor or a trap, so the chain after the trigger is what is under test. The trap-hit trigger is its own

@@ -514,7 +514,7 @@ func TestPoisonBatchIsSplitAndDroppedNotRetriedForever(t *testing.T) {
 	}
 }
 
-// M6: a batch is split, and a lone item blamed, only for a 503 while a heartbeat succeeds at that moment. A rate limit, an
+// A batch is split, and a lone item blamed, only for a 503 while a heartbeat succeeds at that moment. A rate limit, an
 // update window, a certificate being rotated or no answer at all say nothing about any item: the batch stays whole and nothing
 // is dropped, however long it takes.
 func TestNothingButABusyStoreSplitsOrBlames(t *testing.T) {
@@ -585,7 +585,7 @@ func TestABusyStoreSplitsOnlyWhileTheHeartbeatSucceeds(t *testing.T) {
 	}
 }
 
-// L5: a device whose items met the budget of core is not forgotten: the vendor row is still owed and goes out when the device is
+// A device whose items met the budget of core is not forgotten: the vendor row is still owed and goes out when the device is
 // admitted later; an item rejected for good clears the debt.
 func TestVendorStaysOwedWhenTheBudgetRejectedIt(t *testing.T) {
 	t.Parallel()

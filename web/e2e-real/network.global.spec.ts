@@ -3,7 +3,7 @@
 // addresses follow the netplan file the host writes. Click paths only: apply -> the confirm window -> confirm, and apply -> cancel. The
 // 5-minute expiry (the host's timer) stays in the Go tests (modules/core/network_test.go: TestNetworkRevertAndTheTimerGoBackToTheOldSettings).
 // Global project: the box's management address is box-wide state; the last test puts it back where it started (192.168.1.50).
-// Steps from e2e/qa/wp06-updates-os.spec.ts (the Box network page) and web/src/features/core/network.test.tsx.
+// Steps from e2e/qa/ui-check-updates-os.spec.ts (the Box network page) and web/src/features/core/network.test.tsx.
 import { expect, request, test, type Page } from '@playwright/test'
 import { api, authFile, box } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'

@@ -16,7 +16,7 @@ import (
 	"github.com/knt048/vedette/internal/release"
 )
 
-// container.start with a version, container.rollback and image retention (WP-07b part 3, slice 3-8a; spec
+// container.start with a version, container.rollback and image retention (spec
 // 6.8, 6.10; host CONTRACT INV-20, INV-21). The machine is the fake of opstest with a
 // stateful systemctl and one stateful podman that holds both containers and images (StatefulPodman), and
 // signing keys made for the test. A release is pulled with container.pull (the real path), then started.

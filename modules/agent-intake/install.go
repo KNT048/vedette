@@ -246,7 +246,7 @@ func (h *InstallHandlers) InventoryGetIntakeCaPem(ctx context.Context) (oas.Inve
 
 // ---- the package mirror ----
 
-// The package files of the image (WP-26 slice 3): exactly these six names exist, whatever the request says. They are fixed
+// The package files of the image: exactly these six names exist, whatever the request says. They are fixed
 // text built from OsqueryVersion; a request's name is only a key into this table, and what is opened is the name stored in it.
 const (
 	mirrorSums         = "SHA256SUMS"

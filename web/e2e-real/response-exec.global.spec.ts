@@ -1,4 +1,4 @@
-// Response actions that change another device, carried out on the real backend (S-RESP-3, S-RESP-2; INV-1, INV-7, INV-8, INV-9, INV-10, INV-13, INV-19; WP-30 slice 9a).
+// Response actions that change another device, carried out on the real backend (S-RESP-3, S-RESP-2; INV-1, INV-7, INV-8, INV-9, INV-10, INV-13, INV-19).
 // The device is the HTTP fake of the box (cmd/vedette/e2edevices_test.go, a small firewall with a ban list): the specs read what it RECEIVED, not what
 // Vedette says it sent. Flow: a manual rule on a device of the inventory -> a request waits -> with execution off the approval is refused and the device
 // saw nothing -> an administrator with two-step sign-in turns execution on (typed phrase) -> an operator approves in the app -> the fake got the exact

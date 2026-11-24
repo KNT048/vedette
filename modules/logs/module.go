@@ -1,4 +1,4 @@
-// Package logs receives, stores and searches the logs of the customer's devices (S-LOG-1..4, WP-24).
+// Package logs receives, stores and searches the logs of the customer's devices.
 //
 // Storage is split in two databases on purpose. The configuration (sources, retention, later the SIEM settings) is in the
 // main database, audited in the same transaction as the change (SYS-3) and part of the backup. The volume (received

@@ -332,7 +332,7 @@ test('viewer: change buttons are disabled with a reason', async ({ page }) => {
 test.describe('logs: clean install', () => {
   test('every part says what to do first, with no sample data', async ({ page }) => {
     const errors = collectErrors(page)
-    await cleanInstall(page, '192.168.142.0/24')
+    await cleanInstall(page, '10.142.0.0/24')
     await page.goto('/logs')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('No device is sending logs to the box yet')
     await expect(page.getByText('No log sources yet')).toBeVisible()
@@ -345,8 +345,8 @@ test.describe('logs: clean install', () => {
     await d.getByLabel('Name', { exact: true }).fill('FW-NEW')
     await d.getByLabel('IP of the sending device', { exact: true }).fill('10.0.0.1')
     await d.getByRole('button', { name: 'Add and show setup' }).click()
-    // the box address is derived from the declared LAN range (192.168.142.0/24 -> .250), not the IP in the sample data
-    await expect(page.getByRole('dialog', { name: /Set up FW-NEW/ })).toContainText('set server "192.168.142.250"')
+    // the box address is derived from the declared LAN range (10.142.0.0/24 -> .250), not the IP in the sample data
+    await expect(page.getByRole('dialog', { name: /Set up FW-NEW/ })).toContainText('set server "10.142.0.250"')
     await expect(page.getByRole('dialog')).not.toContainText('192.168.10.250')
     await page.keyboard.press('Escape')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('No log line received yet')

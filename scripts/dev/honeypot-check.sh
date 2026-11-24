@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make honeypot-check (WP-08e): build the honeypot image, run it the way the unit does and check BY EFFECT, not by the exit code of the build:
+# make honeypot-check: build the honeypot image, run it the way the unit does and check BY EFFECT, not by the exit code of the build:
 #   * OpenCanary starts with the files core's own code writes (honeypot.RenderConfig / RenderTokens, through a Go test), and a connection to
 #     each trap writes a JSON line into the mounted log/ that modules/honeypot's parser accepts (a Go test runs ParseLine on the log);
 #   * every enabled trap is proven: OpenCanary reports it started (its start_mod only logs a module that fails to start), and a client gets the

@@ -388,10 +388,10 @@ describe('Settings → Privacy: flow 12, Connections you add', () => {
     const table = await screen.findByRole('table', { name: 'Data flows that leave the box' })
     return { table, row: within(table).getByText(/12\. Connections you add/).closest('tr') as HTMLElement }
   }
-  it('lists 16 flows; flow 12 is on while a connection is enabled and links to Connections', async () => {
+  it('lists 15 flows; flow 12 is on while a connection is enabled and links to Connections', async () => {
     renderApp('/settings/privacy')
     const { table, row: r } = await row()
-    expect(within(table).getAllByRole('row')).toHaveLength(17) // header + 16 flows
+    expect(within(table).getAllByRole('row')).toHaveLength(16) // header + 15 flows
     expect(within(r).getByText('Running')).toBeInTheDocument()
     expect(within(r).getByText(/Only the address you typed for each connection/)).toBeInTheDocument()
     expect(within(r).getByRole('link', { name: 'Open connections' })).toHaveAttribute('href', '/settings/connections')
@@ -400,10 +400,10 @@ describe('Settings → Privacy: flow 12, Connections you add', () => {
     as('u-admin')
     connectorsStore.update((l) => l.map((c) => ({ ...c, enabled: false })))
     const body = (await (await api('/core/privacy')).json()) as { flows: { id: number; state: string; control: string }[] }
-    expect(body.flows).toHaveLength(16)
-    expect(body.flows[11]).toEqual({ id: 12, state: 'off', control: 'reason' })
+    expect(body.flows).toHaveLength(15)
+    expect(body.flows.find((f) => f.id === 12)).toEqual({ id: 12, state: 'off', control: 'reason' })
     connectorsStore.update((l) => l.map((c, i) => (i === 0 ? { ...c, enabled: true } : c)))
-    expect(((await (await api('/core/privacy')).json()) as typeof body).flows[11]).toEqual({ id: 12, state: 'on', control: 'reason' })
+    expect(((await (await api('/core/privacy')).json()) as typeof body).flows.find((f) => f.id === 12)).toEqual({ id: 12, state: 'on', control: 'reason' })
     connectorsStore.set([])
     renderApp('/settings/privacy')
     expect(within((await row()).row).getByText('Off')).toBeInTheDocument()
@@ -613,7 +613,7 @@ describe('Connections: a connection that is off sends nothing (PRIVACY flow 12)'
   it('an old mcp-stdio row can still be turned off, nothing else about it changes, and it never counts for flow 12', async () => {
     as('u-admin')
     connectorsStore.set([{ ...connectorsStore.get()[0]!, id: 'cn-old', name: 'Old MCP', kind: 'mcp-stdio', target: 'fw-mcp', auth: { type: 'none', header: null, last4: null, key_fingerprint: null }, pin: null, enabled: true }])
-    expect(((await (await api('/core/privacy')).json()) as { flows: { id: number; state: string }[] }).flows[11]!.state, 'an unsupported row sends nothing').toBe('off')
+    expect(((await (await api('/core/privacy')).json()) as { flows: { id: number; state: string }[] }).flows.find((f) => f.id === 12)!.state, 'an unsupported row sends nothing').toBe('off')
     const off = await answer(put('/core/connections/cn-old', { name: 'Old MCP', kind: 'mcp-stdio', target: 'fw-mcp', auth_type: 'none', allow: ['x'], enabled: false }))
     expect(off.status).toBe(200)
     expect(connectorsStore.get()[0]).toMatchObject({ enabled: false, target: 'fw-mcp', name: 'Old MCP' })

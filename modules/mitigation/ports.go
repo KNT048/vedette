@@ -50,7 +50,7 @@ type AIOutput struct {
 	ActivityID string // id of the ai_activity row, "" when none
 }
 
-// AI is the small door to the ai module (its RunJob, WP-25, not wired yet). The AI never gets a write
+// AI is the small door to the ai module (its RunJob, not wired yet). The AI never gets a write
 // tool here (SYS-8): it returns text and this module stores it as an AI result.
 type AI interface {
 	// Available reports whether a profile is assigned and allowed for the skill and the ai module is on.

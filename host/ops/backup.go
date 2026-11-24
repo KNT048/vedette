@@ -286,7 +286,7 @@ func (o *Ops) commitBackup(archive string, rec backupRecord) error {
 // referencedBackups is the set of backup ids that something still needs: the pre_update backup a service's
 // current or previous version was entered with (container.rollback restores it for rollback.safe=false), and
 // the backup of a transition journal (the revert after a failed or interrupted start). Retention never drops
-// these (WP-31 M4). known is false when a versions file or a journal exists but cannot be read or
+// these. known is false when a versions file or a journal exists but cannot be read or
 // parsed: then the set is incomplete and the caller must not drop anything.
 func (o *Ops) referencedBackups() (ref map[string]bool, known bool) {
 	ref, known = map[string]bool{}, true

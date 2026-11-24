@@ -10,7 +10,7 @@ test.describe.configure({ mode: 'serial' })
 
 const body = (code: string, extra: Record<string, unknown> = {}) => ({
   org: 'E2E Company', admin: { name: ACCOUNTS.admin.name, email: ACCOUNTS.admin.email, password: password() },
-  lan: ['192.168.142.0/24'], commitment: false, bundle: 'smb', setup_code: code, accept_terms: true, ...extra,
+  lan: ['10.142.0.0/24'], commitment: false, bundle: 'smb', setup_code: code, accept_terms: true, ...extra,
 })
 
 test('the box starts with setup open and a wrong setup code is refused', async ({ request }) => {
@@ -91,10 +91,10 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await page.getByLabel('Range 1', { exact: true }).fill('abc')
   await next(page)
   await expect(page.getByText(/"abc" is not a valid range/)).toBeVisible()
-  await page.getByLabel('Range 1', { exact: true }).fill('192.168.142.0') // a bare address
+  await page.getByLabel('Range 1', { exact: true }).fill('10.142.0.0') // a bare address
   await next(page)
-  await expect(page.getByText(/"192\.168\.142\.0" has no prefix length/)).toBeVisible()
-  await page.getByLabel('Range 1', { exact: true }).fill('192.168.142.0/25')
+  await expect(page.getByText(/"10\.142\.0\.0" has no prefix length/)).toBeVisible()
+  await page.getByLabel('Range 1', { exact: true }).fill('10.142.0.0/25')
   await page.getByRole('button', { name: 'Add range' }).click()
   await page.getByLabel('Range 2', { exact: true }).fill('10.1.5.9/16')
   await page.getByLabel('Range 2', { exact: true }).blur()
@@ -129,7 +129,7 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   // step 3 -> back keeps data -> next
   await expect(page.getByRole('heading', { level: 2, name: 'Choose a module bundle' })).toBeVisible()
   await page.getByRole('button', { name: 'Back' }).click()
-  await expect(page.getByLabel('Range 1', { exact: true })).toHaveValue('192.168.142.0/25')
+  await expect(page.getByLabel('Range 1', { exact: true })).toHaveValue('10.142.0.0/25')
   await expect(page.getByLabel('Range 2', { exact: true })).toHaveValue('10.1.0.0/16')
   await next(page)
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
@@ -148,7 +148,7 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   // the scope reached the inventory module (the real one)
   const inv = await api<{ lan_ranges: string[]; active: { enabled: boolean } }>(page.request, 'GET', '/inventory/settings')
   expect(inv.status).toBe(200)
-  expect(inv.body.lan_ranges).toEqual(['192.168.142.0/25', '10.1.0.0/16'])
+  expect(inv.body.lan_ranges).toEqual(['10.142.0.0/25', '10.1.0.0/16'])
   expect(inv.body.active.enabled).toBe(true)
   noErrors(errors, /status of 4\d\d/)
 })

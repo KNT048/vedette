@@ -631,7 +631,7 @@ func (UnimplementedHandler) CoreGetCoreOidc(ctx context.Context) (r *CoreGetCore
 
 // CoreGetCorePrivacy implements core_get_core_privacy operation.
 //
-// The 14 data flows leaving the box and the verbatim anonymous-signal payload.
+// The data flows leaving the box and the verbatim anonymous-signal payload.
 //
 // GET /core/privacy
 func (UnimplementedHandler) CoreGetCorePrivacy(ctx context.Context) (r *CoreGetCorePrivacyOK, _ error) {

@@ -17,20 +17,20 @@ func busyBox() ([]ai.AssetRow, []ai.FindingRow) {
 		assets = append(assets, ai.AssetRow{ID: id, Name: name, IP: ip, Kind: kind, Vendor: vendor, Model: model, OS: os, Approved: true, Ports: ports, Software: sw,
 			FirstSeen: "2026-11-13T04:10:00Z", LastSeen: "2026-11-13T07:15:00Z", Origin: "discovered", SeenBy: "sensor"})
 	}
-	add("a-iphoneqv2kq7xg3ajx4hrnzl5o2m", "iPhone", "192.168.142.107", "iot", "Apple", "", "", nil, []string{"Apple iOS 27.2.1"})
-	add("a-fbaf5191cc174626a85b812bc3d7", "fbaf5191-cc17-4626-a85b-812bc3d7b83b", "192.168.142.112", "", "Apple", "Mac14,2", "", nil, nil)
-	add("a-android0iaek47kd7ql2xq3vbn5p", "android_i0iaek47", "192.168.142.120", "computer", "Xiaomi", "", "", nil, nil)
-	add("a-router1d2k3l4m5n6o7p8q9r0s1t", "Unknown 192.168.142.1", "192.168.142.1", "", "", "", "", nil, nil)
-	add("a-gkctzfflxjbuykut7vepwo2knm", "brw4cd577b12cf2", "192.168.142.30", "printer", "CHONGQING FUGUI ELECTRONICS", "", "", []string{"80/tcp http", "631/tcp ipp"}, nil)
+	add("a-iphoneqv2kq7xg3ajx4hrnzl5o2m", "iPhone", "10.142.0.107", "iot", "Apple", "", "", nil, []string{"Apple iOS 27.2.1"})
+	add("a-fbaf5191cc174626a85b812bc3d7", "fbaf5191-cc17-4626-a85b-812bc3d7b83b", "10.142.0.112", "", "Apple", "Mac14,2", "", nil, nil)
+	add("a-android0iaek47kd7ql2xq3vbn5p", "android_i0iaek47", "10.142.0.120", "computer", "Xiaomi", "", "", nil, nil)
+	add("a-router1d2k3l4m5n6o7p8q9r0s1t", "Unknown 10.142.0.1", "10.142.0.1", "", "", "", "", nil, nil)
+	add("a-gkctzfflxjbuykut7vepwo2knm", "brw4cd577b12cf2", "10.142.0.30", "printer", "CHONGQING FUGUI ELECTRONICS", "", "", []string{"80/tcp http", "631/tcp ipp"}, nil)
 	add("a-vft3ogd7ltrhtxbhrmdlbuduhu", "Juniper Networks EX4200-48T", "", "switch", "Juniper Networks", "EX4200-48T", "Junos 15.1R7.9", nil, []string{"Juniper Junos OS 15.1R7.9"})
-	add("a-2ka3ceq6ajcdc7wd6brjukgybm", "Fortinet", "192.168.142.252", "", "Fortinet", "", "", nil, nil)
-	add("a-forti251xk2l3m4n5o6p7q8r9s0", "Fortinet 192.168.142.251", "192.168.142.251", "", "Fortinet", "", "", nil, nil)
-	add("a-bynhcmc01k2l3m4n5o6p7q8r9s0", "byn-hcmc-01", "192.168.142.21", "computer", "Dell", "OptiPlex 7090", "Microsoft Windows 11 21H2", []string{"135/tcp msrpc", "445/tcp microsoft-ds", "3389/tcp ms-wbt-server"}, nil)
+	add("a-2ka3ceq6ajcdc7wd6brjukgybm", "Fortinet", "10.142.0.252", "", "Fortinet", "", "", nil, nil)
+	add("a-forti251xk2l3m4n5o6p7q8r9s0", "Fortinet 10.142.0.251", "10.142.0.251", "", "Fortinet", "", "", nil, nil)
+	add("a-bynhcmc01k2l3m4n5o6p7q8r9s0", "srv01-hcmc-01", "10.142.0.21", "computer", "Dell", "OptiPlex 7090", "Microsoft Windows 11 21H2", []string{"135/tcp msrpc", "445/tcp microsoft-ds", "3389/tcp ms-wbt-server"}, nil)
 	add("a-microsoftm2n3o4p5q6r7s8t9u0", "Microsoft", "", "", "Microsoft", "", "", nil, []string{"Microsoft Office"})
 	add("a-ciscoc1d2e3f4g5h6i7j8k9l0m1", "Cisco", "", "", "Cisco", "", "", nil, []string{"Cisco BroadWorks"})
-	add("a-grandstreamg2h3i4j5k6l7m8n9", "192.168.142.109", "192.168.142.109", "phone", "Grandstream Networks, Inc.", "GXP2170", "", []string{"80/tcp http", "5060/udp sip"}, nil)
+	add("a-grandstreamg2h3i4j5k6l7m8n9", "10.142.0.109", "10.142.0.109", "phone", "Grandstream Networks, Inc.", "GXP2170", "", []string{"80/tcp http", "5060/udp sip"}, nil)
 	for i := range 12 {
-		add(fmt.Sprintf("a-host%02dk2l3m4n5o6p7q8r9s0t1", i), fmt.Sprintf("192.168.142.%d", 40+i), fmt.Sprintf("192.168.142.%d", 40+i), "", []string{"HP", "Dell", "VMware", "Hikvision"}[i%4], "", "", nil, nil)
+		add(fmt.Sprintf("a-host%02dk2l3m4n5o6p7q8r9s0t1", i), fmt.Sprintf("10.142.0.%d", 40+i), fmt.Sprintf("10.142.0.%d", 40+i), "", []string{"HP", "Dell", "VMware", "Hikvision"}[i%4], "", "", nil, nil)
 	}
 	var findings []ai.FindingRow
 	addF := func(n int, a ai.AssetRow, cve func(int) string, sev func(int) string, basis string) {

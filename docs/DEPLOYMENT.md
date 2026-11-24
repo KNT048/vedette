@@ -560,7 +560,7 @@ There is no `vedette-host` in compose: dev/CI use a **fake host** (`vedette-host
 |---|---|---|---|
 | 443/tcp | feed sources | pull feeds | flow 1 |
 | 443/tcp | GitHub Releases (`core` downloads the index/manifest) + `ghcr.io` (`vedette-host` pulls images by digest) | signed releases, images | flow 6 (`ghcr.io` and its blob host, `pkg-containers.githubusercontent.com`, were added with the image-pull code) |
-| 443/tcp | the AI provider, lookup services that need a key, Slack (Socket Mode), Telegram (long polling), Zalo, CT logs + the IP probe points | as configured | flows 2–5, 8, 9 |
+| 443/tcp | the AI provider, Slack (Socket Mode), Telegram (long polling), Zalo, CT logs + the IP probe points | as configured | flows 2, 3, 5, 8, 9 |
 | 80,443/tcp | apt mirrors (`archive.ubuntu.com`, `security.ubuntu.com`, `deb.debian.org`, `security.debian.org` or an internal mirror) | OS updates | flow 6 |
 | 80,443/tcp | `deb.debian.org` **from inside the `scan` build container** (even on an Ubuntu box; the host's internal apt mirror does not apply) | install nmap into the `scan` image at `container.pull scan` | flow 6 |
 | 53 UDP/TCP | DNS | resolution | — |

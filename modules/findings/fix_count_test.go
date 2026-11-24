@@ -26,7 +26,7 @@ func fixDevices(t *testing.T) []fixDevice {
 	} {
 		out = append(out, fixDevice{Asset{ID: "a" + string(rune('0'+i)), Name: "dev", Software: []Software{sw}}, golden})
 	}
-	out = append(out, fixDevice{Asset{ID: "ubuntu", Name: "byn", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}, golden},
+	out = append(out, fixDevice{Asset{ID: "ubuntu", Name: "srv01", OS: "Ubuntu 26.04.1 LTS", AgentOS: "Ubuntu 26.04.1 LTS", Software: ubuntuServer()}, golden},
 		fixDevice{winlab01(), win}, fixDevice{esxiHost("8.0", "22380479"), []Vuln{esxi22225(t)}})
 	return out
 }

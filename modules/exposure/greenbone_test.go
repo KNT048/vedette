@@ -1209,7 +1209,7 @@ func TestContract_INV25_SafeConfigFailsClosed(t *testing.T) {
 	}
 }
 
-// M4: a task an earlier scan left running is stopped and deleted before a new one starts (its target and port list too); a task or
+// A task an earlier scan left running is stopped and deleted before a new one starts (its target and port list too); a task or
 // port list of another GMP user is not touched;
 // one that cannot be deleted while it stops blocks the new task; a failed cleanup is logged, audited and said on the page.
 func TestContract_INV25_LeftoversAndCleanup(t *testing.T) {
@@ -1252,7 +1252,7 @@ func TestContract_INV25_LeftoversAndCleanup(t *testing.T) {
 	}
 }
 
-// M5: a stop during the Greenbone step keeps the snapshot of the other steps, says Greenbone was stopped, stops gvmd's task, and
+// A stop during the Greenbone step keeps the snapshot of the other steps, says Greenbone was stopped, stops gvmd's task, and
 // writes one exposure.scan row (the snapshot) and one exposure.greenbone_scan row (stopped).
 func TestContract_INV25_StopKeepsTheEarlierResults(t *testing.T) {
 	t.Parallel()
@@ -1294,7 +1294,7 @@ func TestContract_INV25_StopKeepsTheEarlierResults(t *testing.T) {
 	}
 }
 
-// M3: a deadline is slow, not unreadable; a slow gvmd soon after Up reads as loading, later as an error that says it was slow.
+// A deadline is slow, not unreadable; a slow gvmd soon after Up reads as loading, later as an error that says it was slow.
 func TestContract_INV25_SlowIsNotUnreadable(t *testing.T) {
 	t.Parallel()
 	if _, err := decodeGMP(deadlineReader{}, "get_feeds", nil); !errors.Is(err, errGMPSlow) || errors.Is(err, ErrGMPBad) {
@@ -1323,7 +1323,7 @@ type deadlineReader struct{}
 
 func (deadlineReader) Read([]byte) (int, error) { return 0, os.ErrDeadlineExceeded }
 
-// L3: a read or a scan that saw "on" just before an administrator turned Greenbone off never starts it again.
+// A read or a scan that saw "on" just before an administrator turned Greenbone off never starts it again.
 func TestContract_INV25_OffIsNotUndoneByAPoll(t *testing.T) {
 	t.Parallel()
 	e, h := gbEnv(t)
@@ -1340,7 +1340,7 @@ func TestContract_INV25_OffIsNotUndoneByAPoll(t *testing.T) {
 	})
 }
 
-// L1: the note about results that are not kept appears only when more than 200 are kept.
+// The note about results that are not kept appears only when more than 200 are kept.
 func TestContract_INV25_TruncationNote(t *testing.T) {
 	t.Parallel()
 	rows := make([]GreenboneRow, maxGreenboneRows+5)
@@ -1352,7 +1352,7 @@ func TestContract_INV25_TruncationNote(t *testing.T) {
 	}
 }
 
-// L5: flow 16 follows the setting.
+// Flow 16 follows the setting.
 func TestContract_INV25_GreenboneEnabled(t *testing.T) {
 	t.Parallel()
 	e, _ := gbEnv(t)

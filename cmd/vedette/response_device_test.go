@@ -19,7 +19,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// WP-13b slice 13b-6 (response INV-22, FORBID-1) in the real wiring: the real store, the real writer and the conntest fakes
+// Response INV-22, FORBID-1 in the real wiring: the real store, the real writer and the conntest fakes
 // (loopback only, through conntest; never a real host). An approved item reaches its device over its connection: the check before, the
 // run, the read-back; and the undo with its own read-back.
 

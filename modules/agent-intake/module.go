@@ -1,4 +1,4 @@
-// Package agentintake is the agent-intake module (S-INV-4, WP-26): Vedette as the TLS server of osquery. It owns the enrolment
+// Package agentintake is the agent-intake module: Vedette as the TLS server of osquery. It owns the enrolment
 // tokens and the enrolled nodes, parses what osquery sends (every byte of it is untrusted, SYS-6) and hands devices and software to the
 // inventory through core/observe. The admin routes, the install scripts and Wazuh are later slices.
 package agentintake

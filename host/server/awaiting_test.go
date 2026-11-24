@@ -19,8 +19,7 @@ import (
 	"github.com/knt048/vedette/host/server/servertest"
 )
 
-// Tests of the framework support for runs that wait for confirmation (WP-07b part 3,
-// slice 3-1). The commands here exist only in this file: production registers none of them.
+// Tests of the framework support for runs that wait for confirmation. The commands here exist only in this file: production registers none of them.
 
 type runIDArgs struct {
 	RunID string `json:"run_id"`

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Wiring of the OS endpoints (WP-07b part 2): an install without vedette-host answers every OS read with
+// Wiring of the OS endpoints: an install without vedette-host answers every OS read with
 // 409 not_appliance, whether no socket is configured or the configured socket file is absent. The behaviour of
 // the endpoints against a host is tested in modules/core (os_test.go).
 func TestWiringOSEndpointsWithoutAHostAreNotAppliance(t *testing.T) {

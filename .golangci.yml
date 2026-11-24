@@ -47,16 +47,16 @@ linters:
         - pattern: ^\(\*github\.com/knt048/vedette/modules/ai\.Service\)\.SetNewsNetwork$
           msg: "SetNewsNetwork is a test seam: call it from a _test.go file only"
         - pattern: ^http\.DefaultClient$
-          msg: "use an http.Client with timeouts (ENGINEERING §2.4)"
+          msg: "use an http.Client with timeouts"
         - pattern: ^http\.(Get|Head|Post|PostForm)$
-          msg: "use an http.Client with timeouts and a context (ENGINEERING §2.4)"
+          msg: "use an http.Client with timeouts and a context"
         - pattern: ^time\.Sleep$
-          msg: "wait on a timer with a context; in tests use testing/synctest (ENGINEERING §2.4, §2.5)"
+          msg: "wait on a timer with a context; in tests use testing/synctest"
     nolintlint:
       require-explanation: true
       require-specific: true
     sloglint:
-      no-global: all # pass a logger; no slog.Info(...) on the global logger (ENGINEERING §2.3)
+      no-global: all # pass a logger; no slog.Info(...) on the global logger
       static-msg: true
       key-naming-case: snake
       context: scope

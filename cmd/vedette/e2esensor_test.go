@@ -1,6 +1,6 @@
 package main
 
-// The sensors of the real-backend end-to-end run (WP-30 slice 7): the box opens its sensor link (-sensor-listen on a loopback port,
+// The sensors of the real-backend end-to-end run: the box opens its sensor link (-sensor-listen on a loopback port,
 // credentials under <dir>/creds) and the specs start the REAL `vedette-sensor` binary as a child through the control endpoint:
 //
 //	POST   /sensors/passive {"replay":"lan-discovery"}  -> 204; `vedette-sensor passive -replay <recording>` (the recordings of

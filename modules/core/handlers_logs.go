@@ -152,7 +152,7 @@ func (h *APIHandlers) CoreGetCoreLogsExport(ctx context.Context, params oas.Core
 		hd := x.W.Header()
 		hd.Set("Content-Disposition", fmt.Sprintf("attachment; filename=vedette-logs-%s.%s", orgtime.ISODay(h.now(), loc), format))
 		hd.Set("Cache-Control", "no-store")
-		if format == logexport.CSV { // the generated file encoder says octet-stream (API_CONVENTIONS §7)
+		if format == logexport.CSV { // the generated file encoder says octet-stream (API_CONVENTIONS §11)
 			x.SetContentType("text/csv; charset=utf-8")
 		} else {
 			x.SetContentType("application/json")

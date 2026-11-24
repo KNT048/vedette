@@ -50,5 +50,5 @@ The "Container" column follows the container list in `ARCHITECTURE.md` §2; the 
 
 Notes:
 - `feeds` pulls one feed that needs the customer's own key, VulnCheck KEV, directly from the source; it is off until a key is saved (`DATA_PIPELINE.md` §2).
-- `sensor-*`, `honeypot` and `logs` can run in **sensor** mode separate from the server (`ARCHITECTURE.md` §6).
+- `sensor-passive` and `sensor-active` run in their own containers (`sensor`, `scan`) and talk to `core` over the sensor protocol; moving a sensor to another machine is not offered yet (`ARCHITECTURE.md` §6).
 - The "v1 group" column follows `web/src/lib/v1.ts` and `docs/ROADMAP.md`: Preview modules are off by default and labelled Preview; After v1 modules are not offered in the v1 interface.

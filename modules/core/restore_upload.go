@@ -558,7 +558,7 @@ func (h *OSHandlers) stageChecked(ctx context.Context, body io.Reader, passwordH
 func (h *OSHandlers) recordUpload(ctx context.Context, c caller, admin bool, up upload) error {
 	id := up.ID
 	time.AfterFunc(uploadMaxAge, func() { h.snaps.dropUpload(id) }) // not kept past the hour step 2 accepts it for
-	if err := h.record(ctx, c, admin, "data.restore_upload", "backup", "backup of "+up.meta.CreatedAt.Format(time.RFC3339)); err != nil {
+	if err := h.record(ctx, c, admin, "data.restore_upload", "backup", "backup of "+h.auditStamp(ctx, up.meta.CreatedAt)); err != nil {
 		up.remove()
 		return err
 	}
@@ -708,7 +708,7 @@ func (h *OSHandlers) importUpload(ctx context.Context, c caller, admin bool, up 
 	}
 	b := api.Backup{CreatedAt: up.meta.CreatedAt}
 	keep := false
-	err := h.act(ctx, c, admin, "data.restore_import", "backup", "backup of "+up.meta.CreatedAt.Format(time.RFC3339)+", "+k.words+extra, func(id, actor string) error {
+	err := h.act(ctx, c, admin, "data.restore_import", "backup", "backup of "+h.auditStamp(ctx, up.meta.CreatedAt)+", "+k.words+extra, func(id, actor string) error {
 		// labelRE of the host: letters, digits, space, : and - (no comma). Before first-run setup the restored organization's
 		// zone is not known yet (a fresh box has only the default), so the time is UTC and says so.
 		label := "Uploaded backup of " + orgtime.ISODay(up.meta.CreatedAt, time.UTC) + " " + orgtime.ClockZone(up.meta.CreatedAt, time.UTC)

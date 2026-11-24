@@ -402,6 +402,39 @@ func (h *OSHandlers) followRestore(run api.Run) {
 	}
 }
 
+// backupKindWords names a backup kind as the Data page does.
+var backupKindWords = map[string]string{
+	"manual": "Manual", "pre_update": "Before Vedette update", "pre_os_update": "Before operating system update", "pre_restore": "Before restore",
+}
+
+// restoreDetail is the detail of data.restore_done: the end, and the backup in words (its time in the organization's zone and
+// its kind, not only the id in the target). A done restore put back the audit log of that backup's moment too, so the row
+// says where the lines written after it are: the request's own data.restore row is among them.
+func (h *OSHandlers) restoreDetail(ctx context.Context, rec *restoreRec, kind string, rerr *api.RunError) string {
+	detail := rec.Status
+	if rerr != nil {
+		detail += " " + rerr.Code
+	}
+	if rec.BackupCreatedAt.IsZero() {
+		return detail
+	}
+	loc, err := h.location(ctx)
+	if err != nil {
+		loc = time.UTC
+	}
+	what := "the backup from " + orgtime.Stamp(rec.BackupCreatedAt, loc)
+	if w := backupKindWords[kind]; w != "" {
+		what += " (" + w + ")"
+	}
+	if rec.Status != "done" {
+		return detail + ": " + what
+	}
+	if rec.PreRestore == "" {
+		return detail + ": " + what + " is back; audit lines written after it are no longer in this log"
+	}
+	return detail + ": " + what + " is back; audit lines written after it are only in the Before restore copy"
+}
+
 // settleRestore records the end of a restore run once per database: the copy in core_setting and the audit row
 // data.restore_done in one transaction, then removes the snapshot that backed it. A database that does not know
 // that id (the restore swapped it) removes every snapshot written before this process started that no resumed run
@@ -426,10 +459,14 @@ func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
 	if rec.BackupID == "" {
 		rec.BackupID = res.RestoredBackupID
 	}
-	if rec.BackupCreatedAt.IsZero() && rec.BackupID != "" {
+	kind := ""
+	if rec.BackupID != "" {
 		if bl, err := h.host.StateBackups(ctx); err == nil {
 			if i := slices.IndexFunc(bl.Backups, func(b api.Backup) bool { return b.BackupID == rec.BackupID }); i >= 0 {
-				rec.BackupCreatedAt = bl.Backups[i].CreatedAt
+				kind = bl.Backups[i].Kind
+				if rec.BackupCreatedAt.IsZero() {
+					rec.BackupCreatedAt = bl.Backups[i].CreatedAt
+				}
 			}
 		}
 	}
@@ -437,10 +474,7 @@ func (h *OSHandlers) settleRestore(ctx context.Context, run api.Run) error {
 	if rec.Status != "done" {
 		rec.Error = restoreReason(ctx, h, run.Error)
 	}
-	detail := rec.Status
-	if run.Error != nil {
-		detail += " " + run.Error.Code
-	}
+	detail := h.restoreDetail(ctx, rec, kind, run.Error)
 	err = h.db.Write(ctx, func(tx *sql.Tx) error {
 		if err := h.putSetting(ctx, tx, keyRestore, rec, "system"); err != nil {
 			return err

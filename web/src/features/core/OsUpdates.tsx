@@ -31,12 +31,6 @@ function support(os: NonNullable<OsState['os']>, now = Date.now()): 'ok' | 'soon
   return std - now < 365 * 864e5 ? 'soon' : 'ok'
 }
 
-function WindowSummary({ w }: { w: MaintenanceWindow }) {
-  const { t } = useTranslation('core')
-  if (w.mode === 'always') return <>{t('updates.os.window.anytime')}</>
-  return <>{w.days.map((d) => t(`updates.os.dayShort.${d}`)).join(', ')}, {w.from} {t('updates.os.window.to')} {w.to}</>
-}
-
 function WindowForm({ s, disabled, title }: { s: OsState; disabled: boolean; title?: string }) {
   const { t } = useTranslation('core')
   const m = useOsMutations()
@@ -216,8 +210,7 @@ function Body({ s }: { s: CheckedOs }) {
               <span className="max-w-xl text-meta text-muted">{s.auto_security ? t('updates.os.autoHintOn') : t('updates.os.autoHintOff')}</span>
               {s.auto_security ? <InfoTip topic={t('updates.os.auto')}>{t('updates.os.autoInfoOn')}</InfoTip> : null}
             </span>
-            <span className="text-meta text-muted">{t('updates.os.windowLabel')}</span>
-            <span className="text-sm"><WindowSummary w={s.window} /></span>
+            {/* The maintenance window is not repeated here: the form below shows the saved one. */}
           </Card>
 
           <WindowForm key={JSON.stringify(s.window)} s={s} disabled={admin.disabled} title={admin.title} />

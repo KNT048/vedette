@@ -3,7 +3,7 @@ import { collectErrors, expectAccessible } from '../helpers'
 import { begin, noHScroll, stepper, THEMES } from './ui-check-shared'
 
 // "As the owner of a company I want to see exactly what leaves the box, the anonymous signal included."
-// Settings -> Privacy must match PRIVACY.md: 16 flows, payload verbatim, the word IDS nowhere, single sign-on (OIDC) listed.
+// Settings -> Privacy must match PRIVACY.md: 15 flows (flow 4 is retired), payload verbatim, the word IDS nowhere, single sign-on (OIDC) listed.
 const FLOWS = [
   /feeds/i, /anonymous signal/i, /AI/, /notifications?/i, /update/i, /SIEM/, /CVE/, /external (exposure|surface)/i, /time sync|NTP/i, /single sign-on|OIDC/i, /connections you add/i, /MCP server/, /Wazuh pull/, /Outside view/, /OpenVAS feed/,
 ]

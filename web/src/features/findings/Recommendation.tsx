@@ -20,7 +20,8 @@ import type { AiAnswer, AiResult, ApplyItem, CodeStep, FindingDetail, FirewallGu
 import { AiAnswerKey } from './contract'
 
 const ANSWER_ORDER = AiAnswerKey.options
-import { isOpen } from './basis'
+import { hasIp, isOpen } from './basis'
+import { useWalls, WallPicker } from './firewall'
 
 function SideEffect({ text }: { text: string }) {
   const { t } = useTranslation('findings')
@@ -107,11 +108,28 @@ function H3({ children, id }: { children: ReactNode; id: string }) {
   return <h3 id={id} className="text-sm font-semibold">{children}</h3>
 }
 
+/** A device with no address in Vedette leaves <IP> (and <HOST> without a name) in the commands: say what to put there and where to add it. */
+function NoAddress({ finding, text }: { finding: FindingDetail; text: string }) {
+  const { t } = useTranslation('findings')
+  const a = finding.asset
+  if (!a || hasIp(a)) return null
+  const ip = text.includes('<IP>')
+  const host = text.includes('<HOST>')
+  if (!ip && !host) return null
+  return (
+    <p className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-meta" data-testid="no-address">
+      {t(ip && host ? 'rec.noAddressBoth' : ip ? 'rec.noAddressIp' : 'rec.noAddressHost', { device: a.name })}{' '}
+      <Link to={`/devices/${encodeURIComponent(a.id)}`} className="text-accent underline underline-offset-4">{t('rec.addAddress')}</Link>
+    </p>
+  )
+}
+
 function Guide({ finding, g }: { finding: FindingDetail; g: FirewallGuide }) {
   const { t } = useTranslation('findings')
   return (
     <div className="grid gap-4">
       <p className="text-sm">{g.intro}</p>
+      <NoAddress finding={finding} text={JSON.stringify(g)} />
       {g.plain ? <ol className="grid list-decimal gap-1 pl-5 text-sm">{g.plain.map((p) => <li key={p}>{p}</li>)}</ol> : null}
       <Steps steps={g.steps} />
       {g.alternative ? (
@@ -128,22 +146,45 @@ function Guide({ finding, g }: { finding: FindingDetail; g: FirewallGuide }) {
   )
 }
 
+/** A pack writes a network rule when one of its firewall guides has a command to paste; a pack for a local flaw writes none. */
+const hasNetworkRule = (guides: FirewallGuide[]) => guides.some((g) => g.steps.length > 0 || (g.alternative?.steps.length ?? 0) > 0)
+
+/** The pack's firewall step: the tab of the firewall in front of the device (the one rule of firewall.tsx), the others a click away. */
 function Firewall({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const guides = finding.pack!.firewall
-  const first = guides.find((g) => g.detected)?.vendor ?? 'generic'
-  const [vendor, setVendor] = useState<FirewallVendor>(first)
+  const w = useWalls(finding)
+  const [picked, setPicked] = useState<FirewallVendor | null>(null) // null: follow the firewall chosen above
+  if (!hasNetworkRule(guides)) {
+    // a local flaw: no rule helps, whichever firewall it is; the pack says why and what helps instead
+    const g = guides[0]
+    return (
+      <div className="grid gap-3" data-testid="no-firewall-rule">
+        <p className="text-sm font-medium">{t('rec.fwNoRule')}</p>
+        {g ? <p className="text-sm">{g.intro}</p> : null}
+        {g?.plain ? <ol className="grid list-decimal gap-1 pl-5 text-sm">{g.plain.map((p) => <li key={p}>{p}</li>)}</ol> : null}
+      </div>
+    )
+  }
+  const has = (v: FirewallVendor | null | undefined): v is FirewallVendor => !!v && guides.some((x) => x.vendor === v)
+  const yours: FirewallVendor | null = w.chosen ? (has(w.chosen.vendor) ? w.chosen.vendor : null) : null
+  const fallback: FirewallVendor = has('generic') ? 'generic' : guides[0]!.vendor
+  const vendor = picked ?? yours ?? fallback
   const g = guides.find((x) => x.vendor === vendor) ?? guides[0]
-  if (!g) return null
-  const any = guides.some((x) => x.detected)
+  if (!g || !w.settled) return null // the tab follows the firewall: never show one tab and switch to another a moment later
+  const note = !w.ready ? null : !w.chosen ? null
+    : yours ? t('fw.tabFor', { name: w.chosen.name, tab: guides.find((x) => x.vendor === yours)!.label })
+    : t('fw.tabUnknown', { name: w.chosen.name })
   return (
     <div className="grid gap-3">
-      <div className="flex items-center gap-1 text-meta text-muted">
-        <p>{any ? t('rec.fwDetected') : t('rec.fwNone')}</p>
-        {any ? null : <InfoTip topic={t('rec.fwVendor')}>{t('rec.fwNoneInfo')}</InfoTip>}
+      <div className="flex items-center gap-1">
+        <p className="text-meta text-muted">{t('rec.firewallHint')}</p>
+        <InfoTip topic={t('rec.firewallTitle')}>{t('rec.firewallHintInfo')}</InfoTip>
       </div>
-      <Segmented<FirewallVendor> label={t('rec.fwVendor')} value={vendor} onChange={setVendor} className="flex-wrap"
-        options={guides.map((x) => ({ value: x.vendor, label: x.detected ? t('rec.fwDeclared', { name: x.label }) : x.label }))} />
+      <WallPicker f={finding} w={w} />
+      {note ? <p className="text-meta text-muted">{note}</p> : null}
+      <Segmented<FirewallVendor> label={t('rec.fwVendor')} value={vendor} onChange={setPicked} className="flex-wrap"
+        options={guides.map((x) => ({ value: x.vendor, label: x.vendor === yours && w.chosen ? t('rec.fwYours', { name: x.label }) : x.label }))} />
       <Guide key={g.vendor} finding={finding} g={g} />
     </div>
   )
@@ -173,14 +214,17 @@ export function PackView({ finding, fix }: { finding: FindingDetail; fix?: React
   const p = finding.pack!
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Chip tone="ok">{t('rec.confirmedChip')}</Chip>
-        <span className="inline-flex items-center gap-1 text-sm">{t('rec.confirmedBy', { by: p.confirmed_by, date: fmtDate(p.confirmed_at) })}<InfoTip topic={t('rec.confirmedChip')}>{t('rec.confirmedByInfo')}</InfoTip></span>
-      </div>
-      <AiBlock origin="project" model={p.drafted_with} citations={p.sources}>
+      {/* one status: who confirmed it and when, and that it was drafted with AI help (the AI label, inside the AI block's border) */}
+      <AiBlock origin="project" citations={p.sources} status={
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Chip tone="ok">{t('rec.confirmedChip')}</Chip>
+          <span className="inline-flex items-center gap-1 text-meta text-ink">{t('rec.confirmedBy', { date: fmtDate(p.confirmed_at) })}<InfoTip topic={t('rec.confirmedChip')}>{t('rec.confirmedByInfo')}</InfoTip></span>
+        </span>
+      }>
         <section aria-labelledby="rec-patch" className="grid gap-2">
           <H3 id="rec-patch">{t('rec.patchTitle')}</H3>
           {fix ?? <FixedInNote finding={finding} />}
+          <NoAddress finding={finding} text={JSON.stringify(p.patch)} />
           <p>{p.patch.summary}</p>
           <p className="text-meta"><span className="font-medium">{t('rec.fixedVersion')}</span> {p.patch.fixed}</p>
           <ol className="grid list-decimal gap-1 pl-5">{p.patch.steps.map((s) => <li key={s}>{s}</li>)}</ol>
@@ -196,11 +240,7 @@ export function PackView({ finding, fix }: { finding: FindingDetail; fix?: React
           <ApplyButton finding={finding} item="workaround" />
         </section>
         <section aria-labelledby="rec-firewall" className="grid gap-2 border-t border-rule pt-3">
-          <div className="flex items-center gap-1">
-            <H3 id="rec-firewall">{t('rec.firewallTitle')}</H3>
-            <InfoTip topic={t('rec.firewallTitle')}>{t('rec.firewallHintInfo')}</InfoTip>
-          </div>
-          <p className="text-meta text-muted">{t('rec.firewallHint')}</p>
+          <H3 id="rec-firewall">{t('rec.firewallTitle')}</H3>
           <Firewall finding={finding} />
         </section>
         <section aria-labelledby="rec-checklist" className="grid gap-2 border-t border-rule pt-3">

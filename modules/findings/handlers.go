@@ -172,10 +172,34 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 		aa.Display = clean(row.Display)
 		d.Asset = &aa
 	}
+	if rec.Status.Open() && v == nil && d.Kev == nil && matched {
+		v = h.catalogueEntry(ctx, rec.CVE)
+		if v != nil {
+			// A finding on no exploited list: its fix is read on its own line, as the match pass stored it (FixOf), so the page names the
+			// same release, the distribution's fixed package and a kernel's restart as every list, and the distribution as its source.
+			d.FixedIn = FixedInOn(a, row, *v)
+		}
+		return d, nil
+	}
 	if rec.Status.Open() && v != nil {
 		d.FixedIn = FixedInFor(a, *v) // the release that fixes it on this device, from NVD's ranges; closed: nothing to upgrade
 	}
 	return d, nil
+}
+
+// catalogueEntry is the catalogue's entry of one CVE on no exploited list (its ranges and the distributions' word on it), as the match
+// pass compares it; nil when the feeds have none or cannot be read (the page then shows what it always had).
+func (h *FindingHandlers) catalogueEntry(ctx context.Context, cve string) *Vuln {
+	vulns, err := h.feed.MatchSet(ctx, MatchScope{Pinned: []string{cve}})
+	if err != nil {
+		return nil
+	}
+	for i := range vulns {
+		if vulns[i].CVE == cve {
+			return &vulns[i]
+		}
+	}
+	return nil
 }
 
 // suspectedWhy is WhySuspected with the facts of the box: whether a check exists comes from the KEV entry (known only with it), how the

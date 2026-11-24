@@ -59,7 +59,8 @@ describe('findings: f-1 has a confirmed Vedette recommendation (S-MIT-1, S-SCAN-
     renderApp('/findings/f-1')
     expect(await screen.findByRole('heading', { level: 1, name: /NAS-PHOTOS has a confirmed vulnerability \(CVE-2022-27593\)/ })).toBeInTheDocument()
     expect(screen.getByText('Confirmed by Vedette maintainers')).toBeInTheDocument()
-    expect(screen.getByText(/Confirmed by a Vedette maintainer on/)).toBeInTheDocument()
+    expect(screen.getByText(/^on .+, drafted with AI help\.$/)).toBeInTheDocument()
+    expect(screen.queryByText('AI-generated, needs human review')).not.toBeInTheDocument() // one status: a maintainer reviewed it
     expect(screen.getAllByText(/drafted with AI/i).length).toBeGreaterThan(0)
     expect(screen.queryByText('No confirmed recommendation yet')).not.toBeInTheDocument()
     expect(screen.queryByText('Your AI')).not.toBeInTheDocument()
@@ -81,7 +82,7 @@ describe('findings: f-1 has a confirmed Vedette recommendation (S-MIT-1, S-SCAN-
   it('FortiGate is preselected; one box per step, using the real IP of the NAS, with side effects and a check', async () => {
     renderApp('/findings/f-1')
     const fw = (await screen.findByRole('heading', { name: '3. Firewall configuration to cut off access' })).closest('section')!
-    expect(within(fw).getByRole('button', { name: 'FortiGate (FortiOS) (declared)' })).toHaveAttribute('aria-pressed', 'true')
+    expect(await within(fw).findByRole('button', { name: 'FortiGate (FortiOS) (your firewall)' })).toHaveAttribute('aria-pressed', 'true')
     const codes = [...fw.querySelectorAll('pre code')].map((c) => c.textContent)
     expect(codes).toContain(FORTI)
     expect(codes).toContain('show firewall policy | grep -f "<VIP-NAME>"')
@@ -97,7 +98,7 @@ describe('findings: f-1 has a confirmed Vedette recommendation (S-MIT-1, S-SCAN-
   it('switching to MikroTik: correct command syntax, an explanation of the WAN list', async () => {
     renderApp('/findings/f-1')
     const fw = (await screen.findByRole('heading', { name: '3. Firewall configuration to cut off access' })).closest('section')!
-    await userEvent.click(within(fw).getByRole('button', { name: 'MikroTik (RouterOS) (declared)' }))
+    await userEvent.click(await within(fw).findByRole('button', { name: 'MikroTik (RouterOS)' }))
     const codes = [...fw.querySelectorAll('pre code')].map((c) => c.textContent)
     expect(codes).toContain('/ip firewall nat print where to-addresses=192.168.10.21')
     expect(codes).toContain(MIKROTIK_RULE)
@@ -123,6 +124,7 @@ describe('findings: f-1 has a confirmed Vedette recommendation (S-MIT-1, S-SCAN-
   it('every control named "Applied" is the action; the firewall guide\'s logs with "Logged. Rescan to confirm."', async () => {
     renderApp('/findings/f-1')
     await screen.findByRole('heading', { name: 'Evidence' })
+    await screen.findByRole('button', { name: 'FortiGate (FortiOS) (your firewall)' }) // the firewall step shows once the firewalls are read
     const all = await screen.findAllByRole('button', { name: /applied/i })
     expect(all.map((b) => b.textContent)).toEqual(['Applied', 'Applied', 'Applied'])
     await userEvent.click(all.at(-1)!)
@@ -329,7 +331,8 @@ describe('findings: f-2, f-3 have no confirmed recommendation yet', () => {
     expect(within(block).getByText(/ransomware groups have used it/)).toBeInTheDocument()
     expect(aiRunsStore.get()[0]!.skill).toBe('explain-finding')
     // the project's recommendation stays separate, not mixed into the customer's AI block
-    expect(screen.getAllByText('Drafted by Vedette with AI')).toHaveLength(1)
+    expect(within(block).queryByText('Confirmed by Vedette maintainers')).toBeNull()
+    expect(screen.getAllByText('Confirmed by Vedette maintainers')).toHaveLength(1)
   })
 })
 
@@ -377,6 +380,7 @@ describe('findings: status changes and permissions', () => {
   it('a view-only role can read but not write', async () => {
     renderApp('/findings/f-1', { role: 'viewer' })
     expect(await screen.findByRole('button', { name: 'Mark as handled' })).toBeDisabled()
+    await screen.findByRole('button', { name: 'FortiGate (FortiOS) (your firewall)' }) // the firewall step shows once the firewalls are read
     const applied = screen.getAllByRole('button', { name: /applied/i })
     expect(applied).toHaveLength(3)
     for (const b of applied) {

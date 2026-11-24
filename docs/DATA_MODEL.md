@@ -370,6 +370,12 @@ Migrations run with [`goose`](https://github.com/pressly/goose), embedded in the
 8. **Built-in data** (catalogue rows, built-in hook states, default settings) is loaded by the migration with
    `INSERT … ON CONFLICT DO NOTHING`, not by start-up code.
 9. **Hash-chained tables:** a migration never edits an existing row. A change of the canonical form is a new contract.
+10. **Added columns are plain.** `ALTER TABLE … ADD COLUMN` gives a type, `NULL` or a `DEFAULT`, never `CHECK` or `REFERENCES`:
+    the previous release keeps writing that table after a rollback, a constraint on the new column can refuse those writes, so
+    the release builder must declare `rollback.safe=false` and a rollback restores the database from the copy taken before the
+    update. Validate the column's values in Go where the module writes it, or put the constrained data in a new table (a new
+    table may carry any constraint). `storetest.AssertAddedColumnsUnconstrained` (run by `AssertMigrationsUsePrefix` in every
+    module's tests) refuses a new migration that breaks this; files of published releases stay as they are.
 
 **Schema epoch and the baseline before the first public release.** The history restarted once: epoch 2
 (`core/store/SCHEMA_EPOCH`) begins with one file `0001_<module>.sql` per module that creates the module's whole schema. Until the

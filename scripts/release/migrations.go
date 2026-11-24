@@ -643,7 +643,7 @@ func classifyStmt(s string, block bool, st *sqlState) string {
 	case alterAddRE.MatchString(s):
 		// A column with a foreign key or a CHECK can make the older version's own writes fail; fail closed on either word.
 		if referencesRE.MatchString(s) || checkRE.MatchString(s) {
-			return fmt.Sprintf("an added column with REFERENCES or CHECK can make writes of the older version fail (%q)", head)
+			return fmt.Sprintf("an added column with REFERENCES or CHECK can make writes of the older version fail; add it plain and validate in Go (%q)", head)
 		}
 		return ""
 	case insertRE.MatchString(s):

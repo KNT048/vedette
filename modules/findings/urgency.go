@@ -166,7 +166,7 @@ func Tell(f Finding, r Rating, now time.Time, loads Loads) (Telling, string) {
 
 // Urgency is the one function that rates a finding: the most urgent layer whose rule holds.
 //   - 1 under attack here: an intrusion alert in the last AttackWindow named the CVE, aimed at this device, or at any address while
-//     the device is affected, and the flaw can be exploited over the network (not AV:L or AV:P: needsLocalAccess).
+//     the device is affected, and the flaw can be exploited over the network (not AV:L or AV:P: NeedsLocalAccess).
 //   - 2 exploited in the wild: a qualifying signal of kind exploited (an exploited list's entry is one).
 //   - 3 public exploit available: a qualifying signal of kind public_exploit.
 //   - 4 critical on an edge device: CVSS of 9 or more, attack over the network, no privileges, SSVC automatable not "no", on a product
@@ -176,7 +176,7 @@ func Tell(f Finding, r Rating, now time.Time, loads Loads) (Telling, string) {
 // attacks may hold other CVEs' attacks: only c's count. now bounds the attack window.
 func Urgency(cve string, c CVEFacts, t Target, attacks []Attack, now time.Time) Rating {
 	var rs []Reason
-	wire := !needsLocalAccess(c.CVSS)
+	wire := !NeedsLocalAccess(c.CVSS)
 	for _, a := range attacks {
 		if !wire || a.CVE != cve || now.Sub(a.LastSeen) > AttackWindow || a.LastSeen.After(now) {
 			continue
@@ -589,10 +589,10 @@ func AttacksByCVE(as []Attack) map[string][]Attack {
 	return out
 }
 
-// needsLocalAccess says whether the flaw can only be exploited with local or physical access (AV:L or AV:P in CVSS 2.0, 3.x and 4.0).
+// NeedsLocalAccess says whether the flaw can only be exploited with local or physical access (AV:L or AV:P in CVSS 2.0, 3.x and 4.0).
 // An intrusion alert is traffic seen on the network: it may carry such an exploit (a file, a download) but cannot be its exploitation,
 // so it never makes the finding under attack here. A missing score is not local.
-func needsLocalAccess(c *CVSS) bool {
+func NeedsLocalAccess(c *CVSS) bool {
 	if c == nil {
 		return false
 	}

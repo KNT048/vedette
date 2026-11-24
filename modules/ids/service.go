@@ -66,7 +66,8 @@ type Inventory interface {
 // LinkedFinding is a finding of the attacked device for a CVE an alert names, with the findings module's one status.
 type LinkedFinding struct {
 	ID, CVE, Status string
-	// Affected: the finding is open, so the device is affected by the CVE (not patched, mitigated, accepted or dismissed).
+	// Affected: the finding is open, so the device is affected by the CVE (not patched, mitigated, accepted or dismissed), and the flaw
+	// can be exploited over the network: an alert naming a flaw that needs local or physical access is not an attack on it.
 	Affected bool
 }
 

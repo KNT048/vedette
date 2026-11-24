@@ -10,7 +10,7 @@ import { assetsStore, isOn } from '@/mocks/stores'
 import { SAMPLE_SEVERITY, seedFindingRecords, seedQuestions, type FindingRecord, type QuestionRecord } from '@/mocks/seed/findings'
 import type { Asset } from '@/lib/types'
 import { displayName } from '@/features/inventory/nameOf'
-import { metaStore } from '@/features/inventory/mocks'
+import { BOX_ID, metaStore } from '@/features/inventory/mocks'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
 import { dayAfter, untilOk } from './accept'
 import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/lib/statusCodes'
@@ -117,8 +117,13 @@ function inputItems(): InputItem[] {
   const assets = new Map(assetsStore.get().map((a) => [a.id, a]))
   const asked = questions.get().filter((x) => !x.answered && assets.has(x.asset_id) && visible(x.asset_id)).sort((a, b) => b.cves - a.cves || a.asked_at.localeCompare(b.asked_at))
     .map((x): InputItem => ({ kind: 'question', id: x.id, question: x.kind, device: deviceRef(assets.get(x.asset_id)!), software: x.software, cve: x.cve, cves: x.cves,
-      asked_at: x.asked_at, url: x.url, command: x.command, choices: x.choices }))
-  return [...notAdded, ...unconfirmed, ...asked]
+      asked_at: x.asked_at, url: x.url, command: x.command, choices: x.choices, cve_list: x.cve_list ?? [], fixes: x.fixes ?? [], line: x.line ?? null,
+      versions_listed: x.versions_listed ?? false }))
+  // a device a person added that Vedette knows nothing to check by: no installed software line and no OS beyond a scan's fingerprint guess
+  const unchecked = assetsStore.get().filter((a) => a.approved && a.id !== BOX_ID && visible(a.id) && !(a.origin === 'manual' && !a.hostname && !a.ip) &&
+    !a.software.some((s) => !s.not_installed) && (!a.os || (a.os.source === 'nmap' && !a.os.value.includes('(build '))))
+    .map((a): InputItem => ({ kind: 'device_unchecked', id: `unchecked:${a.id}`, device: deviceRef(a) }))
+  return [...notAdded, ...unchecked, ...unconfirmed, ...asked]
 }
 
 function view(r: FindingRecord & { asset: Asset }): View {
@@ -340,7 +345,7 @@ export const modelHandlers = [
     if ((b.answer !== 'affected' && b.answer !== 'not_affected') || typeof b.note !== 'string' || b.note.length > 500) return fail(400, 'invalid', 'The request is not valid.')
     // affected records a finding confirmed by a person: the same role as Confirm vulnerability
     if (b.answer === 'affected') { const admin = guard('admin'); if (admin) return admin }
-    if (!x.cve) return fail(409, 'not_one_cve', 'This question decides several CVEs: correct the software on the device (its version) instead.')
+    if (!x.cve && (b.answer === 'affected' || x.kind !== 'older_line')) return fail(409, 'not_one_cve', 'This question decides several CVEs: correct the software on the device (its version) instead.')
     const note = b.note.trim()
     if (b.answer === 'not_affected' && note.length < 3) return fail(400, 'note_required', 'Write why this device is not affected (at least 3 characters) so the next person understands.')
     const user = who(), at = nowIso()
@@ -357,7 +362,7 @@ export const modelHandlers = [
     }
     // a "not affected" answer is kept so it can be taken back; an "affected" one made a finding
     questions.update((l) => b.answer === 'not_affected' ? l.map((q) => (q.id === x.id ? { ...q, answered: { by: user, at } } : q)) : l.filter((q) => q.id !== x.id))
-    audit('findings.question_answered', x.id, `${x.cve} ${b.answer}${note ? `: ${note}` : ''}`)
+    audit('findings.question_answered', x.id, `${x.cve ?? x.software?.name ?? ''} ${b.answer}${note ? `: ${note}` : ''}`)
     return HttpResponse.json({ finding })
   }),
 

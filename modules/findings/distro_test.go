@@ -88,6 +88,9 @@ func TestSecuritySourceOfSignedKernels(t *testing.T) {
 		{"ubuntu", "linux-signed", "linux"},
 		{"ubuntu", "linux-signed-hwe-7.0", "linux-hwe-7.0"},
 		{"debian", "linux-signed-amd64", "linux"},
+		{"debian", "linux-signed-arm64", "linux"},
+		{"debian", "linux-signed-6.1-amd64", "linux-6.1"}, // Debian 11's long-term-support kernel, a source of its own
+		{"debian", "linux-signed-5.10-arm64", "linux-5.10"},
 		{"ubuntu", "openssh", "openssh"},
 		{"ubuntu", "linux-meta", "linux-meta"},
 	} {

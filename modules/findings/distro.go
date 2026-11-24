@@ -286,17 +286,31 @@ func kernelSource(pkg string) bool {
 // securitySource is the source package under which the distribution's security data lists a device's source package.
 // Kernel images are built by a signing source package whose binaries carry the kernel's own version, while Ubuntu's and
 // Debian's data list the kernel's source: Ubuntu linux-signed → linux, linux-signed-hwe-7.0 → linux-hwe-7.0; Debian
-// linux-signed-amd64 (and -arm64, -i386) → linux. Every other package is listed under its own source name.
+// linux-signed-amd64 (and -arm64, -i386) → linux, and a long-term-support kernel series a Debian release ships as a source of its
+// own (Debian 11's linux-6.1, signed by linux-signed-6.1-amd64) → that source. Every other package is listed under its own source name.
 func securitySource(distro, src string) string {
 	rest, ok := strings.CutPrefix(src, "linux-signed")
 	switch {
 	case !ok:
 		return src
 	case distro == "debian":
-		return "linux"
+		series := strings.TrimPrefix(rest, "-")
+		if i := strings.LastIndexByte(series, '-'); i >= 0 && debianArch[series[i+1:]] {
+			series = series[:i]
+		} else if debianArch[series] {
+			series = ""
+		}
+		if series == "" {
+			return "linux"
+		}
+		return "linux-" + series
 	}
 	return "linux" + rest
 }
+
+// debianArch are the architectures Debian names its signed kernel sources after (linux-signed-amd64, linux-signed-6.1-arm64).
+var debianArch = map[string]bool{"amd64": true, "arm64": true, "i386": true, "armhf": true, "armel": true, "ppc64el": true, "s390x": true,
+	"riscv64": true, "mips64el": true, "loong64": true}
 
 // The distribution's word is about the distribution's own package (review H2 of #732). A package from a PPA or a vendor's
 // repository can share the source name and compare higher ("2.4.62-1+ubuntu24.04.1+deb.sury.org+1" against Ubuntu's fix
@@ -364,7 +378,7 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 		// only the backport case: the same epoch and upstream release, a revision the distribution builds (review H2). Debian's kernel
 		// is the exception: a stable release moves it to newer upstream point releases (6.12.48-1, then 6.12.57-1) and the tracker
 		// names the first of them that fixes a CVE, so its own builds compare across upstream releases (debianKernelMoves)
-		if !debver.SameUpstream(in.pkgVer, fix.Fixed) && !debianKernelMoves(d, pkg) || !ownBuild(d, pkg, in.pkgVer, false) {
+		if !debver.SameUpstream(in.pkgVer, fix.Fixed) && !debianKernelMoves(d, pkg, in.pkgVer, fix.Fixed) || !ownBuild(d, pkg, in.pkgVer, false) {
 			return distroAnswer{}, false
 		}
 		c, err := debver.Compare(in.pkgVer, fix.Fixed)
@@ -387,8 +401,32 @@ func distroVerdict(in swInfo, v Vuln) (distroAnswer, bool) {
 }
 
 // debianKernelMoves says the package is Debian's kernel (source linux, its signed images included: securitySource), whose stable
-// updates bring newer upstream point releases, so an installed build of another upstream release than the fix still compares with it.
-func debianKernelMoves(distro, pkg string) bool { return distro == "debian" && pkg == "linux" }
+// updates bring newer upstream point releases, so an installed build of another upstream release than the fix still compares with it,
+// as long as both are of one kernel series ("6.1" of 6.1.119-1 and 6.1.128-1): a stable release keeps its kernel series, so a kernel of
+// another series (a later release's kernel installed by hand) is not the build the fix is about.
+// A long-term-support series a release ships as a source of its own (linux-6.1 on Debian 11) moves the same way inside its series.
+func debianKernelMoves(distro, pkg, installed, fixed string) bool {
+	series, own := strings.CutPrefix(pkg, "linux-")
+	if distro != "debian" || pkg != "linux" && !own {
+		return false
+	}
+	si, ok1 := kernelSeries(installed)
+	sf, ok2 := kernelSeries(fixed)
+	return ok1 && ok2 && si == sf && (pkg == "linux" || series == si)
+}
+
+// kernelSeries is the kernel series of a Debian kernel package version, its first two upstream numbers ("6.1" of "6.1.119-1",
+// "6.12" of "6.12.57-1"); ok is false for a version with an epoch or without two leading numbers.
+func kernelSeries(v string) (string, bool) {
+	if strings.Contains(v, ":") {
+		return "", false
+	}
+	nums, ok := leadingRelease(v)
+	if !ok || len(nums) < 2 {
+		return "", false
+	}
+	return fmt.Sprintf("%d.%d", nums[0], nums[1]), true
+}
 
 // distroMatch is matchOne's result for a row the distribution has a word on.
 func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now time.Time) (Match, outcome) {

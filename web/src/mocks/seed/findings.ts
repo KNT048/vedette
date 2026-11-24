@@ -80,6 +80,11 @@ export interface QuestionRecord {
   url: string | null
   command: string | null
   choices: { label: string; os?: string; ask?: ('os' | 'pkg_version')[] }[]
+  /** older_line: the CVEs, the device's line and the newest fix of each newer line; no_range_data: whether the CVE lists versions. */
+  cve_list?: string[]
+  fixes?: string[]
+  line?: string | null
+  versions_listed?: boolean
   /** A "not affected" answer, kept so it can be taken back; absent while the question waits. */
   answered?: { by: string; at: string }
 }
@@ -207,6 +212,9 @@ export function seedQuestions(): QuestionRecord[] {
       choices: [{ label: 'Alpine Linux 3.23', os: 'Alpine Linux 3.23' }, { label: 'Another system', ask: ['os', 'pkg_version'] }] },
     { id: 'fq-nas01-range', kind: 'no_range_data', asset_id: 'a-nas01', software: { id: 's-nas01', name: 'Synology NAS (DSM)', version: '7.2' }, cve: 'CVE-2026-118204', cves: 1,
       asked_at: D(1), url: 'https://www.synology.example.com/en-global/security/advisory', command: null, choices: [] },
+    { id: 'fq-nas01-line', kind: 'older_line', asset_id: 'a-nas01', software: { id: 's-nas01', name: 'Synology NAS (DSM)', version: '7.2' }, cve: null, cves: 3,
+      asked_at: D(1), url: null, command: null, choices: [], cve_list: ['CVE-2026-118210', 'CVE-2026-118211', 'CVE-2026-118212'],
+      fixes: ['7.3.2-86009 Update 5', '7.4.1-90080 Update 1'], line: '7.2' },
     { id: 'fq-unk02-fgt', kind: 'not_comparable', asset_id: 'a-unk02', software: { id: 's-unk02-fgt', name: 'FortiGate', version: 'latest' }, cve: null, cves: 3,
       asked_at: D(1), url: null, command: 'get system status', choices: [] },
   ]

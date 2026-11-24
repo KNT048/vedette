@@ -66,6 +66,8 @@ function InstallFlow({ data, tokenName, known, deviceId, onCreated }: { data: Ag
   // makes a new token, so say so and offer to revoke them instead of leaving a trail until they expire.
   const [opened] = useState(() => Date.now())
   const unused = data.tokens.filter((k) => k.kind === 'osquery' && k.hosts === 0 && (k.device_id ?? undefined) === deviceId && (!k.expires_at || Date.parse(k.expires_at) > opened))
+  // the line counts them from the oldest (the box lists tokens newest first)
+  const oldest = unused.reduce<(typeof unused)[number] | undefined>((a, k) => (!a || Date.parse(k.created_at) < Date.parse(a.created_at) ? k : a), undefined)
   const revokeUnused = async () => {
     try {
       for (const k of unused) await revoke.mutateAsync(k.id)
@@ -96,7 +98,7 @@ function InstallFlow({ data, tokenName, known, deviceId, onCreated }: { data: Ag
       <BusyNote busy={create.isPending}>{t('agents.install.preparing')}</BusyNote>
       {run && !token && unused.length ? (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-muted">
-          {t('agents.unused.line', { count: unused.length, when: fmtRelative(unused[0]!.created_at) })}
+          {t('agents.unused.line', { count: unused.length, when: fmtRelative(oldest!.created_at) })}
           <Button size="sm" variant="ghost" busy={revoke.isPending} busyLabel={t('common:busy.removing')} onClick={() => void revokeUnused()}>{t('agents.unused.revoke', { count: unused.length })}</Button>
         </p>
       ) : null}

@@ -338,11 +338,18 @@ const (
 	QuestionPlatform       QuestionKind = "platform"        // the CVE affects only some platforms and nothing says which this is
 	QuestionPackageRelease QuestionKind = "package_release" // the distribution's package release decides
 	QuestionNotComparable  QuestionKind = "not_comparable"  // the version cannot be compared with the affected ranges
-	QuestionNoRangeData    QuestionKind = "no_range_data"   // the CVE names the product but gives no affected versions
+	QuestionNoRangeData    QuestionKind = "no_range_data"   // the CVE names the product but gives no versions that decide this one
+	// QuestionOlderLine: the vendor names fixes for these CVEs only on later release lines and says nothing about the line's own (one
+	// question per software line, Detail.CVEList, Line, Fixes).
+	QuestionOlderLine QuestionKind = "older_line"
+	// QuestionNothingToCheck: Vedette knows no software, firmware or OS the device runs, so nothing can match it (no software line,
+	// SoftwareID and CVE ""). The Needs your input queue shows it as a device_unchecked item; it is answered by saying what runs there.
+	QuestionNothingToCheck QuestionKind = "nothing_to_check"
 )
 
 // QuestionKinds lists every kind.
-var QuestionKinds = []QuestionKind{QuestionVersionNeeded, QuestionPlatform, QuestionPackageRelease, QuestionNotComparable, QuestionNoRangeData}
+var QuestionKinds = []QuestionKind{QuestionVersionNeeded, QuestionPlatform, QuestionPackageRelease, QuestionNotComparable, QuestionNoRangeData,
+	QuestionOlderLine, QuestionNothingToCheck}
 
 // Question is one row of fnd_question.
 type Question struct {
@@ -366,7 +373,11 @@ type QuestionDetail struct {
 	Reason     string   `json:"reason,omitempty"`      // the matcher's reason (UncheckedReason)
 	NVDPending bool     `json:"nvd_pending,omitempty"` // no range data while NVD has not answered yet
 	Choice     string   `json:"choice,omitempty"`      // a package release a person gave that is no release of the distribution
-	CVEList    []string `json:"cve_list,omitempty"`    // version_needed: the CVEs that wait, worst first
+	CVEList    []string `json:"cve_list,omitempty"`    // version_needed: the CVEs that wait, worst first; older_line: the CVEs, by id
+	// Listed: no_range_data, the CVE lists versions of the software, just none that decides this one (Unchecked.Listed)
+	Listed bool     `json:"listed,omitempty"`
+	Line   string   `json:"line,omitempty"`  // older_line: the device's release line ("7.2.1")
+	Fixes  []string `json:"fixes,omitempty"` // older_line: the newest fixed release the vendor names on each later line
 }
 
 // key is the question's identity on its device (the unique index).

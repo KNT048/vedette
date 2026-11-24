@@ -297,6 +297,21 @@ func (s *Scheduler) runOnce(parent context.Context, jb *job) {
 	}
 	rctx, rcancel := context.WithTimeout(context.WithoutCancel(parent), wait)
 	defer rcancel()
+	if wait > recordWaitStopping { // a shutdown that begins while the row waits shortens the wait too
+		sctx, scancel := context.WithCancel(rctx)
+		defer scancel()
+		stop := context.AfterFunc(parent, func() {
+			t := time.NewTimer(recordWaitStopping)
+			defer t.Stop()
+			select {
+			case <-t.C:
+				scancel()
+			case <-sctx.Done():
+			}
+		})
+		defer stop()
+		rctx = sctx
+	}
 	if err := s.rec.Record(rctx, run); err != nil {
 		s.log.ErrorContext(parent, "recording job run failed", "module", jb.Module, "job", jb.Name, "error", err)
 	}

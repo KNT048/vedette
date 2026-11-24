@@ -255,3 +255,57 @@ func TestMatchAsset_910_VendorDebOnLinux(t *testing.T) {
 		t.Errorf("a distribution's package without its word: %+v", res.New)
 	}
 }
+
+// Debian's kernel compares across upstream point releases only inside the kernel series of the release (6.1 on Debian 12, 6.12 on
+// Debian 13): a stable release never moves its "linux" source to another series. Debian 11 also ships the 6.1 series as a source
+// of its own (linux-6.1, signed by linux-signed-6.1-amd64) whose CVEs the tracker lists under that name, not under Debian 11's 5.10
+// "linux". A 6.1 kernel judged against 5.10's fix would compare above it and close as not affected while it is not fixed.
+func TestMatchAsset_DebianKernelComparesOnlyInsideItsSeries(t *testing.T) {
+	t.Parallel()
+	kernel := func(ver, pkg, src string) Software {
+		return Software{ID: "s-kernel", Display: "Kernel", Vendor: "Linux", Product: "Kernel", Version: ver, Source: "agent", Packaged: true,
+			PkgVersion: pkg, PkgSource: src, KevKeys: []string{"linux|kernel"}}
+	}
+	v := Vuln{CVE: "CVE-2024-53104", Vendor: "Linux", Product: "Kernel", DateAdded: winDay("2025-02-05"), Published: winDay("2024-12-02"),
+		NVDAnswered: true, Affected: []Affected{
+			{CPE: "cpe:2.3:o:linux:linux_kernel:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "2.6.26", EndExcl: "6.1.120"}},
+			{CPE: "cpe:2.3:o:linux:linux_kernel:*:*:*:*:*:*:*:*", Range: VersionRange{StartIncl: "6.2", EndExcl: "6.12.60"}},
+		},
+		Distro: []DistroFix{
+			{Distro: "debian", Release: "11", Package: "linux", Status: "fixed", Fixed: "5.10.234-1"},
+			{Distro: "debian", Release: "11", Package: "linux-6.1", Status: "fixed", Fixed: "6.1.128-1~deb11u1"},
+			{Distro: "debian", Release: "12", Package: "linux", Status: "fixed", Fixed: "6.1.128-1"},
+		}}
+	const bullseye = "Debian GNU/Linux 11 (bullseye)"
+	lts := Asset{ID: "d11", Name: "debian11", OS: bullseye, AgentOS: bullseye,
+		Software: []Software{kernel("6.1.119", "6.1.119-1~deb11u1", "linux-signed-6.1-amd64")}}
+	res := MatchAsset(lts, []Vuln{v}, map[string]bool{v.CVE: true}, t0)
+	if len(res.NotAffected) != 0 {
+		t.Fatalf("Debian 11 on the 6.1 kernel closed as not affected by 5.10's fix: %+v", res.NotAffected)
+	}
+	if m := onlyMatch(t, "Debian 11 on the 6.1 kernel", res); !strings.Contains(m.Evidence.Summary, "linux-6.1 6.1.128-1~deb11u1") {
+		t.Errorf("Debian 11 on the 6.1 kernel: %+v", m)
+	}
+	if f := FixOf(lts, lts.Software[0], v); f.Kind != FixDistroUpdate || f.Version != "6.1.128-1~deb11u1" {
+		t.Errorf("Debian 11 on the 6.1 kernel: fix %+v", f)
+	}
+	fixedLTS := lts
+	fixedLTS.Software = []Software{kernel("6.1.128", "6.1.128-1~deb11u1", "linux-signed-6.1-amd64")}
+	if res := MatchAsset(fixedLTS, []Vuln{v}, map[string]bool{v.CVE: true}, t0); len(res.New)+len(res.Existing) != 0 || len(res.NotAffected) != 1 {
+		t.Errorf("Debian 11 on the fixed 6.1 kernel: %+v", res)
+	}
+
+	// a Debian 13 kernel installed on Debian 12 is not Debian 12's own kernel series: Debian 12's 6.1 fix says nothing about it
+	const bookworm = "Debian GNU/Linux 12 (bookworm)"
+	other := Asset{ID: "d12", Name: "debian12", OS: bookworm, AgentOS: bookworm,
+		Software: []Software{kernel("6.12.57", "6.12.57-1", "linux-signed-amd64")}}
+	if res := MatchAsset(other, []Vuln{v}, map[string]bool{v.CVE: true}, t0); len(res.NotAffected) != 0 {
+		t.Errorf("Debian 12 with another series' kernel closed as not affected: %+v", res.NotAffected)
+	}
+	// Debian 12's own kernel at a later point release of its series is fixed
+	own := other
+	own.Software = []Software{kernel("6.1.130", "6.1.130-1", "linux-signed-amd64")}
+	if res := MatchAsset(own, []Vuln{v}, map[string]bool{v.CVE: true}, t0); len(res.NotAffected) != 1 {
+		t.Errorf("Debian 12 on a later 6.1 point release: %+v", res)
+	}
+}

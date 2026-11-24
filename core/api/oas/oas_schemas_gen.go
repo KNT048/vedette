@@ -89316,7 +89316,10 @@ type FindingsGetFindingsAnsweredOKItemsItem struct {
 	// Version_needed = the software has no version Vedette can read; platform = the CVE affects only some
 	// platforms and nothing says which this is; package_release = the distribution's package release
 	// decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data =
-	// the CVE names the product but gives no affected versions ("Possibly affected: check the version").
+	// the CVE names the product but gives no versions that decide this one ("Possibly affected: check the
+	// version"; versions_listed says whether it lists any); older_line = the vendor names fixes for these
+	// CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one
+	// question for all of them (cve_list).
 	Question FindingsGetFindingsAnsweredOKItemsItemQuestion    `json:"question"`
 	Software NilFindingsGetFindingsAnsweredOKItemsItemSoftware `json:"software"`
 }
@@ -90138,7 +90141,10 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemDeviceKind) UnmarshalText(data []
 // Version_needed = the software has no version Vedette can read; platform = the CVE affects only some
 // platforms and nothing says which this is; package_release = the distribution's package release
 // decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data =
-// the CVE names the product but gives no affected versions ("Possibly affected: check the version").
+// the CVE names the product but gives no versions that decide this one ("Possibly affected: check the
+// version"; versions_listed says whether it lists any); older_line = the vendor names fixes for these
+// CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one
+// question for all of them (cve_list).
 type FindingsGetFindingsAnsweredOKItemsItemQuestion string
 
 const (
@@ -90147,6 +90153,7 @@ const (
 	FindingsGetFindingsAnsweredOKItemsItemQuestionPackageRelease FindingsGetFindingsAnsweredOKItemsItemQuestion = "package_release"
 	FindingsGetFindingsAnsweredOKItemsItemQuestionNotComparable  FindingsGetFindingsAnsweredOKItemsItemQuestion = "not_comparable"
 	FindingsGetFindingsAnsweredOKItemsItemQuestionNoRangeData    FindingsGetFindingsAnsweredOKItemsItemQuestion = "no_range_data"
+	FindingsGetFindingsAnsweredOKItemsItemQuestionOlderLine      FindingsGetFindingsAnsweredOKItemsItemQuestion = "older_line"
 )
 
 // AllValues returns all FindingsGetFindingsAnsweredOKItemsItemQuestion values.
@@ -90157,6 +90164,7 @@ func (FindingsGetFindingsAnsweredOKItemsItemQuestion) AllValues() []FindingsGetF
 		FindingsGetFindingsAnsweredOKItemsItemQuestionPackageRelease,
 		FindingsGetFindingsAnsweredOKItemsItemQuestionNotComparable,
 		FindingsGetFindingsAnsweredOKItemsItemQuestionNoRangeData,
+		FindingsGetFindingsAnsweredOKItemsItemQuestionOlderLine,
 	}
 }
 
@@ -90172,6 +90180,8 @@ func (s FindingsGetFindingsAnsweredOKItemsItemQuestion) MarshalText() ([]byte, e
 	case FindingsGetFindingsAnsweredOKItemsItemQuestionNotComparable:
 		return []byte(s), nil
 	case FindingsGetFindingsAnsweredOKItemsItemQuestionNoRangeData:
+		return []byte(s), nil
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionOlderLine:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -90195,6 +90205,9 @@ func (s *FindingsGetFindingsAnsweredOKItemsItemQuestion) UnmarshalText(data []by
 		return nil
 	case FindingsGetFindingsAnsweredOKItemsItemQuestionNoRangeData:
 		*s = FindingsGetFindingsAnsweredOKItemsItemQuestionNoRangeData
+		return nil
+	case FindingsGetFindingsAnsweredOKItemsItemQuestionOlderLine:
+		*s = FindingsGetFindingsAnsweredOKItemsItemQuestionOlderLine
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -102898,32 +102911,811 @@ func (s *FindingsGetFindingsInput1DeviceNotAddedStatusCode) UnmarshalText(data [
 	}
 }
 
+// A device a person added that Vedette cannot check: it knows no software, firmware or OS the device
+// runs, so no finding can appear for it. Answered by saying what runs there: its firmware version
+// (POST /inventory/devices/{id}/software), SNMP read access (Sources), or an agent.
+// Ref: #/components/schemas/findings_get_findings_input_1_device_unchecked
+type FindingsGetFindingsInput1DeviceUnchecked struct {
+	Device FindingsGetFindingsInput1DeviceUncheckedDevice `json:"device"`
+	// The item.
+	ID   string `json:"id"`
+	Kind string `json:"kind"`
+}
+
+// GetDevice returns the value of Device.
+func (s *FindingsGetFindingsInput1DeviceUnchecked) GetDevice() FindingsGetFindingsInput1DeviceUncheckedDevice {
+	return s.Device
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsInput1DeviceUnchecked) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsInput1DeviceUnchecked) GetKind() string {
+	return s.Kind
+}
+
+// SetDevice sets the value of Device.
+func (s *FindingsGetFindingsInput1DeviceUnchecked) SetDevice(val FindingsGetFindingsInput1DeviceUncheckedDevice) {
+	s.Device = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsInput1DeviceUnchecked) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsInput1DeviceUnchecked) SetKind(val string) {
+	s.Kind = val
+}
+
+type FindingsGetFindingsInput1DeviceUncheckedDevice struct {
+	// False = "Not added yet": nobody added this device; its card offers Add device and Ignore.
+	Added bool   `json:"added"`
+	ID    string `json:"id"`
+	// A person ignored the device: its findings are left out of every list and count except the Ignored
+	// devices tab.
+	Ignored bool `json:"ignored"`
+	// Null when the device has no IP address.
+	IP   NilString                                          `json:"ip"`
+	Kind FindingsGetFindingsInput1DeviceUncheckedDeviceKind `json:"kind"`
+	// The name the Devices page shows; never the internal id.
+	Name string `json:"name"`
+}
+
+// GetAdded returns the value of Added.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) GetAdded() bool {
+	return s.Added
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) GetID() string {
+	return s.ID
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) GetIgnored() bool {
+	return s.Ignored
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) GetIP() NilString {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) GetKind() FindingsGetFindingsInput1DeviceUncheckedDeviceKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) GetName() string {
+	return s.Name
+}
+
+// SetAdded sets the value of Added.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) SetAdded(val bool) {
+	s.Added = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) SetID(val string) {
+	s.ID = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) SetIgnored(val bool) {
+	s.Ignored = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) SetIP(val NilString) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) SetKind(val FindingsGetFindingsInput1DeviceUncheckedDeviceKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDevice) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsInput1DeviceUncheckedDeviceKind string
+
+const (
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindRouter              FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "router"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSwitch              FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "switch"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindModem               FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "modem"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSdWan               FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "sd_wan"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindLoadBalancer        FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "load_balancer"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindNetworkController   FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "network_controller"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindFirewall            FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "firewall"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindVpnGateway          FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "vpn_gateway"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindIdsSensor           FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "ids_sensor"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindProxy               FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "proxy"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindAp                  FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "ap"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindWirelessController  FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "wireless_controller"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindWifiExtender        FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "wifi_extender"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindMeshNode            FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "mesh_node"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindServer              FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "server"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindVirtualMachine      FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "virtual_machine"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindHypervisor          FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "hypervisor"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindBmc                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "bmc"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindDomainController    FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "domain_controller"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindMailServer          FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "mail_server"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindDatabaseServer      FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "database_server"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindBackupServer        FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "backup_server"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindPc                  FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "pc"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindLaptop              FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "laptop"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindWorkstation         FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "workstation"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindThinClient          FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "thin_client"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindPosTerminal         FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "pos_terminal"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindKiosk               FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "kiosk"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartphone          FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "smartphone"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindTablet              FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "tablet"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartwatch          FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "smartwatch"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindPrinter             FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "printer"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindMfp                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "mfp"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindScanner             FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "scanner"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindLabelPrinter        FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "label_printer"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindReceiptPrinter      FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "receipt_printer"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindPlotter             FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "plotter"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKind3dPrinter           FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "3d_printer"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindCamera              FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "camera"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindNvr                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "nvr"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindDvr                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "dvr"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindVideoEncoder        FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "video_encoder"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindDoorbell            FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "doorbell"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindVideoConferencing   FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "video_conferencing"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindIPPhone             FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "ip_phone"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindPbx                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "pbx"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindVoipAdapter         FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "voip_adapter"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindVoipGateway         FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "voip_gateway"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindConferencePhone     FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "conference_phone"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindIntercom            FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "intercom"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindNas                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "nas"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSan                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "san"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindBackupAppliance     FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "backup_appliance"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindTapeLibrary         FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "tape_library"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindIot                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "iot"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartTv             FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "smart_tv"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindMediaPlayer         FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "media_player"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartSpeaker        FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "smart_speaker"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindGameConsole         FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "game_console"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartPlug           FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "smart_plug"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartLight          FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "smart_light"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartHub            FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "smart_hub"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindThermostat          FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "thermostat"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindProjector           FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "projector"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindDigitalSignage      FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "digital_signage"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSingleBoardComputer FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "single_board_computer"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartAppliance      FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "smart_appliance"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindRobotVacuum         FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "robot_vacuum"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindWirelessBridge      FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "wireless_bridge"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindPlc                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "plc"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindHmi                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "hmi"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindRtu                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "rtu"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindScadaServer         FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "scada_server"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindIndustrialSwitch    FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "industrial_switch"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindUps                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "ups"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindPdu                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "pdu"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindAccessControl       FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "access_control"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindTimeClock           FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "time_clock"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindAlarmPanel          FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "alarm_panel"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindHvacController      FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "hvac_controller"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindBuildingController  FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "building_controller"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindPowerMeter          FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "power_meter"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindEnvironmentMonitor  FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "environment_monitor"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindEvCharger           FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "ev_charger"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindSolarInverter       FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "solar_inverter"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindMedicalDevice       FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "medical_device"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindWeb                 FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "web"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindCloudService        FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "cloud_service"
+	FindingsGetFindingsInput1DeviceUncheckedDeviceKindUnknown             FindingsGetFindingsInput1DeviceUncheckedDeviceKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsInput1DeviceUncheckedDeviceKind values.
+func (FindingsGetFindingsInput1DeviceUncheckedDeviceKind) AllValues() []FindingsGetFindingsInput1DeviceUncheckedDeviceKind {
+	return []FindingsGetFindingsInput1DeviceUncheckedDeviceKind{
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindRouter,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSwitch,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindModem,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSdWan,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindLoadBalancer,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindNetworkController,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindFirewall,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindVpnGateway,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindIdsSensor,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindProxy,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindAp,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindWirelessController,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindWifiExtender,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindMeshNode,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindServer,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindVirtualMachine,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindHypervisor,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindBmc,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindDomainController,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindMailServer,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindDatabaseServer,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindBackupServer,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindPc,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindLaptop,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindWorkstation,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindThinClient,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindPosTerminal,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindKiosk,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartphone,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindTablet,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartwatch,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindPrinter,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindMfp,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindScanner,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindLabelPrinter,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindReceiptPrinter,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindPlotter,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKind3dPrinter,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindCamera,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindNvr,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindDvr,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindVideoEncoder,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindDoorbell,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindVideoConferencing,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindIPPhone,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindPbx,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindVoipAdapter,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindVoipGateway,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindConferencePhone,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindIntercom,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindNas,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSan,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindBackupAppliance,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindTapeLibrary,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindIot,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartTv,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindMediaPlayer,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartSpeaker,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindGameConsole,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartPlug,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartLight,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartHub,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindThermostat,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindProjector,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindDigitalSignage,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSingleBoardComputer,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartAppliance,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindRobotVacuum,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindWirelessBridge,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindPlc,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindHmi,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindRtu,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindScadaServer,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindIndustrialSwitch,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindUps,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindPdu,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindAccessControl,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindTimeClock,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindAlarmPanel,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindHvacController,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindBuildingController,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindPowerMeter,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindEnvironmentMonitor,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindEvCharger,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindSolarInverter,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindMedicalDevice,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindWeb,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindCloudService,
+		FindingsGetFindingsInput1DeviceUncheckedDeviceKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsInput1DeviceUncheckedDeviceKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindRouter:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindProxy:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindAp:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindMeshNode:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindServer:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindBackupServer:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPc:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartwatch:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKind3dPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindCamera:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindNvr:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindIot:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindCloudService:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsInput1DeviceUncheckedDeviceKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsInput1DeviceUncheckedDeviceKind(data) {
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindRouter:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindRouter
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSwitch:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSwitch
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindModem:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindModem
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSdWan:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSdWan
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindLoadBalancer:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindLoadBalancer
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindNetworkController:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindNetworkController
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindFirewall:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindFirewall
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVpnGateway:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindVpnGateway
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindIdsSensor:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindIdsSensor
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindProxy:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindProxy
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindAp:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindAp
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindWirelessController:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindWirelessController
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindWifiExtender:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindWifiExtender
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindMeshNode:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindMeshNode
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindServer:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindServer
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVirtualMachine:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindVirtualMachine
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindHypervisor:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindHypervisor
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindBmc:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindBmc
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindDomainController:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindDomainController
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindMailServer:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindMailServer
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindDatabaseServer:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindDatabaseServer
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindBackupServer:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindBackupServer
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPc:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindPc
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindLaptop:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindLaptop
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindWorkstation:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindWorkstation
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindThinClient:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindThinClient
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPosTerminal:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindPosTerminal
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindKiosk:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindKiosk
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartphone:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartphone
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindTablet:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindTablet
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartwatch:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartwatch
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPrinter:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindPrinter
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindMfp:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindMfp
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindScanner:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindScanner
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindLabelPrinter:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindLabelPrinter
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindReceiptPrinter:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPlotter:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindPlotter
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKind3dPrinter:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKind3dPrinter
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindCamera:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindCamera
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindNvr:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindNvr
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindDvr:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindDvr
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVideoEncoder:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindVideoEncoder
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindDoorbell:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindDoorbell
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVideoConferencing:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindVideoConferencing
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindIPPhone:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindIPPhone
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPbx:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindPbx
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVoipAdapter:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindVoipAdapter
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindVoipGateway:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindVoipGateway
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindConferencePhone:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindConferencePhone
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindIntercom:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindIntercom
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindNas:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindNas
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSan:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSan
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindBackupAppliance:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindBackupAppliance
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindTapeLibrary:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindTapeLibrary
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindIot:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindIot
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartTv:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartTv
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindMediaPlayer:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindMediaPlayer
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartSpeaker:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindGameConsole:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindGameConsole
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartPlug:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartPlug
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartLight:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartLight
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartHub:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartHub
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindThermostat:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindThermostat
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindProjector:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindProjector
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindDigitalSignage:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindDigitalSignage
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSingleBoardComputer:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartAppliance:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSmartAppliance
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindRobotVacuum:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindRobotVacuum
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindWirelessBridge:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindWirelessBridge
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPlc:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindPlc
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindHmi:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindHmi
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindRtu:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindRtu
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindScadaServer:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindScadaServer
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindIndustrialSwitch:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindUps:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindUps
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPdu:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindPdu
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindAccessControl:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindAccessControl
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindTimeClock:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindTimeClock
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindAlarmPanel:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindAlarmPanel
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindHvacController:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindHvacController
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindBuildingController:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindBuildingController
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindPowerMeter:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindPowerMeter
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindEnvironmentMonitor:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindEvCharger:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindEvCharger
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindSolarInverter:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindSolarInverter
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindMedicalDevice:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindMedicalDevice
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindWeb:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindWeb
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindCloudService:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindCloudService
+		return nil
+	case FindingsGetFindingsInput1DeviceUncheckedDeviceKindUnknown:
+		*s = FindingsGetFindingsInput1DeviceUncheckedDeviceKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // What Vedette cannot decide without a person.
 // Ref: #/components/schemas/findings_get_findings_input_1_question
 type FindingsGetFindingsInput1Question struct {
 	AskedAt time.Time `json:"asked_at"`
 	// Platform, package_release: the answers, each an inventory correction; empty for the other kinds
-	// (version_needed, not_comparable: type the version on the software line; no_range_data: POST
-	// /findings/questions/{id}/answer).
+	// (version_needed, not_comparable: type the version on the software line; no_range_data, older_line:
+	// POST /findings/questions/{id}/answer).
 	Choices []FindingsGetFindingsInput1QuestionChoicesItem `json:"choices"`
 	// What prints the answer on the device ("apk info -e -v openssh-server"); null when none.
 	Command NilString `json:"command"`
 	// The CVE the question is about; null when it decides several (version_needed, not_comparable).
 	Cve NilString `json:"cve"`
+	// Older_line, version_needed: the CVEs that wait on the answer; empty when the question is about one
+	// CVE (cve).
+	CveList []string `json:"cve_list"`
 	// CVEs that wait on the answer.
 	Cves   int                                     `json:"cves"`
 	Device FindingsGetFindingsInput1QuestionDevice `json:"device"`
+	// Older_line: the newest release the vendor names as fixed on each newer line, oldest line first
+	// ("7.3.2-86009 Update 5"); empty for the other kinds.
+	Fixes []string `json:"fixes"`
 	// The question.
 	ID   string `json:"id"`
 	Kind string `json:"kind"`
+	// Older_line: the release line the device runs ("7.2.1"); null for the other kinds.
+	Line NilString `json:"line"`
 	// Version_needed = the software has no version Vedette can read; platform = the CVE affects only some
 	// platforms and nothing says which this is; package_release = the distribution's package release
 	// decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data =
-	// the CVE names the product but gives no affected versions ("Possibly affected: check the version").
+	// the CVE names the product but gives no versions that decide this one ("Possibly affected: check the
+	// version"; versions_listed says whether it lists any); older_line = the vendor names fixes for these
+	// CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one
+	// question for all of them (cve_list).
 	Question FindingsGetFindingsInput1QuestionQuestion    `json:"question"`
 	Software NilFindingsGetFindingsInput1QuestionSoftware `json:"software"`
 	// The advisory to read.
 	URL NilURI `json:"url"`
+	// No_range_data: true when the CVE lists affected versions of the software but none that decides this
+	// one (only exact releases, or no end); false when it lists none. false for the other kinds.
+	VersionsListed bool `json:"versions_listed"`
 }
 
 // GetAskedAt returns the value of AskedAt.
@@ -102946,6 +103738,11 @@ func (s *FindingsGetFindingsInput1Question) GetCve() NilString {
 	return s.Cve
 }
 
+// GetCveList returns the value of CveList.
+func (s *FindingsGetFindingsInput1Question) GetCveList() []string {
+	return s.CveList
+}
+
 // GetCves returns the value of Cves.
 func (s *FindingsGetFindingsInput1Question) GetCves() int {
 	return s.Cves
@@ -102956,6 +103753,11 @@ func (s *FindingsGetFindingsInput1Question) GetDevice() FindingsGetFindingsInput
 	return s.Device
 }
 
+// GetFixes returns the value of Fixes.
+func (s *FindingsGetFindingsInput1Question) GetFixes() []string {
+	return s.Fixes
+}
+
 // GetID returns the value of ID.
 func (s *FindingsGetFindingsInput1Question) GetID() string {
 	return s.ID
@@ -102964,6 +103766,11 @@ func (s *FindingsGetFindingsInput1Question) GetID() string {
 // GetKind returns the value of Kind.
 func (s *FindingsGetFindingsInput1Question) GetKind() string {
 	return s.Kind
+}
+
+// GetLine returns the value of Line.
+func (s *FindingsGetFindingsInput1Question) GetLine() NilString {
+	return s.Line
 }
 
 // GetQuestion returns the value of Question.
@@ -102979,6 +103786,11 @@ func (s *FindingsGetFindingsInput1Question) GetSoftware() NilFindingsGetFindings
 // GetURL returns the value of URL.
 func (s *FindingsGetFindingsInput1Question) GetURL() NilURI {
 	return s.URL
+}
+
+// GetVersionsListed returns the value of VersionsListed.
+func (s *FindingsGetFindingsInput1Question) GetVersionsListed() bool {
+	return s.VersionsListed
 }
 
 // SetAskedAt sets the value of AskedAt.
@@ -103001,6 +103813,11 @@ func (s *FindingsGetFindingsInput1Question) SetCve(val NilString) {
 	s.Cve = val
 }
 
+// SetCveList sets the value of CveList.
+func (s *FindingsGetFindingsInput1Question) SetCveList(val []string) {
+	s.CveList = val
+}
+
 // SetCves sets the value of Cves.
 func (s *FindingsGetFindingsInput1Question) SetCves(val int) {
 	s.Cves = val
@@ -103011,6 +103828,11 @@ func (s *FindingsGetFindingsInput1Question) SetDevice(val FindingsGetFindingsInp
 	s.Device = val
 }
 
+// SetFixes sets the value of Fixes.
+func (s *FindingsGetFindingsInput1Question) SetFixes(val []string) {
+	s.Fixes = val
+}
+
 // SetID sets the value of ID.
 func (s *FindingsGetFindingsInput1Question) SetID(val string) {
 	s.ID = val
@@ -103019,6 +103841,11 @@ func (s *FindingsGetFindingsInput1Question) SetID(val string) {
 // SetKind sets the value of Kind.
 func (s *FindingsGetFindingsInput1Question) SetKind(val string) {
 	s.Kind = val
+}
+
+// SetLine sets the value of Line.
+func (s *FindingsGetFindingsInput1Question) SetLine(val NilString) {
+	s.Line = val
 }
 
 // SetQuestion sets the value of Question.
@@ -103034,6 +103861,11 @@ func (s *FindingsGetFindingsInput1Question) SetSoftware(val NilFindingsGetFindin
 // SetURL sets the value of URL.
 func (s *FindingsGetFindingsInput1Question) SetURL(val NilURI) {
 	s.URL = val
+}
+
+// SetVersionsListed sets the value of VersionsListed.
+func (s *FindingsGetFindingsInput1Question) SetVersionsListed(val bool) {
+	s.VersionsListed = val
 }
 
 type FindingsGetFindingsInput1QuestionChoicesItem struct {
@@ -103846,7 +104678,10 @@ func (s *FindingsGetFindingsInput1QuestionDeviceKind) UnmarshalText(data []byte)
 // Version_needed = the software has no version Vedette can read; platform = the CVE affects only some
 // platforms and nothing says which this is; package_release = the distribution's package release
 // decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data =
-// the CVE names the product but gives no affected versions ("Possibly affected: check the version").
+// the CVE names the product but gives no versions that decide this one ("Possibly affected: check the
+// version"; versions_listed says whether it lists any); older_line = the vendor names fixes for these
+// CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one
+// question for all of them (cve_list).
 type FindingsGetFindingsInput1QuestionQuestion string
 
 const (
@@ -103855,6 +104690,7 @@ const (
 	FindingsGetFindingsInput1QuestionQuestionPackageRelease FindingsGetFindingsInput1QuestionQuestion = "package_release"
 	FindingsGetFindingsInput1QuestionQuestionNotComparable  FindingsGetFindingsInput1QuestionQuestion = "not_comparable"
 	FindingsGetFindingsInput1QuestionQuestionNoRangeData    FindingsGetFindingsInput1QuestionQuestion = "no_range_data"
+	FindingsGetFindingsInput1QuestionQuestionOlderLine      FindingsGetFindingsInput1QuestionQuestion = "older_line"
 )
 
 // AllValues returns all FindingsGetFindingsInput1QuestionQuestion values.
@@ -103865,6 +104701,7 @@ func (FindingsGetFindingsInput1QuestionQuestion) AllValues() []FindingsGetFindin
 		FindingsGetFindingsInput1QuestionQuestionPackageRelease,
 		FindingsGetFindingsInput1QuestionQuestionNotComparable,
 		FindingsGetFindingsInput1QuestionQuestionNoRangeData,
+		FindingsGetFindingsInput1QuestionQuestionOlderLine,
 	}
 }
 
@@ -103880,6 +104717,8 @@ func (s FindingsGetFindingsInput1QuestionQuestion) MarshalText() ([]byte, error)
 	case FindingsGetFindingsInput1QuestionQuestionNotComparable:
 		return []byte(s), nil
 	case FindingsGetFindingsInput1QuestionQuestionNoRangeData:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1QuestionQuestionOlderLine:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -103903,6 +104742,9 @@ func (s *FindingsGetFindingsInput1QuestionQuestion) UnmarshalText(data []byte) e
 		return nil
 	case FindingsGetFindingsInput1QuestionQuestionNoRangeData:
 		*s = FindingsGetFindingsInput1QuestionQuestionNoRangeData
+		return nil
+	case FindingsGetFindingsInput1QuestionQuestionOlderLine:
+		*s = FindingsGetFindingsInput1QuestionQuestionOlderLine
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -105118,8 +105960,8 @@ func (s *FindingsGetFindingsInput1UnconfirmedStatus) UnmarshalText(data []byte) 
 }
 
 type FindingsGetFindingsInputOK struct {
-	// Devices not added yet first, then unconfirmed findings by status, then questions by CVEs waiting; an
-	// item leaves the moment it is answered or stops being true.
+	// Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status,
+	// then questions by CVEs waiting; an item leaves the moment it is answered or stops being true.
 	Items []FindingsGetFindingsInputOKItemsItem `json:"items"`
 	// The queue length: the tab count.
 	Total int `json:"total"`
@@ -105148,10 +105990,11 @@ func (s *FindingsGetFindingsInputOK) SetTotal(val int) {
 // FindingsGetFindingsInputOKItemsItem represents sum type.
 type FindingsGetFindingsInputOKItemsItem struct {
 	// Type selects the active sum variant, switch on this field.
-	Type                                    FindingsGetFindingsInputOKItemsItemType
-	FindingsGetFindingsInput1DeviceNotAdded FindingsGetFindingsInput1DeviceNotAdded
-	FindingsGetFindingsInput1Unconfirmed    FindingsGetFindingsInput1Unconfirmed
-	FindingsGetFindingsInput1Question       FindingsGetFindingsInput1Question
+	Type                                     FindingsGetFindingsInputOKItemsItemType
+	FindingsGetFindingsInput1DeviceNotAdded  FindingsGetFindingsInput1DeviceNotAdded
+	FindingsGetFindingsInput1DeviceUnchecked FindingsGetFindingsInput1DeviceUnchecked
+	FindingsGetFindingsInput1Unconfirmed     FindingsGetFindingsInput1Unconfirmed
+	FindingsGetFindingsInput1Question        FindingsGetFindingsInput1Question
 }
 
 // FindingsGetFindingsInputOKItemsItemType is oneOf type of FindingsGetFindingsInputOKItemsItem.
@@ -105159,14 +106002,20 @@ type FindingsGetFindingsInputOKItemsItemType string
 
 // Possible values for FindingsGetFindingsInputOKItemsItemType.
 const (
-	FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem FindingsGetFindingsInputOKItemsItemType = "device_not_added"
-	FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInputOKItemsItem    FindingsGetFindingsInputOKItemsItemType = "unconfirmed"
-	FindingsGetFindingsInput1QuestionFindingsGetFindingsInputOKItemsItem       FindingsGetFindingsInputOKItemsItemType = "question"
+	FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem  FindingsGetFindingsInputOKItemsItemType = "device_not_added"
+	FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem FindingsGetFindingsInputOKItemsItemType = "device_unchecked"
+	FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInputOKItemsItem     FindingsGetFindingsInputOKItemsItemType = "unconfirmed"
+	FindingsGetFindingsInput1QuestionFindingsGetFindingsInputOKItemsItem        FindingsGetFindingsInputOKItemsItemType = "question"
 )
 
 // IsFindingsGetFindingsInput1DeviceNotAdded reports whether FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DeviceNotAdded.
 func (s FindingsGetFindingsInputOKItemsItem) IsFindingsGetFindingsInput1DeviceNotAdded() bool {
 	return s.Type == FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem
+}
+
+// IsFindingsGetFindingsInput1DeviceUnchecked reports whether FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DeviceUnchecked.
+func (s FindingsGetFindingsInputOKItemsItem) IsFindingsGetFindingsInput1DeviceUnchecked() bool {
+	return s.Type == FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem
 }
 
 // IsFindingsGetFindingsInput1Unconfirmed reports whether FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1Unconfirmed.
@@ -105197,6 +106046,27 @@ func (s FindingsGetFindingsInputOKItemsItem) GetFindingsGetFindingsInput1DeviceN
 func NewFindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem(v FindingsGetFindingsInput1DeviceNotAdded) FindingsGetFindingsInputOKItemsItem {
 	var s FindingsGetFindingsInputOKItemsItem
 	s.SetFindingsGetFindingsInput1DeviceNotAdded(v)
+	return s
+}
+
+// SetFindingsGetFindingsInput1DeviceUnchecked sets FindingsGetFindingsInputOKItemsItem to FindingsGetFindingsInput1DeviceUnchecked.
+func (s *FindingsGetFindingsInputOKItemsItem) SetFindingsGetFindingsInput1DeviceUnchecked(v FindingsGetFindingsInput1DeviceUnchecked) {
+	s.Type = FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem
+	s.FindingsGetFindingsInput1DeviceUnchecked = v
+}
+
+// GetFindingsGetFindingsInput1DeviceUnchecked returns FindingsGetFindingsInput1DeviceUnchecked and true boolean if FindingsGetFindingsInputOKItemsItem is FindingsGetFindingsInput1DeviceUnchecked.
+func (s FindingsGetFindingsInputOKItemsItem) GetFindingsGetFindingsInput1DeviceUnchecked() (v FindingsGetFindingsInput1DeviceUnchecked, ok bool) {
+	if !s.IsFindingsGetFindingsInput1DeviceUnchecked() {
+		return v, false
+	}
+	return s.FindingsGetFindingsInput1DeviceUnchecked, true
+}
+
+// NewFindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem returns new FindingsGetFindingsInputOKItemsItem from FindingsGetFindingsInput1DeviceUnchecked.
+func NewFindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem(v FindingsGetFindingsInput1DeviceUnchecked) FindingsGetFindingsInputOKItemsItem {
+	var s FindingsGetFindingsInputOKItemsItem
+	s.SetFindingsGetFindingsInput1DeviceUnchecked(v)
 	return s
 }
 

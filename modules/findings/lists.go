@@ -960,6 +960,44 @@ func (s *Service) deviceCounts(ctx context.Context, assets []string) (map[string
 	if err := errors.Join(r.Err(), r.Close()); err != nil {
 		return nil, fmt.Errorf("findings: counting device questions: %w", err)
 	}
+	// "Vedette cannot check this device" is in the queue only for a device a person added that is not the box (Input): the same here
+	unchecked, err := stringColumn(ctx, q, `SELECT asset_id FROM fnd_question WHERE answer IS NULL AND kind = ?`+filter, append([]any{string(QuestionNothingToCheck)}, args...)...)
+	if err != nil || len(unchecked) == 0 {
+		return out, err
+	}
+	views, err := s.cfg.Inventory.Assets(ctx, unchecked)
+	if err != nil {
+		return nil, fmt.Errorf("findings: reading the devices to check: %w", err)
+	}
+	for _, id := range unchecked {
+		if a, ok := views[id]; ok && (!a.Approved || a.Box) {
+			c := get(id)
+			if c.Input--; c.Input <= 0 && c.CVEs == [UrgencyUpdate + 1]int{} {
+				delete(out, id)
+			}
+		}
+	}
+	return out, nil
+}
+
+// stringColumn reads the one text column a query returns.
+func stringColumn(ctx context.Context, q querier, query string, args ...any) ([]string, error) {
+	r, err := q.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("findings: %w", err)
+	}
+	var out []string
+	for r.Next() {
+		var v string
+		if err := r.Scan(&v); err != nil {
+			_ = r.Close()
+			return nil, fmt.Errorf("findings: %w", err)
+		}
+		out = append(out, v)
+	}
+	if err := errors.Join(r.Err(), r.Close()); err != nil {
+		return nil, fmt.Errorf("findings: %w", err)
+	}
 	return out, nil
 }
 

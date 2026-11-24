@@ -33,7 +33,7 @@ The appliance install is `install.sh` (`docs/DEPLOYMENT.md` section 8).
 
 Every release that offers this install publishes four files on its GitHub release page, `https://github.com/KNT048/vedette/releases/download/v<version>/`, each with a minisign signature `<file>.minisig`: `vedette.env`, `compose.yaml`, `compose.sensors.yaml` and `compose.syslog.yaml`. The container images are at `ghcr.io/knt048/vedette-core`, `-sensor` and `-scan`, signed with cosign. The release builder copies the compose files of `deploy/compose/container-only/` unchanged and fills only the three image lines of `vedette.env`, each exactly `ghcr.io/knt048/vedette-<service>@sha256:<64 hex>` (never a tag); `VEDETTE_BIND_IP` and `VEDETTE_HOSTS` stay empty for you to fill. Each signature's trusted comment names the file and the release (`file:vedette.env version:<version>`), so a signed file of another release shows for what it is.
 
-No release is published yet (WP-08k). Until then take the files from `deploy/compose/container-only/` of the repository and use images you built yourself (`make core-image sensor-image scan-base-image`, tagged `localhost/vedette-core:dev`, `localhost/vedette-sensor:dev` and `localhost/vedette-scan-base:dev`).
+Releases are on the [Releases page](https://github.com/KNT048/vedette/releases); the 0.1.x releases are beta test releases. To run a build of your own source tree instead, take the files from `deploy/compose/container-only/` of the repository and use images you built yourself (`make core-image sensor-image scan-base-image`, tagged `localhost/vedette-core:dev`, `localhost/vedette-sensor:dev` and `localhost/vedette-scan-base:dev`).
 
 Make an empty folder for Vedette and work in it from here on: it holds the public keys, the four release files, and later the folders an update keeps. First save the public keys there, from this repository rather than from the release page (two places an attacker would have to change). They are the keys compiled into Vedette (`internal/release/keys.go`); keep the files in this folder for every later update. `vedette-backup.pub` is the offline backup key: it signs only a rescue release, published if the everyday key is ever leaked (section 5):
 
@@ -49,12 +49,12 @@ KTprVWOY3EIHh6AAysr2ncwvWLztYFqP1hoFK19WWSnT+svtyjSBL+2HZA==
 EOF
 ```
 
-Then download the release into the same folder and check it. Put the version you install in place of `0.9.4` on both lines. `minisign -VQm` prints only the signed comment, which must be exactly `file:<that file> version:<version>`: a signed file of another release, or a signature of another file, prints FAILED. Every line must say `ok`; at the first FAILED or `download failed`, stop.
+Then download the release into the same folder and check it. Put the version you install in place of `0.1.5` on both lines. `minisign -VQm` prints only the signed comment, which must be exactly `file:<that file> version:<version>`: a signed file of another release, or a signature of another file, prints FAILED. Every line must say `ok`; at the first FAILED or `download failed`, stop.
 
 ```sh
-u=https://github.com/KNT048/vedette/releases/download/v0.9.4
+u=https://github.com/KNT048/vedette/releases/download/v0.1.5
 for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done
-for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do [ "$(minisign -VQm "$f" -p vedette.pub)" = "file:$f version:0.9.4" ] && echo "$f ok" || { echo "$f FAILED: stop"; break; }; done
+for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do [ "$(minisign -VQm "$f" -p vedette.pub)" = "file:$f version:0.1.5" ] && echo "$f ok" || { echo "$f FAILED: stop"; break; }; done
 cosign verify --key cosign.pub --insecure-ignore-tlog=true ghcr.io/knt048/vedette-core@sha256:<the digest in vedette.env>    # and -sensor, -scan
 ```
 
@@ -137,26 +137,26 @@ What moving a port changes:
 
 ## 5. Update, and check what you run
 
-Vedette looks for a new release every 6 hours (while the update check is on under Settings → Privacy). When it finds one, Settings → Updates names the version and its notes and shows these commands with the release's own image digests, for Docker or Podman; there is no Apply button. Until the first release is published (WP-08k) the page says there is no release information yet.
+Vedette looks for a new release every 6 hours (while the update check is on under Settings → Privacy). When it finds one, Settings → Updates names the version and its notes and shows these commands with the release's own image digests, for Docker or Podman; there is no Apply button.
 
-An update replaces all four files, not only `vedette.env`, so a release that changes a compose file reaches you. Run it in the folder of section 1, where `vedette.pub`, `vedette-backup.pub` and `cosign.pub` are. The page shows these commands with the real versions and digests, one block per step; here, updating from 0.9.3 to 0.9.4:
+An update replaces all four files, not only `vedette.env`, so a release that changes a compose file reaches you. Run it in the folder of section 1, where `vedette.pub`, `vedette-backup.pub` and `cosign.pub` are. The page shows these commands with the real versions and digests, one block per step; here, updating from 0.1.5 to 0.1.6:
 
 ```sh
 # 1. the way back: the four files you run now, in a NEW folder named after the release they run (mkdir refuses an existing folder,
 #    so nothing kept is overwritten)
-mkdir vedette-0.9.3 && mv -n vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml vedette-0.9.3/
-#    only if vedette-0.9.3 is already there (an update you stopped, or a way back you took): it holds the good files, so first put them
+mkdir vedette-0.1.5 && mv -n vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml vedette-0.1.5/
+#    only if vedette-0.1.5 is already there (an update you stopped, or a way back you took): it holds the good files, so first put them
 #    back, then rename it, and run step 1 again (renaming it alone would keep the unchecked files of a stopped update as the way back)
-cp vedette-0.9.3/* .
-mv vedette-0.9.3 vedette-0.9.3-before
-# 2. the four files of the new release and their signatures; each signed comment must be exactly "file:<that file> version:0.9.4"
-u=https://github.com/KNT048/vedette/releases/download/v0.9.4
+cp vedette-0.1.5/* .
+mv vedette-0.1.5 vedette-0.1.5-before
+# 2. the four files of the new release and their signatures; each signed comment must be exactly "file:<that file> version:0.1.6"
+u=https://github.com/KNT048/vedette/releases/download/v0.1.6
 for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done
-for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do [ "$(minisign -VQm "$f" -p vedette.pub)" = "file:$f version:0.9.4" ] && echo "$f ok" || { echo "$f FAILED: stop"; break; }; done
+for f in vedette.env compose.yaml compose.sensors.yaml compose.syslog.yaml; do [ "$(minisign -VQm "$f" -p vedette.pub)" = "file:$f version:0.1.6" ] && echo "$f ok" || { echo "$f FAILED: stop"; break; }; done
 # 3. the images, and that vedette.env names those same digests
 cosign verify --key cosign.pub --insecure-ignore-tlog=true ghcr.io/knt048/vedette-core@sha256:<digest>            # and -sensor, -scan
 grep -cF -e 'ghcr.io/knt048/vedette-core@sha256:<digest>' -e ... vedette.env         # prints 3, or do not go on
-# 4. copy your VEDETTE_BIND_IP and VEDETTE_HOSTS lines from vedette-0.9.3/vedette.env into vedette.env (a release leaves them empty);
+# 4. copy your VEDETTE_BIND_IP and VEDETTE_HOSTS lines from vedette-0.1.5/vedette.env into vedette.env (a release leaves them empty);
 #    with the sensors or syslog, add -f compose.yaml -f compose.sensors.yaml -f compose.syslog.yaml after --env-file vedette.env (leave out the add-on you do not run)
 docker compose --env-file vedette.env pull           # podman compose ... the same
 docker compose --env-file vedette.env up -d
@@ -169,7 +169,7 @@ A release can also change the compose files (for example, the compose file that 
 If any check fails, stop and put your files back. The same commands are the way back after the update (with the same `-f` files if you run the add-ons):
 
 ```sh
-cp vedette-0.9.3/* .
+cp vedette-0.1.5/* .
 docker compose --env-file vedette.env pull
 docker compose --env-file vedette.env up -d
 ```

@@ -126,6 +126,54 @@ func (s *Service) load(ctx context.Context, since time.Time, where string, args 
 	return out, rows.Err()
 }
 
+// alertKey is what one row of the alert list stands for: one signature (with the CVE ids its events name) from one source address to
+// one destination address and port. The table keeps one row per hour of it (dedupe_key, so an alert's count and incident stay
+// per-hour facts); a person reads the same attack repeated over hours as one alert with its count.
+type alertKey struct {
+	sid                 int64
+	signature, src, dst string
+	port                int
+	proto, cves         string
+}
+
+func keyOf(a Alert) alertKey {
+	k := alertKey{sid: -1, port: -1, signature: a.Signature, src: a.SrcIP, dst: a.DstIP, proto: a.Proto, cves: strings.Join(a.CVEs, ",")}
+	if a.SID != nil {
+		k.sid = *a.SID
+	}
+	if a.DstPort != nil {
+		k.port = *a.DstPort
+	}
+	return k
+}
+
+// fold makes one row of each alert repeated over several hours: the newest hour stands for it (its id, source, category and devices),
+// with the events of every hour counted, the earliest first event, and the most urgent priority. Alerts come newest first (load) and
+// stay in that order.
+func fold(alerts []Alert) []Alert {
+	at := map[alertKey]int{}
+	out := alerts[:0:0]
+	for _, a := range alerts {
+		k := keyOf(a)
+		i, ok := at[k]
+		if !ok {
+			at[k] = len(out)
+			out = append(out, a)
+			continue
+		}
+		g := &out[i]
+		g.Count += a.Count
+		if a.FirstSeen < g.FirstSeen {
+			g.FirstSeen = a.FirstSeen
+		}
+		if a.LastSeen > g.LastSeen {
+			g.LastSeen, g.lastTS = a.LastSeen, a.lastTS
+		}
+		g.Priority = min(g.Priority, a.Priority)
+	}
+	return out
+}
+
 // cmpCVE orders CVE ids by year, then number (CVE-2021-9999 before CVE-2021-10000).
 func cmpCVE(a, b string) int {
 	ya, na, _ := strings.Cut(strings.TrimPrefix(a, "CVE-"), "-")
@@ -257,6 +305,7 @@ func (s *Service) List(ctx context.Context, q Query) (AlertsView, error) {
 	if err != nil {
 		return AlertsView{}, err
 	}
+	rows = fold(rows)
 	if err := s.name(ctx, rows); err != nil {
 		return AlertsView{}, err
 	}
@@ -300,14 +349,25 @@ func (a Alert) matches(needle string) bool {
 	return false
 }
 
-// Get answers GET /detection/alerts/{id}.
+// Get answers GET /detection/alerts/{id}: the alert as the list shows it, every hour of it folded into one (fold), whichever of its
+// hours the id names.
 func (s *Service) Get(ctx context.Context, id string) (Alert, error) {
-	rows, err := s.load(ctx, time.Time{}, ` AND id = ?`, id)
+	one, err := s.load(ctx, time.Time{}, ` AND id = ?`, id)
 	if err != nil {
 		return Alert{}, err
 	}
-	if len(rows) == 0 {
+	if len(one) == 0 {
 		return Alert{}, apierr.New(404, "not_found", "This alert no longer exists.")
+	}
+	a := one[0]
+	same, err := s.load(ctx, time.Time{}, ` AND signature = ? AND sid IS ? AND src_ip = ? AND dst_ip = ? AND dst_port IS ? AND proto = ?`,
+		a.Signature, a.SID, a.SrcIP, a.DstIP, a.DstPort, a.Proto)
+	if err != nil {
+		return Alert{}, err
+	}
+	rows := slices.DeleteFunc(fold(same), func(x Alert) bool { return keyOf(x) != keyOf(a) })
+	if len(rows) == 0 {
+		rows = one
 	}
 	if err := s.name(ctx, rows); err != nil {
 		return Alert{}, err
@@ -374,6 +434,7 @@ func (s *Service) Summarize(ctx context.Context, since time.Time) (Summary, erro
 	if err != nil {
 		return Summary{}, err
 	}
+	rows = fold(rows)
 	var sum Summary
 	sum.Alerts = len(rows)
 	var last string

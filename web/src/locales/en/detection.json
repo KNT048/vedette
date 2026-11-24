@@ -84,13 +84,13 @@
     "findings_other": "{{count}} findings",
     "mobileLine_one": "{{count}} event, last {{time}}",
     "mobileLine_other": "{{count}} events, last {{time}}",
-    "col": { "severity": "Severity", "signature": "Alert", "flow": "From to", "count": "Events", "seen": "Last seen", "handling": "Handling" }
+    "col": { "severity": "Severity", "signature": "Alert", "flow": "Source → target", "count": "Events", "seen": "Last seen", "handling": "Handling" }
   },
   "alert": {
     "meta_one": "{{count}} event, last {{time}}",
     "meta_other": "{{count}} events, last {{time}}",
     "facts": "What was seen",
-    "flow": "From to",
+    "flow": "Source → target",
     "attacked": "Attacked device",
     "source": "Source",
     "outside": "{{ip}}, not in the inventory",

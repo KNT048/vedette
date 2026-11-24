@@ -222,6 +222,16 @@ Real data in Go test fixtures: `modules/feeds/testdata/brief/` holds the CVE Pro
 
 None: `content/catalog/platform-limits.json` names only the package (`openssh-server`, source package `openssh`) and the command that shows its release; the fixed releases per Alpine branch come from the built-in feed `alpine-osv` (row above, Alpine's secdb through OSV.dev), and the catalog refuses a hand-copied list (`TestPlatformLimits_DataIsValid`).
 
+## Public advisories and documentation the confirmed mitigation packs cite
+
+`content/mitigation/packs/*.json` (shipped in the `core` image, signed with the release key) is text written by the project: each
+pack paraphrases the vendor advisory, the vendor's questions and answers, CISA's and NVD's records and named incident reports
+(Broadcom, Juniper through CERT-EU, Synology, Red Hat, Canonical, nginx, Google Threat Intelligence, Rapid7, Xint, Cloud Security
+Alliance, Techaeris), and links each one in its `sources`. Commands and configuration lines are short syntax taken from the vendor's
+own documentation of that product or firewall (Fortinet, MikroTik, Cisco, Netgate pfSense, OPNsense, Sophos, Microsoft Learn,
+Juniper, Synology, Red Hat, Xint's published checks for nginx), each next to the link of its page; no document is copied whole.
+Product names only identify the products. Nothing is fetched by the box: a person opens the links.
+
 ## Public pages each box reads for CVE news (only when a person presses the button; S-AI-3)
 
 Read on the box, never stored or redistributed as they are: the box keeps only the AI's summary and the links. No library added; `golang.org/x/net/html` (already linked, row above) reads the advisory pages.

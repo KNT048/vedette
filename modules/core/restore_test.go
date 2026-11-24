@@ -163,6 +163,13 @@ func TestRestoreIntoADatabaseThatForgotTheRun(t *testing.T) {
 		t.Fatalf("run = %s", got.Raw)
 	}
 	eventuallyOS(t, "one audit row of the end", func() bool { return e.count("data.restore_done") == 1 })
+	// The row says which backup came back in words (its day and time in the organization's zone, +07 here, and its kind, not only its id) and that the audit lines
+	// written after that backup are gone from this log: the restore put back the log of that moment, and the Before
+	// restore copy holds them.
+	want := "done: the backup from 1 Nov 2026, 16:00 (Manual) is back; audit lines written after it are only in the Before restore copy"
+	if d := e.auditDetails("data.restore_done"); len(d) != 1 || d[0] != want {
+		t.Errorf("data.restore_done detail = %q, want %q", d, want)
+	}
 }
 
 // The host records a refusal as a run (host-api 4): a busy backup.restore that is the newest run is not a restore

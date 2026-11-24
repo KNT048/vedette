@@ -18,6 +18,7 @@ import { saveSsoFlow, takeSsoFlow } from './ssoFlow'
 import type { Role } from '@/lib/session'
 import { restartWait } from './BoxRestarting'
 import { nav, compareVersion, toBase64 } from './util'
+import { fmtDateTime } from '@/lib/format'
 
 // The offline bundle is hidden in the GUI for v1 (BUNDLE_IN_UI false) but its code is kept, so this file runs the bundle as
 // offered; one test runs the v1 page.
@@ -367,10 +368,10 @@ describe('core: initial setup', () => {
     const pub = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.128.0.0/24']) })
     expect(pub.status).toBe(400)
     expect(((await pub.json()) as { error: { code: string; message: string } }).error).toEqual(expect.objectContaining({ code: 'public_range', message: '100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.' }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.65.254.0/24']) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.66.254.0/24']) })
     expect(res.status).toBe(200)
     const st = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[] }
-    expect(st.lan_ranges).toEqual(['100.65.254.0/24'])
+    expect(st.lan_ranges).toEqual(['100.66.254.0/24'])
   })
 
   it('setup refuses overlapping LAN ranges like Settings › Scanning › Safety does, and nothing is set up (#350)', async () => {
@@ -601,6 +602,36 @@ describe('core: data', () => {
     await screen.findByText(/The data from before the restore is kept as a backup/)
     await waitFor(() => expect(screen.getAllByText('Before restore')).toHaveLength(preBefore + 1))
     expect(await screen.findAllByRole('button', { name: 'Restore' })).toHaveLength(before.length + 1)
+  })
+
+  it('Download backup says what the file holds and that a copy stays on the box; the new Manual row shows without a reload', async () => {
+    const u = user()
+    const url = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:x')
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    try {
+      renderApp('/settings/data')
+      expect(await screen.findByText('The backup file has no password and is not encrypted')).toBeInTheDocument()
+      expect(screen.getByText(/^It holds every device, finding and log line, .* password hashes/)).toBeInTheDocument()
+      expect(screen.getByText(/keeps it on this box \(listed below as Manual\)/)).toBeInTheDocument()
+      // what "Decryption key: Not included" means, and what a restore on another box loses
+      expect(await screen.findByText('Decryption key: every backup restores whole on this box; it matters only on another box.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'About Decryption key' })).toHaveAccessibleDescription(/On another box, .*users with two-step sign-in cannot sign in/)
+      const manual = (await screen.findAllByText('Manual')).length
+      await u.click(screen.getByRole('button', { name: 'Download backup' }))
+      expect(await screen.findByText(/^Downloaded vedette-backup-\d{4}-\d\d-\d\d-\d{4}\.tar\.gz\. A copy stays on this box/)).toBeInTheDocument()
+      await waitFor(() => expect(screen.getAllByText('Manual')).toHaveLength(manual + 1))
+    } finally { url.mockRestore(); revoke.mockRestore(); click.mockRestore() }
+  })
+
+  it('the restore dialog says in its body that a copy is kept first, that the audit log goes back and that the traps restart', async () => {
+    const u = user()
+    renderApp('/settings/data')
+    await u.click((await screen.findAllByRole('button', { name: 'Restore' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: /Restore the backup from/ })
+    // in the body, not behind "More about this"
+    expect(within(dlg).getByRole('list')).toHaveTextContent(/keeps a copy of the data it has now.*The audit log goes back too/)
+    expect(within(dlg).getByRole('list')).toHaveTextContent(/the traps stop for about a minute/)
   })
 
   it('restore without confirm_data_loss: 409 confirm_required, nothing changes', async () => {
@@ -1355,12 +1386,51 @@ describe('core: updates (S-CORE-2)', () => {
     expect(within(table).getByText('0.9.2')).toBeInTheDocument()
   })
 
-  it('changes the channel and mode; automatic mode installs itself on a check', async () => {
+  it('changes the channel and mode; on an automatic box the check button says it installs, and the check starts the install', async () => {
     const u = user()
     renderApp('/settings/updates')
     await u.click(await screen.findByRole('button', { name: 'Automatic' }))
-    await u.click(screen.getByRole('button', { name: 'Check for Vedette releases' }))
-    expect(await screen.findByText(/Installed \d+ new items automatically/)).toBeInTheDocument()
+    expect(await screen.findByText(/a check you start here too, inside the maintenance window/)).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Check and install new releases' }))
+    expect(await screen.findByText('Found Vedette 0.9.4. Updates are automatic, so the box is installing it now.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
+  })
+
+  it('every check leaves a result line under the settings, not only a time', async () => {
+    const u = user()
+    sessionStore.set({ userId: 'u-admin' })
+    const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: 'Check for Vedette releases' }))
+    expect(await screen.findByText(/^Last checked .+\. Vedette 0\.9\.4 is available\./)).toBeInTheDocument()
+    const running = s.components.find((c: { id: string }) => c.id === 'software').version
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...s, last_check: new Date().toISOString(), last_check_error: null, available: [] })))
+    renderApp('/settings/updates')
+    expect(await screen.findByText(new RegExp(`^Last checked .+\\. You run the newest release \\(${running.replace(/\./g, '\\.')}\\)\\.`))).toBeInTheDocument()
+  })
+
+  it('a rollback the release marks safe says the data is kept and what restarts; the run lists its steps in the order they run', async () => {
+    const u = user()
+    renderApp('/settings/updates')
+    await u.click(await screen.findByRole('button', { name: /^Back to .*Vedette software/i }))
+    const dlg = await screen.findByRole('dialog')
+    expect(dlg).toHaveTextContent('Your data is kept: 0.9.2 reads the database as it is now')
+    expect(dlg).toHaveTextContent('Every part of Vedette restarts, its sensor, scanner and traps too')
+    await u.click(within(dlg).getByRole('button', { name: 'Roll back' }))
+    expect(await screen.findByText(/^Step 1 of 2: switch the sensor, scanner and traps back first/)).toBeInTheDocument()
+    expect(screen.getByText(/^Step 2 of 2: restart Vedette on the older version/)).toBeInTheDocument()
+  })
+
+  it('one update has one time: the ended run shows when it finished, and the version in use links to its notes', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
+    const run = { id: 'ur1', action: 'update', component: 'software', from: '0.9.2', to: '0.9.3', status: 'done', steps: ['download', 'restart', 'start'], step: null, started_at: '2026-11-12T08:00:00Z', finished_at: '2026-11-12T08:06:00Z', user: 'admin@acme.example', error: null }
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...s, run })))
+    renderApp('/settings/updates')
+    expect(await screen.findByText(`Finished ${fmtDateTime('2026-11-12T08:06:00Z')}, admin@acme.example`)).toBeInTheDocument()
+    expect(screen.queryByText(new RegExp(`Started ${fmtDateTime('2026-11-12T08:00:00Z')}`))).toBeNull()
+    const running = s.components.find((c: { id: string }) => c.id === 'software').version
+    expect(within(screen.getByRole('table', { name: 'Versions in use' })).getByRole('link', { name: `Notes of ${running}` })).toHaveAttribute('href', `https://github.com/KNT048/vedette/releases/tag/v${running}`)
   })
 
   it('a failed check says so under the settings with the reason, and a good check clears it', async () => {
@@ -2052,7 +2122,8 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     expect(within(panel).getByText('5 packages, 5 security')).toBeInTheDocument()
     expect(within(panel).getByText(/^vedette-pre-update-.*\.db\.gz \(4\.2 MB\)$/)).toBeInTheDocument()
     for (const n of ['vedette-api', 'database', 'sensor', 'web interface']) expect(within(panel).getByText(n)).toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ubuntu 24.04.3 LTS: no security updates waiting'), T)
+    // no security update waits, but the installed ones need a reboot: the headline says that, not "nothing waiting"
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ubuntu 24.04.3 LTS: updates installed, a reboot is needed to use them'), T)
     const os = osSection()
     expect(os.getAllByText('Reboot required').length).toBeGreaterThan(0)
     expect(os.getByText(/Needed by: linux-image-6.8.0-87-generic .*libc6/)).toBeInTheDocument()
@@ -2149,7 +2220,10 @@ describe('core: operating system of the box (S-CORE-7)', () => {
       fireEvent.change(os.getByLabelText('Until'), { target: { value: '04:00' } })
       await u.click(os.getByRole('button', { name: 'Save window' }))
       expect(await screen.findByText('Maintenance window saved.')).toBeInTheDocument()
-      expect(await os.findByText('Mon, 02:00 to 04:00')).toBeInTheDocument()
+      // the form itself shows the saved window (it is not repeated as a summary line above): nothing left to save
+      await waitFor(() => expect(os.getByRole('button', { name: 'Save window' })).toBeDisabled())
+      expect(os.getByLabelText('Monday')).toBeChecked()
+      expect(os.getByLabelText('Until')).toHaveValue('04:00')
       // the server checks too
       asAdmin()
       expect((await patch({ window: { mode: 'window', days: [], from: '02:00', to: '04:00' } })).status).toBe(400)

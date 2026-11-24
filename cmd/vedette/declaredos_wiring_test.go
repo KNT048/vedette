@@ -16,7 +16,7 @@ import (
 // meets what the sources read, the page's OS and the matcher's agree. The page asks the matcher (findings.DeclaredOSRow); this test
 // reads both sides through the real wiring and compares them.
 func TestWiringDeclaredOSPageIsTheMatchersOS(t *testing.T) {
-	const ip = "100.65.254.1"
+	const ip = "100.66.254.1"
 	snmp := func(s *stack, id, os string) {
 		t.Helper()
 		if err := s.d.Inventory.Record(t.Context(), []observe.Observation{{AssetHint: observe.AssetHint{Device: id}, Field: observe.OS, Value: os, Source: observe.SNMP, Confidence: 0.9}}); err != nil {

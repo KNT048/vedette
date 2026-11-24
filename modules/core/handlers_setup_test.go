@@ -727,11 +727,11 @@ func TestContract_INV15_SetupTakesASharedAddressSpaceRange(t *testing.T) {
 		t.Fatalf("message = %q", msg)
 	}
 	b = setupBody(code)
-	b["lan"] = []string{"100.65.254.0/24", "100.127.0.9/16"}
+	b["lan"] = []string{"100.66.254.0/24", "100.127.0.9/16"}
 	wantOK(t, w.client().post("/core/setup", b), 200)
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if !slices.Equal(f.lan, []string{"100.65.254.0/24", "100.127.0.0/16"}) {
+	if !slices.Equal(f.lan, []string{"100.66.254.0/24", "100.127.0.0/16"}) {
 		t.Fatalf("port got %v", f.lan)
 	}
 }
@@ -746,7 +746,7 @@ func TestContract_INV15_SetupOffersTheBoxNetwork(t *testing.T) {
 		want any
 	}{
 		{"private", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("192.168.142.141/24"), true }, "192.168.142.0/24"},
-		{"shared", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.65.254.17/24"), true }, "100.65.254.0/24"},
+		{"shared", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.66.254.17/24"), true }, "100.66.254.0/24"},
 		{"public", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("203.0.113.5/24"), true }, nil},
 		{"public 100/8", func(context.Context) (netip.Prefix, bool) { return netip.MustParsePrefix("100.128.4.5/24"), true }, nil},
 		{"none", func(context.Context) (netip.Prefix, bool) { return netip.Prefix{}, false }, nil},

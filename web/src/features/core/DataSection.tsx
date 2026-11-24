@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Download } from 'lucide-react'
-import { PageHeader, Section } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { DownloadButton } from '@/components/common/DownloadButton'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -21,7 +23,7 @@ import { useInstallKind, useModuleAvailable } from '@/lib/modules'
 import { useScope } from '@/lib/v1'
 import { ContainerBackup, InstallPending } from './ContainerOnly'
 import type { BoxBackup } from './types'
-import { dayOf, fmtDateTime } from '@/lib/format'
+import { dayOf, fmtDateTime, fmtTime } from '@/lib/format'
 import { errMsg, useGate } from './parts'
 import { nav } from './util'
 import { beginBoxRestart } from './BoxRestarting'
@@ -30,11 +32,16 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/input'
 import { Select } from '@/components/ui/input'
 
+/** "2026-11-24-0750": the organization's day and time to the minute, so two backups of one day get two names. */
+const fileStamp = () => { const now = new Date().toISOString(); return `${dayOf(now)}-${fmtTime(now).replace(':', '')}` }
+
 export default function DataSection() {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const me = useMe().data
   const org = me?.org ?? ''
+  const qc = useQueryClient()
+  const [preparing, setPreparing] = useState(false)
   const install = useInstallKind() // A container-only install has no helper, so no box backups; the customer copies the volume (S-CORE-9)
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
@@ -81,7 +88,15 @@ export default function DataSection() {
         <>
           <Section id="backup" title={t('data.backup.title')} description={t('data.backup.desc')} info={t('data.backup.info')}>
             <Card className="max-w-3xl">
-              <DownloadButton id="backup-download" disabled={gate.disabled} title={gate.title} {...dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</DownloadButton>
+              <Notice tone="warn" className="mb-3" title={t('data.backup.plainTitle')}>{t('data.backup.plain')}</Notice>
+              <p className="mb-3 text-meta text-muted">{t('data.backup.keepsCopy')}</p>
+              {/* The box makes a full backup before the first byte comes (tens of seconds on a large box): say so while it works, then
+                  that a copy stays on the box, and show that copy in the list below at once. The box names the file; this is its fallback. */}
+              <DownloadButton id="backup-download" disabled={gate.disabled} title={gate.title} path="/core/data/backup" filename={`vedette-backup-${fileStamp()}.tar.gz`}
+                onStart={() => setPreparing(true)}
+                onSaved={(saved) => { setPreparing(false); toast.success(t('data.backup.done', { file: saved })); void qc.invalidateQueries({ queryKey: ['core', 'backups'] }) }}
+                onError={(e) => { setPreparing(false); toast.error(errMsg(e, t)) }}><Download />{t('data.backup.button')}</DownloadButton>
+              <BusyNote busy={preparing} className="mt-2">{t('data.backup.preparing')}</BusyNote>
               <KeyAside disabled={gate.disabled} title={gate.title} />
             </Card>
           </Section>
@@ -206,8 +221,14 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
             </div>
           )} />
       ) : null}
+      {rows.length ? <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('data.restore.keyLine')}</p><InfoTip topic={t('data.restore.col.key')}>{t('data.restore.keyExplained')}</InfoTip></div> : null}
       <Dialog open={pick !== null} onOpenChange={(o) => { if (!o) setPick(null) }}>
-        <DialogContent title={t('data.restore.ask.title', { when: pick ? fmtDateTime(pick.created_at) : '' })} description={t('data.restore.ask.lost')} info={<><p>{t('data.restore.ask.kept')}</p><p>{t('data.restore.ask.retention')}</p><p>{t('data.restore.ask.restart')}</p></>}>
+        <DialogContent title={t('data.restore.ask.title', { when: pick ? fmtDateTime(pick.created_at) : '' })} description={t('data.restore.ask.lost')} info={t('data.restore.ask.retention')}>
+          {/* What happens, in the body: the copy kept first and what restarts; only the retention rule is behind More */}
+          <ul className="grid list-disc gap-1 pl-5 text-sm">
+            <li>{t('data.restore.ask.kept')}</li>
+            <li>{t('data.restore.ask.restart')}</li>
+          </ul>
           {pushedOut ? <p className="text-sm">{t('data.restore.ask.pushesOut', { when: fmtDateTime(pushedOut.created_at) })}</p> : null}
           <Field label={t('data.restore.ask.password')} htmlFor="restore-password">
             <Input id="restore-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />

@@ -98,3 +98,31 @@ func TestSignPacksRefusesAndLeavesTheDirectory(t *testing.T) {
 		})
 	}
 }
+
+// The confirmed packs of the repository go through the release signing path as they are: the box's parser accepts each one, the
+// signature verifies and the box reads the signed directory back. The test signs with a key of its own; a release signs with the
+// release key (make release-packs).
+func TestSignPacksSignsTheShippedPacks(t *testing.T) {
+	r := newRig(t)
+	names, err := filepath.Glob("../../content/mitigation/packs/*.json")
+	if err != nil || len(names) == 0 {
+		t.Fatalf("no shipped packs: %v", err)
+	}
+	files := map[string][]byte{}
+	for _, n := range names {
+		b, err := os.ReadFile(n) //nolint:gosec // test: a file of the repository
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[filepath.Base(n)] = b
+	}
+	dir := packSrc(t, files)
+	n, err := SignPacks(t.Context(), testSigner{t, r.active}, dir, "2026.11.24.1", r.trust)
+	if err != nil || n != len(names) {
+		t.Fatalf("signed %d of %d: %v", n, len(names), err)
+	}
+	u, err := mitigation.ReadPackDir(dir)
+	if err != nil || len(u.Docs) != len(names) {
+		t.Fatalf("read back: %d docs, %v", len(u.Docs), err)
+	}
+}

@@ -217,7 +217,9 @@ test('the maintenance window is checked on the page, saved, and a reboot is sche
   await toast(page, /Maintenance window saved\./)
   const saved = (await state()).body.window
   expect(saved).toEqual({ mode: 'window', days: [1, 2, 3, 4, 5, 6, 7], from: '02:00', to: '05:00' })
-  await expect(page.getByText('Mon, Tue, Wed, Thu, Fri, Sat, Sun, 02:00 to 05:00')).toBeVisible()
+  // the form shows the saved window itself (no summary line repeats it): nothing left to save
+  await expect(page.getByRole('button', { name: 'Save window' })).toBeDisabled()
+  await expect(page.locator('#win-to')).toHaveValue('05:00')
   await shot(page, 'real', 'os-window')
 
   await page.getByRole('button', { name: 'Schedule reboot' }).click()

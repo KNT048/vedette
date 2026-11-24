@@ -183,7 +183,7 @@ test.describe('first-run setup', () => {
     await page.getByRole('button', { name: 'Add range' }).click()
     await next(page)
     await expect(page.getByText('Fill in this range or remove the row.')).toBeVisible()
-    await page.getByLabel('Range 3', { exact: true }).fill('100.65.254.0/24') // a LAN behind carrier-grade NAT (RFC 6598) is local
+    await page.getByLabel('Range 3', { exact: true }).fill('100.66.254.0/24') // a LAN behind carrier-grade NAT (RFC 6598) is local
     // the single commitment checkbox and the license line replace the consent upload
     await expect(page.getByLabel(/Upload/)).toHaveCount(0)
     await expect(page.locator('input[type=file]')).toHaveCount(0)
@@ -197,7 +197,7 @@ test.describe('first-run setup', () => {
     await page.getByRole('button', { name: 'Back' }).click()
     await expect(page.getByLabel('Range 1', { exact: true })).toHaveValue('192.168.142.0/25')
     await expect(page.getByLabel('Range 2', { exact: true })).toHaveValue('10.1.0.0/16')
-    await expect(page.getByLabel('Range 3', { exact: true })).toHaveValue('100.65.254.0/24')
+    await expect(page.getByLabel('Range 3', { exact: true })).toHaveValue('100.66.254.0/24')
     await next(page)
     await page.getByRole('radio', { name: /Mid-size business/ }).click()
     await shot(page, 'core', 'setup-3')
@@ -214,7 +214,7 @@ test.describe('first-run setup', () => {
 
     // scope reached the inventory module
     const inv = await page.evaluate(async () => (await (await fetch('/api/v1/inventory/settings')).json()) as { lan_ranges: string[]; active: { enabled: boolean } })
-    expect(inv.lan_ranges).toEqual(['192.168.142.0/25', '10.1.0.0/16', '100.65.254.0/24'])
+    expect(inv.lan_ranges).toEqual(['192.168.142.0/25', '10.1.0.0/16', '100.66.254.0/24'])
     expect(inv.active.enabled).toBe(true)
 
     // every sidebar page is empty: no trace of sample data
@@ -459,7 +459,7 @@ test.describe('updates', () => {
     await page.getByRole('button', { name: /^Update Vedette software$/ }).click()
     await expect(page.getByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeVisible()
     await shot(page, 'core', 'updates-run')
-    await toastText(page, /installed in the spare slot/)
+    await toastText(page, /installed next to the old version/)
     await expect(softwareVersion(page)).toHaveText(/^0\.9\.4( |$)/)
     await expect(page.getByRole('alert').filter({ hasText: 'known vulnerabilities' })).toHaveCount(0)
     await page.getByRole('button', { name: /Back to 0\.9\.3/ }).click()
@@ -532,7 +532,7 @@ test.describe('updates: system helper', () => {
     const errors = collectErrors(page)
     await updateWith(page, null)
     await expect(helperRow(page)).toContainText('0.9.4')
-    await toastText(page, /installed in the spare slot/)
+    await toastText(page, /installed next to the old version/)
     await expect(softwareVersion(page)).toHaveText(/^0\.9\.4( |$)/)
     await expect(page.locator('#vedette').getByRole('table', { name: 'Update history' })).toContainText(/System helper.*Update.*0\.9\.3 > 0\.9\.4/)
     noErrors(errors)

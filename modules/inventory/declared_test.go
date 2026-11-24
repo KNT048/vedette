@@ -67,9 +67,9 @@ func TestDeclaredOSRowGivesTheDeviceItsOSAndModel(t *testing.T) {
 		in   inventory.AddInput
 		os   string
 	}{
-		{"picked from the catalog", inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.65.254.1"}, "FortiOS 7.2.13"},
-		{"typed vendor and product", inventory.AddInput{Vendor: "Fortinet", Product: "FortiOS", Version: "7.2.13", IP: "100.65.254.1"}, "FortiOS 7.2.13"},
-		{"no version", inventory.AddInput{CatalogID: "fortigate", IP: "100.65.254.1"}, "FortiOS"},
+		{"picked from the catalog", inventory.AddInput{CatalogID: "fortigate", Version: "v7.2.13", IP: "100.66.254.1"}, "FortiOS 7.2.13"},
+		{"typed vendor and product", inventory.AddInput{Vendor: "Fortinet", Product: "FortiOS", Version: "7.2.13", IP: "100.66.254.1"}, "FortiOS 7.2.13"},
+		{"no version", inventory.AddInput{CatalogID: "fortigate", IP: "100.66.254.1"}, "FortiOS"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			m := &matcher{keep: true, version: "7.2.13"}
@@ -103,7 +103,7 @@ func TestDeclaredOSRowGivesTheDeviceItsOSAndModel(t *testing.T) {
 func TestDeclaredOSRowIsTheMatchersChoice(t *testing.T) {
 	setup := func(t *testing.T, m *matcher, version string) (*env, string) {
 		e := newEnv(t, withMatcher(m))
-		id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: version, IP: "100.65.254.1"})
+		id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: version, IP: "100.66.254.1"})
 		e.record(observe.Observation{AssetHint: observe.AssetHint{Device: id}, Field: observe.OS, Value: "FortiOS 7.2.12", Source: observe.SNMP, Confidence: 0.9},
 			observe.Observation{AssetHint: observe.AssetHint{Device: id}, Field: observe.Model, Value: "FGT60F", Source: observe.SNMP, Confidence: 0.9})
 		return e, id
@@ -142,7 +142,7 @@ func TestDeclaredOSRowIsTheMatchersChoice(t *testing.T) {
 // Without the matcher a declared row only fills an OS no source gives.
 func TestDeclaredOSRowWithoutTheMatcherOnlyFills(t *testing.T) {
 	e := newEnv(t)
-	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.2.13", IP: "100.65.254.1"})
+	id := e.addDevice(inventory.AddInput{CatalogID: "fortigate", Version: "7.2.13", IP: "100.66.254.1"})
 	_, _, os := identityOf(t, e, id)
 	wantIdentity(t, "OS", os, "FortiOS 7.2.13", "declared")
 	e.record(observe.Observation{AssetHint: observe.AssetHint{Device: id}, Field: observe.OS, Value: "FortiOS 7.2.12", Source: observe.SNMP, Confidence: 0.9})
@@ -190,7 +190,7 @@ func TestDeclaredIdentityKeepsOneNameAndIsSearchable(t *testing.T) {
 	if d.Model == nil || d.Model.Value != "FortiGate" || d.Name() != names[id] {
 		t.Errorf("model %+v, name %q on the page and %q elsewhere: want FortiGate and one name", d.Model, d.Name(), names[id])
 	}
-	typed := e.addDevice(inventory.AddInput{Vendor: "Fortinet", Product: "FortiOS", Version: "7.2.13", IP: "100.65.254.1"})
+	typed := e.addDevice(inventory.AddInput{Vendor: "Fortinet", Product: "FortiOS", Version: "7.2.13", IP: "100.66.254.1"})
 	f := false
 	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{Q: "fortigate", Ignored: &f})
 	if err != nil {

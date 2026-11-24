@@ -59,14 +59,14 @@ function RunPanel({ run, name, reconnecting, after }: { run: UpdateRun; name: st
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">{t(`updates.run.title.${run.action}.${run.status}`, { name, version: run.to, from: run.from ?? '' })}</h3>
         <Chip tone={tone}>{t(`updates.run.status.${run.status}`)}</Chip>
-        <span className="text-meta text-muted">{fmtDateTime(run.started_at)}, {run.user === 'system' ? t('updates.hist.system') : run.user}</span>
+        <span className="text-meta text-muted">{run.status !== 'running' && run.finished_at ? t('updates.run.finishedAt', { time: fmtDateTime(run.finished_at) }) : t('updates.run.startedAt', { time: fmtDateTime(run.started_at) })}, {run.user === 'system' ? t('updates.hist.system') : run.user}</span>
       </div>
       {run.status === 'running' ? (
         <div className="grid gap-3" aria-live="polite">
           <ol className="grid gap-1 text-sm">
             {run.steps.map((st, i) => (
               <li key={st} className={i === at ? 'font-medium' : 'text-muted'} aria-current={i === at ? 'step' : undefined}>
-                {t('updates.run.stepOf', { n: i + 1, total: run.steps.length })} {t(`updates.run.step.${st}`)}{i < at ? ` ${t('updates.run.stepDone')}` : ''}
+                {t('updates.run.stepOf', { n: i + 1, total: run.steps.length })} {t(`updates.run.step.${run.action}.${st}`)}{i < at ? ` ${t('updates.run.stepDone')}` : ''}
               </li>
             ))}
           </ol>
@@ -125,9 +125,19 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   const includesHost = (a: UpdateAvailable) => (a.host_version ? <span className="max-w-xs text-caption text-muted">{t('updates.host.includes', { version: a.host_version })}</span> : null)
 
   async function check() {
+    const before = s.run?.id ?? null
     try {
       const r = await m.check.mutateAsync()
-      toast.success(r.applied ? t('updates.checkedApplied', { count: r.applied }) : r.available.length ? t('updates.checkedNew', { count: r.available.length }) : t('updates.checkedNone', { version: r.components.find((c) => c.id === 'software')?.version ?? '' }))
+      // On an automatic box the check itself starts the install of what it found (inside the maintenance window): its run is
+      // followed like one Update started, and the toast says it is installing, not "press Update".
+      const started = r.run?.status === 'running' && r.run.id !== before ? r.run : null
+      if (started) setAfter(before)
+      const found = r.available.find((a) => a.component === 'software')?.version
+      toast.success(started ? t('updates.checkedInstalling', { version: started.to })
+        : r.applied ? t('updates.checkedApplied', { count: r.applied })
+        : found && r.mode === 'auto' ? t('updates.checkedNewAuto', { version: found })
+        : r.available.length ? t('updates.checkedNew', { count: r.available.length })
+        : t('updates.checkedNone', { version: r.components.find((c) => c.id === 'software')?.version ?? '' }))
     } catch (e) { toast.error(errMsg(e, t)) }
   }
   async function apply(id: string) {
@@ -167,12 +177,16 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     : c.signature === 'unsigned' && c.version.endsWith('-dev') ? <Chip tone="off">{t('updates.sig.dev')}</Chip>
     : <Chip tone="danger">{t(`updates.sig.${c.signature}`)}</Chip>)
 
+  // The notes of the release in use, on its release page (a build made from source has none).
+  const notesLink = (c: UpdateComponent) => (c.id === 'software' && !c.version.endsWith('-dev')
+    ? <a className="text-caption text-accent underline-offset-4 hover:underline" href={releaseUrl(c.version)} target="_blank" rel="noreferrer">{t('updates.notes.running', { version: c.version })}</a> : null)
+
   // The helper row: one short line, the rollback detail behind ⓘ (#824).
   const hostHow = <div className="flex items-center gap-1"><span className="text-caption text-muted">{t('updates.host.how')}</span><InfoTip topic={comp('host')}>{t('updates.host.howInfo')}</InfoTip></div>
 
   const columns: ColumnDef<UpdateComponent>[] = [
     { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span>{row.original.id === 'host' ? hostHow : <span className="text-caption text-muted">{t(`updates.kind.${row.original.kind}`)}</span>}</div> },
-    { id: 'version', header: t('updates.col.version'), accessorFn: (c) => c.version, cell: ({ row }) => <div className="grid"><span className="font-mono text-meta">{row.original.version}</span><span className="text-caption text-muted">{fmtDateTime(row.original.installed_at)}</span></div> },
+    { id: 'version', header: t('updates.col.version'), accessorFn: (c) => c.version, cell: ({ row }) => <div className="grid"><span className="font-mono text-meta">{row.original.version}</span><span className="text-caption text-muted">{fmtDateTime(row.original.installed_at)}</span>{notesLink(row.original)}</div> },
     { id: 'sig', header: t('updates.col.signature'), accessorFn: (c) => c.signature, cell: ({ row }) => sigChip(row.original) },
     { id: 'available', header: t('updates.col.available'), enableSorting: false, accessorFn: (c) => availableOf(c.id)?.version ?? '', cell: ({ row }) => {
       if (row.original.id === 'host') return hostNext ? <span className="font-mono text-meta">{hostNext}</span> : <span className="text-muted">{t('updates.latest')}</span>
@@ -226,7 +240,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         <Notice tone="danger" role="alert" className="mb-6" title={t('updates.advisoryBanner', { count: affected.length })}>{t(updateFixes ? 'updates.advisoryFix' : 'updates.advisoryFixManual', { id: affected[0]?.id, version: affected[0]?.fixed_in })}</Notice>
       ) : null}
 
-      <Section title={t('updates.settings')} actions={<Button onClick={() => void check()} disabled={operator.disabled} busy={m.check.isPending} busyLabel={t('common:busy.checking')} title={operator.title}><RefreshCw />{t('updates.check')}</Button>}>
+      <Section title={t('updates.settings')} actions={<Button onClick={() => void check()} disabled={operator.disabled} busy={m.check.isPending} busyLabel={t('common:busy.checking')} title={operator.title}><RefreshCw />{t(s.mode === 'auto' ? 'updates.checkAuto' : 'updates.check')}</Button>}>
         <BusyNote busy={m.check.isPending} className="mb-3">{t('updates.checkWaiting')}</BusyNote>
         <fieldset disabled={!admin.ok} title={admin.title} className="m-0 grid min-w-0 gap-4 border-0 p-0 sm:grid-cols-2">
           <div className="grid gap-1.5">
@@ -243,7 +257,8 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         {/* One status line: a failed check says why, then the last good one if any; never "Never checked." above a failure. */}
         <p className={`mt-3 text-meta ${s.last_check_error && s.last_check_error.code !== 'update_not_published' ? 'text-warn' : 'text-muted'}`}>
           {s.last_check_error ? t('updates.checkFailed', { time: fmtRelative(s.last_check_error.at), reason: s.last_check_error.message }) : isNever(s.last_check) ? t('updates.neverChecked') : t('updates.lastCheck', { time: fmtRelative(s.last_check) })}
-          {s.last_check_error && !isNever(s.last_check) ? ` ${t('updates.lastGood', { time: fmtRelative(s.last_check) })}` : ''} {s.check_enabled ? '' : t('updates.checkOff')}
+          {s.last_check_error && !isNever(s.last_check) ? ` ${t('updates.lastGood', { time: fmtRelative(s.last_check) })}` : ''}
+          {!s.last_check_error && !isNever(s.last_check) ? ` ${softwareNext ? t('updates.resultNew', { version: softwareNext }) : t('updates.resultNone', { version: s.components.find((c) => c.id === 'software')?.version ?? '' })}` : ''} {s.check_enabled ? '' : t('updates.checkOff')}
         </p>
       </Section>
 
@@ -260,6 +275,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
                 <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{comp(c.id)}</span>{sigChip(c)}</div>
                 {c.id === 'host' ? hostHow : null}
                 <span className="font-mono text-meta">{c.version} <span className="font-sans text-caption text-muted">{fmtDateTime(c.installed_at)}</span></span>
+                {notesLink(c)}
                 {c.id === 'host' ? (hostNext ? <span className="text-meta">{t('updates.col.available')}: <span className="font-mono">{hostNext}</span></span> : <span className="text-meta text-muted">{t('updates.latest')}</span>)
                 : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-meta">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} busy={m.apply.isPending && m.apply.variables === a.component} busyLabel={t('common:busy.updating')} title={admin.title} onClick={() => askApply(a)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-meta text-muted">{t('updates.latest')}</span>}
                 {a ? includesHost(a) : null}
@@ -330,7 +346,8 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
               <p>{t('updates.rollbackAsk.dataLossWhy')}</p>
               <label className="mt-2 flex items-start gap-2 text-ink"><Checkbox checked={dataLossOk} onCheckedChange={(v) => setDataLossOk(v === true)} className="mt-0.5" />{t('updates.rollbackAsk.dataLossOk')}</label>
             </Notice>
-          ) : null}
+          ) : rollback?.id === 'software' ? <p className="text-sm">{t('updates.rollbackAsk.dataKept', { to: rollback.previous ?? '' })}</p> : null}
+          {rollback?.id === 'software' ? <p className="text-sm">{t('updates.rollbackAsk.restart')}</p> : null}
           <p className="text-sm text-muted">{t('updates.rollbackAsk.manual')}</p>
           <DialogFooter><Button onClick={() => setRollback(null)}>{t('common:cancel')}</Button><Button variant="danger" disabled={(running && rollback?.id === 'software') || (!!rollback?.rollback_restores_data && !dataLossOk)} busy={m.rollback.isPending} busyLabel={t('updates.rollbackAsk.rollingBack')} onClick={() => rollback && void doRollback(rollback)}>{t('updates.rollbackAsk.confirm')}</Button></DialogFooter>
         </DialogContent>
@@ -343,7 +360,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
 export default function UpdatesSection() {
   const { t } = useTranslation('core')
   const install = useInstallKind()
-  // A container-only install has no spare slot, rollback, channels or packages: the customer pulls the new images (S-CORE-9).
+  // A container-only install has no second copy to switch to, rollback, channels or packages: the customer pulls the new images (S-CORE-9).
   if (install === 'container') return (
     <>
       <PageHeader title={t('settings.updates')} meta={t('container.updates.meta')} info={t('container.updates.metaInfo')} stories={['S-CORE-2', 'S-CORE-9']} />
@@ -366,7 +383,8 @@ function ApplianceUpdates() {
   const os = useOsState()
   const sec = os.data?.pending.filter((p) => p.security).length ?? 0
   const name = os.data?.os?.name // null before the box first looked for updates
-  const title = !name ? t('settings.updates') : sec ? t('updates.titleOs', { name, count: sec }) : t('updates.titleOsClean', { name })
+  // The headline is what the operating system still needs: security updates waiting, else a reboot to load what is installed.
+  const title = !name ? t('settings.updates') : sec ? t('updates.titleOs', { name, count: sec }) : os.data?.reboot_required ? t('updates.titleOsReboot', { name }) : t('updates.titleOsClean', { name })
   return (
     <>
       <PageHeader title={title} meta={t('updates.meta')} info={t('updates.metaInfo')} stories={['S-CORE-2', 'S-CORE-7']} />

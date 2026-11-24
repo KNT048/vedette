@@ -363,13 +363,21 @@ func (r *updateRunRec) add(step, command, service string, undo bool) error {
 	return nil
 }
 
+// runs reports whether a service is on: its unit has [Install] (it starts at boot), or systemd runs it now. A unit that
+// runs without [Install] (left so by an interrupted stop, or written before the module's guard put [Install] back) still
+// takes core's heartbeat, so an update or a rollback that skipped it would leave it on another version than core until its
+// module's guard noticed; switching it with the others is what its module asks for anyway.
+func runs(s api.ContainerState) bool {
+	return s.Enabled || s.UnitState == api.UnitActive || s.UnitState == api.UnitOther
+}
+
 // planApply: host = host.self_update when the release brings a newer system helper (planHost); download =
 // container.pull of every installed service the release has an image for (core included); restart = core's
 // container.start with a snapshot; start = container.start with the version for the other services that run
-// (enabled), AFTER core: the host judges a sensor or scan worker healthy only when core takes its heartbeat,
+// (runs), AFTER core: the host judges a sensor or scan worker healthy only when core takes its heartbeat,
 // and an old core refuses a newer protocol, so a sensor switched before core never passes. A service that is
-// installed but off (its module is off, its unit has no [Install]) is pulled but not started: a start would
-// turn it on (SYS-5).
+// installed but off (its module is off: its unit has no [Install] and is stopped) is pulled but not started: a start
+// would turn it on (SYS-5).
 func (h *OSHandlers) planApply(ctx context.Context, c caller, rel *verifiedRelease) (*updateRunRec, string, error) {
 	st, core, err := h.containers(ctx)
 	if err != nil {
@@ -416,7 +424,7 @@ func (h *OSHandlers) planApply(ctx context.Context, c caller, rel *verifiedRelea
 		if s.Service == api.ServiceCore || !s.Installed || !inRelease[s.Service] {
 			continue
 		}
-		if !s.Enabled {
+		if !runs(s) {
 			off = append(off, s.Service)
 			continue
 		}
@@ -469,7 +477,7 @@ func (h *OSHandlers) planRollback(ctx context.Context, c caller, confirmed bool)
 	}
 	rec.StartedAt, rec.Progress = h.now(), h.now()
 	for _, s := range st.Services {
-		if s.Service == api.ServiceCore || !s.Installed || !s.Enabled || s.Version == nil || *s.Version != cur ||
+		if s.Service == api.ServiceCore || !s.Installed || !runs(s) || s.Version == nil || *s.Version != cur ||
 			s.Previous == nil || s.Previous.Version == nil || *s.Previous.Version != prev {
 			continue
 		}

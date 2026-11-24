@@ -71,7 +71,7 @@ test('the Download backup button saves an archive of the box (a stored secret is
   const download = await dl
   savedAs = download.suggestedFilename()
   archive = readFileSync((await download.path())!)
-  await expect(page.locator('[data-sonner-toast]').filter({ hasText: /Downloaded vedette-backup-/ }).first()).toBeVisible()
+  await expect(page.locator('[data-sonner-toast]').filter({ hasText: /Downloaded vedette-backup-.*A copy stays on this box/ }).first()).toBeVisible()
   await shot(page, 'real', 'backup-downloaded')
   expect(archive.length).toBeGreaterThan(1000)
   expect(archive.subarray(0, 2).toString('hex'), 'a gzip file').toBe('1f8b')
@@ -79,8 +79,8 @@ test('the Download backup button saves an archive of the box (a stored secret is
 })
 
 // Issue #232 (fixed in #247): the saved file is named like the tar.gz the backend sends (INV-19).
-test('the saved file is named like the archive it is: vedette-backup-<day>.tar.gz', async () => {
-  expect(savedAs).toMatch(/^vedette-backup-\d{4}-\d\d-\d\d\.tar\.gz$/)
+test('the saved file is named like the archive it is: vedette-backup-<day>-<hhmm>.tar.gz', async () => {
+  expect(savedAs).toMatch(/^vedette-backup-\d{4}-\d\d-\d\d-\d{4}\.tar\.gz$/)
 })
 
 test('the archive holds the database and no master key, no password and no stored secret (INV-18, INV-19)', async () => {

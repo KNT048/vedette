@@ -21,6 +21,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/host/api"
@@ -860,7 +861,11 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 	}
 	if x, ok := server.ExchangeFrom(ctx); ok {
 		hd := x.W.Header()
-		hd.Set("Content-Disposition", `attachment; filename="vedette-backup-`+h.now().UTC().Format("2006-01-02")+`.tar.gz"`)
+		loc, err := h.location(ctx) // the name carries the organization's day and time; a zone that cannot be read is UTC
+		if err != nil {
+			loc = time.UTC
+		}
+		hd.Set("Content-Disposition", `attachment; filename="vedette-backup-`+orgtime.FileStamp(h.now(), loc)+`.tar.gz"`)
 		hd.Set("Content-Length", strconv.FormatInt(size, 10))
 	}
 	return oas.CoreGetCoreDataBackupOK{Data: body}, nil // the encoder closes body when the copy ends

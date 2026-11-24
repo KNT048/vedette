@@ -1024,8 +1024,8 @@ func (h *OSHandlers) updatesState(ctx context.Context) (updatesStateView, error)
 		return updatesStateView{}, err
 	}
 	comp := updateComponentView{
-		ID: softwareComponent, Kind: "software", Version: h.upd.version, InstalledAt: h.upd.started, Signature: "unsigned",
-		RollbackRestoresData: h.restoresData(r),
+		ID: softwareComponent, Kind: "software", Version: h.upd.version, InstalledAt: installedAt(hist, softwareComponent, h.upd.version, h.upd.started),
+		Signature: "unsigned", RollbackRestoresData: h.restoresData(r),
 	}
 	if cs, ok := h.coreContainer(ctx); ok {
 		if cs.Previous != nil {

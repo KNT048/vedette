@@ -117,6 +117,12 @@ describe('honeypot: Trap IPs (S-HP-1, S-HP-2)', () => {
     renderApp('/honeypot?tab=trap-ips')
     await userEvent.click(await screen.findByRole('button', { name: 'Add a Trap IP' }))
     const form = screen.getByLabelText('Looks like').closest('form')!
+    // the name starts as a free name of the look and follows the look until the person types one
+    expect(within(form).getByLabelText('Name')).toHaveValue('FILESRV-OLD-2')
+    await userEvent.selectOptions(within(form).getByLabelText('Looks like'), 'linux')
+    expect(within(form).getByLabelText('Name')).toHaveValue('BUILD-SRV-03')
+    await userEvent.selectOptions(within(form).getByLabelText('Looks like'), 'file_server')
+    await userEvent.clear(within(form).getByLabelText('Name'))
     await userEvent.click(within(form).getByRole('button', { name: 'Add Trap IP' }))
     expect(await within(form).findByText('Enter a name, for example FILESRV-OLD.')).toBeInTheDocument()
     expect(within(form).getByText('Enter an address for the Trap IP.')).toBeInTheDocument()
@@ -137,6 +143,13 @@ describe('honeypot: Trap IPs (S-HP-1, S-HP-2)', () => {
     expect(await screen.findByText('Trap IP FILESRV-02 added')).toBeInTheDocument()
     expect(auditStore.get().some((a) => a.action === 'honeypot.trap_ip_add' && a.target === '192.168.10.248')).toBe(true)
     expect(await screen.findByLabelText('Details of Trap IP FILESRV-02')).toBeInTheDocument()
+  })
+
+  it('a coverage action opens the Add dialog on the look it names', async () => {
+    renderApp('/honeypot?tab=trap-ips&add=linux')
+    const form = (await screen.findByLabelText('Looks like')).closest('form')!
+    expect(within(form).getByLabelText('Looks like')).toHaveValue('linux')
+    expect(within(form).getByRole('checkbox', { name: /SSH/ })).toBeChecked()
   })
 
   it('admin switches a Trap IP off; it is audited', async () => {

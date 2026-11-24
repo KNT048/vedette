@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useModules } from '@/lib/modules'
-import { useHits, useOverview, useTestHit } from './api'
+import { useHits, useOverview, useTestHit, useTokens } from './api'
 import { hitName } from './hitName'
 import { RespondLink } from './hitParts'
 import { notOffered } from '@/lib/v1'
@@ -98,6 +98,7 @@ function HoneypotBody() {
 function OverviewTab({ data, lan }: { data: HpOverview; lan: string }) {
   const { t } = useTranslation('honeypot')
   const admin = useCan('admin') // #trap-ip-add is an administrator's button: anyone else lands on the tab (#875)
+  const tokens = useTokens()
   return (
     <>
       {data.trap_ips.total === 0 ? (
@@ -110,7 +111,8 @@ function OverviewTab({ data, lan }: { data: HpOverview; lan: string }) {
         </EmptyState>
       ) : null}
       <ExclusionSection data={data} />
-      <CoverageSection services={data.traps.filter((tr) => tr.state === 'listening').map((tr) => tr.service)} listeningIps={data.trap_ips.listening} />
+      <CoverageSection services={data.traps.filter((tr) => tr.state === 'listening').map((tr) => tr.service)} listeningIps={data.trap_ips.listening}
+        bait={tokens.data?.items.filter((k) => k.type === 'file' || k.type === 'url').length} admin={admin} />
     </>
   )
 }

@@ -281,7 +281,7 @@ func TestContract_POST1_UpsertCreatesFindingWithHistoryAuditAndEvent(t *testing.
 		t.Fatalf("audit = %v", got)
 	}
 	var detail string // the audit page prints the stored text under the named one: an id in it showed each line twice
-	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT detail FROM core_audit WHERE action = 'findings.created'`).Scan(&detail); err != nil || detail != "CVE-2022-27593, basis "+string(r.Row.Basis) {
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT detail FROM core_audit WHERE action = 'findings.created'`).Scan(&detail); err != nil || detail != "CVE-2022-27593: found, "+auditBasisWords(DetectionBasis(r.Row.Basis)) {
 		t.Fatalf("detail = %q err=%v", detail, err)
 	}
 }

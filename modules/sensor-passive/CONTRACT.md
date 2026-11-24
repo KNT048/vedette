@@ -90,4 +90,4 @@ S-INV-1, S-INV-3, S-LOG-4; SPAN is metadata for bad-address matching (signature 
 
 ## Mismatches / open questions
 - `MODULES.md` lists `inv_*` tables for the sensor; the `modules.md` rule forbids a module reading another module's tables, so the proposal is `sp_` + writes through `inventory`.
-- Fingerbank is not yet in the PRIVACY flow table (flow 4 only mentions IP/domain/hash).
+- Fingerbank is not yet in the PRIVACY flow table; it needs its own row before it is built.

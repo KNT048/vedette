@@ -1219,6 +1219,9 @@ describe('core: updates (S-CORE-2)', () => {
     expect(dlg).toHaveTextContent(/backed up first/)
     // the whole note, past 500 characters, to its last word; the release page has the longer text
     expect(dlg).toHaveTextContent(/taken just before\./)
+    // a long token (an advisory URL) wraps inside the dialog too: overflow-wrap anywhere, not break-word, which does not shrink a
+    // grid item's min-content width and so lets the token run past the dialog
+    expect(within(dlg).getByText(/taken just before\./)).toHaveClass('[overflow-wrap:anywhere]')
     expect(within(dlg).getByRole('link', { name: 'Full notes of 0.9.4' })).toHaveAttribute('href', 'https://github.com/KNT048/vedette/releases/tag/v0.9.4')
     await u.click(within(dlg).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeNull()

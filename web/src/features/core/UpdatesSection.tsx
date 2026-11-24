@@ -94,7 +94,7 @@ function ReleaseNote({ a, className, open = false }: { a: UpdateAvailable; class
   if (!text) return null
   return (
     <span className={cn('grid justify-items-start gap-0.5', className)}>
-      <span className={cn('break-words', whole || !long ? 'whitespace-pre-line' : 'line-clamp-2')}>{text}</span>
+      <span className={cn('[overflow-wrap:anywhere]', whole || !long ? 'whitespace-pre-line' : 'line-clamp-2')}>{text}</span>
       <span className="flex flex-wrap gap-x-3">
         {open ? <a className="text-accent underline-offset-4 hover:underline" href={releaseUrl(a.version)} target="_blank" rel="noreferrer">{t('updates.notes.page', { version: a.version })}</a> : null}
         {long && !open ? <button type="button" className="text-accent underline-offset-4 hover:underline" aria-expanded={whole} onClick={() => setWhole((v) => !v)}>{t(whole ? 'updates.notes.less' : 'updates.notes.all')}</button> : null}

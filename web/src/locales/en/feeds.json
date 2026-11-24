@@ -457,6 +457,7 @@
     "quiet": "Held for quiet hours. It goes out at {{when}}.",
     "notSent": "Not sent. No channel delivered it.",
     "setUp": "Set up an alert channel",
+    "minimum": "Change the minimum severity in Alert channels",
     "history": "See the alert history",
     "later_one": "Since then: {{title}}",
     "later_other": "Since then, {{count}} more summaries. The newest: {{title}}",

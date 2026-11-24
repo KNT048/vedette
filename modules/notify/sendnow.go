@@ -93,7 +93,7 @@ func (s *Service) SendNow(ctx context.Context, actor, id string) (UnsentNotice, 
 		if k := strings.LastIndex(key, "-"); k > 0 {
 			key = key[:k]
 		}
-		n = s.summaryNotice(ctx, key, keep, infos, 0, 0, 0, sql.NullString{})
+		n = s.summaryNotice(key, keep, infos, 0, 0, 0, "")
 	} else {
 		f := infos[keep[0]]
 		n = Notice{Kind: KindVuln, Severity: AlertSeverity(f.Severity, f.Layer), Product: f.Product, FindingIDs: keep[:1], Devices: f.Devices,

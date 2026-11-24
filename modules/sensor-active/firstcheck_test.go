@@ -12,7 +12,7 @@ import (
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
 
-const fwIP = "100.65.254.1"
+const fwIP = "100.66.254.1"
 
 // firstCheckEnv is the default env (window 01:00 to 05:00, the scope 192.168.10.0/26) with a device at fwIP that the inventory
 // refuses while the range is not in the scope, as the real inventory does.
@@ -58,7 +58,7 @@ func TestFirstCheckAfterARangeCoversTheDevice(t *testing.T) {
 	if n := e.fwChecks(); n != 0 || e.count(`SELECT count(*) FROM queue_v WHERE asset_id = 'a-fw'`) != 0 {
 		t.Fatalf("an out-of-scope device was checked (%d) or is still queued", n)
 	}
-	e.allowFirewall("100.65.0.0/16")
+	e.allowFirewall("100.66.0.0/16")
 	if err := e.svc.SettingsChanged(e.ctx()); err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestFirstCheckAfterARangeCoversTheDevice(t *testing.T) {
 func TestFirstCheckForADeviceNothingQueued(t *testing.T) {
 	t.Parallel()
 	e := firstCheckEnv(t)
-	e.allowFirewall("100.65.0.0/16")
+	e.allowFirewall("100.66.0.0/16")
 	markSweepDone(t, e, "saj-sweep-a")
 	if err := e.svc.Tick(e.ctx()); err != nil {
 		t.Fatal(err)

@@ -367,10 +367,10 @@ describe('core: initial setup', () => {
     const pub = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.128.0.0/24']) })
     expect(pub.status).toBe(400)
     expect(((await pub.json()) as { error: { code: string; message: string } }).error).toEqual(expect.objectContaining({ code: 'public_range', message: '100.128.0.0/24 is not a private range (10.x, 172.16-31.x, 192.168.x, 100.64-127.x). Add public addresses later under External exposure.' }))
-    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.65.254.0/24']) })
+    const res = await fetch(`${location.origin}/api/v1/core/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body(['100.66.254.0/24']) })
     expect(res.status).toBe(200)
     const st = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[] }
-    expect(st.lan_ranges).toEqual(['100.65.254.0/24'])
+    expect(st.lan_ranges).toEqual(['100.66.254.0/24'])
   })
 
   it('setup refuses overlapping LAN ranges like Settings › Scanning › Safety does, and nothing is set up (#350)', async () => {

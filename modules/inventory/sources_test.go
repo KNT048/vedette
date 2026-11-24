@@ -182,14 +182,14 @@ func TestContract_SNMPOutsideLANRangesNeedsTheSwitch(t *testing.T) {
 	e := newEnv(t)
 	in := okSettings("192.168.30.0/24")
 	in.Active.Enabled, in.ScopeConfirmed = true, true
-	in.Active.Exclusions = []string{"100.65.255.9"}
+	in.Active.Exclusions = []string{"100.66.255.9"}
 	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", in); err != nil {
 		t.Fatal(err)
 	}
 	on := inventory.SourceOn
-	far := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "100.65.255.1"})
-	excl := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "100.65.255.9"})
-	e.record(obs(netip.MustParseAddr("100.65.255.20"), macA, observe.Kind, "switch", observe.Agent, 0.9))
+	far := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "100.66.255.1"})
+	excl := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "100.66.255.9"})
+	e.record(obs(netip.MustParseAddr("100.66.255.20"), macA, observe.Kind, "switch", observe.Agent, 0.9))
 	seenFar := e.idByMAC(macA) // discovered outside lan_ranges: SNMP "on" by default, which does not reach past the LAN
 	if d, _ := e.svc.SNMPPolicy(e.ctx(), seenFar); d.Allowed || d.Reason != inventory.ReasonOutOfScope {
 		t.Fatalf("outside lan_ranges with the default switch: %+v", d)

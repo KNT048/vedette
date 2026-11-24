@@ -111,11 +111,11 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   await expect(page.getByText('Fill in this range or remove the row.')).toBeVisible()
   // A LAN behind carrier-grade NAT (RFC 6598, 100.64/10) passes the private-range check: written twice, the
   // step names the duplicate, not a public range. Not kept, so the lab's scan scope stays the two ranges below.
-  await page.getByLabel('Range 3', { exact: true }).fill('100.65.254.0/24')
+  await page.getByLabel('Range 3', { exact: true }).fill('100.66.254.0/24')
   await page.getByRole('button', { name: 'Add range' }).click()
-  await page.getByLabel('Range 4', { exact: true }).fill('100.65.254.0/24')
+  await page.getByLabel('Range 4', { exact: true }).fill('100.66.254.0/24')
   await next(page)
-  await expect(page.getByText(/100\.65\.254\.0\/24 is listed twice/)).toBeVisible()
+  await expect(page.getByText(/100\.66\.254\.0\/24 is listed twice/)).toBeVisible()
   await expect(page.getByText(/is not a private range/)).toHaveCount(0)
   await page.getByRole('button', { name: 'Remove range 4' }).click()
   await page.getByRole('button', { name: 'Remove range 3' }).click()

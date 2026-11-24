@@ -83,7 +83,7 @@ func TestContract_INV6_NetworkRanges(t *testing.T) {
 			{"no host bits, nothing adjusted", []string{"192.168.142.0/24"}, []string{"192.168.142.0/24"}, []inventory.Adjustment{}, ""},
 			{"no prefix is still refused", []string{"192.168.142.5"}, nil, nil, "no_prefix"},
 			{"a public range is refused after masking", []string{"8.8.8.9/24"}, nil, nil, "public_range"},
-			{"a shared address space range is local (RFC 6598)", []string{"100.65.254.0/24", "100.64.0.0/16"}, []string{"100.65.254.0/24", "100.64.0.0/16"}, []inventory.Adjustment{}, ""},
+			{"a shared address space range is local (RFC 6598)", []string{"100.66.254.0/24", "100.64.0.0/16"}, []string{"100.66.254.0/24", "100.64.0.0/16"}, []inventory.Adjustment{}, ""},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				e := newEnv(t)

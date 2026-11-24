@@ -67673,7 +67673,7 @@
                       "description": "working: the last read got an answer. not_answering: the last read got none, or an error (error says why). waiting: set up, not read yet (the next scan window reads it, or Check now). not_set_up: no SNMP settings on this device"
                     },
                     "read_from": {
-                      "description": "The one address SNMP reads (and the secret) go to; null when not set up. The device's IP unless the person set its management address, e.g. \"100.65.253.1\" for a FortiGate whose ip is \"100.65.254.1\". It never makes or merges a device: what answers there is this device",
+                      "description": "The one address SNMP reads (and the secret) go to; null when not set up. The device's IP unless the person set its management address, e.g. \"100.66.253.1\" for a FortiGate whose ip is \"100.66.254.1\". It never makes or merges a device: what answers there is this device",
                       "type": [
                         "string",
                         "null"
@@ -68110,7 +68110,7 @@
                       "description": "working: the last read got an answer. not_answering: the last read got none, or an error (error says why). waiting: set up, not read yet (the next scan window reads it, or Check now). not_set_up: no SNMP settings on this device"
                     },
                     "read_from": {
-                      "description": "The one address SNMP reads (and the secret) go to; null when not set up. The device's IP unless the person set its management address, e.g. \"100.65.253.1\" for a FortiGate whose ip is \"100.65.254.1\". It never makes or merges a device: what answers there is this device",
+                      "description": "The one address SNMP reads (and the secret) go to; null when not set up. The device's IP unless the person set its management address, e.g. \"100.66.253.1\" for a FortiGate whose ip is \"100.66.254.1\". It never makes or merges a device: what answers there is this device",
                       "type": [
                         "string",
                         "null"
@@ -68573,7 +68573,7 @@
                           "description": "working: the last read got an answer. not_answering: the last read got none, or an error (error says why). waiting: set up, not read yet (the next scan window reads it, or Check now). not_set_up: no SNMP settings on this device"
                         },
                         "read_from": {
-                          "description": "The one address SNMP reads (and the secret) go to; null when not set up. The device's IP unless the person set its management address, e.g. \"100.65.253.1\" for a FortiGate whose ip is \"100.65.254.1\". It never makes or merges a device: what answers there is this device",
+                          "description": "The one address SNMP reads (and the secret) go to; null when not set up. The device's IP unless the person set its management address, e.g. \"100.66.253.1\" for a FortiGate whose ip is \"100.66.254.1\". It never makes or merges a device: what answers there is this device",
                           "type": [
                             "string",
                             "null"

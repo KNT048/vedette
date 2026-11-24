@@ -40,7 +40,9 @@ detail is in its doc comment.
 
 **Identity: one machine, one device**
 - **INV-29** A switch, router, access point or firewall seen only by MAC joins exactly one device with an address that does not
-  state otherwise (`sameDevice`).
+  state otherwise (`sameDevice`). A card seen at an address of its own whose MAC is the chassis MAC such a join left on a device with
+  an address is that device's card (`chassisCard`): its address and MAC become one of the device's other addresses, and the
+  device's main address stays.
 - **INV-31** Two rows with private (locally administered) MACs and the same specific host name are one machine (`sameMachine`).
 - **INV-35** An address is an attribute, never the identity: a device added by hand binds a sensor's MAC at its address only when
   that is a burned-in MAC, the address was confirmed by a person within 72 hours, and it is the first and only MAC seen there.
@@ -50,7 +52,14 @@ detail is in its doc comment.
   is offered only when that found device is the only one running that release (devices a person kept separate from it left out):
   a fleet of hosts at one build is normal, and the reason says what matched (the same OS, version and build).
 - **INV-57** A device has one main address (`inv_asset.ip`/`mac`) and any number of other addresses (`inv_asset_address`). An IP or
-  a MAC has one home (selfcheck `inventory.address_has_one_home`). A person can merge devices (preview first) and split an
+  a MAC has one home (selfcheck `inventory.address_has_one_home`). The main address is the one the Devices list and the device
+  page show, and the one runs and SNMP reads go to. A burned-in main card seen at another address within 10 minutes of answering at its
+  main address has both: the other address becomes an address of the main card (`main_card`), and later sightings at either, in
+  any order, never move the main address while the main address answers (within 72 hours, since the card was first seen at the
+  other). Where the card stays at the other address and the main address stops answering, the other becomes the main one once and
+  the old one stays listed. A card seen at a new address later than that moved (DHCP), and the main address follows it; an agent,
+  a device an agent is bound to and a private MAC follow their reports as before. Another MAC seen at an address of the main card
+  is another machine. A person can merge devices (preview first) and split an
   address off into its own device. A person's merge keeps what each merged device brought (`inv_merged_from`,
   `inv_merged_reading`): splitting off that device's interface gives it back with its id, its origin (a device added by hand
   stays added by hand), its name in Vedette, its maker, model, host name, type and OS (at least the strongest observation of each

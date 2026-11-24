@@ -61,7 +61,9 @@ detail is in its doc comment.
 - **INV-53** A merge, split or delete calls every `core/lifecycle` participant inside inventory's write transaction, so every module's
   rows change with the device or none do. A merge folds colliding rows instead of dropping them. A split names every software line of
   the device that stays whose readings went to the device split off (`lifecycle.Split.Software`, with whether
-  the device that stays still has that software); a line that moves whole keeps its id and is named mapped to itself, gone.
+  the device that stays still has that software); a line that moves whole keeps its id and is named mapped to itself, gone. It also
+  names the device split off as Devices shows it and its main address (`IntoName`, `IntoIP`), which a participant cannot read through
+  the inventory's ordinary reads inside the write.
 
 **Software lines**
 - **INV-54** One `inv_software` row per installed software line: unique on (device, `product_key`, `line`); the id never changes

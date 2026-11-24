@@ -47,6 +47,9 @@ func (m Merge) SoftwareID(id string) string {
 type Split struct {
 	From, Into string
 	Actor      string // the person who split it
+	// IntoName and IntoIP are the device split off as Devices names it and its main address (empty when it has none): a
+	// participant runs inside the split's write, where the inventory's ordinary reads do not see the new device yet.
+	IntoName, IntoIP string
 	// Software maps the id of every software line of From whose readings went to Into to Into's line that holds them now, for the
 	// lines a module may keep rows by: another line of Into, or the same id when the line went whole (it is Into's now, Gone true).
 	Software map[string]SplitLine

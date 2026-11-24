@@ -742,7 +742,12 @@ func (s *Service) Split(ctx context.Context, actor, id, address string) (string,
 // into (lines: from's line -> into's; a line that went whole maps to itself), and whether from still reads that software (it still
 // holds the line, not removed).
 func splitLines(ctx context.Context, tx *sql.Tx, from, into, actor string, lines map[string]string) (lifecycle.Split, error) {
-	sp := lifecycle.Split{From: from, Into: into, Actor: actor, Software: make(map[string]lifecycle.SplitLine, len(lines))}
+	sp := lifecycle.Split{From: from, Into: into, Actor: actor, IntoName: deviceName(ctx, tx, into), Software: make(map[string]lifecycle.SplitLine, len(lines))}
+	var ip sql.NullString
+	if err := tx.QueryRowContext(ctx, `SELECT ip FROM inv_asset WHERE id = ?`, into).Scan(&ip); err != nil {
+		return sp, fmt.Errorf("inventory: read the device split off: %w", err)
+	}
+	sp.IntoIP = ip.String
 	for old, to := range lines {
 		var state string
 		err := tx.QueryRowContext(ctx, `SELECT state FROM inv_software WHERE id = ? AND asset_id = ?`, old, from).Scan(&state)

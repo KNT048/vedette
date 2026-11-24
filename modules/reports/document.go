@@ -16,8 +16,6 @@ const MaxRows = 100
 // maxTop is how many incidents the Detections section names.
 const maxTop = 5
 
-const day = 24 * time.Hour
-
 // tsLayout is the one time format of the API and the database: UTC, milliseconds.
 const tsLayout = "2006-01-02T15:04:05.000Z"
 

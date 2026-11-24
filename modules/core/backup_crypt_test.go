@@ -146,9 +146,10 @@ func TestBackupDownloadPasswordIsOptionalAndFollowsThePolicy(t *testing.T) {
 	}
 }
 
-// Wrong backup passwords count like wrong setup codes from the address: the eleventh guess is 429 rate_limited, the right
-// password does not count, and what is not a guess (a file encrypted to a key, a damaged header, a plain file with a password)
-// is answered without counting.
+// Wrong backup passwords are counted per address on a limiter of their own: the eleventh guess is 429 rate_limited with a
+// sentence about backup passwords, the right password does not count, and what is not a guess (a file encrypted to a key, a
+// damaged header, a plain file with a password) is answered without counting. The count is not the setup code's: the same
+// address still gets a plain file in with the right setup code.
 func TestBackupUploadPasswordGuessesAreLimited(t *testing.T) {
 	t.Parallel()
 	e, _ := newRestoreEnv(t)
@@ -181,8 +182,13 @@ func TestBackupUploadPasswordGuessesAreLimited(t *testing.T) {
 	for i := range 10 {
 		wantStatus(t, e.upload(code, file, withPassword("wrong guess number "+strconv.Itoa(i))), 400, "wrong_backup_password")
 	}
-	wantStatus(t, e.upload(code, file, withPassword("the eleventh wrong guess")), 429, "rate_limited")
+	r := e.upload(code, file, withPassword("the eleventh wrong guess"))
+	wantStatus(t, r, 429, "rate_limited")
+	if msg := r.str("error", "message"); msg != "Too many wrong backup passwords. Try again in 30 seconds." {
+		t.Fatalf("429 message %q, want one about backup passwords", msg)
+	}
 	wantStatus(t, e.upload(code, file, withPassword(backupPassword)), 429, "rate_limited")
+	wantOK(t, e.upload(code, plain), 200) // the setup code of the same address is not locked by the backup passwords
 }
 
 // The box's own encryption is age's: any length of archive (empty, under, at and over a 64 KiB chunk) gives the length

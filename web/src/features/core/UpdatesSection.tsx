@@ -24,6 +24,8 @@ import { UpdateNotices } from './UpdateSignals'
 import { useInstallKind } from '@/lib/modules'
 import { BUNDLE_IN_UI } from '@/lib/bundle'
 import { Band, errMsg, ReadOnlyNote, useGate } from './parts'
+import { RestartSlow } from './RestartSlow'
+import { useRestartWait } from './useRestartWait'
 import { MAX_UPLOAD, compareVersion, releaseUrl, sha256Hex, toBase64 } from './util'
 import { cn } from '@/lib/utils'
 import type { ManagedPackage, UpdateAvailable, UpdateComponent, UpdateHistory, UpdateRun, UpdatesState } from './types'
@@ -381,6 +383,9 @@ function ContainerNotices() {
 function ApplianceUpdates() {
   const { t } = useTranslation('core')
   const q = useUpdates()
+  // Vedette restarts during an update or its rollback: the shared waiting rule (reconnecting, a reload after a few minutes, sign
+  // in when the session did not survive the restart).
+  const wait = useRestartWait(q.data?.run?.status === 'running', q.error, 'update')
   const os = useOsState()
   const sec = os.data?.pending.filter((p) => p.security).length ?? 0
   const name = os.data?.os?.name // null before the box first looked for updates
@@ -394,7 +399,8 @@ function ApplianceUpdates() {
       {/* The software part has its own query: when it fails or is not built yet (501), the operating system part above still shows (issue #230). */}
       {/* While the software updates, Vedette restarts and a read fails for a moment: keep the page and say it reconnects. */}
       {/* One branch for every answer with data, so the run panel is not remounted when the run ends (its toast would be lost). */}
-      {q.data && (!q.error || q.data.run?.status === 'running') ? <Body s={q.data} reconnecting={!!q.error} /> : <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>}
+      {q.data && (!q.error || q.data.run?.status === 'running') ? <Body s={q.data} reconnecting={wait.reconnecting} /> : <QueryState query={q}>{(s) => <Body s={s} />}</QueryState>}
+      <RestartSlow wait={wait} />
     </>
   )
 }

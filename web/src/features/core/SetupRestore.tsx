@@ -13,6 +13,8 @@ import type { InstallKind } from '@/lib/modules'
 import { fmtDateTime } from '@/lib/format'
 import { isPasswordProtected, useSetupRestore, useSetupRestoreRun, useUploadBackup } from './api'
 import { ContainerBackup } from './ContainerOnly'
+import { RestartSlow } from './RestartSlow'
+import { useRestartWait } from './useRestartWait'
 import { errMsg } from './parts'
 import type { BackupUpload } from './types'
 import { FILE_INPUT, keyBase64 } from './backupFile'
@@ -43,6 +45,9 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
   const [errors, setErrors] = useState<Record<string, string>>({})
   const poll = useSetupRestoreRun(started)
   const run = poll.data
+  const finished = run?.status === 'done' || run?.status === 'reverted' || run?.status === 'failed'
+  // The shared waiting rule while Vedette restarts (useRestartWait): this read is public, so it never loses a session.
+  const wait = useRestartWait(started && !finished, poll.error, 'restore')
 
   if (install === 'container') {
     return (
@@ -117,7 +122,8 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
           <>
             <p role="status" className="text-sm">{t('setup.restore.running', { org: checked?.org ?? '' })}</p>
             {/* The restored box may serve a new certificate (box CA): a browser that accepted the old one then fails every poll. */}
-            {poll.isError ? <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('setup.restore.reconnect')}</p><InfoTip topic={t('setup.restore.reconnect')}>{t('setup.restore.reconnectInfo')}</InfoTip></div> : null}
+            {wait.reconnecting ? <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('setup.restore.reconnect')}</p><InfoTip topic={t('setup.restore.reconnect')}>{t('setup.restore.reconnectInfo')}</InfoTip></div> : null}
+            <RestartSlow wait={wait} />
           </>
         )}
       </div>

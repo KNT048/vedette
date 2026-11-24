@@ -1651,7 +1651,13 @@
     "resend": "Send a new code",
     "resendIn": "Send a new code in {{s}} s",
     "resent": "A new code was sent to {{to}}.",
-    "ssoStarting": "Opening your identity provider…"
+    "ssoStarting": "Opening your identity provider…",
+    "afterRestore": "The restore has finished and Vedette runs on the restored data. Sign in with an account from that backup: the accounts and passwords are the ones it holds.",
+    "afterUpdate": "The update has finished and Vedette has restarted. Sign in again to continue."
+  },
+  "restartWait": {
+    "slow": "Vedette has not answered for a few minutes. Check that the box is powered on and reachable, then reload the page. After a restore of another box's backup, the browser may ask you to accept the box's certificate again, as on your first visit.",
+    "reload": "Reload the page"
   },
   "setup": {
     "title": "First-time Vedette setup",

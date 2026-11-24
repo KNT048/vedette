@@ -63,7 +63,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `findings.line_on_its_device`). A row that still does (stored by a match write that read its device before the split committed, or
   left by an older split) moves at the next match write of either device (`followLines`, when inventory's word on both devices
   agrees). Before a finding moves, the modules that keep a device id next to its id are told (lifecycle `FindingMoved`, in the same
-  write). Ignoring a device changes no finding;
+  write; a split also passes the device split off as Devices names it and its address, `IntoName`/`IntoIP` from `lifecycle.Split`). Ignoring a device changes no finding;
   lists, Home, the AI context and reports leave its findings out.
 - **M-7 One match pass.** Reconcile reads every device and asks feeds once for the match set (`Feeds.MatchSet`). A CVE that matches
   with version evidence is a finding whatever its urgency. Every finding whose CVE is in the set and that the pass no longer detects
@@ -86,7 +86,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   By device and By fix group the same open rows in SQL, so their totals always agree. The fixes of one product on one line combine
   into one block (`combine`), read the same way by By device, By fix, Home, the report (`ListedFixes`) and the handling of a block:
   an update block names the lowest release the CVEs' ranges name that clears every CVE it lists on that line, and splits when no
-  such release clears them all (`blocktarget.go`, `TestBlockTarget_Count_TargetsThatLeaveAListedCVEOpen`). The Needs your input queue is computed from
+  such release clears them all (`blocktarget.go`, `TestBlockTarget_Count_TargetsThatLeaveAListedCVEOpen`). A release in a vendor's
+  notation (ESXi's "8.0 U3d (build 24585383)", DSM's "7.2.1-69057 Update 6") is ordered by the product's version scheme and judged
+  with the vendor's rows, so one line names one release (`TestCumulativeTarget_Count_LinesWithSeveralUpdatesOfOneProduct`). A block is
+  keyed by the catalogue's product, so one product read under two names (Oracle Java SE, Eclipse Temurin) is one By fix row
+  (`TestBlockKey_Count_ByFixCardsWithARepeatedTitle`). `ListedFix` is one finding's listed fix, for its own page. The Needs your input queue is computed from
   rows, never stored, and searched like the other lists (`q`: the device's name or address, the software, the CVE id); a device not
   added yet is also found by the CVE ids and software names of its open findings, which its item does not show (read only when `q`
   is set); a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).
@@ -154,7 +158,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **INV-12** A device is named as on the Devices page, never by an internal id.
 - **INV-22** Every finding row carries the CVE's base CVSS as feeds picks it (`Feeds.CVSS`).
 - **INV-23** `GET /findings/overview` is Home in one read; its totals equal By device's. `devices.affected` counts every device with an
-  open finding (the Vedette box included, which carries no badge); the trend starts at `trend_start`, the day this box began keeping
+  open finding (the Vedette box included, with its badge like any device: one rule on Devices, By device and Home); the trend starts at `trend_start`, the day this box began keeping
   findings when that is inside the 30 days. `first_run_summary` is notify's first-run summary of the newest load made in the last 7
   days (`HomeSources.FirstRun`, a notice, never an incident): shown on Home even when no channel took it; `null` when there is none or
   notify is off.
@@ -173,7 +177,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
 - **PRE-2 / POST-2** `ConfirmFromScan` (scan module): the template evidence is checked and cut like any untrusted answer; the
   finding of the line the matcher reads the CVE on is detected with `basis=scan`, `verified=scan`. A person's decision holds.
 - **PRE-3 / POST-3** `GET /findings/{id}`: 404 for an unknown id; "What to do" comes from an optional `findings.Guidance` provider
-  (mitigation registers it; it is skipped while mitigation is off).
+  (mitigation registers it; it is skipped while mitigation is off). The stored evidence sentence keeps its last clause "no scan has
+  confirmed it yet, so this is only suspected" only while the finding is suspected (`evidenceForStatus`; the stored row is unchanged).
+  `known_version` comes from the row the exploited-list entry matches, or, for a finding on no exploited list, from the finding's
+  stored software line. Every history action has a label on the page; urgency_changed and fix_changed carry a note naming the new
+  status or fix. Tests: `TestFindingPage_EvidenceFollowsTheStatus`, `TestFindingPage_FindingOnNoListKeepsItsSoftware`,
+  `TestFindingPage_EveryHistoryActionHasALabel`.
 - **PRE-4 / POST-4** handle and reopen (operator), verify and unverify (admin): handle answers how many it handled and skipped and
   is all or nothing.
 

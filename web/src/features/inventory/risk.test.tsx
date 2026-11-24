@@ -86,10 +86,10 @@ describe('inventory: risk marker', () => {
     expect(csv).toContain(`,${red.risk!.count} exploited\r\n`)
   })
 
-  it('the Vedette box itself is never marked, and is in risk=none', async () => {
+  it('the Vedette box is marked by the rule of every device: no open finding, no marker (risk=none)', async () => {
     const box = (await rows()).find((d) => d.id === BOX_ID)!
-    expect(box.risk).toBeNull()
-    expect(((await get('/inventory/devices?risk=none')).json.items as DeviceRow[]).some((d) => d.id === BOX_ID)).toBe(true)
+    const none = ((await get('/inventory/devices?risk=none')).json.items as DeviceRow[]).some((d) => d.id === BOX_ID)
+    expect(none).toBe(box.risk === null)
   })
 
   it('a list whose risk marks could not be read says so quietly and shows none', async () => {

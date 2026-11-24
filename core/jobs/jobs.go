@@ -288,13 +288,25 @@ func (s *Scheduler) runOnce(parent context.Context, jb *job) {
 	if s.rec == nil {
 		return
 	}
-	// The history of a run cancelled by shutdown still gets written: detach from the cancelled context.
-	rctx, rcancel := context.WithTimeout(context.WithoutCancel(parent), 5*time.Second)
+	// The history of a run cancelled by shutdown still gets written: detach from the cancelled context. While the box runs the row
+	// waits as long as the writer needs (at start the migrations, the recovery and the first pulls keep it busy for seconds, and a row
+	// given up on is a run missing from the history); a shutdown waits only briefly.
+	wait := recordWait
+	if parent.Err() != nil {
+		wait = recordWaitStopping
+	}
+	rctx, rcancel := context.WithTimeout(context.WithoutCancel(parent), wait)
 	defer rcancel()
 	if err := s.rec.Record(rctx, run); err != nil {
 		s.log.ErrorContext(parent, "recording job run failed", "module", jb.Module, "job", jb.Name, "error", err)
 	}
 }
+
+// How long the history row of a run waits for the database writer: while the box runs, and while it stops.
+const (
+	recordWait         = time.Minute
+	recordWaitStopping = 5 * time.Second
+)
 
 // call runs the job and turns a panic into an error (logged with its stack, never sent anywhere).
 func (s *Scheduler) call(ctx context.Context, jb *job) (err error) {

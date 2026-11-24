@@ -143,6 +143,12 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 	matched := false
 	if found && d.Kev != nil {
 		row, matched = findingRow(a, *d.Kev, v)
+	} else if found && d.SoftwareID != "" {
+		// A finding on no exploited list (update recommended) has no entry to match again: its stored line is the row, so the page
+		// and the guidance still say the version the box has and name the software instead of "the software".
+		if l, ok := deviceLines(a)[d.SoftwareID]; ok {
+			row, matched = l.sw, true
+		}
 	}
 	if matched {
 		d.Known = knownVersion(a, row) // M2-3: the guidance and the page say the version the box has, never "find which version"

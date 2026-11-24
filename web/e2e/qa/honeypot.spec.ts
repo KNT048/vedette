@@ -54,7 +54,7 @@ test('clean install: empty page with three steps, a Trap IP added with errors un
   await tab(page, /Services/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/No trap was hit in the last 7 days/)
   await page.getByRole('button', { name: `Test trap ${SMB}` }).click()
-  await expect(page.getByText('Recorded a test hit on the SMB (file sharing) trap').first()).toBeVisible()
+  await expect(page.getByText(/^Recorded a test hit on the SMB \(file sharing\) trap\./).first()).toBeVisible()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/No trap was hit in the last 7 days/)
   await tab(page, /Hits/)
   const row = page.locator('tr:visible, li:visible').filter({ hasText: 'Vedette box (test)' }).first()

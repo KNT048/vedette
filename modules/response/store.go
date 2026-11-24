@@ -355,18 +355,21 @@ func ruleArgs(r Rule) []any {
 
 // ---- requests ----
 
-const reqCols = `id, source, proposal_id, rule_id, rule_name, trigger, trigger_summary, finding_id, cve, asset_id, asset_name, title, risk, status, requested_at, expires_at, decided_at, requires_approvals, two_because, approvals, sent_to, note, pre_approved, ai, items`
+const reqCols = `id, source, proposal_id, rule_id, rule_name, trigger, trigger_summary, finding_id, cve, asset_id, asset_name, title, risk, status, requested_at, expires_at, decided_at, requires_approvals, two_because, approvals, sent_to, note, pre_approved, ai, items, end_reason`
 
 func scanReq(r scanner) (request, error) {
 	var q request
 	a := &q.ActionRequest
-	var ruleID, ruleName, trig, tsum, fid, cve, aid, decided, two, note, ai sql.NullString
+	var ruleID, ruleName, trig, tsum, fid, cve, aid, decided, two, note, ai, end sql.NullString
 	var source, risk, status, approvals, sentTo, items string
 	if err := r.Scan(&a.ID, &source, &a.ProposalID, &ruleID, &ruleName, &trig, &tsum, &fid, &cve, &aid, &a.AssetName, &a.Title, &risk, &status, &a.RequestedAt, &a.ExpiresAt, &decided,
-		&a.RequiresApprovals, &two, &approvals, &sentTo, &note, &a.PreApproved, &ai, &items); err != nil {
+		&a.RequiresApprovals, &two, &approvals, &sentTo, &note, &a.PreApproved, &ai, &items, &end); err != nil {
 		return request{}, err
 	}
 	a.Source, a.Risk, a.Status = source, Risk(risk), Status(status)
+	if end.String == EndSplit { // the only reason there is; anything else reads as none
+		q.endReason = EndSplit
+	}
 	a.RuleID, a.RuleName, a.Trigger, a.TriggerSummary = ptrOrNilNS(ruleID), ptrOrNilNS(ruleName), ptrOrNilNS(trig), ptrOrNilNS(tsum)
 	a.FindingID, a.CVE, a.AssetID, a.DecidedAt, a.TwoBecause, a.Note = ptrOrNilNS(fid), ptrOrNilNS(cve), ptrOrNilNS(aid), ptrOrNilNS(decided), ptrOrNilNS(two), ptrOrNilNS(note)
 	if err := json.Unmarshal([]byte(approvals), &a.Approvals); err != nil {
@@ -421,10 +424,10 @@ func insertReq(ctx context.Context, tx *sql.Tx, r request) error {
 	if a.AI != nil {
 		ai = mustJSON(a.AI)
 	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO resp_actions (`+reqCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	_, err := tx.ExecContext(ctx, `INSERT INTO resp_actions (`+reqCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.ID, a.Source, a.ProposalID, deref(a.RuleID), deref(a.RuleName), deref(a.Trigger), deref(a.TriggerSummary), deref(a.FindingID), deref(a.CVE), deref(a.AssetID), a.AssetName, a.Title,
 		string(a.Risk), string(a.Status), a.RequestedAt, a.ExpiresAt, deref(a.DecidedAt), a.RequiresApprovals, deref(a.TwoBecause), mustJSON(nonNil(a.Approvals)), mustJSON(nonNilS(a.SentTo)),
-		deref(a.Note), boolInt(a.PreApproved), ai, mustJSON(r.recs))
+		deref(a.Note), boolInt(a.PreApproved), ai, mustJSON(r.recs), nullable(r.endReason))
 	if err != nil {
 		return fmt.Errorf("response: save a request: %w", err)
 	}
@@ -434,8 +437,8 @@ func insertReq(ctx context.Context, tx *sql.Tx, r request) error {
 // updateReq writes back the parts of a request that change after it was created.
 func updateReq(ctx context.Context, tx *sql.Tx, r request) error {
 	a := r.ActionRequest
-	_, err := tx.ExecContext(ctx, `UPDATE resp_actions SET risk = ?, status = ?, decided_at = ?, requires_approvals = ?, two_because = ?, approvals = ?, note = ?, pre_approved = ?, items = ? WHERE id = ?`,
-		string(a.Risk), string(a.Status), deref(a.DecidedAt), a.RequiresApprovals, deref(a.TwoBecause), mustJSON(nonNil(a.Approvals)), deref(a.Note), boolInt(a.PreApproved), mustJSON(r.recs), a.ID)
+	_, err := tx.ExecContext(ctx, `UPDATE resp_actions SET risk = ?, status = ?, decided_at = ?, requires_approvals = ?, two_because = ?, approvals = ?, note = ?, pre_approved = ?, items = ?, end_reason = ? WHERE id = ?`,
+		string(a.Risk), string(a.Status), deref(a.DecidedAt), a.RequiresApprovals, deref(a.TwoBecause), mustJSON(nonNil(a.Approvals)), deref(a.Note), boolInt(a.PreApproved), mustJSON(r.recs), nullable(r.endReason), a.ID)
 	if err != nil {
 		return fmt.Errorf("response: update a request: %w", err)
 	}

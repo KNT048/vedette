@@ -44,6 +44,12 @@ export type FixRow = { key: string; product: string; train: string; versions: st
  * the release the range names as fixed, else the version it ends before (NVD's "before 2.4.58" gives 2.4.58), printed as the
  * range states it. `key`: "vendor|product", with `train` the row a device's own fix is matched to.
  */
+/** The release a range ends before is itself listed as affected by another row of the same product (an exact version, or a range from it). */
+function endListed(b: CveBrief, r: CveBrief['ranges'][number], end: string): boolean {
+  return b.ranges.some((o) => o !== r && o.vendor === r.vendor && o.product === r.product && o.counts === r.counts &&
+    (o.start_including === end || (!o.start_including && !o.start_excluding && !o.end_including && !o.end_excluding && o.cpe.split(':')[5] === end)))
+}
+
 export function fixRows(b: CveBrief): FixRow[] {
   const seen = new Set<string>()
   const rows: FixRow[] = []
@@ -61,6 +67,9 @@ export function fixRows(b: CveBrief): FixRow[] {
   for (const r of b.ranges) {
     const fixed = r.fixed_release || r.fixed || r.end_excluding
     if (!fixed) continue
+    // a range "before 20.4" whose end the same product's rows list as affected (Junos: 20.4R1, 20.4R2 one by one) names no fix: the
+    // finding page says "20.4 is not the fix" (end_listed), and so does this table, by leaving the row out
+    if (!r.fixed_release && !r.fixed && endListed(b, r, fixed)) continue
     if (r.train && trained.has(`${r.vendor}|${r.product}|${r.train}`)) continue
     push({ key: `${r.vendor}|${r.product}`, product: rangeProduct(r), train: r.train, versions: r.versions, fixed, origin: r.origin })
   }

@@ -256,7 +256,7 @@ func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err err
 
 // filtered reads the devices f keeps (limit 0 = all), newest first, each with its finding count, summary and, when withSources, its
 // sources (a source filter reads them in any case) and, when withRisk, its risk marker (a risk filter needs withRisk); the box is
-// never marked (loadDevices has it always just seen). riskOK is false when the markers could not be read: the rows have none and a risk filter is not
+// marked like any device (loadDevices has it always just seen). riskOK is false when the markers could not be read: the rows have none and a risk filter is not
 // applied (DeviceList.RiskUnavailable says so); with a risk filter that is 503 risk_unavailable instead (never every device).
 func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limit int, withSources, withRisk bool) (items []Device, riskOK bool, err error) {
 	counts, err := s.findingCounts(ctx)
@@ -299,7 +299,7 @@ func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limi
 	for i := range items {
 		d := &items[i]
 		d.FindingsCount = counts[d.ID]
-		if withRisk && !d.IsBox { // the box's own updates are in To fix; the box is never marked
+		if withRisk { // the box is marked like any device: its findings are findings like any other's
 			d.Risk = risks[d.ID]
 		}
 		d.Summary = summaryOf(d)
@@ -688,10 +688,8 @@ func (s *Service) DetailPage(ctx context.Context, id string) (Detail, error) {
 		return d, err
 	}
 	s.addGuesses(ctx, []*AssetCore{&d.Asset.AssetCore})
-	risks, ok := s.risks(ctx) // the marker next to the title (the box never has one)
-	if !d.Asset.IsBox {
-		d.Risk = risks[id]
-	}
+	risks, ok := s.risks(ctx) // the marker next to the title, the box's too
+	d.Risk = risks[id]
 	d.RiskUnavailable = !ok
 	return d, nil
 }

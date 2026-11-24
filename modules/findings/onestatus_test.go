@@ -127,7 +127,7 @@ func TestModelAPI_ARowNamesWhoConfirmedIt(t *testing.T) {
 	}
 }
 
-// A block with no release to install ("No fix known yet", "No fix data") links the vendor's advisory the exploited list names for its
+// A block with no release to install ("No fix known yet", "See the vendor advisory") links the vendor's advisory the exploited list names for its
 // cause, never CISA's or NVD's page; a block with a release keeps no link it does not have.
 func TestModelAPI_ANoFixBlockLinksTheAdvisory(t *testing.T) {
 	e := modelEnv(t)
@@ -150,8 +150,7 @@ func TestModelAPI_ANoFixBlockLinksTheAdvisory(t *testing.T) {
 	}
 }
 
-// Home counts the devices that have open findings whatever their badge: the Vedette box carries none, yet "3 open findings on 0
-// devices" was wrong. The trend starts on the day this box began keeping findings, not 30 days before a fresh install.
+// Home counts the devices that have open findings, the Vedette box like any device, by the badge each carries (one rule everywhere). The trend starts on the day this box began keeping findings, not 30 days before a fresh install.
 func TestModelAPI_HomeCountsTheBoxAndStartsTheTrendAtInstall(t *testing.T) {
 	e := modelEnv(t)
 	e.inv.mu.Lock()
@@ -161,8 +160,8 @@ func TestModelAPI_HomeCountsTheBoxAndStartsTheTrendAtInstall(t *testing.T) {
 	e.inv.mu.Unlock()
 	o := conform[oas.FindingsGetFindingsOverviewOK](t, e, "GET", "/findings/overview", "viewer", "")
 	badges := o.Devices.ByStatus
-	if n := badges.UnderAttack + badges.Exploited + badges.PublicExploit + badges.CriticalEdge + badges.UpdateRecommended; n != 2 {
-		t.Errorf("devices by badge %d, want 2 (fw01, printer-07; the box has no badge)", n)
+	if n := badges.UnderAttack + badges.Exploited + badges.PublicExploit + badges.CriticalEdge + badges.UpdateRecommended; n != 3 {
+		t.Errorf("devices by badge %d, want 3 (fw01, printer-07 and nas01, the box)", n)
 	}
 	af := o.Devices.Affected
 	if af.Exploited != 2 || af.PublicExploit != 1 || af.UnderAttack+af.CriticalEdge+af.UpdateRecommended != 0 {

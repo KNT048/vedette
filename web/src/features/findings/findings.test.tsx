@@ -149,7 +149,8 @@ describe('findings: f-2, f-3 have no confirmed recommendation yet', () => {
     expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()
     expect(screen.getByText(/Apply mitigations in accordance with vendor instructions/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Vendor advisory (wordpress.org)' })).toHaveAttribute('href', 'https://wordpress.org/news/2026/10/wordpress-7-1-4')
-    expect(screen.getByText('Steps you can take now')).toBeInTheDocument() // What the box knows, without a pack
+    // the same four steps a confirmed pack has, from the box's data
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(expect.arrayContaining(['1. Install the patch', '2. Temporary workaround if you cannot update yet', '3. Firewall configuration to cut off access', '4. Check that it is fixed']))
     expect(screen.queryByText(/No confirmed exploitation signs/)).not.toBeInTheDocument() // general checks instead (INV-8)
     expect(screen.getByTestId('general-checks')).toBeInTheDocument()
     await expectNoA11yViolations()

@@ -265,7 +265,7 @@ func schemeAffectedNote(a Asset, s Software, in swInfo, v Vuln, within VersionRa
 		runs = fmt.Sprintf("The agent on %s reports %s %s installed", clean(a.Name), clean(r.product), clean(releaseName(r.installed)))
 	}
 	if within.EndExcl == "" {
-		return fmt.Sprintf("%s. %s lists this release as affected by %s and states no fixed release for it yet; no scan has confirmed it yet, so this is only suspected.", runs, who, v.CVE)
+		return fmt.Sprintf("%s. %s lists this release as affected by %s and states no fixed release for it yet"+suspectedClause, runs, who, v.CVE)
 	}
 	if f := r.verdict.Fix; f != nil && f.Train != r.installed.Train { // the nearest fix is in a later train: this train has none
 		return fmt.Sprintf("%s. %s lists no fixed release of %s for this device's release train (%s); the nearest fixed release is %s, in release train %s, so this device has the flaw until it moves to that release or a later one.",

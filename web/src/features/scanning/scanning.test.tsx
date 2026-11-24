@@ -254,6 +254,9 @@ describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', 
     await userEvent.click(await screen.findByRole('button', { name: 'Check this device now' }))
     expect(await screen.findByText(/^Queued behind “Check 192\.168\.10\.\d+”; it starts in about \d+ minutes$/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Queued…/ })).toBeInTheDocument()
+    // it has not started: no step, bar or elapsed time of a run going on
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.queryByText(/elapsed/)).toBeNull()
   })
 })
 

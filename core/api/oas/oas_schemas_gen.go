@@ -126325,6 +126325,9 @@ type HoneypotGetHoneypotHitsIDOK struct {
 	SrcIP      string                                `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
+	// Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did
+	// with the test alert.
+	TestAlert OptHoneypotGetHoneypotHitsIDOKTestAlert `json:"test_alert"`
 	// Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for
 	// a probe without names): the Trap IP column of the hit list.
 	TrapHostname string `json:"trap_hostname"`
@@ -126393,6 +126396,11 @@ func (s *HoneypotGetHoneypotHitsIDOK) GetSrcIP() string {
 // GetSrcName returns the value of SrcName.
 func (s *HoneypotGetHoneypotHitsIDOK) GetSrcName() NilString {
 	return s.SrcName
+}
+
+// GetTestAlert returns the value of TestAlert.
+func (s *HoneypotGetHoneypotHitsIDOK) GetTestAlert() OptHoneypotGetHoneypotHitsIDOKTestAlert {
+	return s.TestAlert
 }
 
 // GetTrapHostname returns the value of TrapHostname.
@@ -126473,6 +126481,11 @@ func (s *HoneypotGetHoneypotHitsIDOK) SetSrcIP(val string) {
 // SetSrcName sets the value of SrcName.
 func (s *HoneypotGetHoneypotHitsIDOK) SetSrcName(val NilString) {
 	s.SrcName = val
+}
+
+// SetTestAlert sets the value of TestAlert.
+func (s *HoneypotGetHoneypotHitsIDOK) SetTestAlert(val OptHoneypotGetHoneypotHitsIDOKTestAlert) {
+	s.TestAlert = val
 }
 
 // SetTrapHostname sets the value of TrapHostname.
@@ -126856,6 +126869,86 @@ func (s *HoneypotGetHoneypotHitsIDOKService) UnmarshalText(data []byte) error {
 	}
 }
 
+// Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did
+// with the test alert.
+type HoneypotGetHoneypotHitsIDOKTestAlert struct {
+	// One per alert channel that is on; empty when none is on (a real hit would only show in Vedette).
+	Channels []HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem `json:"channels"`
+}
+
+// GetChannels returns the value of Channels.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlert) GetChannels() []HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem {
+	return s.Channels
+}
+
+// SetChannels sets the value of Channels.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlert) SetChannels(val []HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) {
+	s.Channels = val
+}
+
+type HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem struct {
+	// The channel type: telegram, slack, zalo, zalo-personal, email, webhook.
+	Channel string `json:"channel"`
+	// One sentence: the provider's receipt, why it failed, or why it was skipped.
+	Detail string `json:"detail"`
+	// Its name as the Alert channels page shows it.
+	Name string `json:"name"`
+	// The channel delivered the test alert.
+	Ok bool `json:"ok"`
+	// Not sent: this channel would not send the real alert either (what it sends excludes it).
+	Skipped bool `json:"skipped"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) GetChannel() string {
+	return s.Channel
+}
+
+// GetDetail returns the value of Detail.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetName returns the value of Name.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) GetName() string {
+	return s.Name
+}
+
+// GetOk returns the value of Ok.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) GetOk() bool {
+	return s.Ok
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) GetSkipped() bool {
+	return s.Skipped
+}
+
+// SetChannel sets the value of Channel.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetName sets the value of Name.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOk sets the value of Ok.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *HoneypotGetHoneypotHitsIDOKTestAlertChannelsItem) SetSkipped(val bool) {
+	s.Skipped = val
+}
+
 type HoneypotGetHoneypotHitsOK struct {
 	Items []HoneypotGetHoneypotHitsOKItemsItem `json:"items"`
 }
@@ -126886,6 +126979,9 @@ type HoneypotGetHoneypotHitsOKItemsItem struct {
 	SrcIP      string                                       `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
+	// Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did
+	// with the test alert.
+	TestAlert OptHoneypotGetHoneypotHitsOKItemsItemTestAlert `json:"test_alert"`
 	// Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for
 	// a probe without names): the Trap IP column of the hit list.
 	TrapHostname string `json:"trap_hostname"`
@@ -126943,6 +127039,11 @@ func (s *HoneypotGetHoneypotHitsOKItemsItem) GetSrcIP() string {
 // GetSrcName returns the value of SrcName.
 func (s *HoneypotGetHoneypotHitsOKItemsItem) GetSrcName() NilString {
 	return s.SrcName
+}
+
+// GetTestAlert returns the value of TestAlert.
+func (s *HoneypotGetHoneypotHitsOKItemsItem) GetTestAlert() OptHoneypotGetHoneypotHitsOKItemsItemTestAlert {
+	return s.TestAlert
 }
 
 // GetTrapHostname returns the value of TrapHostname.
@@ -127008,6 +127109,11 @@ func (s *HoneypotGetHoneypotHitsOKItemsItem) SetSrcIP(val string) {
 // SetSrcName sets the value of SrcName.
 func (s *HoneypotGetHoneypotHitsOKItemsItem) SetSrcName(val NilString) {
 	s.SrcName = val
+}
+
+// SetTestAlert sets the value of TestAlert.
+func (s *HoneypotGetHoneypotHitsOKItemsItem) SetTestAlert(val OptHoneypotGetHoneypotHitsOKItemsItemTestAlert) {
+	s.TestAlert = val
 }
 
 // SetTrapHostname sets the value of TrapHostname.
@@ -127228,6 +127334,86 @@ func (s *HoneypotGetHoneypotHitsOKItemsItemService) UnmarshalText(data []byte) e
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did
+// with the test alert.
+type HoneypotGetHoneypotHitsOKItemsItemTestAlert struct {
+	// One per alert channel that is on; empty when none is on (a real hit would only show in Vedette).
+	Channels []HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem `json:"channels"`
+}
+
+// GetChannels returns the value of Channels.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlert) GetChannels() []HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem {
+	return s.Channels
+}
+
+// SetChannels sets the value of Channels.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlert) SetChannels(val []HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) {
+	s.Channels = val
+}
+
+type HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem struct {
+	// The channel type: telegram, slack, zalo, zalo-personal, email, webhook.
+	Channel string `json:"channel"`
+	// One sentence: the provider's receipt, why it failed, or why it was skipped.
+	Detail string `json:"detail"`
+	// Its name as the Alert channels page shows it.
+	Name string `json:"name"`
+	// The channel delivered the test alert.
+	Ok bool `json:"ok"`
+	// Not sent: this channel would not send the real alert either (what it sends excludes it).
+	Skipped bool `json:"skipped"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) GetChannel() string {
+	return s.Channel
+}
+
+// GetDetail returns the value of Detail.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetName returns the value of Name.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) GetName() string {
+	return s.Name
+}
+
+// GetOk returns the value of Ok.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) GetOk() bool {
+	return s.Ok
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) GetSkipped() bool {
+	return s.Skipped
+}
+
+// SetChannel sets the value of Channel.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetName sets the value of Name.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOk sets the value of Ok.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *HoneypotGetHoneypotHitsOKItemsItemTestAlertChannelsItem) SetSkipped(val bool) {
+	s.Skipped = val
 }
 
 type HoneypotGetHoneypotOK struct {
@@ -129900,6 +130086,9 @@ type HoneypotPostHoneypotTestHitOK struct {
 	SrcIP      string                                  `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
+	// Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did
+	// with the test alert.
+	TestAlert OptHoneypotPostHoneypotTestHitOKTestAlert `json:"test_alert"`
 	// Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for
 	// a probe without names): the Trap IP column of the hit list.
 	TrapHostname string `json:"trap_hostname"`
@@ -129957,6 +130146,11 @@ func (s *HoneypotPostHoneypotTestHitOK) GetSrcIP() string {
 // GetSrcName returns the value of SrcName.
 func (s *HoneypotPostHoneypotTestHitOK) GetSrcName() NilString {
 	return s.SrcName
+}
+
+// GetTestAlert returns the value of TestAlert.
+func (s *HoneypotPostHoneypotTestHitOK) GetTestAlert() OptHoneypotPostHoneypotTestHitOKTestAlert {
+	return s.TestAlert
 }
 
 // GetTrapHostname returns the value of TrapHostname.
@@ -130022,6 +130216,11 @@ func (s *HoneypotPostHoneypotTestHitOK) SetSrcIP(val string) {
 // SetSrcName sets the value of SrcName.
 func (s *HoneypotPostHoneypotTestHitOK) SetSrcName(val NilString) {
 	s.SrcName = val
+}
+
+// SetTestAlert sets the value of TestAlert.
+func (s *HoneypotPostHoneypotTestHitOK) SetTestAlert(val OptHoneypotPostHoneypotTestHitOKTestAlert) {
+	s.TestAlert = val
 }
 
 // SetTrapHostname sets the value of TrapHostname.
@@ -130244,6 +130443,86 @@ func (s *HoneypotPostHoneypotTestHitOKService) UnmarshalText(data []byte) error 
 	}
 }
 
+// Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did
+// with the test alert.
+type HoneypotPostHoneypotTestHitOKTestAlert struct {
+	// One per alert channel that is on; empty when none is on (a real hit would only show in Vedette).
+	Channels []HoneypotPostHoneypotTestHitOKTestAlertChannelsItem `json:"channels"`
+}
+
+// GetChannels returns the value of Channels.
+func (s *HoneypotPostHoneypotTestHitOKTestAlert) GetChannels() []HoneypotPostHoneypotTestHitOKTestAlertChannelsItem {
+	return s.Channels
+}
+
+// SetChannels sets the value of Channels.
+func (s *HoneypotPostHoneypotTestHitOKTestAlert) SetChannels(val []HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) {
+	s.Channels = val
+}
+
+type HoneypotPostHoneypotTestHitOKTestAlertChannelsItem struct {
+	// The channel type: telegram, slack, zalo, zalo-personal, email, webhook.
+	Channel string `json:"channel"`
+	// One sentence: the provider's receipt, why it failed, or why it was skipped.
+	Detail string `json:"detail"`
+	// Its name as the Alert channels page shows it.
+	Name string `json:"name"`
+	// The channel delivered the test alert.
+	Ok bool `json:"ok"`
+	// Not sent: this channel would not send the real alert either (what it sends excludes it).
+	Skipped bool `json:"skipped"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) GetChannel() string {
+	return s.Channel
+}
+
+// GetDetail returns the value of Detail.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetName returns the value of Name.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) GetName() string {
+	return s.Name
+}
+
+// GetOk returns the value of Ok.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) GetOk() bool {
+	return s.Ok
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) GetSkipped() bool {
+	return s.Skipped
+}
+
+// SetChannel sets the value of Channel.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetName sets the value of Name.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOk sets the value of Ok.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *HoneypotPostHoneypotTestHitOKTestAlertChannelsItem) SetSkipped(val bool) {
+	s.Skipped = val
+}
+
 type HoneypotPostHoneypotTestHitReq struct {
 	// A trap service. tcpbanner = a mail server greeting on port 25; tftp, ntp and sip are UDP and never
 	// answer, they only log.
@@ -130431,6 +130710,9 @@ type HoneypotPostHoneypotTestScanOK struct {
 	SrcIP      string                                   `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
+	// Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did
+	// with the test alert.
+	TestAlert OptHoneypotPostHoneypotTestScanOKTestAlert `json:"test_alert"`
 	// Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for
 	// a probe without names): the Trap IP column of the hit list.
 	TrapHostname string `json:"trap_hostname"`
@@ -130488,6 +130770,11 @@ func (s *HoneypotPostHoneypotTestScanOK) GetSrcIP() string {
 // GetSrcName returns the value of SrcName.
 func (s *HoneypotPostHoneypotTestScanOK) GetSrcName() NilString {
 	return s.SrcName
+}
+
+// GetTestAlert returns the value of TestAlert.
+func (s *HoneypotPostHoneypotTestScanOK) GetTestAlert() OptHoneypotPostHoneypotTestScanOKTestAlert {
+	return s.TestAlert
 }
 
 // GetTrapHostname returns the value of TrapHostname.
@@ -130553,6 +130840,11 @@ func (s *HoneypotPostHoneypotTestScanOK) SetSrcIP(val string) {
 // SetSrcName sets the value of SrcName.
 func (s *HoneypotPostHoneypotTestScanOK) SetSrcName(val NilString) {
 	s.SrcName = val
+}
+
+// SetTestAlert sets the value of TestAlert.
+func (s *HoneypotPostHoneypotTestScanOK) SetTestAlert(val OptHoneypotPostHoneypotTestScanOKTestAlert) {
+	s.TestAlert = val
 }
 
 // SetTrapHostname sets the value of TrapHostname.
@@ -130775,6 +131067,86 @@ func (s *HoneypotPostHoneypotTestScanOKService) UnmarshalText(data []byte) error
 	}
 }
 
+// Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did
+// with the test alert.
+type HoneypotPostHoneypotTestScanOKTestAlert struct {
+	// One per alert channel that is on; empty when none is on (a real hit would only show in Vedette).
+	Channels []HoneypotPostHoneypotTestScanOKTestAlertChannelsItem `json:"channels"`
+}
+
+// GetChannels returns the value of Channels.
+func (s *HoneypotPostHoneypotTestScanOKTestAlert) GetChannels() []HoneypotPostHoneypotTestScanOKTestAlertChannelsItem {
+	return s.Channels
+}
+
+// SetChannels sets the value of Channels.
+func (s *HoneypotPostHoneypotTestScanOKTestAlert) SetChannels(val []HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) {
+	s.Channels = val
+}
+
+type HoneypotPostHoneypotTestScanOKTestAlertChannelsItem struct {
+	// The channel type: telegram, slack, zalo, zalo-personal, email, webhook.
+	Channel string `json:"channel"`
+	// One sentence: the provider's receipt, why it failed, or why it was skipped.
+	Detail string `json:"detail"`
+	// Its name as the Alert channels page shows it.
+	Name string `json:"name"`
+	// The channel delivered the test alert.
+	Ok bool `json:"ok"`
+	// Not sent: this channel would not send the real alert either (what it sends excludes it).
+	Skipped bool `json:"skipped"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) GetChannel() string {
+	return s.Channel
+}
+
+// GetDetail returns the value of Detail.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetName returns the value of Name.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) GetName() string {
+	return s.Name
+}
+
+// GetOk returns the value of Ok.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) GetOk() bool {
+	return s.Ok
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) GetSkipped() bool {
+	return s.Skipped
+}
+
+// SetChannel sets the value of Channel.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetName sets the value of Name.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOk sets the value of Ok.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *HoneypotPostHoneypotTestScanOKTestAlertChannelsItem) SetSkipped(val bool) {
+	s.Skipped = val
+}
+
 type HoneypotPostHoneypotTokensCreated struct {
 	CreatedAt       time.Time   `json:"created_at"`
 	ID              string      `json:"id"`
@@ -130951,6 +131323,9 @@ type HoneypotPostHoneypotTokensIDTestOK struct {
 	SrcIP      string                                       `json:"src_ip"`
 	// Source device name, looked up from the inventory when read; null = not in the inventory.
 	SrcName NilString `json:"src_name"`
+	// Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did
+	// with the test alert.
+	TestAlert OptHoneypotPostHoneypotTokensIDTestOKTestAlert `json:"test_alert"`
 	// Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched ("Decoy sweep" for
 	// a probe without names): the Trap IP column of the hit list.
 	TrapHostname string `json:"trap_hostname"`
@@ -131008,6 +131383,11 @@ func (s *HoneypotPostHoneypotTokensIDTestOK) GetSrcIP() string {
 // GetSrcName returns the value of SrcName.
 func (s *HoneypotPostHoneypotTokensIDTestOK) GetSrcName() NilString {
 	return s.SrcName
+}
+
+// GetTestAlert returns the value of TestAlert.
+func (s *HoneypotPostHoneypotTokensIDTestOK) GetTestAlert() OptHoneypotPostHoneypotTokensIDTestOKTestAlert {
+	return s.TestAlert
 }
 
 // GetTrapHostname returns the value of TrapHostname.
@@ -131073,6 +131453,11 @@ func (s *HoneypotPostHoneypotTokensIDTestOK) SetSrcIP(val string) {
 // SetSrcName sets the value of SrcName.
 func (s *HoneypotPostHoneypotTokensIDTestOK) SetSrcName(val NilString) {
 	s.SrcName = val
+}
+
+// SetTestAlert sets the value of TestAlert.
+func (s *HoneypotPostHoneypotTokensIDTestOK) SetTestAlert(val OptHoneypotPostHoneypotTokensIDTestOKTestAlert) {
+	s.TestAlert = val
 }
 
 // SetTrapHostname sets the value of TrapHostname.
@@ -131293,6 +131678,86 @@ func (s *HoneypotPostHoneypotTokensIDTestOKService) UnmarshalText(data []byte) e
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did
+// with the test alert.
+type HoneypotPostHoneypotTokensIDTestOKTestAlert struct {
+	// One per alert channel that is on; empty when none is on (a real hit would only show in Vedette).
+	Channels []HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem `json:"channels"`
+}
+
+// GetChannels returns the value of Channels.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlert) GetChannels() []HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem {
+	return s.Channels
+}
+
+// SetChannels sets the value of Channels.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlert) SetChannels(val []HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) {
+	s.Channels = val
+}
+
+type HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem struct {
+	// The channel type: telegram, slack, zalo, zalo-personal, email, webhook.
+	Channel string `json:"channel"`
+	// One sentence: the provider's receipt, why it failed, or why it was skipped.
+	Detail string `json:"detail"`
+	// Its name as the Alert channels page shows it.
+	Name string `json:"name"`
+	// The channel delivered the test alert.
+	Ok bool `json:"ok"`
+	// Not sent: this channel would not send the real alert either (what it sends excludes it).
+	Skipped bool `json:"skipped"`
+}
+
+// GetChannel returns the value of Channel.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) GetChannel() string {
+	return s.Channel
+}
+
+// GetDetail returns the value of Detail.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) GetDetail() string {
+	return s.Detail
+}
+
+// GetName returns the value of Name.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) GetName() string {
+	return s.Name
+}
+
+// GetOk returns the value of Ok.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) GetOk() bool {
+	return s.Ok
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) GetSkipped() bool {
+	return s.Skipped
+}
+
+// SetChannel sets the value of Channel.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) SetChannel(val string) {
+	s.Channel = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) SetDetail(val string) {
+	s.Detail = val
+}
+
+// SetName sets the value of Name.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetOk sets the value of Ok.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *HoneypotPostHoneypotTokensIDTestOKTestAlertChannelsItem) SetSkipped(val bool) {
+	s.Skipped = val
 }
 
 type HoneypotPostHoneypotTokensReq struct {
@@ -192182,7 +192647,8 @@ func (s *NotifyGetNotifyChannelsOK) SetQuiet(val NotifyGetNotifyChannelsOKQuiet)
 }
 
 type NotifyGetNotifyChannelsOKChannelsItem struct {
-	// Slack Socket Mode tokens (xapp-, xoxb-): only the last 4 characters are returned.
+	// Slack Socket Mode tokens (xapp-, xoxb-): "••••" when saved, null when not; never a character
+	// of the token.
 	ApprovalLast4 NotifyGetNotifyChannelsOKChannelsItemApprovalLast4 `json:"approval_last4"`
 	// Approve actions from this channel (Slack, Telegram, Email, Zalo personal).
 	Approvals bool `json:"approvals"`
@@ -192201,13 +192667,13 @@ type NotifyGetNotifyChannelsOKChannelsItem struct {
 	// none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
 	// outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
 	// sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
-	// webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4
-	// characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
-	// channel_id (approvals only).
+	// webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as
+	// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
 	Fields      NotifyGetNotifyChannelsOKChannelsItemFields      `json:"fields"`
 	LastTest    NilNotifyGetNotifyChannelsOKChannelsItemLastTest `json:"last_test"`
 	MinSeverity NotifyGetNotifyChannelsOKChannelsItemMinSeverity `json:"min_severity"`
-	// Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4).
+	// Secrets (token, password, signing key) are never returned, not even a part: a saved one reads
+	// "••••", none is null (SYS-4).
 	SecretLast4 NilString                                 `json:"secret_last4"`
 	Type        NotifyGetNotifyChannelsOKChannelsItemType `json:"type"`
 }
@@ -192312,7 +192778,8 @@ func (s *NotifyGetNotifyChannelsOKChannelsItem) SetType(val NotifyGetNotifyChann
 	s.Type = val
 }
 
-// Slack Socket Mode tokens (xapp-, xoxb-): only the last 4 characters are returned.
+// Slack Socket Mode tokens (xapp-, xoxb-): "••••" when saved, null when not; never a character
+// of the token.
 type NotifyGetNotifyChannelsOKChannelsItemApprovalLast4 struct {
 	AppToken NilString `json:"app_token"`
 	BotToken NilString `json:"bot_token"`
@@ -192388,9 +192855,8 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val strin
 // none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
 // outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
 // sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
-// webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4
-// characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
-// channel_id (approvals only).
+// webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as
+// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
 type NotifyGetNotifyChannelsOKChannelsItemFields map[string]string
 
 func (s *NotifyGetNotifyChannelsOKChannelsItemFields) init() NotifyGetNotifyChannelsOKChannelsItemFields {
@@ -192866,8 +193332,10 @@ type NotifyGetNotifyHistoryOKItemsItem struct {
 	Kind    NotifyGetNotifyHistoryOKItemsItemKind `json:"kind"`
 	Link    string                                `json:"link"`
 	Ok      bool                                  `json:"ok"`
-	To      string                                `json:"to"`
-	What    string                                `json:"what"`
+	// A copy a person sent with Send again: same words as the message it copies, not a new alert.
+	Resent bool   `json:"resent"`
+	To     string `json:"to"`
+	What   string `json:"what"`
 }
 
 // GetAt returns the value of At.
@@ -192908,6 +193376,11 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) GetLink() string {
 // GetOk returns the value of Ok.
 func (s *NotifyGetNotifyHistoryOKItemsItem) GetOk() bool {
 	return s.Ok
+}
+
+// GetResent returns the value of Resent.
+func (s *NotifyGetNotifyHistoryOKItemsItem) GetResent() bool {
+	return s.Resent
 }
 
 // GetTo returns the value of To.
@@ -192958,6 +193431,11 @@ func (s *NotifyGetNotifyHistoryOKItemsItem) SetLink(val string) {
 // SetOk sets the value of Ok.
 func (s *NotifyGetNotifyHistoryOKItemsItem) SetOk(val bool) {
 	s.Ok = val
+}
+
+// SetResent sets the value of Resent.
+func (s *NotifyGetNotifyHistoryOKItemsItem) SetResent(val bool) {
+	s.Resent = val
 }
 
 // SetTo sets the value of To.
@@ -197499,8 +197977,10 @@ type NotifyPostNotifyHistoryIDResendOK struct {
 	Kind    NotifyPostNotifyHistoryIDResendOKKind `json:"kind"`
 	Link    string                                `json:"link"`
 	Ok      bool                                  `json:"ok"`
-	To      string                                `json:"to"`
-	What    string                                `json:"what"`
+	// A copy a person sent with Send again: same words as the message it copies, not a new alert.
+	Resent bool   `json:"resent"`
+	To     string `json:"to"`
+	What   string `json:"what"`
 }
 
 // GetAt returns the value of At.
@@ -197541,6 +198021,11 @@ func (s *NotifyPostNotifyHistoryIDResendOK) GetLink() string {
 // GetOk returns the value of Ok.
 func (s *NotifyPostNotifyHistoryIDResendOK) GetOk() bool {
 	return s.Ok
+}
+
+// GetResent returns the value of Resent.
+func (s *NotifyPostNotifyHistoryIDResendOK) GetResent() bool {
+	return s.Resent
 }
 
 // GetTo returns the value of To.
@@ -197591,6 +198076,11 @@ func (s *NotifyPostNotifyHistoryIDResendOK) SetLink(val string) {
 // SetOk sets the value of Ok.
 func (s *NotifyPostNotifyHistoryIDResendOK) SetOk(val bool) {
 	s.Ok = val
+}
+
+// SetResent sets the value of Resent.
+func (s *NotifyPostNotifyHistoryIDResendOK) SetResent(val bool) {
+	s.Resent = val
 }
 
 // SetTo sets the value of To.
@@ -198863,7 +199353,8 @@ func (s *NotifyPostNotifyZaloResolveReq) SetQuery(val string) {
 }
 
 type NotifyPutNotifyChannelsTypeOK struct {
-	// Slack Socket Mode tokens (xapp-, xoxb-): only the last 4 characters are returned.
+	// Slack Socket Mode tokens (xapp-, xoxb-): "••••" when saved, null when not; never a character
+	// of the token.
 	ApprovalLast4 NotifyPutNotifyChannelsTypeOKApprovalLast4 `json:"approval_last4"`
 	// Approve actions from this channel (Slack, Telegram, Email, Zalo personal).
 	Approvals bool `json:"approvals"`
@@ -198882,13 +199373,13 @@ type NotifyPutNotifyChannelsTypeOK struct {
 	// none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
 	// outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
 	// sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
-	// webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4
-	// characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
-	// channel_id (approvals only).
+	// webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as
+	// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
 	Fields      NotifyPutNotifyChannelsTypeOKFields      `json:"fields"`
 	LastTest    NilNotifyPutNotifyChannelsTypeOKLastTest `json:"last_test"`
 	MinSeverity NotifyPutNotifyChannelsTypeOKMinSeverity `json:"min_severity"`
-	// Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4).
+	// Secrets (token, password, signing key) are never returned, not even a part: a saved one reads
+	// "••••", none is null (SYS-4).
 	SecretLast4 NilString                         `json:"secret_last4"`
 	Type        NotifyPutNotifyChannelsTypeOKType `json:"type"`
 }
@@ -198993,7 +199484,8 @@ func (s *NotifyPutNotifyChannelsTypeOK) SetType(val NotifyPutNotifyChannelsTypeO
 	s.Type = val
 }
 
-// Slack Socket Mode tokens (xapp-, xoxb-): only the last 4 characters are returned.
+// Slack Socket Mode tokens (xapp-, xoxb-): "••••" when saved, null when not; never a character
+// of the token.
 type NotifyPutNotifyChannelsTypeOKApprovalLast4 struct {
 	AppToken NilString `json:"app_token"`
 	BotToken NilString `json:"bot_token"`
@@ -199069,9 +199561,8 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 // none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
 // outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
 // sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
-// webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4
-// characters; send it empty, or as returned, to keep the saved one) · slack label (optional),
-// channel_id (approvals only).
+// webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as
+// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
 type NotifyPutNotifyChannelsTypeOKFields map[string]string
 
 func (s *NotifyPutNotifyChannelsTypeOKFields) init() NotifyPutNotifyChannelsTypeOKFields {
@@ -202421,6 +202912,236 @@ func (o OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Get() (v 
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) Or(d FindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) FindingsPostFindingsIDAppliedOKPackFirewallItemAlternative {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHoneypotGetHoneypotHitsIDOKTestAlert returns new OptHoneypotGetHoneypotHitsIDOKTestAlert with value set to v.
+func NewOptHoneypotGetHoneypotHitsIDOKTestAlert(v HoneypotGetHoneypotHitsIDOKTestAlert) OptHoneypotGetHoneypotHitsIDOKTestAlert {
+	return OptHoneypotGetHoneypotHitsIDOKTestAlert{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHoneypotGetHoneypotHitsIDOKTestAlert is optional HoneypotGetHoneypotHitsIDOKTestAlert.
+type OptHoneypotGetHoneypotHitsIDOKTestAlert struct {
+	Value HoneypotGetHoneypotHitsIDOKTestAlert
+	Set   bool
+}
+
+// IsSet returns true if OptHoneypotGetHoneypotHitsIDOKTestAlert was set.
+func (o OptHoneypotGetHoneypotHitsIDOKTestAlert) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHoneypotGetHoneypotHitsIDOKTestAlert) Reset() {
+	var v HoneypotGetHoneypotHitsIDOKTestAlert
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHoneypotGetHoneypotHitsIDOKTestAlert) SetTo(v HoneypotGetHoneypotHitsIDOKTestAlert) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHoneypotGetHoneypotHitsIDOKTestAlert) Get() (v HoneypotGetHoneypotHitsIDOKTestAlert, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHoneypotGetHoneypotHitsIDOKTestAlert) Or(d HoneypotGetHoneypotHitsIDOKTestAlert) HoneypotGetHoneypotHitsIDOKTestAlert {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHoneypotGetHoneypotHitsOKItemsItemTestAlert returns new OptHoneypotGetHoneypotHitsOKItemsItemTestAlert with value set to v.
+func NewOptHoneypotGetHoneypotHitsOKItemsItemTestAlert(v HoneypotGetHoneypotHitsOKItemsItemTestAlert) OptHoneypotGetHoneypotHitsOKItemsItemTestAlert {
+	return OptHoneypotGetHoneypotHitsOKItemsItemTestAlert{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHoneypotGetHoneypotHitsOKItemsItemTestAlert is optional HoneypotGetHoneypotHitsOKItemsItemTestAlert.
+type OptHoneypotGetHoneypotHitsOKItemsItemTestAlert struct {
+	Value HoneypotGetHoneypotHitsOKItemsItemTestAlert
+	Set   bool
+}
+
+// IsSet returns true if OptHoneypotGetHoneypotHitsOKItemsItemTestAlert was set.
+func (o OptHoneypotGetHoneypotHitsOKItemsItemTestAlert) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHoneypotGetHoneypotHitsOKItemsItemTestAlert) Reset() {
+	var v HoneypotGetHoneypotHitsOKItemsItemTestAlert
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHoneypotGetHoneypotHitsOKItemsItemTestAlert) SetTo(v HoneypotGetHoneypotHitsOKItemsItemTestAlert) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHoneypotGetHoneypotHitsOKItemsItemTestAlert) Get() (v HoneypotGetHoneypotHitsOKItemsItemTestAlert, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHoneypotGetHoneypotHitsOKItemsItemTestAlert) Or(d HoneypotGetHoneypotHitsOKItemsItemTestAlert) HoneypotGetHoneypotHitsOKItemsItemTestAlert {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHoneypotPostHoneypotTestHitOKTestAlert returns new OptHoneypotPostHoneypotTestHitOKTestAlert with value set to v.
+func NewOptHoneypotPostHoneypotTestHitOKTestAlert(v HoneypotPostHoneypotTestHitOKTestAlert) OptHoneypotPostHoneypotTestHitOKTestAlert {
+	return OptHoneypotPostHoneypotTestHitOKTestAlert{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHoneypotPostHoneypotTestHitOKTestAlert is optional HoneypotPostHoneypotTestHitOKTestAlert.
+type OptHoneypotPostHoneypotTestHitOKTestAlert struct {
+	Value HoneypotPostHoneypotTestHitOKTestAlert
+	Set   bool
+}
+
+// IsSet returns true if OptHoneypotPostHoneypotTestHitOKTestAlert was set.
+func (o OptHoneypotPostHoneypotTestHitOKTestAlert) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHoneypotPostHoneypotTestHitOKTestAlert) Reset() {
+	var v HoneypotPostHoneypotTestHitOKTestAlert
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHoneypotPostHoneypotTestHitOKTestAlert) SetTo(v HoneypotPostHoneypotTestHitOKTestAlert) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHoneypotPostHoneypotTestHitOKTestAlert) Get() (v HoneypotPostHoneypotTestHitOKTestAlert, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHoneypotPostHoneypotTestHitOKTestAlert) Or(d HoneypotPostHoneypotTestHitOKTestAlert) HoneypotPostHoneypotTestHitOKTestAlert {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHoneypotPostHoneypotTestScanOKTestAlert returns new OptHoneypotPostHoneypotTestScanOKTestAlert with value set to v.
+func NewOptHoneypotPostHoneypotTestScanOKTestAlert(v HoneypotPostHoneypotTestScanOKTestAlert) OptHoneypotPostHoneypotTestScanOKTestAlert {
+	return OptHoneypotPostHoneypotTestScanOKTestAlert{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHoneypotPostHoneypotTestScanOKTestAlert is optional HoneypotPostHoneypotTestScanOKTestAlert.
+type OptHoneypotPostHoneypotTestScanOKTestAlert struct {
+	Value HoneypotPostHoneypotTestScanOKTestAlert
+	Set   bool
+}
+
+// IsSet returns true if OptHoneypotPostHoneypotTestScanOKTestAlert was set.
+func (o OptHoneypotPostHoneypotTestScanOKTestAlert) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHoneypotPostHoneypotTestScanOKTestAlert) Reset() {
+	var v HoneypotPostHoneypotTestScanOKTestAlert
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHoneypotPostHoneypotTestScanOKTestAlert) SetTo(v HoneypotPostHoneypotTestScanOKTestAlert) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHoneypotPostHoneypotTestScanOKTestAlert) Get() (v HoneypotPostHoneypotTestScanOKTestAlert, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHoneypotPostHoneypotTestScanOKTestAlert) Or(d HoneypotPostHoneypotTestScanOKTestAlert) HoneypotPostHoneypotTestScanOKTestAlert {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptHoneypotPostHoneypotTokensIDTestOKTestAlert returns new OptHoneypotPostHoneypotTokensIDTestOKTestAlert with value set to v.
+func NewOptHoneypotPostHoneypotTokensIDTestOKTestAlert(v HoneypotPostHoneypotTokensIDTestOKTestAlert) OptHoneypotPostHoneypotTokensIDTestOKTestAlert {
+	return OptHoneypotPostHoneypotTokensIDTestOKTestAlert{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptHoneypotPostHoneypotTokensIDTestOKTestAlert is optional HoneypotPostHoneypotTokensIDTestOKTestAlert.
+type OptHoneypotPostHoneypotTokensIDTestOKTestAlert struct {
+	Value HoneypotPostHoneypotTokensIDTestOKTestAlert
+	Set   bool
+}
+
+// IsSet returns true if OptHoneypotPostHoneypotTokensIDTestOKTestAlert was set.
+func (o OptHoneypotPostHoneypotTokensIDTestOKTestAlert) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptHoneypotPostHoneypotTokensIDTestOKTestAlert) Reset() {
+	var v HoneypotPostHoneypotTokensIDTestOKTestAlert
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptHoneypotPostHoneypotTokensIDTestOKTestAlert) SetTo(v HoneypotPostHoneypotTokensIDTestOKTestAlert) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptHoneypotPostHoneypotTokensIDTestOKTestAlert) Get() (v HoneypotPostHoneypotTokensIDTestOKTestAlert, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptHoneypotPostHoneypotTokensIDTestOKTestAlert) Or(d HoneypotPostHoneypotTokensIDTestOKTestAlert) HoneypotPostHoneypotTokensIDTestOKTestAlert {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -206763,11 +207484,14 @@ func (s *ReportsGetReportsDocumentOKDetectionsByKindItemKind) UnmarshalText(data
 }
 
 type ReportsGetReportsDocumentOKDetectionsTopItem struct {
-	At       time.Time                                             `json:"at"`
-	Device   NilReportsGetReportsDocumentOKDetectionsTopItemDevice `json:"device"`
-	Kind     ReportsGetReportsDocumentOKDetectionsTopItemKind      `json:"kind"`
-	Severity ReportsGetReportsDocumentOKDetectionsTopItemSeverity  `json:"severity"`
-	Title    string                                                `json:"title"`
+	At     time.Time                                             `json:"at"`
+	Device NilReportsGetReportsDocumentOKDetectionsTopItemDevice `json:"device"`
+	// How many devices the incident names when more than one (device is the first); absent for one device
+	// and in reports sent before it existed.
+	DeviceCount OptInt                                               `json:"device_count"`
+	Kind        ReportsGetReportsDocumentOKDetectionsTopItemKind     `json:"kind"`
+	Severity    ReportsGetReportsDocumentOKDetectionsTopItemSeverity `json:"severity"`
+	Title       string                                               `json:"title"`
 }
 
 // GetAt returns the value of At.
@@ -206778,6 +207502,11 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetAt() time.Time {
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetDevice() NilReportsGetReportsDocumentOKDetectionsTopItemDevice {
 	return s.Device
+}
+
+// GetDeviceCount returns the value of DeviceCount.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) GetDeviceCount() OptInt {
+	return s.DeviceCount
 }
 
 // GetKind returns the value of Kind.
@@ -206803,6 +207532,11 @@ func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetAt(val time.Time) {
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetDevice(val NilReportsGetReportsDocumentOKDetectionsTopItemDevice) {
 	s.Device = val
+}
+
+// SetDeviceCount sets the value of DeviceCount.
+func (s *ReportsGetReportsDocumentOKDetectionsTopItem) SetDeviceCount(val OptInt) {
+	s.DeviceCount = val
 }
 
 // SetKind sets the value of Kind.
@@ -207687,9 +208421,12 @@ type ReportsGetReportsDocumentOKHandledDevicesItemItemsItem struct {
 	Cve       string `json:"cve"`
 	FindingID string `json:"finding_id"`
 	// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
-	Handled  ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled     `json:"handled"`
-	Product  string                                                            `json:"product"`
-	Severity NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity `json:"severity"`
+	Handled ReportsGetReportsDocumentOKHandledDevicesItemItemsItemHandled `json:"handled"`
+	Product string                                                        `json:"product"`
+	// It opened again after this handling, inside the period, and is open at its end (listed in Still open
+	// too); absent otherwise and in reports sent before it existed.
+	ReopenedAt OptDateTime                                                       `json:"reopened_at"`
+	Severity   NilReportsGetReportsDocumentOKHandledDevicesItemItemsItemSeverity `json:"severity"`
 }
 
 // GetCve returns the value of Cve.
@@ -207710,6 +208447,11 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetHandled() Re
 // GetProduct returns the value of Product.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetProduct() string {
 	return s.Product
+}
+
+// GetReopenedAt returns the value of ReopenedAt.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) GetReopenedAt() OptDateTime {
+	return s.ReopenedAt
 }
 
 // GetSeverity returns the value of Severity.
@@ -207735,6 +208477,11 @@ func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetHandled(val 
 // SetProduct sets the value of Product.
 func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetProduct(val string) {
 	s.Product = val
+}
+
+// SetReopenedAt sets the value of ReopenedAt.
+func (s *ReportsGetReportsDocumentOKHandledDevicesItemItemsItem) SetReopenedAt(val OptDateTime) {
+	s.ReopenedAt = val
 }
 
 // SetSeverity sets the value of Severity.
@@ -210609,8 +211356,8 @@ func (s *ReportsGetReportsDocumentOKPeriodKind) UnmarshalText(data []byte) error
 type ReportsGetReportsDocumentOKSummary struct {
 	// The three things to do first, most urgent first.
 	First []ReportsGetReportsDocumentOKSummaryFirstItem `json:"first"`
-	// Findings handled in the period (the Handled section counts the same). open_before + new - handled
-	// differs from open_now only by other changes: a device removed, a finding reopened.
+	// Findings handled in the period (the Handled section counts the same). open_before + new - handled +
+	// reopened differs from open_now only by other changes: a finding left out since the start.
 	Handled int `json:"handled"`
 	// Findings first seen in the period, whether still open or handled since (the New section counts the
 	// same).
@@ -210621,6 +211368,9 @@ type ReportsGetReportsDocumentOKSummary struct {
 	OpenByStatus []ReportsGetReportsDocumentOKSummaryOpenByStatusItem `json:"open_by_status"`
 	// Open at the end of the period.
 	OpenNow int `json:"open_now"`
+	// Findings open at the end that opened again in the period after a handling; absent when none and in
+	// reports sent before it existed.
+	Reopened OptInt `json:"reopened"`
 }
 
 // GetFirst returns the value of First.
@@ -210653,6 +211403,11 @@ func (s *ReportsGetReportsDocumentOKSummary) GetOpenNow() int {
 	return s.OpenNow
 }
 
+// GetReopened returns the value of Reopened.
+func (s *ReportsGetReportsDocumentOKSummary) GetReopened() OptInt {
+	return s.Reopened
+}
+
 // SetFirst sets the value of First.
 func (s *ReportsGetReportsDocumentOKSummary) SetFirst(val []ReportsGetReportsDocumentOKSummaryFirstItem) {
 	s.First = val
@@ -210681,6 +211436,11 @@ func (s *ReportsGetReportsDocumentOKSummary) SetOpenByStatus(val []ReportsGetRep
 // SetOpenNow sets the value of OpenNow.
 func (s *ReportsGetReportsDocumentOKSummary) SetOpenNow(val int) {
 	s.OpenNow = val
+}
+
+// SetReopened sets the value of Reopened.
+func (s *ReportsGetReportsDocumentOKSummary) SetReopened(val OptInt) {
+	s.Reopened = val
 }
 
 type ReportsGetReportsDocumentOKSummaryFirstItem struct {
@@ -211932,11 +212692,14 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsByKindItemKind) Unmarshal
 }
 
 type ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem struct {
-	At       time.Time                                                      `json:"at"`
-	Device   NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice `json:"device"`
-	Kind     ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind      `json:"kind"`
-	Severity ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity  `json:"severity"`
-	Title    string                                                         `json:"title"`
+	At     time.Time                                                      `json:"at"`
+	Device NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice `json:"device"`
+	// How many devices the incident names when more than one (device is the first); absent for one device
+	// and in reports sent before it existed.
+	DeviceCount OptInt                                                        `json:"device_count"`
+	Kind        ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemKind     `json:"kind"`
+	Severity    ReportsGetReportsHistoryIDOKDocumentDetectionsTopItemSeverity `json:"severity"`
+	Title       string                                                        `json:"title"`
 }
 
 // GetAt returns the value of At.
@@ -211947,6 +212710,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetAt() time.Tim
 // GetDevice returns the value of Device.
 func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetDevice() NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice {
 	return s.Device
+}
+
+// GetDeviceCount returns the value of DeviceCount.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) GetDeviceCount() OptInt {
+	return s.DeviceCount
 }
 
 // GetKind returns the value of Kind.
@@ -211972,6 +212740,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetAt(val time.T
 // SetDevice sets the value of Device.
 func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetDevice(val NilReportsGetReportsHistoryIDOKDocumentDetectionsTopItemDevice) {
 	s.Device = val
+}
+
+// SetDeviceCount sets the value of DeviceCount.
+func (s *ReportsGetReportsHistoryIDOKDocumentDetectionsTopItem) SetDeviceCount(val OptInt) {
+	s.DeviceCount = val
 }
 
 // SetKind sets the value of Kind.
@@ -212856,9 +213629,12 @@ type ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem struct {
 	Cve       string `json:"cve"`
 	FindingID string `json:"finding_id"`
 	// Who and how, from stored fields: "Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)".
-	Handled  ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled     `json:"handled"`
-	Product  string                                                                     `json:"product"`
-	Severity NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity `json:"severity"`
+	Handled ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemHandled `json:"handled"`
+	Product string                                                                 `json:"product"`
+	// It opened again after this handling, inside the period, and is open at its end (listed in Still open
+	// too); absent otherwise and in reports sent before it existed.
+	ReopenedAt OptDateTime                                                                `json:"reopened_at"`
+	Severity   NilReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItemSeverity `json:"severity"`
 }
 
 // GetCve returns the value of Cve.
@@ -212879,6 +213655,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetHan
 // GetProduct returns the value of Product.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetProduct() string {
 	return s.Product
+}
+
+// GetReopenedAt returns the value of ReopenedAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) GetReopenedAt() OptDateTime {
+	return s.ReopenedAt
 }
 
 // GetSeverity returns the value of Severity.
@@ -212904,6 +213685,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetHan
 // SetProduct sets the value of Product.
 func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetProduct(val string) {
 	s.Product = val
+}
+
+// SetReopenedAt sets the value of ReopenedAt.
+func (s *ReportsGetReportsHistoryIDOKDocumentHandledDevicesItemItemsItem) SetReopenedAt(val OptDateTime) {
+	s.ReopenedAt = val
 }
 
 // SetSeverity sets the value of Severity.
@@ -215778,8 +216564,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentPeriodKind) UnmarshalText(data []by
 type ReportsGetReportsHistoryIDOKDocumentSummary struct {
 	// The three things to do first, most urgent first.
 	First []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem `json:"first"`
-	// Findings handled in the period (the Handled section counts the same). open_before + new - handled
-	// differs from open_now only by other changes: a device removed, a finding reopened.
+	// Findings handled in the period (the Handled section counts the same). open_before + new - handled +
+	// reopened differs from open_now only by other changes: a finding left out since the start.
 	Handled int `json:"handled"`
 	// Findings first seen in the period, whether still open or handled since (the New section counts the
 	// same).
@@ -215790,6 +216576,9 @@ type ReportsGetReportsHistoryIDOKDocumentSummary struct {
 	OpenByStatus []ReportsGetReportsHistoryIDOKDocumentSummaryOpenByStatusItem `json:"open_by_status"`
 	// Open at the end of the period.
 	OpenNow int `json:"open_now"`
+	// Findings open at the end that opened again in the period after a handling; absent when none and in
+	// reports sent before it existed.
+	Reopened OptInt `json:"reopened"`
 }
 
 // GetFirst returns the value of First.
@@ -215822,6 +216611,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummary) GetOpenNow() int {
 	return s.OpenNow
 }
 
+// GetReopened returns the value of Reopened.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) GetReopened() OptInt {
+	return s.Reopened
+}
+
 // SetFirst sets the value of First.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetFirst(val []ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem) {
 	s.First = val
@@ -215850,6 +216644,11 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetOpenByStatus(val []Repo
 // SetOpenNow sets the value of OpenNow.
 func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetOpenNow(val int) {
 	s.OpenNow = val
+}
+
+// SetReopened sets the value of Reopened.
+func (s *ReportsGetReportsHistoryIDOKDocumentSummary) SetReopened(val OptInt) {
+	s.Reopened = val
 }
 
 type ReportsGetReportsHistoryIDOKDocumentSummaryFirstItem struct {
@@ -225336,9 +226135,11 @@ type ResponseGetResponseApproveTokenOK struct {
 	ExpiresAt         NilDateTime                                  `json:"expires_at"`
 	Items             []ResponseGetResponseApproveTokenOKItemsItem `json:"items"`
 	RequiresApprovals NilInt                                       `json:"requires_approvals"`
-	State             ResponseGetResponseApproveTokenOKState       `json:"state"`
-	Status            NilResponseGetResponseApproveTokenOKStatus   `json:"status"`
-	Title             NilString                                    `json:"title"`
+	// Withdrawn: a device split moved the finding of the request to another device before anyone decided;
+	// nothing was changed and a new request is asked for that device.
+	State  ResponseGetResponseApproveTokenOKState     `json:"state"`
+	Status NilResponseGetResponseApproveTokenOKStatus `json:"status"`
+	Title  NilString                                  `json:"title"`
 }
 
 // GetAiGenerated returns the value of AiGenerated.
@@ -225913,14 +226714,17 @@ func (s *ResponseGetResponseApproveTokenOKItemsItemRisk) UnmarshalText(data []by
 	}
 }
 
+// Withdrawn: a device split moved the finding of the request to another device before anyone decided;
+// nothing was changed and a new request is asked for that device.
 type ResponseGetResponseApproveTokenOKState string
 
 const (
-	ResponseGetResponseApproveTokenOKStateReady   ResponseGetResponseApproveTokenOKState = "ready"
-	ResponseGetResponseApproveTokenOKStateExpired ResponseGetResponseApproveTokenOKState = "expired"
-	ResponseGetResponseApproveTokenOKStateUsed    ResponseGetResponseApproveTokenOKState = "used"
-	ResponseGetResponseApproveTokenOKStateDecided ResponseGetResponseApproveTokenOKState = "decided"
-	ResponseGetResponseApproveTokenOKStateUnknown ResponseGetResponseApproveTokenOKState = "unknown"
+	ResponseGetResponseApproveTokenOKStateReady     ResponseGetResponseApproveTokenOKState = "ready"
+	ResponseGetResponseApproveTokenOKStateExpired   ResponseGetResponseApproveTokenOKState = "expired"
+	ResponseGetResponseApproveTokenOKStateUsed      ResponseGetResponseApproveTokenOKState = "used"
+	ResponseGetResponseApproveTokenOKStateDecided   ResponseGetResponseApproveTokenOKState = "decided"
+	ResponseGetResponseApproveTokenOKStateWithdrawn ResponseGetResponseApproveTokenOKState = "withdrawn"
+	ResponseGetResponseApproveTokenOKStateUnknown   ResponseGetResponseApproveTokenOKState = "unknown"
 )
 
 // AllValues returns all ResponseGetResponseApproveTokenOKState values.
@@ -225930,6 +226734,7 @@ func (ResponseGetResponseApproveTokenOKState) AllValues() []ResponseGetResponseA
 		ResponseGetResponseApproveTokenOKStateExpired,
 		ResponseGetResponseApproveTokenOKStateUsed,
 		ResponseGetResponseApproveTokenOKStateDecided,
+		ResponseGetResponseApproveTokenOKStateWithdrawn,
 		ResponseGetResponseApproveTokenOKStateUnknown,
 	}
 }
@@ -225944,6 +226749,8 @@ func (s ResponseGetResponseApproveTokenOKState) MarshalText() ([]byte, error) {
 	case ResponseGetResponseApproveTokenOKStateUsed:
 		return []byte(s), nil
 	case ResponseGetResponseApproveTokenOKStateDecided:
+		return []byte(s), nil
+	case ResponseGetResponseApproveTokenOKStateWithdrawn:
 		return []byte(s), nil
 	case ResponseGetResponseApproveTokenOKStateUnknown:
 		return []byte(s), nil
@@ -225966,6 +226773,9 @@ func (s *ResponseGetResponseApproveTokenOKState) UnmarshalText(data []byte) erro
 		return nil
 	case ResponseGetResponseApproveTokenOKStateDecided:
 		*s = ResponseGetResponseApproveTokenOKStateDecided
+		return nil
+	case ResponseGetResponseApproveTokenOKStateWithdrawn:
+		*s = ResponseGetResponseApproveTokenOKStateWithdrawn
 		return nil
 	case ResponseGetResponseApproveTokenOKStateUnknown:
 		*s = ResponseGetResponseApproveTokenOKStateUnknown

@@ -1019,8 +1019,11 @@ func (s *Service) checkSNMP(ctx context.Context, actor, lbl string, row snmpRow)
 	got := make(chan []sensorlink.SNMPAnswer, 1) // the work hands its answers over: the caller may stop waiting before the work ends
 	var heard []sensorlink.SNMPAnswer            // the same answers for the run's end (written and read on the run's goroutine)
 	ended := func(ctx context.Context, err error) run.Result {
-		if err != nil || len(heard) == 0 {
+		if err != nil {
 			return snmpResult(ctx, err)
+		}
+		if len(heard) == 0 { // nothing was read: never "Done: 0 of 1 devices"
+			return run.Result{Status: run.Failed, Error: "Not read: the device or its SNMP settings changed as the read started. Read it again"}
 		}
 		if a := heard[0]; a.Status != sensorlink.SNMPStatusOK { // the read went out and the device did not answer it
 			return run.Result{Status: run.Failed, Error: snmpMessage(a.Status, "", row.ReadFrom, row, "")}
@@ -1551,7 +1554,7 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 		s.log.WarnContext(ctx, "sensoractive: snmp devices skipped: their saved secret was not restored", "devices", lost)
 	}
 	var silent []string // the devices that did not answer (written and read on the run's goroutine)
-	err = s.doWork(ctx, run.Spec{Kind: RunSNMP, Title: fmt.Sprintf("SNMP read of %d devices", len(usable)), Trigger: run.Schedule,
+	err = s.doWork(ctx, run.Spec{Kind: RunSNMP, Title: "SNMP read of " + countWords(len(usable), "device"), Trigger: run.Schedule,
 		Steps: []run.StepPlan{{Name: "SNMP reads", Total: len(usable)}}}, func(ctx context.Context) error {
 		var err error
 		silent, err = s.roundReads(ctx, usable)

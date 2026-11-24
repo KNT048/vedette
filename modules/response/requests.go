@@ -295,10 +295,8 @@ func (s *Service) approvalGate(ctx context.Context, q dbq, r request, who Actor,
 		uniq[x] = true
 	}
 	switch {
-	case a.Status == StatusExpired:
-		return g, fail(http.StatusConflict, "expired", "This request has expired. Nothing was changed. Ask for a new one."), nil
 	case a.Status != StatusPending:
-		return g, fail(http.StatusConflict, "not_pending", "This request is already "+strings.ReplaceAll(string(a.Status), "_", " ")+". One approval covers one request."), nil
+		return g, s.endedAnswer(ctx, q, r), nil
 	case len(chosenRecs) == 0 || len(chosenRecs) != len(uniq):
 		return g, fail(http.StatusBadRequest, "invalid_items", "Pick at least one action of this request."), nil
 	}
@@ -1010,13 +1008,8 @@ func (s *Service) reject(ctx context.Context, who Actor, id, reason, remember st
 					return err
 				}
 			}
-			switch r.Status {
-			case StatusPending:
-			case StatusExpired:
-				refusal = fail(http.StatusConflict, "expired", "This request has already expired.")
-				return nil
-			default:
-				refusal = fail(http.StatusConflict, "not_pending", "This request is already "+strings.ReplaceAll(string(r.Status), "_", " ")+".")
+			if r.Status != StatusPending {
+				refusal = s.endedAnswer(ctx, tx, r)
 				return nil
 			}
 			if lk != nil { // the person may have been demoted or disabled since the link was opened (the app path reads the account the same way)
@@ -1087,6 +1080,62 @@ func (s *Service) expire(ctx context.Context, tx *sql.Tx, r *request, fx *effect
 		s.message(ctx, "exp-"+r.ID, "Response request expired", "No decision was made in time, so nothing was changed: "+title)
 	})
 	return updateReq(ctx, tx, *r)
+}
+
+// isWithdrawn says r ended because a device split withdrew it (its end reason), not because its time ran out.
+func isWithdrawn(r request) bool { return r.Status == StatusExpired && r.endReason == EndSplit }
+
+// endedAnswer is the one answer to a decision on request r that is no longer pending, whichever way it came (the app, a chat button
+// or reply code, an email link): 409 with the code withdrawn, expired or not_pending, and a message that says plainly how the request
+// ended and that this decision changed nothing. A withdrawn request says why (the device split, naming the device its finding is on
+// now) and points to the request made for the finding since then (new_request_id), or says a new one is asked for from the finding's
+// new plan. The callers that answer a person outside the app (chat, link) name not_pending "decided".
+func (s *Service) endedAnswer(ctx context.Context, q dbq, r request) *apierr.Error {
+	switch {
+	case isWithdrawn(r):
+		msg := "This request was withdrawn without a decision: the finding moved to " + s.findingDevice(ctx, r) + " after a device split. Nothing was changed."
+		next, ok := replacement(ctx, q, r)
+		switch {
+		case ok && next.Status == StatusPending:
+			return fail(http.StatusConflict, "withdrawn", msg+" A new request for it is waiting for a decision: "+next.Title+".").With("new_request_id", next.ID)
+		case ok:
+			return fail(http.StatusConflict, "withdrawn", msg+" A new request for it was made and is now "+strings.ReplaceAll(string(next.Status), "_", " ")+".").With("new_request_id", next.ID)
+		}
+		return fail(http.StatusConflict, "withdrawn", msg+" A new plan is written for the finding on its new device; ask again from that plan in Vedette.")
+	case r.Status == StatusExpired:
+		return fail(http.StatusConflict, "expired", "This request has expired. Nothing was changed. Ask for a new one.")
+	}
+	return fail(http.StatusConflict, "not_pending", "This request is already "+strings.ReplaceAll(string(r.Status), "_", " ")+". This decision changed nothing.")
+}
+
+// findingDevice names the device the finding of request r is on now, as the directory names it; "another device" when it cannot.
+func (s *Service) findingDevice(ctx context.Context, r request) string {
+	if r.FindingID == nil || s.cfg.Directory == nil {
+		return "another device"
+	}
+	f, ok, err := s.cfg.Directory.Finding(ctx, *r.FindingID)
+	if err != nil || !ok {
+		return "another device"
+	}
+	d, ok, err := s.cfg.Directory.Device(ctx, f.AssetID)
+	if name := oneLine(firstNonEmpty(d.Name, d.IP), 120); err == nil && ok && name != "" {
+		return name
+	}
+	return "another device"
+}
+
+// replacement is the newest request made for the finding of withdrawn request r on another device since r was withdrawn. An error
+// reads as none: the answer then says a new one is asked for from the plan, which is still true.
+func replacement(ctx context.Context, q dbq, r request) (request, bool) {
+	if r.FindingID == nil || r.DecidedAt == nil {
+		return request{}, false
+	}
+	l, err := loadReqs(ctx, q, `WHERE finding_id = ? AND asset_id IS NOT ? AND id <> ? AND requested_at >= ? ORDER BY requested_at DESC, id DESC LIMIT 1`,
+		*r.FindingID, r.AssetID, r.ID, *r.DecidedAt)
+	if err != nil || len(l) == 0 {
+		return request{}, false
+	}
+	return l[0], true
 }
 
 // Sweep expires the pending requests past their time, fails the items an approved request left behind, and undoes the

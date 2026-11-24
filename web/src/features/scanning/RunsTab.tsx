@@ -43,6 +43,8 @@ export function RunsTab() {
   const { t } = useTranslation('scanning')
   const kindLabel = useKindLabel()
   const startedBy = useStartedBy()
+  // a run that has not started yet shows when it was queued, said as such: the Started column never shows a queue time as a start
+  const whenOf = (r: Run) => r.started_at ? fmtDateTime(r.started_at) : t('runs.queuedAt', { time: fmtDateTime(r.queued_at) })
   const list = useListParams('runs')
   const [params, setParams] = useSearchParams()
   const kind = params.get('runs.kind') ?? ''
@@ -70,7 +72,7 @@ export function RunsTab() {
       </div>
     ) },
     { id: 'state', header: t('runs.col.state'), cell: ({ row: { original: r } }) => <State r={r} /> },
-    { id: 'when', header: t('runs.col.when'), cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-meta">{fmtDateTime(r.started_at ?? r.queued_at)}</span> },
+    { id: 'when', header: t('runs.col.when'), cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-meta">{whenOf(r)}</span> },
   ], [t, kindLabel, startedBy])
   const devices = useDevices()
   const deviceOptions = (devices.data?.items ?? []).map((d) => {
@@ -106,7 +108,7 @@ export function RunsTab() {
             mobileRow={(r) => (
               <div className="grid gap-1.5">
                 <Link to={runHref(r.id)} className={link}>{r.title}</Link>
-                <span className="text-meta text-muted">{fmtDateTime(r.started_at ?? r.queued_at)} · {kindLabel(r.kind)} · {startedBy(r)}</span>
+                <span className="text-meta text-muted">{whenOf(r)} · {kindLabel(r.kind)} · {startedBy(r)}</span>
                 <State r={r} />
               </div>
             )} />

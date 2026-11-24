@@ -94,3 +94,29 @@ func FuzzNorm(f *testing.F) {
 		}
 	})
 }
+
+// The subject and first line of a vulnerability notice is its title, which names the finding's status: never a routing severity
+// ("Critical:") the app does not show for that finding. An incident keeps its severity; a test message is its title.
+func TestHeadOfAFindingNoticeIsItsTitle(t *testing.T) {
+	t.Parallel()
+	vuln := Message{ID: "nt-1", Kind: "vuln", Severity: "critical", Title: "VMware ESXi on esxi-01: exploited in the wild (CVE-2026-41709)",
+		Action: "Update VMware ESXi to 8.0 U3j.", Link: "https://box.example/findings/f-1"}
+	subj, text, err := Preview(Email, vuln)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subj != "[Vedette] "+vuln.Title || !strings.HasPrefix(text, "Hello,") || strings.Contains(text, "Critical") {
+		t.Fatalf("subject %q\n%s", subj, text)
+	}
+	if _, text, _ = Preview(Telegram, vuln); !strings.HasPrefix(text, vuln.Title+"\n") || !strings.Contains(text, "What to do first: Update VMware ESXi to 8.0 U3j.") {
+		t.Fatalf("telegram %q", text)
+	}
+	inc := Message{ID: "in-1", Kind: "incident", Severity: "high", Title: "203.0.113.5 touched the SSH trap", Link: "https://box.example/incidents/in-1"}
+	if subj, _, _ := Preview(Email, inc); subj != "[Vedette] High: 203.0.113.5 touched the SSH trap" {
+		t.Fatalf("incident subject %q", subj)
+	}
+	test := Message{ID: "t-1", Kind: "test", Severity: "info", Title: "Test message from Vedette", Link: "https://box.example/settings"}
+	if subj, _, _ := Preview(Email, test); subj != "[Vedette] Test message from Vedette" {
+		t.Fatalf("test subject %q", subj)
+	}
+}

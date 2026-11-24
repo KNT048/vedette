@@ -356,12 +356,17 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 		}
 		return nil, nil
 	}, detach: true}
-	if zalo { // used or ended: said after the policy; the transaction reads both again
-		now := s.now()
-		switch {
-		case rec.used:
-			return refuse(withID(fail(http.StatusConflict, "used", "This code was already used.")))
-		case !rec.expires.After(now):
+	if zalo && rec.used { // said after the policy; the transaction reads it again. The loser of two replies at once sees used.
+		return refuse(withID(fail(http.StatusConflict, "used", "This code was already used.")))
+	}
+	// A request that ended answers every button and code the same way and acts on nothing: withdrawn by a device split (with the
+	// request that replaced it), expired, or already decided; for a code that was not used, before whether the code itself ended,
+	// which says less. Nothing is burned. The transaction answers the same for a request that ends while this call waits.
+	if r.Status != StatusPending {
+		return refuse(withID(outsideApp(s.endedAnswer(ctx, s.cfg.DB.Reader(), r))))
+	}
+	if zalo {
+		if !rec.expires.After(s.now()) {
 			return refuse(withID(fail(http.StatusConflict, "expired", "This code has expired. Ask for a new approval request.")))
 		}
 		lk.hash, lk.kind, lk.requestID, lk.userID = rec.hash, "code", rec.request, rec.user
@@ -375,10 +380,7 @@ func (s *Service) DecideFromChat(ctx context.Context, d ChatDecision) (ChatOutco
 	}
 	if err != nil {
 		if ae, ok := apierr.As(err); ok && ae.Status == http.StatusConflict {
-			if ae.Code == "not_pending" {
-				ae = fail(http.StatusConflict, "decided", ae.Message)
-			}
-			return ChatOutcome{}, withID(ae)
+			return ChatOutcome{}, withID(outsideApp(ae))
 		}
 		return ChatOutcome{}, err
 	}

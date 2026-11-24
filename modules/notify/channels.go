@@ -165,18 +165,28 @@ func maskURL(raw string) string {
 	return u.Scheme + "://" + u.Host + "/…"
 }
 
-// shownURL is the webhook URL as the API shows it: scheme://host/… and the last 4 characters of the saved URL. It reads the plain URL only
-// of a row saved before the URL was sealed (url_secret_id empty), and never returns it.
+// shownURL is the webhook URL as the API shows it: scheme://host/… and nothing of the rest, whose path often holds the receiver's
+// token. It reads the plain URL only of a row saved before the URL was sealed (url_secret_id empty), and never returns it.
 func (c channelRow) shownURL() string {
 	raw := c.Fields["url"]
 	if raw == "" {
 		return ""
 	}
-	l4 := c.URLLast4
-	if c.URLID == "" {
-		l4 = lastFour(raw)
+	return maskURL(raw)
+}
+
+// savedMark is what the API returns for a saved secret: that one is saved, and not one of its characters (a password's last letters
+// narrow a guess; a token's are of no use to the person). Rows saved by an earlier build may hold the real last 4 characters: the API
+// shows the mark for them too, and the next save replaces them.
+const savedMark = "••••"
+
+// shown is a saved secret's marker as the API returns it: savedMark when one is saved, nil when none.
+func shown(last4 string) *string {
+	if last4 == "" {
+		return nil
 	}
-	return maskURL(raw) + l4
+	m := savedMark
+	return &m
 }
 
 func (c channelRow) view(approvers []Approver) Channel {
@@ -191,9 +201,9 @@ func (c channelRow) view(approvers []Approver) Channel {
 		}
 	}
 	return Channel{
-		Type: c.Type, Configured: c.Configured, Enabled: c.Enabled, Fields: fields, SecretLast4: ptr(c.SecretLast4),
+		Type: c.Type, Configured: c.Configured, Enabled: c.Enabled, Fields: fields, SecretLast4: shown(c.SecretLast4),
 		MinSeverity: c.MinSeverity, LastTest: c.LastTest, Approvals: c.Approvals, Approvers: approvers,
-		ApprovalLast4: ApprovalLast4{AppToken: ptr(c.AppLast4), BotToken: ptr(c.BotLast4)},
+		ApprovalLast4: ApprovalLast4{AppToken: shown(c.AppLast4), BotToken: shown(c.BotLast4)},
 	}
 }
 
@@ -828,10 +838,8 @@ func (s *Service) zaloUnlinked(ctx context.Context, t channel.Type, in ChannelIn
 	return out, dropped, nil
 }
 
-// putSecret seals plaintext as a new secret, or replaces the one id. It returns the id and the last 4 characters ("" when too short to show).
-//
-// The last 4 characters are kept here, from the plaintext, not taken from core/secrets: core shows none for a short
-// secret, and the settings page shows four for every saved secret (contract.ts). The secrets notify validates are far longer than four characters.
+// putSecret seals plaintext as a new secret, or replaces the one id. It returns the id and the marker the row keeps (savedMark: a
+// secret is saved; never a part of it, whatever its length).
 func (s *Service) putSecret(ctx context.Context, tx *sql.Tx, purpose, id, plaintext string) (newID, last4 string, err error) {
 	if id == "" {
 		newID, _, err = s.cfg.Secrets.Seal(ctx, tx, purpose, []byte(plaintext), true)
@@ -842,12 +850,13 @@ func (s *Service) putSecret(ctx context.Context, tx *sql.Tx, purpose, id, plaint
 	return newID, lastFour(plaintext), err
 }
 
+// lastFour is the marker the *_last4 columns keep for a secret: savedMark when there is one, "" when none. The name stays with the
+// columns; no character of the secret is kept.
 func lastFour(s string) string {
-	r := []rune(s)
-	if len(r) < 4 {
+	if s == "" {
 		return ""
 	}
-	return string(r[len(r)-4:])
+	return savedMark
 }
 
 // DeleteChannel removes the saved configuration and every secret of a channel, and with them a Zalo

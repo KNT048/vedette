@@ -412,7 +412,7 @@ func distroMatch(a Asset, s Software, in swInfo, v Vuln, d distroAnswer, now tim
 	if d.pro {
 		pro = " (Ubuntu Pro)"
 	}
-	m.Evidence = Evidence{CheckedAt: now, Summary: fmt.Sprintf("%s runs %s %s from %s %s's packages. %s fixed %s in %s %s%s (%s); no scan has confirmed it yet, so this is only suspected.",
+	m.Evidence = Evidence{CheckedAt: now, Summary: fmt.Sprintf("%s runs %s %s from %s %s's packages. %s fixed %s in %s %s%s (%s)"+suspectedClause,
 		clean(a.Name), softwareName(s.Display, in.pkgVer), clean(in.pkgVer), d.name, d.release, d.name, v.CVE, clean(d.pkg), clean(d.fixed), pro, src)}
 	until := fmt.Sprintf("so this device has the flaw until it installs %s's security updates.", d.name)
 	if k, ok := restartInto(a, s, d.fixed); ok { // the fixed kernel is installed and not running yet

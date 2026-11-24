@@ -55830,6 +55830,53 @@
                           "trap_hostname": {
                             "type": "string",
                             "description": "Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched (\"Decoy sweep\" for a probe without names): the Trap IP column of the hit list"
+                          },
+                          "test_alert": {
+                            "description": "Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did with the test alert",
+                            "type": "object",
+                            "properties": {
+                              "channels": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "channel": {
+                                      "type": "string",
+                                      "description": "The channel type: telegram, slack, zalo, zalo-personal, email, webhook"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "description": "Its name as the Alert channels page shows it"
+                                    },
+                                    "ok": {
+                                      "type": "boolean",
+                                      "description": "The channel delivered the test alert"
+                                    },
+                                    "skipped": {
+                                      "type": "boolean",
+                                      "description": "Not sent: this channel would not send the real alert either (what it sends excludes it)"
+                                    },
+                                    "detail": {
+                                      "type": "string",
+                                      "description": "One sentence: the provider's receipt, why it failed, or why it was skipped"
+                                    }
+                                  },
+                                  "required": [
+                                    "channel",
+                                    "name",
+                                    "ok",
+                                    "skipped",
+                                    "detail"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "description": "One per alert channel that is on; empty when none is on (a real hit would only show in Vedette)"
+                              }
+                            },
+                            "required": [
+                              "channels"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -55996,6 +56043,53 @@
                       "type": "string",
                       "description": "Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched (\"Decoy sweep\" for a probe without names): the Trap IP column of the hit list"
                     },
+                    "test_alert": {
+                      "description": "Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did with the test alert",
+                      "type": "object",
+                      "properties": {
+                        "channels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "description": "The channel type: telegram, slack, zalo, zalo-personal, email, webhook"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "Its name as the Alert channels page shows it"
+                              },
+                              "ok": {
+                                "type": "boolean",
+                                "description": "The channel delivered the test alert"
+                              },
+                              "skipped": {
+                                "type": "boolean",
+                                "description": "Not sent: this channel would not send the real alert either (what it sends excludes it)"
+                              },
+                              "detail": {
+                                "type": "string",
+                                "description": "One sentence: the provider's receipt, why it failed, or why it was skipped"
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "name",
+                              "ok",
+                              "skipped",
+                              "detail"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "One per alert channel that is on; empty when none is on (a real hit would only show in Vedette)"
+                        }
+                      },
+                      "required": [
+                        "channels"
+                      ],
+                      "additionalProperties": false
+                    },
                     "asset": {
                       "anyOf": [
                         {
@@ -56108,7 +56202,7 @@
     "/honeypot/test-hit": {
       "post": {
         "operationId": "honeypot_post_honeypot_test_hit",
-        "summary": "\"Test trap\": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with that service; not counted in statistics, no alert sent",
+        "summary": "\"Test trap\": creates a hit labelled as a test from the box itself, on the first enabled Trap IP with that service, and sends the alert a real hit would send, marked Test, to the alert channels that are on; never an incident, not counted in statistics",
         "tags": [
           "honeypot"
         ],
@@ -56258,6 +56352,53 @@
                     "trap_hostname": {
                       "type": "string",
                       "description": "Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched (\"Decoy sweep\" for a probe without names): the Trap IP column of the hit list"
+                    },
+                    "test_alert": {
+                      "description": "Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did with the test alert",
+                      "type": "object",
+                      "properties": {
+                        "channels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "description": "The channel type: telegram, slack, zalo, zalo-personal, email, webhook"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "Its name as the Alert channels page shows it"
+                              },
+                              "ok": {
+                                "type": "boolean",
+                                "description": "The channel delivered the test alert"
+                              },
+                              "skipped": {
+                                "type": "boolean",
+                                "description": "Not sent: this channel would not send the real alert either (what it sends excludes it)"
+                              },
+                              "detail": {
+                                "type": "string",
+                                "description": "One sentence: the provider's receipt, why it failed, or why it was skipped"
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "name",
+                              "ok",
+                              "skipped",
+                              "detail"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "One per alert channel that is on; empty when none is on (a real hit would only show in Vedette)"
+                        }
+                      },
+                      "required": [
+                        "channels"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -56296,7 +56437,7 @@
     "/honeypot/test-scan": {
       "post": {
         "operationId": "honeypot_post_honeypot_test_scan",
-        "summary": "\"Test scan\": a labelled test scan alert from the box across the Trap IPs, not counted, no alert sent",
+        "summary": "\"Test scan\": a labelled test scan from the box across the Trap IPs, with its test alert marked Test; never an incident, not counted",
         "tags": [
           "honeypot"
         ],
@@ -56406,6 +56547,53 @@
                     "trap_hostname": {
                       "type": "string",
                       "description": "Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched (\"Decoy sweep\" for a probe without names): the Trap IP column of the hit list"
+                    },
+                    "test_alert": {
+                      "description": "Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did with the test alert",
+                      "type": "object",
+                      "properties": {
+                        "channels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "description": "The channel type: telegram, slack, zalo, zalo-personal, email, webhook"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "Its name as the Alert channels page shows it"
+                              },
+                              "ok": {
+                                "type": "boolean",
+                                "description": "The channel delivered the test alert"
+                              },
+                              "skipped": {
+                                "type": "boolean",
+                                "description": "Not sent: this channel would not send the real alert either (what it sends excludes it)"
+                              },
+                              "detail": {
+                                "type": "string",
+                                "description": "One sentence: the provider's receipt, why it failed, or why it was skipped"
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "name",
+                              "ok",
+                              "skipped",
+                              "detail"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "One per alert channel that is on; empty when none is on (a real hit would only show in Vedette)"
+                        }
+                      },
+                      "required": [
+                        "channels"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -56734,7 +56922,7 @@
     "/honeypot/tokens/{id}/test": {
       "post": {
         "operationId": "honeypot_post_honeypot_tokens_id_test",
-        "summary": "\"Test token\": a labelled test trigger, not counted, no alert sent",
+        "summary": "\"Test token\": a labelled test trigger, with its test alert marked Test; never an incident, not counted",
         "tags": [
           "honeypot"
         ],
@@ -56854,6 +57042,53 @@
                     "trap_hostname": {
                       "type": "string",
                       "description": "Name of the Trap IP that was hit, of the token, or of the Trap IPs a scan touched (\"Decoy sweep\" for a probe without names): the Trap IP column of the hit list"
+                    },
+                    "test_alert": {
+                      "description": "Only in the answer of a test (test-hit, test-scan, tokens/{id}/test): what each alert channel did with the test alert",
+                      "type": "object",
+                      "properties": {
+                        "channels": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "channel": {
+                                "type": "string",
+                                "description": "The channel type: telegram, slack, zalo, zalo-personal, email, webhook"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "Its name as the Alert channels page shows it"
+                              },
+                              "ok": {
+                                "type": "boolean",
+                                "description": "The channel delivered the test alert"
+                              },
+                              "skipped": {
+                                "type": "boolean",
+                                "description": "Not sent: this channel would not send the real alert either (what it sends excludes it)"
+                              },
+                              "detail": {
+                                "type": "string",
+                                "description": "One sentence: the provider's receipt, why it failed, or why it was skipped"
+                              }
+                            },
+                            "required": [
+                              "channel",
+                              "name",
+                              "ok",
+                              "skipped",
+                              "detail"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "One per alert channel that is on; empty when none is on (a real hit would only show in Vedette)"
+                        }
+                      },
+                      "required": [
+                        "channels"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -71497,10 +71732,10 @@
                             "additionalProperties": {
                               "type": "string"
                             },
-                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                           },
                           "secret_last4": {
-                            "description": "Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)",
+                            "description": "Secrets (token, password, signing key) are never returned, not even a part: a saved one reads \"••••\", none is null (SYS-4)",
                             "type": [
                               "string",
                               "null"
@@ -71594,7 +71829,7 @@
                               "bot_token"
                             ],
                             "additionalProperties": false,
-                            "description": "Slack Socket Mode tokens (xapp-, xoxb-): only the last 4 characters are returned"
+                            "description": "Slack Socket Mode tokens (xapp-, xoxb-): \"••••\" when saved, null when not; never a character of the token"
                           }
                         },
                         "required": [
@@ -71902,10 +72137,10 @@
                       "additionalProperties": {
                         "type": "string"
                       },
-                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/… followed by its last 4 characters; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                     },
                     "secret_last4": {
-                      "description": "Secrets (token, password, signing key) are never returned, only the last 4 characters (SYS-4)",
+                      "description": "Secrets (token, password, signing key) are never returned, not even a part: a saved one reads \"••••\", none is null (SYS-4)",
                       "type": [
                         "string",
                         "null"
@@ -71999,7 +72234,7 @@
                         "bot_token"
                       ],
                       "additionalProperties": false,
-                      "description": "Slack Socket Mode tokens (xapp-, xoxb-): only the last 4 characters are returned"
+                      "description": "Slack Socket Mode tokens (xapp-, xoxb-): \"••••\" when saved, null when not; never a character of the token"
                     }
                   },
                   "required": [
@@ -72533,6 +72768,10 @@
                           },
                           "link": {
                             "type": "string"
+                          },
+                          "resent": {
+                            "type": "boolean",
+                            "description": "A copy a person sent with Send again: same words as the message it copies, not a new alert"
                           }
                         },
                         "required": [
@@ -72544,7 +72783,8 @@
                           "delayed",
                           "kind",
                           "what",
-                          "link"
+                          "link",
+                          "resent"
                         ],
                         "additionalProperties": false
                       }
@@ -72752,6 +72992,10 @@
                     },
                     "link": {
                       "type": "string"
+                    },
+                    "resent": {
+                      "type": "boolean",
+                      "description": "A copy a person sent with Send again: same words as the message it copies, not a new alert"
                     }
                   },
                   "required": [
@@ -72763,7 +73007,8 @@
                     "delayed",
                     "kind",
                     "what",
-                    "link"
+                    "link",
+                    "resent"
                   ],
                   "additionalProperties": false
                 }
@@ -75731,7 +75976,13 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
-                          "description": "Findings handled in the period (the Handled section counts the same). open_before + new - handled differs from open_now only by other changes: a device removed, a finding reopened"
+                          "description": "Findings handled in the period (the Handled section counts the same). open_before + new - handled + reopened differs from open_now only by other changes: a finding left out since the start"
+                        },
+                        "reopened": {
+                          "description": "Findings open at the end that opened again in the period after a handling; absent when none and in reports sent before it existed",
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
                         },
                         "first": {
                           "maxItems": 3,
@@ -76157,6 +76408,12 @@
                                       ],
                                       "additionalProperties": false,
                                       "description": "Who and how, from stored fields: \"Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)\""
+                                    },
+                                    "reopened_at": {
+                                      "description": "It opened again after this handling, inside the period, and is open at its end (listed in Still open too); absent otherwise and in reports sent before it existed",
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                     }
                                   },
                                   "required": [
@@ -77279,6 +77536,12 @@
                                   }
                                 ]
                               },
+                              "device_count": {
+                                "description": "How many devices the incident names when more than one (device is the first); absent for one device and in reports sent before it existed",
+                                "type": "integer",
+                                "minimum": 2,
+                                "maximum": 9007199254740991
+                              },
                               "at": {
                                 "type": "string",
                                 "format": "date-time",
@@ -77892,7 +78155,13 @@
                               "type": "integer",
                               "minimum": -9007199254740991,
                               "maximum": 9007199254740991,
-                              "description": "Findings handled in the period (the Handled section counts the same). open_before + new - handled differs from open_now only by other changes: a device removed, a finding reopened"
+                              "description": "Findings handled in the period (the Handled section counts the same). open_before + new - handled + reopened differs from open_now only by other changes: a finding left out since the start"
+                            },
+                            "reopened": {
+                              "description": "Findings open at the end that opened again in the period after a handling; absent when none and in reports sent before it existed",
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
                             },
                             "first": {
                               "maxItems": 3,
@@ -78318,6 +78587,12 @@
                                           ],
                                           "additionalProperties": false,
                                           "description": "Who and how, from stored fields: \"Patched by Vedette: version moved 6.24 → 7.23 (18 Nov)\""
+                                        },
+                                        "reopened_at": {
+                                          "description": "It opened again after this handling, inside the period, and is open at its end (listed in Still open too); absent otherwise and in reports sent before it existed",
+                                          "type": "string",
+                                          "format": "date-time",
+                                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                                         }
                                       },
                                       "required": [
@@ -79439,6 +79714,12 @@
                                         "type": "null"
                                       }
                                     ]
+                                  },
+                                  "device_count": {
+                                    "description": "How many devices the incident names when more than one (device is the first); absent for one device and in reports sent before it existed",
+                                    "type": "integer",
+                                    "minimum": 2,
+                                    "maximum": 9007199254740991
                                   },
                                   "at": {
                                     "type": "string",
@@ -86874,8 +87155,10 @@
                         "expired",
                         "used",
                         "decided",
+                        "withdrawn",
                         "unknown"
-                      ]
+                      ],
+                      "description": "withdrawn: a device split moved the finding of the request to another device before anyone decided; nothing was changed and a new request is asked for that device"
                     },
                     "title": {
                       "type": [

@@ -135,6 +135,7 @@ type env struct {
 	db    *store.DB
 	svc   *Service
 	clock *clockT
+	every string // how often the schedule sends the report while it is on; "" off
 	inv   *fakeInv
 	fnd   *fakeFindings
 	views *fakeViews
@@ -171,7 +172,8 @@ func newEnv(t *testing.T) *env {
 	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Inventory: e.inv, Findings: e.fnd, Views: e.views, KEV: e.kev,
 		Exposure: e.exp, Detections: e.det, Feeds: e.feeds, Mail: e.mail, AI: e.ai, Modules: e.mods,
 		OrgName: func(context.Context) (string, error) { return "Acme Ltd", nil }, Zone: func(context.Context) string { return "UTC" },
-		Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now})
+		Every: func(context.Context) string { return e.every },
+		Log:   slog.New(slog.DiscardHandler), Clock: e.clock.Now})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -197,7 +197,8 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 	}
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	cur := &running{cancel: cancel, runID: x.ID(), until: s.sweepUntil(d.Run)} // a person's pass runs outside the window for its hour
+	// a person's pass runs outside the window for its hour; a stop of the work in progress stops one batch (batchCtx), none before the first
+	cur := &running{cancel: func() {}, runID: x.ID(), until: s.sweepUntil(d.Run)}
 	jctx = withManualUntil(jctx, cur.until)
 	s.setCur(cur)
 	defer s.setCur(nil)
@@ -209,7 +210,6 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 		return run.Result{}, err
 	}
 	sink := progress.SinkFrom(ctx) // a person's Scan the LAN now reports how far it is
-	pctx := progress.WithSink(jctx, nil)
 	newDevices, failed, retries, firstErr := 0, 0, 0, ""
 	sent := false // a batch was sent since this start: only then does the pass give way to other work
 	finish := func(r run.Result) (run.Result, error) {
@@ -264,20 +264,32 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 					break
 				}
 				if len(batch) > 0 {
-					hosts, err := s.probe(pctx, x.ID(), nmapargv.Sweep, st.Rate, batch)
+					bctx, bcancel := s.batchCtx(jctx, cur)
+					hosts, err := s.probe(progress.WithSink(bctx, nil), x.ID(), nmapargv.Sweep, st.Rate, batch)
+					bcancel()
 					sent = true
 					switch {
 					case errors.Is(err, ErrStopped):
-						if jctx.Err() != nil {
+						if jctx.Err() != nil { // the run itself was stopped (a person, Vedette stopping): core/run records why
 							return finish(run.Result{Status: run.Partial, Error: "stopped"})
 						}
-						// the window closed or the settings changed under the batch: it is swept again from the cursor
+						if s.off.Load() {
+							return finish(run.Result{Status: run.Partial, Error: run.ModuleOffReason})
+						}
+						// The batch was stopped for a reason of its own (a device of it may no longer be scanned, the settings or the
+						// window changed under it): the pass reads the rules again and sweeps the batch again from the cursor, or waits
+						// for what no longer allows it. It never ends on a bare "stopped".
+						why := s.whyStopped(cur)
+						if why == nil {
+							why = err
+						}
 						if r := s.sweepWait(jctx); r.Status == run.Waiting {
 							return finish(r)
 						}
 						if retries++; retries > 3 {
-							return finish(run.Result{Status: run.Waiting, WaitingFor: "the next window (the scan settings changed under every try of a batch)"})
+							return finish(run.Result{Status: run.Waiting, WaitingFor: "the next window (every try of a batch was stopped: " + stopWords(why) + ")"})
 						}
+						s.runWrite(ctx, "log", x.Log(context.WithoutCancel(ctx), run.Warn, "A batch was stopped because "+stopWords(why)+"; it is swept again"))
 						cursor = newCursor(sp, walked)
 						continue
 					case errors.Is(err, ErrUnavailable):
@@ -318,6 +330,16 @@ func (s *Service) runSweep(ctx context.Context, x *run.Exec) (run.Result, error)
 		return finish(run.Result{Status: run.Failed, Error: fmt.Sprintf("%d batches failed; first: %s", failed, firstErr)})
 	}
 	return finish(run.Result{})
+}
+
+// batchCtx is the context of one batch of pass cur: a stop of the work in progress (stopCur) cancels this batch only, so the pass can
+// read the rules again and go on from its cursor, and the reason it was stopped for is the batch's own (cur.why starts empty).
+func (s *Service) batchCtx(parent context.Context, cur *running) (context.Context, context.CancelFunc) {
+	bctx, bcancel := context.WithCancel(parent)
+	s.mu.Lock()
+	cur.cancel, cur.why = bcancel, nil
+	s.mu.Unlock()
+	return bctx, bcancel
 }
 
 // addNewRanges adds to pass x the steps of what the scope holds now that none of its steps covers (a range added, or widened, while
@@ -562,15 +584,23 @@ func (s *Service) sweepHold(ctx context.Context, r run.Run) (time.Duration, bool
 // "about 4 hours").
 func roundWords(d time.Duration) string {
 	if d < 90*time.Minute {
-		return fmt.Sprintf("%d minutes", int(math.Ceil(d.Minutes())))
+		return countWords(int(math.Ceil(d.Minutes())), "minute")
 	}
-	return fmt.Sprintf("%d hours", int(math.Round(d.Hours())))
+	return countWords(int(math.Round(d.Hours())), "hour")
+}
+
+// countWords writes n of a unit with its plural: "1 minute", "3 minutes".
+func countWords(n int, unit string) string {
+	if n == 1 {
+		return "1 " + unit
+	}
+	return fmt.Sprintf("%d %ss", n, unit)
 }
 
 // boundWords writes d for an "at most": rounded up, in minutes or hours, so the bound is never below the time it stands for.
 func boundWords(d time.Duration) string {
 	if d < 90*time.Minute {
-		return fmt.Sprintf("%d minutes", int(math.Ceil(d.Minutes())))
+		return countWords(int(math.Ceil(d.Minutes())), "minute")
 	}
-	return fmt.Sprintf("%d hours", int(math.Ceil(d.Hours())))
+	return countWords(int(math.Ceil(d.Hours())), "hour")
 }

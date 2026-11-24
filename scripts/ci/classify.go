@@ -28,6 +28,7 @@ var rules = []rule{
 	{"docs/DEPLOYMENT.md", Result{Go: true}},                               // deploy/systemd/unit_test.go compares section 6.1 with the unit file
 	{"docs/RUNBOOK.md", Result{Go: true}},                                  // deploy/deb/apparmor_test.go keeps the AppArmor repair command equal to the postinst one
 	{"docs/brand/", Result{Web: true}},                                     // web/src/components/brand/Logo.test.tsx holds Logo.tsx to the brand SVGs
+	{"docs/cookbook/", Result{Web: true}},                                  // web/vite.config.ts bundles the recipes for the in-app Help pages
 	{"docs/INSTALL-CONTAINER.md", Result{Go: true}},                        // deploy/compose/compose_test.go keeps its backup image equal to pins.env
 	{"docs/SCHEMA.sql", Result{Go: true}},                                  // cmd/vedette/schema_test.go holds it to the migrations (make schema)
 	{"docs/RELEASE_KEYS.md", Result{Go: true}},                             // scripts/release/cosignplan_test.go: its cosign verify line matches the sign flags

@@ -4,7 +4,7 @@ import { useState, type ComponentProps, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
-import { Bug, ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen, Settings, UserCog, UserRound } from 'lucide-react'
+import { Bug, ChevronDown, CircleHelp, LogOut, PanelLeftClose, PanelLeftOpen, Settings, UserCog, UserRound } from 'lucide-react'
 import { BugReportDialog } from '@/features/core/BugReportDialog'
 import { RunningVersion } from '@/features/core/UpdateSignals'
 import { useUpdatesBanner } from '@/features/core/api'
@@ -143,11 +143,20 @@ export function NavList({ nav, rail = false, drawer = false, onNavigate }: { nav
       ))}
       <div className={cn('grid gap-0.5 border-t border-rule pt-3', rail && 'justify-items-center')}>
         {rail ? (
-          <Tooltip describe={false} content={t('layout.settings')}>
-            <RailLink to="/settings" onClick={onNavigate}><Settings aria-hidden /><span className="sr-only">{t('layout.settings')}</span></RailLink>
-          </Tooltip>
+          <>
+            <Tooltip describe={false} content={t('layout.settings')}>
+              <RailLink to="/settings" onClick={onNavigate}><Settings aria-hidden /><span className="sr-only">{t('layout.settings')}</span></RailLink>
+            </Tooltip>
+            {/* Help: the user cookbook (docs/cookbook), bundled in the build so it works offline. */}
+            <Tooltip describe={false} content={t('layout.help')}>
+              <RailLink to="/help" onClick={onNavigate}><CircleHelp aria-hidden /><span className="sr-only">{t('layout.help')}</span></RailLink>
+            </Tooltip>
+          </>
         ) : (
-          <NavLink to="/settings" onClick={onNavigate} className={itemClass(false, drawer)}><Settings aria-hidden />{t('layout.settings')}</NavLink>
+          <>
+            <NavLink to="/settings" onClick={onNavigate} className={itemClass(false, drawer)}><Settings aria-hidden />{t('layout.settings')}</NavLink>
+            <NavLink to="/help" onClick={onNavigate} className={itemClass(false, drawer)}><CircleHelp aria-hidden />{t('layout.help')}</NavLink>
+          </>
         )}
       </div>
     </nav>

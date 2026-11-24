@@ -25,6 +25,9 @@ describe('Settings › Scanning › Runs', () => {
     expect(within(table).getByText('Waiting for the scan window (opens 23:00); 6,528 of 65,792 addresses')).toBeInTheDocument()
     expect(within(table).getByText('Stopped: Vedette restarted')).toBeInTheDocument()
     expect(within(table).getByText('Queued behind “Check NAS-PHOTOS”; it starts when that run ends')).toBeInTheDocument()
+    // a run that has not started shows its queue time as such, never as a start
+    const queuedRow = within(table).getByRole('link', { name: 'Check WEB01' }).closest('tr')!
+    expect(within(queuedRow).getByText(/^Not started \(queued .+\)$/)).toBeInTheDocument()
     await user.selectOptions(screen.getByRole('combobox', { name: 'State' }), 'queued')
     await waitFor(() => expect(asked.at(-1)).toBe('?status=queued&limit=25'), T)
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Runs of every engine' })).queryByRole('link', { name: /LAN sweep/ })).toBeNull(), T)

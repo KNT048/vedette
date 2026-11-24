@@ -553,7 +553,11 @@
     "nowOn": "Now on {{versions}}",
     "machines_one": "(possibly {{count}} machine)",
     "machines_other": "(possibly {{count}} machines)",
-    "sameAs": "Possibly the same device as {{names}}"
+    "sameAs": "Possibly the same device as {{names}}",
+    "otherSteps_one": "{{product}} on this device is also in another step ({{fixes}}): no single release is known to fix all of its findings.",
+    "otherSteps_other": "{{product}} on this device is also in {{count}} other steps ({{fixes}}): no single release is known to fix all of its findings.",
+    "otherAdvisory": "see the vendor advisory",
+    "otherNoneYet": "no fix known yet"
   },
   "handle": {
     "title": "Mark as handled",

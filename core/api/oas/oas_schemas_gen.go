@@ -93920,6 +93920,10 @@ func (s *FindingsGetFindingsFixesOKItemsItemFixKind) UnmarshalText(data []byte) 
 type FindingsGetFindingsFixesOKItemsItemItemsItem struct {
 	Device   FindingsGetFindingsFixesOKItemsItemItemsItemDevice `json:"device"`
 	Findings int                                                `json:"findings"`
+	// The fixes of the other steps for the same software line on this device, the most findings first: a
+	// line is in several steps only when no single release is known to fix all of its CVEs (or some name
+	// no release). Empty when this step is the line's only one.
+	Others []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem `json:"others"`
 	// Findings by severity band: "2 Critical · 18 High · 5 Medium".
 	Severity FindingsGetFindingsFixesOKItemsItemItemsItemSeverity    `json:"severity"`
 	Software NilFindingsGetFindingsFixesOKItemsItemItemsItemSoftware `json:"software"`
@@ -93935,6 +93939,11 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) GetDevice() FindingsGetFi
 // GetFindings returns the value of Findings.
 func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) GetFindings() int {
 	return s.Findings
+}
+
+// GetOthers returns the value of Others.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) GetOthers() []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem {
+	return s.Others
 }
 
 // GetSeverity returns the value of Severity.
@@ -93960,6 +93969,11 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) SetDevice(val FindingsGet
 // SetFindings sets the value of Findings.
 func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) SetFindings(val int) {
 	s.Findings = val
+}
+
+// SetOthers sets the value of Others.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItem) SetOthers(val []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) {
+	s.Others = val
 }
 
 // SetSeverity sets the value of Severity.
@@ -94695,6 +94709,169 @@ func (s *FindingsGetFindingsFixesOKItemsItemItemsItemDeviceKind) UnmarshalText(d
 		return nil
 	case FindingsGetFindingsFixesOKItemsItemItemsItemDeviceKindUnknown:
 		*s = FindingsGetFindingsFixesOKItemsItemItemsItemDeviceKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem struct {
+	// The "By fix" group (the same key on every device the same fix applies to); opaque.
+	Key string `json:"key"`
+	// Update = install `version` of the software or later; distro_update = install the distribution's
+	// package release `version` or later; os_update = install the operating system update `ref` (a KB
+	// number) or build `version`; feature_update = no update of this release fixes it, move to release
+	// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+	// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+	// advisory); unknown = no fix data.
+	Kind FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind `json:"kind"`
+	// The product the fix is for, as people name it ("OpenSSH").
+	Product string `json:"product"`
+	// Os_update: the KB number; none_yet: the advisory id when known.
+	Ref NilString `json:"ref"`
+	// The vendor advisory or release notes.
+	URL NilURI `json:"url"`
+	// Update, distro_update, feature_update: the version or release to install; os_update: the build when
+	// known; restart: the installed kernel's package release the device runs after the restart.
+	Version NilString `json:"version"`
+}
+
+// GetKey returns the value of Key.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetKey() string {
+	return s.Key
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetKind() FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind {
+	return s.Kind
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetProduct() string {
+	return s.Product
+}
+
+// GetRef returns the value of Ref.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetRef() NilString {
+	return s.Ref
+}
+
+// GetURL returns the value of URL.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetURL() NilURI {
+	return s.URL
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) GetVersion() NilString {
+	return s.Version
+}
+
+// SetKey sets the value of Key.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetKey(val string) {
+	s.Key = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetKind(val FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) {
+	s.Kind = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRef sets the value of Ref.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetRef(val NilString) {
+	s.Ref = val
+}
+
+// SetURL sets the value of URL.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetURL(val NilURI) {
+	s.URL = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItem) SetVersion(val NilString) {
+	s.Version = val
+}
+
+// Update = install `version` of the software or later; distro_update = install the distribution's
+// package release `version` or later; os_update = install the operating system update `ref` (a KB
+// number) or build `version`; feature_update = no update of this release fixes it, move to release
+// `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device
+// still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the
+// advisory); unknown = no fix data.
+type FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind string
+
+const (
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUpdate        FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "update"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindDistroUpdate  FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "distro_update"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindOsUpdate      FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "os_update"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindFeatureUpdate FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "feature_update"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindRestart       FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "restart"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindNoneYet       FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "none_yet"
+	FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUnknown       FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind values.
+func (FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) AllValues() []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind {
+	return []FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind{
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUpdate,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindDistroUpdate,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindOsUpdate,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindFeatureUpdate,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindRestart,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindNoneYet,
+		FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindDistroUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindOsUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindFeatureUpdate:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindRestart:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindNoneYet:
+		return []byte(s), nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKind(data) {
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUpdate:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUpdate
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindDistroUpdate:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindDistroUpdate
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindOsUpdate:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindOsUpdate
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindFeatureUpdate:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindFeatureUpdate
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindRestart:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindRestart
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindNoneYet:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindNoneYet
+		return nil
+	case FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUnknown:
+		*s = FindingsGetFindingsFixesOKItemsItemItemsItemOthersItemKindUnknown
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

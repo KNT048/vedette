@@ -1011,3 +1011,28 @@ func (s *Service) ListedFixes(ctx context.Context) (map[string]ListedFix, error)
 	})
 	return out, err
 }
+
+// ListedFix is the listed fix of one open finding (its block's release, as By device and By fix name it), read from its device's
+// groups only, so the finding's own page can name the release the lists name; ok is false for a finding that is not open or is on a
+// device a person ignored.
+func (s *Service) ListedFix(ctx context.Context, id string) (lf ListedFix, ok bool, err error) {
+	err = s.readTx(ctx, func(ctx context.Context) error {
+		fs, err := selectFindings(ctx, s.rd(ctx), `id = ? AND state = 'open'`, id)
+		if err != nil || len(fs) == 0 {
+			return err
+		}
+		f := fs[0]
+		gs, err := s.lineGroups(ctx, ListFilter{Device: f.AssetID})
+		if err != nil {
+			return err
+		}
+		m := blocksOf(gs)
+		if _, in := m[[3]string{f.AssetID, f.SoftwareID, f.FixKey}]; !in { // an ignored device: no list names it
+			return nil
+		}
+		key, fx := m.of(f)
+		lf, ok = ListedFix{Key: clipBytes(key, 400), Fix: fx}, true
+		return nil
+	})
+	return lf, ok, err
+}

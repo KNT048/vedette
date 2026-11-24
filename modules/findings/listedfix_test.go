@@ -33,3 +33,25 @@ func TestListedFixes_TheBlockReleaseOfEachOpenFinding(t *testing.T) {
 		t.Errorf("java lines %+v %+v", got["f-f2"], got["f-f3"])
 	}
 }
+
+// The listed fix of one finding is the one ListedFixes gives it: the release the lists name for its block.
+func TestListedFix_OneFindingAsTheLists(t *testing.T) {
+	t.Parallel()
+	e := blockTargetWorld(t)
+	all, err := e.svc.ListedFixes(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) == 0 {
+		t.Fatal("no open finding")
+	}
+	for id, want := range all {
+		got, ok, err := e.svc.ListedFix(t.Context(), id)
+		if err != nil || !ok || got != want {
+			t.Errorf("%s: ListedFix %+v %v %v, want %+v", id, got, ok, err, want)
+		}
+	}
+	if _, ok, err := e.svc.ListedFix(t.Context(), "no-such-finding"); ok || err != nil {
+		t.Errorf("an unknown finding: ok %v, %v", ok, err)
+	}
+}

@@ -1,13 +1,87 @@
 # Changelog
 
-All notable changes to Vedette are recorded here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). Maintainers add an entry in every PR that changes behaviour; releases are tagged by a human (the AI never creates tags).
+All notable changes to Vedette are recorded here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). Releases and their git tags are made by a maintainer; each release page on GitHub carries the same notes.
 
 ## [Unreleased]
 
+### Added
+- A backup downloaded with a password carries the box's decryption key inside its encryption, so restoring it on a new box keeps every saved secret and two-step sign-in, with no separate key file. A backup downloaded without a password still never holds the key.
+
+### Fixed
+- An update or rollback follows the module a person switched when it starts or stops a service, and an automatic install that waits for a restart says so.
+- A network card that answers on two addresses has one main address in the inventory.
+- VMware ESXi fixed builds are read from the wording of VMware's CVE records.
+- Missing CVE records of catalogue CVEs are read by ID; a CVE named only by a custom feed and without a record makes the box read the whole CVE list early.
+- Incidents and other features' screens show a device's current name.
+- Confirmed recommendation packs carry example values, a Linux host firewall step, check commands and vendor links.
+
+## [0.1.5] - 2026-11-24
+
+Fifth test release of the 0.1 line, for a lab or spare box. Boxes on 0.1.1 to 0.1.4 update in place from Settings → Updates.
+
+### Changed
+- A distribution kernel is judged once, on the running kernel, with a restart offered.
+- Each finding has one "What to do", with the fix first, then the workaround and a firewall step from confirmed packs for sixteen exploited CVEs.
+- Questions are asked only when an answer can change something.
+- Alerts and lists state each finding's status once; device names, versions and last-seen times are consistent across screens.
+- Updates and backups say what will happen and what did.
+- Downloaded backups can be protected with a password.
+- Runs cut off by a restart end cleanly.
+
+## [0.1.4] - 2026-11-24
+
+Fourth test release of the 0.1 line. Boxes on 0.1.1 to 0.1.3 update in place from Settings → Updates.
+
+### Changed
+- Automatic updates install on a box that never checked for operating system updates.
+- Run pages show the true order, progress and stop reasons.
+- Alert lines say why they were sent, with Send now for alerts not sent.
+- Home shows the first-run summary.
+- Findings follow a device when it is split in two.
+- A version change names the person who made it.
+
+## [0.1.3] - 2026-11-23
+
+Third test release of the 0.1 line. Boxes on 0.1.1 or 0.1.2 update in place from Settings → Updates. Rolling back to 0.1.2 restores the database backup taken just before the update.
+
+### Changed
+- Declared and scanned software get the CVEs their record names: precise vendor versions, distribution builds, one catalogue entry per product.
+- Every finding that enters the urgent layers is alerted once; alert mails carry the reasons and the verification lines; the report mail carries the report.
+- Scans and device checks queue instead of being refused, and show their place in line.
+- One consistent status on every findings screen; search on every list; one scan-scope editor that shows its cost.
+- Empty lists no longer fail; an update asks before it starts.
+- A new box installed from a beta release follows the beta channel.
+
+## [0.1.2] - 2026-11-23
+
+Second test release of the 0.1 line. Boxes on 0.1.1 update in place from Settings → Updates; boxes on 0.1.0-beta.1 still need a fresh install (see 0.1.1). Rolling back to 0.1.1 restores the database backup taken just before the update.
+
+### Changed
+- Stored software lines are identified again when an update brings a new product catalogue, so devices without an agent and hand-entered software no longer keep an outdated answer.
+- The advisory banner says how to get the fix that is really offered.
+
+## [0.1.1] - 2026-11-23
+
+First release of the 0.1 line, for testing on a lab or spare box. Install on Ubuntu 24.04, Ubuntu 26.04 or Debian 13 (amd64 or arm64) with the `install.sh` of the release. After install, choose Settings → Updates → Software channel → Beta to receive the next test releases.
+
 ### Upgrade notes
-- `notify` migration 0006: one approver address on a channel now belongs to one person. When an existing box upgrades, approver rows that share an address on the same channel are deleted, because a reply or button press from that address could never be matched to one person, so they could not approve anything. The channel's other approvers stay. Open Settings, Alert channels after the upgrade and add each deleted approver again with an address of their own. Zalo personal approvers saved with a phone number are kept but skipped (`notify.approval_skipped`) until the address is changed to a Zalo user ID.
+- Boxes on 0.1.0-beta.1 cannot update to this release in place because the database format changed: uninstall with `sh install.sh --uninstall --yes`, then install this release.
 
 ### Added
-- SNMP credentials take an optional UDP port (1 to 65535; empty = 161) for devices that answer SNMP on another port; Test, Read now and the scan window's reads use it, and the answer and the "no answer" reason name the port tried (`sensor-active` migration 0009).
-- Complete web GUI on a mock API (MSW, Zod contracts, `api/openapi.json`) for every user story.
-- M2-0 specs: architecture, deployment (container appliance), data model, API conventions, module contracts, protocol specs, action template library, engineering handbook, runbook skeleton, team plan.
+- SNMP credentials take an optional UDP port (1 to 65535; empty means 161) for devices that answer SNMP on another port; Test, Read now and the scan window's reads use it, and the answer names the port tried.
+
+## [0.1.0-beta.1] - 2026-11-13
+
+First public beta, for testing on a lab or spare box, not for production. Install on Ubuntu 24.04, Ubuntu 26.04 or Debian 13 (amd64 or arm64) with the `install.sh` of the release.
+
+### Known limits
+- SPAN capture and the offline update bundle are not in this beta.
+- Zalo personal is experimental.
+
+[Unreleased]: https://github.com/KNT048/vedette/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/KNT048/vedette/releases/tag/v0.1.5
+[0.1.4]: https://github.com/KNT048/vedette/releases/tag/v0.1.4
+[0.1.3]: https://github.com/KNT048/vedette/releases/tag/v0.1.3
+[0.1.2]: https://github.com/KNT048/vedette/releases/tag/v0.1.2
+[0.1.1]: https://github.com/KNT048/vedette/releases/tag/v0.1.1
+[0.1.0-beta.1]: https://github.com/KNT048/vedette/releases/tag/v0.1.0-beta.1

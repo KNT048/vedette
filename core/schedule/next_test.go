@@ -108,7 +108,7 @@ func TestNext(t *testing.T) {
 		// Every N days at a time: the first run is today when the time is still ahead, like daily.
 		{"every 1 day at 22:00 changed in the morning runs that evening", everyDaysAt(1, "22:00"), hcm, "2026-11-20T03:00:00Z", "2026-11-20T15:00:00Z"},
 		{"every 3 days at 22:00 changed in the morning runs in two days", everyDaysAt(3, "22:00"), hcm, "2026-11-20T03:00:00Z", "2026-11-22T15:00:00Z"},
-		{"every 3 days at 02:30 fired late counts three days from the day it fired", everyDaysAt230(3), hcm, "2026-11-19T22:00:00Z", "2026-11-22T19:30:00Z"},
+		{"every 3 days at 02:30 from after 02:30 counts three days from that day", everyDaysAt230(3), hcm, "2026-11-19T22:00:00Z", "2026-11-22T19:30:00Z"},
 		{"the morning after a window day is inside", custom(schedule.DailyAt("04:00"), "23:00", "05:00", 5), hcm, "2026-11-20T00:00:00Z", "2026-11-20T21:00:00Z"},
 		{"every 3 days at 02:30 in a Monday to Friday window", custom(everyDaysAt230(3), "00:00", "00:00", 1, 2, 3, 4, 5), hcm, "2026-11-18T19:30:00Z", "2026-11-22T17:00:00Z"},
 		{"a window that opens at a skipped time opens when the clocks jump", custom(schedule.DailyAt("01:00"), "02:00", "04:00", 7), ny, "2026-03-07T17:00:00Z", "2026-03-08T07:00:00Z"},
@@ -251,5 +251,57 @@ func TestLimits(t *testing.T) {
 	var re *schedule.RuleError
 	if err := feeds.Check(rule); !errors.As(err, &re) || re.Message != "The interval is at least 1 hour. Sources ask clients not to poll more often." {
 		t.Errorf("message: %v", err)
+	}
+}
+
+// Due keeps the asked days of "every 3 days at 02:30" through a year with both clock changes, whenever each run really started
+// (on time, minutes late, most of a day late): every run is on the asked day, at 02:30 or the moment the clocks jump over it.
+func TestDueKeepsTheAskedDaysThroughAYear(t *testing.T) {
+	for _, name := range []string{"America/New_York", "Europe/Berlin", "Australia/Lord_Howe", "Asia/Ho_Chi_Minh"} {
+		loc := zone(t, name)
+		rule, err := schedule.Validate(everyDaysAt230(3))
+		if err != nil {
+			t.Fatal(err)
+		}
+		updated := time.Date(2026, 1, 1, 10, 0, 0, 0, loc) // the first run: Sunday 4 January
+		var last *time.Time
+		late := []time.Duration{0, 3 * time.Minute, 5 * time.Hour, 20 * time.Hour, 47 * time.Hour}
+		for i := 0; i < 122; i++ {
+			due := schedule.Due(rule, last, updated, nil, loc)
+			l := due.In(loc)
+			if want := time.Date(2026, 1, 4+3*i, 12, 0, 0, 0, loc).Format("2006-01-02"); l.Format("2006-01-02") != want {
+				t.Fatalf("%s: run %d is on %s, want %s", name, i+1, l.Format("2006-01-02 15:04"), want)
+			}
+			if hm := l.Format("15:04"); hm != "02:30" && hm != "03:00" {
+				t.Fatalf("%s: run %d at %s", name, i+1, l.Format("2006-01-02 15:04 MST"))
+			}
+			start := due.Add(late[i%len(late)])
+			last = &start
+		}
+	}
+}
+
+// Due keeps the asked times of an elapsed interval whenever each run really started, and never puts two runs less than half an
+// interval apart.
+func TestDueKeepsTheAskedTimesOfAnElapsedInterval(t *testing.T) {
+	rule, err := schedule.Validate(schedule.Every(360))
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated := utc("2026-11-20T03:00:00Z") // asked: 09:00, 15:00, 21:00, 03:00 ...
+	for _, c := range []struct {
+		started, want string
+	}{
+		{"2026-11-20T09:00:00Z", "2026-11-20T15:00:00Z"}, // on time
+		{"2026-11-20T09:02:30Z", "2026-11-20T15:00:00Z"}, // minutes late
+		{"2026-11-20T11:59:00Z", "2026-11-20T15:00:00Z"}, // 3 h 1 min before the next: it stays
+		{"2026-11-20T12:01:00Z", "2026-11-20T21:00:00Z"}, // under half an interval before the next: the one after
+		{"2026-11-23T07:12:00Z", "2026-11-23T15:00:00Z"}, // days late
+		{"2026-11-20T02:00:00Z", "2026-11-20T09:00:00Z"}, // a start before the change counts from the change
+	} {
+		s := utc(c.started)
+		if got := schedule.Due(rule, &s, updated, nil, time.UTC); !got.Equal(utc(c.want)) {
+			t.Errorf("started %s: next %s, want %s", c.started, got.Format(time.RFC3339), c.want)
+		}
 	}
 }

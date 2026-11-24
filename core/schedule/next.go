@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// Next returns when a validated rule next comes due strictly after after, in UTC, read in loc (the rule's zone); the zero time
-// when it never does again (a once rule whose time has passed). It is a pure function of its arguments: the stored next_due_at
-// of every schedule equals Next of its rule from its reference time (Reference), and the self-check recomputes it.
+// Next returns when a validated rule next comes due strictly after after, counted from after, in UTC, read in loc (the rule's
+// zone); the zero time when it never does again (a once rule whose time has passed). It is a pure function of its arguments. The
+// stored next_due_at of a schedule is Due, which is Next for the calendar rules and keeps the asked times of an interval.
 //
 // Clock times are wall-clock times in loc:
 //   - a time the clocks skip (the hour lost when summer time starts) comes due at the moment the clocks jump;
@@ -23,32 +23,45 @@ func Next(r Rule, after time.Time, loc *time.Location) time.Time {
 	if loc == nil {
 		loc = time.UTC
 	}
-	t := regular(r, after, loc)
+	return place(r, regular(r, after, loc), loc)
+}
+
+// place returns an asked time t of a rule where it starts, in UTC: t itself, or the next opening of the rule's custom window when t
+// is outside it. Moved to an opening, a calendar rule (and every N days at a time) whose next asked time falls in the same opening
+// runs at that time instead, so one opening never starts the work twice (daily 03:00 in Friday 23:00-05:00 runs Saturday 03:00, not
+// also Friday 23:00). An elapsed interval starts at the opening: the asked times it missed while the window was closed start once.
+func place(r Rule, t time.Time, loc *time.Location) time.Time {
 	if t.IsZero() {
 		return t
 	}
 	if w, ok := r.window(); ok {
 		start, end, ok := w.opening(t, loc)
-		switch {
-		case !ok || !t.Before(start): // never opens, or open at t
-		case r.Freq != Interval || r.At != nil:
-			// Moved to the opening: when a regular time falls in the same opening it is the one that runs, so one opening
-			// never starts the work twice (daily 03:00 in Friday 23:00-05:00 runs Saturday 03:00, not also Friday 23:00).
-			if n := regular(r, start.Add(-time.Nanosecond), loc); !n.IsZero() && n.Before(end) {
-				t = n
-			} else {
-				t = start
+		if ok && t.Before(start) {
+			moved := start
+			if !r.elapsed() {
+				n := t
+				for i := 0; i < 64 && !n.IsZero() && n.Before(start); i++ { // the opening is at most 8 days on
+					n = regular(r, n, loc)
+				}
+				if !n.IsZero() && !n.Before(start) && n.Before(end) {
+					moved = n
+				}
 			}
-		default:
-			t = start
+			t = moved
 		}
 	}
 	return t.UTC()
 }
 
+// elapsed reports whether r is an interval of elapsed time (every N minutes or hours, no time of day): its asked times are a fixed
+// step from where they start, not times on the calendar.
+func (r Rule) elapsed() bool {
+	return r.Freq == Interval && (r.At == nil || r.EveryMinutes == nil || *r.EveryMinutes%MinuteOfDay != 0)
+}
+
 // regular is the first time of a rule strictly after after, without its window.
 func regular(r Rule, after time.Time, loc *time.Location) time.Time {
-	at, _ := clockOf(r.At)
+	at := clockOf(r.At)
 	switch r.Freq {
 	case Interval:
 		if r.EveryMinutes == nil || *r.EveryMinutes < 1 {
@@ -87,28 +100,87 @@ func regular(r Rule, after time.Time, loc *time.Location) time.Time {
 	return time.Time{}
 }
 
-// Due is the next due time of a schedule (zero: never): Next from Reference. A pause that ends after the last due time and the
-// last change starts an interval at its end ("every 7 days, paused until Monday" runs Monday; with a time of day, at the first
-// such time after the end); a calendar rule runs at its first regular time after the end.
+// Due is the next due time of a schedule (zero: never), from the times stored on it: when it last came due (lastDue: the due time,
+// or the moment it started when that was late), when a person last changed it, and the end of its pause.
+//
+// A calendar rule (daily, weekly, monthly, once) is Next from Reference: its asked times are on the calendar, so a moved or late
+// start never shifts them. An interval keeps the asked times the person chose: they start at the change (the first time after it;
+// "every 7 days, paused until Monday" at the end of the pause, with a time of day at the first such time after it) and follow one
+// another a whole interval apart. The next due time is the first asked time after the last start, so a start the window moved, the
+// scan window held, an owner held or the box started late is followed by the asked times again, never counted from the moved start.
+// An elapsed interval also leaves out an asked time less than half an interval after a late or moved start, so two runs of "every 6
+// hours" are never minutes apart. The custom window then moves the time into it (place).
 func Due(r Rule, lastDue *time.Time, updated time.Time, pausedUntil *time.Time, loc *time.Location) time.Time {
-	ref := Reference(lastDue, updated, pausedUntil)
-	if r.Freq == Interval && r.EveryMinutes != nil && pausedUntil != nil && ref.Equal(*pausedUntil) && pausedUntil.After(updated) &&
-		(lastDue == nil || pausedUntil.After(*lastDue)) {
-		if r.At != nil {
-			one := MinuteOfDay
-			r.EveryMinutes = &one
-			return Next(r, ref, loc)
-		}
-		return Next(r, ref.Add(-time.Duration(*r.EveryMinutes)*time.Minute), loc)
+	if loc == nil {
+		loc = time.UTC
 	}
-	return Next(r, ref, loc)
+	if r.Freq != Interval || r.EveryMinutes == nil || *r.EveryMinutes < 1 {
+		return Next(r, Reference(lastDue, updated, pausedUntil), loc)
+	}
+	anchor, fromPause := updated, false
+	if pausedUntil != nil && pausedUntil.After(updated) {
+		anchor, fromPause = *pausedUntil, true
+	}
+	var g time.Time // the first asked time
+	switch {
+	case fromPause && r.elapsed():
+		g = anchor
+	case fromPause:
+		day := r
+		one := MinuteOfDay
+		day.EveryMinutes = &one
+		g = regular(day, anchor, loc)
+	default:
+		g = regular(r, anchor, loc)
+	}
+	if lastDue != nil && !lastDue.Before(anchor) {
+		g = askedAfter(r, g, *lastDue, loc)
+	}
+	return place(r, g, loc)
 }
 
-func clockOf(s *string) (int, bool) {
-	if s == nil {
-		return 0, false
+// askedAfter is the first asked time of an interval, of those that start at g, strictly after s; for an elapsed interval also at
+// least half an interval after s.
+func askedAfter(r Rule, g, s time.Time, loc *time.Location) time.Time {
+	if g.IsZero() {
+		return g
 	}
-	return clock(*s)
+	if r.elapsed() {
+		step := time.Duration(*r.EveryMinutes) * time.Minute
+		if from := s.Add(step / 2); g.Before(from) {
+			g = g.Add((from.Sub(g) + step - 1) / step * step)
+		}
+		return g
+	}
+	if g.After(s) {
+		return g
+	}
+	// Every N days at a time: jump close to s by whole steps, then step (a step from an asked time is N days at the time).
+	n := *r.EveryMinutes / MinuteOfDay
+	at := clockOf(r.At)
+	gl, sl := g.In(loc), s.In(loc)
+	days := int(civil(sl).Sub(civil(gl)).Hours()) / 24
+	if k := days/n - 1; k > 0 {
+		g = localAt(gl.Year(), gl.Month(), gl.Day()+k*n, at, loc)
+	}
+	for i := 0; i < 8 && !g.IsZero() && !g.After(s); i++ {
+		g = regular(r, g, loc)
+	}
+	return g
+}
+
+// civil is the date of a local time as noon UTC, for counting calendar days.
+func civil(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 12, 0, 0, 0, time.UTC)
+}
+
+// clockOf is the minutes after midnight of a validated HH:MM; 0 for none.
+func clockOf(s *string) int {
+	if s == nil {
+		return 0
+	}
+	m, _ := clock(*s)
+	return m
 }
 
 // isoWeekday is 1 for Monday ... 7 for Sunday.

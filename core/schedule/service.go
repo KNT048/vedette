@@ -4,13 +4,16 @@
 //
 // When a schedule comes due the one ticker of this package calls its owner's Start inside the transaction that records the due
 // time, so a run (core/run, trigger schedule) and the schedule's last_run_id are written together. Next is a pure function, and
-// next_due_at is always Next of the rule from Reference: the self-check recomputes it.
+// next_due_at is always Due of the rule from the times stored on it: the self-check recomputes it.
 //
 // Firing rules:
-//   - a schedule fired within LateAfter of its due time counts from that due time, so an interval does not drift; one fired later
-//     (the box was off, the scan window was closed) counts from the moment it fired, so missed times start one run, not a burst;
+//   - the runs after a start come at the times the person asked for, whatever moved that start (a custom window, the scan window,
+//     an owner's hold, the box being off): a calendar rule's times are on the calendar, and an interval's asked times start when a
+//     person last changed it and follow one another a whole interval apart (Due);
+//   - a start later than LateAfter is one run for every time missed, not a burst, and the next run is the next asked time after it
+//     (for an elapsed interval at least half an interval after it);
 //   - a late start whose rule has a regular time within MergeWithin gives way to it, so the work runs once;
-//   - an interval paused until a time starts at that time; a pause that has ended is cleared at the next due time;
+//   - an interval paused until a time starts at that time, and its asked times follow from there;
 //   - a schedule whose last run has not ended (queued, running or waiting) skips the due time and says why;
 //   - a schedule of a module that is off skips the due time and says why;
 //   - a schedule in the scan window (WindowGlobal) is held while the window is closed and starts when it opens.
@@ -373,18 +376,12 @@ func (s *Service) fire(ctx context.Context, key string, now time.Time) error {
 		if err != nil {
 			return err
 		}
-		last := *r.NextDueAt
-		late := now.Sub(last) > LateAfter
-		if late {
-			last = now
-		}
-		if r.PausedUntil != nil && !r.PausedUntil.After(now) {
-			r.PausedUntil = nil // the pause has ended; the new last due time is after it, so the next due time is the same
-		}
+		// A pause that has ended stays stored: an interval paused until a time keeps the asked times that start at its end.
+		last, merged := started(r.Rule, *r.NextDueAt, now, r.UpdatedAt, r.PausedUntil, zoneOf(r.Rule.TZ, org))
 		skip, runID, held := "", "", false
 		o, subject, ok := s.owner(key)
 		switch {
-		case late && mergesLate(r.Rule) && within(Next(r.Rule, now, zoneOf(r.Rule.TZ, org)), now, MergeWithin):
+		case merged:
 			// The regular time just after starts the work: count from now, start nothing, skip nothing.
 		case !ok:
 			skip = "Nothing in this version of Vedette starts this schedule."
@@ -423,9 +420,16 @@ func (s *Service) fire(ctx context.Context, key string, now time.Time) error {
 	})
 }
 
-// mergesLate reports whether a late start of r gives way to its next regular time: every rule but an elapsed interval (whose next
-// time is a whole interval away by definition).
-func mergesLate(r Rule) bool { return r.Freq != Interval || r.At != nil }
+// started is what a start at start of a schedule due at due records, for the ticker and for the next starts the editor shows (one
+// function, so the two cannot disagree): the time it last came due (the due time; the start when it is later than LateAfter) and
+// whether nothing starts because the rule's next due time comes within MergeWithin of a late start. An elapsed interval never gives
+// way: its next due time is at least half an interval after the start (Due).
+func started(r Rule, due, start, updated time.Time, paused *time.Time, loc *time.Location) (last time.Time, merged bool) {
+	if start.Sub(due) <= LateAfter {
+		return due, false
+	}
+	return start, !r.elapsed() && within(Due(r, &start, updated, paused, loc), start, MergeWithin)
+}
 
 func within(t, now time.Time, d time.Duration) bool { return !t.IsZero() && t.Sub(now) <= d }
 

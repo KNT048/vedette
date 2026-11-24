@@ -173398,6 +173398,8 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind) Decode(d *jx.De
 		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindOsUpdate
 	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindFeatureUpdate:
 		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindFeatureUpdate
+	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindRestart:
+		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindRestart
 	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindNoneYet:
 		*s = FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindNoneYet
 	case FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKindUnknown:
@@ -175030,6 +175032,8 @@ func (s *FindingsGetFindingsFixesOKItemsItemFixKind) Decode(d *jx.Decoder) error
 		*s = FindingsGetFindingsFixesOKItemsItemFixKindOsUpdate
 	case FindingsGetFindingsFixesOKItemsItemFixKindFeatureUpdate:
 		*s = FindingsGetFindingsFixesOKItemsItemFixKindFeatureUpdate
+	case FindingsGetFindingsFixesOKItemsItemFixKindRestart:
+		*s = FindingsGetFindingsFixesOKItemsItemFixKindRestart
 	case FindingsGetFindingsFixesOKItemsItemFixKindNoneYet:
 		*s = FindingsGetFindingsFixesOKItemsItemFixKindNoneYet
 	case FindingsGetFindingsFixesOKItemsItemFixKindUnknown:
@@ -182159,6 +182163,12 @@ func (s *FindingsGetFindingsIDOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Int(s.NoFix)
 	}
 	{
+		if s.RestartInto.Set {
+			e.FieldStart("restart_into")
+			s.RestartInto.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("source")
 		e.Str(s.Source)
 	}
@@ -182168,7 +182178,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKFixedIn = [11]string{
+var jsonFieldsNameOfFindingsGetFindingsIDOKFixedIn = [12]string{
 	0:  "branches",
 	1:  "distro",
 	2:  "distro_fixed",
@@ -182178,8 +182188,9 @@ var jsonFieldsNameOfFindingsGetFindingsIDOKFixedIn = [11]string{
 	6:  "kind",
 	7:  "more",
 	8:  "no_fix",
-	9:  "source",
-	10: "version",
+	9:  "restart_into",
+	10: "source",
+	11: "version",
 }
 
 // Decode decodes FindingsGetFindingsIDOKFixedIn from json.
@@ -182303,8 +182314,18 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"no_fix\"")
 			}
+		case "restart_into":
+			if err := func() error {
+				s.RestartInto.Reset()
+				if err := s.RestartInto.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"restart_into\"")
+			}
 		case "source":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -182316,7 +182337,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -182338,7 +182359,7 @@ func (s *FindingsGetFindingsIDOKFixedIn) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -187165,6 +187186,8 @@ func (s *FindingsGetFindingsIDViewOKFixKind) Decode(d *jx.Decoder) error {
 		*s = FindingsGetFindingsIDViewOKFixKindOsUpdate
 	case FindingsGetFindingsIDViewOKFixKindFeatureUpdate:
 		*s = FindingsGetFindingsIDViewOKFixKindFeatureUpdate
+	case FindingsGetFindingsIDViewOKFixKindRestart:
+		*s = FindingsGetFindingsIDViewOKFixKindRestart
 	case FindingsGetFindingsIDViewOKFixKindNoneYet:
 		*s = FindingsGetFindingsIDViewOKFixKindNoneYet
 	case FindingsGetFindingsIDViewOKFixKindUnknown:
@@ -196642,6 +196665,8 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFixKind) Decode(d *jx.Decode
 		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixKindOsUpdate
 	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindFeatureUpdate:
 		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixKindFeatureUpdate
+	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindRestart:
+		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixKindRestart
 	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindNoneYet:
 		*s = FindingsGetFindingsOverviewOKFirstItemBlockFixKindNoneYet
 	case FindingsGetFindingsOverviewOKFirstItemBlockFixKindUnknown:
@@ -203136,6 +203161,12 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Int(s.NoFix)
 	}
 	{
+		if s.RestartInto.Set {
+			e.FieldStart("restart_into")
+			s.RestartInto.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("source")
 		e.Str(s.Source)
 	}
@@ -203145,7 +203176,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKFixedIn = [11]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKFixedIn = [12]string{
 	0:  "branches",
 	1:  "distro",
 	2:  "distro_fixed",
@@ -203155,8 +203186,9 @@ var jsonFieldsNameOfFindingsPostFindingsIDAiOKFixedIn = [11]string{
 	6:  "kind",
 	7:  "more",
 	8:  "no_fix",
-	9:  "source",
-	10: "version",
+	9:  "restart_into",
+	10: "source",
+	11: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKFixedIn from json.
@@ -203280,8 +203312,18 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"no_fix\"")
 			}
+		case "restart_into":
+			if err := func() error {
+				s.RestartInto.Reset()
+				if err := s.RestartInto.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"restart_into\"")
+			}
 		case "source":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -203293,7 +203335,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -203315,7 +203357,7 @@ func (s *FindingsPostFindingsIDAiOKFixedIn) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -211579,6 +211621,12 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) encodeFields(e *jx.Encoder) {
 		e.Int(s.NoFix)
 	}
 	{
+		if s.RestartInto.Set {
+			e.FieldStart("restart_into")
+			s.RestartInto.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("source")
 		e.Str(s.Source)
 	}
@@ -211588,7 +211636,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKFixedIn = [11]string{
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKFixedIn = [12]string{
 	0:  "branches",
 	1:  "distro",
 	2:  "distro_fixed",
@@ -211598,8 +211646,9 @@ var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKFixedIn = [11]string{
 	6:  "kind",
 	7:  "more",
 	8:  "no_fix",
-	9:  "source",
-	10: "version",
+	9:  "restart_into",
+	10: "source",
+	11: "version",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKFixedIn from json.
@@ -211723,8 +211772,18 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"no_fix\"")
 			}
+		case "restart_into":
+			if err := func() error {
+				s.RestartInto.Reset()
+				if err := s.RestartInto.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"restart_into\"")
+			}
 		case "source":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Source = string(v)
@@ -211736,7 +211795,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -211758,7 +211817,7 @@ func (s *FindingsPostFindingsIDAppliedOKFixedIn) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000111,
+		0b00001101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -216725,6 +216784,8 @@ func (s *FindingsPostFindingsIDReopenOKFixKind) Decode(d *jx.Decoder) error {
 		*s = FindingsPostFindingsIDReopenOKFixKindOsUpdate
 	case FindingsPostFindingsIDReopenOKFixKindFeatureUpdate:
 		*s = FindingsPostFindingsIDReopenOKFixKindFeatureUpdate
+	case FindingsPostFindingsIDReopenOKFixKindRestart:
+		*s = FindingsPostFindingsIDReopenOKFixKindRestart
 	case FindingsPostFindingsIDReopenOKFixKindNoneYet:
 		*s = FindingsPostFindingsIDReopenOKFixKindNoneYet
 	case FindingsPostFindingsIDReopenOKFixKindUnknown:
@@ -219882,6 +219943,8 @@ func (s *FindingsPostFindingsIDUnverifyOKFixKind) Decode(d *jx.Decoder) error {
 		*s = FindingsPostFindingsIDUnverifyOKFixKindOsUpdate
 	case FindingsPostFindingsIDUnverifyOKFixKindFeatureUpdate:
 		*s = FindingsPostFindingsIDUnverifyOKFixKindFeatureUpdate
+	case FindingsPostFindingsIDUnverifyOKFixKindRestart:
+		*s = FindingsPostFindingsIDUnverifyOKFixKindRestart
 	case FindingsPostFindingsIDUnverifyOKFixKindNoneYet:
 		*s = FindingsPostFindingsIDUnverifyOKFixKindNoneYet
 	case FindingsPostFindingsIDUnverifyOKFixKindUnknown:
@@ -222943,6 +223006,8 @@ func (s *FindingsPostFindingsIDVerifyOKFixKind) Decode(d *jx.Decoder) error {
 		*s = FindingsPostFindingsIDVerifyOKFixKindOsUpdate
 	case FindingsPostFindingsIDVerifyOKFixKindFeatureUpdate:
 		*s = FindingsPostFindingsIDVerifyOKFixKindFeatureUpdate
+	case FindingsPostFindingsIDVerifyOKFixKindRestart:
+		*s = FindingsPostFindingsIDVerifyOKFixKindRestart
 	case FindingsPostFindingsIDVerifyOKFixKindNoneYet:
 		*s = FindingsPostFindingsIDVerifyOKFixKindNoneYet
 	case FindingsPostFindingsIDVerifyOKFixKindUnknown:
@@ -324973,6 +325038,8 @@ func (s *ReportsGetReportsDocumentOKNewItemsItemFixKind) Decode(d *jx.Decoder) e
 		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindOsUpdate
 	case ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindFeatureUpdate
+	case ReportsGetReportsDocumentOKNewItemsItemFixKindRestart:
+		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindRestart
 	case ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet:
 		*s = ReportsGetReportsDocumentOKNewItemsItemFixKindNoneYet
 	case ReportsGetReportsDocumentOKNewItemsItemFixKindUnknown:
@@ -326651,6 +326718,8 @@ func (s *ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) Decode(d *jx
 		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindOsUpdate
 	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindFeatureUpdate
+	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindRestart:
+		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindRestart
 	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet:
 		*s = ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindNoneYet
 	case ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKindUnknown:
@@ -328857,6 +328926,8 @@ func (s *ReportsGetReportsDocumentOKSummaryFirstItemFixKind) Decode(d *jx.Decode
 		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindOsUpdate
 	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindFeatureUpdate
+	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindRestart:
+		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindRestart
 	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet:
 		*s = ReportsGetReportsDocumentOKSummaryFirstItemFixKindNoneYet
 	case ReportsGetReportsDocumentOKSummaryFirstItemFixKindUnknown:
@@ -334396,6 +334467,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) Decode(d *jx.D
 		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindOsUpdate
 	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindFeatureUpdate
+	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindRestart:
+		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindRestart
 	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet:
 		*s = ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindNoneYet
 	case ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKindUnknown:
@@ -336074,6 +336147,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) Dec
 		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindOsUpdate
 	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindFeatureUpdate
+	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindRestart:
+		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindRestart
 	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet:
 		*s = ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindNoneYet
 	case ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKindUnknown:
@@ -338280,6 +338355,8 @@ func (s *ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) Decode(d *
 		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindOsUpdate
 	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate:
 		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindFeatureUpdate
+	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindRestart:
+		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindRestart
 	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet:
 		*s = ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindNoneYet
 	case ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKindUnknown:

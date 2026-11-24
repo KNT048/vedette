@@ -113,6 +113,11 @@ func reportFix(f reports.Fix, from string) string {
 			return "Move " + f.Product + " to release " + to
 		}
 		return "Move " + f.Product + " to a later release"
+	case "restart":
+		if to != "" {
+			return "Restart to run the installed " + f.Product + " " + to
+		}
+		return "Restart to run the installed " + f.Product
 	case "none_yet":
 		return "No fix known yet for " + f.Product
 	}

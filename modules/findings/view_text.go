@@ -53,6 +53,8 @@ func FixWords(kind FixKind, product, installed, version, ref string) string {
 		return s
 	case FixFeatureUpdate:
 		return "move " + product + " to " + cmp.Or(version, "a later release") + " (this release no longer gets the fix)"
+	case FixRestart:
+		return "restart the device so it runs the installed " + product + " " + cmp.Or(version, "update") + " (the fixed kernel is installed; the device still runs an older one)"
 	}
 	return ""
 }

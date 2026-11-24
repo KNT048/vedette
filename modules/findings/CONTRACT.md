@@ -125,6 +125,12 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   that person's name.
 - **INV-11** "I have this" on a versionless product matches, on exactly the declared device, only entries added since its start date.
 - **INV-14** A packaged agent line on Ubuntu or Debian is judged by the distribution's fix data before NVD's ranges.
+- **INV-14k** A distribution kernel is judged once per CVE, on its Kernel line (intake makes it of the running kernel's image alone).
+  On Ubuntu and Debian an agent's package built from a kernel source package that is not the Kernel line (the ABI-named headers,
+  modules and tools of any installed kernel, an image that does not run, a metapackage, linux-libc-dev) is never matched. When an
+  installed image the device does not run, built by the distribution, is at or above the distribution's fix, the fix is `restart`
+  (`fix_version` = that image's package release) and the evidence says so. Debian's own kernel builds compare across upstream point
+  releases (its stable kernel moves to them). `TestDistroKernelOnceOnTheRunningKernel`, `TestCount_DistributionKernelFindings`.
 - **INV-15** A Windows release line is judged by its build revision against Microsoft's fixed builds (`windows.go`).
 - **INV-16** CVEs in `content/catalog/platform-limits.json` affect only the platforms listed; platform evidence comes only from the
   device's own reading (agent OS, its SNMP answer). No platform evidence is a `platform` question (INV-16c); the fixed versions per

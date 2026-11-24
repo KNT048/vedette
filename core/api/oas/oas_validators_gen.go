@@ -51000,6 +51000,8 @@ func (s FindingsGetFindingsDevicesOKItemsItemBlocksItemFixKind) Validate() error
 		return nil
 	case "feature_update":
 		return nil
+	case "restart":
+		return nil
 	case "none_yet":
 		return nil
 	case "unknown":
@@ -51835,6 +51837,8 @@ func (s FindingsGetFindingsFixesOKItemsItemFixKind) Validate() error {
 	case "os_update":
 		return nil
 	case "feature_update":
+		return nil
+	case "restart":
 		return nil
 	case "none_yet":
 		return nil
@@ -55653,6 +55657,8 @@ func (s FindingsGetFindingsIDViewOKFixKind) Validate() error {
 		return nil
 	case "feature_update":
 		return nil
+	case "restart":
+		return nil
 	case "none_yet":
 		return nil
 	case "unknown":
@@ -59375,6 +59381,8 @@ func (s FindingsGetFindingsOverviewOKFirstItemBlockFixKind) Validate() error {
 	case "os_update":
 		return nil
 	case "feature_update":
+		return nil
+	case "restart":
 		return nil
 	case "none_yet":
 		return nil
@@ -65108,6 +65116,8 @@ func (s FindingsPostFindingsIDReopenOKFixKind) Validate() error {
 		return nil
 	case "feature_update":
 		return nil
+	case "restart":
+		return nil
 	case "none_yet":
 		return nil
 	case "unknown":
@@ -66278,6 +66288,8 @@ func (s FindingsPostFindingsIDUnverifyOKFixKind) Validate() error {
 		return nil
 	case "feature_update":
 		return nil
+	case "restart":
+		return nil
 	case "none_yet":
 		return nil
 	case "unknown":
@@ -67412,6 +67424,8 @@ func (s FindingsPostFindingsIDVerifyOKFixKind) Validate() error {
 	case "os_update":
 		return nil
 	case "feature_update":
+		return nil
+	case "restart":
 		return nil
 	case "none_yet":
 		return nil
@@ -93023,6 +93037,8 @@ func (s ReportsGetReportsDocumentOKNewItemsItemFixKind) Validate() error {
 		return nil
 	case "feature_update":
 		return nil
+	case "restart":
+		return nil
 	case "none_yet":
 		return nil
 	case "unknown":
@@ -93746,6 +93762,8 @@ func (s ReportsGetReportsDocumentOKOpenGroupsItemItemsItemFixKind) Validate() er
 	case "os_update":
 		return nil
 	case "feature_update":
+		return nil
+	case "restart":
 		return nil
 	case "none_yet":
 		return nil
@@ -94612,6 +94630,8 @@ func (s ReportsGetReportsDocumentOKSummaryFirstItemFixKind) Validate() error {
 	case "os_update":
 		return nil
 	case "feature_update":
+		return nil
+	case "restart":
 		return nil
 	case "none_yet":
 		return nil
@@ -97136,6 +97156,8 @@ func (s ReportsGetReportsHistoryIDOKDocumentNewItemsItemFixKind) Validate() erro
 		return nil
 	case "feature_update":
 		return nil
+	case "restart":
+		return nil
 	case "none_yet":
 		return nil
 	case "unknown":
@@ -97859,6 +97881,8 @@ func (s ReportsGetReportsHistoryIDOKDocumentOpenGroupsItemItemsItemFixKind) Vali
 	case "os_update":
 		return nil
 	case "feature_update":
+		return nil
+	case "restart":
 		return nil
 	case "none_yet":
 		return nil
@@ -98725,6 +98749,8 @@ func (s ReportsGetReportsHistoryIDOKDocumentSummaryFirstItemFixKind) Validate() 
 	case "os_update":
 		return nil
 	case "feature_update":
+		return nil
+	case "restart":
 		return nil
 	case "none_yet":
 		return nil

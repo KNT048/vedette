@@ -33,7 +33,7 @@ var invariants = []selfcheck.Invariant{
 		Name: "findings.vocabulary",
 		Query: `SELECT count(*) FROM fnd_finding WHERE basis NOT IN (` + quoted(DetectionBases) + `)
 			OR ifnull(via, 'person') NOT IN (` + quoted(Vias) + `)
-			OR fix_kind NOT IN (` + quoted([]FixKind{FixUpdate, FixDistroUpdate, FixOSUpdate, FixFeatureUpdate, FixNoneYet, FixUnknown}) + `)`,
+			OR fix_kind NOT IN (` + quoted(knownFixKinds) + `)`,
 	},
 	{
 		Name:  "findings.event_vocabulary",

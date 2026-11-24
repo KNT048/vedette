@@ -306,7 +306,7 @@ func compareFix(kind FixKind, product, a, b string) (int, bool) {
 	if a == b {
 		return 0, true
 	}
-	if kind == FixDistroUpdate {
+	if kind == FixDistroUpdate || kind == FixRestart {
 		if debver.Valid(a) && debver.Valid(b) {
 			c, err := debver.Compare(a, b)
 			return c, err == nil && c != 0

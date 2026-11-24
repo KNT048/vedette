@@ -20,7 +20,7 @@ import { BUNDLES, closure, without } from './bundles'
 import { notOffered, scopeOf } from '@/lib/v1'
 import { ScopeBadge } from '@/components/common/V1Scope'
 import { errMsg } from './parts'
-import { EMAIL_RE, isBareIp, isPrivateCidr, MIN_PASSWORD, normaliseCidr } from './util'
+import { browserTimeZone, EMAIL_RE, isBareIp, isPrivateCidr, MIN_PASSWORD, normaliseCidr, TIMEZONES, validTimeZone } from './util'
 import type { BundleId, SetupPayload } from './types'
 import { SetupRestore } from './SetupRestore'
 import { TermsText } from './TermsText'
@@ -33,7 +33,7 @@ type Step = (typeof STEPS)[number]
 
 interface State {
   terms: boolean
-  org: string; name: string; email: string; password: string; again: string; code: string
+  org: string; timezone: string; name: string; email: string; password: string; again: string; code: string
   lan: string[]; commitment: boolean; notes: { to: string; text: string }[]
   bundle: BundleId; picked: Set<ModuleId>
 }
@@ -42,7 +42,8 @@ const LAN_ERRORS = new Set(['invalid_lan', 'public_range', 'overlap_range'])
 const noRepeat = (e: React.MouseEvent) => { if (e.detail > 1) e.preventDefault() }
 
 const INIT: State = {
-  terms: false, org: '', name: '', email: '', password: '', again: '', code: '', lan: [''], commitment: false, notes: [],
+  // the box's one time zone: this browser's (under its current name), as the reader's own clock is the likeliest
+  terms: false, org: '', timezone: browserTimeZone() ?? 'Asia/Ho_Chi_Minh', name: '', email: '', password: '', again: '', code: '', lan: [''], commitment: false, notes: [],
   bundle: 'smb', picked: new Set<ModuleId>(['core']),
 }
 
@@ -79,6 +80,7 @@ export default function SetupPage() {
     if (which === 'account') {
       if (!s.code.trim()) e.code = t('setup.account.codeError')
       if (s.org.trim().length < 2) e.org = t('setup.account.orgError')
+      if (!validTimeZone(s.timezone.trim())) e.timezone = t('setup.account.timezoneError')
       if (!s.name.trim()) e.name = t('setup.account.nameError')
       if (!EMAIL_RE.test(s.email.trim())) e.email = t('setup.account.emailError')
       if (s.password.length < MIN_PASSWORD) e.password = t('setup.account.passwordError', { min: MIN_PASSWORD, count: s.password.length })
@@ -124,6 +126,7 @@ export default function SetupPage() {
     setFinished(true)
     const p: SetupPayload = {
       org: s.org.trim(),
+      timezone: s.timezone.trim(),
       admin: { name: s.name.trim(), email: s.email.trim(), password: s.password },
       lan: s.lan.map((x) => x.trim()).filter(Boolean),
       commitment: s.commitment,
@@ -140,6 +143,8 @@ export default function SetupPage() {
       if (err instanceof ApiError && err.code === 'terms_not_accepted') { setErrors({ terms: errMsg(err, t) }); set({ terms: false }); setStep('terms'); return }
       // So does a password the box refuses (too easy to guess), next to the password field.
       if (err instanceof ApiError && err.code === 'weak_password') { setErrors({ password: errMsg(err, t) }); setStep('account'); return }
+      // And a zone the box does not know, next to its field.
+      if (err instanceof ApiError && err.code === 'invalid_timezone') { setErrors({ timezone: errMsg(err, t) }); setStep('account'); return }
       // Ranges the box refuses belong on the Network step, under the list.
       if (err instanceof ApiError && LAN_ERRORS.has(err.code)) { setErrors({ lanAll: errMsg(err, t) }); setStep('network'); return }
       setFormError(errMsg(err, t)); return
@@ -235,6 +240,10 @@ export default function SetupPage() {
           <div className="mt-4 grid gap-4">
             <Field label={t('setup.account.code')} hint={t('setup.account.codeHint')} info={t(install === 'container' ? 'setup.account.codeInfoContainer' : install === 'appliance' ? 'setup.account.codeInfoAppliance' : 'setup.account.codeInfo')} htmlFor="s-code" error={errors.code}><Input id="s-code" autoComplete="off" spellCheck={false} value={s.code} aria-invalid={!!errors.code} onChange={(e) => set({ code: e.target.value })} /></Field>
             <Field label={t('setup.account.org')} htmlFor="s-org" error={errors.org}><Input id="s-org" autoComplete="organization" value={s.org} aria-invalid={!!errors.org} onChange={(e) => set({ org: e.target.value })} /></Field>
+            <Field label={t('setup.account.timezone')} hint={t('setup.account.timezoneHint')} htmlFor="s-tz" error={errors.timezone}>
+              <Input id="s-tz" list="s-tz-list" autoComplete="off" spellCheck={false} value={s.timezone} aria-invalid={!!errors.timezone} onChange={(e) => set({ timezone: e.target.value })} />
+              <datalist id="s-tz-list">{TIMEZONES.map((z) => <option key={z} value={z} />)}</datalist>
+            </Field>
             <Field label={t('setup.account.name')} htmlFor="s-name" error={errors.name}><Input id="s-name" autoComplete="name" value={s.name} aria-invalid={!!errors.name} onChange={(e) => set({ name: e.target.value })} /></Field>
             <Field label={t('setup.account.email')} htmlFor="s-email" error={errors.email}><Input id="s-email" type="email" autoComplete="username" value={s.email} aria-invalid={!!errors.email} onChange={(e) => set({ email: e.target.value })} /></Field>
             <Field label={t('setup.account.password')} hint={t('setup.account.passwordHint', { min: MIN_PASSWORD })} info={t('setup.account.passwordInfo')} htmlFor="s-pw" error={errors.password}><Input id="s-pw" type="password" autoComplete="new-password" value={s.password} aria-invalid={!!errors.password} onChange={(e) => set({ password: e.target.value })} /></Field>

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -23,20 +24,24 @@ type querier interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// orgZoneName reads the organization's time zone (core_org.timezone, Settings, General).
+// orgZoneName reads the organization's time zone (core_org.timezone, Settings, General) under its current IANA name (an alias an
+// older version stored, such as Asia/Saigon, reads as Asia/Ho_Chi_Minh, the name General and the operating system use).
 func orgZoneName(ctx context.Context, q querier) (string, error) {
 	var tz string
 	err := q.QueryRowContext(ctx, `SELECT COALESCE((SELECT timezone FROM core_org WHERE id = 1), ?)`, DefaultOrgZone).Scan(&tz)
 	if err != nil {
 		return "", fmt.Errorf("schedule: read the organization's time zone: %w", err)
 	}
-	return tz, nil
+	return orgtime.CanonicalZone(tz), nil
 }
 
-// zoneOf is the zone a rule is read in. A zone this box cannot load (an organization zone saved by an older version) reads as UTC,
-// the same for every reader, so the stored next due time and the self-check agree.
-func zoneOf(tz, org string) *time.Location {
-	loc, err := LoadZone(tz, org)
+// boxZone is the zone every rule is read in: the box's (the organization's) zone org. A name this box cannot load (one saved by an
+// older version) reads as UTC, the same for every reader, so the stored next due time and the self-check agree.
+func boxZone(org string) *time.Location {
+	if org == "" || strings.EqualFold(org, "local") {
+		return time.UTC
+	}
+	loc, err := time.LoadLocation(org)
 	if err != nil {
 		return time.UTC
 	}
@@ -85,7 +90,7 @@ func (r row) due(org string) *time.Time {
 		t := Reference(nil, r.UpdatedAt, r.PausedUntil).Truncate(time.Millisecond) // never ran: due at once, the scan window holds it
 		return &t
 	}
-	t := Due(r.Rule, r.LastDueAt, r.UpdatedAt, r.PausedUntil, zoneOf(r.Rule.TZ, org))
+	t := Due(r.Rule, r.LastDueAt, r.UpdatedAt, r.PausedUntil, boxZone(org))
 	if t.IsZero() {
 		return nil
 	}
@@ -151,15 +156,17 @@ func scanRow(sc scanner) (row, error) {
 		paused, at, weekdays, onceAt, wdays, wfrom, wto, next, last sql.NullString
 		lastRun, skipReason, skipAt                                 sql.NullString
 		every, monthDay                                             sql.NullInt64
-		freq, tz, mode, updatedAt                                   string
+		freq, storedTZ, mode, updatedAt                             string
 	)
-	err := sc.Scan(&r.ID, &r.OwnerModule, &r.OwnerKey, &enabled, &paused, &freq, &every, &at, &weekdays, &monthDay, &onceAt, &tz,
+	err := sc.Scan(&r.ID, &r.OwnerModule, &r.OwnerKey, &enabled, &paused, &freq, &every, &at, &weekdays, &monthDay, &onceAt, &storedTZ,
 		&mode, &wdays, &wfrom, &wto, &next, &last, &lastRun, &skipReason, &skipAt, &r.UpdatedBy, &updatedAt)
 	if err != nil {
 		return row{}, err
 	}
 	r.Enabled = enabled == 1
-	r.Rule = Rule{Freq: Freq(freq), EveryMinutes: nullInt(every), At: nullString(at), MonthDay: nullInt(monthDay), TZ: tz,
+	// storedTZ: a zone an older version stored on the row is read as the box's zone (OrgZone): the box has one time zone. The column is
+	// not rewritten here; the next save of the row stores OrgZone, which every version reads as the organization's zone.
+	r.Rule = Rule{Freq: Freq(freq), EveryMinutes: nullInt(every), At: nullString(at), MonthDay: nullInt(monthDay), TZ: OrgZone,
 		Window: WindowMode(mode), WindowFrom: nullString(wfrom), WindowTo: nullString(wto)}
 	if r.Rule.Weekdays, err = intList(weekdays); err != nil {
 		return row{}, err

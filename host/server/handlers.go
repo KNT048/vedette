@@ -34,6 +34,7 @@ const (
 	routeAudit
 	routeCommand
 	routeStateOS
+	routeStateTime
 	routeStateBackups
 	routeStateNet
 	routeStateContainers
@@ -57,6 +58,8 @@ func route(method, path string) (kind routeKind, arg string) {
 		return routeAudit, ""
 	case method == http.MethodGet && path == "/v1/state/os":
 		return routeStateOS, ""
+	case method == http.MethodGet && path == "/v1/state/time":
+		return routeStateTime, ""
 	case method == http.MethodGet && path == "/v1/state/backups":
 		return routeStateBackups, ""
 	case method == http.MethodGet && path == "/v1/state/net":
@@ -182,7 +185,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleEvents(w, r, arg)
 	case routeAudit:
 		s.handleAudit(w, r)
-	case routeStateOS, routeStateBackups, routeStateNet, routeStateContainers, routeStateHost, routeStatePackages, routeStatePorts, routeStateHPTouches, routeBackupContent, routeExportContent, routeZapReport:
+	case routeStateOS, routeStateTime, routeStateBackups, routeStateNet, routeStateContainers, routeStateHost, routeStatePackages, routeStatePorts, routeStateHPTouches, routeBackupContent, routeExportContent, routeZapReport:
 		s.serveRead(w, r, kind, arg)
 	case routeNone, routeCommand:
 		// handled above
@@ -195,6 +198,8 @@ func (s *Server) readerAvailable(kind routeKind) bool {
 	switch kind {
 	case routeStateOS:
 		return rd.OS != nil
+	case routeStateTime:
+		return rd.Time != nil
 	case routeStateBackups:
 		return rd.Backups != nil
 	case routeStateNet:

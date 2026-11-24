@@ -20,7 +20,7 @@ type View struct {
 	Enabled     bool       `json:"enabled"`
 	PausedUntil *time.Time `json:"paused_until"`
 	Rule        Rule       `json:"rule"`
-	Zone        string     `json:"zone"` // the IANA zone the rule is read in (the organization's for tz "org")
+	Zone        string     `json:"zone"` // the IANA zone the rule is read in: the box's (Settings, General)
 	NextDueAt   *time.Time `json:"next_due_at"`
 	// Upcoming are the next start times: the due times, moved into the scan window for a schedule that uses it.
 	Upcoming       []time.Time `json:"upcoming"`
@@ -83,7 +83,7 @@ func future(r Rule, now time.Time) error {
 }
 
 func (s *Service) view(ctx context.Context, o Owner, r row, saved bool, org string, now time.Time) View {
-	loc := zoneOf(r.Rule.TZ, org)
+	loc := boxZone(org)
 	paused := r.PausedUntil // an interval's asked times start at the end of its pause, also once it has ended
 	if r.PausedUntil != nil && !r.PausedUntil.After(now) {
 		r.PausedUntil = nil // a pause that has ended is no pause
@@ -159,7 +159,7 @@ func (s *Service) Preview(ctx context.Context, key string, rl Rule, pausedUntil 
 	if err := future(rl, now); err != nil {
 		return nil, "", err
 	}
-	loc := zoneOf(rl.TZ, org)
+	loc := boxZone(org)
 	if pausedUntil != nil { // as Save stores it
 		p := pausedUntil.UTC().Truncate(time.Millisecond)
 		pausedUntil = &p

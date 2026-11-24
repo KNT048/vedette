@@ -357,9 +357,10 @@ func questionsOf(ctx context.Context, q querier, assetID string) ([]Question, er
 }
 
 // replaceQuestions makes qs the questions of the device: a question that still holds keeps its row (its id, when it was asked and
-// its answer), one that no longer holds goes, a new one is added. Two rules keep a person's answer honest where questions of several
-// CVEs come in (older_line): a CVE whose own question a person answered keeps that question and answer and leaves the group (a
-// group that keeps no CVE is not asked); and an answered group asks again when a CVE joins it that the person did not answer for.
+// its answer), one that no longer holds goes, a new one is added. A person's answer to one CVE holds whatever kind of question it
+// answered, while it applies (answeredFor): a CVE asked again under another kind keeps the answered question instead, and a CVE whose
+// own question a person answered leaves a question of several CVEs (older_line; a group that keeps no CVE is not asked). An answered
+// group asks again when a CVE joins it that the person did not answer for.
 func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Question, now time.Time) error {
 	old, err := questionsOf(ctx, tx, assetID)
 	if err != nil {
@@ -377,9 +378,8 @@ func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Ques
 		}
 		var left []string
 		for _, c := range q.Detail.CVEList {
-			own := Question{SoftwareID: q.SoftwareID, CVE: c, Kind: QuestionNoRangeData}.key()
-			if was, ok := have[own]; ok && was.Answer != "" {
-				keep[own] = true // the person's answer to this CVE's own question holds
+			if was, ok := answeredFor(old, q.SoftwareID, c, q.Detail.Version); ok {
+				keep[was.key()] = true // the person's answer to this CVE's own question holds
 				continue
 			}
 			left = append(left, c)
@@ -394,6 +394,12 @@ func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Ques
 		k := q.key()
 		if keep[k] {
 			continue
+		}
+		if _, asked := have[k]; !asked && q.CVE != "" {
+			if was, ok := answeredFor(old, q.SoftwareID, q.CVE, q.Detail.Version); ok {
+				keep[was.key()] = true // the CVE is asked under another kind now; the person's answer to it holds
+				continue
+			}
 		}
 		keep[k] = true
 		detail, err := json.Marshal(q.Detail)
@@ -432,4 +438,21 @@ func replaceQuestions(ctx context.Context, tx *sql.Tx, assetID string, qs []Ques
 		}
 	}
 	return nil
+}
+
+// answeredFor is the person's answer to CVE cve on software line sw that still applies to the line at version: the latest answered
+// question of that CVE on that line, whatever its kind, asked about that version (a question stored without its version applies to
+// any). An answer given for another version is not the person's word on this one.
+func answeredFor(old []Question, sw, cve, version string) (Question, bool) {
+	var best Question
+	found := false
+	for _, q := range old {
+		if q.Answer == "" || q.CVE != cve || q.SoftwareID != sw || (q.Detail.Version != "" && q.Detail.Version != version) {
+			continue
+		}
+		if !found || q.AnsweredAt.After(best.AnsweredAt) {
+			best, found = q, true
+		}
+	}
+	return best, found
 }

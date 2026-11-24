@@ -19,18 +19,28 @@ const link = 'text-accent underline-offset-4 hover:underline'
 const CODE_HOSTS = new Set(['github.com', 'gitlab.com', 'bitbucket.org'])
 const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
 
+// Words of a company or product name that name nobody on their own ("Palo Alto Networks", "Apache HTTP Server").
+const GENERIC = new Set(['inc', 'corp', 'ltd', 'llc', 'gmbh', 'the', 'networks', 'network', 'systems', 'software', 'technologies', 'technology',
+  'foundation', 'project', 'group', 'labs', 'security', 'enterprise', 'cloud', 'server', 'http', 'web', 'open', 'communications', 'solutions'])
+// What a vendor adds to its name for its account ("nginxinc", "F5Networks", "PaloAltoNetworks").
+const OWNER_SUFFIXES = ['', 'inc', 'corp', 'hq', 'labs', 'oss', 'io', 'dev', 'official', 'networks', 'software', 'security', 'project']
+
 /**
- * A link on a code-hosting site is the vendor's only when the project's owner is the vendor or the product ("github.com/nginx/nginx"
- * for nginx): a fork ("chainguard-forks/ingress-nginx") or another project that uses the product ("kubernetes/ingress-nginx") is not
- * the vendor's advisory, whatever tag the record gives it. Any other site keeps the record's word.
+ * A link on a code-hosting site is the vendor's only when the project's owner is the vendor's or the product's own account: one of
+ * their names, whole or one distinctive word of it ("github.com/nginx/nginx" for nginx, "PaloAltoNetworks" for Palo Alto Networks),
+ * possibly with a company suffix ("nginxinc", "F5Networks"). A fork ("chainguard-forks/ingress-nginx"), another project that uses the
+ * product ("kubernetes/ingress-nginx") or an account whose name merely contains a product word ("nginx-hater") is not the vendor's
+ * advisory, whatever tag the record gives it. Any other site keeps the record's word.
  */
 export function vendorOwned(url: string, names: string[]): boolean {
   let u: URL
   try { u = new URL(url) } catch { return false }
   if (!CODE_HOSTS.has(u.hostname.replace(/^www\./, '').toLowerCase())) return true
   const owner = squash(u.pathname.split('/').filter(Boolean)[0] ?? '')
-  const words = names.flatMap((n) => n.split(/[\s|/,()]+/)).map(squash).filter((w) => w.length >= 3)
-  return !!owner && words.some((w) => owner === w || owner.includes(w))
+  if (!owner) return false
+  const words = names.flatMap((n) => n.split(/[\s|/,()]+/).map(squash).filter((w) => w.length >= 2 && !GENERIC.has(w)))
+  const bases = new Set([...names.map(squash).filter((n) => n.length >= 2), ...words])
+  return [...bases].some((b) => OWNER_SUFFIXES.some((x) => owner === b + x))
 }
 
 /** The pages that name the fix: the brief's vendor advisories and patches, else the vendor links of the exploited-list entry. */

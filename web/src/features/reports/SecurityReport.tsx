@@ -7,7 +7,7 @@ import { FindingStatusLines, HandledLine, SeverityBadge, StatusBadge, useStatusL
 import { Logo } from '@/components/brand/Logo'
 import { NotAddedChip } from '@/features/findings/NotAdded'
 import { useFixTitle } from '@/features/findings/parts'
-import { fmtDate, fmtDateTime } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtPeriodEnd } from '@/lib/format'
 import { FINDING_RESOLUTIONS, OPEN_FINDING_STATUSES } from '@/lib/statusCodes'
 import { cn } from '@/lib/utils'
 import { BarList, OpenFlow } from './charts'
@@ -32,10 +32,9 @@ const NOW: OpenStatus[] = ['under_attack', 'exploited', 'public_exploit', 'criti
 const th = 'py-1.5 pr-3 text-left text-caption font-medium text-muted'
 const td = 'py-2 pr-3 align-top'
 
-/** The period as people say it; a calendar month ends the moment the next one starts, so its last day is shown. */
+/** The period as people say it: its first and last day (a period that ends at midnight ends on the day before). */
 function periodText(p: ReportDocument['period'], t: (k: string, o?: Record<string, unknown>) => string) {
-  const to = p.kind === 'calendar_month' ? new Date(Date.parse(p.to) - 1).toISOString() : p.to
-  return t('sr.period', { kind: t(`sr.kind.${p.kind}`), from: fmtDate(p.from), to: fmtDate(to) })
+  return t('sr.period', { kind: t(`sr.kind.${p.kind}`), from: fmtDate(p.from), to: fmtPeriodEnd(p.to) })
 }
 
 function Heading({ id, n, children, aside }: { id: string; n: number; children: ReactNode; aside?: ReactNode }) {

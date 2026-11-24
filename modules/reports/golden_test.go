@@ -384,6 +384,59 @@ func TestDocumentPeriodFollowsTheSchedule(t *testing.T) {
 	}
 }
 
+// While the schedule decides the period, a report covers whole days in the organisation's zone and ends at midnight of the day it
+// is made: a weekly one the 7 days before, a monthly one the last calendar month. So the reports one schedule sends cover time with no
+// gap and no overlap, through a daylight-saving change too.
+func TestScheduledPeriodsCoverTimeWithoutAGap(t *testing.T) {
+	t.Parallel()
+	hcm, err := time.LoadLocation("Asia/Ho_Chi_Minh")
+	mustNoErr(t, err)
+	ny, err := time.LoadLocation("America/New_York")
+	mustNoErr(t, err)
+	for _, c := range []struct {
+		every string
+		loc   *time.Location
+		first time.Time // the first send, in loc
+		next  func(time.Time) time.Time
+	}{
+		{"weekly", hcm, time.Date(2026, 11, 3, 8, 30, 0, 0, hcm), func(t time.Time) time.Time { return t.AddDate(0, 0, 7) }},
+		{"weekly", ny, time.Date(2026, 10, 20, 7, 0, 0, 0, ny), func(t time.Time) time.Time { return t.AddDate(0, 0, 7) }}, // 1 Nov ends DST
+		{"monthly", hcm, time.Date(2026, 9, 1, 8, 30, 0, 0, hcm), func(t time.Time) time.Time { return t.AddDate(0, 1, 0) }},
+	} {
+		var prevTo time.Time
+		for i, send := 0, c.first; i < 4; i, send = i+1, c.next(send) {
+			kind, whole := periodFollows(PeriodLast30, c.every)
+			from, to := periodOf(kind, whole, send.UTC(), c.loc)
+			if day := time.Date(send.Year(), send.Month(), send.Day(), 0, 0, 0, 0, c.loc); !to.Equal(day) {
+				t.Errorf("%s %s sent %s: ends %s, want midnight of the send day %s", c.every, c.loc, send, to.In(c.loc), day)
+			}
+			if c.every == "weekly" && !from.Equal(to.In(c.loc).AddDate(0, 0, -7)) {
+				t.Errorf("weekly sent %s: starts %s, want 7 days before %s", send, from.In(c.loc), to.In(c.loc))
+			}
+			if i > 0 && !from.Equal(prevTo) {
+				t.Errorf("%s %s sent %s: starts %s, the report before ended %s", c.every, c.loc, send, from.In(c.loc), prevTo.In(c.loc))
+			}
+			prevTo = to
+		}
+	}
+}
+
+// A weekly report made by its schedule names the 7 whole days before the day it is sent: sent Wednesday 11 November, 4 – 10 November.
+func TestWeeklyDocumentCoversTheSevenDaysBeforeTheSendDay(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.seed()
+	e.every = "weekly"
+	doc, err := e.svc.Document(e.ctx())
+	mustNoErr(t, err)
+	if doc.Period.From != "2026-11-04T00:00:00.000Z" || doc.Period.To != "2026-11-11T00:00:00.000Z" {
+		t.Errorf("weekly report made %s covers %s – %s, want 2026-11-04T00:00:00.000Z – 2026-11-11T00:00:00.000Z", t0, doc.Period.From, doc.Period.To)
+	}
+	if m := digest(doc, "rep-1"); !strings.Contains(m.Title, "to 10 Nov") {
+		t.Errorf("the email names the period %q, want it to end on 10 Nov", m.Title)
+	}
+}
+
 // An incident that names many devices (12 new devices found at once) is listed with their number, not with the first device's name
 // as if it were the only one.
 func TestDocumentDetectionOfManyDevicesSaysHowMany(t *testing.T) {

@@ -128,7 +128,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   the vendor's own rows (`Vuln.Schemed`) name fixed releases only on release lines later than the line's own and nothing about it
   (Synology naming DSM 7.3.2 and 7.4.1 for a device on 7.2.1), those CVEs of one line are one `older_line` question (`cve_list`, `line`,
   the newest fix of each later line in `fixes`): no verdict either way. A person's answer to one CVE's own question keeps that
-  question, and a CVE joining an answered `older_line` asks it again (`replaceQuestions`).
+  question whatever its kind, while it was given for the version the line runs (`answeredFor`): the CVE is not asked again under
+  another kind nor in an `older_line` group; a CVE joining an answered `older_line` asks it again (`replaceQuestions`).
 - **INV-4h** A device a person added (not the box) that the matcher has nothing to match by (no software line, no network OS it
   states as a line, no OS its agent, SNMP or LLDP states or a person set: `nothingToCheck`) has one `nothing_to_check` question. The
   queue shows it as a `device_unchecked` item (add its firmware, SNMP read access, or an agent) and the device badge counts it; it

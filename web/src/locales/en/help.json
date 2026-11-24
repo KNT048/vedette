@@ -1,0 +1,11 @@
+{
+  "title": "Help",
+  "meta": "Step-by-step guides for the main tasks, with screenshots.",
+  "listLabel": "Guides",
+  "offline": "These guides are part of this box: they work without Internet access. The same guides are in the docs/cookbook folder of the source code.",
+  "notFound": {
+    "title": "No such guide",
+    "body": "This guide is not on this box. It may have been renamed in an update.",
+    "back": "See all guides"
+  }
+}

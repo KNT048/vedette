@@ -1,7 +1,7 @@
 # Vedette: shared commands. Run `make check` before pushing; CI calls exactly the targets defined here.
 # Node is pinned in web/package.json (devEngines); pnpm downloads the right version itself.
 # Go is pinned in go.mod (go downloads the toolchain itself); Go tools are pinned in tools/go.mod.
-.PHONY: schema images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check brand dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api check check-fast verify node-version-check verify-web verify-web-pr verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
+.PHONY: schema images check-min-sequence host-deb host-deb-check sensor-image core-image honeypot-image honeypot-check syslog-ports-check scan-pack scan-base-image scan-image images-check brand dev-sensors dev-sensors-down dev-sensors-smoke help oui dev dev-api cookbook-shots check check-fast verify node-version-check verify-web verify-web-pr verify-go verify-go-static test test-go test-go-shard test-go-release test-go-shards-check ci-changes ci-flaky contract lint lint-go vuln audit generate generate-sql generate-api generate-check openapi-check build web-release webui-dist webui-csp-check e2e e2e-real fixtures clean sbom vuln-scan notices-check
 
 GO_TOOL := go tool -modfile=tools/go.mod
 
@@ -38,6 +38,7 @@ endif
 help:
 	@echo "make dev           run the UI with sample data at http://localhost:5173"
 	@echo "make dev-api      real Go backend + UI; REAL=core,inventory picks the real modules, the rest are mocks"
+	@echo "make cookbook-shots regenerate the cookbook screenshots in docs/cookbook/images from the sample data (ONLY=03 for one recipe)"
 	@echo "make check-fast    optional: build, vet, lint of new lines, tests (no -race) of the changed packages, tsc/lint/vitest --changed"
 	@echo "make check         check what changed against origin/main, with -race and dependent packages (optional; reproduces a red CI)"
 	@echo "make verify        web + Go: type check, lint, tests, contract drift check, build (then clean up)"
@@ -79,6 +80,11 @@ help:
 dev:
 	pnpm --dir web install --frozen-lockfile
 	pnpm --dir web dev
+
+# The cookbook's screenshots (docs/cookbook/images), regenerated from the sample data; ONLY=03 limits it to one recipe.
+cookbook-shots:
+	pnpm --dir web install --frozen-lockfile
+	pnpm --dir web cookbook-shots $(ONLY)
 
 # The real Go backend for the modules in REAL (core by default), mocks for the rest; Ctrl-C stops both.
 dev-api:

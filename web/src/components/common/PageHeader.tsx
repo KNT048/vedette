@@ -5,6 +5,7 @@ import { StoryTag } from './StoryTag'
 import { ModuleBadge, ModuleLine } from './V1Scope'
 import { PageModule } from '@/lib/v1'
 import { Breadcrumbs, type Crumb } from './Breadcrumbs'
+import { HelpLink } from './HelpLink'
 
 /** The first line of each page answers the persona's question (FRONTEND §3, information hierarchy).
  *  Page frame: a ~20 px heading and a short description on one line (the description wraps when there is not enough room); then KpiStrip, PageTabs (`PageFrame.tsx`). */
@@ -33,7 +34,11 @@ export function PageHeader({ title, meta, info, actions, stories, breadcrumbs, t
         {mod ? <ModuleLine id={mod} turnOff /> : null}
         {stories ? <StoryTag ids={stories} /> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {/* A main screen links to its guide (docs/cookbook) on the right of its header, after the page's own actions. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 empty:hidden">
+        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        <HelpLink />
+      </div>
     </header>
   )
 }

@@ -110,6 +110,8 @@ func firstLine(f FirstThing) string {
 		fix = ": update to " + *f.Fix.Version
 	case f.Fix.Kind == "os_update" && f.Fix.Ref != nil:
 		fix = ": install " + *f.Fix.Ref
+	case f.Fix.Kind == "restart" && f.Fix.Version != nil:
+		fix = ": restart it to run the installed " + *f.Fix.Version
 	case f.Fix.Kind == "none_yet":
 		fix = ": no fix is published yet; follow the vendor advisory"
 	}

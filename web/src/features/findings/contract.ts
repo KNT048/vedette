@@ -124,6 +124,7 @@ export const FixedIn = z.object({
   distro_fixed: z.string().describe('Kind distro only: the version of the distribution\'s package that fixes the CVE on the device\'s release (Ubuntu security data, Debian Security Tracker); `version` is then the device\'s full package version. Empty when the distribution\'s data does not say'),
   distro_release: z.string().describe('The device\'s release with distro_fixed ("24.04", "12"); empty otherwise'),
   distro_pro: z.boolean().describe('distro_fixed is in Ubuntu Pro (ESM) only'),
+  restart_into: z.string().optional().describe('Kind distro on a Linux kernel only: the installed kernel (package release, at or above distro_fixed) the device runs after a restart, so a restart alone fixes it; absent otherwise'),
   source: z.string().describe('Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none, or with distro_fixed "Ubuntu security data" / "Debian Security Tracker"'),
 })
 export const KnownVersion = z.object({
@@ -200,8 +201,8 @@ export const Verified = z.enum(['no', 'device', 'scan', 'person'])
   .describe('no = not confirmed yet; device = the device itself reports the affected version (agent, SNMP, package list); scan = a safe check confirmed it; person = a person confirmed it')
 export const Basis = z.enum(['scan', 'device_version', 'package', 'banner_version', 'statement', 'person'])
   .describe('What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected')
-export const FixKind = z.enum(['update', 'distro_update', 'os_update', 'feature_update', 'none_yet', 'unknown'])
-  .describe('update = install `version` of the software or later; distro_update = install the distribution\'s package release `version` or later; os_update = install the operating system update `ref` (a KB number) or build `version`; feature_update = no update of this release fixes it, move to release `version`; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data')
+export const FixKind = z.enum(['update', 'distro_update', 'os_update', 'feature_update', 'restart', 'none_yet', 'unknown'])
+  .describe('update = install `version` of the software or later; distro_update = install the distribution\'s package release `version` or later; os_update = install the operating system update `ref` (a KB number) or build `version`; feature_update = no update of this release fixes it, move to release `version`; restart = the fixed Linux kernel (package release `version`) is installed but the device still runs an older one: restart the device; none_yet = the vendor has no fix yet (`url` is the advisory); unknown = no fix data')
 export const SeverityBand = z.enum(['critical', 'high', 'medium', 'low', 'none'])
 export const DeviceStatusCode = z.enum(DEVICE_STATUSES)
 export const QuestionKind = z.enum(['version_needed', 'platform', 'package_release', 'not_comparable', 'no_range_data'])
@@ -275,7 +276,7 @@ export const Fix = z.object({
   key: z.string().min(1).max(400).describe('The "By fix" group (the same key on every device the same fix applies to); opaque'),
   kind: FixKind,
   product: z.string().describe('The product the fix is for, as people name it ("OpenSSH")'),
-  version: z.string().nullable().describe('update, distro_update, feature_update: the version or release to install; os_update: the build when known'),
+  version: z.string().nullable().describe('update, distro_update, feature_update: the version or release to install; os_update: the build when known; restart: the installed kernel\'s package release the device runs after the restart'),
   ref: z.string().nullable().describe('os_update: the KB number; none_yet: the advisory id when known'),
   url: z.url().nullable().describe('The vendor advisory or release notes'),
 })

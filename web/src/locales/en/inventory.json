@@ -1027,6 +1027,7 @@
     "fixWith_other": "Fix {{findings}}: install {{count}} operating system updates",
     "updatesWaiting_one": "1 operating system update is waiting",
     "updatesWaiting_other": "{{count}} operating system updates are waiting",
+    "restartFix": "Fix {{findings}}: restart the box to run the installed kernel {{version}}",
     "noFix": "No update fixes these yet: see each finding.",
     "noDelete": "The box cannot be removed from the list: Vedette runs on it.",
     "findings_one": "1 open finding on this box",

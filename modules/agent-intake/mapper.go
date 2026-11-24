@@ -60,8 +60,10 @@ func debUpstream(v string) string {
 // openssh-server not) the row keeps the lowest, so a binary that was not updated keeps its finding. Kernel images: a machine
 // keeps older kernels installed and runs one of them, so when the rows say which kernel runs (the "kernel" column the caller puts on
 // every deb row: osquery's kernel_info query stored on the node, Wazuh's uname, the box's own kernel; "7.0.0-43-generic") and an installed image is that kernel (linux-image-7.0.0-43-generic),
-// only that image gives the Kernel row its version (review H1 of #732: the newest installed one may not run yet). Otherwise
-// the lowest, as for every package. A metapackage (linux-image-generic, source linux-meta) never gives the row its version.
+// only that image is the Kernel row (review H1 of #732: the newest installed one may not run yet); every other image is listed
+// under its own package name with its full version (runningImage), as the kernel's headers, modules and tools are. Otherwise
+// every image is the Kernel row and the lowest gives it its version, as for every package. A metapackage (linux-image-generic,
+// source linux-meta) is never the Kernel row.
 // A row whose Source names another epoch or upstream version than the binary's ("foo (2:1.0-1)" for "1:3.0-1", a package
 // built from another source release) gives no full version either, so NVD decides it (review L1); the signed kernel
 // sources (linux-signed*) are the exception, their binaries carry the kernel's own version.
@@ -117,12 +119,10 @@ func mapPackages(snaps map[string][]row, limit int) (items []observe.Software, d
 		version := debUpstream(r["version"])
 		src := strings.ToLower(cmp.Or(sourceName(r["source"]), name)) // dpkg leaves Source out when it equals the package name
 		full := r["version"]
-		switch lname := strings.ToLower(name); {
-		case strings.HasPrefix(lname, "linux-image-") && !kernelImageRE.MatchString(lname):
-			full = "" // a kernel metapackage: it names no kernel the machine runs
-		case kernelImageRE.MatchString(lname) && running != nil && !running[lname]:
-			full = "" // an installed kernel that does not run (the running one is listed)
-		case !strings.HasPrefix(src, "linux-signed") && !sameSourceRelease(r["source"], full):
+		if lname := strings.ToLower(name); ok && strings.HasPrefix(lname, "linux-image-") && !runningImage(lname, running) {
+			ok = false // a kernel metapackage, or an installed kernel that does not run: listed under its own name, never the Kernel row
+		}
+		if !strings.HasPrefix(src, "linux-signed") && !sameSourceRelease(r["source"], full) {
 			full = "" // built from another source release: NVD decides (review L1)
 		}
 		switch {
@@ -245,6 +245,18 @@ var kernelImageRE = regexp.MustCompile(`^linux-image-(unsigned-)?[0-9]`)
 
 // kernelReleaseRE is a running kernel release as uname -r gives it ("7.0.0-43-generic", "6.1.0-18-amd64").
 var kernelReleaseRE = regexp.MustCompile(`^[0-9][a-z0-9.+_-]{0,99}$`)
+
+// runningImage says whether a linux-image-* package is the image of the kernel the machine runs, and so gives the Kernel row: the
+// running kernel's image when the rows say which kernel runs and it is installed (running, runningImages), else any kernel image
+// (the lowest then gives the row its version, as for every package). A metapackage (linux-image-generic, linux-image-amd64) names no
+// kernel and never is. Every other image stays an installed package under its own name: a kernel installed by an update and not
+// booted yet (its release says a restart brings the fix) or an older one kept for a fallback, neither of which the machine runs.
+func runningImage(lname string, running map[string]bool) bool {
+	if !kernelImageRE.MatchString(lname) {
+		return false
+	}
+	return running == nil || running[lname]
+}
 
 // runningImages is the set of kernel image package names of the running kernel ("linux-image-7.0.0-43-generic" and its
 // -unsigned- twin) when the rows say which kernel runs (column "kernel") and one of them is installed; nil when not known,

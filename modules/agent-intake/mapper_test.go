@@ -221,13 +221,31 @@ func TestMapPackagesKernelFollowsTheRunningKernel(t *testing.T) {
 	} {
 		for _, order := range [][]int{{0, 1, 2}, {2, 1, 0}, {1, 2, 0}} {
 			items, _ := mapPackages(map[string][]row{"deb_packages": list(c.running, order...)}, 10)
-			if len(items) != 1 || items[0].Product != "Kernel" || items[0].PkgVersion != c.want || items[0].PkgSource != "linux-signed" {
-				t.Fatalf("running %q, order %v: %+v, want %s", c.running, order, items, c.want)
+			var kernels []observe.Software
+			own := map[string]string{} // the other images, listed under their own names: name -> full version
+			for _, it := range items {
+				if it.Product == "Kernel" {
+					kernels = append(kernels, it)
+				} else {
+					own[it.Product] = it.PkgVersion
+				}
+			}
+			if len(kernels) != 1 || kernels[0].PkgVersion != c.want || kernels[0].PkgSource != "linux-signed" {
+				t.Fatalf("running %q, order %v: %+v, want one Kernel row at %s", c.running, order, items, c.want)
+			}
+			// the metapackage names no kernel: never the Kernel row, whatever runs
+			if own["linux-image-generic"] != "7.0.0-43.44" {
+				t.Fatalf("running %q, order %v: the metapackage %+v", c.running, order, items)
+			}
+			// a known running kernel: the image that does not run keeps its own name and release (a restart would bring it)
+			other := map[string]string{"7.0.0-43-generic": "linux-image-7.0.0-30-generic", "7.0.0-30-generic": "linux-image-7.0.0-43-generic"}[c.running]
+			if other != "" && own[other] == "" || other == "" && len(own) != 1 {
+				t.Fatalf("running %q, order %v: the other image %+v", c.running, order, items)
 			}
 		}
 	}
-	if items, _ := mapPackages(map[string][]row{"deb_packages": list("7.0.0-43-generic", 2)}, 10); len(items) != 1 || items[0].PkgVersion != "" {
-		t.Fatalf("a metapackage alone gave the kernel a version: %+v", items)
+	if items, _ := mapPackages(map[string][]row{"deb_packages": list("7.0.0-43-generic", 2)}, 10); len(items) != 1 || items[0].Product == "Kernel" {
+		t.Fatalf("a metapackage alone made a Kernel row: %+v", items)
 	}
 	// Wazuh: the running kernel is the third field of the agent's uname
 	var a wzAgent

@@ -56,8 +56,8 @@ var catalogueInvariants = []selfcheck.Invariant{
 			AND NOT EXISTS (SELECT 1 FROM inv_software s WHERE s.id = f.software_id AND f.matched_version IN (ifnull(s.version, ''), ifnull(s.pkg_version, '')))
 			AND NOT EXISTS (SELECT 1 FROM inv_software_reading r WHERE r.software_id = f.software_id AND f.matched_version IN (ifnull(r.version, ''), ifnull(r.pkg_version, '')))`,
 	},
-	{ // a finding and a question name a software line of their own device: a line inventory gave to another device took them with it
-		// (followLines), a merge moved them with the device (DeviceMerged)
+	{ // a finding and a question name a software line of their own device: a split moved them with the line inside its write
+		// (DeviceSplit, followLines as the safety net), a merge moved them with the device (DeviceMerged)
 		Name: "findings.line_on_its_device",
 		Query: `SELECT (SELECT count(*) FROM fnd_finding f JOIN inv_software s ON s.id = f.software_id WHERE s.asset_id <> f.asset_id)
 			+ (SELECT count(*) FROM fnd_question q JOIN inv_software s ON s.id = q.software_id WHERE s.asset_id <> q.asset_id)`,

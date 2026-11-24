@@ -85,19 +85,21 @@ func TestFindingMovedTakesWhatIsPendingAndKeepsHistory(t *testing.T) {
 	}
 }
 
-// When the device the finding went to cannot be named (no directory row), the waiting events still follow it and keep the name they
-// stored.
-func TestFindingMovedKeepsTheStoredNameWhenTheDeviceIsUnknown(t *testing.T) {
+// When the directory does not know the device the finding went to (a split creates it in the same write, which a reader does not see
+// yet), the waiting event still follows the finding but keeps no name, kind or address of the device it left: a rule that names the
+// address finds none and is refused, never run on the old device's address under the new device's id.
+func TestFindingMovedToAnUnknownDeviceKeepsNoAddressOfTheOldOne(t *testing.T) {
 	e := newEnv(t)
-	e.exec1(`INSERT INTO resp_events (id, trigger, ts, summary, fields, asset_id, finding_id, cve, processed) VALUES
-		('ev-waiting','finding','2026-11-09T09:00:00.000Z','s','{"device":"nas-01","ip":"192.0.2.10","cve":"CVE-2024-0001"}','a-old','f1','CVE-2024-0001',0)`)
+	e.exec1(`INSERT INTO resp_events (id, trigger, ts, summary, fields, device_kind, asset_id, finding_id, cve, processed) VALUES
+		('ev-waiting','finding','2026-11-09T09:00:00.000Z','s','{"device":"nas-01","ip":"192.0.2.10","cve":"CVE-2024-0001"}','nas','a-old','f1','CVE-2024-0001',0)`)
 	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
-		return e.svc.FindingMoved(e.ctx(), tx, lifecycle.FindingMove{Finding: "f1", From: "a-old", Into: "a-gone"})
+		return e.svc.FindingMoved(e.ctx(), tx, lifecycle.FindingMove{Finding: "f1", From: "a-old", Into: "a-split"})
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.count(`SELECT count(*) FROM resp_events WHERE id = 'ev-waiting' AND asset_id = 'a-gone' AND fields ->> '$.device' = 'nas-01'`); n != 1 {
-		t.Fatal("the waiting event did not follow the finding with its stored name")
+	if n := e.count(`SELECT count(*) FROM resp_events WHERE id = 'ev-waiting' AND asset_id = 'a-split' AND processed = 0 AND device_kind IS NULL
+		AND fields ->> '$.device' = '' AND fields ->> '$.ip' = '' AND fields ->> '$.cve' = 'CVE-2024-0001'`); n != 1 {
+		t.Fatal("the waiting event did not follow the finding without the old device's name, kind and address")
 	}
 }
 

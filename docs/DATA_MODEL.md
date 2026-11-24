@@ -342,11 +342,13 @@ fails when a new column has no class.
 
 ### 5.9 Device lifecycle
 
-When inventory merges two devices (one machine seen twice) or deletes one, it calls every participant registered with
-`core/lifecycle` inside its own write transaction, before the device row goes (`cmd/vedette/devicelifecycle.go`). Each participant
+When inventory merges two devices (one machine seen twice), splits an address off a device as a device of its own, or deletes one, it
+calls every participant registered with `core/lifecycle` inside its own write transaction, before the write commits
+(`cmd/vedette/devicelifecycle.go`). Each participant
 moves or removes its own rows there, so every module's rows change with the device or none do. A merge folds colliding rows
 (times widened, a person's decisions and history kept) instead of dropping them. Foreign keys with `ON DELETE CASCADE` do the
-plain delete case; the hooks exist for merges, folded findings, pruned software lines and rows with snapshots. Events on the bus
+plain delete case; the hooks exist for merges, splits (rows kept by software line follow the line to the device split off), folded and moved findings,
+pruned software lines and rows with snapshots. Events on the bus
 announce the change after the commit and are never used for integrity.
 
 ## 6. Migration policy

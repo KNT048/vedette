@@ -115,7 +115,8 @@ type Service struct {
 	now     func() time.Time
 	log     *slog.Logger
 	params  Params
-	limit   *limiter
+	limit   *limiter // sign-in, two-step codes, the password of a sensitive change
+	guess   *limiter // the setup code and backup file passwords (ratelimit.go): never shared with a sign-in
 	gate    *gate
 	dummy   string // a valid hash no password matches, verified against for unknown emails
 
@@ -147,7 +148,7 @@ func New(c Config) (*Service, error) {
 	}
 	s := &Service{
 		db: c.DB, secrets: c.Secrets, audit: c.Audit, mailer: c.Mailer, now: c.Clock, log: c.Log,
-		params: c.Argon2, limit: newLimiter(c.Clock), gate: newGate(c.MaxHashing, c.HashWait, c.Argon2), dummy: dummy,
+		params: c.Argon2, limit: newLimiter(c.Clock), guess: newLimiter(c.Clock), gate: newGate(c.MaxHashing, c.HashWait, c.Argon2), dummy: dummy,
 	}
 	s.Sessions = &Sessions{db: c.DB, audit: c.Audit, now: c.Clock, log: c.Log}
 	s.Codes = &EmailCodes{db: c.DB, secrets: c.Secrets, mailer: c.Mailer, now: c.Clock, log: c.Log}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -220,5 +221,63 @@ func TestRestoreFromAFileIsRecordedWithTheBackupsDate(t *testing.T) {
 	}
 	if got := e.admin.get("/core/data/restore/run"); got.str("id") != "rn_restore1" || got.str("status") != "done" || got.str("backup_created_at") != "2026-11-01T08:30:00Z" {
 		t.Fatalf("run = %s", got.Raw)
+	}
+}
+
+// Wrong backup passwords have a limiter of their own. The eleventh wrong one in a row from an address is 429 rate_limited with
+// a sentence about backup passwords (never the sign-in one, which sent people looking for a sign-in they never made), and the
+// count locks out neither a sign-in nor a setup code from that address: an administrator who mistypes the file's password
+// can still sign in on another tab.
+func TestWrongBackupPasswordsHaveALimitOfTheirOwn(t *testing.T) {
+	t.Parallel()
+	e, _ := newRestoreEnv(t)
+	file := sealed(t, backupOf(t, e.backupDB(nil)), backupPassword)
+	for i := range 10 {
+		r := e.uploadFile(e.admin, file, withPassword("wrong guess "+strconv.Itoa(i)))
+		wantStatus(t, r, 400, "wrong_backup_password")
+		if msg := r.str("error", "message"); !strings.Contains(msg, "backup password is wrong") {
+			t.Fatalf("guess %d: message %q", i, msg)
+		}
+	}
+	r := e.uploadFile(e.admin, file, withPassword("the eleventh wrong guess"))
+	wantStatus(t, r, 429, "rate_limited")
+	if msg := r.str("error", "message"); msg != "Too many wrong backup passwords. Try again in 30 seconds." {
+		t.Fatalf("429 message %q, want one about backup passwords", msg)
+	}
+	if r.Header.Get("Retry-After") != "30" {
+		t.Fatalf("Retry-After %q", r.Header.Get("Retry-After"))
+	}
+	// The same address signs in at once, with the account's right password.
+	again := e.client()
+	wantOK(t, again.login("admin@acme.example"), 200)
+	wantOK(t, again.get("/me"), 200)
+}
+
+// countingBody counts what the server read of an upload.
+type countingBody struct {
+	r io.Reader
+	n int
+}
+
+func (b *countingBody) Read(p []byte) (int, error) {
+	n, err := b.r.Read(p)
+	b.n += n
+	return n, err
+}
+
+// A wrong backup password is known from the file's header, but the answer goes out only once the whole file has been read:
+// a browser still sending the file when the box closed the connection sent the whole upload again, a second counted guess
+// for one press of Check the file, and the page showed the answer to that copy.
+func TestWrongBackupPasswordIsAnsweredAfterTheWholeFile(t *testing.T) {
+	t.Parallel()
+	e, _ := newRestoreEnv(t)
+	file := append(sealed(t, backupOf(t, e.backupDB(nil)), backupPassword), make([]byte, 3<<20)...)
+	body := &countingBody{r: bytes.NewReader(file)}
+	r := e.uploadFile(e.admin, nil, withPassword("not the password"), func(q *http.Request) {
+		q.Body, q.ContentLength = io.NopCloser(body), int64(len(file))
+	})
+	wantStatus(t, r, 400, "wrong_backup_password")
+	if body.n != len(file) {
+		t.Fatalf("the box answered after reading %d of the %d bytes", body.n, len(file))
 	}
 }

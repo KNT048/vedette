@@ -1,59 +1,70 @@
-# Updates: designed in from day one
+# Updates
 
-A security product must be updated often; the place for that must be in the original design.
+A security product must be easy to keep current. This page is the overview; the exact formats, signatures and rules are in
+[`specs/update-manifest.md`](specs/update-manifest.md), the steps on the box in [DEPLOYMENT.md](DEPLOYMENT.md) §9, and the release keys
+in [RELEASE_KEYS.md](RELEASE_KEYS.md).
 
-> **Data and content packs:** GitHub now publishes only **signed software updates**. The channel "1. Data" below no longer goes through GitHub/the builder: the box pulls each feed from its source itself (`docs/DATA_PIPELINE.md` §0). The channel "2. Content packs" (skills, confirmed recommendation packs, log parsers...) is now **packaged with the software update**. A staged rollout (§2) applies to software updates. The feed safety test (§5) runs on the box before the data is used.
+## 1. What is updated, and how
 
-> **A container-based appliance:** the box is an appliance that runs containers. The channel "3. Software" is now a **cosign-signed OCI image** (a pinned digest, a staged release, a rollback with the old tag), **replacing the A/B slot mechanism for the binary**; the box's **operating system update** goes through `vedette-host` (replacing `vedette-updater`). Operating detail: `docs/DEPLOYMENT.md` §9. The *Container only* install type has no `vedette-host`: it does not update itself, the GUI announces the new version and shows the command.
+| What | Where it comes from | How the box trusts it |
+|---|---|---|
+| Feed data (exploited lists, CVE records, fixed versions, signals, indicators) | each publisher directly, on the feed's own schedule ([DATA_PIPELINE.md](DATA_PIPELINE.md)) | the parser fails closed; no data goes through the project |
+| Vedette software: the `core`, `sensor`, `scan` and `honeypot` images | GitHub Releases (the signed `index.json` and `release-manifest.json`) and `ghcr.io` (the images, by digest) | minisign signatures on the index and the manifest, checked by `core` and again by `vedette-host`; a cosign signature on every image |
+| `vedette-host` itself | the `.deb` of the release, its SHA-256 in the signed manifest | installed by the running `vedette-host` as the first step of a software run (`host.self_update`), or by `install.sh` |
+| Content that ships with the software: confirmed recommendation packs, the product catalogue, device types, safe-check packs, log parsers | inside the signed `core` image | the image's signature |
+| Operating system packages | the distribution's apt mirrors, through `vedette-host` | apt's own signatures |
+| Product advisories (flaws in Vedette itself) | the `advisories` of the signed index | the index's signature |
 
-## 0. Updates on the appliance: software and operating system
+The public keys are compiled into the binaries (`internal/release/keys.go`). A file that is unsigned or wrongly signed is refused
+wherever it comes from; TLS only protects the transfer.
 
-| Layer | What is updated | Mechanism | Rollback |
-|---|---|---|---|
-| Vedette software | the images `core`, `sensor`, `honeypot`, `scan` (+ the digest of `greenbone`) | `vedette-host` fetches `release.json` (minisign-signed, verifiable offline) listing each image digest, the channel, the rollout %, the minimum host version, `revoked[]`; pulls by digest; **cosign is mandatory** (a policy on the host, fail closed); backs up the DB; replaces containers in the order `core` → `sensor`/`scan` → `honeypot` → `greenbone` (a sensor/worker is never newer than `core`, `core` accepts sensor protocol N and N-1, `specs/sensor-protocol.md` §10; a rollback goes the other way, `core` last); a health gate | go back to the previous digest/tag (1 generation kept); migrations are expand-only so the previous version can run |
-| Operating system | apt packages, kernel, reboot (S-CORE-7) | `vedette-host` runs a fixed list of apt commands, scheduled by a maintenance window | back up the DB first, a health gate after; upgrading the OS release is guidance only |
-| `vedette-host` | itself | a `.deb` package with its SHA-256 in the signed manifest, installed by the old `vedette-host` (`host.self_update`, the first step of the software run) or `install.sh`; detail in `specs/host-api.md` §6.14 | automatic: the previous package is kept, if the new one is not healthy the old one is installed again; no manual rollback |
+## 2. Software updates on the appliance
 
-Cohort, `beta` → `stable` ≥ 7 days, the revocation list, the offline bundle: unchanged as in §1-§3. A cohort blocks only **automatic** updates (when a user clicks by hand: see `DEPLOYMENT.md` question B6).
+- **Check**: every 6 hours (± 30 minutes) and when someone presses Check, while update checks are on under Settings → Privacy (PRIVACY
+  flow 6). The box sends only its current version.
+- **Channels**: `stable` and `beta` (Settings → Updates → Software channel). A box installed from a beta release follows the beta
+  channel.
+- **Rollout**: each channel of the index names a rollout percentage; a box takes an automatic update only when its cohort is inside it.
+  A person can always install by hand.
+- **Mode**: manual (the default: the page offers the release and asks before it starts) or automatic (installs inside the maintenance
+  window, never while another run is busy).
+- **Run**: `vedette-host` updates itself first, then backs up the database, pulls each image by digest after checking its signature,
+  and replaces the containers with `core` first; a health gate follows. A failure returns to the previous images within the same run.
+- **Rollback**: Settings → Updates → History → Roll back, to the previous release (one generation is kept). When the release is marked
+  `rollback.safe=false`, the page asks to confirm the data loss and the database backup taken just before the update is restored.
+  `vedette-host` has no manual rollback; it goes back to its previous package by itself after a failed start.
+- **Revocation**: the index can withdraw a release or a key; a box never installs a withdrawn release.
+- **Advisories**: an advisory in the index is shown on every box's Updates page.
 
-The rest of this document describes the data/content/advisory channels and the CI release; wherever it mentions "binary", "slot A/B", "minisign + cosign for the binary", read it according to the table above.
+A **container-only** install has no `vedette-host`: it does not update itself. Settings → Updates names the new release and shows the
+`pull` and `up -d` commands with the release's image digests ([INSTALL-CONTAINER.md](INSTALL-CONTAINER.md)).
 
-## 1. Four channels
+The **offline bundle** for air-gapped networks is not in v1: the interface does not offer it, and `/core/updates/bundle` answers 501.
 
-| Channel | Content | Interval | Mechanism | Rollback |
-|---|---|---|---|---|
-| **1. Data** | `feeds/*` (vuln, hot, ioc, slug) | 30-60 minutes | a signed `index.json`; ETag; delta | the previous version is kept; `revoked[]` withdraws a bad file |
-| **2. Content packs** (mitigation packs: shipped inside the signed `core` image) | skills, mitigation packs, a nuclei subset, the recog DB, log parsers, rule packs, Vietnamese sentence templates | daily | a signed `content-packs/<name>-<semver>.tar.zst`; the manifest lists files + sha256 | N-1 is kept; back in 1 click |
-| **3. Software** | OCI images `core`/`sensor`/`honeypot`/`scan` (the SPA is embedded in `core`); ~~binary + A/B slot~~ | per release; channels `stable`/`beta` | a minisign-signed `release.json`; pull images by digest, cosign mandatory; replace containers, a health gate; fail → back to the previous digest | the old tag/digest (1 generation kept); a Rollback button; see §0 |
-| **4. Product advisories** | flaws in Vedette itself, dependencies | when there is one | `security.json` in the index; a UI banner; mail/Telegram to the admin | none |
+## 3. Operating system updates
 
-Every channel: a signature is mandatory, the public keys are in the binary (2 keys: `builder-vn`, `builder-gh`, + a separate software release key), a **revocation list** in `index.json`.
+Settings → Updates checks the operating system first: release, kernel, packages with security fixes, whether a restart is needed, end
+of support. `vedette-host` runs a fixed list of apt commands with checked parameters: install the security fixes or everything,
+unattended-upgrades, a schedule inside the maintenance window, restart now or later. A distribution release upgrade is guidance only,
+never done automatically. The database is backed up first and the health gate runs after.
 
-## 2. Rollout in batches
+## 4. Making a release
 
-- Each box has `cohort = hash(install_id) mod 100`. `index.json` records `rollout: {content-pack X: 10}` → only boxes with cohort <10 receive it; it grows 10 → 50 → 100 after 24 hours with no error report (an anonymous opt-in hit or an issue). Software: `beta` before `stable` by ≥ 7 days.
-- Never switch on a data/rule change globally (the Cloudflare lesson of 2025-12-05).
+Releases are built and signed on the maintainer's machine with the `make release-*` targets (`make help` lists them; the flow is in
+the comment above them in the `Makefile`), not by CI. In short:
 
-## 3. The Updates page (S-CORE-2)
+1. The maintainer tags `v<version>` by hand, then builds the multi-architecture images (`make images`) and the `vedette-host` package
+   (`make host-deb`) from a clean clone at that tag. Builds are reproducible (`-trimpath`, `CGO_ENABLED=0`, amd64 and arm64 without
+   emulation).
+2. Supply chain: `make sbom` writes a CycloneDX SBOM for each image and architecture plus the source tree; `make vuln-scan` refuses any
+   HIGH or CRITICAL vulnerability that already has a fix, except the dated, reasoned entries of `.trivyignore.yaml`; `make
+   notices-check` compares `THIRD_PARTY_NOTICES.md` with what is actually linked.
+3. The release gates rebuild the package at the tag and check every artifact; the images are pushed by digest, signed with cosign (the
+   SBOMs attached as attestations), and the index and manifest are signed with minisign and checked with the box's own verifier.
+4. The GitHub release is published with the index last. Test releases go to the `beta` channel first.
 
-Shows: the software/data/content pack version, "updated at", the channel, the history of the last 20 updates, the signature state, a check-now button, a rollback button per channel, automatic/manual mode, the **offline bundle** (postponed until after v1: the GUI does not offer it, `/core/updates/bundle` returns 501) (`vedette bundle export/import` for air-gapped networks), the state of product advisories.
+## 5. Flaws in Vedette itself
 
-## 4. Release process (CI, GitHub Actions)
-
-1. Test (Go, FE), lint, `govulncheck`, `trivy fs`, licence check (no GPL/AGPL in the core).
-2. Reproducible builds (`-trimpath`, `CGO_ENABLED=0`), multi-architecture (amd64/arm64: `make images`, one manifest list per image, cross-compiled without qemu; `make host-deb VERSION=<x.y.z> RELEASE_PREV_INDEX=<folder of the published index>` sets the `sequence` floor of the index inside `vedette-host` to the sequence of that index; a real build without `RELEASE_PREV_INDEX` is refused, except `MIN_SEQUENCE=0` for the first release; a real build is also refused when the git tree is dirty or `GOFLAGS` has `-overlay`/`-tags`, and the finished binary must carry exactly the bytes of the real public key), an **OCI image** for each container and a `.deb` package for `vedette-host` (`make host-deb`, nfpm; package parameters in `DEPLOYMENT.md` §3.1).
-3. A CycloneDX SBOM and vulnerability scanning with a single tool, **trivy** (no syft/grype): `make sbom` writes the SBOM for each image and each architecture plus the source tree into `dist/sbom/`; `make vuln-scan` stops when there is a HIGH/CRITICAL flaw that already has a fix, with exceptions only through `.trivyignore.yaml` with a reason and an expiry date; `make notices-check` compares `THIRD_PARTY_NOTICES.md` with the Go modules actually linked and the web dependencies. This step runs on the maintainer's machine, in the same pass as step 2, and needs no key (attaching the SBOM to the image with `cosign attest` belongs to step 4).
-4. Signing: **cosign** for each image (the box verifies when pulling); **minisign** for `release.json` and the `vedette-host` package (verifiable offline). Whether cosign is key-based or keyless: open question A3 in `ARCHITECTURE.md`.
-5. A changelog from commits; a GitHub Release; `index.json` updated through the builder; `beta` first.
-6. The tag is created by hand by a maintainer.
-
-## 5. Flaws in the product itself
-
-- `SECURITY.md`: a private reporting channel, SLA 2/14/30 days.
-- Dependencies: Renovate weekly, pinned versions; a serious CVE in a dependency → a fix release within 7 days.
-- Malicious feed data (an IOC that "blocks Google", a dangerous Nuclei template): the builder has a **safety test** before signing: the top-10k-domain whitelist must not appear in the block list; the nuclei subset only has safe tags; log parsers run a 60-second fuzz.
-- The box keeps an update log (who, when, sha256) in `core_audit`.
-
-## 6. When the free infrastructure changes
-
-Every URL is in one (signed) `channels.json` file → changing the host = changing one file. A second mirror (Releases ↔ R2) always exists; the box tries them in turn.
+- Report them privately as described in [SECURITY.md](../SECURITY.md).
+- CI runs `govulncheck` on Go changes and daily, and `pnpm audit` daily; Dependabot proposes dependency updates.
+- A fixed flaw gets an advisory, delivered through the index and shown in the app.

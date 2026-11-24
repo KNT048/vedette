@@ -26,11 +26,12 @@ function subjectHref(kind: string, id: string | null): string | null {
   return null
 }
 
-/** A queued run waits for the run that holds its lane (blocked_by, from the box): that run, by name, with its own link. */
+/** A queued run waits for the run that holds its lane (blocked_by, from the box): the summary above says its place in line and when it
+ *  starts; this line opens the run in its way. */
 function Blocker({ r }: { r: Run }) {
   const { t } = useTranslation('scanning')
   if (r.status !== 'queued' || !r.blocked_by) return null
-  return <p className="text-meta">{t('runs.queuedBehind')} <Link to={runHref(r.blocked_by.id)} className={link}>{r.blocked_by.title}</Link></p>
+  return <p className="text-meta">{t('runs.inItsWay')} <Link to={runHref(r.blocked_by.id)} className={link}>{r.blocked_by.title}</Link></p>
 }
 
 /** Stop and Resume, as the box says the person asking may use them (can_stop, can_resume). Stop asks first: work not reached yet is
@@ -84,7 +85,8 @@ function Body({ r }: { r: RunDetail }) {
       <Card className="mb-6 grid gap-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <RunStateChip status={r.status} />
-          {r.status !== 'queued' || !r.blocked_by ? <span className="text-meta">{r.summary}</span> : null}
+          {/* the box's one line: for a queued run its place in line and when it starts ("… (2nd in line); it starts in about 9 minutes") */}
+          <span className="text-meta">{r.summary}</span>
         </div>
         <Blocker r={r} />
         {r.total > 0 ? (

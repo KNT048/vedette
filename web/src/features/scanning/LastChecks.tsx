@@ -106,7 +106,10 @@ export function LastChecks(props: Record<string, unknown>) {
   const failed = [history, modules, device].find((q) => q.isError)
   const loading = history.isPending || modules.isPending || device.isPending || (scanOn === true && (runs.isPending || buttons.pending))
   const items = history.data?.items ?? []
-  const ident = items.find((r) => r.kind === 'device')
+  // a check going now is shown once, live, by the actions above (its progress and its "Open the run"): the row keeps the last one
+  // before it, so one run never reads both Queued and Running, nor gets two links on this page
+  const live = new Set((scanning.data?.running ?? []).map((j) => j.id))
+  const ident = items.find((r) => r.kind === 'device' && !live.has(r.id))
   const snmp = items.find((r) => r.kind === 'snmp')
   const last = runs.data?.items[0]
   const vuln = last ? ofDevice(last, assetId) : null

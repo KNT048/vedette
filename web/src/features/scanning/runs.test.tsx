@@ -97,10 +97,11 @@ describe('/runs/<id>: one run', () => {
     expect(await screen.findByText('Stopped by it@acme.example; 6,528 of 65,792 addresses done', {}, T)).toBeInTheDocument()
   })
 
-  it('a queued run names the run it waits for, with its link; a viewer gets no Stop', async () => {
+  it('a queued run says its place and when it starts, and links the run in its way; a viewer gets no Stop', async () => {
     renderApp('/runs/run-m3', { role: 'viewer' })
     expect(await screen.findByRole('link', { name: 'Check NAS-PHOTOS' }, T)).toHaveAttribute('href', '/runs/run-m2')
-    expect(screen.getByText('Queued behind')).toBeInTheDocument()
+    expect(screen.getByText('Queued behind “Check NAS-PHOTOS”; it starts when that run ends')).toBeInTheDocument()
+    expect(screen.getByText('Running now:')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull()
   })
 

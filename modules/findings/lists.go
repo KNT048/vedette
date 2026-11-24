@@ -283,26 +283,53 @@ func combine(gs []lineGroup, j *releaseJudge) {
 // release name no order reads) is left out, the one with the most such others first, so it stays its own block while the rest still
 // combine into one: one unreadable fix never splits a line into a step per CVE.
 func orderable(gs []lineGroup, is []int, kind FixKind, product string) []int {
-	is = slices.Clone(is)
-	for len(is) > 1 {
-		worst, most := -1, 0
-		for _, i := range is {
-			n := 0
-			for _, k := range is {
-				if _, ok := compareFix(kind, product, gs[i].Fix.Version, gs[k].Fix.Version); !ok {
-					n++
-				}
+	// Each pair is compared once (a line may hold hundreds of fixes): bad[a][b] says the two do not compare, n[a] how many others a
+	// does not compare with among those still in.
+	bad := make([][]bool, len(is))
+	n := make([]int, len(is))
+	for a := range is {
+		bad[a] = make([]bool, len(is))
+	}
+	for a := range is {
+		for b := a + 1; b < len(is); b++ {
+			if _, ok := compareFix(kind, product, gs[is[a]].Fix.Version, gs[is[b]].Fix.Version); !ok {
+				bad[a][b], bad[b][a] = true, true
+				n[a]++
+				n[b]++
 			}
-			if n > most || n == most && n > 0 && gs[i].Fix.Version > gs[worst].Fix.Version {
-				worst, most = i, n
+		}
+	}
+	in := make([]bool, len(is))
+	for a := range in {
+		in[a] = true
+	}
+	for left := len(is); left > 1; left-- {
+		worst, most := -1, 0
+		for a := range is {
+			if !in[a] {
+				continue
+			}
+			if n[a] > most || n[a] == most && n[a] > 0 && gs[is[a]].Fix.Version > gs[is[worst]].Fix.Version {
+				worst, most = a, n[a]
 			}
 		}
 		if most == 0 {
 			break
 		}
-		is = slices.DeleteFunc(is, func(i int) bool { return i == worst })
+		in[worst] = false
+		for b := range is {
+			if in[b] && bad[worst][b] {
+				n[b]--
+			}
+		}
 	}
-	return is
+	var out []int
+	for a, i := range is {
+		if in[a] {
+			out = append(out, i)
+		}
+	}
+	return out
 }
 
 // blockKey is the key a block of product's fix is listed under: the fix key of the catalogue's product, so lines that name one product

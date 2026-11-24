@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import i18n from 'i18next'
+import { loadNamespaces } from '@/lib/i18n'
 import { toast } from 'sonner'
 import { api, ApiError } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
@@ -211,6 +212,7 @@ export function useSaveSettings() {
   return useMutation({
     mutationFn: (b: SettingsInput) => api.put<SettingsSaved>('/inventory/settings', b),
     onSuccess: async (r) => {
+      await loadNamespaces('inventory') // the form may be on another feature's page: its words before the toast
       toast.success(r.adjusted.length ? i18n.t('inventory:network.savedAdjusted', { list: r.adjusted.map((a) => `${a.from} → ${a.to}`).join(', ') }) : i18n.t('inventory:network.saved'))
       await inv()
     },
@@ -218,6 +220,7 @@ export function useSaveSettings() {
     // the current values and its version; the toast outlives the form, which is built again on the new values
     onError: async (e) => {
       if (e instanceof ApiError && e.code === 'safety_changed') {
+        await loadNamespaces('inventory')
         toast.error(i18n.t('inventory:network.changedElsewhere'))
         await inv()
       }

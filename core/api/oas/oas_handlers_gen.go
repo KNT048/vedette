@@ -7458,6 +7458,10 @@ func (s *Server) handleCoreGetCoreAuditRequest(args [0]string, argsEscaped bool,
 					In:   "query",
 				}: params.Q,
 				{
+					Name: "actions",
+					In:   "query",
+				}: params.Actions,
+				{
 					Name: "user",
 					In:   "query",
 				}: params.User,
@@ -7626,6 +7630,10 @@ func (s *Server) handleCoreGetCoreAuditExportRequest(args [0]string, argsEscaped
 					Name: "q",
 					In:   "query",
 				}: params.Q,
+				{
+					Name: "actions",
+					In:   "query",
+				}: params.Actions,
 				{
 					Name: "user",
 					In:   "query",

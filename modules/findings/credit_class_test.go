@@ -327,12 +327,12 @@ func TestCredit_ReopenAuditNamesThePersonWhoSetTheVersionBack(t *testing.T) {
 		`SELECT user, detail FROM core_audit WHERE action = 'findings.status' AND detail LIKE '%reopened%' ORDER BY seq DESC LIMIT 1`).Scan(&user, &detail); err != nil {
 		t.Fatal(err)
 	}
-	if user != who || detail != "CVE-2026-1001: reopened (detected_again): the version was set back by "+who {
+	if user != who || detail != "CVE-2026-1001: reopened (found again after Vedette had closed it): the version was set back by "+who {
 		t.Fatalf("reopen audit row by %q: %q; want the person who set the version back, named in the detail", user, detail)
 	}
 	var handledBy string
 	if err := e.db.Reader().QueryRowContext(t.Context(),
-		`SELECT user FROM core_audit WHERE action = 'findings.status' AND detail LIKE '%version_moved%'`).Scan(&handledBy); err != nil || handledBy != who {
+		`SELECT user FROM core_audit WHERE action = 'findings.status' AND detail LIKE '%the version moved from%'`).Scan(&handledBy); err != nil || handledBy != who {
 		t.Fatalf("handled audit row by %q (%v), want %s", handledBy, err, who)
 	}
 }

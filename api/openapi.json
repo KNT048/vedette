@@ -7654,6 +7654,15 @@
             }
           },
           {
+            "name": "actions",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "With q: comma-separated action codes whose label on the screen contains the search text; a line of one of these actions matches q too (the box stores codes, the screen shows labels). At most 400 codes",
+              "type": "string"
+            }
+          },
+          {
             "name": "user",
             "in": "query",
             "required": false,
@@ -7830,6 +7839,15 @@
             "in": "query",
             "required": false,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actions",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "With q: comma-separated action codes whose label on the screen contains the search text; a line of one of these actions matches q too (the box stores codes, the screen shows labels). At most 400 codes",
               "type": "string"
             }
           },

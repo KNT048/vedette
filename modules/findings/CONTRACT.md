@@ -94,6 +94,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   rows, never stored, and searched like the other lists (`q`: the device's name or address, the software, the CVE id); a device not
   added yet is also found by the CVE ids and software names of its open findings, which its item does not show (read only when `q`
   is set); a question answered "not affected" is listed (`/findings/answered`) and can be asked again (`unanswer`).
+- **M-12 Audit lines in words.** The audit page and its CSV export show a detail as written, so every audit line of this module
+  says each stored code in words (resolution, way, reason to reopen, detection basis, question kind; an unknown code of an open
+  vocabulary with its underscores as spaces), never the code: `auditAction`, `questionAuditDetail`, `TestAuditDetailsSayEveryCodeInWords`.
+  Lines written before keep their text (the log is append-only).
 
 ## Invariants
 

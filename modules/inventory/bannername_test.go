@@ -1,9 +1,7 @@
 package inventory_test
 
 import (
-	"io/fs"
 	"net/netip"
-	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/core/observe"
@@ -46,17 +44,13 @@ func TestBannerName_TheVersionIsShownOnce(t *testing.T) {
 		}
 	}
 
-	// the lines a scan stored before keep their version once too (the migration), a person's line is left as typed
+	// the lines a scan stored before keep their version once too (renamed at start), a person's line is left as typed
 	e.exec(`UPDATE inv_software SET display = display || ' ' || version WHERE asset_id = ? AND display IN ('OpenSSH', 'Embedthis-Appweb')`, id)
 	e.exec(`UPDATE inv_software_reading SET display = display || ' ' || version WHERE source = 'nmap' AND display IN ('OpenSSH', 'Embedthis-Appweb')`)
 	hand := e.addDevice(inventory.AddInput{Vendor: "Contoso", Product: "Gizmo 2", Version: "2", IP: "192.0.2.68"})
-	sql, err := fs.ReadFile(inventory.Migrations, "0005_inventory_banner_names.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for stmt := range strings.SplitSeq(string(sql), ";") {
-		if strings.Contains(stmt, "UPDATE") {
-			e.exec(stmt[strings.Index(stmt, "UPDATE"):])
+	for range 2 { // idempotent: the second run changes nothing
+		if err := e.svc.ReidentifyLines(e.ctx()); err != nil {
+			t.Fatal(err)
 		}
 	}
 	for _, x := range []struct{ id, display string }{{id, "OpenSSH"}, {id, "Embedthis-Appweb"}, {hand, "Contoso Gizmo 2"}} {

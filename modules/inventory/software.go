@@ -579,7 +579,8 @@ func (s *Service) settle(ctx context.Context, tx *sql.Tx, o *outbox, id string, 
 
 // bannerName is the name of a software line a network scan read, without the version its banner repeats: nmap names the line
 // "OpenSSH 9.6" for product OpenSSH at version 9.6, and the version is a column of its own (shown beside the name, asked about in a
-// question). A name that does not end with one of the versions is kept as it is.
+// question). A name that does not end with one of the versions is kept as it is. Lines stored before keep theirs until
+// bareBannerNames renames them (at start).
 func bannerName(display string, versions ...string) string {
 	d := strings.TrimSpace(display)
 	for _, v := range versions {

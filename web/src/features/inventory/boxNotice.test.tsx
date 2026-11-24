@@ -16,11 +16,11 @@ const setPending = (pending: Pkg[]) => os.update((o) => ({ ...o, pending }))
 const pkg = (name: string, cves: string[]): Pkg => ({ name, current: '1', new: '2', security: true, cves })
 /** The box's findings in the findings model: the first `open` stay open (not confirmed yet), the rest are closed by Vedette as not
  *  relevant. */
-function boxFindings(open: string[], notRelevant: string[]) {
+function boxFindings(open: string[], notRelevant: string[], restartTo?: string) {
   records.update((all) => {
     const tpl = all.find((r) => r.asset_id !== BOX_ID) ?? all[0]!
     const mk = (cve: string, i: number, handled: boolean) => ({ ...tpl, id: `fv-box-${handled ? 'nr' : 'open'}-${i}`, asset_id: BOX_ID, cve, software: null,
-      verified: 'no' as const, layer: 5 as const, fix: { ...tpl.fix, key: `box|${cve}` }, reopened: null,
+      verified: 'no' as const, layer: 5 as const, fix: restartTo ? { ...tpl.fix, kind: 'restart' as const, version: restartTo, key: `box|restart|${restartTo}` } : { ...tpl.fix, key: `box|${cve}` }, reopened: null,
       ...(handled ? { state: 'handled' as const, resolution: 'not_relevant' as const, via: 'data_corrected' as const, resolved_by: 'system', resolved_at: tpl.first_seen }
         : { state: 'open' as const, resolution: null, via: null, resolved_by: null, resolved_at: null }) })
     return [...all.filter((r) => r.asset_id !== BOX_ID), ...open.map((c, i) => mk(c, i, false)), ...notRelevant.map((c, i) => mk(c, i, true))]
@@ -43,6 +43,14 @@ describe('box notice: a fix is offered only when there is one', () => {
     boxFindings(['CVE-2025-0001', 'CVE-2025-0002', 'CVE-2025-0003'], [])
     renderApp(`/devices/${BOX_ID}`)
     expect(await screen.findByRole('link', { name: 'Fix 2 findings: install 2 operating system updates' }, T)).toHaveAttribute('href', '/settings/updates#os')
+    expect(screen.queryByText('No update fixes these yet: see each finding.')).toBeNull()
+  })
+
+  it('the fixed kernel is installed and the box has not restarted: the fix is the restart, not "no update fixes these"', async () => {
+    setPending([])
+    boxFindings(['CVE-2026-90001', 'CVE-2026-90002'], [], '7.0.0-44.44')
+    renderApp(`/devices/${BOX_ID}`)
+    expect(await screen.findByRole('link', { name: 'Fix 2 findings: restart the box to run the installed kernel 7.0.0-44.44' }, T)).toHaveAttribute('href', '/settings/updates#os')
     expect(screen.queryByText('No update fixes these yet: see each finding.')).toBeNull()
   })
 

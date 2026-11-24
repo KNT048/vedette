@@ -2723,7 +2723,9 @@ type Handler interface {
 	ScanPostScansCredentialedIDTest(ctx context.Context, params ScanPostScansCredentialedIDTestParams) (*ScanPostScansCredentialedIDTestOK, error)
 	// ScanPostScansRuns implements scan_post_scans_runs operation.
 	//
-	// Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked).
+	// Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked); a chosen
+	// device with nothing to check (checkable and again both 0) is left out, and 400 nothing_to_check when
+	// none has anything.
 	//
 	// POST /scans/runs
 	ScanPostScansRuns(ctx context.Context, req *ScanPostScansRunsReq) (*ScanPostScansRunsCreated, error)

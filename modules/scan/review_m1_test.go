@@ -11,6 +11,7 @@ import (
 func TestReview_M1_PickIsPerDevice(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
+	r.giveCheck("a-srv")
 	r.eng.onRun = func(j nucleiargv.Job) {
 		if j.Targets[0].Host == "192.168.10.21" { // while the picked NAS is scanned, SRV-AD is marked fragile
 			r.inv.setPolicy(func(id string, explicit bool) Decision {

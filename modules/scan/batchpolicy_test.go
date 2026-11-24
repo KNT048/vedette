@@ -47,6 +47,7 @@ func TestContract_TargetsReadThePolicyInOneBatch(t *testing.T) {
 	}
 
 	ids := []string{"a-nas02", "a-web01", "a-g001", "a-g002"}
+	r.giveCheck("a-g001", "a-g002") // a device with nothing to check is not part of the run
 	if _, err := r.svc.StartRun(r.ctx(), "it@acme.example", ids); err != nil {
 		t.Fatal(err)
 	}

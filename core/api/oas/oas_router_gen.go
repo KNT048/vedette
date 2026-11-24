@@ -22362,7 +22362,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return r, true
 									case "POST":
 										r.name = ScanPostScansRunsOperation
-										r.summary = "Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked)"
+										r.summary = "Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked); a chosen device with nothing to check (checkable and again both 0) is left out, and 400 nothing_to_check when none has anything"
 										r.operationID = "scan_post_scans_runs"
 										r.operationGroup = ""
 										r.pathPattern = "/scans/runs"

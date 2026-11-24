@@ -164,10 +164,10 @@ func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunV
 	for _, t := range all {
 		byID[t.ID] = t
 	}
-	var chosen, picked []string
+	var chosen, picked, nothing []string
 	var first Current
 	for _, id := range ids {
-		if slices.Contains(chosen, id) {
+		if slices.Contains(chosen, id) || slices.Contains(nothing, id) {
 			continue
 		}
 		t, ok := byID[id]
@@ -176,6 +176,10 @@ func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunV
 		}
 		if !t.Selectable {
 			return RunView{}, refusal(t)
+		}
+		if !t.checks().any() { // nothing a check could confirm, rule out or check again: not part of the run
+			nothing = append(nothing, id)
+			continue
 		}
 		if len(chosen) == 0 {
 			first = Current{Label: t.Label, IP: t.IP}
@@ -187,6 +191,13 @@ func (s *Service) StartRun(ctx context.Context, user string, ids []string) (RunV
 	}
 	if !s.scannerReady(ctx) {
 		return RunView{}, ErrScannerUnavailable
+	}
+	if len(chosen) == 0 {
+		labels := make([]string, len(nothing))
+		for i, id := range nothing {
+			labels[i] = byID[id].Label
+		}
+		return RunView{}, errNothingToCheck(labels)
 	}
 	return s.start(ctx, runSpec{trigger: "manual", user: user, ids: chosen, picked: picked, first: first})
 }
@@ -765,7 +776,7 @@ func (s *Service) plan(ctx context.Context, d Device, onlyCVEs []string) (checks
 			continue
 		}
 		seen[f.CVE] = true
-		tpls := s.cfg.Pack.ForCVE(f.CVE)
+		tpls := s.templatesOf(f)
 		if len(tpls) == 0 {
 			rows = append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_template", FindingID: ptr(f.ID), Note: f.CVE + ": no safe scan template yet, " + suspectedNote(f.Basis)})
 			continue

@@ -327,6 +327,20 @@
     "otherRunning": "Vulnerability checks are already running.",
     "openRun": "Open the run",
     "none": "No device can be checked without your own pick yet.",
-    "finished": "Vulnerability checks finished."
+    "finished": "Vulnerability checks finished.",
+    "label": {
+      "confirm_one": "Check {{count}} suspected finding",
+      "confirm_other": "Check {{count}} suspected findings",
+      "again_one": "Check {{count}} confirmed finding again",
+      "again_other": "Check {{count}} confirmed findings again",
+      "both_one": "Check {{suspected}} suspected and {{again}} confirmed findings",
+      "both_other": "Check {{suspected}} suspected and {{again}} confirmed findings",
+      "on_one": "{{what}} on {{count}} device",
+      "on_other": "{{what}} on {{count}} devices"
+    },
+    "nothing": "Nothing to check: no safe check exists for your findings yet.",
+    "nothingOpen": "Nothing to check: no open finding is waiting for a safe check.",
+    "leftOut_one": "{{count}} device with nothing to check is left out.",
+    "leftOut_other": "{{count}} devices with nothing to check are left out."
   }
 }

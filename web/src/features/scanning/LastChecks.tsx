@@ -18,7 +18,8 @@ import type { HistoryRun } from './types'
 import { scanRefusal, useDeviceButtons, type DeviceRefusal } from './canScan'
 import { runHref, runsHref } from './places'
 import { hasSnmpCard, hasSourcesCard } from '@/features/inventory/nameOf'
-import { DeviceActions, ScanOffSeeSources, useVulnCheckable } from './DeviceActions'
+import { DeviceActions, ScanOffSeeSources } from './DeviceActions'
+import { useVulnCheckable, vulnLabel } from '@/features/scan/vulnCount'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 const outcomeTone = { ok: 'ok', partial: 'warn', failed: 'danger', stopped: 'warn', running: 'accent' } as const
@@ -127,7 +128,7 @@ export function LastChecks(props: Record<string, unknown>) {
   const neverVuln = vulnReason === 'manual' ? <Never>{seeSources}</Never>
     : vulnReason ? <Never />
     : checkable.none ? <Never info={checkable.suspected === 0 ? t('hint.vulnNoneSuspected') : t('hint.vulnNone', { count: checkable.suspected })}>{blockReason}</Never>
-    : <Never info={operator ? t('lastChecks.neverVuln') : t('lastChecks.neverVulnRole')}>{blockReason}</Never>
+    : <Never info={t(operator ? 'lastChecks.neverVuln' : 'lastChecks.neverVulnRole', { button: vulnLabel(ts, checkable, true) })}>{blockReason}</Never>
   // the device's own SNMP card is on this page (the page's rule, SnmpCard.hasSnmpCard)
   // "Set it up in Sources" leads to that card's Set up button, which an approved device with an address has (SNMP reads approved
   // devices only; a device not added yet offers Add device there instead). A device whose SNMP row offers no Set up (a declared

@@ -127,7 +127,7 @@ test.describe('scan: IT operator', () => {
     await expect(page.getByRole('tab', { name: 'Engines' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  test('the Devices list: "Scan selected" checks the ticked devices and shows the run; the device page has "Check this device now" and "Run vulnerability checks now"', async ({ page }) => {
+  test('the Devices list: "Scan selected" checks the ticked devices and shows the run; the device page has "Check this device now" and the vulnerability check named by its count', async ({ page }) => {
     await loginAs(page, 'u-admin') // the discovery run is an administrator's (contract)
     await page.goto('/devices')
     await page.getByRole('checkbox', { name: 'Select FW-HQ' }).click()
@@ -138,7 +138,7 @@ test.describe('scan: IT operator', () => {
     await page.goto('/devices/a-nas02') // a device with a finding a vulnerability check can run on
     await expect(page.getByRole('button', { name: 'Check this device now' })).toBeDisabled() // one nmap run at a time
     await expect(page.getByText('Another scan is running.')).toBeVisible()
-    await page.getByRole('button', { name: 'Run vulnerability checks now' }).click()
+    await page.getByRole('button', { name: /^Check \d+ (suspected|confirmed) findings?/ }).click()
     await expect(page.getByRole('link', { name: 'Open the run' }).first()).toBeVisible()
   })
 

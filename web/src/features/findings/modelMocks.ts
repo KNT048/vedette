@@ -25,6 +25,19 @@ export const questions = collection<QuestionRecord[]>('fnd_question', seedQuesti
 
 /** CVEs the scan's safe checks cover (the sample ones). */
 const SAFE_CHECKS = new Set(['CVE-2024-4577', 'CVE-2022-27593', 'CVE-2026-119977'])
+/** What a vulnerability check of the device can do (the box's scan checkCount, read by GET /scans/targets): its open findings not
+ *  confirmed yet (distinct CVEs), how many of those have a safe check, and how many confirmed ones have one to run again. */
+export function checkCounts(assetId: string): { suspected: number; checkable: number; again: number } {
+  const seen = new Set<string>()
+  const c = { suspected: 0, checkable: 0, again: 0 }
+  for (const r of records.get()) {
+    if (r.asset_id !== assetId || r.state !== 'open' || seen.has(r.cve)) continue
+    seen.add(r.cve)
+    const safe = SAFE_CHECKS.has(r.cve)
+    if (r.verified === 'no') { c.suspected++; if (safe) c.checkable++ } else if (safe) c.again++
+  }
+  return c
+}
 const RESOLUTIONS: readonly Resolution[] = FINDING_RESOLUTIONS
 const NOTE_NEEDED: Resolution[] = ['false_positive', 'not_relevant', 'accepted']
 

@@ -313,6 +313,28 @@ func TestFindingDetail_FixedIn(t *testing.T) {
 	}
 }
 
+// A finding on no exploited list (update recommended) has its fixed release on its page too: the page reads the CVE's catalogue
+// entry, so step 1 and the source name the same fix every list names, not "no vendor advisory is linked".
+func TestFindingDetail_FixedInOfACatalogueCVE(t *testing.T) {
+	t.Parallel()
+	e := newHTTPEnv(t)
+	e.inv.match = map[string]Asset{"a-1": fortigate()}
+	e.feeds.kev = map[string]KevInfo{}
+	e.feeds.vulns = []Vuln{catalogueOnly("CVE-2026-90003", "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", "7.2.0", "7.2.9")}
+	if _, err := e.svc.Reconcile(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	fs, err := e.svc.Findings(t.Context(), "a-1")
+	if err != nil || len(fs) != 1 {
+		t.Fatalf("findings %+v %v", fs, err)
+	}
+	code, b := e.call("GET", "/findings/"+fs[0].ID, "viewer", "")
+	f, _ := b["fixed_in"].(map[string]any)
+	if code != 200 || b["kev"] != nil || f["kind"] != "fixed" || f["fixed"] != "7.2.9" || f["version"] != "7.2.5" {
+		t.Fatalf("%d fixed_in = %v (kev %v)", code, b["fixed_in"], b["kev"])
+	}
+}
+
 // Accepting a risk goes through the API with its day: a bad day is 400 bad_until, a good one shows on the finding's page with
 // accepted_until.
 func TestAcceptRiskEndpoint(t *testing.T) {

@@ -364,7 +364,13 @@ func buildDocument(in docInput) Document {
 		for _, r := range fresh[:min(len(fresh), MaxRows)] {
 			items = append(items, r.listed(reasons))
 		}
-		doc.New = &ReportNew{Total: len(fresh), Items: items, More: max(0, len(fresh)-MaxRows)}
+		still := 0
+		for _, r := range fresh {
+			if r.h.openAtTo {
+				still++
+			}
+		}
+		doc.New = &ReportNew{Total: len(fresh), Open: still, Items: items, More: max(0, len(fresh)-MaxRows)}
 	}
 	if s.Exposure {
 		doc.Exposure = in.exposure
@@ -492,17 +498,27 @@ func handledOf(rows []row) *ReportHandled {
 
 func openOf(open []row, grouping string, reasons map[string][]Reason) *ReportOpen {
 	out := &ReportOpen{Grouping: grouping, Total: len(open), Groups: []OpenGroup{}, More: max(0, len(open)-MaxRows)}
+	groupKey := func(r row) string {
+		if grouping == groupCVE {
+			return r.f.CVE
+		}
+		return r.f.Device.ID
+	}
+	totals := map[string]int{} // every open finding of each group, listed or not
+	for _, r := range open {
+		totals[groupKey(r)]++
+	}
 	at := map[string]int{}
 	for _, r := range open[:min(len(open), MaxRows)] {
-		key, label := r.f.Device.ID, r.device().Name
+		key, label := groupKey(r), r.device().Name
 		if grouping == groupCVE {
-			key, label = r.f.CVE, clip(r.f.CVE, 40)
+			label = clip(r.f.CVE, 40)
 		}
 		i, ok := at[key]
 		if !ok {
 			i = len(out.Groups)
 			at[key] = i
-			out.Groups = append(out.Groups, OpenGroup{Key: key, Label: label, Status: layerCode(r.f.Urgency), Items: []ReportFinding{}})
+			out.Groups = append(out.Groups, OpenGroup{Key: key, Label: label, Status: layerCode(r.f.Urgency), Items: []ReportFinding{}, Total: totals[key]})
 		}
 		g := &out.Groups[i]
 		if layerOf(layerCode(r.f.Urgency)) < layerOf(g.Status) {

@@ -7,64 +7,98 @@
 
 **Know early. Know exactly. Know what to do.**
 
-Vedette is free, open-source software that tells a business, within an hour, when a device or application it uses appears on the list of vulnerabilities **being exploited in the wild**, what it has and where it is exposed, and exactly what to do about it. It does **not** sit in the network path, block traffic or replace your firewall.
+Vedette is free, open-source software for a small or mid-size office. It runs on one machine on your network and tells you, within an hour, when software or a device you own is on a list of vulnerabilities **being exploited in the wild**: which device, where it is exposed, and what to do about it.
 
-*Vedette* (French): a mounted sentry posted ahead of an outpost to raise the alarm early. It watches and warns; it does not fight.
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![CI](https://github.com/KNT048/vedette/actions/workflows/ci.yml/badge.svg)](https://github.com/KNT048/vedette/actions/workflows/ci.yml)
+[![Releases](https://img.shields.io/badge/releases-0.1.x%20beta-orange.svg)](https://github.com/KNT048/vedette/releases)
 
-| | |
-|---|---|
-| Status | Web interface complete on a mock API; backend not started |
-| License | Apache-2.0 for Vedette's own code; third-party components keep their own licenses (`THIRD_PARTY_NOTICES.md`) |
-| Authors | The Vedette authors |
-| Disclaimer | Provided as is, without warranty (Apache-2.0 §7–8). The authors are not responsible for how you use it — only scan systems you own and are authorised to scan |
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-home-dark.png">
+  <img src="docs/images/screenshot-home.png" alt="The Vedette home page: how many devices run software being exploited, open findings by kind, and the fix to make first" width="830">
+</picture>
 
-## Try it
+<sub>The home page, with the made-up sample data of a trial build.</sub>
 
-```bash
-make dev
-```
+## What it does
 
-Open http://localhost:5173. On first run choose **Use sample data** to look around, or set it up from scratch.
+- **Watches what attackers are using now.** The CISA list of known exploited vulnerabilities is checked every hour, with FIRST EPSS, CVE.org and NVD for detail; VulnCheck's list can be added. Each feed is fetched straight from its source.
+- **Knows what you have.** Devices are found by listening on the network and by scanning it, or added by hand and by import, with vendor, model, version and open services. Nothing is installed on staff computers.
+- **Matches the two, and shows how sure it is.** A finding says whether the version is confirmed (the device reports it) or only suspected (read from a service banner), and whether the device is reachable from the Internet.
+- **Tells you what to do.** Each finding starts with the update that fixes it. For a growing set of exploited CVEs it adds a checked workaround, a ready firewall rule to cut off access (FortiGate, MikroTik or generic) and how to tell whether you have already been hit.
+- **Tells the right people.** Alerts by email, Slack, Telegram, Zalo or webhook, only for devices you have.
+- **Sees your outside.** Your public IP and the domains you verify are scanned the way an attacker would see them (subdomains, open ports and services, known flaws; with nmap, nuclei, ZAP and, if you turn it on, OpenVAS).
+- **In preview** (off by default, turn on under Settings › Modules): vulnerability scans of your internal devices; internal traps (a honeypot that raises an alert when touched); a log receiver that flags connections to known-bad addresses and your firewall's intrusion alerts; an AI assistant with your own provider and key; reports.
 
-## Install on a box
+What it does **not** do: it does not sit in the network path, block traffic or replace your firewall, and it does not find every vulnerability. It watches and warns; the change is yours to make.
 
-For a real box: a fresh **Ubuntu 24.04, Ubuntu 26.04 or Debian 13** (amd64 or arm64; v1 is tested on Ubuntu 26.04, and problems on Ubuntu 24.04 or Debian 13 are welcome as issues) with systemd, at least 4 GB of memory (8 GB recommended), 6 GB of free disk under `/var`, a wired network port, and the free TCP ports **8443** (the interface), **8444** (the sensor link) and **8765** (the MCP server, on the machine's own 127.0.0.1). Run it as root, on a machine that has nothing else of Vedette on it:
+## Quick start
 
-```bash
-curl -fsSL https://github.com/KNT048/vedette/releases/download/v<version>/install.sh | sudo sh
-```
+**You need** a fresh machine (a small PC, server or VM) with Ubuntu 26.04 (Ubuntu 24.04 and Debian 13 install too), amd64 or arm64, 4 GB of memory (8 GB recommended), 6 GB free under `/var`, a wired network port, and free ports 8443, 8444, 8765, 514 and 6514.
 
-Use the `install.sh` of the release you want (the Releases page of this repository; it carries that release's version and package checksum inside it, which is why you do not get it from the source tree). To read and check it before running it, download it with its signature and verify it with [minisign](https://jedisct1.github.io/minisign/) against the release key (key ID `7B78764E550D48D0`, also listed in `docs/RELEASE_KEYS.md` and built into `vedette-host`), then run it:
+**1. Install.** Take `install.sh` from the newest [release](https://github.com/KNT048/vedette/releases) and run it as root:
 
-```
-curl -fsSLO https://github.com/KNT048/vedette/releases/download/v<version>/install.sh
-curl -fsSLO https://github.com/KNT048/vedette/releases/download/v<version>/install.sh.minisig
-minisign -Vm install.sh -P RWTQSA1VTnZ4e4eM2iBmUKE1/t5l9pmrScK2+wR/EohjSfFEZQ8VwT/m
+```sh
+VERSION=0.1.5    # the newest release on the Releases page
+curl -fsSLO https://github.com/KNT048/vedette/releases/download/v$VERSION/install.sh
 sudo sh install.sh
 ```
 
-The check must print `Trusted comment: file:install.sh version:<version>`. At the end it prints `https://<address of the box>:8443` and a **one-time setup code**; open the address (the certificate is self-signed: accept it once), enter the code and follow the setup wizard.
+**2. Open the address it prints**, `https://<address of the machine>:8443`. The certificate is self-signed: accept it once.
 
-What it does, in order, and it stops at the first thing it cannot do (a refusal in the first step changes nothing): checks the OS, architecture, systemd, disk, the two ports, that no other Vedette is there and that the clock is set; installs with `apt` the packages Vedette needs that are **missing** (podman, chrony, netplan.io, nftables, iptables, unattended-upgrades and what they depend on); a package that is already installed is not upgraded and an existing chrony configuration is not touched; downloads the `vedette-host` package of that release and refuses it unless its SHA-256 is the one written into the script; writes `/etc/vedette/host.conf` and the container network `vedette-int` (a `172.30.x.0/24` that clashes with nothing on the box); runs `vedette-host -bootstrap`, which checks the signed release (the signing keys are built into `vedette-host`, not into the script) and pulls the signed container images by digest; starts Vedette and waits up to 5 minutes for it to be healthy.
+**3. Follow the setup wizard:** terms of use, your administrator account (with the one-time setup code the installer printed), your network range, and the modules to turn on. A few minutes later Vedette is watching.
 
-It does **not** touch your network settings. If you want Vedette's **Box network** screen to manage the address of the box, run it with `--network-handover` on a box whose management port is wired and gets its address by DHCP **and whose netplan holds nothing but that one card on DHCP** (no rename, other card, VLAN, lease identifier, name servers or routes): it then hands `netplan` to Vedette (your old file is kept in `/var/lib/vedette-install/netplan-moved`) and applies nothing until the next boot or until you confirm a change in the screen. On a Wi-Fi box, a static address, NetworkManager or a netplan with more in it, it says "Box network is not available on this box" and leaves everything alone. A box whose netplan comes from cloud-init (cloud images, Proxmox templates: `50-cloud-init.yaml` matches the card by MAC address and renames it) is such a box by design in v1: Box network stays read-only there, and you change its address through cloud-init or your hypervisor.
+<details>
+<summary><b>Check the installer's signature before you run it</b></summary>
 
-What leaves the box while it installs (all of it is in `PRIVACY.md`: flow 6 and flow 10): `apt` to your distribution's package mirrors, GitHub (the install files of the release), `ghcr.io` (the signed images), `deb.debian.org` (to build the `scan` image, which needs `nmap`) and, once chrony runs, the time servers of your distribution's chrony configuration (flow 10, NTP). No Vedette data goes anywhere.
+Every release file is signed with [minisign](https://jedisct1.github.io/minisign/). Download the signature next to `install.sh` and check it against the release key (key ID `7B78764E550D48D0`, also in [docs/RELEASE_KEYS.md](docs/RELEASE_KEYS.md)):
 
-Run the same command again to repair (also after a run that stopped half way) or to upgrade the host package; it changes nothing that is already right. To remove Vedette and put the box back as it was (containers, images, units, the packages the installer added that nothing else needs, the IP-forwarding setting and nft tables the container network changed, the users, the data and the key; this cannot be undone):
-
-```bash
-sudo sh install.sh --uninstall --yes            # --keep-data keeps /var/lib/vedette*, /etc/vedette and the users
+```sh
+curl -fsSLO https://github.com/KNT048/vedette/releases/download/v$VERSION/install.sh.minisig
+minisign -Vm install.sh -P RWTQSA1VTnZ4e4eM2iBmUKE1/t5l9pmrScK2+wR/EohjSfFEZQ8VwT/m
 ```
 
-Your own containers are safe: the uninstall removes only Vedette's containers, images, volumes and network from podman. If podman holds anything that is not Vedette's (containers, stopped ones too, pods, networks, volumes, named images), or podman cannot be asked, or you used `--keep-data`, podman, the packages it runs with and `/var/lib/containers` stay, and the last lines say what was kept and why. A Vedette network, volume or image that one of your containers uses is left in place too. Podman is removed only when the installer added it and nothing else is in it.
+It must print `Trusted comment: file:install.sh version:<VERSION>`. The script itself carries the checksum of the package it installs, and the container images are checked against signing keys built into Vedette before anything starts.
+</details>
 
-The `install.sh` in this repository (not a release asset) stops with "not tied to a release": always take it from a release. To try an unreleased build, see `docs/INSTALL-TEST.md` (a test install signed with throwaway keys; not for customers).
+<details>
+<summary><b>What the installer changes, and how to remove it</b></summary>
+
+It checks the machine first and stops, changing nothing, if something is missing. Then it installs only the packages Vedette needs that are not there yet (Podman, chrony, nftables and a few others; nothing already installed is upgraded), installs the signed `vedette-host` package of that release, pulls the signed container images by digest and starts Vedette. It does not change your network settings.
+
+Keep `install.sh`. Run it again to repair an install or to finish one that stopped half way. To remove Vedette and put the machine back as it was (this deletes Vedette's data and cannot be undone; `--keep-data` keeps it):
+
+```sh
+sudo sh install.sh --uninstall --yes
+```
+
+Every option and the checks after an install: [docs/RUNBOOK.md](docs/RUNBOOK.md), section 1.
+</details>
+
+Small machine, or you would rather set it up yourself on Docker or Podman? [Install the containers only](docs/INSTALL-CONTAINER.md) (some features need the full install).
+
+## Status
+
+Vedette is in **beta**. The 0.1.x releases are test releases for a lab or a spare machine, published on the beta channel; version 1.0 is on its way. A machine installed from a 0.1.x release updates in place from **Settings › Updates**: every release is signed, and you can roll back to the previous version with one click.
 
 ## What leaves your machine
 
-Exactly what `PRIVACY.md` lists, and Settings → Privacy shows the same list. The box sends **nothing to the Vedette project**: there is no anonymous signal (the project runs no server that could receive one, and this version has no code that sends one).
+Your devices, findings, logs and keys stay on the machine. The only data that goes out is listed in [PRIVACY.md](PRIVACY.md), and the app shows the same list under **Settings › Privacy**, with a switch for each flow that can be turned off. Nothing is sent to the Vedette project: it runs no server that could receive it.
 
 ## Documentation
 
-Product and design documents are in `docs/` (written in Vietnamese for now): `PRODUCT.md`, `MODULES.md`, `ARCHITECTURE.md`, `DATA_PIPELINE.md`, `AI_ASSISTANT.md`, `UPDATES.md`, `ROADMAP.md`, `FRONTEND.md`, `LEGAL.md`. The API contract is `api/openapi.json`, generated from the web app's mock (`pnpm --dir web openapi`).
+| | |
+|---|---|
+| [Cookbook](docs/cookbook/) | Step-by-step guides for everyday tasks |
+| [Operations runbook](docs/RUNBOOK.md) | Install, update, roll back, back up, troubleshoot |
+| [Container-only install](docs/INSTALL-CONTAINER.md) | Vedette on your own Docker or Podman |
+| [Product](docs/PRODUCT.md) · [Architecture](docs/ARCHITECTURE.md) · [Deployment](docs/DEPLOYMENT.md) | How Vedette is designed and built |
+| [Contributing](CONTRIBUTING.md) | Run it from source, tests, pull requests |
+| [Security policy](SECURITY.md) | Report a vulnerability in Vedette privately |
+| [Privacy](PRIVACY.md) · [Terms of use](TERMS.md) · [Third-party notices](THIRD_PARTY_NOTICES.md) | What leaves the machine, your responsibilities, the licenses of what Vedette uses |
+
+## License
+
+Vedette's own code is licensed under [Apache-2.0](LICENSE); third-party components keep their own licenses ([THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)). It is provided as is, without warranty. Vedette is a security testing tool: scan only systems you own or are authorized to test ([TERMS.md](TERMS.md)).
+
+*Vedette* (French): a mounted sentry posted ahead of an outpost to raise the alarm early. It watches and warns; it does not fight.

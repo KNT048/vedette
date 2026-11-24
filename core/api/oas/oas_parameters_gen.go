@@ -3095,6 +3095,68 @@ func decodeCorePostCoreConnectionsIDTestParams(args [1]string, argsEscaped bool,
 	return params, nil
 }
 
+// CorePostCoreDataRestoreUploadParams is parameters of core_post_core_data_restore_upload operation.
+type CorePostCoreDataRestoreUploadParams struct {
+	XBackupPassword OptString `json:",omitempty,omitzero"`
+}
+
+func unpackCorePostCoreDataRestoreUploadParams(packed middleware.Parameters) (params CorePostCoreDataRestoreUploadParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "X-Backup-Password",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XBackupPassword = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeCorePostCoreDataRestoreUploadParams(args [0]string, argsEscaped bool, r *http.Request) (params CorePostCoreDataRestoreUploadParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: X-Backup-Password.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "X-Backup-Password",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXBackupPasswordVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXBackupPasswordVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XBackupPassword.SetTo(paramsDotXBackupPasswordVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "X-Backup-Password",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // CorePostCoreSetupRestoreUploadParams is parameters of core_post_core_setup_restore_upload operation.
 type CorePostCoreSetupRestoreUploadParams struct {
 	XSetupCode      OptString `json:",omitempty,omitzero"`
@@ -8116,13 +8178,14 @@ func decodeFindingsGetFindingsFixesParams(args [0]string, argsEscaped bool, r *h
 
 // FindingsGetFindingsHandledParams is parameters of findings_get_findings_handled operation.
 type FindingsGetFindingsHandledParams struct {
-	Q          OptString   `json:",omitempty,omitzero"`
-	Resolution OptString   `json:",omitempty,omitzero"`
-	Device     OptString   `json:",omitempty,omitzero"`
-	From       OptDateTime `json:",omitempty,omitzero"`
-	To         OptDateTime `json:",omitempty,omitzero"`
-	Offset     OptString   `json:",omitempty,omitzero"`
-	Limit      OptString   `json:",omitempty,omitzero"`
+	Q           OptString                                `json:",omitempty,omitzero"`
+	Resolution  OptString                                `json:",omitempty,omitzero"`
+	Device      OptString                                `json:",omitempty,omitzero"`
+	From        OptDateTime                              `json:",omitempty,omitzero"`
+	To          OptDateTime                              `json:",omitempty,omitzero"`
+	Corrections OptFindingsGetFindingsHandledCorrections `json:",omitempty,omitzero"`
+	Offset      OptString                                `json:",omitempty,omitzero"`
+	Limit       OptString                                `json:",omitempty,omitzero"`
 }
 
 func unpackFindingsGetFindingsHandledParams(packed middleware.Parameters) (params FindingsGetFindingsHandledParams) {
@@ -8169,6 +8232,15 @@ func unpackFindingsGetFindingsHandledParams(packed middleware.Parameters) (param
 		}
 		if v, ok := packed[key]; ok {
 			params.To = v.(OptDateTime)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "corrections",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Corrections = v.(OptFindingsGetFindingsHandledCorrections)
 		}
 	}
 	{
@@ -8476,6 +8548,62 @@ func decodeFindingsGetFindingsHandledParams(args [0]string, argsEscaped bool, r 
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "to",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: corrections.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "corrections",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotCorrectionsVal FindingsGetFindingsHandledCorrections
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotCorrectionsVal = FindingsGetFindingsHandledCorrections(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Corrections.SetTo(paramsDotCorrectionsVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Corrections.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "corrections",
 			In:   "query",
 			Err:  err,
 		}

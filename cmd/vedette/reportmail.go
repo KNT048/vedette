@@ -245,7 +245,11 @@ func reportMailDoc(d reports.Document) *channel.Doc {
 		}
 		byDevice := o.Grouping != "cve"
 		for _, g := range o.Groups {
-			t := channel.DocTable{Caption: g.Label + " · " + reportPlural(len(g.Items), "finding", "findings"), Head: reportFindingHead}
+			count := reportPlural(len(g.Items), "finding", "findings")
+			if g.Total > len(g.Items) { // the group's own total, as the page says it: a report lists 100 rows at most
+				count = fmt.Sprintf("%d of %s shown", len(g.Items), reportPlural(g.Total, "finding", "findings"))
+			}
+			t := channel.DocTable{Caption: g.Label + " · " + count, Head: reportFindingHead}
 			if !byDevice { // grouped by CVE: each row names its device
 				t.Head = append([]string{"Finding", "Device"}, reportFindingHead[1:]...)
 			}
@@ -263,6 +267,12 @@ func reportMailDoc(d reports.Document) *channel.Doc {
 		sec := channel.DocSection{Title: "New this period"}
 		if nw.Total == 0 {
 			sec.Paragraphs = append(sec.Paragraphs, "No new finding in this period.")
+		} else {
+			line := reportPlural(nw.Total, "finding", "findings") + fmt.Sprintf(", %d still open", nw.Open)
+			if len(nw.Items) < nw.Total {
+				line += fmt.Sprintf("; %d listed", len(nw.Items))
+			}
+			sec.Paragraphs = append(sec.Paragraphs, line+".")
 		}
 		t := channel.DocTable{Head: append([]string{"Finding", "Device"}, reportFindingHead[1:]...)}
 		for _, f := range nw.Items {

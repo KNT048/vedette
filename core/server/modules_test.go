@@ -161,6 +161,8 @@ var contractRoutes = map[string][]string{
 		"POST /core/data/purge",
 		"POST /core/data/key",
 		"POST /core/data/restore",
+		"POST /core/data/restore/upload",
+		"POST /core/data/restore/file",
 		"POST /core/setup",
 		"POST /core/setup/restore",
 		"POST /core/setup/restore/upload",

@@ -12,9 +12,11 @@ import { sessionStore } from '@/mocks/stores'
 import { esxiBrief } from '@/features/feeds/briefSamples'
 import type { CveBrief } from '@/features/feeds/types'
 import type { DevicesResponse } from '@/features/inventory/types'
+import i18n from '@/lib/i18n'
 import { vendorOwned } from './CveBrief'
+import { storedFixText } from './WhatToDo'
 import { records } from './modelMocks'
-import type { FindingDetail, View } from './types'
+import type { DeviceCards, FindingDetail, View } from './types'
 
 /** f-2 as an ESXi host's finding whose fixed_in the page cannot read (NVD lists exact versions), while the stored fix names VMware's build. */
 async function esxi(over: Partial<FindingDetail> = {}, brief: Partial<CveBrief> = {}) {
@@ -59,14 +61,55 @@ describe('What to do: one section, the fix first', () => {
   })
 })
 
+describe('step 1 names the fix every list names, and what the plan names', () => {
+  const t = i18n.getFixedT('en', 'findings')
+  // count: every kind of stored fix that carries a version gets its own sentence in step 1 (none falls back to "no advisory is linked")
+  it('count: every fix kind with a release has a step-1 sentence (0 missing)', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const f = await api.get<FindingDetail>('/findings/f-2')
+    const view = await api.get<View>(`/findings/${records.get()[0]!.id}/view`)
+    const kinds = ['update', 'distro_update', 'os_update', 'feature_update', 'restart'] as const
+    const missing = kinds.filter((kind) => !storedFixText(t, f, { ...view, fix: { key: `k|${kind}`, kind, product: 'Kernel', version: '7.0.0-44.44', ref: null, url: null } }))
+    console.info(`step 1: ${missing.length} of ${kinds.length} fix kinds without a sentence`, missing)
+    expect(missing).toEqual([])
+  })
+
+  it('the fixed kernel is installed: step 1 is the restart, no workaround is needed, and the checklist starts with the restart', async () => {
+    const f = await esxi({ kev: null, known_version: { software: 'Kernel', version: '7.0.0', source: 'agent', seen_at: '2026-11-20T08:00:00Z' } })
+    const view = await api.get<View>(`/findings/${records.get()[0]!.id}/view`)
+    server.use(http.get('*/api/v1/findings/f-2/view', () => HttpResponse.json({ ...view, fix: { key: 'linux|kernel|restart|7.0.0-44.44', kind: 'restart', product: 'Kernel', version: '7.0.0-44.44', ref: null, url: null } })))
+    renderApp('/findings/f-2')
+    const s = await todo()
+    const device = f.asset!.name
+    expect(await within(s).findByText(`The fixed Kernel 7.0.0-44.44 is already installed on ${device}: restart ${device} so it runs it.`)).toBeInTheDocument()
+    expect(within(s).getByText(`No workaround is needed: the fix is installed and takes effect when ${device} restarts.`)).toBeInTheDocument()
+    expect(within(s).queryByText('No workaround is published: install the fix.')).toBeNull()
+    expect(within(s).getByText(`Restart ${device}: it runs the old Kernel until then.`)).toBeInTheDocument()
+  })
+
+  it('the plan names a later release: step 1 says the plan\'s release also fixes it, never that the two are the same', async () => {
+    const f = await esxi()
+    server.use(http.get('*/api/v1/findings/devices', () => HttpResponse.json({
+      items: [{ device: { id: f.asset!.id, name: f.asset!.name, ip: null, kind: 'hypervisor', added: true, ignored: false }, status: { code: 'exploited', count: 1 }, counts: { under_attack: 0, exploited: 1, public_exploit: 0, critical_edge: 0, update_recommended: 0 }, findings: 1, cves: 1,
+        blocks: [{ fix: { key: 'vmware|esxi|update|8.0 U3k', kind: 'update', product: 'VMware ESXi', version: '8.0 U3k', ref: null, url: null }, software: null, status: 'exploited', cause: f.cve,
+          severity: { critical: 0, high: 1, medium: 0, low: 0, none: 0, unscored: 0 }, findings: [{ id: f.id, cve: f.cve, status: 'exploited', severity: null, verified: 'no', safe_check: false, urgency: { layer: 2, reasons: [] }, verification: { verified: 'no' } }] }] }],
+      total: 1,
+    } as unknown as DeviceCards)))
+    renderApp('/findings/f-2')
+    const s = await todo()
+    expect(await within(s).findByText(`The plan updates VMware ESXi on ${f.asset!.name} to 8.0 U3k, a later release that also fixes this CVE.`)).toBeInTheDocument()
+    expect(within(s).queryByText(/The same release the findings list and the plan name/)).toBeNull()
+  })
+})
+
 describe('What to do: the firewall step', () => {
   it('says no configuration is published, names the firewall Vedette knows and offers the customer\'s AI', async () => {
     await esxi()
     renderApp('/findings/f-2')
     const step = await screen.findByTestId('firewall-step')
     expect(within(step).getByText(/^No firewall configuration is published for CVE-2025-22225: Vedette maintainers have not confirmed one/)).toBeInTheDocument()
-    expect(await within(step).findByText('Your firewall in Vedette:')).toBeInTheDocument()
-    expect(within(step).getByRole('link', { name: 'FW-HQ' })).toHaveAttribute('href', '/devices/a-fw01')
+    expect(await within(step).findByText(/^Which firewall protects .+\?$/)).toBeInTheDocument()
+    expect(within(step).getByRole('link', { name: 'Open the device' })).toHaveAttribute('href', '/devices/a-fw01')
     expect(within(step).getByRole('button', { name: 'Ask my AI' })).toBeInTheDocument()
     expect(within(step).queryByRole('textbox')).toBeNull() // no admin-network field, no generated config
   })

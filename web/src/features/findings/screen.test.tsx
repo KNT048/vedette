@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
 import { expectNoA11yViolations, mainNavLink, renderApp } from '@/test/render'
 import { server } from '@/test/server'
 import { auditStore } from '@/mocks/stores'
@@ -69,6 +70,28 @@ describe('Findings: one screen, open = Σ by device = Σ by fix', () => {
   })
 })
 
+describe('By fix is the plan: numbered steps, from → to, one machine counted once', () => {
+  it('numbers the fixes in the list order, names the version the devices run now, and says when two devices may be one machine', async () => {
+    const ref = (id: string, name: string) => ({ id, name, approved: true, last_seen: '2026-11-24T08:00:00Z', never_seen: false })
+    server.use(http.get('*/api/v1/inventory/possible-same', () => HttpResponse.json({ items: [{ a: ref('a-fw01', 'FW-HQ'), b: ref('a-bn340', 'BN340'), why: 'Same name', reason: 'rotating_name' }] })))
+    renderApp('/findings?tab=fix')
+    const table = await fixesTable()
+    const steps = within(table).getAllByRole('article')
+    expect(steps.length).toBeGreaterThan(2)
+    steps.forEach((a, i) => expect(a).toHaveAccessibleName(new RegExp(`^Step ${i + 1}: `)))
+    expect(screen.getByText('Do them in this order: the most urgent first, then the fix that clears the most findings.')).toBeInTheDocument()
+    const ssh = within(table).getByRole('article', { name: /: Update OpenSSH .*10\.6$/ })
+    // FW-HQ and BN340 run different OpenSSH releases: the step names the target and the versions they run now
+    if (!/→/.test(ssh.getAttribute('aria-label') ?? '')) expect(ssh).toHaveTextContent(/Now on .+/)
+    expect(await within(ssh).findByText('(possibly 1 machine)', {}, T)).toBeInTheDocument()
+    await userEvent.click(within(ssh).getByRole('button', { name: /^Update OpenSSH/ }))
+    expect(within(ssh).getByRole('link', { name: 'Possibly the same device as BN340' })).toHaveAttribute('href', '/devices/a-fw01#possible-same')
+    // a fix every device of which runs one version says from → to
+    const one = steps.find((a) => (a.getAttribute('aria-label') ?? '').includes('→'))
+    expect(one).toBeDefined()
+  })
+})
+
 describe('Findings: counts read as English', () => {
   it('one device, one fix and one finding are singular in the summaries and on a fix', async () => {
     renderApp('/findings?tab=device&by-device.q=CVE-2022-27593')
@@ -105,9 +128,9 @@ describe('Findings: Mark as handled acts on one device', () => {
   it('By fix: one device of a fix, every CVE ticked, one request by (device, fix), one audit row per finding', async () => {
     renderApp('/findings?tab=fix')
     const table = await fixesTable()
-    const ssh = within(table).getByRole('article', { name: 'Update OpenSSH to 10.6' })
-    await userEvent.click(within(ssh).getByRole('button', { name: /^Update OpenSSH to 10\.6/ }))
-    await userEvent.click(within(ssh).getByRole('button', { name: 'Mark as handled: Update OpenSSH to 10.6 on FW-HQ' }))
+    const ssh = within(table).getByRole('article', { name: /^Step \d+: Update OpenSSH (to |.* → )10\.6$/ })
+    await userEvent.click(within(ssh).getByRole('button', { name: /^Update OpenSSH (to |.* → )10\.6/ }))
+    await userEvent.click(within(ssh).getByRole('button', { name: /^Mark as handled: Update OpenSSH (to |.* → )10\.6 on FW-HQ$/ }))
     const dlg = await screen.findByRole('dialog', { name: 'Mark as handled' }, T)
     const boxes = within(dlg).getAllByRole('checkbox')
     expect(boxes).toHaveLength(3)
@@ -203,6 +226,23 @@ describe('Findings: Handled, Ignored devices and the old links', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Risk accepted' }))
     await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2), T)
     expect(within(table).getByText(/^Risk accepted until /, { selector: '[data-status]' })).toBeInTheDocument()
+  })
+
+  it('Handled leaves out what Vedette closed by correcting its own match, says how many, and shows them on one click', async () => {
+    const at = new Date().toISOString()
+    const seeded = records.get().filter((r) => r.state === 'handled' && r.via === 'data_corrected' && r.resolved_by === 'system').length
+    const n = seeded + 3
+    const open = records.get().filter((r) => r.state === 'open').slice(0, 3).map((r) => r.id)
+    records.update((all) => all.map((r) => open.includes(r.id) ? { ...r, state: 'handled' as const, resolution: 'not_relevant' as const, via: 'data_corrected' as const, resolved_by: 'system', resolved_at: at } : r))
+    renderApp('/findings?tab=handled')
+    const table = await screen.findByRole('table', { name: 'Handled findings' }, T)
+    const line = await waitFor(() => { const e = document.querySelector('[data-count="corrections"]'); if (!e) throw new Error('no line'); return e }, T)
+    expect(line).toHaveTextContent(`${n} findings Vedette closed because it corrected its own match are not listed: they were never a flaw on the device.`)
+    const before = within(table).getAllByRole('row').length
+    await userEvent.click(screen.getByRole('button', { name: 'Show them' }))
+    await waitFor(() => expect(document.querySelector('[data-count="corrections"]')).toHaveTextContent(new RegExp(`^Listed with ${n} findings Vedette closed`)), T)
+    await waitFor(() => expect(within(table).getAllByRole('row').length).toBe(before + n), T)
+    expect(posts).toHaveLength(0)
   })
 
   it('Ignored devices: the explanation sits behind the info icon, and the list searches on the server', async () => {

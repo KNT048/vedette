@@ -581,7 +581,7 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 	var out []findings.Vuln
 	for _, cve := range cves {
 		e, inCatalogue := cat[cve]
-		rows := byCVE[cve]
+		rows := feeds.CutCatchAll(byCVE[cve]) // a record's "every later version" row stops at the trains it names fixes for
 		if len(rows) == 0 && !inCatalogue {
 			continue // not in the catalogue at all: nothing says anything about it, so it is not judged
 		}

@@ -53,10 +53,13 @@ export function HandledTab({ device }: { device: string }) {
   const resolution = FINDING_RESOLUTIONS.find((x) => x === params.get('resolution')) ?? ''
   const period = PERIODS.find((x) => x === params.get('period')) ?? ''
   const from = period ? since(Number(period)) : undefined
-  const q = useHandledList({ q: raw.q, resolution, device, from }, { offset: list.page * size, limit: size })
+  // Vedette's corrections of its own match (hundreds of rows when a kernel's package lines fold into one) are left out by default, as
+  // the report leaves them out: they were never a flaw someone handled. One link shows them.
+  const corrections = params.get('corrections') === 'true'
+  const q = useHandledList({ q: raw.q, resolution, device, from, corrections }, { offset: list.page * size, limit: size })
   const set = (k: string, v: string) => setParams((prev) => { const p = new URLSearchParams(prev); if (v) p.set(k, v); else p.delete(k); return p }, { replace: true, preventScrollReset: true })
   const filtered = !!(raw.q || resolution || period || device)
-  const clear = () => { raw.set({ q: '', page: 0 }); setParams((prev) => { const p = new URLSearchParams(prev); for (const k of ['resolution', 'period', 'device']) p.delete(k); return p }, { replace: true }) }
+  const clear = () => { raw.set({ q: '', page: 0 }); setParams((prev) => { const p = new URLSearchParams(prev); for (const k of ['resolution', 'period', 'device', 'corrections']) p.delete(k); return p }, { replace: true }) }
   const columns: ColumnDef<HandledRow>[] = [
     { id: 'cve', header: t('handledTab.col.cve'), cell: ({ row: { original: r } }) => (
       <span className="grid gap-1">
@@ -92,8 +95,17 @@ export function HandledTab({ device }: { device: string }) {
       </div>
       <QueryState query={q}>
         {(d) => (
+          <>
+          {d.corrections > 0 ? (
+            <p className="text-meta text-muted" data-count="corrections">
+              {corrections ? t('handledTab.correctionsShown', { count: d.corrections }) : t('handledTab.correctionsHidden', { count: d.corrections })}{' '}
+              <Button variant="link" size="sm" onClick={() => set('corrections', corrections ? '' : 'true')}>
+                {corrections ? t('handledTab.hideCorrections') : t('handledTab.showCorrections', { count: d.corrections })}
+              </Button>
+            </p>
+          ) : null}
           <DataTable urlKey="handled" caption={t('handledTab.caption')} data={d.items} columns={columns} pageSize={PAGE_DEFAULT}
-            server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={`${resolution}|${period}|${device}`} empty={t('handledTab.empty')}
+            server={{ total: d.total, list, max: PAGE_MAX }} filtered={filtered} onClearFilters={clear} resetPageOn={`${resolution}|${period}|${device}|${corrections}`} empty={t('handledTab.empty')}
             mobileRow={(r) => (
               <div className="grid gap-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -105,6 +117,7 @@ export function HandledTab({ device }: { device: string }) {
                 <span className="w-fit"><Reopen r={r} /></span>
               </div>
             )} />
+          </>
         )}
       </QueryState>
     </div>

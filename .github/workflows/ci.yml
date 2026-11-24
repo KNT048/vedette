@@ -8,8 +8,8 @@
 # Shape: `changes` decides what a run needs (scripts/ci, no third-party action);
 # go-static, go-lint, go-test (4 shards, weighted by scripts/ci/testtime.tsv) and go-release run in parallel; web-verify runs the web
 # suite. go-static and go-lint each keep a rolling Go cache that only main saves.
-# A pull request tests only what it reaches: go-test the packages holding a changed file and their direct importers
-# (CHANGED_BASE, scripts/ci Affected), web-verify the vitest tests of the changed files (make verify-web-pr, no build). There is
+# A pull request tests only what it reaches: go-test the packages holding a changed file, their direct importers and the
+# guard packages whose tests read other packages' source (CHANGED_BASE, scripts/ci Affected, guardPackages), web-verify the vitest tests of the changed files (make verify-web-pr, no build). There is
 # no merge queue: a green PR is squash-merged, and the push to main runs the full suite, Go and web, on the merged
 # tree (main red: revert or fix at once); that run also saves main's Go caches.
 # go-test runs -race in the daily run only: pull requests and pushes to main run without it,

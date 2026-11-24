@@ -141,13 +141,42 @@ func Decide(event string, changed []string, diffOK bool) Outputs {
 	}
 }
 
+// guardPackages are the packages with a test that reads the source or files of OTHER packages (a tree walk from the repository
+// root, a directory of every module, a sibling package's .go files). A change in the package it reads cannot name them, so every
+// pull request that changes Go-side code runs them all: the Go test cache keeps them nearly free while nothing they read has
+// changed. Repo-relative, slash separated. TestEveryCrossPackageReaderIsAGuard finds such tests by scanning and fails when one
+// is missing here; it also keeps the list free of names that no longer exist.
+var guardPackages = []string{
+	"cmd/vedette",             // free-text and schedule-owner guards walk every module
+	"cmd/vedette-sensor",      // replay and import tests read the sensor modules
+	"core/api/apijson",        // no handler writes JSON outside the apijson helpers
+	"core/conn",               // connector contract walks every module's source
+	"core/conn/read",          // read-only connector contract
+	"core/conn/write",         // write connector contract
+	"core/modreg",             // every module's manifest loads
+	"core/orgtime",            // a time shown to people goes through orgtime
+	"core/pki",                // certificate handling stays inside core/pki
+	"core/productid",          // product-identity helpers are used, not re-implemented
+	"core/server",             // route ownership: every operation maps to a module with a manifest
+	"deploy/containers",       // builds and checks the container images from the whole tree
+	"deploy/deb",              // package contents are read from the tree
+	"modules/core",            // every audit action any module writes has a label
+	"modules/host",            // root-safety and the host contract read host/ and cmd/vedette-host
+	"modules/inventory",       // one-line guards and the identify rules read other packages
+	"modules/mitigation",      // the GUI's mitigation list against the repository
+	"modules/scan/nucleiargv", // leaf-package checks read the packages they must not import from
+	"modules/scan/nucleiout",
+	"modules/scan/pack",
+	"scripts/ci", // the classifier's own guards
+	"scripts/release",
+}
+
 // Affected says which Go packages a pull request's go-test runs: every package holding a changed file the Go side
-// reads, and every package that imports one of those directly (tests included). dirs maps a package directory (repo
-// relative, slash separated) to its import path; imports maps an import path to what it and its tests import. A non-Go file
-// belongs to the nearest package directory above it (testdata, migrations, embedded files). all is true when a changed path
-// the Go side reads lies in no package directory (go.mod, the Makefile, scripts, docs or web files a test reads, a deleted
-// or new package): then every package runs. ponytail: a test that reads another package's files runs on main's full push
-// run after the merge, not on the pull request; upgrade path: feed guard_test.go's goReads into this function.
+// reads, every package that imports one of those directly (tests included), and, when any package changed at all, the
+// guardPackages. dirs maps a package directory (repo relative, slash separated) to its import path; imports maps an import
+// path to what it and its tests import. A non-Go file belongs to the nearest package directory above it (testdata,
+// migrations, embedded files). all is true when a changed path the Go side reads lies in no package directory (go.mod, the
+// Makefile, scripts, docs or web files a test reads, a deleted or new package): then every package runs.
 func Affected(changed []string, dirs map[string]string, imports map[string][]string) (pkgs map[string]bool, all bool) {
 	changedPkgs := map[string]bool{}
 	for _, p := range changed {
@@ -168,6 +197,13 @@ func Affected(changed []string, dirs map[string]string, imports map[string][]str
 		changedPkgs[ip] = true
 	}
 	pkgs = maps.Clone(changedPkgs)
+	if len(changedPkgs) > 0 {
+		for _, d := range guardPackages {
+			if ip, ok := dirs[d]; ok {
+				pkgs[ip] = true
+			}
+		}
+	}
 	for ip, imps := range imports {
 		if slices.ContainsFunc(imps, func(imp string) bool { return changedPkgs[imp] }) {
 			pkgs[ip] = true

@@ -116,7 +116,7 @@ func reportFix(f reports.Fix, from string) string {
 	case "none_yet":
 		return "No fix known yet for " + f.Product
 	}
-	return "No fix data for " + f.Product
+	return "See the vendor advisory for the fixed release of " + f.Product
 }
 
 func reportDevice(d reports.DeviceRef) string {

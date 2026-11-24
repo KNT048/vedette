@@ -651,7 +651,7 @@ func (s *Service) deviceCards(ctx context.Context, f ListFilter, assets []string
 	return out, nil
 }
 
-// noFix reports whether a fix names no release to install: the block says "No fix known yet" or "No fix data", and its link is the
+// noFix reports whether a fix names no release to install: the block says "No fix known yet" or "See the vendor advisory", and its link is the
 // vendor's advisory.
 func noFix(kind string) bool { return kind == string(FixNoneYet) || kind == string(FixUnknown) }
 

@@ -26,7 +26,7 @@ func TestReportMailFixIsThePagesFixLine(t *testing.T) {
 		{reports.Fix{Kind: "feature_update", Product: "Windows 10", Version: v("22H2")}, "", "Move Windows 10 to release 22H2"},
 		{reports.Fix{Kind: "feature_update", Product: "Windows 10"}, "", "Move Windows 10 to a later release"},
 		{reports.Fix{Kind: "none_yet", Product: "Example Manager"}, "", "No fix known yet for Example Manager"},
-		{reports.Fix{Kind: "unknown", Product: "Example Manager"}, "", "No fix data for Example Manager"},
+		{reports.Fix{Kind: "unknown", Product: "Example Manager"}, "", "See the vendor advisory for the fixed release of Example Manager"},
 	}
 	for _, c := range cases {
 		if got := reportFix(c.fix, c.from); got != c.want {

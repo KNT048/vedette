@@ -127,7 +127,7 @@ func TestModelAPI_ARowNamesWhoConfirmedIt(t *testing.T) {
 	}
 }
 
-// A block with no release to install ("No fix known yet", "No fix data") links the vendor's advisory the exploited list names for its
+// A block with no release to install ("No fix known yet", "See the vendor advisory") links the vendor's advisory the exploited list names for its
 // cause, never CISA's or NVD's page; a block with a release keeps no link it does not have.
 func TestModelAPI_ANoFixBlockLinksTheAdvisory(t *testing.T) {
 	e := modelEnv(t)

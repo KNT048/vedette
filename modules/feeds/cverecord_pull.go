@@ -67,8 +67,9 @@ const (
 	selectorRecord = "cve_record"
 	// recordReader is the revision of the reader that turns a record into ranges (recordRanges), stamped on the cursor's address
 	// (recordCursorURL). Records are not stored whole, so a box whose records an older reader read reads the whole list again, once,
-	// when this changes: "ranges-2" keeps the versions a vendor writes in its own notation (statedRows).
-	recordReader = "ranges-2"
+	// when this changes: "ranges-2" keeps the versions a vendor writes in its own notation (statedRows); "ranges-3" reads VMware's ESXi
+	// versions written as words ("8.0 prior to ESXi80a-20842819", esxiTextRows).
+	recordReader = "ranges-3"
 	// recordRereadMark marks a cursor whose whole-list read replaces every stored record, a newer one too (recordsBulk).
 	recordRereadMark = "-reread"
 )

@@ -50,8 +50,9 @@ func ESXiBuilds() map[string]ESXiRelease {
 }
 
 var (
-	// esxiNotation is VMware's "ESXi80U3d-24585383", "ESXi70U3s-24585291", "ESXi80b-21203435", "ESXi80-20513097".
-	esxiNotation = regexp.MustCompile(`^(?i:esxi)([6-9])([0-9])(?:U([1-9]))?([a-z])?-([0-9]{5,9})$`)
+	// esxiNotation is VMware's "ESXi80U3d-24585383", "ESXi70U3s-24585291", "ESXi80b-21203435", "ESXi80-20513097", and a security-only
+	// image of a patch, two letters ("ESXi70U3si-20841705": the security fixes of 7.0 Update 3i, an earlier build of the same train).
+	esxiNotation = regexp.MustCompile(`^(?i:esxi)([6-9])([0-9])(?:U([1-9]))?([a-z]{1,2})?-([0-9]{5,9})$`)
 	// esxi9Notation is VMware's "ESXi-9.0.2.0100-25595025": the release's version, then its build.
 	esxi9Notation = regexp.MustCompile(`^(?i:esxi)-([0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}(?:\.[0-9]{1,6})?)-([0-9]{5,9})$`)
 	// esxiLine is a range's lower bound: a line ("8.0") or every release of it ("9.0.x.x", "8.0.x").

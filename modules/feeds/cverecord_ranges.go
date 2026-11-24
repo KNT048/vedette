@@ -69,7 +69,20 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			return
 		}
 		var groups []*recordGroup
-		for _, a := range list {
+		worded, used := esxiTextRows(list, fallback) // VMware's ESXi versions written as words (esxitext.go)
+		for i, a := range list {
+			if len(used) > 0 {
+				kept := a.Versions[:0:0]
+				for j, v := range a.Versions {
+					if !used[[2]int{i, j}] {
+						kept = append(kept, v)
+					}
+				}
+				if len(kept) == 0 {
+					continue // every version of the entry is read from its words
+				}
+				a.Versions = kept
+			}
 			part, vendor, product, cpe, ok := entryIdentity(a, fallback)
 			if !ok {
 				continue
@@ -130,6 +143,10 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 				}
 			}
 			rows = append(rows, g.rows...)
+		}
+		for _, r := range worded {
+			r.CVE, r.Origin = cve, origin
+			rows = append(rows, r)
 		}
 	}
 	conv(OriginCNA, cna, assigner)

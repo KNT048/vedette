@@ -106,6 +106,7 @@ const (
 	CorePostCoreAccountSessionsRevokeOthersOperation         OperationName = "CorePostCoreAccountSessionsRevokeOthers"
 	CorePostCoreConnectionsOperation                         OperationName = "CorePostCoreConnections"
 	CorePostCoreConnectionsIDTestOperation                   OperationName = "CorePostCoreConnectionsIDTest"
+	CorePostCoreDataBackupOperation                          OperationName = "CorePostCoreDataBackup"
 	CorePostCoreDataKeyOperation                             OperationName = "CorePostCoreDataKey"
 	CorePostCoreDataPurgeOperation                           OperationName = "CorePostCoreDataPurge"
 	CorePostCoreDataRestoreOperation                         OperationName = "CorePostCoreDataRestore"

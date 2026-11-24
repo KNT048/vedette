@@ -62,10 +62,13 @@ function InstallFlow({ data, tokenName, known, deviceId, onCreated }: { data: Ag
     })
   }
 
-  // Install commands made earlier for the same use (any machine, or this device) that no machine enrolled with yet: each click
-  // makes a new token, so say so and offer to revoke them instead of leaving a trail until they expire.
+  // Install commands this flow made earlier for the same use (this device, or any machine from Add a device) that no machine enrolled
+  // with yet: each click makes a new token, so say so and offer to revoke them instead of leaving a trail until they expire. A token
+  // for any machine is this flow's only when it carries the flow's name (madeHere): one made in Settings is never offered.
   const [opened] = useState(() => Date.now())
-  const unused = data.tokens.filter((k) => k.kind === 'osquery' && k.hosts === 0 && (k.device_id ?? undefined) === deviceId && (!k.expires_at || Date.parse(k.expires_at) > opened))
+  const madeHere = deviceId ? () => true : sameNameShape(tokenName)
+  const unused = data.tokens.filter((k) => k.kind === 'osquery' && k.hosts === 0 && (k.device_id ?? undefined) === deviceId && madeHere(k.name)
+    && (!k.expires_at || Date.parse(k.expires_at) > opened))
   // the line counts them from the oldest (the box lists tokens newest first)
   const oldest = unused.reduce<(typeof unused)[number] | undefined>((a, k) => (!a || Date.parse(k.created_at) < Date.parse(a.created_at) ? k : a), undefined)
   const revokeUnused = async () => {
@@ -113,6 +116,15 @@ function InstallFlow({ data, tokenName, known, deviceId, onCreated }: { data: Ag
       ) : null}
     </div>
   )
+}
+
+const DAY_RE = /\d{4}-\d{2}-\d{2}/g
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Whether a token name is `name` made on any day: the dates in it ("osquery install 2026-11-24, from Add a device") may differ. */
+function sameNameShape(name: string): (other: string) => boolean {
+  const re = new RegExp(`^${name.slice(0, 64).split(DAY_RE).map(escapeRe).join('\\d{4}-\\d{2}-\\d{2}')}$`)
+  return (other) => re.test(other)
 }
 
 function OsPicker({ platform, onChange }: { platform: PickOs | null; onChange: (p: PickOs) => void }) {

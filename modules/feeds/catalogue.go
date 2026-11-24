@@ -503,7 +503,11 @@ OR r.part || ':' || r.vendor || ':' || r.product IN (SELECT value FROM json_each
 			}
 		}
 	}
+	if out, err = s.esxiWords(ctx, out); err != nil {
+		return nil, err
+	}
 	if len(worded) == 0 {
+		slices.SortStableFunc(out, func(a, b Range) int { return strings.Compare(a.CVE, b.CVE) })
 		return out, nil
 	}
 	desc, err := s.descriptionsOf(ctx, worded)
@@ -522,6 +526,53 @@ OR r.part || ':' || r.vendor || ':' || r.product IN (SELECT value FROM json_each
 		out = append(out, describedRows(r, desc[r.CVE])...)
 	}
 	slices.SortStableFunc(out, func(a, b Range) int { return strings.Compare(a.CVE, b.CVE) })
+	return out, nil
+}
+
+// esxiWords applies, per CVE whose record states ESXi's versions in words (RecordTextType rows), what esxiLineRows says: the rows of
+// the updates that began after the stated fixes are added, and a line the CVE's generic rows (NVD's, CISA's) state affected where the
+// words say it is not keeps no row read from the words.
+func (s *Store) esxiWords(ctx context.Context, out []Range) ([]Range, error) {
+	var cves []string
+	for _, r := range out {
+		if r.VersionType == RecordTextType && esxiRow(r) && !slices.Contains(cves, r.CVE) {
+			cves = append(cves, r.CVE)
+		}
+	}
+	if len(cves) == 0 {
+		return out, nil
+	}
+	named := map[string][]Range{}
+	for chunk := range slices.Chunk(cves, 400) {
+		part, err := json.Marshal(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("feeds: vendor ranges: %w", err)
+		}
+		rows, err := readRanges(ctx, s.db.Reader(), `WHERE r.cve IN (SELECT value FROM json_each(?)) AND `+genericRowSQL, string(part))
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			if esxiRow(r) {
+				named[r.CVE] = append(named[r.CVE], r)
+			}
+		}
+	}
+	for _, cve := range cves {
+		var of []Range
+		for _, r := range out {
+			if r.CVE == cve {
+				of = append(of, r)
+			}
+		}
+		add, drop := esxiLineRows(of, named[cve])
+		if len(drop) > 0 {
+			out = slices.DeleteFunc(out, func(r Range) bool {
+				return r.CVE == cve && r.VersionType == RecordTextType && esxiRow(r) && drop[r.StartIncl]
+			})
+		}
+		out = append(out, add...)
+	}
 	return out, nil
 }
 

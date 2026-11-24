@@ -124,6 +124,7 @@ var Operations = map[string]Operation{
 	"core_post_core_account_sessions_revoke_others":          {Method: "POST", Path: "/core/account/sessions/revoke-others", MinRole: Viewer, Tag: "core"},
 	"core_post_core_connections":                             {Method: "POST", Path: "/core/connections", MinRole: Admin, Tag: "core"},
 	"core_post_core_connections_id_test":                     {Method: "POST", Path: "/core/connections/{id}/test", MinRole: Admin, Tag: "core"},
+	"core_post_core_data_backup":                             {Method: "POST", Path: "/core/data/backup", MinRole: Admin, Tag: "core"},
 	"core_post_core_data_key":                                {Method: "POST", Path: "/core/data/key", MinRole: Admin, Tag: "core"},
 	"core_post_core_data_purge":                              {Method: "POST", Path: "/core/data/purge", MinRole: Admin, Tag: "core"},
 	"core_post_core_data_restore":                            {Method: "POST", Path: "/core/data/restore", MinRole: Admin, Tag: "core"},

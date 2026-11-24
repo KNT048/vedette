@@ -488,7 +488,7 @@ var errDeadline = fmt.Errorf("%w: its deadline passed", ErrStopped)
 
 // probe runs one nmap command over targets and returns the hosts that answered. Order matters (INV-1, INV-2,
 // INV-3): the run's targets are published first, so SettingsChanged can see them; then the settings, the
-// window and the scope are read again for every target; only then the probe row is written (INV-9: no packet
+// window and the scope are read again for every target (and a sweep batch's protected list); only then the probe row is written (INV-9: no packet
 // without a log line) and nmap started, unless a SettingsChanged arrived in between. The deadline is the
 // window's end or maxRun; when it passes, or ctx is cancelled, exec kills the process group and the batch is
 // dropped (PRE-3, POST-3).
@@ -536,6 +536,17 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 			return nil, ErrStopped
 		case err != nil:
 			return nil, err
+		}
+	}
+	// A sweep batch: the protected list is read again now that the targets are published. A device changed after the batch was chosen
+	// (its network scan turned off, set to never) and before this point sent its event while no batch was published, so nothing stopped
+	// it; one changed after this read finds the targets published and stops the batch (checkSweep). A read that fails stops it too.
+	if kind == nmapargv.Sweep {
+		prot, err := s.inv.ProtectedIPs(ctx)
+		if err != nil || slices.ContainsFunc(targets, func(t netip.Addr) bool {
+			return slices.ContainsFunc(prot, func(p netip.Addr) bool { return p.Unmap() == t.Unmap() })
+		}) {
+			return nil, errBatchProtected
 		}
 	}
 	rate = min(rate, st.Rate)

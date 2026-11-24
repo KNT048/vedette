@@ -109,4 +109,16 @@ describe('vendor links', () => {
     expect(vendorOwned('https://github.com/kubernetes/ingress-nginx/pull/68', names)).toBe(false)
     expect(vendorOwned('https://nginx.org/en/security_advisories.html', names)).toBe(true)
   })
+
+  it('the owner must be the vendor\'s own name, not any account whose name merely contains a product word', () => {
+    const nginx = ['nginx', 'F5 nginx']
+    expect(vendorOwned('https://github.com/nginxinc/nginx-plus/commit/abc', nginx)).toBe(true)
+    expect(vendorOwned('https://github.com/nginx-hater/exploit/blob/main/README.md', nginx)).toBe(false)
+    expect(vendorOwned('https://github.com/mynginxtools/patch', nginx)).toBe(false)
+    const pan = ['Palo Alto Networks', 'PAN-OS']
+    expect(vendorOwned('https://github.com/PaloAltoNetworks/advisories', pan)).toBe(true)
+    expect(vendorOwned('https://github.com/altoids/pan-os-poc', pan)).toBe(false)
+    expect(vendorOwned('https://gitlab.com/networks-lab/poc', pan)).toBe(false)
+    expect(vendorOwned('https://github.com/F5Networks/f5-ansible', ['F5', 'BIG-IP'])).toBe(true)
+  })
 })

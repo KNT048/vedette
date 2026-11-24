@@ -7910,7 +7910,8 @@ func (s *Server) handleCoreGetCoreConnectionsRequest(args [0]string, argsEscaped
 
 // handleCoreGetCoreDataBackupRequest handles core_get_core_data_backup operation.
 //
-// Download a backup (password hashes, never passwords or keys).
+// Download a backup without a password (password hashes, never passwords or keys): the same as POST
+// /core/data/backup with no password.
 //
 // GET /core/data/backup
 func (s *Server) handleCoreGetCoreDataBackupRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -7979,7 +7980,7 @@ func (s *Server) handleCoreGetCoreDataBackupRequest(args [0]string, argsEscaped 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CoreGetCoreDataBackupOperation,
-			OperationSummary: "Download a backup (password hashes, never passwords or keys)",
+			OperationSummary: "Download a backup without a password (password hashes, never passwords or keys): the same as POST /core/data/backup with no password",
 			OperationID:      "core_get_core_data_backup",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -13293,6 +13294,152 @@ func (s *Server) handleCorePostCoreConnectionsIDTestRequest(args [1]string, args
 	}
 }
 
+// handleCorePostCoreDataBackupRequest handles core_post_core_data_backup operation.
+//
+// Download a backup (password hashes, never passwords or keys). With password, the file is encrypted
+// while it streams in the age format (age-encryption.org/v1, scrypt passphrase;
+// vedette-backup--.tar.gz.age): the first-run restore asks for the password, and `age -d` opens it
+// offline. The password follows the sign-in password policy (400 weak_password) and is never stored,
+// logged or audited; it cannot be recovered. Without password, the plain .tar.gz as GET. 409 busy, 429
+// rate_limited, 409 low_disk, 409 not_appliance as GET.
+//
+// POST /core/data/backup
+func (s *Server) handleCorePostCoreDataBackupRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: CorePostCoreDataBackupOperation,
+			ID:   "core_post_core_data_backup",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, CorePostCoreDataBackupOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeCorePostCoreDataBackupRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response CorePostCoreDataBackupOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    CorePostCoreDataBackupOperation,
+			OperationSummary: "Download a backup (password hashes, never passwords or keys). With password, the file is encrypted while it streams in the age format (age-encryption.org/v1, scrypt passphrase; vedette-backup-<date>-<time>.tar.gz.age): the first-run restore asks for the password, and `age -d` opens it offline. The password follows the sign-in password policy (400 weak_password) and is never stored, logged or audited; it cannot be recovered. Without password, the plain .tar.gz as GET. 409 busy, 429 rate_limited, 409 low_disk, 409 not_appliance as GET",
+			OperationID:      "core_post_core_data_backup",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *CorePostCoreDataBackupReq
+			Params   = struct{}
+			Response = CorePostCoreDataBackupOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.CorePostCoreDataBackup(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.CorePostCoreDataBackup(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeCorePostCoreDataBackupResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleCorePostCoreDataKeyRequest handles core_post_core_data_key operation.
 //
 // Download the decryption key once, to keep apart from the backups: without it a backup restores on
@@ -14594,12 +14741,13 @@ func (s *Server) handleCorePostCoreSetupRestoreRequest(args [0]string, argsEscap
 
 // handleCorePostCoreSetupRestoreUploadRequest handles core_post_core_setup_restore_upload operation.
 //
-// First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz as the
-// body). Only before setup is done (409 already_setup) and with the setup code (403
-// invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a
-// Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps
-// it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a
-// container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB.
+// First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz, or the
+// password-protected .tar.gz.age with X-Backup-Password, as the body). Only before setup is done (409
+// already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The
+// box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409
+// schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the
+// decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload
+// is checked, 409 low_disk, 413 over 4 GiB.
 //
 // POST /core/setup/restore/upload
 func (s *Server) handleCorePostCoreSetupRestoreUploadRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -14647,7 +14795,7 @@ func (s *Server) handleCorePostCoreSetupRestoreUploadRequest(args [0]string, arg
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    CorePostCoreSetupRestoreUploadOperation,
-			OperationSummary: "First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB",
+			OperationSummary: "First-run restore, step 1: upload a backup downloaded from Settings -> Data (the .tar.gz, or the password-protected .tar.gz.age with X-Backup-Password, as the body). Only before setup is done (409 already_setup) and with the setup code (403 invalid_setup_code, 429 rate_limited like setup). The box checks the file (400 not_a_backup: not a Vedette backup, damaged, or of a box never set up; 409 schema_newer: made by a newer Vedette), keeps it for an hour and says what it holds and what the decryption key changes. 409 not_appliance on a container-only install, 409 busy while another upload is checked, 409 low_disk, 413 over 4 GiB",
 			OperationID:      "core_post_core_setup_restore_upload",
 			Body:             request,
 			RawBody:          rawBody,
@@ -14656,6 +14804,10 @@ func (s *Server) handleCorePostCoreSetupRestoreUploadRequest(args [0]string, arg
 					Name: "X-Setup-Code",
 					In:   "header",
 				}: params.XSetupCode,
+				{
+					Name: "X-Backup-Password",
+					In:   "header",
+				}: params.XBackupPassword,
 			},
 			Raw: r,
 		}

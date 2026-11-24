@@ -45,7 +45,14 @@ const setupHandlers = [
     if (installStore.get().kind !== 'appliance') return fail(409, 'not_appliance', 'This needs vedette-host, which only the appliance install has.')
     if ((request.headers.get('X-Setup-Code') ?? '').trim() !== MOCK_SETUP_CODE) return fail(403, 'invalid_setup_code', 'The setup code is missing or wrong. Find it in the box\'s log: it is printed there each time Vedette starts while setup is open.')
     const b = new Uint8Array(await request.arrayBuffer())
-    if (b[0] !== 0x1f || b[1] !== 0x8b) return fail(400, 'not_a_backup', 'This file is not a Vedette backup, or it is damaged or cut short. Choose the .tar.gz file that Download backup saved.')
+    const text = new TextDecoder().decode(b.slice(0, 200))
+    if (text.startsWith(AGE_MAGIC)) {
+      const sent = request.headers.get('X-Backup-Password') ?? ''
+      if (!sent) return fail(409, 'backup_password_required', 'This backup is protected with a password. Enter the password that was set when it was downloaded.')
+      let password = ''
+      try { password = new TextDecoder().decode(Uint8Array.from(atob(sent), (c) => c.charCodeAt(0))) } catch { /* not base64: wrong */ }
+      if (text.split('\n')[2] !== await sha256Hex(password)) return fail(400, 'wrong_backup_password', 'The backup password is wrong. Enter the password that was set when the backup was downloaded.')
+    } else if (b[0] !== 0x1f || b[1] !== 0x8b) return fail(400, 'not_a_backup', 'This file is not a Vedette backup, or it is damaged or cut short. Choose the .tar.gz file that Download backup saved.')
     return HttpResponse.json({ id: hex(16), created_at: daysAgo(2), org: 'Acme Manufacturing', users: 4, twofa_users: 1, admins_without_key: 1, secrets: 6 })
   }),
   http.post(`${API}/core/setup/restore`, async ({ request }) => {
@@ -1061,6 +1068,27 @@ const mcpHandlers = [
 const download = (name: string, data: unknown) => new HttpResponse(JSON.stringify(data, null, 2), { headers: { 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename=${name}` } })
 const stamp = () => new Date().toISOString().slice(0, 10)
 
+/** The age header a password-protected backup starts with (age-encryption.org/v1, scrypt). */
+export const AGE_MAGIC = 'age-encryption.org/v1\n'
+const sha256Hex = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), (x) => x.toString(16).padStart(2, '0')).join('')
+/** Mock only: a "protected" backup is the age header line, a stanza holding the SHA-256 of the password (the box uses scrypt and
+ *  really encrypts) and the archive. The mock upload compares the hash, so a wrong password is refused as on the box. */
+export const mockSealed = async (password: string, payload: string) => `${AGE_MAGIC}-> scrypt mock 18\n${await sha256Hex(password)}\n--- mock\n${payload}`
+
+async function backupDownload(password = '') {
+  const denied = guard('admin')
+  if (denied) return denied
+  if (password && [...password].length < 12) return fail(400, 'weak_password', 'The backup password needs at least 12 characters. A long sentence is easier to remember than random characters.')
+  audit('data.backup', 'backup')
+  // Like the box: every download is also a Manual backup kept on the box, without the decryption key.
+  boxBackupsStore.update((l) => [{ id: Array.from(crypto.getRandomValues(new Uint8Array(16)), (x) => x.toString(16).padStart(2, '0')).join(''), kind: 'manual', created_at: nowIso(), size: 4_200_000, includes_key: false }, ...l])
+  // Passwords and keys are not put into the mock backup (SYS-4).
+  const name = `vedette-backup-${stamp()}-${new Date().toISOString().slice(11, 16).replace(':', '')}.tar.gz`
+  const data = { format: 'vedette-backup/1', created_at: nowIso(), org: orgStore.get(), modules: modulesStore.get(), users: usersStore.get().map(adminOf), assets: assetsStore.get(), findings: findingsStore.get(), audit: auditStore.get() }
+  if (!password) return download(name, data)
+  return new HttpResponse(await mockSealed(password, JSON.stringify(data)), { headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename=${name}.age` } })
+}
+
 // Wrong passwords for the purge since the last good one: the real limiter is the one of the sign-in (5 tries).
 const PURGE_MAX_TRIES = 5
 const purgeTries = collection<{ n: number }>('core_purge_tries', () => ({ n: 0 }))
@@ -1106,15 +1134,8 @@ async function stepUp(b: { password?: string; code?: string }, what: string): Pr
 }
 
 const dataHandlers = [
-  http.get(`${API}/core/data/backup`, () => {
-    const denied = guard('admin')
-    if (denied) return denied
-    audit('data.backup', 'backup')
-    // Like the box: every download is also a Manual backup kept on the box, without the decryption key.
-    boxBackupsStore.update((l) => [{ id: Array.from(crypto.getRandomValues(new Uint8Array(16)), (x) => x.toString(16).padStart(2, '0')).join(''), kind: 'manual', created_at: nowIso(), size: 4_200_000, includes_key: false }, ...l])
-    // Passwords and keys are not put into the mock backup (SYS-4).
-    return download(`vedette-backup-${stamp()}-${new Date().toISOString().slice(11, 16).replace(':', '')}.tar.gz`, { format: 'vedette-backup/1', created_at: nowIso(), org: orgStore.get(), modules: modulesStore.get(), users: usersStore.get().map(adminOf), assets: assetsStore.get(), findings: findingsStore.get(), audit: auditStore.get() })
-  }),
+  http.get(`${API}/core/data/backup`, () => backupDownload()),
+  http.post(`${API}/core/data/backup`, async ({ request }) => backupDownload((await body<{ password?: string }>(request)).password ?? '')),
   http.get(`${API}/core/data/backups`, () => {
     const denied = guard('admin')
     if (denied) return denied

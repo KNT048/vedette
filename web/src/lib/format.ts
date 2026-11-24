@@ -45,6 +45,11 @@ const CLOCK: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }
 export function fmtDate(iso: string | null | undefined) {
   return iso ? write(iso, DATE) : '–'
 }
+/** The last day of a period that runs up to `to` without it, for fmtDate: one that ends at midnight (a calendar month, a scheduled
+ *  week) ends on the day before. */
+export function fmtPeriodEnd(to: string) {
+  return fmtDate(new Date(Date.parse(to) - 1).toISOString())
+}
 /** "12 Nov 2026, 20:51" */
 export function fmtDateTime(iso: string | null | undefined) {
   return iso ? write(iso, { ...DATE, ...CLOCK }) : '–'

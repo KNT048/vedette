@@ -101,3 +101,31 @@ func TestSweepStopsWhenADeviceItProbesIsTurnedOff(t *testing.T) {
 		t.Fatalf("the pass does not say why its batch stopped: %+v", runs)
 	}
 }
+
+// A device whose network scan is turned off after the sweep chose its batch but before nmap starts is not probed: its change reaches
+// the module while no batch is published, so the protected list is read again right before nmap starts, and the batch is swept again
+// without it.
+func TestSweepDoesNotProbeADeviceTurnedOffBeforeNmapStarts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{})
+	web := netip.MustParseAddr("192.168.10.20")
+	e.inv.mu.Lock()
+	e.inv.afterProtected = func() {
+		e.inv.mu.Lock()
+		e.inv.protected = append(e.inv.protected, web)
+		e.inv.mu.Unlock()
+		_ = e.svc.AssetChanged(e.ctx(), "a-web") // no batch is published yet: the event finds nothing to stop
+	}
+	e.inv.mu.Unlock()
+	if _, err := e.svc.DiscoverRanges(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range e.nm.calls(t) {
+		if slices.Contains(targetsOf(c), web.String()) {
+			t.Fatalf("nmap probed %s after its network scan was turned off: %q", web, c)
+		}
+	}
+	if len(e.nm.calls(t)) == 0 {
+		t.Fatal("the sweep sent nothing: the batch should be swept again without the device")
+	}
+}

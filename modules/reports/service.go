@@ -78,6 +78,17 @@ func (s *Service) loc(ctx context.Context) *time.Location {
 	return time.UTC
 }
 
+// follow makes the period of def the one its schedule decides while the schedule is on (periodFollows), and says whether it is whole
+// days ending at midnight of today.
+func (s *Service) follow(ctx context.Context, def *Definition) bool {
+	if s.cfg.Every == nil {
+		return false
+	}
+	var whole bool
+	def.Options.Period, whole = periodFollows(def.Options.Period, s.cfg.Every(ctx))
+	return whole
+}
+
 func (s *Service) on(module string) bool {
 	return s.cfg.Modules == nil || s.cfg.Modules.Enabled(module)
 }
@@ -104,10 +115,8 @@ func (s *Service) Document(ctx context.Context) (Document, error) {
 
 func (s *Service) document(ctx context.Context, def Definition) (Document, error) {
 	now, loc := s.clock(), s.loc(ctx)
-	if s.cfg.Every != nil {
-		def.Options.Period = periodFollows(def.Options.Period, s.cfg.Every(ctx))
-	}
-	in := docInput{def: def, now: now, loc: loc}
+	whole := s.follow(ctx, &def)
+	in := docInput{def: def, whole: whole, now: now, loc: loc}
 	if s.cfg.OrgName != nil {
 		if n, err := s.cfg.OrgName(ctx); err == nil {
 			in.org = n
@@ -132,7 +141,7 @@ func (s *Service) document(ctx context.Context, def Definition) (Document, error
 			return Document{}, fmt.Errorf("reports: reading devices: %w", err)
 		}
 	}
-	from, to := periodOf(def.Options.Period, now, loc)
+	from, to := periodOf(def.Options.Period, whole, now, loc)
 	if sec.Exposure {
 		in.exposure = &ReportExposure{ModuleOn: s.cfg.Exposure != nil && s.on("exposure"), Targets: []ExposureTarget{}}
 		if in.exposure.ModuleOn {
@@ -222,7 +231,8 @@ func (s *Service) send(ctx context.Context, trigger, by string) (SentItem, error
 	switch {
 	case berr != nil:
 		s.cfg.Log.WarnContext(ctx, "reports: the report could not be made", "error", berr)
-		from, to := periodOf(def.Options.Period, now, s.loc(ctx))
+		whole := s.follow(ctx, &def)
+		from, to := periodOf(def.Options.Period, whole, now, s.loc(ctx))
 		doc = Document{DefinitionID: def.ID, Title: clip(def.Name, 120), GeneratedAt: ts(now), Period: DocPeriod{Kind: def.Options.Period, From: ts(from), To: ts(to), TZ: s.loc(ctx).String()}, Options: def.Options}
 		status, errText = "failed", errBuild
 	case s.cfg.Mail == nil:

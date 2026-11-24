@@ -26306,6 +26306,35 @@ func (s *CorePostCoreConnectionsReqToolsItemAccess) UnmarshalText(data []byte) e
 	}
 }
 
+type CorePostCoreDataBackupOK struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s CorePostCoreDataBackupOK) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+type CorePostCoreDataBackupReq struct {
+	// Encrypt the file with this password (12 to 256 characters). Omitted or empty: not encrypted.
+	Password OptString `json:"password"`
+}
+
+// GetPassword returns the value of Password.
+func (s *CorePostCoreDataBackupReq) GetPassword() OptString {
+	return s.Password
+}
+
+// SetPassword sets the value of Password.
+func (s *CorePostCoreDataBackupReq) SetPassword(val OptString) {
+	s.Password = val
+}
+
 type CorePostCoreDataKeyOK struct {
 	Data io.Reader
 }

@@ -128,3 +128,33 @@ func TestAskedIsThePersonsLatestAskAndTheTurnAfterIt(t *testing.T) {
 		t.Fatalf("a person's queued run: asked %v, began %v (%v)", asked, began, err)
 	}
 }
+
+// A run a person started keeps the start of its first turn as the start of the person's ask after the log lost its "Started" line
+// (KeepLog, MaxLogLines): a later "Resumed" line (a restart's turn) is not taken for it.
+func TestAskedKeepsTheFirstStartWhenTheLogLostIt(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	k := g.kind("sensor-active", "lan_sweep", "nmap", true)
+	p := b.process(nil, k)
+	p.start(t)
+	id := create(t, p, spec("sensor-active", "lan_sweep", "LAN sweep"))
+	g.waitStarted(t)
+	p.Close() // Vedette stops while the run runs
+	b.clock.Advance(run.KeepLog + time.Hour)
+	p2 := b.process(nil, k)
+	p2.start(t)
+	g.waitStarted(t) // the restart's turn writes "Resumed"
+	if _, lines, err := p2.Prune(t.Context()); err != nil || lines == 0 {
+		t.Fatalf("prune: %d lines (%v), want the old \"Started\" line gone", lines, err)
+	}
+	if l := b.logText(p2, id); strings.Contains(l, "Started") || !strings.Contains(l, "Resumed") {
+		t.Fatalf("log after the prune: %s", l)
+	}
+	r, _ := p2.Read(t.Context(), id)
+	asked, began, err := p2.Asked(t.Context(), r)
+	first := time.Date(2026, 3, 2, 10, 0, 0, 0, time.UTC)
+	if err != nil || !asked.Equal(first) || !began.Equal(first) {
+		t.Fatalf("asked %v, began %v (%v), want both %v (the run's stored start)", asked, began, err, first)
+	}
+}

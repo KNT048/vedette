@@ -261448,11 +261448,19 @@ func (s *ScanGetScansTargetsOK) SetItems(val []ScanGetScansTargetsOKItemsItem) {
 }
 
 type ScanGetScansTargetsOKItemsItem struct {
+	// Confirmed or mitigated findings with a safe check: a vulnerability check runs it again to see
+	// whether a fix holds. A device whose checkable and again are both 0 has nothing to check: POST
+	// /scans/runs leaves it out (400 nothing_to_check when no picked device has anything) and the schedule
+	// skips it.
+	Again int `json:"again"`
 	// Approved in the inventory (picker filter); false for external targets.
 	Approved bool `json:"approved"`
 	// The Vedette box itself: pick_only, so it is scanned only when a person ticks it; sweeps, schedules,
 	// KEV rescans and Select all never include it.
 	Box bool `json:"box"`
+	// How many of the suspected findings have a safe check in the installed template pack: what a
+	// vulnerability check can confirm or rule out.
+	Checkable int `json:"checkable"`
 	// Device type in the inventory; null for external targets.
 	DeviceKind NilScanGetScansTargetsOKItemsItemDeviceKind `json:"device_kind"`
 	Findings   int                                         `json:"findings"`
@@ -261476,8 +261484,16 @@ type ScanGetScansTargetsOKItemsItem struct {
 	// targets are not scanned by this version yet.
 	Reason     NilScanGetScansTargetsOKItemsItemReason `json:"reason"`
 	Selectable bool                                    `json:"selectable"`
+	// Open findings of the device not confirmed yet (distinct CVEs, closed ones left out); 0 for external
+	// targets.
+	Suspected int `json:"suspected"`
 	// For the picker search; null when unknown and for external targets.
 	Vendor NilString `json:"vendor"`
+}
+
+// GetAgain returns the value of Again.
+func (s *ScanGetScansTargetsOKItemsItem) GetAgain() int {
+	return s.Again
 }
 
 // GetApproved returns the value of Approved.
@@ -261488,6 +261504,11 @@ func (s *ScanGetScansTargetsOKItemsItem) GetApproved() bool {
 // GetBox returns the value of Box.
 func (s *ScanGetScansTargetsOKItemsItem) GetBox() bool {
 	return s.Box
+}
+
+// GetCheckable returns the value of Checkable.
+func (s *ScanGetScansTargetsOKItemsItem) GetCheckable() int {
+	return s.Checkable
 }
 
 // GetDeviceKind returns the value of DeviceKind.
@@ -261550,9 +261571,19 @@ func (s *ScanGetScansTargetsOKItemsItem) GetSelectable() bool {
 	return s.Selectable
 }
 
+// GetSuspected returns the value of Suspected.
+func (s *ScanGetScansTargetsOKItemsItem) GetSuspected() int {
+	return s.Suspected
+}
+
 // GetVendor returns the value of Vendor.
 func (s *ScanGetScansTargetsOKItemsItem) GetVendor() NilString {
 	return s.Vendor
+}
+
+// SetAgain sets the value of Again.
+func (s *ScanGetScansTargetsOKItemsItem) SetAgain(val int) {
+	s.Again = val
 }
 
 // SetApproved sets the value of Approved.
@@ -261563,6 +261594,11 @@ func (s *ScanGetScansTargetsOKItemsItem) SetApproved(val bool) {
 // SetBox sets the value of Box.
 func (s *ScanGetScansTargetsOKItemsItem) SetBox(val bool) {
 	s.Box = val
+}
+
+// SetCheckable sets the value of Checkable.
+func (s *ScanGetScansTargetsOKItemsItem) SetCheckable(val int) {
+	s.Checkable = val
 }
 
 // SetDeviceKind sets the value of DeviceKind.
@@ -261623,6 +261659,11 @@ func (s *ScanGetScansTargetsOKItemsItem) SetReason(val NilScanGetScansTargetsOKI
 // SetSelectable sets the value of Selectable.
 func (s *ScanGetScansTargetsOKItemsItem) SetSelectable(val bool) {
 	s.Selectable = val
+}
+
+// SetSuspected sets the value of Suspected.
+func (s *ScanGetScansTargetsOKItemsItem) SetSuspected(val int) {
+	s.Suspected = val
 }
 
 // SetVendor sets the value of Vendor.

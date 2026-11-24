@@ -104142,7 +104142,7 @@
       },
       "post": {
         "operationId": "scan_post_scans_runs",
-        "summary": "Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked)",
+        "summary": "Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked); a chosen device with nothing to check (checkable and again both 0) is left out, and 400 nothing_to_check when none has anything",
         "tags": [
           "scan"
         ],
@@ -105229,6 +105229,24 @@
                               }
                             ],
                             "description": "When the inventory last saw the device (picker filter); null for external targets"
+                          },
+                          "suspected": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Open findings of the device not confirmed yet (distinct CVEs, closed ones left out); 0 for external targets"
+                          },
+                          "checkable": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "How many of the suspected findings have a safe check in the installed template pack: what a vulnerability check can confirm or rule out"
+                          },
+                          "again": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Confirmed or mitigated findings with a safe check: a vulnerability check runs it again to see whether a fix holds. A device whose checkable and again are both 0 has nothing to check: POST /scans/runs leaves it out (400 nothing_to_check when no picked device has anything) and the schedule skips it"
                           }
                         },
                         "required": [
@@ -105246,7 +105264,10 @@
                           "mac",
                           "vendor",
                           "approved",
-                          "last_seen"
+                          "last_seen",
+                          "suspected",
+                          "checkable",
+                          "again"
                         ],
                         "additionalProperties": false
                       }

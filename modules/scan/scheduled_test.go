@@ -76,8 +76,8 @@ func TestScheduled_OneRunPerDueTimeOverTheDevicesThatNeedNoPick(t *testing.T) {
 	r.setNow(r.clock.Now().Add(13*time.Hour + 30*time.Second)) // 23:00:30
 	tick(t, r, sched, r.clock.Now())
 	runs, _ := r.svc.Runs(r.ctx())
-	if len(runs) != 1 || runs[0].Trigger != "schedule" || runs[0].StartedBy != "system" || runs[0].Total != 2 {
-		t.Fatalf("runs: %+v", runs) // a-web01 and a-srv: not the fragile NAS, the box, "never", unapproved or out of scope
+	if len(runs) != 1 || runs[0].Trigger != "schedule" || runs[0].StartedBy != "system" || runs[0].Total != 1 {
+		t.Fatalf("runs: %+v", runs) // a-web01: not SRV-AD (nothing to check), the fragile NAS, the box, "never", unapproved or out of scope
 	}
 	if n := r.count(`SELECT count(*) FROM core_run WHERE schedule_id IS NOT NULL`); n != 1 {
 		t.Fatalf("%d runs name their schedule", n)

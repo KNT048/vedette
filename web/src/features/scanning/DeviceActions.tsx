@@ -10,7 +10,7 @@ import { useTargets } from '@/features/scan/api'
 import { VulnChecksButton } from '@/features/scan/VulnChecksButton'
 import { useModuleEnabled } from '@/lib/modules'
 import { useScanning } from './api'
-import { useDeviceCards } from '@/features/findings/api'
+import { useVulnCheckable, vulnLabel, vulnWords } from '@/features/scan/vulnCount'
 import { ScanNowButton } from './ScanNow'
 
 // The rule moved to canScan.ts, shared with the finding page and the device page's fragile line
@@ -87,7 +87,7 @@ function SelectedVulnChecks({ selectedIds }: { selectedIds: string[] }) {
   const note = leftOut(why, 'vuln')
   return (
     <div className="grid gap-2">
-      {send.length ? <VulnChecksButton targets={send} label={t('selection.vuln.button', { count: send.length })} /> : null}
+      {send.length ? <VulnChecksButton targets={send} /> : null}
       {pick.length ? (
         <fieldset className="grid gap-1.5">
           <legend className="text-meta text-muted">{t('selection.vuln.handPick', { count: pick.length })}</legend>
@@ -133,10 +133,11 @@ export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The 
   )
 }
 
-/** "Run vulnerability checks now" on one device: a person's own pick (the box too); a device the scan refuses (never
- *  scan, no IP, outside the scope) gets the reason instead (#877). */
+/** The vulnerability check of one device ("Check 2 suspected findings"): a person's own pick (the box too); a device the scan refuses
+ *  (never scan, no IP, outside the scope) gets the reason instead (#877). */
 function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton }) {
   const { t } = useTranslation(['scanning', 'scan'])
+  const { t: ts } = useTranslation('scan')
   const hint = useId()
   const c = useVulnCheckable(assetId)
   if (vuln === 'off') return null
@@ -147,40 +148,11 @@ function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton
   const what = vulnWords(t, c)
   return (
     <span className="inline-flex items-start gap-1">
-      <VulnChecksButton targets={[assetId]} describedBy={hint} />
-      <InfoTip topic={t('scan:checks.button')} className="sm:mt-1">{what}</InfoTip>
+      <VulnChecksButton targets={[assetId]} here describedBy={hint} />
+      <InfoTip topic={vulnLabel(ts, c, true)} className="sm:mt-1">{what}</InfoTip>
       <span id={hint} hidden>{what}</span>
     </span>
   )
-}
-
-/** What "Run vulnerability checks now" will do, in words that follow the count (never "to confirm or rule them out" when no suspected
- *  finding has a safe check): the suspected findings it confirms or rules out, the confirmed ones it checks again, and, when only the
- *  latter, that the suspected ones have no check. Not counted: the general sentence. */
-export function vulnWords(t: (k: string, o?: Record<string, unknown>) => string, c: ReturnType<typeof useVulnCheckable>) {
-  const parts = !c.counted ? [t('hint.vulnUncounted')] : [
-    c.checkable === 0 ? '' : c.checkable === c.suspected ? t('hint.vulnConfirmAll', { count: c.checkable }) : t('hint.vulnConfirmSome', { count: c.checkable, total: c.suspected }),
-    c.again > 0 ? t('hint.vulnAgain', { count: c.again }) : '',
-    c.checkable === 0 && c.suspected > 0 ? t('hint.vulnNoneOf', { count: c.suspected }) : '',
-  ]
-  return [...parts, t('hint.vulnTail')].filter(Boolean).join(' ')
-}
-
-/** What a vulnerability check of the device can do: `checkable` of its `suspected` (not confirmed yet) open findings have a safe check
- *  (CveRow.safe_check) it can confirm or rule out, and `again` of its confirmed ones a check it can run again to see whether a fix
- *  holds. `none`: neither, so the device page offers no run (nothing suspected, or no check exists). Not counted (findings off, no
- *  device yet, or its read failed): the run is offered as before, without a count. The device page's button and its Last checks row
- *  read this one rule. Without an id it reads nothing. The rows are the device's By device card (GET /findings/devices?device=). */
-export function useVulnCheckable(assetId: string) {
-  const findingsOn = useModuleEnabled('findings') === true && assetId !== ''
-  const cards = useDeviceCards({ device: assetId }, { offset: 0, limit: 1 }, findingsOn)
-  const counted = findingsOn && cards.isSuccess
-  const rows = counted ? cards.data.items.filter((c) => c.device.id === assetId).flatMap((c) => c.blocks.flatMap((b) => b.findings)) : []
-  const suspected = rows.filter((f) => f.verified === 'no')
-  const checkable = suspected.filter((f) => f.safe_check).length
-  // the scan also checks confirmed findings again (scan run.go `dismissed`): whether a fix holds
-  const again = rows.filter((f) => f.verified !== 'no' && f.safe_check).length
-  return { pending: findingsOn && cards.isPending, counted, suspected: suspected.length, checkable, again, none: counted && checkable + again === 0 }
 }
 
 /** A device added by hand whose network scan is off: the full note is on its Sources card, next to the switch that turns the scan

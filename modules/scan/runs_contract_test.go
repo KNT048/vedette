@@ -91,6 +91,7 @@ func TestContract_INV1_TargetsInScope(t *testing.T) {
 func TestContract_INV1_PolicyCheckedRightBeforeTheJob(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)
+	r.giveCheck("a-srv")
 	if _, err := r.svc.SaveConfig(r.ctx(), "admin@acme.example", Patch{Rate: ptr(8)}); err != nil {
 		t.Fatal(err)
 	}
@@ -199,8 +200,9 @@ func TestContract_INV4_OnlyPackTemplatesForTheDevicesCVEs(t *testing.T) {
 	if row := rowOf(got, "a-web01", "no_template"); row == nil || row.Note != "CVE-2021-44228: no safe scan template yet, still suspected; see the finding for how it was matched." || *row.FindingID != "f-3" {
 		t.Fatalf("no_template: %+v", got.Results)
 	}
-	if row := rowOf(got, "a-srv", "not_applicable"); row == nil || row.Note != "No scan template applies to the software on this device." {
-		t.Fatalf("not_applicable: %+v", got.Results)
+	// SRV-AD has no finding a template checks: it is left out of the run (nothing to check), not sent a job
+	if row := rowOf(got, "a-srv", ""); row != nil || v.Total != 1 {
+		t.Fatalf("SRV-AD with nothing to check was in the run (total %d): %+v", v.Total, got.Results)
 	}
 }
 

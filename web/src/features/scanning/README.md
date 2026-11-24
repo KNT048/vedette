@@ -10,7 +10,7 @@ device now), S-CORE-1 (engine switches).
   (scan mock) and the public scan (exposure mock). `GET /runs` lists `runsStore` and, under their own ids, the runs the engines' mocks
   hold (a person's discovery run, the vulnerability checks, the public scan, the LAN history), so every "Open the run" opens.
 - Slots it fills: `shell.status` (indicator), `devices.actions` (`DevicesActions`: Scan selected, Scan the LAN now), `device.actions`
-  (`DeviceActions`: Check this device now, Run vulnerability checks now from features/scan `VulnChecksButton`).
+  (`DeviceActions`: Check this device now, and the vulnerability check from features/scan `VulnChecksButton`, named by what it checks from `vulnCount.ts`).
 - For other pages: `ScanNow.tsx` `ScanNowButton` (`targets={[id]}`, `targets={ids}`, `targets="lan"`, or `onStart/running/progress`
   for another job) and `ScansRunningIndicator` (shell slot `shell.status`); `Fixes.tsx` `ScopeDialog`/`ScopeButton` (ranges + commitment)
   and `TurnOnModule`; `places.ts` `runHref` (every run opens on `/runs/<id>`, `RunPage.tsx`), `runsHref` (the Runs tab, filtered) and

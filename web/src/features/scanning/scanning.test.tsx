@@ -161,7 +161,7 @@ describe('Settings › Scanning: every engine on one page', () => {
     v2.unmount()
     renderApp('/scans?target=a-nas02') // the device page, with its buttons (slot device.actions)
     expect(await screen.findByRole('button', { name: 'Check this device now' }, { timeout: 4000 })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Run vulnerability checks now' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Check 1 confirmed finding again' })).toBeInTheDocument() // its count names it
   })
 })
 
@@ -437,15 +437,15 @@ describe('#877', () => {
     expect(targets).toContain('a-web01')
   })
 
-  it('M5: "Run vulnerability checks on selected" sends the selection; a fragile device goes only when ticked by name', async () => {
+  it('M5: the vulnerability check of a selection sends it; a fragile device goes only when ticked by name; the button says what it checks', async () => {
     const cap = await capture((m, p) => m === 'POST' && p.endsWith('/scans/runs'))
     renderApp('/devices')
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Select WEB01' }, { timeout: 4000 }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Select NAS-PHOTOS' }))
-    expect(await screen.findByRole('button', { name: 'Run vulnerability checks on selected (1)' })).toBeEnabled()
+    expect(await screen.findByRole('button', { name: 'Check 1 suspected and 1 confirmed findings on 1 device' })).toBeEnabled()
     const pick = screen.getByRole('group', { name: /1 selected device is checked only if you tick it here/ })
     await userEvent.click(within(pick).getByRole('checkbox', { name: 'NAS-PHOTOS' }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Run vulnerability checks on selected (2)' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Check 1 suspected and 2 confirmed findings on 2 devices' }))
     await waitFor(() => expect(cap.sent).toHaveLength(1))
     cap.stop()
     expect(cap.sent[0]!.body).toEqual({ targets: ['a-web01', 'a-nas02'] })

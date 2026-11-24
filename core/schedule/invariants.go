@@ -9,8 +9,8 @@ import (
 	"github.com/knt048/vedette/core/selfcheck"
 )
 
-// NextDueMismatches counts the schedules whose stored next due time is not Next of their rule from their Reference (nil while
-// off): the rule that next_due_at has one writer and one function. It only reads.
+// NextDueMismatches counts the schedules whose stored next due time is not Due of their rule from the times stored on them (nil
+// while off): the rule that next_due_at has one writer and one function. It only reads.
 func NextDueMismatches(ctx context.Context, db *sql.DB) (int64, error) {
 	org, err := orgZoneName(ctx, db)
 	if err != nil {

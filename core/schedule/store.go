@@ -57,8 +57,8 @@ type row struct {
 	UpdatedAt                 time.Time
 }
 
-// Reference is the time a schedule's next due time counts from: the latest of when it last came due, when a person last changed
-// it, and the end of its pause.
+// Reference is the time a calendar rule's next due time counts from: the latest of when it last came due, when a person last
+// changed it, and the end of its pause. An interval's asked times start at the change or the end of the pause (Due).
 func Reference(lastDue *time.Time, updated time.Time, pausedUntil *time.Time) time.Time {
 	ref := updated
 	if lastDue != nil && lastDue.After(ref) {

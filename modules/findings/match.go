@@ -86,6 +86,9 @@ type Software struct {
 	// Guess: a sensor only guessed the row (inventory's os_guess reading: an OS fingerprint, an ESXi build the build table does not
 	// list); it is never matched until a person gives the software with its version.
 	Guess bool
+	// stated: the row holds the very release of the network OS the device states about itself (statedRow, set by deviceSoftware):
+	// whoever recorded it, its version is the device's own word.
+	stated bool
 }
 
 // builtBy is the source whose build rules the row follows: the reported row's for a person's correction of it, else its own.
@@ -1029,16 +1032,16 @@ func keyedBy(keys []string, k entryKey) bool {
 }
 
 // trustedReading says whether a row's version may make a finding of a CVE on no exploited list: the device's agent, a person, the
-// device's own SNMP answer, the network OS the device states (deviceSoftware's OS row), or the firmware a device states through its
-// management interface with its build (selfStated: an ESXi host's API). Never a version read from a banner (nmap,
-// a scan, the passive sensor) or a row of unknown origin: for CVEs nobody is known to exploit, a guess is noise (a distribution's
-// backported package answers with the upstream version in its banner).
+// device's own SNMP answer, the network OS the device states (deviceSoftware's OS row, or a recorded row that holds the very release
+// it states: Software.stated), or the firmware a device states through its management interface with its build (selfStated: an ESXi
+// host's API). Never a version read from a banner (nmap, a scan, the passive sensor) or a row of unknown origin: for CVEs nobody is
+// known to exploit, a guess is noise (a distribution's backported package answers with the upstream version in its banner).
 func trustedReading(s Software) bool {
 	switch s.Source {
 	case "agent", "manual", "snmp":
 		return true
 	}
-	return strings.HasPrefix(s.ID, "os:") || selfStated(s)
+	return s.stated || strings.HasPrefix(s.ID, "os:") || selfStated(s)
 }
 
 // offListReading says whether a row may be compared with a CVE on no exploited list: a trusted reading (never a version guessed
@@ -1755,7 +1758,7 @@ func pinnedInside(in swInfo, v Vuln, key []identity) (r VersionRange, editions s
 		}
 		if t == Yes {
 			st.sets[set] = true
-			if st.r == (VersionRange{}) || widerEnd(rr, st.r) {
+			if st.r == (VersionRange{}) || explainsBetter(rr, st.r) {
 				st.r = rr
 			}
 		}
@@ -1849,7 +1852,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 	multi := isMultiProduct(v.Product)
 	result := No
 	applicable, undecidable := false, false
-	var yes *VersionRange // the widest range the version is inside: the one that explains the finding and names its fix
+	var yes *VersionRange // the range the version is inside that explains the finding and names its fix (explainsBetter)
 	jv, isJ := junosParse(in.ver)
 	junosSeen := false // a Junos NVD row decided (junosEval): its exact rows say what a missing update means
 	// trainOnly: an exact row of a dotted network OS was ruled out only by its train (dottedListGuess); then only a version after
@@ -1896,7 +1899,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 		}
 		switch t {
 		case Yes:
-			if yes == nil || widerEnd(r, *yes) {
+			if yes == nil || explainsBetter(r, *yes) {
 				yes = &r
 			}
 		case Unknown:
@@ -2229,6 +2232,17 @@ func clean(s string) string {
 		sb.WriteRune(r)
 	}
 	return sb.String()
+}
+
+// explainsBetter says range a, which the version is inside, explains a finding better than b, which it is inside too: a range with an
+// end (a release fixes it, endBound) before one without (a record's "1.25.0 or later" beside its "1.30.0 to 1.30.6"), then the one that
+// ends later (widerEnd). Only the reading of the version changes: which release fixes the finding is FixOf's, which checks that a
+// candidate fix leaves every range (an open-ended one included).
+func explainsBetter(a, b VersionRange) bool {
+	if ea, eb := endBound(a), endBound(b); ea != eb {
+		return ea
+	}
+	return widerEnd(a, b)
 }
 
 // widerEnd says range a ends later than b; a range with no end is the widest, and a tie keeps b.

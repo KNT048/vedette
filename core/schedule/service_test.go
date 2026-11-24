@@ -301,7 +301,8 @@ func TestADueScheduleStartsARun(t *testing.T) {
 	b.holds()
 }
 
-// A box that was off for days starts the missed schedule once, and counts the next due time from that start.
+// A box that was off for days starts the missed schedule once; the next run is the next asked time (the hour), not an hour after
+// the late start.
 func TestMissedDueTimesStartOneRun(t *testing.T) {
 	b := newBox(t, "")
 	b.save("scan.vuln", schedule.Setting{Enabled: true, Rule: schedule.Every(60)}) // due 04:00
@@ -309,7 +310,7 @@ func TestMissedDueTimesStartOneRun(t *testing.T) {
 	b.tick(1)
 	b.tick(0)
 	v := b.get("scan.vuln")
-	if !v.LastDueAt.Equal(utc("2026-11-23T07:12:00Z")) || !v.NextDueAt.Equal(utc("2026-11-23T08:12:00Z")) || len(b.starts) != 1 {
+	if !v.LastDueAt.Equal(utc("2026-11-23T07:12:00Z")) || !v.NextDueAt.Equal(utc("2026-11-23T08:00:00Z")) || len(b.starts) != 1 {
 		t.Fatalf("after the missed due times %+v (starts %d)", v, len(b.starts))
 	}
 	b.holds()

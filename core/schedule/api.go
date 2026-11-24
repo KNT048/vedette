@@ -84,6 +84,7 @@ func future(r Rule, now time.Time) error {
 
 func (s *Service) view(ctx context.Context, o Owner, r row, saved bool, org string, now time.Time) View {
 	loc := zoneOf(r.Rule.TZ, org)
+	paused := r.PausedUntil // an interval's asked times start at the end of its pause, also once it has ended
 	if r.PausedUntil != nil && !r.PausedUntil.After(now) {
 		r.PausedUntil = nil // a pause that has ended is no pause
 	}
@@ -96,7 +97,7 @@ func (s *Service) view(ctx context.Context, o Owner, r row, saved bool, org stri
 		v.UpdatedBy, v.UpdatedAt = &r.UpdatedBy, &r.UpdatedAt
 	}
 	if r.NextDueAt != nil {
-		v.Upcoming = s.upcoming(ctx, r.Rule, *r.NextDueAt, now, loc)
+		v.Upcoming = s.upcoming(ctx, r.Rule, *r.NextDueAt, now, r.UpdatedAt, paused, loc)
 		if !r.NextDueAt.After(now) && r.Rule.Window == WindowGlobal && len(v.Upcoming) > 0 && v.Upcoming[0].After(now) {
 			w := "The scan window to open"
 			v.WaitingFor = &w
@@ -105,9 +106,9 @@ func (s *Service) view(ctx context.Context, o Owner, r row, saved bool, org stri
 	return v
 }
 
-// upcoming are the next start times from the due time first, as the ticker would start them: a past due time starts now, a
-// schedule in the scan window starts when it opens, and a start later than LateAfter counts the next due time from the start.
-func (s *Service) upcoming(ctx context.Context, r Rule, first, now time.Time, loc *time.Location) []time.Time {
+// upcoming are the next start times from the due time first, as the ticker starts them: a past due time starts now, a schedule in
+// the scan window starts when it opens, and what each start records (started) gives the next due time (Due).
+func (s *Service) upcoming(ctx context.Context, r Rule, first, now, updated time.Time, paused *time.Time, loc *time.Location) []time.Time {
 	var w *Window
 	var wloc *time.Location
 	if r.Window == WindowGlobal {
@@ -117,7 +118,7 @@ func (s *Service) upcoming(ctx context.Context, r Rule, first, now time.Time, lo
 		}
 	}
 	out := []time.Time{}
-	for d := first; len(out) < Upcoming && !d.IsZero(); {
+	for d, i := first, 0; len(out) < Upcoming && !d.IsZero() && i < 4*Upcoming; i++ {
 		start := d
 		if start.Before(now) {
 			start = now
@@ -125,12 +126,11 @@ func (s *Service) upcoming(ctx context.Context, r Rule, first, now time.Time, lo
 		if w != nil {
 			start = w.OpenAt(start, wloc).UTC()
 		}
-		out = append(out, start)
-		from := d
-		if start.Sub(d) > LateAfter {
-			from = start
+		last, merged := started(r, d, start, updated, paused, loc)
+		if !merged {
+			out = append(out, start)
 		}
-		d = Next(r, from, loc)
+		d = Due(r, &last, updated, paused, loc)
 	}
 	return out
 }
@@ -160,8 +160,15 @@ func (s *Service) Preview(ctx context.Context, key string, rl Rule, pausedUntil 
 		return nil, "", err
 	}
 	loc := zoneOf(rl.TZ, org)
+	if pausedUntil != nil { // as Save stores it
+		p := pausedUntil.UTC().Truncate(time.Millisecond)
+		pausedUntil = &p
+		if !p.After(now) {
+			pausedUntil = nil
+		}
+	}
 	first := Due(rl, nil, now, pausedUntil, loc)
-	return s.upcoming(ctx, rl, first, now, loc), loc.String(), nil
+	return s.upcoming(ctx, rl, first, now, now, pausedUntil, loc), loc.String(), nil
 }
 
 // Save stores a person's setting of a schedule (audited schedule.save) and returns it. ErrUnknownOwner; a *RuleError for a rule

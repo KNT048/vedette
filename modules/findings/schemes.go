@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -242,44 +243,66 @@ func laterThan(c CPE, lit, ver string) bool {
 		rl, ru, rok := javaRelease(ver)
 		return ok && rok && (rl > el || rl == el && ru > eu)
 	}
-	return laterRelease(c, lit, ver)
+	return laterRelease(lit, ver)
 }
 
-// plainVersionRE is a version of numbers and dots only: the one form laterRelease compares.
-var plainVersionRE = regexp.MustCompile(`^\d{1,9}(?:\.\d{1,9}){0,7}$`)
+// leadingRE is the release numbers a version starts with and what follows them: "7.2.1" and "-69057-5" of DSM's "7.2.1-69057-5",
+// "8.0.3" and " build-24022510", "6.6.1" and "p1". What follows never starts with a digit, a dot and a digit, or a colon (an epoch,
+// "1:9.6p1", is not a release number).
+var leadingRE = regexp.MustCompile(`^(\d{1,9}(?:\.\d{1,9}){0,7})((?:[^\d.:]|\.[^\d]).*)?$`)
+
+// leadingRelease is the release numbers a version starts with (leadingRE).
+func leadingRelease(s string) ([]uint64, bool) {
+	m := leadingRE.FindStringSubmatch(strings.TrimSpace(s))
+	if m == nil {
+		return nil, false
+	}
+	var nums []uint64
+	for _, p := range strings.Split(m[1], ".") {
+		n, err := strconv.ParseUint(p, 10, 64)
+		if err != nil {
+			return nil, false
+		}
+		nums = append(nums, n)
+	}
+	return nums, true
+}
 
 // laterRelease is laterThan for a product no scheme rule reads (review r1 H1 of #970). NVD often names a release line by its first
 // numbers ("esxi:8.0" with the update in the CPE, "vcenter_server:6.7", "solaris:11", "internet_explorer:11") while the computer
-// reports the whole number ("8.0.3", "6.7.0.44000", "11.4", "11.0.26100.1"): a version is later only when its first numbers, as
-// many as NVD wrote, are higher (9.0.1 after 8.0; 8.0.3 is inside 8.0). Never later: a configuration that pins an update,
-// edition or other qualifier ("esxi:8.0:update_3", "coldfusion:2016:update5", "vcenter_server:7.0:c"), a version with letters or
-// suffixes on either side ("6.6.1p1", "8.0.3 build-24022510"), a release named by its year or a build-sized number ("2016" of
-// Exchange or ColdFusion against a typed "2019"), and two ways of writing versions (schemeClash).
-func laterRelease(c CPE, lit, ver string) bool {
-	for _, a := range []Attr{c.Update, c.Edition, c.SWEdition, c.Other} {
-		if a.Kind == Value {
-			return false
-		}
-	}
-	ver = strings.TrimSpace(ver)
-	if !plainVersionRE.MatchString(lit) || !plainVersionRE.MatchString(ver) || schemeClash(VersionRange{StartIncl: lit}, ver) {
+// reports the whole number ("8.0.3", "6.7.0.44000", "11.4", "11.0.26100.1"): a version is later only when its release numbers, as
+// many as NVD wrote, are higher (9.0.1 after 8.0; 8.0.3 is inside 8.0). Only the release numbers each side starts with are compared:
+// what follows them (an update, edition or other qualifier NVD pins, "esxi:6.5:update1"; a build or patch suffix, DSM's "4.3-3810",
+// OpenSSH's "9.6p1", "8.0.3 build-24022510") is a step inside that release, so it never makes a version later than a higher release
+// number nor earlier than a lower one: 8.0.3 is later than esxi:6.5:update1 and DSM 7.2.1-69057-5 than 4.3-3810, while 8.0.3 is not
+// later than esxi:8.0:update_3 (the same release numbers). Never later: a version that does not start with a release number ("v7.2",
+// "r28.3.9", an epoch), a release named by its year or a build-sized number ("2016" of Exchange or ColdFusion against a typed
+// "2019"), and two ways of writing versions (schemeClash).
+func laterRelease(lit, ver string) bool {
+	ln, okL := leadingRelease(lit)
+	rn, okR := leadingRelease(ver)
+	if !okL || !okR || ln[0] >= 1000 || schemeClash(VersionRange{StartIncl: joinRelease(ln)}, joinRelease(rn)) {
 		return false
 	}
-	lv, okL := parseVersion(lit)
-	rv, okR := parseVersion(ver)
-	if !okL || !okR || lv.rel[0] >= 1000 {
-		return false
-	}
-	for i, n := range lv.rel {
+	for i, n := range ln {
 		var r uint64
-		if i < len(rv.rel) {
-			r = rv.rel[i]
+		if i < len(rn) {
+			r = rn[i]
 		}
 		if r != n {
 			return r > n
 		}
 	}
 	return false // the same release, or a version inside it
+}
+
+// joinRelease writes release numbers back as a dotted version.
+func joinRelease(nums []uint64) string {
+	parts := make([]string, len(nums))
+	for i, n := range nums {
+		parts[i] = strconv.FormatUint(n, 10)
+	}
+	return strings.Join(parts, ".")
 }
 
 // sqlServerLater is laterThan for an exact release configuration of microsoft:sql_server ("sql_server:2008:sp3"): a build a
@@ -298,14 +321,16 @@ func sqlServerLater(c CPE, lit, ver string) (later, ok bool) {
 	return okR && len(pv.rel) >= 3 && pv.rel[0] >= 8 && pv.rel[0] <= 17 && pv.rel[0] > major, true
 }
 
-// javaEntryRE is how NVD names a Java SE release before 9: "1.8.0" (the update in the CPE's update, "update401") or "1.4.2_25".
-var javaEntryRE = regexp.MustCompile(`^1\.([1-8])\.\d+(?:_(\d+))?$`)
+// javaEntryRE is how NVD names a Java SE release in the "1.x" scheme: "1.8.0" or "1.8" (the update in the CPE's update, "update401",
+// "update_111"), "1.4.2_25", and "1.9.0" for Java 9.
+var javaEntryRE = regexp.MustCompile(`^1\.([1-9])(?:\.\d+)?(?:_(\d+))?$`)
 
 // javaUpdateRE is NVD's update of a Java SE release: "update401", "update_401", "update32_b31" (a build of update 32).
 var javaUpdateRE = regexp.MustCompile(`^update_?(\d+)(?:_b\d+)?$`)
 
 // javaEntry reads an exact NVD configuration of Oracle's JRE or JDK written in the "1.x" scheme: java is true for those, and ok when
-// the line and update read (an update of ANY is every update of the line: none to be later than).
+// the line and update read. An update of ANY is every update of the line: update is then the highest there is, so only a later line
+// is later.
 func javaEntry(c CPE, lit string) (line, update uint64, java, ok bool) {
 	v, okV := c.Vendor.Literal()
 	p, okP := c.Product.Literal()
@@ -324,6 +349,8 @@ func javaEntry(c CPE, lit string) (line, update uint64, java, ok bool) {
 		update = 0 // "1.7.0:-": the release itself
 	case okU && javaUpdateRE.MatchString(strings.ToLower(u)):
 		update, _ = strconv.ParseUint(javaUpdateRE.FindStringSubmatch(strings.ToLower(u))[1], 10, 64)
+	case c.Update.Kind == Any:
+		update = math.MaxUint64 // every update of the line
 	default:
 		return 0, 0, true, false
 	}

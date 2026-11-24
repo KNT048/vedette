@@ -51,6 +51,10 @@ type Unchecked struct {
 //     word, or none, as for an Android entry that also lists the Linux kernel), not an Edge Legacy row, not a Juniper model CISA
 //     leaves out.
 //
+// Nor does a row whose version the matcher never compares with the entry: a CVE on no exploited list against a version read from the
+// network (a banner, the passive sensor; offListReading). Answering a question about the ranges would change nothing there, so it
+// is not asked; the version is compared once the device's agent reports it or a person confirms it.
+//
 // Neither kind counts when NVD names the row only at exact versions older than its own (newerThanListed): NVD's list does not name
 // it at all, so it is no candidate (not a verdict: nothing closes, nothing is "not affected").
 //
@@ -64,6 +68,9 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 			return "", false
 		}
 	case out == outNone && named && in.given: // cheapest tests first: this runs for every row NVD's vendors may name
+		if !v.listed() && !offListReading(s, in, v) { // matchOne never compares this row with a CVE on no list: no answer changes that
+			return "", false
+		}
 		if edgeLegacyRow(s, in) || distroBuilt(in) || keyedTo(s, v) { // a keyed row with no outcome: its distribution decided
 			return "", false
 		}

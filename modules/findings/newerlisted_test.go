@@ -221,7 +221,8 @@ func TestLaterThan(t *testing.T) {
 		{"cpe:2.3:a:acme:widget:9.0:*:*:*:*:*:*:*", "9.1", true},
 		{"cpe:2.3:a:acme:widget:9.0:*:*:*:*:*:*:*", "9.0", false},
 		{"cpe:2.3:a:acme:widget:9.0:*:*:*:*:*:*:*", "8.5", false},
-		{"cpe:2.3:a:acme:widget:9.0:beta1:*:*:*:*:*:*", "9.1", false}, // an update NVD pins: no scheme reads it
+		{"cpe:2.3:a:acme:widget:9.0:beta1:*:*:*:*:*:*", "9.1", true}, // an update NVD pins is a step inside 9.0
+		{"cpe:2.3:a:acme:widget:9.0:beta1:*:*:*:*:*:*", "9.0", false},
 		// review r1 H1 of #970: NVD names a release line by its first numbers; a version inside it is not after it
 		{"cpe:2.3:a:acme:widget:9.0:*:*:*:*:*:*:*", "9.0.1", false},
 		{"cpe:2.3:a:acme:widget:8.0:*:*:*:*:*:*:*", "9.0.1", true},
@@ -231,10 +232,25 @@ func TestLaterThan(t *testing.T) {
 		{"cpe:2.3:o:vmware:esxi:7.0:-:*:*:*:*:*:*", "8.0.3", true},
 		{"cpe:2.3:o:vmware:esxi:8.0:-:*:*:*:*:*:*", "8.0.3 build-24022510", false},
 		{"cpe:2.3:a:vmware:vcenter_server:6.7:-:*:*:*:*:*:*", "6.7.0.44000", false},
-		{"cpe:2.3:a:vmware:vcenter_server:7.0:c:*:*:*:*:*:*", "8.0.1", false},
+		{"cpe:2.3:a:vmware:vcenter_server:7.0:c:*:*:*:*:*:*", "8.0.1", true},
+		{"cpe:2.3:a:vmware:vcenter_server:7.0:c:*:*:*:*:*:*", "7.0.3", false},
 		{"cpe:2.3:o:oracle:solaris:11:*:*:*:*:*:*:*", "11.4", false},
 		{"cpe:2.3:a:openbsd:opensmtpd:6.6:*:*:*:*:*:*:*", "6.6.1p1", false},
-		{"cpe:2.3:a:openbsd:opensmtpd:6.6:*:*:*:*:*:*:*", "6.7.1p1", false}, // letters: no scheme reads them
+		{"cpe:2.3:a:openbsd:opensmtpd:6.6:*:*:*:*:*:*:*", "6.7.1p1", true}, // a patch suffix is a step inside 6.7.1
+		{"cpe:2.3:a:openbsd:openssh:9.6:p1:*:*:*:*:*:*", "9.6p1", false},
+		{"cpe:2.3:a:openbsd:openssh:9.5:p1:*:*:*:*:*:*", "9.6p1", true},
+		// exact older releases with an update or build qualifier: the release numbers each side starts with decide
+		{"cpe:2.3:o:vmware:esxi:6.5:update1:*:*:*:*:*:*", "8.0.3", true},
+		{"cpe:2.3:o:vmware:esxi:7.0:update_3c:*:*:*:*:*:*", "8.0.3", true},
+		{"cpe:2.3:o:vmware:esxi:4.0:1:*:*:*:*:*:*", "8.0.3", true},
+		{"cpe:2.3:o:vmware:esxi:8.0:update_3:*:*:*:*:*:*", "8.0.3 build-24022510", false},
+		{"cpe:2.3:o:vmware:esxi:8.0:update_3:*:*:*:*:*:*", "7.0.3", false},
+		{"cpe:2.3:a:synology:diskstation_manager:4.3-3810:*:*:*:*:*:*:*", "7.2.1-69057-5", true},
+		{"cpe:2.3:a:synology:diskstation_manager:6.2:*:*:*:*:*:*:*", "7.2.1-69057-5", true},
+		{"cpe:2.3:a:synology:diskstation_manager:7.2.1-69057:*:*:*:*:*:*:*", "7.2.1-69057-5", false}, // the same release
+		{"cpe:2.3:a:synology:diskstation_manager:7.2.2-72806:*:*:*:*:*:*:*", "7.2.1-69057-5", false},
+		{"cpe:2.3:a:acme:widget:1.0:*:*:*:*:*:*:*", "2:0.9", false},   // an epoch is not a release number
+		{"cpe:2.3:a:acme:widget:6.0:*:*:*:*:*:*:*", "v7.2.13", false}, // a version that does not start with one
 		{"cpe:2.3:a:microsoft:internet_explorer:11:-:*:*:*:*:*:*", "11.0.26100.1", false},
 		{"cpe:2.3:a:adobe:coldfusion:2021:update5:*:*:*:*:*:*", "2021.0.05.330109", false},
 		{"cpe:2.3:a:adobe:coldfusion:2018:-:*:*:*:*:*:*", "2021.0.05.330109", false}, // a release named by its year
@@ -245,7 +261,8 @@ func TestLaterThan(t *testing.T) {
 		{"cpe:2.3:a:microsoft:exchange_server:2016:-:*:*:*:*:*:*", "2019", false},
 		{"cpe:2.3:a:microsoft:exchange_server:2016:cumulative_update_14:*:*:*:*:*:*", "2019", false},
 		{"cpe:2.3:a:acme:widget:9.0:p2:*:*:*:*:*:*", "9.0", false},
-		{"cpe:2.3:a:acme:widget:15.2\\(4\\)m3:*:*:*:*:*:*:*", "16.0", false},
+		{"cpe:2.3:a:acme:widget:15.2\\(4\\)m3:*:*:*:*:*:*:*", "16.0", true},
+		{"cpe:2.3:a:acme:widget:15.2\\(4\\)m3:*:*:*:*:*:*:*", "15.2.7", false},
 		{"cpe:2.3:a:acme:widget:2016:*:*:*:*:*:*:*", "16.0.1", false}, // two schemes (schemeClash)
 		{"cpe:2.3:a:microsoft:edge:117.0.2045.47:*:*:*:*:*:*:*", "157.0.4341.60", true},
 		// SQL Server: NVD's release names against a build's major
@@ -266,6 +283,13 @@ func TestLaterThan(t *testing.T) {
 		{"cpe:2.3:a:oracle:jre:1.6.0:update32_b31:*:*:*:*:*:*", "6.0.450", true},
 		{"cpe:2.3:a:oracle:jre:1.4.2_25:*:*:*:*:*:*:*", "1.8.0_491", true},
 		{"cpe:2.3:a:oracle:jre:1.8.0:*:*:*:*:*:*:*", "8.0.4910.10", false}, // every update of Java 8
+		{"cpe:2.3:a:oracle:jre:1.8.0:*:*:*:*:*:*:*", "21.0.7", true},       // a later line than every update of Java 8
+		{"cpe:2.3:a:oracle:jdk:1.8:update_111:*:*:*:*:*:*", "21.0.7", true},
+		{"cpe:2.3:a:oracle:jdk:1.8:update_111:*:*:*:*:*:*", "8.0.1110.14", false},
+		{"cpe:2.3:a:oracle:jdk:1.8:update_111:*:*:*:*:*:*", "8.0.1120.15", true},
+		{"cpe:2.3:a:oracle:jre:1.6:update_131:*:*:*:*:*:*", "21.0.7", true},
+		{"cpe:2.3:a:oracle:jre:1.9.0:*:*:*:*:*:*:*", "21.0.7", true}, // Java 9
+		{"cpe:2.3:a:oracle:jre:1.9.0:*:*:*:*:*:*:*", "9.0.4", false},
 		{"cpe:2.3:a:oracle:jre:1.8.0:update401:*:*:*:*:*:*", "17.0.10", true},
 		{"cpe:2.3:a:oracle:jre:1.8.0:update401:*:*:*:*:*:*", "1.8.0.4910", false}, // not a way Java writes its version
 		{"cpe:2.3:a:oracle:jdk:11.0.22:*:*:*:*:*:*:*", "8.0.4910.10", false},

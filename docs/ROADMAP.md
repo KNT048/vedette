@@ -1,53 +1,61 @@
-# Roadmap: verify the concept → GUI → modules
+# Roadmap
 
-> The work to do lives in the repository's GitHub issues. This file now has historical value only.
+Work is tracked in GitHub issues. Issues labelled `v1` block the v1 release; ideas and work for later are labelled `post-v1`. Released
+changes are in [CHANGELOG.md](../CHANGELOG.md).
 
-Constraints: ship fast but keep to the concept; SMB/Mid/Enterprise can use it early; **a good GUI first, then the backend**, so the project does not drift; no imagined features. Durations are estimates for 1-2 people; re-measure after each milestone.
+## v1: who it is for
 
-| Milestone | Duration | What is delivered | "Done" when | Not done |
-|---|---|---|---|---|
-| ~~M0 Verify the concept~~ (dropped) | n/a | A clickable prototype (real KEV data, fake inventory), 8-10 interviews with P1/P2/P3, a results table by story, a go/no-go decision per module | Every story in M0 has `[passed]`/`[failed]` with evidence; it says which modules go into M1 | Backend, DB, auth |
-| **M1 GUI** | 4-6 weeks | A complete SPA for every `[passed]` module, running on a **mock API** (MSW + fixtures from real KEV/Nuclei); modules switched on/off in Settings; i18n vi/en; dark/light; a11y; a usability test with 5 people; design review against `FRONTEND.md` | `pnpm test` + `pnpm build` green; every screen traces to a story; no screen without a story; 5/5 testers complete the 3 main tasks without guidance | The real backend |
-| **M2 Core + Feed + Notifications** | 4 weeks | The Go binary: core (local auth, configuration, module registry, jobs, audit, update client), `feeds` (pulls the signed index.json), `inventory` by hand, `notify` Zalo/Telegram/email; the **builder** + data repository + Pages; an anonymous-signal service that **does not record the source IP** (committed to `PRIVACY.md` in the same commit) | A new machine: `install.sh` → 10 minutes later it receives a real alert for a hand-declared product; the signed data update runs 24h without errors | Sensor, scan, AI |
-| **M3 Inventory + Mitigation** | 6 weeks | `sensor-passive`, `sensor-active` (nmap from the OS repository, Recog), merging observations, a real "Do you have it?" column; `mitigation` with packs for ≥5 firewall vendors; the authoring tool + confirmation through PRs (S-MIT-4); sensor/server can be separated | Plug the box into a test LAN: ≥80% of devices have the right vendor, ≥50% have product/version; a new matching KEV → an alert + mitigation pack in ≤60 minutes | AI, scan |
-| **M4 External surface + Scanning** | 4 weeks | `exposure` (ownership verification, subfinder/httpx), `scan` (Nuclei kev/vkev safe), rescans on a KEV event, evidence | Nuclei confirms correctly on a lab with the flaw; nothing unverified is scanned; "Stop now" stops within 5 seconds | Credentialed |
-| **M5 Honeypot + Logs** | 4 weeks | `honeypot` (OpenCanary), `logs` (syslog from FortiGate/MikroTik/pfSense/Windows, a 7-day baseline, IOC) | A trap touched → an alert in ≤30 seconds with the source device; 7 days of logs aggregated to ≤ 1/100 of the raw lines | SIEM forward |
-| **M6 BYOK AI** | 4 weeks | `ai`: provider adapter, skill runner, RAG FTS5, 3 levels, `explain-finding`, `cve-news`, `log-digest`, `mcp-server` | Skill fixtures reach ≥95% schema-correct; the token gauge is right to ±5%; no action button from the AI | Vector RAG, log-investigate (max) if no story has passed |
-| **M7 Mid/Enterprise/MSP** | 6 weeks | `reports`, `fleet`, `auth-oidc` + RBAC + 2FA, `agent-intake`, `scan-credentialed`, SIEM forward, PostgreSQL | 1 server + 3 sensors + 2 tenants run stable for 7 days; OIDC with Keycloak/Entra | none |
+v1 is for the **one-person IT team** (persona P2 in [PRODUCT.md](PRODUCT.md) §3): within an hour, know whether something they use is
+being exploited for real, what they have, and what to do about it.
 
-After M2 it is **usable** for P1/P2 (alerts from hand declarations). After M3 it is a complete SMB product. After M7 it is Mid/Enterprise.
+## v1 is done when
 
-## Status 2026-11-10
+These customer journeys work on a real box (a fresh Ubuntu 26.04 install), checked the way a customer would use them, and the release
+is signed. v1 is not "every module finished".
 
-The milestone table above does not record status; this is the situation by work area, measured from the main branch and the merged PRs (refreshed on the evening of 2026-11-10).
-
-| Milestone | Status | Detail |
+| # | Journey | Stories |
 |---|---|---|
-| M0 | dropped | none |
-| M1 GUI | **done** (2026-11-09, on the mock API) | done (#26) |
-| M2 Core + Feed + Notifications | **nearly done, being connected** | The critical path is done (#58); `feeds` has a real backend and UI (#46, #80); `notify` has channels, Incidents, vulnerability notices (#60, #120); `inventory` is done. The host helper is **done** (#140, #148, #163); health check (#144), self-reissuing TLS certificate, fast CI (#147). Remaining: packaging/release not done yet (waiting for the release key and a lab VM) |
-| M3 Inventory + Mitigation | **main backend done** | `sensor-passive`, `sensor-active` and the mTLS sensor protocol are done; `mitigation` + `findings` (#44) merged. Two further sensor-protocol steps are done (#151, #158); not done: the remaining sensor-protocol steps (one in progress) |
-| M4 External surface + Scanning | **in progress** | `exposure` + the self-detected IP (#91) done; `scan` has finished four slices (#127, #131, #138, #154), the next is #164, open; on the sensor side the protocol step in #151 is done |
-| M5 Honeypot + Logs | **honeypot done, logs not yet** | The honeypot is done (#72); `logs`: no merged PR yet; the log export of core is done (#137) |
-| M6 BYOK AI | **in progress** | The AI library (#16) is done; the first slice of the AI module is done (#123); the core part: the read-only reader `core/conn/read` (#126) and the AI `Propose` proposals (#113) are done |
-| M7 Mid/Enterprise/MSP | not started | no PR yet |
+| 1 | Install from a signed release on a clean machine, sign in, turn on two-step sign-in | S-CORE-2, S-CORE-3 |
+| 2 | Scan the LAN and see the devices with their vendor and version | S-INV-1, S-INV-5 |
+| 3 | A newly exploited CVE that matches a device becomes a finding and an alert by email or Telegram within an hour | S-FEED-1, S-ALERT-1, S-NOT-1 |
+| 4 | Open a finding and get the patch guidance and a mitigating configuration for the firewall | S-MIT-1, S-MIT-3 |
+| 5 | See what needs updating, and to which release | S-TIER-1, S-TIER-2, S-TIER-4 |
+| 6 | For the box's public IP, see the exposed ports and the service versions behind them | S-EXP-1, S-EXP-2 |
+| 7 | Update to a new release; back up and restore | S-CORE-2 |
 
-Response side: the first part is done (#74), the critical path is done (#105: pushing configuration to a device works when the AI is off), approval through chat is done. Phase 3: packaging and the other late-phase work are not done yet; packaging waits for the offline release key and a lab VM.
+Release gates that come with it: the release job (the release `install.sh`, the images pushed to `ghcr.io` and signed), `make vuln-scan`
+clean, and no open security finding of High severity.
 
-## Rules for moving between milestones
-- Each milestone ends with: a record of what is done and a recorded demo.
-- Do not pull work of a later milestone into an earlier one "while we are at it".
-- M1 can run in parallel with the builder (M2) because the builder has no GUI.
+Ubuntu 24.04 and Debian 13 are supported by the installer; v1 is tested on Ubuntu 26.04, and problems on the other two are welcome as
+issues.
+
+## Modules in v1
+
+The groups below are what the web interface offers (`web/src/lib/v1.ts`). Every module is in the same build.
+
+| Group | Modules | What it means |
+|---|---|---|
+| v1 | core, host (`vedette-host`), feeds, inventory, sensor-active, sensor-passive, agent-intake, findings, mitigation, notify, exposure | Covered by the v1 promise: a defect that breaks one of the journeys above blocks the release |
+| Preview | scan, honeypot, logs, ids, ai, reports | Shipped, off by default and labelled "Preview" in the interface. A defect blocks v1 only when it is a security defect, loses data or breaks a journey above |
+| After v1 | response, mcp-server, auth-oidc, scan-credentialed | Not offered in the v1 interface; the code stays. A box that already has one turned on sees it read-only with the way to turn it off |
+
+## After v1
+
+The `post-v1` issues hold the work planned after the v1 tag. The larger items:
+
+- Offer the "After v1" modules again and recheck their stories (#838).
+- A review of every screen against "only the action by default, details one click away" (#1066).
+- Scheduled backups (#1068).
+- Agentless package reads over a read-only SSH login (#971), and an osquery agent for macOS (#954).
+- Linux package matching from OSV.dev for more distributions (#963), and Windows matching from Microsoft's update data (#964).
+- More confirmed mitigation packs for the exploited CVEs that boxes match (#895).
 
 ## Known risks
+
 | Risk | Mitigation |
 |---|---|
-| Devices that hide their version (Synology, Fortinet, MikroTik v7) → a wrong "Do you have it?" | 3 confidence levels, "suspected" shown clearly, Nuclei confirms, an optional agent |
-| The free tier changes | A signed `channels.json`, a double mirror |
-| An IOC false positive blocks something by mistake | Vedette does not block; it only alerts; a whitelist by domain |
-| Prompt injection through logs/web | The guardrails in §5 of `AI_ASSISTANT.md`; the AI takes no actions |
-| The open project gets forked commercially | Accepted (Apache-2.0); the advantage is deployment + Vietnamese data |
-| Hard to recruit enough people for interviews at the end of the year | Invite 12-14; with too few P4, the P4 stories move to group D |
-| The hand-written AI explanation in the prototype is better than the real AI → the explanation hypothesis is optimistic | A note when scoring; verify again at M6 with skill fixtures |
-| Testers believe the fake inventory is real | Say so clearly at the start of the session; a "Sample data" label on the prototype |
-| M2 coincides with Tet (6/2/2027) | A 1-week buffer |
+| Devices that hide their version (some NAS, firewall and router firmware) give a wrong "Do you have it?" | Confidence levels with "suspected" shown clearly, confirmation by a safe check or an agent, and a version a person can declare |
+| A free public source changes or disappears | Each feed is pulled directly from its source and can be turned off; a failing source shows its error in Settings → Feeds and the user can point it at a mirror |
+| An indicator false positive | Vedette does not block traffic; it only alerts |
+| Prompt injection through logs or web pages | Feed, log and web text goes to the AI only as fenced data the model is told never to obey, and the AI has no write tools ([AI_ASSISTANT.md](AI_ASSISTANT.md) §5) |
+| A commercial fork | Accepted (Apache-2.0) |

@@ -106,7 +106,8 @@ cleaning up by hand.
 5. **Modules**: turn on `sensor-passive` (the sensor container starts and its heartbeat shows) and `honeypot` (its container starts).
    For a decoy address, pick one outside the network's DHCP range, check that it is free with `arping -D -I <nic> <ip>` (no reply means
    free) and add it on the honeypot page; on a wired LAN the decoy answers ARP, and one `nc -vz <decoy ip> 22` from another machine
-   shows a hit in the interface. Remove the decoy afterwards. SPAN capture is not offered in the v1 interface.
+   shows a hit in the interface. Remove the decoy afterwards. Leave `sensor-active` off. Test SPAN capture only when the machine has a
+   second wired card without an address (`ip -o link`); otherwise note "SPAN skipped: no second card".
 6. **Run it again**: the install command of step 2 again. Expect `host.conf is already right` and
    `the release is already bootstrapped`, and core not restarted (`podman inspect --format '{{.State.StartedAt}}' vedette-core`
    unchanged).
@@ -175,7 +176,8 @@ it (signature) and never offer it. A public address in `test-release-base` (for 
 ## What this procedure cannot show
 
 `make install-check` runs the installer in systemd containers and cannot show macvlan decoys on a real wire, a second card for SPAN,
-netplan and the network hand-over, or a reboot; this procedure checks the decoys on the machine and leaves the rest out on purpose.
+netplan and the network hand-over, or a reboot; this procedure checks the decoys (and SPAN, with a second card) on the machine and
+leaves the network hand-over and the reboot out on purpose.
 The `scan` image build needs `deb.debian.org`: a machine that cannot reach it installs without active scanning (the installer says so
 and goes on).
 

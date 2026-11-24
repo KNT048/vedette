@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { toggleFilter } from '@/test/filters'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
+import { fmtRelative } from '@/lib/format'
 import { server } from '@/test/server'
 import { api } from '@/lib/api'
 import { collection } from '@/mocks/db'
@@ -359,6 +360,21 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await user.click(within(dlg).getByRole('button', { name: 'Revoke it' }))
     expect(await screen.findByText('Unused install command revoked')).toBeInTheDocument()
     await waitFor(() => expect(within(dlg).queryByText(/has no machine yet/)).toBeNull())
+  })
+
+  it('osquery: several unused install commands are counted from the oldest one', async () => {
+    const user = userEvent.setup()
+    enableModule('agent-intake', true)
+    const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
+    const unused = (id: string, minutes: number) => ({ id, name: id, kind: 'osquery', last4: 'abcd', created_at: ago(minutes), created_by: 'admin@example.test',
+      last_received: null, hosts: 0, expires_at: new Date(Date.now() + 864e5).toISOString(), device_id: null })
+    // the box lists tokens newest first
+    collection<unknown[]>('intake_agent_tokens', () => []).set([unused('tk-new', 10), unused('tk-old', 20 * 60)])
+    renderApp('/devices?add=osquery')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.click(await within(dlg).findByRole('button', { name: 'Linux' }, T))
+    const line = within(dlg).getByText(/install commands made since .* have no machine yet\./)
+    expect(line).toHaveTextContent(`2 install commands made since ${fmtRelative(ago(20 * 60))} have no machine yet.`)
   })
 
   it('the operator role gets the add button enabled and the setup link hidden (admin only)', async () => {

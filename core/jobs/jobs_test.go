@@ -462,3 +462,21 @@ func TestARunIsRecordedWhileTheWriterIsBusy(t *testing.T) {
 		}
 	})
 }
+
+// A shutdown that begins while a run's history row waits for a busy writer waits only briefly for it: the longer wait of a running box
+// never holds the stop up.
+func TestAShutdownDuringABusyWriterIsNotHeldUp(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		rec := &slowRecorder{busy: 40 * time.Second}
+		s := jobs.New(quiet(), newGate("feeds"), nil, jobs.WithRecorder(rec))
+		_ = s.Add(jobs.Job{Module: "feeds", Name: "pull", Every: time.Hour, Run: func(context.Context) error { return nil }})
+		stop := start(s)
+		advance(time.Second) // the run ended; its row waits for the writer
+		at := time.Now()
+		stop()
+		if took := time.Since(at); took > 10*time.Second {
+			t.Fatalf("the stop waited %s for the history writer, want at most a few seconds", took)
+		}
+	})
+}

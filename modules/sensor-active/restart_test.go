@@ -2,6 +2,7 @@ package sensoractive_test
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 	"sync"
 	"testing"
@@ -266,5 +267,41 @@ func TestRestartEveryPersonsRunEndsTrue(t *testing.T) {
 	t.Logf("person's runs a restart left untrue: %d", wrong)
 	if wrong != 0 {
 		t.Fatalf("%d of the person's runs a restart touched did not end true", wrong)
+	}
+}
+
+// A Scan now identification is a check a person's vulnerability check of another module made for itself (its child run): its result
+// goes to that caller. A restart ends the caller, so the identification it left running or queued has nobody to answer: it ends with
+// the restart's words instead of waiting for the scan worker forever (nothing resumes a child of another module's run).
+func TestRestartAScanNowIdentificationWithoutItsCallerEnds(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, fakeOpts{}, outsideWindow)
+	e.sweptBefore()
+	at := e.clock().UTC().Format("2006-01-02T15:04:05.000Z")
+	err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		// as the old process left them: the vulnerability check and its identification, both running when Vedette stopped
+		if _, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, status, queued_at,
+			started_at, updated_at) VALUES ('vuln-1', 'scan', 'vuln_check', 'nuclei', 'Vulnerability check', 'manual', 'ann@example.com', 'running', ?1, ?1, ?1)`, at); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, subject_kind, subject_id,
+			parent_id, status, queued_at, started_at, updated_at) VALUES ('ident-1', 'sensor-active', 'device_check', 'nmap', 'Check of a-web',
+			'manual', 'ann@example.com', 'device', 'a-web', 'vuln-1', 'running', ?1, ?1, ?1)`, at)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := &reportingWorker{}
+	e.withProber(w) // core restarts; the scan worker has not reported yet
+	waitFor(t, "the identification to be taken up after the restart", func() bool {
+		return strings.Contains(logOf(t, e, "ident-1"), "Queued again")
+	})
+	settle(t, e, "ident-1", 300*time.Millisecond) // it meets the worker that has not reported yet
+	w.report(false)
+	sa.WaitBackground(e.svc)
+	r := settle(t, e, "ident-1", 3*time.Second)
+	if r.Status != run.Failed || r.Error == nil || *r.Error != "Vedette restarted before this began, so it did not run" {
+		t.Fatalf("the identification without its caller: %s (%s), want failed with the restart's words | %s", r.Status, r.Summary, logOf(t, e, "ident-1"))
 	}
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// a device deleted between the device list and its policy read leaves the list, it does not fail it.
+// A device deleted between the device list and its policy read leaves the list, it does not fail it.
 func TestReview_L6_DeletedDeviceDoesNotFailTheList(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)

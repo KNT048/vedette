@@ -903,7 +903,7 @@ func TestSiemSendsABadConnectionOnce(t *testing.T) {
 	}
 }
 
-// a chatty device that meets listed addresses it already has hits for does not use the cap of the batch: another device's first hit is stored.
+// A chatty device that meets listed addresses it already has hits for does not use the cap of the batch: another device's first hit is stored.
 func TestIOCChattyDeviceDoesNotHideAnotherDevicesFirstHit(t *testing.T) {
 	t.Parallel()
 	e, src, ff, p := iocEnv(t)
@@ -931,7 +931,7 @@ func TestIOCChattyDeviceDoesNotHideAnotherDevicesFirstHit(t *testing.T) {
 	}
 }
 
-// the events are published after the commit: a subscriber that asks for the hit by its id finds it.
+// The events are published after the commit: a subscriber that asks for the hit by its id finds it.
 func TestIOCEventsAreAfterTheCommit(t *testing.T) {
 	t.Parallel()
 	e, src, _, p := iocEnv(t)

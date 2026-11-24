@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// a CVE a person dismissed (false positive, not relevant, patched) is not probed again.
+// A CVE a person dismissed (false positive, not relevant, patched) is not probed again.
 func TestReview_L3_DismissedFindingsAreNotProbed(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)

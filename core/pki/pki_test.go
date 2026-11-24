@@ -211,7 +211,7 @@ func TestCAIsMadeOnceAndSealed(t *testing.T) {
 	if _, err := s.Open(t.Context(), e.db.Reader(), id, "core_sensor_ca"); !errors.Is(err, secrets.ErrRestricted) {
 		t.Errorf("secrets.Store.Open of the CA key = %v, want ErrRestricted", err)
 	}
-	// the purpose is closed from the start of the process (pki reserves it in an init function), so a store that never ran
+	// The purpose is closed from the start of the process (pki reserves it in an init function), so a store that never ran
 	// pki.Open refuses it as well
 	fresh, _ := secrets.New(masterKey)
 	if _, err := fresh.Open(t.Context(), e.db.Reader(), id, "core_sensor_ca"); !errors.Is(err, secrets.ErrRestricted) {
@@ -301,7 +301,7 @@ func TestLostMasterKeyGivesANewCA(t *testing.T) {
 	}
 }
 
-// a CA that is expired, not yet valid or damaged is replaced too, and each says why in the audit row. A failure of the
+// A CA that is expired, not yet valid or damaged is replaced too, and each says why in the audit row. A failure of the
 // database is not one of these (the CA is never thrown away for it).
 func TestACAThatCannotBeUsedIsReplaced(t *testing.T) {
 	t.Parallel()

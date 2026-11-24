@@ -149,7 +149,7 @@ func TestWiringSensorDefaultCardIsTheDefaultRouteCard(t *testing.T) {
 	}
 }
 
-// a container-only install (no socket configured) never takes the core container's own interfaces for the
+// A container-only install (no socket configured) never takes the core container's own interfaces for the
 // box's cards: Interfaces gives none and no error (the cards come from the sensor's heartbeat), and SpanOptions has its
 // defaults before the first save.
 func TestWiringWithoutAHostCoreDoesNotReadItsOwnInterfaces(t *testing.T) {

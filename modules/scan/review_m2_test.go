@@ -8,7 +8,7 @@ import (
 	"github.com/knt048/vedette/core/api/oas"
 )
 
-// a worker that does not stop keeps the engine busy: the run shows stopped within 5 s, but no new run starts
+// A worker that does not stop keeps the engine busy: the run shows stopped within 5 s, but no new run starts
 // until the engine has returned (POST-2, FORBID-3).
 func TestReview_M2_NoNewRunWhileTheEngineIsBusy(t *testing.T) {
 	t.Parallel()

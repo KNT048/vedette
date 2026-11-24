@@ -17,7 +17,7 @@ import (
 
 const answerStale = "This button was pressed while Vedette was not listening. Press it again."
 
-// a public @name chat can be joined by anyone, and a released name can be taken by someone else, who would then receive the approval
+// A public @name chat can be joined by anyone, and a released name can be taken by someone else, who would then receive the approval
 // messages. Approvals need the numeric chat id; a @name stays fine for alerts only.
 func TestContract_PRE8_TelegramApprovalsNeedANumericChat(t *testing.T) {
 	te := newTGEnv(t)
@@ -53,7 +53,7 @@ func TestContract_PRE8_TelegramApprovalsNeedANumericChat(t *testing.T) {
 	}
 }
 
-// a press that waited at Telegram while the box was not listening (down, restarting, or the listener stopped for more than a
+// A press that waited at Telegram while the box was not listening (down, restarting, or the listener stopped for more than a
 // minute) is answered and dropped, never decided: the person may have given up on it long ago. message.date cannot tell this (it is
 // when the approval message was sent), so the listener drops what is waiting when it starts again after a gap.
 func TestContract_PRE8_TelegramPressesFromBeforeTheListenerAreDropped(t *testing.T) {
@@ -94,7 +94,7 @@ func TestContract_PRE8_TelegramPressesFromBeforeTheListenerAreDropped(t *testing
 	}
 }
 
-// answers made on the receive loop (presses refused before Decide) have a short budget, so a Telegram that does not answer one
+// Answers made on the receive loop (presses refused before Decide) have a short budget, so a Telegram that does not answer one
 // does not hold the next press for long.
 func TestTelegramAnswersOnTheReceiveLoopHaveAShortBudget(t *testing.T) {
 	te := newTGEnv(t)

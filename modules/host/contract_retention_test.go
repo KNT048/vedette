@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// backup retention never drops a backup something still needs and always keeps the one
+// Backup retention never drops a backup something still needs and always keeps the one
 // just made, a missing or corrupt backup is not retried for ever (and an I/O error is), and os.install waits
 // for core.
 

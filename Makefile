@@ -517,7 +517,7 @@ RELEASE_KEYS_ARG = $(if $(RELEASE_KEYS),-keys-dir $(RELEASE_KEYS))
 RELEASE_ADVISORY ?=
 RELEASE_ADVISORY_ARGS = $(foreach a,$(RELEASE_ADVISORY),-advisory $(a))
 
-# one cosign sign per image (index digest of RELEASE_IN, the files release-manifest reads), then one
+# One cosign sign per image (index digest of RELEASE_IN, the files release-manifest reads), then one
 # cosign attest --type cyclonedx per platform SBOM of `make sbom RELEASE=1 IMAGE_TAG=<version>` onto that platform's digest in images.json
 # (each SBOM's trivy ImageID must be the config digest images.json records for that platform: the image that was pushed). Printed with
 # the pinned cosign (COSIGN_BIN: an absolute path), never run; the first line is `cd` to the repo. The sign and attest lines upload to ghcr with

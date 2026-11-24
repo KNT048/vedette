@@ -580,7 +580,7 @@ func TestSourceNames(t *testing.T) {
 	}
 }
 
-// an attacker that sends one line at a time (batches close every 2 seconds) behind a signature full of one-line addresses is not hidden: the
+// An attacker that sends one line at a time (batches close every 2 seconds) behind a signature full of one-line addresses is not hidden: the
 // exact count of an address that has no row is kept in memory, and the address gets its row at its second line with the count it sent.
 func TestContract_TopAddresses_SlowAttackerBehindAFullSignatureIsKept(t *testing.T) {
 	t.Parallel()
@@ -719,7 +719,7 @@ func has(l []AddressCount, ip string) bool {
 	return false
 }
 
-// lines stored while the box's address was not known (the host had not answered) are not returned once it is, and until a whole answer has
+// Lines stored while the box's address was not known (the host had not answered) are not returned once it is, and until a whole answer has
 // been had the port is asked at every batch.
 func TestContract_TopAddresses_BoxAddressStoredBeforeItWasKnownIsNotReturned(t *testing.T) {
 	t.Parallel()

@@ -996,7 +996,7 @@ func logTo(buf *syncBuf) mut {
 	return func(c *ops.Config, _ *ops.Deps) { c.Logger = slog.New(slog.NewTextHandler(buf, nil)) }
 }
 
-// a refused pull can change what the host knows (the stored index); it leaves a warning and an audit line.
+// A refused pull can change what the host knows (the stored index); it leaves a warning and an audit line.
 func TestContract_Pull_AStoredNewerIndexLeavesALogAndAnAuditLineEvenWhenTheManifestIsRefused(t *testing.T) {
 	t.Parallel()
 	var buf syncBuf
@@ -1048,7 +1048,7 @@ func anyStrings(v any) []string {
 	return out
 }
 
-// a retired minisign key only re-verifies the stored index; it never accepts a new one.
+// A retired minisign key only re-verifies the stored index; it never accepts a new one.
 func TestContract_Pull_AStoredIndexSignedByARetiredKeyStillLoadsAndHoldsItsFloorAndRevocations(t *testing.T) {
 	t.Parallel()
 	e := startPull(t)
@@ -1079,7 +1079,7 @@ func TestContract_Pull_AStoredIndexSignedByARetiredKeyStillLoadsAndHoldsItsFloor
 	e.refused(t, api.CmdContainerPull, e.rel.ArgsSig("core", pullVersion, raw, next.Sign(raw), mraw, e.rel.Sign(mraw)), 412, api.CodeSignatureInvalid)
 }
 
-// a build-time floor when nothing is stored, and an expired index is visible.
+// A build-time floor when nothing is stored, and an expired index is visible.
 func TestContract_Pull_TheBuildsMinimumSequenceIsTheFloorWhenNothingIsStored(t *testing.T) {
 	t.Parallel()
 	e := startPull(t)
@@ -1112,7 +1112,7 @@ func TestContract_Pull_AnExpiredIndexIsInTheResultAndInTheAudit(t *testing.T) {
 	}
 }
 
-// the manifest hash is compared with every channel whose latest is this version.
+// The manifest hash is compared with every channel whose latest is this version.
 func TestContract_Pull_TheManifestHashIsCheckedAgainstEveryChannelThatNamesTheVersion(t *testing.T) {
 	t.Parallel()
 	e := startPull(t)
@@ -1133,7 +1133,7 @@ func TestContract_Pull_TheManifestHashIsCheckedAgainstEveryChannelThatNamesTheVe
 	e.pull(t, e.argsFor(t, api.ServiceCore, pullVersion, idx, man))
 }
 
-// only a path that is not there sends the disk check to its parent; a present image needs no space.
+// Only a path that is not there sends the disk check to its parent; a present image needs no space.
 func TestContract_Pull_OnlyAMissingPathSendsTheDiskCheckToItsParent(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
@@ -1164,7 +1164,7 @@ func TestContract_Pull_AnImageThatIsAlreadyHereNeedsNoFreeSpace(t *testing.T) {
 	}
 }
 
-// podman may show the pull reference in RepoDigests with another Digest (an image index); that is enough.
+// Podman may show the pull reference in RepoDigests with another Digest (an image index); that is enough.
 func TestContract_Pull_ARepoDigestsOnlyAnswerIsEnough(t *testing.T) {
 	t.Parallel()
 	e := startPull(t)
@@ -1175,7 +1175,7 @@ func TestContract_Pull_ARepoDigestsOnlyAnswerIsEnough(t *testing.T) {
 	}
 }
 
-// the recovery index: signed by the backup key, revokes the signer of the stored index, a lower sequence.
+// The recovery index: signed by the backup key, revokes the signer of the stored index, a lower sequence.
 func TestContract_Pull_ABackupSignedRecoveryIndexWithALowerSequenceIsStoredAndReloaded(t *testing.T) {
 	t.Parallel()
 	e := startPull(t)

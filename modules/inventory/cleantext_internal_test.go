@@ -2,7 +2,7 @@ package inventory
 
 import "testing"
 
-// cleanText refuses C1 controls, every format character and every default-ignorable code point, besides C0 and DEL.
+// CleanText refuses C1 controls, every format character and every default-ignorable code point, besides C0 and DEL.
 func TestCleanTextRefusesInvisibleCharacters(t *testing.T) {
 	t.Parallel()
 	if !cleanText("Cisco IOS 15.2 ünï 日本") {

@@ -7,7 +7,7 @@ import (
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 )
 
-// probe rows still open when the run ends are closed by finish.
+// Probe rows still open when the run ends are closed by finish.
 func TestReview_L4_FinishClosesOpenProbes(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)

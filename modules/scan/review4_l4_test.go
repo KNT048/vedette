@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// the rescan run and the event's link to it commit together: a failure leaves no run that the event does not
+// The rescan run and the event's link to it commit together: a failure leaves no run that the event does not
 // know about (which the next pass would start again).
 func TestReview4_L4_TheEventAndItsRunCommitTogether(t *testing.T) {
 	t.Parallel()

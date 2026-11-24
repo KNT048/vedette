@@ -197,7 +197,7 @@ func TestWriterUndoSurvivesEditsOfTheConnectionButNotAnotherDevice(t *testing.T)
 	wantStatus(t, r.do(bad), write.StatusNotSent)
 }
 
-// a #fragment is refused; a ?query is part of the approved step and stays, the allow-list judging the path.
+// A #fragment is refused; a ?query is part of the approved step and stays, the allow-list judging the path.
 func TestWriterRefusesAFragmentAndKeepsTheQuery(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -211,7 +211,7 @@ func TestWriterRefusesAFragmentAndKeepsTheQuery(t *testing.T) {
 	}
 }
 
-// the method-override headers, X-Real-IP and the others that response refuses at save time are refused by the writer on a write too.
+// The method-override headers, X-Real-IP and the others that response refuses at save time are refused by the writer on a write too.
 func TestWriterRefusesTheHeadersResponseRefuses(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)
@@ -230,7 +230,7 @@ func TestWriterRefusesTheHeadersResponseRefuses(t *testing.T) {
 	}
 }
 
-// a read step that types a change into a switch is refused by the list of commands, and so is a read step on a connection that has the write tool on.
+// A read step that types a change into a switch is refused by the list of commands, and so is a read step on a connection that has the write tool on.
 func TestWriterSSHReadStepsAreHeldToTheCommandBanWithTheWriteToolOn(t *testing.T) {
 	t.Parallel()
 	r := newRig(t)

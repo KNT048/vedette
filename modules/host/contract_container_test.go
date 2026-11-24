@@ -1110,7 +1110,7 @@ func mustJSONBytes(v any) []byte {
 	return b
 }
 
-// a journal that has not been recovered blocks that service only, in both commands, and an
+// A journal that has not been recovered blocks that service only, in both commands, and an
 // old or overwritten journal is never silently reused by a new change.
 func TestContract_Container_AJournalOfOneServiceRefusesItsCommandsOnly(t *testing.T) {
 	t.Parallel()
@@ -1132,7 +1132,7 @@ func TestContract_Container_AJournalOfOneServiceRefusesItsCommandsOnly(t *testin
 	}
 }
 
-// the fast path (a healthy service that only gets its [Install] back) is journaled too.
+// The fast path (a healthy service that only gets its [Install] back) is journaled too.
 func TestContract_Container_TheFastPathWritesAJournalAndClearsIt(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
@@ -1148,7 +1148,7 @@ func TestContract_Container_TheFastPathWritesAJournalAndClearsIt(t *testing.T) {
 	}
 }
 
-// a persist-stopped service whose enabling fails stays stopped (SYS-5); one that was running is restarted.
+// A persist-stopped service whose enabling fails stays stopped (SYS-5); one that was running is restarted.
 func TestContract_Container_AFailedStartReturnsTheServiceToTheStateItHad(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)
@@ -1200,7 +1200,7 @@ func TestContract_Container_ATimeoutIsFollowedByARevert(t *testing.T) {
 	}
 }
 
-// a unit that failed has nothing running: it counts as stopped, in the check and in the effect.
+// A unit that failed has nothing running: it counts as stopped, in the check and in the effect.
 func TestContract_Container_AFailedUnitCountsAsStopped(t *testing.T) {
 	t.Parallel()
 	e := startCtr(t)

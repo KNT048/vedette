@@ -443,7 +443,7 @@ func TestScripts_Rules(t *testing.T) {
 	}
 }
 
-// an upgrade restarts a vedette-host that is running (try-restart: a stopped unit stays stopped, a first install starts
+// An upgrade restarts a vedette-host that is running (try-restart: a stopped unit stays stopped, a first install starts
 // nothing); the old daemon must not outlive the new package. This runs the real restart_after_upgrade of the postinst with
 // deb-systemd-invoke and systemctl replaced by recorders on PATH, and reads the configure branch to see it is called after the
 // reload, inside the systemd check, with the previous version ($2). host-deb-check proves the effect in a systemd container.

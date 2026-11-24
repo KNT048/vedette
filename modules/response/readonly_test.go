@@ -97,7 +97,7 @@ func TestReadBackHolds(t *testing.T) {
 	}
 }
 
-// both port-shut built-ins promise "undo leaves it shut", but nothing reads the old state yet and the undo is a plain "no shutdown".
+// Both port-shut built-ins promise "undo leaves it shut", but nothing reads the old state yet and the undo is a plain "no shutdown".
 // The check before must refuse a port that is already down, or the undo (which runs without approval) would turn on a port an
 // administrator shut.
 func TestBuiltinPortShutRefusesAPortThatIsAlreadyDown(t *testing.T) {
@@ -128,7 +128,7 @@ func TestBuiltinPortShutRefusesAPortThatIsAlreadyDown(t *testing.T) {
 	}
 }
 
-// the refusal list is a deny list over unparsed output, so the Cisco port actions also require the positive text, and they refuse
+// The refusal list is a deny list over unparsed output, so the Cisco port actions also require the positive text, and they refuse
 // the modes a deny list tends to forget. A bare "trunk" is not a refusal text (it matches a VLAN or a description called trunk).
 func TestCiscoPortChecksFailClosedOnUnexpectedOutput(t *testing.T) {
 	t.Parallel()
@@ -163,7 +163,7 @@ func TestCiscoPortChecksFailClosedOnUnexpectedOutput(t *testing.T) {
 	}
 }
 
-// fgt_policy_disable promises to refuse a policy whose action is deny (turning that off opens traffic). The check reads the policy
+// Fgt_policy_disable promises to refuse a policy whose action is deny (turning that off opens traffic). The check reads the policy
 // and refuses "action":"deny" after the JSON is compacted, or "set action deny" in the command form.
 func TestFortiGatePolicyDisableRefusesADenyPolicy(t *testing.T) {
 	t.Parallel()
@@ -187,7 +187,7 @@ func TestFortiGatePolicyDisableRefusesADenyPolicy(t *testing.T) {
 	}
 }
 
-// the library loader refuses a read-back that writes, and an SSH read-back or check that is a line of the action.
+// The library loader refuses a read-back that writes, and an SSH read-back or check that is a line of the action.
 func TestLibraryReadBackAndCheckAreReadOnly(t *testing.T) {
 	t.Parallel()
 	base := builtinDef{ID: "x_api", Kind: "device", Risk: RiskLow, Run: Tpl{Method: "POST", Path: "/a/{ip}"}, Rollback: Tpl{Method: "DELETE", Path: "/a/{ip}"}}
@@ -219,7 +219,7 @@ func TestLibraryReadBackAndCheckAreReadOnly(t *testing.T) {
 	}
 }
 
-// the approval screen shows the stored method of a read step, not a hard-coded GET.
+// The approval screen shows the stored method of a read step, not a hard-coded GET.
 func TestReadStepTextShowsTheStoredMethod(t *testing.T) {
 	t.Parallel()
 	conn := &ConnectionInfo{Connection: Connection{Kind: "http"}, Target: "https://api.lan"}

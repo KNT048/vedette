@@ -38,7 +38,7 @@ func newClockedSender(t *testing.T, f *zaloFake) (*zaloPersonalSender, *zpClock)
 	return s, c
 }
 
-// a service address that is not a name below chat.zalo.me never gets cookies.
+// A service address that is not a name below chat.zalo.me never gets cookies.
 func TestContract_ZaloPersonalServiceHostIsStrict(t *testing.T) {
 	t.Parallel()
 	for _, raw := range []string{
@@ -102,7 +102,7 @@ func TestContract_ZaloPersonalCallChecksTheHostBeforeCookies(t *testing.T) {
 	mu.Unlock()
 }
 
-// a refused sign-in is not repeated for every alert (the account can be locked).
+// A refused sign-in is not repeated for every alert (the account can be locked).
 func TestContract_ZaloPersonalSignInsAreRationed(t *testing.T) {
 	t.Parallel()
 	f := newZaloFake(t)
@@ -228,7 +228,7 @@ func TestZaloPersonalForbiddenSessionIsDroppedAndPaused(t *testing.T) {
 	}
 }
 
-// an answer that cannot be read may hide a delivered message: never post again.
+// An answer that cannot be read may hide a delivered message: never post again.
 func TestContract_ZaloPersonalNeverPostsTwiceOnAnUnreadableAnswer(t *testing.T) {
 	t.Parallel()
 	f := newZaloFake(t)
@@ -265,7 +265,7 @@ func inner(t *testing.T, plain string) []byte {
 	return []byte(`{"error_code":0,"error_message":"","data":"` + enc + `"}`)
 }
 
-// ids and envelope keys are read the way upstream reads them.
+// Ids and envelope keys are read the way upstream reads them.
 func TestZaloPersonalReadsAnswersStrictly(t *testing.T) {
 	t.Parallel()
 	key := []byte(zpKey)
@@ -300,7 +300,7 @@ func TestZaloPersonalReadsAnswersStrictly(t *testing.T) {
 	}
 }
 
-// a cookie Zalo rotates in an error answer is scrubbed from that answer's text.
+// A cookie Zalo rotates in an error answer is scrubbed from that answer's text.
 func TestContract_FORBID2_ZaloPersonalScrubsACookieRotatedInTheErrorAnswer(t *testing.T) {
 	t.Parallel()
 	const fresh = "FRESHLYrotatedSECRET999"
@@ -324,7 +324,7 @@ func TestContract_FORBID2_ZaloPersonalScrubsACookieRotatedInTheErrorAnswer(t *te
 	}
 }
 
-// waiting for an earlier send ends with the context.
+// Waiting for an earlier send ends with the context.
 func TestZaloPersonalWaitingForTheTurnHonoursTheContext(t *testing.T) {
 	t.Parallel()
 	entered := make(chan struct{}, 1)
@@ -381,7 +381,7 @@ func TestZaloPersonalConcurrentSends(t *testing.T) {
 	}
 }
 
-// scoping and deletion of cookies.
+// Scoping and deletion of cookies.
 func TestZaloPersonalCookiesAreScopedAndCanBeDeleted(t *testing.T) {
 	t.Parallel()
 	const noDomain = `{"imei":"` + zpIMEI + `","userAgent":"ua","cookie":[{"name":"zpsid","value":"NODOMAINcookie1"}]}`

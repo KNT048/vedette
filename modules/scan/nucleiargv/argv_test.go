@@ -17,7 +17,7 @@ func job() Job {
 	}
 }
 
-// each selected template is named by its file, from the verified index; nuclei loads nothing else.
+// Each selected template is named by its file, from the verified index; nuclei loads nothing else.
 func TestBuild_Shape(t *testing.T) {
 	t.Parallel()
 	args, err := Build(job())
@@ -36,7 +36,7 @@ func TestBuild_Shape(t *testing.T) {
 	}
 }
 
-// the fixed part allows protocols (http, tcp, ssl) instead of denying some, follows no redirect and probes nothing.
+// The fixed part allows protocols (http, tcp, ssl) instead of denying some, follows no redirect and probes nothing.
 func TestBuild_FixedFlagsAreTheSafeOnes(t *testing.T) {
 	t.Parallel()
 	joined := " " + strings.Join(fixedFlags, " ") + " "
@@ -222,7 +222,7 @@ func independentTargetOf(s string, hostOK func(string) bool) bool {
 	return err == nil && p >= 1 && p <= 65535 && strconv.Itoa(p) == port && hostOK(host)
 }
 
-// whatever Validate accepts has these properties, checked without its code: the approved fixed part, then -rl
+// Whatever Validate accepts has these properties, checked without its code: the approved fixed part, then -rl
 // 1..20, -mhe 2..20, then only -t pairs under TemplatesDir, then only -u pairs of private literal targets; or the
 // approved own_ip fixed part, -rl 5, and exactly one -u of a public literal target.
 func FuzzValidate(f *testing.F) {

@@ -365,7 +365,7 @@ func TestEngineBounds(t *testing.T) {
 	}
 }
 
-// an ARP flood from random MACs adds at most maxNewMACsPerMinute devices a minute; devices already
+// An ARP flood from random MACs adds at most maxNewMACsPerMinute devices a minute; devices already
 // reported are not affected, and the budget comes back with the next minute.
 func TestNewMACsAreRateLimited(t *testing.T) {
 	t.Parallel()
@@ -606,7 +606,7 @@ func TestLLDPHasNoIPSoIPFiltersCannotApply(t *testing.T) {
 	}
 }
 
-// replies to the box and broadcasts reach a mirror of the box's own port; they do not make other devices.
+// Replies to the box and broadcasts reach a mirror of the box's own port; they do not make other devices.
 func TestOwnOnlyIgnoresRepliesToTheBoxAndBroadcasts(t *testing.T) {
 	t.Parallel()
 	e, err := newEngine(spanCfg())
@@ -748,7 +748,7 @@ func TestValueEmptyDoesNotCountAsASighting(t *testing.T) {
 	}
 }
 
-// broadcasts and replies to the box do not count as "other MACs", also with a VLAN tag, a QinQ tag, or an 802.3 frame.
+// Broadcasts and replies to the box do not count as "other MACs", also with a VLAN tag, a QinQ tag, or an 802.3 frame.
 func TestOtherMACsIgnoreTaggedBroadcastsAndRepliesToTheBox(t *testing.T) {
 	t.Parallel()
 	e, _ := newEngine(spanCfg())

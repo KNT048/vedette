@@ -106,7 +106,7 @@ func FuzzParse(f *testing.F) {
 	})
 }
 
-// the tags the pack refuses are the tags nuclei is told to exclude: one list.
+// The tags the pack refuses are the tags nuclei is told to exclude: one list.
 func TestForbiddenTagsAreTheExcludedTags(t *testing.T) {
 	t.Parallel()
 	args, err := nucleiargv.Build(nucleiargv.Job{Templates: []string{"http/a.yaml"}, Targets: []nucleiargv.Target{{Host: "10.0.0.1", Port: 80, Scheme: "http"}}, Rate: 1, MaxHostErrors: 2})

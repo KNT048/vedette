@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 )
 
-// the product skills. The list is in code (decision of the plan; the signed content pack in skills/ is
+// The product skills. The list is in code (decision of the plan; the signed content pack in skills/ is
 // deferred), the same eleven entries as SKILL_DEFS of the mock. The only thing stored is the switch of each skill (ai_skill_state);
 // a skill with no row is on. What a switch does at run time: a job whose skill is off does not run (Ready, hence RunJob and
 // Available), so its button is not offered and a scheduled call stops with 409 ai_unavailable. A skill with no job

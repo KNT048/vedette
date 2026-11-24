@@ -2,7 +2,7 @@ package scan
 
 import "testing"
 
-// one bad event does not stop the queue: it is logged and the next event is handled.
+// One bad event does not stop the queue: it is logged and the next event is handled.
 func TestReview4_L2_OneBadEventDoesNotStopTheQueue(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)

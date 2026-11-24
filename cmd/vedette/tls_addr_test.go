@@ -312,7 +312,7 @@ func TestHostMgmtIPv4sIsTheManagementCardOnly(t *testing.T) {
 	_ = api.NetRoleManagement
 }
 
-// a change made another way (DHCP, console) is seen at the 10-minute tick, with no kick.
+// A change made another way (DHCP, console) is seen at the 10-minute tick, with no kick.
 func TestAddressTickSeesAChangeWithoutAKick(t *testing.T) {
 	t.Parallel()
 	m := &fakeMgmt{}
@@ -336,7 +336,7 @@ func TestAddressTickSeesAChangeWithoutAKick(t *testing.T) {
 	}
 }
 
-// the new certificate is served from memory even when the disk cannot be read back, and a pair on disk that
+// The new certificate is served from memory even when the disk cannot be read back, and a pair on disk that
 // is not the served one is served instead.
 func TestReissueDoesNotNeedTheDiskAndFollowsAReplacedPair(t *testing.T) {
 	t.Parallel()
@@ -378,7 +378,7 @@ func TestReissueDoesNotNeedTheDiskAndFollowsAReplacedPair(t *testing.T) {
 	}
 }
 
-// after a re-issue the box's own health check (it pins the served certificate to the file) is healthy.
+// After a re-issue the box's own health check (it pins the served certificate to the file) is healthy.
 func TestHealthcheckIsHealthyAfterAReissue(t *testing.T) {
 	t.Parallel()
 	m := &fakeMgmt{}
@@ -396,7 +396,7 @@ func TestHealthcheckIsHealthyAfterAReissue(t *testing.T) {
 	}
 }
 
-// at most 16 addresses, each once, only private or global unicast; one warning when cut.
+// At most 16 addresses, each once, only private or global unicast; one warning when cut.
 func TestHostMgmtIPv4sIsBoundedAndFiltered(t *testing.T) {
 	t.Parallel()
 	addrs := []string{"224.0.0.1/24", "240.0.0.1/24", "255.255.255.255/32", "0.0.0.0/0", "127.0.0.1/8", "169.254.1.1/16", "10.0.0.1/24", "10.0.0.1/24"}
@@ -422,7 +422,7 @@ func TestHostMgmtIPv4sIsBoundedAndFiltered(t *testing.T) {
 	}
 }
 
-// a changed address of the container alone does not re-issue.
+// A changed address of the container alone does not re-issue.
 func TestContainerAddressAloneDoesNotReissue(t *testing.T) {
 	t.Parallel()
 	m := &fakeMgmt{}
@@ -446,7 +446,7 @@ func TestContainerAddressAloneDoesNotReissue(t *testing.T) {
 	}
 }
 
-// one warning per outage of the host.
+// One warning per outage of the host.
 func TestHostOutageIsWarnedOnce(t *testing.T) {
 	t.Parallel()
 	m := &fakeMgmt{}

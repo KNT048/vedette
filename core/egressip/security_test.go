@@ -80,7 +80,7 @@ func TestProbe_ProxyOfAPassedTransportIsCleared(t *testing.T) {
 	}
 }
 
-// two of the three services on one host would be one vote cast twice.
+// Two of the three services on one host would be one vote cast twice.
 func TestProbe_ConstructorRejectsTwoServicesOnOneHost(t *testing.T) {
 	t.Parallel()
 	for _, urls := range [][]string{
@@ -97,7 +97,7 @@ func TestProbe_ConstructorRejectsTwoServicesOnOneHost(t *testing.T) {
 	}
 }
 
-// a request that carries nothing identifying: Go's own User-Agent, not the name of the product.
+// A request that carries nothing identifying: Go's own User-Agent, not the name of the product.
 func TestProbe_SendsNoIdentifyingHeader(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
@@ -124,7 +124,7 @@ func TestProbe_SendsNoIdentifyingHeader(t *testing.T) {
 	}
 }
 
-// the voting rule, for every combination of three answers (an address, another, a third, or no answer).
+// The voting rule, for every combination of three answers (an address, another, a third, or no answer).
 func TestProbe_RoundVotingProperty(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex

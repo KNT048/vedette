@@ -338,7 +338,7 @@ func invisible(r rune) bool {
 	return false
 }
 
-// the categories Cc, Cf, Zl and Zp go, newlines and tabs stay, text is capped on a rune boundary.
+// The categories Cc, Cf, Zl and Zp go, newlines and tabs stay, text is capped on a rune boundary.
 func TestClean_DropsInvisibleAndControlCharacters(t *testing.T) {
 	t.Parallel()
 	var b strings.Builder
@@ -390,7 +390,7 @@ func TestParse_EvidenceIsCleanedAndCapped(t *testing.T) {
 	}
 }
 
-// the target of a line is host:port, with the scheme's default port when there is none.
+// The target of a line is host:port, with the scheme's default port when there is none.
 func TestHostOf(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{

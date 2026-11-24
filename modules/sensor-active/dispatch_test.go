@@ -296,7 +296,7 @@ func TestNoHeartbeatFailsTheJob(t *testing.T) {
 		if got := await(t, ch); !errors.Is(got.err, sa.ErrWorkerLost) {
 			t.Fatalf("err = %v", got.err)
 		}
-		// the lost job is not left to run for two hours: the first poll that still names it is told to stop it, at once
+		// The lost job is not left to run for two hours: the first poll that still names it is told to stop it, at once
 		start := time.Now()
 		rep := r.poll(t, j.ID, 20*time.Second)
 		if len(rep.Cancel) != 1 || rep.Cancel[0] != j.ID || len(rep.Jobs) != 0 || time.Since(start) > 5*time.Second {
@@ -305,7 +305,7 @@ func TestNoHeartbeatFailsTheJob(t *testing.T) {
 	})
 }
 
-// a worker that reports a job this core does not know (core restarted while nmap ran) is told to stop it at once, and a
+// A worker that reports a job this core does not know (core restarted while nmap ran) is told to stop it at once, and a
 // new job is not handed to it meanwhile.
 func TestRestartedCoreCancelsTheUnknownRunningJob(t *testing.T) {
 	t.Parallel()
@@ -325,7 +325,7 @@ func TestRestartedCoreCancelsTheUnknownRunningJob(t *testing.T) {
 	_ = ch
 }
 
-// a running job is lost when its timeout plus 30 s has passed, however alive the worker looks; the poll that still names
+// A running job is lost when its timeout plus 30 s has passed, however alive the worker looks; the poll that still names
 // it is told to stop it, and Health says why active discovery waits. A probe with no deadline carries the 2 hour cap.
 func TestRunningJobPastItsLimitIsLostAndCancelled(t *testing.T) {
 	t.Parallel()
@@ -733,7 +733,7 @@ func serve(t *testing.T, r *drig, xml []byte) (stop func() [][]string) {
 	}
 }
 
-// a sweep whose worker becomes unavailable mid-way stops after the batch that found out: it does not probe, and fail, the
+// A sweep whose worker becomes unavailable mid-way stops after the batch that found out: it does not probe, and fail, the
 // batches that are left. The cursor stays after the last finished batch, the job is stopped, and a later Tick runs the sweep
 // again from the cursor.
 func TestSweepStopsWhenTheWorkerIsUnavailable(t *testing.T) {

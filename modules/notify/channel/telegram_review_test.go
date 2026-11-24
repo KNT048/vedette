@@ -35,7 +35,7 @@ func TestParseTelegramUpdatesUnconfirmableIsAnError(t *testing.T) {
 	}
 }
 
-// approval messages cannot be forwarded or saved out of the chat (protect_content); other messages are unchanged.
+// Approval messages cannot be forwarded or saved out of the chat (protect_content); other messages are unchanged.
 func TestTelegramApprovalMessagesAreProtected(t *testing.T) {
 	t.Parallel()
 	var body map[string]any
@@ -66,7 +66,7 @@ func TestTelegramApprovalMessagesAreProtected(t *testing.T) {
 	}
 }
 
-// a caller's client with a total Timeout shorter than a long poll would cut every poll; the bot clears it on its copy (each call
+// A caller's client with a total Timeout shorter than a long poll would cut every poll; the bot clears it on its copy (each call
 // has its own deadline) and leaves the caller's client as it was.
 func TestTelegramBotClearsTheTotalTimeoutOfItsClient(t *testing.T) {
 	t.Parallel()

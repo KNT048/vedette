@@ -672,7 +672,7 @@ func TestMirror_MissingFolderOrFileIs404WithACodeAndALogLine(t *testing.T) {
 	}
 }
 
-// anyone can ask for a missing package, so the WARN line is written once a minute, not once per request; the answer stays the same.
+// Anyone can ask for a missing package, so the WARN line is written once a minute, not once per request; the answer stays the same.
 func TestMirror_MissingWarnsOncePerMinute(t *testing.T) {
 	w := newWorld(t)
 	for range 5 {
@@ -690,7 +690,7 @@ func TestMirror_MissingWarnsOncePerMinute(t *testing.T) {
 	}
 }
 
-// a certificate that cannot be read does not take the Agents page down (tokens and Wazuh still show); the public files still fail.
+// A certificate that cannot be read does not take the Agents page down (tokens and Wazuh still show); the public files still fail.
 func TestInstall_UnreadableCertificateDegradesTheAdminPage(t *testing.T) {
 	w := newWorld(t, func(c *agentintake.Config) {
 		c.TrustAnchor = func() ([]byte, error) { return nil, errors.New("disk read failed") }

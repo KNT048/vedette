@@ -36,7 +36,7 @@ func TestCosignSigstorePayloads(t *testing.T) {
 	}
 }
 
-// the signature travels inside the manifest, so docker-reference is what ties it to a repository.
+// The signature travels inside the manifest, so docker-reference is what ties it to a repository.
 // A genuine signature made for vedette-core must not verify another service's image entry, and
 // docker-reference must be exactly the repository (no tag, no digest, no other registry).
 func TestCosignSignatureBoundToService(t *testing.T) {

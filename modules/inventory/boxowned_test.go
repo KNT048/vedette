@@ -79,7 +79,7 @@ func TestNoBoxOwnedProviderChangesNothing(t *testing.T) {
 	}
 }
 
-// a device that sits on a decoy's address (a DHCP lease or a static address an intruder chose) is a device. Only what
+// A device that sits on a decoy's address (a DHCP lease or a static address an intruder chose) is a device. Only what
 // carries no MAC, or one of the box's own MACs (its cards and the decoys' macvlan links, Config.BoxOwnedMACs), is the box; while
 // the box's MACs are unknown, everything at the address is dropped as before.
 func TestContract_INV17_AForeignMACOnADecoyAddressIsADevice(t *testing.T) {

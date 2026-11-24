@@ -31,7 +31,7 @@ func mac(n int) string {
 	return fmt.Sprintf("02:00:%02x:%02x:%02x:%02x", n>>24&255, n>>16&255, n>>8&255, n&255)
 }
 
-// a sweep over a /16 whose hosts all carry random MACs stops minting devices at the sweep's own budget (1,000 an hour, enough for the
+// A sweep over a /16 whose hosts all carry random MACs stops minting devices at the sweep's own budget (1,000 an hour, enough for the
 // design scale in one pass); the hosts the inventory already has by MAC are not charged.
 func TestRecordSweepStopsAtTheNewDeviceBudget(t *testing.T) {
 	t.Parallel()

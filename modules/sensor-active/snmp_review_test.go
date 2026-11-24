@@ -117,7 +117,7 @@ func TestSNMPEachBatchReadsTheDevicesAgain(t *testing.T) {
 	}
 }
 
-// a batch of the window's round ends with the window (INV-3), as an nmap run does, not an hour later.
+// A batch of the window's round ends with the window (INV-3), as an nmap run does, not an hour later.
 func TestSNMPRoundEndsWithTheWindow(t *testing.T) {
 	t.Parallel()
 	var deadline time.Time

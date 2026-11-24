@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/response"
 )
 
-// header values never reach a reader, an approver reads the whole change.
+// Header values never reach a reader, an approver reads the whole change.
 
 // keyedRequest makes one open request whose API call carries the header "X-Trace: abc123secret".
 func keyedRequest(t *testing.T) *env {
@@ -189,7 +189,7 @@ func sshRequest(t *testing.T, e *env, run string, risk response.Risk, undo ...st
 	return e.only()
 }
 
-// a high-risk, ten-line change reaches the approver in full and with no button.
+// A high-risk, ten-line change reaches the approver in full and with no button.
 func TestHighRiskMultiLineChangeIsInFullWithoutButtons(t *testing.T) {
 	t.Parallel()
 	e := telegramEnv(t)
@@ -236,7 +236,7 @@ func TestLowRiskChangeOverTheLimitHasNoButtons(t *testing.T) {
 	}
 }
 
-// an AI request carries the label in the message and on the page of the link.
+// An AI request carries the label in the message and on the page of the link.
 func TestAIRequestCarriesTheLabel(t *testing.T) {
 	t.Parallel()
 	e, _, _ := propEnv(t, true)

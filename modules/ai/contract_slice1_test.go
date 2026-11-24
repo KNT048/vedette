@@ -13,7 +13,7 @@ import (
 	"github.com/knt048/vedette/modules/core"
 )
 
-// profiles, keys, assignments and the shared settings (S-AI-1).
+// Profiles, keys, assignments and the shared settings (S-AI-1).
 
 func TestMigrationsUsePrefix(t *testing.T) {
 	storetest.AssertMigrationsUsePrefix(t, "ai", ai.Migrations, "ai_", storetest.Migration{Module: "core", FS: core.Migrations})

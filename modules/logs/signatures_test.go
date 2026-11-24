@@ -805,7 +805,7 @@ func TestContract_Events_PayloadFitsWhatNotifyAccepts(t *testing.T) {
 	}
 }
 
-// the baseline is 7 days: the 7 full days before yesterday, also for a source that is older than the counters read (the start of
+// The baseline is 7 days: the 7 full days before yesterday, also for a source that is older than the counters read (the start of
 // the source comes from the oldest day that is kept, not from the first baseline day). One day with 70 more lines gives (80+60)/7.
 func TestContract_INV6_BaselineIsSevenFullDays(t *testing.T) {
 	t.Parallel()
@@ -822,7 +822,7 @@ func TestContract_INV6_BaselineIsSevenFullDays(t *testing.T) {
 	}
 }
 
-// a source whose kind or sender address changes is a different source for the baseline: its warm-up starts again, and nothing is
+// A source whose kind or sender address changes is a different source for the baseline: its warm-up starts again, and nothing is
 // announced during it.
 func TestContract_INV6_ChangingKindOrSenderRestartsTheWarmUp(t *testing.T) {
 	t.Parallel()
@@ -943,7 +943,7 @@ func TestContract_INV1_FloodThroughIngestIsOneRow(t *testing.T) {
 	}
 }
 
-// the reads of one source use the index, and a digest and a detect over 10 sources with every quota full for the 10 days that are
+// The reads of one source use the index, and a digest and a detect over 10 sources with every quota full for the 10 days that are
 // kept are measured.
 func TestMeasureDigestCost(t *testing.T) {
 	t.Parallel()
@@ -1016,7 +1016,7 @@ func measureDigest(t *testing.T, perDay int) {
 	}
 }
 
-// the cost of one Ingest batch of 500 lines: identical lines, distinct lines under the quota, distinct lines with the quota full.
+// The cost of one Ingest batch of 500 lines: identical lines, distinct lines under the quota, distinct lines with the quota full.
 func TestMeasureIngestCost(t *testing.T) {
 	t.Parallel()
 	if os.Getenv("VEDETTE_MEASURE") == "" {
@@ -1618,7 +1618,7 @@ func TestMeasureCeilings(t *testing.T) {
 	t.Logf("Counts 24h: %d in %v %v", n, time.Since(start), err)
 }
 
-// the cost of the writer and of a search with 5 million stored lines (a flood at the byte cap is about this many rows): the
+// The cost of the writer and of a search with 5 million stored lines (a flood at the byte cap is about this many rows): the
 // batch of 500 through Ingest, and Events with no keyword, a common one, a rare one and one that matches nothing, per window.
 // One run, not a gate: VEDETTE_MEASURE=1.
 func TestMeasureFiveMillionLines(t *testing.T) {

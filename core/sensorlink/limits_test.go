@@ -142,7 +142,7 @@ func TestBodiesInFlightAreBoundedPerRole(t *testing.T) {
 	})
 }
 
-// a result for a job that is not running is 404 without its body being read; a malformed id is 400 without it either.
+// A result for a job that is not running is 404 without its body being read; a malformed id is 400 without it either.
 func TestResultForAnUnknownJobIsRefusedBeforeTheBody(t *testing.T) {
 	t.Parallel()
 	r := newRig(t, rigOpt{})

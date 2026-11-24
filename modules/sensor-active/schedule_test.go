@@ -70,7 +70,7 @@ func TestSweepCutByTheWindowResumesWhereItStopped(t *testing.T) {
 	}
 }
 
-// a pass that reached the end is followed by a new pass from the first address; a sweep tests addresses in
+// A pass that reached the end is followed by a new pass from the first address; a sweep tests addresses in
 // memory (no InScope call per address).
 func TestSweepNewPassStartsAfterTheLastEnded(t *testing.T) {
 	t.Parallel()
@@ -93,7 +93,7 @@ func TestSweepNewPassStartsAfterTheLastEnded(t *testing.T) {
 	}
 }
 
-// the sweep skips the addresses the inventory protects.
+// The sweep skips the addresses the inventory protects.
 func TestContract_INV5_SweepSkipsProtectedAddresses(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, func(e *env) {
@@ -244,7 +244,7 @@ func TestProbeRowsAreCompact(t *testing.T) {
 	}
 }
 
-// pruning drops the probe rows older than the retention; the runs are core/run's to prune (400 days).
+// Pruning drops the probe rows older than the retention; the runs are core/run's to prune (400 days).
 func TestPruneRemovesOldProbes(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})

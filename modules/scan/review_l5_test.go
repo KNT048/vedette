@@ -11,7 +11,7 @@ import (
 // errDeviceTimeoutForTest is what an engine returns when the device did not finish in time.
 var errDeviceTimeoutForTest = fmt.Errorf("the job ran out of time: %w", context.DeadlineExceeded)
 
-// a device that did not finish in time has its own reason, not "did not respond".
+// A device that did not finish in time has its own reason, not "did not respond".
 func TestReview_L5_DeviceTimeoutHasItsOwnReason(t *testing.T) {
 	t.Parallel()
 	r := newRunEnv(t)

@@ -68,7 +68,7 @@ func TestBackupKeyRevokesActiveKey(t *testing.T) {
 	}
 }
 
-// key revocations in an index signed by the active key are dropped (and logged), whether or not
+// Key revocations in an index signed by the active key are dropped (and logged), whether or not
 // this binary embeds the key; the index itself is accepted.
 func TestActiveKeyKeyRevocationsAreDropped(t *testing.T) {
 	e := newEnv(t)
@@ -266,7 +266,7 @@ func TestIndexSequence(t *testing.T) {
 	}
 }
 
-// a same-sequence replay of different content is refused; the identical bytes are accepted again,
+// A same-sequence replay of different content is refused; the identical bytes are accepted again,
 // whoever signs them.
 func TestSameSequenceNeedsSameBytes(t *testing.T) {
 	e := newEnv(t)

@@ -2,7 +2,7 @@ package scan
 
 import "testing"
 
-// the product text from feeds (a feed is untrusted, SYS-6) is stored as one plain line: no control, format or
+// The product text from feeds (a feed is untrusted, SYS-6) is stored as one plain line: no control, format or
 // bidi characters.
 func TestReview4_L5_TheProductIsStoredAsPlainText(t *testing.T) {
 	t.Parallel()

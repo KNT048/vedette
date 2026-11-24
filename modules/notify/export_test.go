@@ -113,3 +113,6 @@ func (s *Service) SavedSecretForTest(ctx context.Context, t channel.Type) (strin
 	}
 	return s.openSecret(ctx, s.cfg.DB.Reader(), c.SecretID)
 }
+
+// ReplaceNamesForTest runs the whole-name replacement of current device names.
+func ReplaceNamesForTest(text string, pairs [][2]string) string { return replaceNames(text, pairs) }

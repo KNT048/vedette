@@ -201,3 +201,74 @@ describe('A13-1: the list of backups is read again when a restore ends', () => {
     qc.clear()
   })
 })
+
+describe('restore from a file on a set-up box (Settings, Data)', () => {
+  const protectedFile = async (password: string) => new File([await mockSealed(password, '{}')], 'vedette-backup-2026-11-01-0830.tar.gz.age')
+
+  async function openDialog(u: ReturnType<typeof user>) {
+    renderApp('/settings/data')
+    await u.click(await screen.findByRole('button', { name: 'Restore from a file' }))
+    return screen.findByRole('dialog', { name: 'Restore from a backup file' })
+  }
+
+  it('a protected file: asks for its password, a wrong one changes nothing, the key inside needs no key file, and the restore is followed on the page', async () => {
+    const u = user()
+    let restores = 0
+    server.events.on('request:start', ({ request }) => { if (new URL(request.url).pathname.endsWith('/core/data/restore/file')) restores++ })
+    try {
+      const dlg = await openDialog(u)
+      await u.upload(within(dlg).getByLabelText('Backup file'), await protectedFile('right password'))
+      const pw = await within(dlg).findByLabelText('Backup password')
+      await u.type(pw, 'wrong password')
+      await u.click(within(dlg).getByRole('button', { name: 'Check the file' }))
+      await within(dlg).findByText(/The backup password is wrong/)
+      expect(within(dlg).queryByLabelText('What the backup holds')).toBeNull()
+      expect(restores).toBe(0)
+      await u.clear(pw)
+      await u.type(pw, 'right password')
+      await u.click(within(dlg).getByRole('button', { name: 'Check the file' }))
+      const held = await within(dlg).findByLabelText('What the backup holds')
+      within(held).getByText(/Backup of Acme Manufacturing/)
+      within(held).getByText(/The decryption key is inside this backup/)
+      expect(within(dlg).queryByLabelText('Decryption key file (optional)')).toBeNull()
+      within(dlg).getByText(/Everything written since then is replaced/)
+      within(dlg).getByText(/keeps a copy of the data it has now/)
+      const restore = within(dlg).getByRole('button', { name: 'Restore' })
+      expect(restore).toBeDisabled()
+      await u.type(within(dlg).getByLabelText('Your current password'), 'wrong')
+      await u.click(within(dlg).getByLabelText(/I understand that data written since this backup is replaced/))
+      await u.click(restore)
+      await within(dlg).findByText(/Wrong password/)
+      await u.clear(within(dlg).getByLabelText('Your current password'))
+      await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
+      await u.click(restore)
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Restore from a backup file' })).toBeNull())
+      await screen.findByText(/Restored the backup from/)
+      expect(restores).toBe(2)
+    } finally { server.events.removeAllListeners() }
+  })
+
+  it('a plain file of another box: says what is lost; Restore waits for that tick too and then confirms restoring without the key', async () => {
+    const u = user()
+    let sent: Record<string, unknown> | null = null
+    server.events.on('request:start', async ({ request }) => { if (new URL(request.url).pathname.endsWith('/core/data/restore/file')) sent = await request.clone().json() as Record<string, unknown> })
+    try {
+      const dlg = await openDialog(u)
+      expect(within(dlg).queryByLabelText('Backup password')).toBeNull()
+      await u.upload(within(dlg).getByLabelText('Backup file'), gzip())
+      await u.click(within(dlg).getByRole('button', { name: 'Check the file' }))
+      const held = await within(dlg).findByLabelText('What the backup holds')
+      within(held).getByText('6 saved secrets will be lost and must be entered again.')
+      within(held).getByLabelText('Decryption key file (optional)')
+      await u.type(within(dlg).getByLabelText('Your current password'), 'vedette-demo')
+      await u.click(within(dlg).getByLabelText(/I understand that data written since this backup is replaced/))
+      const restore = within(dlg).getByRole('button', { name: 'Restore' })
+      expect(restore).toBeDisabled()
+      await u.click(within(held).getByLabelText(/I understand that without the key these are lost/))
+      await u.click(restore)
+      await screen.findByText(/Restored the backup from/)
+      expect(sent).toMatchObject({ confirm_data_loss: true, confirm_without_key: true })
+      expect(sent).not.toHaveProperty('key')
+    } finally { server.events.removeAllListeners() }
+  })
+})

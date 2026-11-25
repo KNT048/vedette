@@ -91,8 +91,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   statements that only support "not affected" (`SchemedRange.Unaffected`: a range it states unaffected for every device, feeds INV-35;
   `ModelOnly`: an affected range limited to some models) decide "not affected" when the version is inside an unaffected range and
   inside no affected one, or outside every affected range in a train one of them ends in; they never decide "affected", and a version
-  inside a model-limited range is left to NVD (`notAffectedByStatements`, `TestMatchAsset_VendorStatementsSayOnlyNotAffected`,
-  `TestJuniperRecord_UnaffectedStatementDecidesTheSwitch`). A distribution's fix for a package the device runs is compared before
+  inside a model-limited range is left to NVD. On a disagreement the affected side wins: when an NVD row (a range or an exact release)
+  covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). (`notAffectedByStatements`,
+  `TestMatchAsset_VendorStatementsSayOnlyNotAffected`, `TestJuniperRecord_UnaffectedStatementDecidesTheSwitch`,
+  `TestJuniperRecord_NVDAffectedRowBeatsUnaffectedStatement`). A distribution's fix for a package the device runs is compared before
   NVD's product ranges.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings

@@ -141,3 +141,73 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, r.Origin, r.Part, r.Ven
 		t.Errorf("23.2R1: %s neither open nor asked; the EX4000 entry's statement closed it for a device of unknown model", cve)
 	}
 }
+
+// On a disagreement the affected side wins: Juniper's record states releases before 24.4R1 unaffected, while NVD lists 22.2
+// releases before 22.2R3 and the exact release 23.2R1 as affected. A device NVD's rows cover is never closed "not affected" on the
+// vendor's statement; one no affected row covers (15.1R7.9) still is.
+func TestJuniperRecord_NVDAffectedRowBeatsUnaffectedStatement(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	const cve = "CVE-2026-21915"
+	record := []byte(`{"dataType":"CVE_RECORD","dataVersion":"5.1","cveMetadata":{"cveId":"CVE-2026-21915","state":"PUBLISHED","assignerShortName":"juniper"},` +
+		`"containers":{"cna":{"descriptions":[{"lang":"en","value":"A flaw in Junos OS on EX4000 models."}],` +
+		`"affected":[{"vendor":"Juniper Networks","product":"Junos OS","defaultStatus":"unaffected","platforms":["EX4000-48T"],"versions":[` +
+		`{"version":"0","lessThan":"24.4R1","status":"unaffected","versionType":"semver"},` +
+		`{"version":"24.4","lessThan":"24.4R2","status":"affected","versionType":"semver"}]}]}}}`)
+	rec, err := feeds.ParseCVERecord(record, cve)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if err := seedNVD(ctx, tx, cve, time.Now().AddDate(0, -1, 0), 7.5); err != nil {
+			return err
+		}
+		if err := seedRange(ctx, tx, cve, "cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*", "22.2", "", "", "22.2R3"); err != nil {
+			return err
+		}
+		for _, release := range []string{"23.2:r1", "24.4:r1"} {
+			if err := seedRange(ctx, tx, cve, "cpe:2.3:o:juniper:junos:"+release+":*:*:*:*:*:*", "", "", "", ""); err != nil {
+				return err
+			}
+		}
+		for _, r := range rec.Ranges {
+			var plats any
+			if len(r.Platforms) > 0 {
+				b, err := json.Marshal(r.Platforms)
+				if err != nil {
+					return err
+				}
+				plats = string(b)
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, fixed, version_type, default_status, platforms)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, r.Origin, r.Part, r.Vendor, r.Product, r.CPE, r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl, r.Fixed, r.VersionType, r.DefaultStatus, plats); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	add := func(name, version, ip string) string {
+		t.Helper()
+		r, err := s.d.Inventory.AddDevice(ctx, "it@acme.example", inventory.AddInput{CatalogID: "juniper-junos-os", Version: version, Name: name, IP: ip})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.ID
+	}
+	inRange, exact, old := add("ex-range", "22.2R1", "192.0.2.41"), add("ex-exact", "23.2R1", "192.0.2.42"), add("ex-old", "15.1R7.9", "192.0.2.43")
+	if _, err := s.d.Findings.Reconcile(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for name, id := range map[string]string{"22.2R1 (NVD range)": inRange, "23.2R1 (NVD exact release)": exact} {
+		if !slices.Contains(openFindings(t, s, id), cve) && s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve = ?`, id, cve) == 0 {
+			t.Errorf("%s: %s neither open nor asked; the vendor's unaffected statement overrode NVD's affected row", name, cve)
+		}
+	}
+	if slices.Contains(openFindings(t, s, old), cve) || s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve = ?`, old, cve) != 0 {
+		t.Errorf("15.1R7.9: %s open or asked, though no affected row covers it and Juniper states it unaffected", cve)
+	}
+}

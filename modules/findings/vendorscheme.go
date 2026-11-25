@@ -191,7 +191,7 @@ func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
 		// U3 row missing while NVD lists 8.0 update_3; on a disagreement the affected side wins, so NVD's ranges decide), or inside a
 		// model-limited range: only the vendor's statements below may still say "not affected"
 	}
-	if notAffectedByStatements(installed, spans, st) {
+	if notAffectedByStatements(installed, spans, st) && !nvdCovers(in, v) {
 		out.verdict, out.stated, out.origin = versionscheme.Verdict{State: versionscheme.NotAffected}, true, cmpOr(st.origin, origin)
 		return out, true
 	}
@@ -202,6 +202,7 @@ func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
 // unaffected (for every device: feeds keeps no other) and inside none of the vendor's affected ranges, of every device or of some models; or it is outside
 // every affected range, in a train one of them ends in, when some are model-limited (the vendor's word on the train, as schemeJudge
 // reads its rows). Never "affected": a model-limited range does not say this device's model has the flaw.
+// schemeJudge reads it only when no NVD row covers the version (nvdCovers).
 func notAffectedByStatements(installed versionscheme.Version, spans []versionscheme.Span, st statements) bool {
 	if inside(installed, spans) || inside(installed, st.models) {
 		return false
@@ -214,6 +215,13 @@ func notAffectedByStatements(installed versionscheme.Version, spans []versionsch
 	}
 	all := append(slices.Clone(spans), st.models...)
 	return namesLine(all, installed) && endsInTrain(all, installed) && versionscheme.Judge(installed, all).State == versionscheme.NotAffected
+}
+
+// nvdCovers says one of NVD's affected rows (a range or an exact release) covers the line's version (decide: Yes). On a
+// disagreement the affected side wins: the vendor's statements never close what NVD lists as affected, NVD's rows decide it.
+func nvdCovers(in swInfo, v Vuln) bool {
+	t, _, _, _ := decide(in, v, keyIDs(v))
+	return t == Yes
 }
 
 // inside says installed is inside one of spans, each read alone (versionscheme.Judge on one span: its bounds, in release order).

@@ -400,6 +400,7 @@
       "findings.confirm": "Confirmed a finding",
       "findings.question_answered": "Answered a question about a finding",
       "findings.question_unanswered": "Asked a question about a finding again",
+      "findings.risk_accepted_in_bulk": "Accepted the risk of a device or software until a day",
       "findings.questions_ignored": "Ignored the open questions of a device or software",
       "findings.device_backfill": "Findings confirmed by the version their device reports",
       "findings.patched_backfill": "Earlier closures after an update relabelled as patched",

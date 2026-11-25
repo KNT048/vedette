@@ -124,6 +124,9 @@ export const useAnswer = () => useModelWrite((v: { id: string; answer: 'affected
 /** Ignore (bypass): every open question of a device, or of one software line of it, answered "not affected" at once. */
 export const useIgnoreQuestions = () => useModelWrite((v: { device: string; software?: string; note: string }) =>
   api.post<{ answered: number }>('/findings/questions/ignore', v))
+/** Accept the risk of a device, a software line of it or one question of that line, until a day (the findings open again after it). */
+export const useAcceptRiskQuestions = () => useModelWrite((v: { device: string; software?: string; question?: string; note: string; until: string }) =>
+  api.post<{ questions: number; findings: number }>('/findings/questions/accept-risk', v))
 export const useUnanswer = () => useModelWrite((v: { id: string }) => api.post<{ id: string }>(`/findings/questions/${encodeURIComponent(v.id)}/unanswer`, {}))
 /** A view of one finding: its status, the reasons of its urgency and how it is known, as every list row says them. */
 export const useView = (id: string, enabled = true) =>

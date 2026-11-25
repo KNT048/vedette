@@ -242,6 +242,27 @@ func (h *FindingHandlers) FindingsGetFindingsAnswered(ctx context.Context, p oas
 	return Into[oas.FindingsGetFindingsAnsweredOK](out)
 }
 
+// FindingsPostFindingsQuestionsAcceptRisk implements findings_post_findings_questions_accept_risk (admin, as answering "affected"): the risk of a device, or of
+// one software line of it, is accepted until a day: its open questions are answered "affected" and their findings, with the open
+// ones, are accepted until the day, in one transaction.
+func (h *FindingHandlers) FindingsPostFindingsQuestionsAcceptRisk(ctx context.Context, req *oas.FindingsPostFindingsQuestionsAcceptRiskReq) (*oas.FindingsPostFindingsQuestionsAcceptRiskOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	if p.Role != routes.Admin { // it records "affected" on the person's word, which one question at a time needs an admin for
+		return nil, apierr.Forbidden()
+	}
+	if err := cleanNote(req.Note); err != nil {
+		return nil, err
+	}
+	out, err := h.svc.AcceptRiskQuestions(ctx, req.Device, req.Software.Or(""), req.Question.Or(""), req.Note, req.Until, p.Email)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return &oas.FindingsPostFindingsQuestionsAcceptRiskOK{Questions: out.Questions, Findings: out.Findings}, nil
+}
+
 // FindingsPostFindingsQuestionsIDUnanswer implements findings_post_findings_questions_id_unanswer (operator): a "not affected" answer is
 // taken back and the question is asked again.
 func (h *FindingHandlers) FindingsPostFindingsQuestionsIDUnanswer(ctx context.Context, params oas.FindingsPostFindingsQuestionsIDUnanswerParams) (*oas.FindingsPostFindingsQuestionsIDUnanswerOK, error) {

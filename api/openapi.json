@@ -56595,6 +56595,104 @@
         }
       }
     },
+    "/findings/questions/accept-risk": {
+      "post": {
+        "operationId": "findings_post_findings_questions_accept_risk",
+        "summary": "Accept the risk of one device, or of one software line of it, until a day, on your word: every open question there is answered \"affected\", the finding of each CVE it asks about is recorded and accepted until the day, and so is every open finding of the same scope, confirmed or suspected; one transaction, one summary audit row plus one history row per finding. The findings open again after the day; a CVE that matches later is a new question. \"Vedette cannot check this device\" is left. It records \"affected\" on your word, so it needs an admin as answering affected does (an operator gets 403 forbidden)",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "operator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96
+                  },
+                  "software": {
+                    "description": "One software line of the device; the whole device when left out",
+                    "type": "string",
+                    "maxLength": 96
+                  },
+                  "question": {
+                    "description": "One open question (one CVE row of a software line): only its CVEs are accepted",
+                    "type": "string",
+                    "maxLength": 96
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "Why you accept it: at least 3 characters"
+                  },
+                  "until": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "The last day of the acceptance, from tomorrow to 365 days ahead (else 400 bad_until)"
+                  }
+                },
+                "required": [
+                  "device",
+                  "note",
+                  "until"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "questions": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Questions answered affected"
+                    },
+                    "findings": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991,
+                      "description": "Findings accepted until the day"
+                    }
+                  },
+                  "required": [
+                    "questions",
+                    "findings"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/findings/questions/ignore": {
       "post": {
         "operationId": "findings_post_findings_questions_ignore",

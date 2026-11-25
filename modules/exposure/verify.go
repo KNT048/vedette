@@ -87,8 +87,8 @@ func (s *Service) domainCheckAllowed(id string, perTarget bool) error {
 }
 
 // Verify re-checks ownership of one target (POST …/verify, PRE-2). A domain: its TXT record, at most once every DomainCheckEvery per
-// target. An IP: the box must leave the Internet through it now; seeing it renews it for 30 days (INV-4), and counts among the
-// MaxAttemptsPerHour of the box. "Not found" is verified:false, not an error.
+// target. An IP: the box must leave the Internet through it now, and the check counts among the MaxAttemptsPerHour of the box. A pass
+// renews the proof for ValidDays (INV-4). "Not found" is verified:false, not an error, and inside those days a warning only.
 func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, error) {
 	return s.verify(ctx, user, id, true)
 }
@@ -165,24 +165,21 @@ func (s *Service) verify(ctx context.Context, user, id string, limited bool) (Ve
 		case ok && cur.Kind == KindIP:
 			message, verifiedAt = fmt.Sprintf("The box reaches the Internet via %s. Verified until %s.", cur.Value, s.dayText(now.Add(ValidDays*24*time.Hour))), now
 		case ok:
-			message = proofMessage(cur, pr, s.momentText(now)) + bound
-			if cur.VerifiedAt.IsZero() {
-				verifiedAt = now
-			}
+			message, verifiedAt = proofMessage(cur, pr, s.momentText(now))+bound, now
 		case failure != "" && cur.Kind == KindDomain:
-			message = failure + " " + notFoundHint
+			message = failure + s.stillValid(cur, now) + " " + notFoundHint
 		case failure != "":
-			message = failure
+			message = failure + s.stillValid(cur, now)
 		case cur.Kind == KindIP:
-			message = fmt.Sprintf("This box currently reaches the Internet via %s, not %s. Ask your admin to route the box through %s (for example switch WAN), then verify again.", noneIfEmpty(observed), cur.Value, cur.Value)
+			message = fmt.Sprintf("This box currently reaches the Internet via %s, not %s.%s Ask your admin to route the box through %s (for example switch WAN), then verify again.", noneIfEmpty(observed), cur.Value, s.stillValid(cur, now), cur.Value)
 		default:
-			message = fmt.Sprintf("The TXT record %s was not found on %s. %s", txtRecord(cur.Token), cur.Value, notFoundHint)
+			message = fmt.Sprintf("The TXT record %s was not found on %s.%s %s", txtRecord(cur.Token), cur.Value, s.stillValid(cur, now), notFoundHint)
 		}
 		var setMethod string
 		if ok {
 			setMethod = method
 		}
-		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message, Covers: ok && pr.coversBelow(cur.Value), Via: pr.via}, verifiedAt, setMethod); err != nil {
+		if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: ok, Message: message, Covers: ok && pr.coversBelow(cur.Value), Via: keptVia(cur, pr)}, verifiedAt, setMethod); err != nil {
 			return err
 		}
 		if cur.Kind == KindDomain {
@@ -194,8 +191,11 @@ func (s *Service) verify(ctx context.Context, user, id string, limited bool) (Ve
 		if ok {
 			action = "exposure.verify_ok"
 		}
-		if err := s.audit(ctx, tx, user, action, cur.Value, method); err != nil {
-			return err
+		quiet := user == SystemUser && !ok && cur.LastCheck != nil && !cur.LastCheck.OK // the box's own failing re-check is no row every time
+		if !quiet {
+			if err := s.audit(ctx, tx, user, action, cur.Value, method); err != nil {
+				return err
+			}
 		}
 		if ok && !wasOK {
 			emit(EventTargetVerified, TargetVerifiedEvent{TargetID: id})
@@ -255,10 +255,7 @@ func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Ta
 		if o.Kind != KindDomain || o.ID == t.ID || !Covers(p.proven, o.Value) || !o.VerifiedAt.IsZero() && o.LastCheck != nil && o.LastCheck.OK {
 			continue
 		}
-		var verifiedAt time.Time
-		if o.VerifiedAt.IsZero() {
-			verifiedAt = now
-		}
+		verifiedAt := now // a pass renews the proof (INV-4)
 		msg := fmt.Sprintf("Covered by the TXT record on %s, found when %s was checked: it proves %s and every name under it.", p.at, t.Value, p.proven)
 		if p.own && p.proven != t.Value || p.reused { // a record on a parent name: the zone's, so it proves every name under that name
 			msg = reusedMessage(p.proven, s.momentText(now))
@@ -292,7 +289,8 @@ func noneIfEmpty(ips []string) string {
 
 // verifyTyped checks the proof of a public IP a person typed in (INV-35): the token file, then reverse DNS. A person's check is
 // allowed once every DomainCheckEvery per target and counts against the box-wide bound, like a domain's; the box's own re-check
-// (limited false) counts against the bound only. A pass renews the 30 days from now. "Not found" is verified:false with what was asked.
+// (limited false) counts against the bound only. A pass renews the ValidDays from now. "Not found" is verified:false with what was asked,
+// and inside those days a warning only (INV-4).
 func (s *Service) verifyTyped(ctx context.Context, user string, t Target, limited bool) (VerifyResult, error) {
 	if limited { // a person's check takes the per-target pause and the box-wide bound; the box's own re-check has its own schedule
 		if err := s.domainCheckAllowed(t.ID, true); err != nil {
@@ -315,7 +313,7 @@ func (s *Service) verifyTyped(ctx context.Context, user string, t Target, limite
 		}
 		now := s.clock()
 		wasOK := !cur.VerifiedAt.IsZero() && cur.LastCheck != nil && cur.LastCheck.OK && cur.validity(now) != validityExpired
-		msg, action, method := pr.message, "exposure.verify_fail", ""
+		msg, action, method := pr.message+s.stillValid(cur, now), "exposure.verify_fail", ""
 		var verifiedAt time.Time
 		if pr.ok {
 			msg = fmt.Sprintf("%s Verified until %s.", pr.message, s.dayText(now.Add(ValidDays*24*time.Hour)))
@@ -399,7 +397,7 @@ func (s *Service) liveProof(t Target) (ipProof, bool) {
 // liveTypedProof is the proof of a typed IP right before something is sent to it (a scan, a step of it, a question to Shodan, OpenVAS):
 // one live result per target is looked for and reused for liveFor, so the gate, ScannableIP, every step and the terms of one scan ask the
 // third party once. A look that is not cached takes the per-target pause and the box-wide bound of a person's check; when they are used up
-// the last check stands (fail closed when it was not OK). A pass renews the 30 days. The target is read again afterwards.
+// the last check stands. A pass renews the ValidDays; a proof not found is recorded as a warning (INV-4). The target is read again afterwards.
 func (s *Service) liveTypedProof(ctx context.Context, actor string, t Target) (Target, error) {
 	reload := func() (Target, error) { return loadTarget(ctx, s.cfg.DB.Reader(), t.ID) }
 	if _, ok := s.liveResult(t); ok {
@@ -420,7 +418,7 @@ func (s *Service) liveTypedProof(ctx context.Context, actor string, t Target) (T
 			return err
 		}
 		now := s.clock()
-		c, action, method := Check{At: store.FormatTS(now), OK: pr.ok, Message: pr.message}, "exposure.verify_fail", ""
+		c, action, method := Check{At: store.FormatTS(now), OK: pr.ok, Message: pr.message + s.stillValid(cur, now)}, "exposure.verify_fail", ""
 		var verifiedAt time.Time
 		if pr.ok {
 			c.Message = fmt.Sprintf("%s Verified until %s.", pr.message, s.dayText(now.Add(ValidDays*24*time.Hour)))
@@ -440,28 +438,38 @@ func (s *Service) liveTypedProof(ctx context.Context, actor string, t Target) (T
 	return reload()
 }
 
-// RunIPRecheck is the body of the ip-proof job (INV-35): every typed IP whose proof is still valid, and is within IPRecheckLeft of
-// expiring, is checked again by itself (the proof is not found: tried again every IPRecheckRetry, until it expires). An expired proof is
-// proved again by a person.
-func (s *Service) RunIPRecheck(ctx context.Context) error {
+// RunProofRecheck is the body of the ip-proof job (INV-4, INV-35): every proof the box can check by itself that is within IPRecheckLeft of
+// running out is checked again (not found: tried again every IPRecheckRetry). A typed IP whose proof is still valid: its file or reverse
+// DNS name; an expired one is proved again by a person. A domain that was proved and is switched on: its TXT record (DNS only), expired
+// or not, since a record found is a new proof.
+func (s *Service) RunProofRecheck(ctx context.Context) error {
 	all, err := listTargets(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return fmt.Errorf("exposure: listing targets: %w", err)
 	}
 	now := s.clock()
 	for _, t := range all {
-		if !t.Typed || t.validity(now) == "" || t.validity(now) == validityExpired || t.ipNext(now).After(now) {
+		due := !t.proofNext(now).IsZero() && !t.proofNext(now).After(now)
+		var err error
+		switch {
+		case !due:
+			continue
+		case t.Typed && t.validity(now) != validityExpired:
+			_, err = s.verifyTyped(ctx, SystemUser, t, false)
+		case t.Kind == KindDomain && t.Enabled:
+			_, err = s.verify(ctx, SystemUser, t.ID, false)
+		default:
 			continue
 		}
-		if _, err := s.verifyTyped(ctx, SystemUser, t, false); err != nil {
+		if err != nil {
 			var ae *APIError
 			if errors.As(err, &ae) && ae.HTTP == 429 { // the box's bound of checks is used up: the next tick goes on
 				return nil
 			}
 			if ctx.Err() != nil {
-				return fmt.Errorf("exposure: re-checking typed IPs: %w", ctx.Err())
+				return fmt.Errorf("exposure: re-checking proofs: %w", ctx.Err())
 			}
-			s.cfg.Log.WarnContext(ctx, "exposure: re-checking the proof of a typed IP failed", "ip", t.Value, "error", err)
+			s.cfg.Log.WarnContext(ctx, "exposure: re-checking a proof failed", "target", t.Value, "error", err)
 		}
 	}
 	return nil

@@ -146,7 +146,7 @@ func TestTypedScope_AnUnprovedOrExpiredIPReachesNoExecutor(t *testing.T) {
 		t.Fatal(err)
 	}
 	w.acceptTerms(v.ID, false)
-	w.advance(31 * 24 * time.Hour)
+	w.advance(91 * 24 * time.Hour)
 	if _, err := w.svc.Scan(w.ctx(), "admin@acme.example", v.ID); err == nil || run.calls != 0 {
 		t.Fatalf("expired: %v, runner calls %d", err, run.calls)
 	}

@@ -947,7 +947,7 @@ func TestContract_INV25_WhenItDoesNotRun(t *testing.T) {
 			t.Fatalf("cmds %q, not checked %q", h.gvm.cmds, notChecked(s))
 		}
 	})
-	t.Run("unverified and paused", func(t *testing.T) {
+	t.Run("unverified and expired", func(t *testing.T) {
 		t.Parallel()
 		e, h := gbEnv(t)
 		e.enable()
@@ -959,10 +959,10 @@ func TestContract_INV25_WhenItDoesNotRun(t *testing.T) {
 		if _, err := e.commit(ips[0].ID); err != nil {
 			t.Fatal(err)
 		}
-		e.advance(ScanEvery)
-		e.fullAs(ipB) // paused (INV-13)
+		e.prober.set(ipB)
+		e.advance(91 * day) // not seen for 90 days: expired (INV-4)
 		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err == nil {
-			t.Fatal("scanned a paused IP")
+			t.Fatal("scanned an expired IP")
 		}
 		if h.gvm.seen("create_target") {
 			t.Fatalf("cmds = %q", h.gvm.cmds)
@@ -1806,3 +1806,67 @@ func TestGMPFeedsNVTVersion(t *testing.T) {
 
 // personStop is the stop of a person who pressed Stop.
 func personStop(by string) *GreenboneStop { return &GreenboneStop{Reason: StopPerson, By: &by} }
+
+// An IP of the box proved within its days that the box no longer goes out through stays scannable (INV-13), but OpenVAS has no fence
+// of its own on the host: it runs only while the box goes out through the IP now, so an address the provider gave to someone else gets
+// the surface scan at most, never a vulnerability scan.
+func TestContract_INV25_OpenVASNeverScansAnIPTheBoxNoLongerGoesOutThrough(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.enable()
+	ips := e.detect(ipA)
+	if _, err := e.commit(ips[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	e.acceptTerms(ips[0].ID, false)
+	e.advance(ScanEvery)
+	e.fullAs(ipB) // the box now goes out through another IP; A is still inside its days
+	e.svc.SetRunner(&fakeRunner{content: gbOpen()})
+	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID)
+	if err != nil {
+		t.Fatalf("the surface scan of an IP inside its days: %v", err)
+	}
+	if h.gvm.seen("create_target") || h.gvm.seen("create_task") || !slices.Contains(notChecked(s), notGBNotOwn) {
+		t.Fatalf("cmds %q, not checked %q", h.gvm.cmds, notChecked(s))
+	}
+	// the step itself, asked directly (a domain's deep part on the box's own address takes the same path)
+	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: ips[0].ID, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") {
+		t.Fatalf("step = %+v, %v", o, err)
+	}
+	// back on A: OpenVAS runs again
+	e.advance(ScanEvery)
+	e.fullAs(ipA)
+	s, err = e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID)
+	if err != nil || slices.Contains(notChecked(s), notGBNotOwn) || !h.gvm.seen("create_target") {
+		t.Fatalf("%v: cmds %q, not checked %q", err, h.gvm.cmds, notChecked(s))
+	}
+}
+
+// A typed IP reaches OpenVAS only with its live proof as the domain scope: the step asked without that scope (the proof's cached
+// live result ran out between planning and starting) never starts OpenVAS on the bare address, whatever the 90-day gate says.
+func TestContract_INV25_OpenVASNeverScansATypedIPWithoutItsScope(t *testing.T) {
+	t.Parallel()
+	w, v := typedWithFence(t)
+	gvm := &fakeGVM{report: gbFixture(t)}
+	h := &fakeGB{gvm: gvm}
+	l := &gbLog{}
+	gvm.log = l
+	w.svc.cfg.Greenbone, w.svc.cfg.Probes, w.svc.cfg.DataDir = h, l, "/data"
+	w.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	g := w.svc.gb()
+	g.memInfo = func() (int64, int64, error) { return 16 * gib, 0, nil }
+	g.diskFree = func(string) (int64, error) { return 200e9, nil }
+	g.poll = 0
+	w.files.serve(ipC, "http", v.Token)
+	w.verify(v.ID)
+	if _, err := w.commit(v.ID); err != nil {
+		t.Fatal(err)
+	}
+	w.acceptTerms(v.ID, false)
+	w.enable()
+	o, err := w.svc.greenboneStep(w.ctx(), ScanTarget{ID: v.ID, Kind: KindIP, Value: ipC, User: "admin@acme.example", Mode: ScanMode{Full: true}, Typed: true}, []int{443})
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") || h.gvm.seen("create_task") {
+		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
+	}
+}

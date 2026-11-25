@@ -44,6 +44,7 @@ export function ProofPanel({ node }: { node: TargetNode }) {
       <Panel className="grid gap-2 p-4 text-sm">
         <p>{t('proof.coveredLine', { value: node.value })} <Link className={link} to={`/exposure/${encodeURIComponent(p.covered_by.id)}?tab=ownership`}>{p.covered_by.value}</Link></p>
         <p className="text-meta text-muted">{t('proof.coveredKeep', { parent: p.covered_by.value })}</p>
+        {p.last_check ? <LastCheck check={p.last_check} own={own} /> : null}
       </Panel>
     )
   }
@@ -60,13 +61,19 @@ export function ProofPanel({ node }: { node: TargetNode }) {
         {/* Verify again of the box's IP is a full check, 5 rounds of three public services; a DNS lookup is quick */}
         {own ? null : <BusyNote busy={verify.isPending} className="basis-full">{t('verify.ipWaiting')}</BusyNote>}
       </div>
-      {p.last_check && p.state !== 'not_current' ? (
-        <div role="status" className={`rounded-md border px-3 py-2 text-sm ${p.last_check.ok ? 'border-ok/40 bg-ok-soft' : 'border-warn/50 bg-warn-soft/60'}`}>
-          <p className="mb-1 flex flex-wrap items-center gap-2"><Chip tone={p.last_check.ok ? 'ok' : 'warn'}>{own ? (p.last_check.ok ? t('verify.found') : t('verify.notFound')) : (p.last_check.ok ? t('verify.passed') : t('verify.failed'))}</Chip><span className="text-caption text-muted">{t('verify.checkedAt', { time: fmtDateTime(p.last_check.at) })}</span></p>
-          <p>{p.last_check.message}</p>
-        </div>
-      ) : null}
+      {p.last_check && p.state !== 'not_current' ? <LastCheck check={p.last_check} own={own} /> : null}
     </Panel>
+  )
+}
+
+/** The last ownership check: found, or not found with what was asked (inside the 90 days of the last pass, a warning only). */
+function LastCheck({ check, own }: { check: NonNullable<TargetNode['proof']['last_check']>; own: boolean }) {
+  const { t } = useTranslation('exposure')
+  return (
+    <div role="status" className={`rounded-md border px-3 py-2 text-sm ${check.ok ? 'border-ok/40 bg-ok-soft' : 'border-warn/50 bg-warn-soft/60'}`}>
+      <p className="mb-1 flex flex-wrap items-center gap-2"><Chip tone={check.ok ? 'ok' : 'warn'}>{own ? (check.ok ? t('verify.found') : t('verify.notFound')) : (check.ok ? t('verify.passed') : t('verify.failed'))}</Chip><span className="text-caption text-muted">{t('verify.checkedAt', { time: fmtDateTime(check.at) })}</span></p>
+      <p>{check.message}</p>
+    </div>
   )
 }
 
@@ -131,7 +138,8 @@ function FileSteps({ node, file }: { node: TargetNode; file: FileProof }) {
   )
 }
 
-/** The box's own IP: valid while the box goes out through it (renewed each time it does), paused, or expired after 30 days unseen. */
+/** The box's own IP: valid while the box goes out through it (renewed each time it does), not in use now (still scannable), or expired
+ *  after 90 days unseen. */
 function BoxIpState({ node }: { node: TargetNode }) {
   const { t } = useTranslation('exposure')
   const p = node.proof

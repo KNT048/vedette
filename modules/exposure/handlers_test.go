@@ -217,10 +217,14 @@ func TestHandlers_FlowAndShapes(t *testing.T) {
 	if latest["subdomains"] != float64(3) || latest["certs_expiring"] != float64(1) {
 		t.Fatalf("latest = %v", latest)
 	}
-	// the record disappears: 409 txt_missing from the API, the runner is not called again
+	// the record disappears: the check says so, and inside the 90 days of its last pass the target stays scannable
 	e.dns.put("acme.example")
-	if code, b = e.call("POST", "/exposure/targets/"+id+"/scan", "operator", ""); code != 409 || errCode(b) != "txt_missing" || run.calls != 1 {
-		t.Fatalf("scan without the record: %d %v (runner calls %d)", code, b, run.calls)
+	e.advance(DomainCheckEvery)
+	if code, b = e.call("POST", "/exposure/tree/"+id+"/verify", "operator", ""); code != 200 || b["verified"] != false {
+		t.Fatalf("check without the record: %d %v", code, b)
+	}
+	if code, b = e.call("GET", "/exposure/targets/"+id, "viewer", ""); code != 200 || b["scannable"] != true || b["blocked_reason"] != nil {
+		t.Fatalf("target without the record: %d %v", code, b)
 	}
 	e.dns.put("acme.example", "vedette-verify="+token)
 

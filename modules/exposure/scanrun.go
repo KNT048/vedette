@@ -515,6 +515,12 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	if line != "" {
 		content.NotChecked = append(content.NotChecked, NotCheckedRow{Kind: "greenbone", Text: line})
 	}
+	if err := s.reached(ctx, t, content); err != nil { // nothing answered and the box could not reach the Internet: incomplete
+		_ = x.EndStep(context.WithoutCancel(ctx), surface, corerun.Failed, "")
+		s.recordSteps(ctx, x, steps, runEnded)
+		s.auditFailedScan(ctx, user, t, err)
+		return corerun.Result{}, err
+	}
 	if ctx.Err() != nil { // stopped just as it finished: nothing is stored
 		_ = x.EndStep(context.WithoutCancel(ctx), surface, corerun.Stopped, "")
 		s.recordSteps(ctx, x, steps, runStopped)

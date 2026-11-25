@@ -134,7 +134,7 @@ func TestTypedIP_IsInTheListAtOnceButNeverScannedUntilProved(t *testing.T) {
 	}
 }
 
-func TestTypedIP_TheTokenFileProvesItForThirtyDaysAndItIsScannedAfterwards(t *testing.T) {
+func TestTypedIP_TheTokenFileProvesItForNinetyDaysAndItIsScannedAfterwards(t *testing.T) {
 	t.Parallel()
 	w := newIPWorld(t)
 	run := &fakeRunner{content: Content{}}
@@ -145,10 +145,10 @@ func TestTypedIP_TheTokenFileProvesItForThirtyDaysAndItIsScannedAfterwards(t *te
 	if !r.Verified || r.Target.Status != "verified" || r.Target.Method == nil || *r.Target.Method != methodIPFile || r.Target.NextCheckAt == nil {
 		t.Fatalf("after placing the file = %+v", r)
 	}
-	if want := w.clock.Now().Add(30 * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z"); r.Target.ExpiresAt == nil || *r.Target.ExpiresAt != want {
+	if want := w.clock.Now().Add(90 * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z"); r.Target.ExpiresAt == nil || *r.Target.ExpiresAt != want {
 		t.Fatalf("expires %v, want %s", r.Target.ExpiresAt, want)
 	}
-	if want := w.clock.Now().Add(23 * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z"); *r.Target.NextCheckAt != want {
+	if want := w.clock.Now().Add(83 * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z"); *r.Target.NextCheckAt != want {
 		t.Fatalf("next check %s, want %s (a week before expiry)", *r.Target.NextCheckAt, want)
 	}
 	if _, err := w.commit(v.ID); err != nil {
@@ -322,7 +322,7 @@ func TestTypedIP_AnExpiredProofIsNotScannedEvenWhenTheFileIsStillThere(t *testin
 	if _, err := w.commit(v.ID); err != nil {
 		t.Fatal(err)
 	}
-	w.advance(31 * 24 * time.Hour)
+	w.advance(91 * 24 * time.Hour)
 	if code, _ := w.scanErr(v.ID); code != "expired" || run.calls != 0 {
 		t.Fatalf("scan code %q, runner calls %d", code, run.calls)
 	}
@@ -352,13 +352,14 @@ func TestTypedIP_TheProofIsLookedForAgainRightBeforeEveryScan(t *testing.T) {
 		t.Fatal(err)
 	}
 	w.files.remove() // the file is taken down after the proof
-	if code, _ := w.scanErr(v.ID); code != "proof_missing" || run.calls != 1 {
-		t.Fatalf("scan code %q, runner calls %d: nothing is scanned without a live proof", code, run.calls)
+	n := w.files.fetched()
+	if code, err := w.scanErr(v.ID); err != nil || run.calls != 2 || w.files.fetched() == n {
+		t.Fatalf("scan code %q, runner calls %d, fetched %d: the proof is looked for, and its absence is a warning inside its 90 days", code, run.calls, w.files.fetched()-n)
 	}
-	if got := w.target(v.ID); got.ScanState != "unproved" || got.BlockedReason == nil || *got.BlockedReason != BlockedProofMissing {
+	if got := w.target(v.ID); got.ScanState != "ready" || got.BlockedReason != nil || got.LastCheck == nil || got.LastCheck.OK {
 		t.Fatalf("%+v", got)
 	}
-	if ok, reason := w.scannable(v.ID); ok || reason != BlockedProofMissing {
+	if ok, reason := w.scannable(v.ID); !ok || reason != "" {
 		t.Fatalf("the gate a domain scan asks: %v %q", ok, reason)
 	}
 }
@@ -371,16 +372,16 @@ func TestTypedIP_TheBoxChecksTheProofByItselfBeforeItExpires(t *testing.T) {
 	w.verify(v.ID)
 	asked := w.files.fetched()
 
-	w.advance(10 * 24 * time.Hour)
-	if err := w.svc.RunIPRecheck(w.ctx()); err != nil || w.files.fetched() != asked {
+	w.advance(70 * 24 * time.Hour)
+	if err := w.svc.RunProofRecheck(w.ctx()); err != nil || w.files.fetched() != asked {
 		t.Fatalf("nothing is due 20 days before expiry: %v, fetched %d more", err, w.files.fetched()-asked)
 	}
 	w.advance(14 * 24 * time.Hour) // 6 days left
-	if err := w.svc.RunIPRecheck(w.ctx()); err != nil || w.files.fetched() == asked {
+	if err := w.svc.RunProofRecheck(w.ctx()); err != nil || w.files.fetched() == asked {
 		t.Fatalf("the check was due: %v", err)
 	}
 	got := w.target(v.ID)
-	if want := w.clock.Now().Add(30 * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z"); got.ExpiresAt == nil || *got.ExpiresAt != want || got.Status != "verified" {
+	if want := w.clock.Now().Add(90 * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z"); got.ExpiresAt == nil || *got.ExpiresAt != want || got.Status != "verified" {
 		t.Fatalf("renewed by itself: %+v", got)
 	}
 }
@@ -392,25 +393,25 @@ func TestTypedIP_AProofThatIsNotFoundAtTheBoxsCheckIsRetriedEverySixHoursUntilIt
 	w.files.serve(ipC, "http", v.Token)
 	w.verify(v.ID)
 	w.files.remove()
-	w.advance(24 * 24 * time.Hour)
-	_ = w.svc.RunIPRecheck(w.ctx())
+	w.advance(84 * 24 * time.Hour)
+	_ = w.svc.RunProofRecheck(w.ctx())
 	n := w.files.fetched()
 	got := w.target(v.ID)
 	if got.LastCheck == nil || got.LastCheck.OK || got.NextCheckAt == nil {
 		t.Fatalf("%+v", got)
 	}
-	_ = w.svc.RunIPRecheck(w.ctx())
+	_ = w.svc.RunProofRecheck(w.ctx())
 	if w.files.fetched() != n {
 		t.Fatal("tried again at once")
 	}
 	w.advance(IPRecheckRetry)
-	_ = w.svc.RunIPRecheck(w.ctx())
+	_ = w.svc.RunProofRecheck(w.ctx())
 	if w.files.fetched() == n {
 		t.Fatal("did not try again after the retry time")
 	}
 	w.advance(7 * 24 * time.Hour) // expired: a person proves it again
 	n = w.files.fetched()
-	_ = w.svc.RunIPRecheck(w.ctx())
+	_ = w.svc.RunProofRecheck(w.ctx())
 	if w.files.fetched() != n || w.target(v.ID).Status != "expired" {
 		t.Fatal("the box checks an expired proof")
 	}
@@ -568,19 +569,21 @@ func TestTypedIP_AFailureIsReusedOnlyForThePerTargetPause(t *testing.T) {
 		t.Fatal(err)
 	}
 	ip := netip.MustParseAddr(ipC)
+	failing := func() bool { c := w.target(v.ID).LastCheck; return c == nil || !c.OK }
 	w.files.remove()
 	w.advance(6 * time.Minute)
-	if ok, _ := w.svc.ScannableIP(w.ctx(), "op@acme.example", ip); ok {
-		t.Fatal("scannable without the file")
+	if ok, _ := w.svc.ScannableIP(w.ctx(), "op@acme.example", ip); !ok || !failing() { // inside its 90 days: a warning only
+		t.Fatalf("without the file: scannable %v, check failing %v", ok, failing())
 	}
 	w.files.serve(ipC, "http", v.Token) // the person fixed it
 	w.advance(10 * time.Second)
-	if ok, _ := w.svc.ScannableIP(w.ctx(), "op@acme.example", ip); ok {
+	n := w.files.fetched()
+	if _, ok := w.svc.liveProof(w.loadTarget(v.ID)); ok || w.files.fetched() != n {
 		t.Fatal("the failure was not reused inside the pause")
 	}
 	w.advance(DomainCheckEvery)
-	if ok, _ := w.svc.ScannableIP(w.ctx(), "op@acme.example", ip); !ok {
-		t.Fatal("still refused after the pause")
+	if ok, _ := w.svc.ScannableIP(w.ctx(), "op@acme.example", ip); !ok || failing() || w.files.fetched() == n {
+		t.Fatal("not looked for again after the pause")
 	}
 }
 

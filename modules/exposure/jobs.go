@@ -22,13 +22,13 @@ const JobTick = time.Minute
 func Jobs(svc *Service) []jobs.Job {
 	return []jobs.Job{
 		{Module: ModuleID, Name: "auto-detect", Every: JobTick, Run: svc.RunAutoDetect},
-		{Module: ModuleID, Name: "ip-proof", Every: IPProofTick, Run: svc.RunIPRecheck},
+		{Module: ModuleID, Name: "ip-proof", Every: IPProofTick, Run: svc.RunProofRecheck},
 		{Module: ModuleID, Name: "greenbone-feed", Every: GreenboneSyncTick, Run: svc.RunGreenboneSync},
 		{Module: ModuleID, Name: "accept-expiry", Every: AcceptTick, Run: svc.RunAcceptExpiry},
 	}
 }
 
-// IPProofTick is how often the ip-proof job wakes up to see whether a typed IP's proof is due to be checked again.
+// IPProofTick is how often the ip-proof job wakes up to see whether a proof (a typed IP's, a domain's) is due to be checked again.
 const IPProofTick = time.Hour
 
 // GreenboneSyncTick is how often the greenbone-feed job wakes up to see whether the weekly update is due (or was put off by a scan).

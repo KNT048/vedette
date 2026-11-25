@@ -25,9 +25,9 @@ func ScheduleKey(id string) string { return ScheduleOwner + ":" + id }
 const (
 	ProofProven     = "proven"      // its own proof holds
 	ProofCovered    = "covered"     // the proof of an ancestor covers it
-	ProofMissing    = "missing"     // no proof, or the record or file was not found at the last check
-	ProofExpired    = "expired"     // an IP's 30 days ran out
-	ProofNotCurrent = "not_current" // an IP the box found that the box no longer goes out through
+	ProofMissing    = "missing"     // never proved, or the proof was withdrawn (the target whose record proved it was removed)
+	ProofExpired    = "expired"     // the proof has not passed for ValidDays
+	ProofNotCurrent = "not_current" // an IP the box found that the box no longer goes out through: still scannable until it expires
 )
 
 // The reasons Scan now of a node is refused (contract.ts NodeBlock).
@@ -257,7 +257,7 @@ func (s *Service) nodeOf(t Target, r nodeRead) NodeView {
 	switch {
 	case !t.Enabled:
 		b = NodeDisabled
-	case n.Proof.State != ProofProven && n.Proof.State != ProofCovered:
+	case n.Proof.State == ProofMissing || n.Proof.State == ProofExpired: // inside its days a proof not found now is a warning only (INV-4)
 		b = NodeProof
 	case !t.Commitment.current():
 		b = NodeNoCommitment
@@ -286,29 +286,28 @@ func tsPtr(t time.Time) *string {
 	return &x
 }
 
-// proofOf is the proof of t as the stored rows say it: the record or file the last check found, the box's own sighting of its IP, or
-// the record of an ancestor that covers it (a domain proved with no method of its own, exp_target.method NULL).
+// proofOf is the proof of t as the stored rows say it: the record or file a check found, the box's own sighting of its IP, or the record
+// of an ancestor that covers it (a domain proved with no method of its own, exp_target.method NULL). It holds for ValidDays from its last
+// pass (INV-4): a last check that did not find it stays in last_check, as a warning, and changes the state only once those days ran out.
 func proofOf(t Target, r nodeRead, now time.Time) ProofView {
-	p := ProofView{State: ProofMissing, VerifiedAt: tsPtr(t.VerifiedAt), LastCheck: t.LastCheck}
+	p := ProofView{State: ProofMissing, VerifiedAt: tsPtr(t.VerifiedAt), LastCheck: t.LastCheck, ExpiresAt: tsPtr(t.expiresAt(now))}
 	if t.Method != "" {
 		m := t.Method
 		p.Method = &m
 	}
+	switch {
+	case t.VerifiedAt.IsZero():
+	case t.validity(now) == validityExpired:
+		p.State = ProofExpired
+	case t.Kind == KindIP && !t.Typed && r.checks.paused(t):
+		p.State = ProofNotCurrent
+	default:
+		p.State = ProofProven
+	}
 	switch t.Kind {
 	case KindIP:
-		p.ExpiresAt = tsPtr(t.expiresAt(now))
-		switch {
-		case t.VerifiedAt.IsZero():
-		case t.validity(now) == validityExpired:
-			p.State = ProofExpired
-		case t.Typed && (t.LastCheck == nil || !t.LastCheck.OK):
-		case !t.Typed && r.checks.paused(t):
-			p.State = ProofNotCurrent
-		default:
-			p.State = ProofProven
-		}
 		if t.Typed {
-			p.NextCheckAt = tsPtr(t.ipNext(now))
+			p.NextCheckAt = tsPtr(t.proofNext(now))
 			if h := ipProofHintOf(t, r.all); h != nil {
 				p.File = &FileProof{URLs: h.URLs, Content: h.Content, PTRDomains: nz(h.PTRDomains)}
 			}
@@ -318,13 +317,13 @@ func proofOf(t Target, r nodeRead, now time.Time) ProofView {
 			p.Method = &m
 		}
 	case KindDomain:
-		ok := !t.VerifiedAt.IsZero() && t.LastCheck != nil && t.LastCheck.OK
-		switch {
-		case ok && t.Method == "":
-			p.State, p.VerifiedAt, p.LastCheck = ProofCovered, nil, nil
+		p.NextCheckAt = tsPtr(t.proofNext(now))
+		if p.State == ProofProven && t.Method == "" {
+			p.State, p.VerifiedAt = ProofCovered, nil
 			p.CoveredBy = coverOf(t, r)
-		case ok:
-			p.State = ProofProven
+			if t.LastCheck != nil && t.LastCheck.OK { // a passing check is the ancestor's; one that did not pass is this node's warning
+				p.LastCheck = nil
+			}
 		}
 		if p.State != ProofCovered {
 			if h := proofHint(t, nil); h != nil {

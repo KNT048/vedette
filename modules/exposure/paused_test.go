@@ -5,13 +5,20 @@ import (
 	"time"
 )
 
-// A paused IP rests on what is stored, not on a 5-minute window (INV-13): the latest full check that got an answer did not
-// see it, and nothing has seen it since. A light check or a failed check never pauses an IP.
+// "The box does not go out through this IP now" (not_current) rests on what is stored, not on a 5-minute window (INV-13): the latest
+// full check that got an answer did not see it, and nothing has seen it since. A light check or a failed check never sets it. It is a
+// warning on the target: the IP stays scannable until its ValidDays run out (INV-4).
 
 func (e *env) isPaused(id string) bool {
 	e.t.Helper()
-	v := e.target(id)
-	return v.BlockedReason != nil && *v.BlockedReason == BlockedNotCurrent && !v.Scannable
+	n, err := e.svc.Node(e.ctx(), id)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	if v := e.target(id); v.BlockedReason != nil && *v.BlockedReason != BlockedNoCommitment && str(v.Validity) != validityExpired {
+		e.t.Fatalf("an IP inside its days is blocked: %v", *v.BlockedReason)
+	}
+	return n.Proof.State == ProofNotCurrent
 }
 
 // light runs one automatic light check (one round) that sees ips[0]; its error is an outcome, not a failure of the test.
@@ -54,14 +61,14 @@ func TestContract_INV13_FullCheckWithoutTheIPPausesItAndItStays(t *testing.T) {
 	if e.prober.count() != calls {
 		t.Fatal("reading the state probed the network")
 	}
-	// the list says the same, and the IP stays in it with its own validity
-	all, err := e.svc.Targets(e.ctx())
+	// the tree says the same, and the IP stays scannable with its own validity
+	tree, err := e.svc.Tree(e.ctx())
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, x := range all {
-		if x.ID == a.ID && (x.BlockedReason == nil || *x.BlockedReason != BlockedNotCurrent) {
-			t.Fatalf("list: %+v", x)
+	for _, x := range tree.Items {
+		if x.ID == a.ID && (x.Proof.State != ProofNotCurrent || x.Blocked != nil) {
+			t.Fatalf("tree: %+v", x)
 		}
 	}
 }

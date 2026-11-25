@@ -39,7 +39,7 @@ const (
 )
 
 // IPRecheckLeft is how long before a typed IP's proof expires the box starts to check it again by itself, and IPRecheckRetry how
-// often it tries again while the proof is not found. The proof lasts ValidDays from its last pass.
+// often it tries again while the proof is not found. The proof lasts ValidDays from its last pass. A domain's record is checked the same way.
 const (
 	IPRecheckLeft  = 7 * 24 * time.Hour
 	IPRecheckRetry = 6 * time.Hour
@@ -216,11 +216,11 @@ func (s *Service) coveringDomain(ctx context.Context, name string, all []Target)
 	return "", ""
 }
 
-// ipNext is when the box looks at a typed IP's proof again by itself: IPRecheckLeft before it expires, then every IPRecheckRetry
-// while a check does not find it. Zero for a target that is not a proved typed IP.
-func (t Target) ipNext(now time.Time) time.Time {
+// proofNext is when the box looks at a proof again by itself (RunProofRecheck): IPRecheckLeft before it expires, then every
+// IPRecheckRetry while a check does not find it. Zero for a target that is neither a proved typed IP nor a proved domain.
+func (t Target) proofNext(now time.Time) time.Time {
 	exp := t.expiresAt(now)
-	if !t.Typed || exp.IsZero() {
+	if !t.Typed && t.Kind != KindDomain || exp.IsZero() {
 		return time.Time{}
 	}
 	due := exp.Add(-IPRecheckLeft)

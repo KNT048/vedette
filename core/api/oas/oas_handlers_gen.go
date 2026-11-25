@@ -28332,9 +28332,11 @@ func (s *Server) handleFindingsPostFindingsIDVerifyRequest(args [1]string, argsE
 //
 // Accept the risk of one device, or of one software line of it, until a day, on your word: every open
 // question there is answered "affected", the finding of each CVE it asks about is recorded and
-// accepted until the day, and so is every confirmed open finding of the same scope; one transaction,
-// one summary audit row plus one history row per finding. The findings open again after the day; a CVE
-// that matches later is a new question. "Vedette cannot check this device" is left (operator).
+// accepted until the day, and so is every open finding of the same scope, confirmed or suspected; one
+// transaction, one summary audit row plus one history row per finding. The findings open again after
+// the day; a CVE that matches later is a new question. "Vedette cannot check this device" is left. It
+// records "affected" on your word, so it needs an admin as answering affected does (an operator gets
+// 403 forbidden).
 //
 // POST /findings/questions/accept-risk
 func (s *Server) handleFindingsPostFindingsQuestionsAcceptRiskRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -28418,7 +28420,7 @@ func (s *Server) handleFindingsPostFindingsQuestionsAcceptRiskRequest(args [0]st
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    FindingsPostFindingsQuestionsAcceptRiskOperation,
-			OperationSummary: "Accept the risk of one device, or of one software line of it, until a day, on your word: every open question there is answered \"affected\", the finding of each CVE it asks about is recorded and accepted until the day, and so is every confirmed open finding of the same scope; one transaction, one summary audit row plus one history row per finding. The findings open again after the day; a CVE that matches later is a new question. \"Vedette cannot check this device\" is left (operator)",
+			OperationSummary: "Accept the risk of one device, or of one software line of it, until a day, on your word: every open question there is answered \"affected\", the finding of each CVE it asks about is recorded and accepted until the day, and so is every open finding of the same scope, confirmed or suspected; one transaction, one summary audit row plus one history row per finding. The findings open again after the day; a CVE that matches later is a new question. \"Vedette cannot check this device\" is left. It records \"affected\" on your word, so it needs an admin as answering affected does (an operator gets 403 forbidden)",
 			OperationID:      "findings_post_findings_questions_accept_risk",
 			Body:             request,
 			RawBody:          rawBody,

@@ -12,18 +12,18 @@ import (
 	"github.com/knt048/vedette/core/store"
 )
 
-// ErrNothingToAccept is an accept of a device or software line that has no open question and no confirmed open finding.
+// ErrNothingToAccept is an accept of a device or software line that has no open question and no open finding.
 var ErrNothingToAccept = &APIError{"not_found", 404, "Nothing is open on this device or software to accept the risk of."}
 
 // AcceptResult is what AcceptRiskQuestions did.
 type AcceptResult struct {
 	Questions int // open questions answered "affected"
-	Findings  int // findings that are accepted until the day now (new ones recorded from the questions, and confirmed open ones)
+	Findings  int // findings that are accepted until the day now (new ones recorded from the questions, and open ones already there)
 }
 
 // AcceptRiskQuestions accepts the risk of one device (software "") or of one software line of it until a day, on the person's word, in
 // one transaction: every open question there is answered "affected" and the finding of each CVE it asks about is recorded and handled
-// as accepted until the day, and so is every confirmed open finding of the scope. "Vedette cannot check this device" is not a
+// as accepted until the day, and so is every open finding of the scope, confirmed or suspected. "Vedette cannot check this device" is not a
 // question about a CVE and is left. With question set the scope is that one question (one CVE row behind a software line): only its
 // CVEs are accepted, no other finding. The acceptance ends by itself after the day (the findings open again); a CVE that matches later
 // is a new question. One summary audit row, next to the history row of each finding. The note says why and is required.
@@ -89,7 +89,7 @@ func (s *Service) AcceptRiskQuestions(ctx context.Context, device, software, que
 			}
 			out.Questions++
 		}
-		if question == "" { // the confirmed open findings of the same scope get the same acceptance
+		if question == "" { // the open findings of the same scope, confirmed or suspected, get the same acceptance
 			where, args := `asset_id = ? AND state = ?`, []any{device, string(StateOpen)}
 			if software != "" {
 				where, args = where+` AND ifnull(software_id, '') = ?`, append(args, software)
@@ -99,9 +99,7 @@ func (s *Service) AcceptRiskQuestions(ctx context.Context, device, software, que
 				return err
 			}
 			for _, f := range open {
-				if f.Confirmed() {
-					ids[f.ID] = true
-				}
+				ids[f.ID] = true
 			}
 		}
 		if len(ids) == 0 {

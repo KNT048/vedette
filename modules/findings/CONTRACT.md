@@ -23,9 +23,9 @@ nobody added keeps its own `device_not_added` card; `total` counts cards. A ques
 or Not affected is a per-CVE judgement; the version or edition a person enters lives on the software line, so one entry fixes every CVE of
 it at the next match. `POST /findings/questions/ignore` (a device, or one line of it) answers Not affected to every open question there
 in one transaction with one audit row (`findings.questions_ignored`); each answer is listed under Answered and can be asked again.
-`POST /findings/questions/accept-risk` (a device, one line of it, or one question) is the other bypass, for a person who knows the
+`POST /findings/questions/accept-risk` (admin, as answering affected; a device, one line of it, or one question) is the other bypass, for a person who knows the
 software may be affected and lives with it: each open question there is answered affected, the finding of each CVE it asks about is
-recorded on the person's word and handled as accepted until a required day (one required note), and so is every confirmed open finding of
+recorded on the person's word and handled as accepted until a required day (one required note), and so is every open finding, confirmed or suspected, of
 a device or line scope, all in one transaction with one summary audit row (`findings.risk_accepted_in_bulk`) next to each finding's own
 history row. The findings open again after the day; a CVE that matches later is a new question.
 

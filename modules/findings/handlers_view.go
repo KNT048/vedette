@@ -242,13 +242,16 @@ func (h *FindingHandlers) FindingsGetFindingsAnswered(ctx context.Context, p oas
 	return Into[oas.FindingsGetFindingsAnsweredOK](out)
 }
 
-// FindingsPostFindingsQuestionsAcceptRisk implements findings_post_findings_questions_accept_risk (operator): the risk of a device, or of
-// one software line of it, is accepted until a day: its open questions are answered "affected" and their findings, with the confirmed
-// open ones, are accepted until the day, in one transaction.
+// FindingsPostFindingsQuestionsAcceptRisk implements findings_post_findings_questions_accept_risk (admin, as answering "affected"): the risk of a device, or of
+// one software line of it, is accepted until a day: its open questions are answered "affected" and their findings, with the open
+// ones, are accepted until the day, in one transaction.
 func (h *FindingHandlers) FindingsPostFindingsQuestionsAcceptRisk(ctx context.Context, req *oas.FindingsPostFindingsQuestionsAcceptRiskReq) (*oas.FindingsPostFindingsQuestionsAcceptRiskOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
+	}
+	if p.Role != routes.Admin { // it records "affected" on the person's word, which one question at a time needs an admin for
+		return nil, apierr.Forbidden()
 	}
 	if err := cleanNote(req.Note); err != nil {
 		return nil, err

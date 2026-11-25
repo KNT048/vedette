@@ -67,7 +67,7 @@ describe('Needs your input grouped by device', () => {
 
   it('Accept the risk on a line needs a reason, records its CVEs as accepted until the day and leaves the other lines alone', async () => {
     twenty()
-    renderApp('/findings?tab=input', { role: 'operator' })
+    renderApp('/findings?tab=input', { role: 'admin' })
     await openNeeds()
     const before = auditStore.get().length
     await userEvent.click(await screen.findByRole('button', { name: /^Accept the risk of Node\.js 22\.19\.0 on / }, T))
@@ -89,7 +89,7 @@ describe('Needs your input grouped by device', () => {
 
   it('Accept the risk on one CVE row takes only that CVE, and on the device card every question', async () => {
     twenty()
-    renderApp('/findings?tab=input', { role: 'operator' })
+    renderApp('/findings?tab=input', { role: 'admin' })
     await openNeeds()
     await userEvent.click((await screen.findAllByRole('button', { name: /^Accept the risk of CVE-2026-92000 on / }, T))[0]!)
     const dlg = await screen.findByRole('dialog', {}, T)
@@ -103,5 +103,14 @@ describe('Needs your input grouped by device', () => {
     await userEvent.type(within(all).getByRole('textbox', { name: /Why do you accept it/ }), 'Retired test machine')
     await userEvent.click(within(all).getByRole('button', { name: 'Accept the risk' }))
     await waitFor(() => expect(questions.get().filter((q) => q.id.startsWith('fq-x-'))).toHaveLength(0), T)
+  })
+
+  it('Accept the risk is disabled for an operator, who may still answer Not affected', async () => {
+    twenty()
+    renderApp('/findings?tab=input', { role: 'operator' })
+    await openNeeds()
+    expect(await screen.findByRole('button', { name: /^Accept the risk of Node\.js 22\.19\.0 on / }, T)).toBeDisabled()
+    expect((await screen.findAllByRole('button', { name: /^Accept the risk of everything waiting on / }, T))[0]).toBeDisabled()
+    expect((await screen.findAllByRole('button', { name: /^Accept the risk of CVE-2026-92000 on / }, T))[0]).toBeDisabled()
   })
 })

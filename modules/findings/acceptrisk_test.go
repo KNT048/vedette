@@ -13,13 +13,13 @@ func TestAcceptRiskQuestions(t *testing.T) {
 	e := modelEnv(t)
 	askTwenty(t, e)
 	ctx := t.Context()
-	// a question about two CVEs on the line, and a confirmed open finding on it
+	// a question about two CVEs on the line; f-f3 (another line) is confirmed, f-f2 (this line) stays suspected
 	if err := e.db.Write(ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_question (id, asset_id, software_id, cve, kind, detail, cves, asked_at)
 			VALUES ('q-old', 'a-fw', 's-j8', NULL, 'older_line', '{"cve_list":["CVE-2026-8001","CVE-2026-8002"]}', 2, '2026-01-01T00:00:00.000Z')`); err != nil {
 			return err
 		}
-		_, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET verified = 'device', basis = 'device_version' WHERE id = 'f-f2'`)
+		_, err := tx.ExecContext(ctx, `UPDATE fnd_finding SET verified = 'device', basis = 'device_version' WHERE id = 'f-f3'`)
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -33,14 +33,15 @@ func TestAcceptRiskQuestions(t *testing.T) {
 		user, body string
 		code       int
 	}{
-		"no day":        {"operator", `{"device":"a-fw","software":"s-j8","note":"no licence"}`, 400},
-		"yesterday":     {"operator", `{"device":"a-fw","software":"s-j8","note":"no licence","until":"` + day(-1) + `"}`, 400},
-		"too far":       {"operator", `{"device":"a-fw","software":"s-j8","note":"no licence","until":"` + day(400) + `"}`, 400},
-		"not a day":     {"operator", `{"device":"a-fw","software":"s-j8","note":"no licence","until":"soon"}`, 400},
-		"no reason":     {"operator", `{"device":"a-fw","software":"s-j8","until":"` + day(90) + `"}`, 400},
-		"short reason":  {"operator", `{"device":"a-fw","software":"s-j8","note":"x ","until":"` + day(90) + `"}`, 400},
+		"no day":        {"admin", `{"device":"a-fw","software":"s-j8","note":"no licence"}`, 400},
+		"yesterday":     {"admin", `{"device":"a-fw","software":"s-j8","note":"no licence","until":"` + day(-1) + `"}`, 400},
+		"too far":       {"admin", `{"device":"a-fw","software":"s-j8","note":"no licence","until":"` + day(400) + `"}`, 400},
+		"not a day":     {"admin", `{"device":"a-fw","software":"s-j8","note":"no licence","until":"soon"}`, 400},
+		"no reason":     {"admin", `{"device":"a-fw","software":"s-j8","until":"` + day(90) + `"}`, 400},
+		"short reason":  {"admin", `{"device":"a-fw","software":"s-j8","note":"x ","until":"` + day(90) + `"}`, 400},
+		"operator":      {"operator", `{"device":"a-fw","software":"s-j8","note":"no licence","until":"` + day(90) + `"}`, 403},
 		"viewer":        {"viewer", `{"device":"a-fw","software":"s-j8","note":"no licence","until":"` + day(90) + `"}`, 403},
-		"unknown scope": {"operator", `{"device":"a-nope","note":"no licence","until":"` + day(90) + `"}`, 404},
+		"unknown scope": {"admin", `{"device":"a-nope","note":"no licence","until":"` + day(90) + `"}`, 404},
 	} {
 		if code, b := post(c.user, c.body); code != c.code {
 			t.Errorf("%s: %d %v, want %d", name, code, b, c.code)
@@ -62,8 +63,8 @@ func TestAcceptRiskQuestions(t *testing.T) {
 	}
 	otherBefore := count(`SELECT count(*) FROM fnd_finding WHERE state = 'open' AND NOT (asset_id = 'a-fw' AND software_id = 's-j8')`)
 
-	code, b := post("operator", `{"device":"a-fw","software":"s-j8","note":"licence ended, rarely used","until":"`+day(90)+`"}`)
-	// 6 questions of the line + the 2-CVE one = 7 questions; 6 + 2 new findings and the confirmed f-f2 = 9
+	code, b := post("admin", `{"device":"a-fw","software":"s-j8","note":"licence ended, rarely used","until":"`+day(90)+`"}`)
+	// 6 questions of the line + the 2-CVE one = 7 questions; 6 + 2 new findings and the suspected f-f2 = 9
 	if code != 200 || b["questions"] != 7.0 || b["findings"] != 9.0 {
 		t.Fatalf("accept the line: %d %v", code, b)
 	}
@@ -89,7 +90,7 @@ func TestAcceptRiskQuestions(t *testing.T) {
 	if nAudit != 1 {
 		t.Errorf("%d summary audit rows, want 1", nAudit)
 	}
-	if code, b := post("operator", `{"device":"a-fw","software":"s-j8","note":"again","until":"`+day(90)+`"}`); code != 404 {
+	if code, b := post("admin", `{"device":"a-fw","software":"s-j8","note":"again","until":"`+day(90)+`"}`); code != 404 {
 		t.Errorf("nothing left to accept: %d %v", code, b)
 	}
 
@@ -103,7 +104,7 @@ func TestAcceptRiskQuestions(t *testing.T) {
 	}
 
 	// one CVE row of another line: only that question, with no other finding of the line
-	if code, b := post("operator", `{"device":"a-fw","software":"s-j21","question":"q-s-j21-0","note":"not used","until":"`+day(120)+`"}`); code != 200 || b["questions"] != 1.0 || b["findings"] != 1.0 {
+	if code, b := post("admin", `{"device":"a-fw","software":"s-j21","question":"q-s-j21-0","note":"not used","until":"`+day(120)+`"}`); code != 200 || b["questions"] != 1.0 || b["findings"] != 1.0 {
 		t.Errorf("accept one question: %d %v", code, b)
 	}
 	if openQ("s-j21") != 3 {
@@ -114,10 +115,16 @@ func TestAcceptRiskQuestions(t *testing.T) {
 	}
 
 	// the whole device: the other two lines' questions
-	if code, b := post("operator", `{"device":"a-fw","note":"lab box","until":"`+day(120)+`"}`); code != 200 || b["questions"] != 13.0 {
+	if n := count(`SELECT count(*) FROM fnd_finding WHERE id = 'f-f3' AND state = 'open'`); n != 1 {
+		t.Errorf("a question scope touched another finding of the line")
+	}
+	if code, b := post("admin", `{"device":"a-fw","note":"lab box","until":"`+day(120)+`"}`); code != 200 || b["questions"] != 13.0 {
 		t.Errorf("accept the device: %d %v", code, b)
 	}
 	if openQ("") != 0 {
 		t.Errorf("%d questions open on the device", openQ(""))
+	}
+	if n := count(`SELECT count(*) FROM fnd_finding WHERE id = 'f-f3' AND state = 'handled' AND resolution = 'accepted'`); n != 1 {
+		t.Errorf("the confirmed finding of the device was not accepted with it")
 	}
 }

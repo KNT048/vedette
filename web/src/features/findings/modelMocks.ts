@@ -454,7 +454,7 @@ export const modelHandlers = [
   }),
 
   http.post(`${API}/findings/questions/accept-risk`, async ({ request }) => {
-    const denied = guard('operator'); if (denied) return denied
+    const denied = guard('admin'); if (denied) return denied
     const b = await body<{ device: string; software?: string; question?: string; note: string; until: string }>(request)
     if (typeof b.device !== 'string' || !b.device || typeof b.note !== 'string' || b.note.length > 500) return fail(400, 'invalid', 'The request is not valid.')
     const note = b.note.trim()
@@ -472,10 +472,17 @@ export const modelHandlers = [
       state: 'handled' as const, resolution: 'accepted' as const, via: 'person' as const, resolved_by: user, resolved_at: at, note, accepted_until: b.until as string,
       events: [event(user, 'created', { note }), event(user, 'confirmed', { note }), event(user, 'handled', { resolution: 'accepted', via: 'person', note })],
     }))
-    records.update((l) => [...l, ...made])
+    // a device or line scope also takes the open findings already there, confirmed or suspected
+    const swept = (r: { state: string; asset_id: string; software: { id: string } | null }) =>
+      !b.question && r.state === 'open' && r.asset_id === b.device && (!b.software || r.software?.id === b.software)
+    const nSwept = records.get().filter(swept).length
+    records.update((l) => [...l.map((r) => (swept(r)
+      ? { ...r, state: 'handled' as const, resolution: 'accepted' as const, via: 'person' as const, resolved_by: user, resolved_at: at, note, accepted_until: b.until as string,
+        events: [...r.events, event(user, 'handled', { resolution: 'accepted', via: 'person', note })] } : r)), ...made])
     questions.update((l) => l.filter((q) => !hit(q)))
-    audit('findings.risk_accepted_in_bulk', b.software ?? b.device, `risk accepted on ${b.device} until ${b.until}: ${qs.length} questions answered affected, ${made.length} findings accepted: ${note}`)
-    return HttpResponse.json({ questions: qs.length, findings: made.length })
+    const total = made.length + nSwept
+    audit('findings.risk_accepted_in_bulk', b.software ?? b.device, `risk accepted on ${b.device} until ${b.until}: ${qs.length} questions answered affected, ${total} findings accepted: ${note}`)
+    return HttpResponse.json({ questions: qs.length, findings: total })
   }),
 
   http.post(`${API}/findings/questions/:id/unanswer`, ({ params }) => {

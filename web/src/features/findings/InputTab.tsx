@@ -216,7 +216,7 @@ function QuestionItem({ i, mode }: { i: InputQuestionItem; mode: 'action' | 'row
               <Button size="sm" disabled={!r.admin} title={r.needAdmin} onClick={() => setAsking({ kind: 'answer', answer: 'affected' })}>{t('queue.affected')}</Button>
             ) : null}
             <Button size="sm" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'answer', answer: 'not_affected' })}>{t('queue.not_affected')}</Button>
-            <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.acceptRowOf', { cve: i.cve ?? sw?.name ?? '', device: i.device.name })}
+            <Button size="sm" disabled={!r.admin} title={r.needAdmin} aria-label={t('queue.acceptRowOf', { cve: i.cve ?? sw?.name ?? '', device: i.device.name })}
               onClick={() => setAccepting(true)}>{t('queue.accept')}</Button>
           </div>
         ) : null}
@@ -281,7 +281,7 @@ function SoftwareEntry({ g, device }: { g: InputGroupItem; device: Item<'device_
           <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.ignoreLineOf', { software: name, device: device.name })} onClick={() => setIgnoring(true)}>{t('queue.ignore')}</Button>
         ) : null}
         {g.software ? (
-          <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.acceptLineOf', { software: name, device: device.name })} onClick={() => setAccepting(true)}>{t('queue.accept')}</Button>
+          <Button size="sm" disabled={!r.admin} title={r.needAdmin} aria-label={t('queue.acceptLineOf', { software: name, device: device.name })} onClick={() => setAccepting(true)}>{t('queue.accept')}</Button>
         ) : null}
       </div>
       <details className="text-meta" onToggle={(e) => setOpen(e.currentTarget.open)}>
@@ -324,7 +324,7 @@ function DeviceNeeds({ i, link }: { i: Item<'device_needs'>; link: boolean }) {
         {lines.length ? (
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.ignoreDeviceOf', { device: i.device.name })} onClick={() => setIgnoring(true)}>{t('queue.ignoreAll')}</Button>
-            <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.acceptDeviceOf', { device: i.device.name })} onClick={() => setAccepting(true)}>{t('queue.acceptAll')}</Button>
+            <Button size="sm" disabled={!r.admin} title={r.needAdmin} aria-label={t('queue.acceptDeviceOf', { device: i.device.name })} onClick={() => setAccepting(true)}>{t('queue.acceptAll')}</Button>
           </div>
         ) : null}
       </div>

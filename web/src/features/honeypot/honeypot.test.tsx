@@ -346,6 +346,15 @@ describe('honeypot: S-HP-2 suggestions, tokens, respond, coverage', () => {
     expect(full.textContent).toContain('Bk!7mQ2xv-Lr9')
   })
 
+  it('a decoy file token says it is on the decoy share, with nothing to download or copy', async () => {
+    renderApp('/honeypot?tab=tokens', { role: 'admin' })
+    const list = await screen.findByRole('list', { name: 'Honey tokens' })
+    await within(list).findByText('Payroll-2026-Q4')
+    await waitFor(() => expect(list.textContent).toMatch(/opens it on the decoy's file share \(\\\\\S+\)/))
+    expect(list.textContent).toContain('nothing to copy')
+    expect(list.textContent).not.toMatch(/Word or Excel|hidden image|Download /)
+  })
+
   it('suggests Trap IP types from the inventory, lists tokens with last triggered, links Respond, shows coverage', async () => {
     renderApp('/honeypot?tab=trap-ips')
     expect(await screen.findByText(/You have \d+ Synology or QNAP NAS/)).toBeInTheDocument()

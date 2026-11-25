@@ -178,7 +178,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved, on
     const p = emailProvider(id) ?? EMAIL_PROVIDERS[0]!
     if (p.auth !== prov.auth) { setSecret(''); setKeyOf(null) } // a password is not a client secret, nor a key file
     setSignin(null)
-    setFields((f) => ({ ...f, provider: p.id, ...(p.host ? { host: p.host, port: p.port, security: p.security } : prov.auth === 'microsoft_graph' ? { host: '', port: '587', security: 'starttls' } : {}), ...(p.id === 'microsoft365-user' && !f.tenant_id ? { tenant_id: 'organizations' } : {}), ...(p.username ? { username: p.username } : prov.username && f.username === prov.username ? { username: '' } : {}) }))
+    setFields((f) => ({ ...f, provider: p.id, ...(p.host ? { host: p.host, port: p.port, security: p.security } : prov.auth === 'microsoft_graph' ? { host: '', port: '587', security: 'starttls' } : {}), ...(p.username ? { username: p.username } : prov.username && f.username === prov.username ? { username: '' } : {}) }))
     setFieldErr({})
   }
   async function chooseKey(file: File | undefined) {

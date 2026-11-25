@@ -144,7 +144,7 @@ type MicrosoftDevice struct {
 // StartMicrosoftDevice asks Microsoft for a device code for the customer's own public client.
 func StartMicrosoftDevice(ctx context.Context, hc *http.Client, tenant, clientID string) (*MicrosoftDevice, error) {
 	if !validTenant(tenant) {
-		return nil, cfgErr("bad_tenant_id", "The tenant ID is the Directory (tenant) ID of the app registration, a domain such as company.onmicrosoft.com, or organizations.")
+		return nil, cfgErr("bad_tenant_id", "The tenant ID is the Directory (tenant) ID of the app registration, a domain such as company.onmicrosoft.com, or organizations for a multi-tenant app.")
 	}
 	if !guidRE.MatchString(clientID) {
 		return nil, cfgErr("bad_client_id", "The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789.")
@@ -207,7 +207,7 @@ func deviceRefusal(code string, status int) string {
 	case "invalid_client", "unauthorized_client":
 		return "Microsoft refused the app registration. Check the client ID and the tenant ID, and turn on Allow public client flows under Authentication of the app registration."
 	case "invalid_scope":
-		return "Microsoft refused the permission. Add the delegated permission SMTP.Send (Office 365 Exchange Online) to the app registration."
+		return "Microsoft refused the permission. Ask an administrator to add the delegated permission SMTP.Send to the app registration and grant admin consent."
 	case "invalid_request":
 		return "Microsoft refused the sign-in request. Check the tenant ID: the Directory (tenant) ID of the app registration, or organizations."
 	}

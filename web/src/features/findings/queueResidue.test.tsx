@@ -7,6 +7,7 @@ import '@/lib/i18n'
 import { renderApp } from '@/test/render'
 import { assetsStore } from '@/mocks/stores'
 import { questions } from './modelMocks'
+import { openNeeds } from './needsTestUtil'
 
 const T = { timeout: 5000 }
 
@@ -16,6 +17,7 @@ describe('Needs your input: what each item really asks', () => {
   it('a device a person added that Vedette cannot check: the three ways in, the firmware in place', async () => {
     assetsStore.update((l) => l.map((a) => (a.id === 'a-unk02' ? { ...a, approved: true, software: [], os: null } : a)))
     renderApp('/findings?tab=input', { role: 'operator' })
+    await openNeeds()
     await screen.findAllByRole('button', { name: /^Add the firmware of / }, T)
     const snmp = screen.getAllByRole('link', { name: 'Give SNMP read access' }).find((l) => l.getAttribute('href') === '/devices/a-unk02?tab=overview#sources')!
     const item = itemOf(snmp)
@@ -28,14 +30,13 @@ describe('Needs your input: what each item really asks', () => {
   it('a release line the vendor names no fix for is one question: the fixes, the CVEs behind one click, one Not affected', async () => {
     renderApp('/findings?tab=input', { role: 'operator' })
     const re = /^The vendor names fixes for 3 CVEs of Synology NAS \(DSM\) only on newer releases/
+    await openNeeds()
     await screen.findByText(re, {}, T)
-    await waitFor(() => expect(screen.getByText(re).closest('tr')).not.toBeNull(), T) // the list read again after the first answer
     const text = screen.getByText(re)
     expect(text).toHaveTextContent('(7.3.2-86009 Update 5, 7.4.1-90080 Update 1), and nothing for 7.2, which NAS-BACKUP runs.')
     expect(text).not.toHaveTextContent('gives no affected versions')
     const item = itemOf(text)
     expect(within(item).queryByRole('button', { name: 'Affected' })).toBeNull() // one person's word is not a finding for three CVEs
-    await userEvent.click(within(item).getByText('Show the 3 CVEs'))
     expect(within(item).getByRole('link', { name: 'CVE-2026-118211' })).toHaveAttribute('href', '/cve/CVE-2026-118211')
     await userEvent.click(within(item).getByRole('button', { name: 'Not affected' }))
     const dlg = await screen.findByRole('dialog', { name: 'Not affected: Synology NAS (DSM) 7.2 on NAS-BACKUP' }, T)
@@ -47,6 +48,7 @@ describe('Needs your input: what each item really asks', () => {
   it('"gives no affected versions" only when the CVE lists none; listed versions that do not decide say so', async () => {
     questions.update((l) => l.map((q) => (q.id === 'fq-nas01-range' ? { ...q, versions_listed: true } : q)))
     renderApp('/findings?tab=input')
+    await openNeeds()
     const cve = await screen.findByRole('link', { name: 'CVE-2026-118204' }, T)
     const item = itemOf(cve)
     expect(item).toHaveTextContent('CVE-2026-118204 lists some affected versions of Synology NAS (DSM), but none that tells whether 7.2 is affected.')

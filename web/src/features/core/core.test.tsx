@@ -1804,7 +1804,7 @@ describe('core: two-step sign-in, email code method', () => {
     expect(btn).toBeDisabled()
     await user().type(screen.getByLabelText('Your current password'), 'vedette-demo')
     expect(btn).toBeDisabled() // the password alone does not enable it: the channel is missing
-    expect(screen.getByText(/the email alert channel, which is not set up or is turned off/)).toBeInTheDocument()
+    expect(screen.getByText(/Email codes need a working email channel: set it up, turn it on and send a test message that succeeds first\./)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open alert channels' })).toHaveAttribute('href', '/settings/channels')
     expect((await startEmail()).status).toBe(409)
     expect(screen.getByRole('button', { name: 'Set up authenticator app' })).toBeEnabled()
@@ -1812,6 +1812,22 @@ describe('core: two-step sign-in, email code method', () => {
     renderApp('/settings/account?tab=sign-in', { role: 'viewer' })
     expect(await screen.findByText(/Ask an administrator to set up the email channel\./)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Open alert channels' })).not.toBeInTheDocument()
+  })
+
+  it('account: a saved email channel whose test has not succeeded cannot be chosen yet; a successful test enables it', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const saved = { enabled: true, min_severity: 'high', fields: { host: 'smtp.acme.example', port: '587', security: 'starttls', username: 'alerts@acme.example', from: 'alerts@acme.example', to: 'it@acme.example' }, secret: 'pass-word-1' }
+    expect((await call('/notify/channels/email', 'PUT', saved)).status).toBe(200) // saving clears the last test
+    const { unmount } = renderApp('/settings/account?tab=sign-in')
+    await user().type(await screen.findByLabelText('Your current password'), 'vedette-demo')
+    expect(screen.getByRole('button', { name: 'Set up email code' })).toBeDisabled()
+    expect(screen.getByText(/send a test message that succeeds first/)).toBeInTheDocument()
+    expect((await startEmail()).status).toBe(409)
+    unmount()
+    expect(((await (await call('/notify/channels/email/test')).json()) as { ok: boolean }).ok).toBe(true)
+    renderApp('/settings/account?tab=sign-in')
+    await user().type(await screen.findByLabelText('Your current password'), 'vedette-demo')
+    expect(screen.getByRole('button', { name: 'Set up email code' })).toBeEnabled()
   })
 
   it('account: Notifications module off is a separate reason', async () => {

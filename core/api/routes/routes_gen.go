@@ -231,6 +231,7 @@ var Operations = map[string]Operation{
 	"findings_post_findings_id_verify":                       {Method: "POST", Path: "/findings/{id}/verify", MinRole: Admin, Tag: "findings"},
 	"findings_post_findings_questions_id_answer":             {Method: "POST", Path: "/findings/questions/{id}/answer", MinRole: Operator, Tag: "findings"},
 	"findings_post_findings_questions_id_unanswer":           {Method: "POST", Path: "/findings/questions/{id}/unanswer", MinRole: Operator, Tag: "findings"},
+	"findings_post_findings_questions_ignore":                {Method: "POST", Path: "/findings/questions/ignore", MinRole: Operator, Tag: "findings"},
 	"honeypot_delete_honeypot_tokens_id":                     {Method: "DELETE", Path: "/honeypot/tokens/{id}", MinRole: Admin, Tag: "honeypot"},
 	"honeypot_delete_honeypot_trap_ips_id":                   {Method: "DELETE", Path: "/honeypot/trap-ips/{id}", MinRole: Admin, Tag: "honeypot"},
 	"honeypot_get_honeypot":                                  {Method: "GET", Path: "/honeypot", MinRole: Viewer, Tag: "honeypot"},

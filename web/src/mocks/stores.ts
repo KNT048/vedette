@@ -178,5 +178,13 @@ export function emailChannelReady(): boolean {
   return list.some((c) => c.type === 'email' && c.configured && c.enabled)
 }
 
+/** Has the email channel shown that it sends (ready, and its last test since the last save succeeded)? Only then may a person choose email codes (core EmailCodes.Choosable); sign-in codes need only emailChannelReady. */
+export function emailChannelProven(): boolean {
+  if (!emailChannelReady()) return false
+  const list = peek<{ type: string; last_test?: { ok: boolean } | null }[]>('notify_channels')
+  if (!list) return dataMode() === 'sample'
+  return list.some((c) => c.type === 'email' && c.last_test?.ok === true)
+}
+
 /** The number of users (not disabled) who sign in with an email code: they cannot get in when the email channel cannot send. */
 export const emailCodeUserCount = () => usersStore.get().filter((u) => !u.disabled && twofaMethodOf(u) === 'email').length

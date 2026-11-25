@@ -179,16 +179,22 @@ func TestWiringEmailTwoStepCodeGoesThroughNotify(t *testing.T) {
 	}
 	sink := newSMTPSink(t)
 	s.email(sink)
+	if _, err := s.d.Auth.StartEmail2FA(ctx, u.ID, "", testUserSecret); err == nil {
+		t.Fatal("the email method started before the email channel passed a test")
+	}
+	if res, err := newNotify(s.d).TestChannel(ctx, "admin@acme.example", channel.Email); err != nil || !res.OK {
+		t.Fatalf("test = %+v, %v", res, err)
+	}
 	if _, err := s.d.Auth.StartEmail2FA(ctx, u.ID, "", testUserSecret); err != nil {
 		t.Fatal(err)
 	}
 	msgs := sink.messages()
-	if len(msgs) != 1 {
-		t.Fatalf("%d messages after the start, want 1", len(msgs))
+	if len(msgs) != 2 {
+		t.Fatalf("%d messages after the test and the start, want 2", len(msgs))
 	}
-	m := codeRE.FindStringSubmatch(msgs[0])
-	if m == nil || !strings.Contains(msgs[0], "anh@acme.example") || !strings.Contains(msgs[0], "https://box.example:8443/login") {
-		t.Fatalf("the mailed code is missing, or the recipient or the sign-in link:\n%s", msgs[0])
+	m := codeRE.FindStringSubmatch(msgs[1])
+	if m == nil || !strings.Contains(msgs[1], "anh@acme.example") || !strings.Contains(msgs[1], "https://box.example:8443/login") {
+		t.Fatalf("the mailed code is missing, or the recipient or the sign-in link:\n%s", msgs[1])
 	}
 	if _, err := s.d.Auth.ConfirmEmail2FA(ctx, u.ID, "", m[1]); err != nil {
 		t.Fatal(err)
@@ -201,12 +207,12 @@ func TestWiringEmailTwoStepCodeGoesThroughNotify(t *testing.T) {
 		t.Fatal("password-only sign-in worked for an email two-step account")
 	}
 	msgs = sink.messages()
-	if len(msgs) != 2 {
-		t.Fatalf("%d messages after the sign-in prompt, want 2", len(msgs))
+	if len(msgs) != 3 {
+		t.Fatalf("%d messages after the sign-in prompt, want 3", len(msgs))
 	}
-	m = codeRE.FindStringSubmatch(msgs[1])
+	m = codeRE.FindStringSubmatch(msgs[2])
 	if m == nil {
-		t.Fatalf("no code in the second message:\n%s", msgs[1])
+		t.Fatalf("no code in the third message:\n%s", msgs[2])
 	}
 	req.Code = m[1]
 	res, err := s.d.Auth.Login(ctx, req)
@@ -308,6 +314,9 @@ func TestWiringCodeMailerIsAStepUpMailer(t *testing.T) {
 	sm, ok := any(m).(auth.StepUpMailer)
 	if !ok {
 		t.Fatal("the notify code mailer does not implement auth.StepUpMailer")
+	}
+	if _, ok := any(m).(auth.ProvenMailer); !ok {
+		t.Fatal("the notify code mailer does not implement auth.ProvenMailer: email two-step could be chosen before the channel was seen working")
 	}
 	if m.Available(t.Context()) || sm.SendStepUpCode(t.Context(), "op@acme.example", "123456", "Approve x") == nil {
 		t.Fatal("a step-up code was sent without an email channel")

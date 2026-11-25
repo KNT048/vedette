@@ -29,6 +29,8 @@ async function addEmailChannel(page: Page) {
   await expect(page.getByRole('heading', { name: 'Two-step sign-in' })).toBeVisible()
   const r = await post(page, '/notify/channels/email', { enabled: true, min_severity: 'high', secret: 'smtp-secret-123', fields: { host: 'smtp.testco.example', port: '587', security: 'starttls', username: 'alerts@testco.example', from: 'alerts@testco.example', to: 'it@testco.example' } }, 'PUT')
   expect(r.status).toBe(200)
+  // email codes can be chosen only once the channel has sent a test message
+  expect((await post(page, '/notify/channels/email/test', {})).status).toBe(200)
 }
 async function login(page: Page, email: string, password: string) {
   await page.goto('/login')

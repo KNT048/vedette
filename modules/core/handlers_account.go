@@ -42,7 +42,7 @@ func (h *APIHandlers) CoreGetCoreAccount(ctx context.Context) (*oas.CoreGetCoreA
 	switch {
 	case !h.reg.Enabled("notify"):
 		out.TwofaEmail.Reason = oas.NewNilCoreGetCoreAccountOKTwofaEmailReason(oas.CoreGetCoreAccountOKTwofaEmailReasonModuleOff)
-	case !h.auth.Codes.Available(ctx):
+	case !h.auth.Codes.Choosable(ctx): // set up, on, and its last test succeeded
 		out.TwofaEmail.Reason = oas.NewNilCoreGetCoreAccountOKTwofaEmailReason(oas.CoreGetCoreAccountOKTwofaEmailReasonChannelNotReady)
 	default:
 		out.TwofaEmail.Available = true

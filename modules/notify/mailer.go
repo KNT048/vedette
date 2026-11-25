@@ -46,6 +46,18 @@ func (m CodeMailer) Available(ctx context.Context) bool {
 	return ok
 }
 
+// Proven reports whether the email channel has shown that it sends: it is ready (Available) and its last test, since the settings
+// were last saved, succeeded. core asks it before a person may choose two-step sign-in by email (auth.ProvenMailer), so nobody
+// waits for a code from a channel that was never seen working. Sign-in and step-up codes keep using Available: a failed test
+// must not lock out an account that already uses email codes.
+func (m CodeMailer) Proven(ctx context.Context) bool {
+	if ok, _ := m.s.EmailReady(ctx); !ok {
+		return false
+	}
+	c, err := loadChannel(ctx, m.s.cfg.DB.Reader(), channel.Email)
+	return err == nil && c.LastTest != nil && c.LastTest.OK
+}
+
 const codeSendTimeout = 30 * time.Second
 
 // SendCode mails the 6-digit code to one address through the saved SMTP settings. The code is not

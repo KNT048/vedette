@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { X } from 'lucide-react'
+import { ChevronDown, X } from 'lucide-react'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
@@ -22,8 +22,9 @@ import type { DeviceCard, DeviceRef, FixBlock } from './types'
 
 export type Handling = { device: DeviceRef; rows: HandleRow[]; fix?: string; software?: string | null; complete?: boolean }
 
-function Block({ device, block, narrowed, onHandle }: { device: DeviceRef; block: FixBlock; narrowed: boolean; onHandle: (h: Handling) => void }) {
+function Block({ device, block, narrowed, onHandle, fold = false }: { device: DeviceRef; block: FixBlock; narrowed: boolean; onHandle: (h: Handling) => void; fold?: boolean }) {
   const { t } = useTranslation('findings')
+  const [open, setOpen] = useState(!fold) // on the device's own page a block opens on click
   const can = useCan('operator')
   const title = useFixTitle()
   const need = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
@@ -33,7 +34,11 @@ function Block({ device, block, narrowed, onHandle }: { device: DeviceRef; block
     <li className="grid gap-2 py-3 first:pt-0 last:pb-0" aria-label={what}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <span className="font-medium [overflow-wrap:anywhere]">{what}</span>
+          {fold ? (
+            <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="-ml-2 h-auto min-h-8 gap-1.5 whitespace-normal py-1 text-left">
+              <ChevronDown aria-hidden className={open ? 'rotate-180' : ''} /><span className="font-medium [overflow-wrap:anywhere]">{what}</span>
+            </Button>
+          ) : <span className="font-medium [overflow-wrap:anywhere]">{what}</span>}
           <span className="text-muted">{block.fix.kind === 'none_yet' || block.fix.kind === 'unknown' ? t('byDevice.affects', { count: block.findings.length }) : t('byDevice.fixes', { count: block.findings.length })}</span>
           <StatusBadge code={block.status} />
           {block.findings.length > 1 ? <span className="text-meta text-muted">{t('byDevice.cause', { cve: block.cause })}</span> : null}
@@ -42,12 +47,12 @@ function Block({ device, block, narrowed, onHandle }: { device: DeviceRef; block
         <Button size="sm" disabled={!can} title={need} aria-label={t('byDevice.handleBlockOf', { fix: what, device: device.name })}
           onClick={() => onHandle({ device, rows, fix: block.fix.key, software: block.software?.id ?? null, complete: !narrowed })}>{t('byDevice.handleBlock')}</Button>
       </div>
-      <CveList rows showStatus label={t('byDevice.cvesOf', { fix: what })}
+      {open ? <CveList rows showStatus label={t('byDevice.cvesOf', { fix: what })}
         items={block.findings.map((f) => ({ cve: f.cve, id: f.id, severity: f.severity, status: f.status, urgency: f.urgency, verification: f.verification, to: `/findings/${encodeURIComponent(f.id)}` }))}
         action={(i) => (
           <Button size="sm" variant="ghost" className="h-7" disabled={!can} title={need} aria-label={t('byDevice.handleOneOf', { cve: i.cve, device: device.name })}
             onClick={() => onHandle({ device, rows: rows.filter((r) => r.id === i.id) })}>{t('byDevice.handleOne')}</Button>
-        )} />
+        )} /> : null}
     </li>
   )
 }
@@ -56,21 +61,37 @@ function Block({ device, block, narrowed, onHandle }: { device: DeviceRef; block
  *  (`own`) the page already names the device and offers those actions: the card is its counts and its fix blocks. */
 export function DeviceCardView({ card, narrowed, onHandle, own = false }: { card: DeviceCard; narrowed: boolean; onHandle: (h: Handling) => void; own?: boolean }) {
   const { t } = useTranslation('findings')
+  const title = useFixTitle()
+  const [open, setOpen] = useState(false) // By device: a device opens on click, like a fix in By fix
   const counts = <span className="text-meta text-muted">{t('byDevice.counts', { count: card.findings, cves: card.cves })}</span>
+  const urgency = (['under_attack', 'exploited', 'public_exploit', 'critical_edge', 'update_recommended'] as const).filter((k) => card.counts[k] > 0).map((k) => t(`common:deviceStatus.${k}`, { count: card.counts[k] })).join(' · ')
+  const top = card.blocks[0]
+  const panel = `device-${card.device.id.replace(/[^\w-]/g, '_')}`
+  const list = (
+    <ul id={own ? undefined : panel} aria-label={t('byDevice.blocksOf', { device: card.device.name })} className="grid divide-y divide-rule">
+      {card.blocks.map((b) => <Block key={b.fix.key} device={card.device} block={b} narrowed={narrowed} onHandle={onHandle} fold={own} />)}
+    </ul>
+  )
   return (
     <article aria-label={card.device.name} className="grid gap-3 py-1">
-      {own ? counts : (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="grid gap-0.5">
-            <DeviceLine device={card.device} status={card.status} />
-            {counts}
+      {own ? <>{counts}{list}</> : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="grid gap-0.5">
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" aria-expanded={open} aria-controls={panel} aria-label={t('byDevice.toggle', { device: card.device.name })} onClick={() => setOpen((o) => !o)} className="size-8 shrink-0">
+                  <ChevronDown aria-hidden className={open ? 'rotate-180' : ''} />
+                </Button>
+                <DeviceLine device={card.device} status={card.status} />
+              </div>
+              <span className="ml-9 flex flex-wrap items-center gap-x-2 text-meta text-muted">{counts}{urgency ? <span>{urgency}</span> : null}</span>
+              {top ? <span className="ml-9 text-meta text-muted">{t('byDevice.worst', { fix: title(top.fix, top.software), cve: top.cause })}</span> : null}
+            </div>
+            {!card.device.added && !card.device.ignored ? <NotAdded asset={asAsset(card.device)} findings={card.findings} /> : null}
           </div>
-          {!card.device.added && !card.device.ignored ? <NotAdded asset={asAsset(card.device)} findings={card.findings} /> : null}
-        </div>
+          {open ? list : null}
+        </>
       )}
-      <ul aria-label={t('byDevice.blocksOf', { device: card.device.name })} className="grid divide-y divide-rule">
-        {card.blocks.map((b) => <Block key={b.fix.key} device={card.device} block={b} narrowed={narrowed} onHandle={onHandle} />)}
-      </ul>
     </article>
   )
 }

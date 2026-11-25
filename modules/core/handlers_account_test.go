@@ -65,6 +65,12 @@ func TestAccount_TwofaEmailAvailability(t *testing.T) {
 	if r["available"] != true {
 		t.Fatalf("with notify on and a channel: %v", r)
 	}
+	w.env.Mailer.SetProven(false) // set up and on, but its last test did not succeed
+	r = admin.get("/core/account").JSON["twofa_email"].(map[string]any)
+	if r["available"] != false || r["reason"] != "channel_not_ready" {
+		t.Fatalf("channel not tested: %v", r)
+	}
+	w.env.Mailer.SetProven(true)
 	w.env.Mailer.SetAvailable(false)
 	r = admin.get("/core/account").JSON["twofa_email"].(map[string]any)
 	if r["available"] != false || r["reason"] != "channel_not_ready" {

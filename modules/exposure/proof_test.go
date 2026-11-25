@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/store"
 )
 
 // cnameDNS is fakeResolver with CNAMEs, wildcards, names that do not exist and per-name failures, the way a real resolver answers:
@@ -167,9 +168,9 @@ func TestProof_ParentCoversChild(t *testing.T) {
 	if p := run.last.Proof; p == nil || p.Domain != "example.org" || p.Token != parent.Token || run.last.Value != "git.example.org" {
 		t.Fatalf("scan target %+v proof %+v", run.last, run.last.Proof)
 	}
-	// the parent's record goes: the child is covered no more right before its next scan
+	// the parent's record goes: right before its next scan the child's check says so, a warning inside the 90 days of its last pass
 	e.dns.put("example.org", "v=spf1 -all")
-	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", child.ID); ok || why != BlockedTxtMissing {
+	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", child.ID); !ok || why != "" || e.target(child.ID).LastCheck.OK {
 		t.Fatalf("parent's record removed: %v %v", ok, why)
 	}
 	// the record is back but the parent target is removed from the box: its token proves nothing for the box any more
@@ -177,7 +178,7 @@ func TestProof_ParentCoversChild(t *testing.T) {
 	if err := e.svc.Delete(e.ctx(), "admin@acme.example", parent.ID); err != nil {
 		t.Fatal(err)
 	}
-	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", child.ID); ok || why != BlockedTxtMissing {
+	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", child.ID); ok || why != BlockedUnverified { // a person withdrew that proof
 		t.Fatalf("parent target removed: %v %v", ok, why)
 	}
 	// Not only the target at that name: the child's own token on a parent name proves the child
@@ -248,10 +249,17 @@ func TestProof_PublicSuffixCoversNothing(t *testing.T) {
 	if p := v.Proof; p == nil || p.Zone != "example.ddns.net" || p.Host != "@" {
 		t.Fatalf("hint %+v", p)
 	}
-	// A public suffix stored by an older release is refused as one, not with "add the record back"
-	err := e.svc.refusal(Target{Kind: KindDomain, Value: "ddns.net", Token: "0123456789abcdef"}, BlockedTxtMissing, t0)
-	if err == nil || !strings.Contains(err.Error(), "ddns.net is a public suffix") || strings.Contains(err.Error(), "Add the record back") {
+	// A public suffix stored by an older release is refused as one, not with "finish verification"
+	err := e.svc.refusal(Target{Kind: KindDomain, Value: "ddns.net", Token: "0123456789abcdef"}, BlockedUnverified, t0)
+	if err == nil || !strings.Contains(err.Error(), "ddns.net is a public suffix") || strings.Contains(err.Error(), "Finish verification") {
 		t.Fatalf("stored public suffix: %v", err)
+	}
+	// and one an older release stored as verified loses that proof at its next check: nothing proves a public suffix
+	e.exec(`INSERT INTO exp_target (id, kind, value, origin, scope_mode, enabled, method, token, verified_at, last_check, created_at)
+		VALUES ('xt-suffix', 'domain', 'ddns.net', 'person', 'self', 1, 'dns_txt', '0123456789abcdef', ?, '{"at":"2026-11-09T10:00:00.000Z","ok":true,"message":"old"}', ?)`,
+		store.FormatTS(t0), store.FormatTS(t0))
+	if ok, why := e.scannable("xt-suffix"); ok || why != BlockedUnverified {
+		t.Fatalf("a stored, verified public suffix: %v %q", ok, why)
 	}
 }
 
@@ -272,7 +280,7 @@ func TestProof_VerifyLabelUnderACNAME(t *testing.T) {
 	if r := e.verify(v.ID); !r.Verified || r.Message != "Found the TXT record vedette-verify="+v.Token+" on _vedette-verify.git.example.org." {
 		t.Fatalf("%+v", r)
 	}
-	if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", v.ID); err != nil || why == BlockedTxtMissing {
+	if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", v.ID); err != nil || !e.target(v.ID).LastCheck.OK {
 		t.Fatalf("gate: %v %v", why, err)
 	}
 	a := e.add("admin@acme.example", "example.org")

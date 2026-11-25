@@ -56933,339 +56933,6 @@ func (s FindingsGetFindingsIDViewOKVerificationVerified) Validate() error {
 	}
 }
 
-func (s *FindingsGetFindingsInput1DeviceNotAdded) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Device.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "device",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Findings)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "findings",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Status.Get(); ok {
-			if err := func() error {
-				if err := value.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "status",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *FindingsGetFindingsInput1DeviceNotAddedDevice) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Kind.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "kind",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s FindingsGetFindingsInput1DeviceNotAddedDeviceKind) Validate() error {
-	switch s {
-	case "router":
-		return nil
-	case "switch":
-		return nil
-	case "modem":
-		return nil
-	case "sd_wan":
-		return nil
-	case "load_balancer":
-		return nil
-	case "network_controller":
-		return nil
-	case "firewall":
-		return nil
-	case "vpn_gateway":
-		return nil
-	case "ids_sensor":
-		return nil
-	case "proxy":
-		return nil
-	case "ap":
-		return nil
-	case "wireless_controller":
-		return nil
-	case "wifi_extender":
-		return nil
-	case "mesh_node":
-		return nil
-	case "server":
-		return nil
-	case "virtual_machine":
-		return nil
-	case "hypervisor":
-		return nil
-	case "bmc":
-		return nil
-	case "domain_controller":
-		return nil
-	case "mail_server":
-		return nil
-	case "database_server":
-		return nil
-	case "backup_server":
-		return nil
-	case "pc":
-		return nil
-	case "laptop":
-		return nil
-	case "workstation":
-		return nil
-	case "thin_client":
-		return nil
-	case "pos_terminal":
-		return nil
-	case "kiosk":
-		return nil
-	case "smartphone":
-		return nil
-	case "tablet":
-		return nil
-	case "smartwatch":
-		return nil
-	case "printer":
-		return nil
-	case "mfp":
-		return nil
-	case "scanner":
-		return nil
-	case "label_printer":
-		return nil
-	case "receipt_printer":
-		return nil
-	case "plotter":
-		return nil
-	case "3d_printer":
-		return nil
-	case "camera":
-		return nil
-	case "nvr":
-		return nil
-	case "dvr":
-		return nil
-	case "video_encoder":
-		return nil
-	case "doorbell":
-		return nil
-	case "video_conferencing":
-		return nil
-	case "ip_phone":
-		return nil
-	case "pbx":
-		return nil
-	case "voip_adapter":
-		return nil
-	case "voip_gateway":
-		return nil
-	case "conference_phone":
-		return nil
-	case "intercom":
-		return nil
-	case "nas":
-		return nil
-	case "san":
-		return nil
-	case "backup_appliance":
-		return nil
-	case "tape_library":
-		return nil
-	case "iot":
-		return nil
-	case "smart_tv":
-		return nil
-	case "media_player":
-		return nil
-	case "smart_speaker":
-		return nil
-	case "game_console":
-		return nil
-	case "smart_plug":
-		return nil
-	case "smart_light":
-		return nil
-	case "smart_hub":
-		return nil
-	case "thermostat":
-		return nil
-	case "projector":
-		return nil
-	case "digital_signage":
-		return nil
-	case "single_board_computer":
-		return nil
-	case "smart_appliance":
-		return nil
-	case "robot_vacuum":
-		return nil
-	case "wireless_bridge":
-		return nil
-	case "plc":
-		return nil
-	case "hmi":
-		return nil
-	case "rtu":
-		return nil
-	case "scada_server":
-		return nil
-	case "industrial_switch":
-		return nil
-	case "ups":
-		return nil
-	case "pdu":
-		return nil
-	case "access_control":
-		return nil
-	case "time_clock":
-		return nil
-	case "alarm_panel":
-		return nil
-	case "hvac_controller":
-		return nil
-	case "building_controller":
-		return nil
-	case "power_meter":
-		return nil
-	case "environment_monitor":
-		return nil
-	case "ev_charger":
-		return nil
-	case "solar_inverter":
-		return nil
-	case "medical_device":
-		return nil
-	case "web":
-		return nil
-	case "cloud_service":
-		return nil
-	case "unknown":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *FindingsGetFindingsInput1DeviceNotAddedStatus) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.Code.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "code",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           9007199254740991,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Count)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "count",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s FindingsGetFindingsInput1DeviceNotAddedStatusCode) Validate() error {
-	switch s {
-	case "under_attack":
-		return nil
-	case "exploited":
-		return nil
-	case "public_exploit":
-		return nil
-	case "critical_edge":
-		return nil
-	case "update_recommended":
-		return nil
-	case "needs_input":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
 func (s *FindingsGetFindingsInput1DeviceUnchecked) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -57497,7 +57164,7 @@ func (s FindingsGetFindingsInput1DeviceUncheckedDeviceKind) Validate() error {
 	}
 }
 
-func (s *FindingsGetFindingsInput1DevicesNotAdded) Validate() error {
+func (s *FindingsGetFindingsInput1SoftwareGroup) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -57514,13 +57181,49 @@ func (s *FindingsGetFindingsInput1DevicesNotAdded) Validate() error {
 			MultipleOfSet: false,
 			MultipleOf:    0,
 			Pattern:       nil,
-		}).Validate(int64(s.Count)); err != nil {
+		}).Validate(int64(s.Cves)); err != nil {
 			return errors.Wrap(err, "int")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "count",
+			Name:  "cves",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Questions == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.Questions)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Questions {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "questions",
 			Error: err,
 		})
 	}
@@ -57530,7 +57233,7 @@ func (s *FindingsGetFindingsInput1DevicesNotAdded) Validate() error {
 	return nil
 }
 
-func (s *FindingsGetFindingsInput1Question) Validate() error {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -57694,7 +57397,7 @@ func (s *FindingsGetFindingsInput1Question) Validate() error {
 	return nil
 }
 
-func (s *FindingsGetFindingsInput1QuestionChoicesItem) Validate() error {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -57731,7 +57434,7 @@ func (s *FindingsGetFindingsInput1QuestionChoicesItem) Validate() error {
 	return nil
 }
 
-func (s FindingsGetFindingsInput1QuestionChoicesItemAskItem) Validate() error {
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem) Validate() error {
 	switch s {
 	case "os":
 		return nil
@@ -57742,7 +57445,7 @@ func (s FindingsGetFindingsInput1QuestionChoicesItemAskItem) Validate() error {
 	}
 }
 
-func (s *FindingsGetFindingsInput1QuestionDevice) Validate() error {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -57765,7 +57468,7 @@ func (s *FindingsGetFindingsInput1QuestionDevice) Validate() error {
 	return nil
 }
 
-func (s FindingsGetFindingsInput1QuestionDeviceKind) Validate() error {
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind) Validate() error {
 	switch s {
 	case "router":
 		return nil
@@ -57950,7 +57653,7 @@ func (s FindingsGetFindingsInput1QuestionDeviceKind) Validate() error {
 	}
 }
 
-func (s FindingsGetFindingsInput1QuestionQuestion) Validate() error {
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestion) Validate() error {
 	switch s {
 	case "version_needed":
 		return nil
@@ -58407,6 +58110,661 @@ func (s FindingsGetFindingsInput1UnconfirmedStatus) Validate() error {
 	}
 }
 
+func (s *FindingsGetFindingsInput2DeviceNeeds) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Device.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "device",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Entries == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    1,
+			MinLengthSet: true,
+			MaxLength:    0,
+			MaxLengthSet: false,
+		}).ValidateLength(len(s.Entries)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Entries {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "entries",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *FindingsGetFindingsInput2DeviceNeedsDevice) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsGetFindingsInput2DeviceNeedsDeviceKind) Validate() error {
+	switch s {
+	case "router":
+		return nil
+	case "switch":
+		return nil
+	case "modem":
+		return nil
+	case "sd_wan":
+		return nil
+	case "load_balancer":
+		return nil
+	case "network_controller":
+		return nil
+	case "firewall":
+		return nil
+	case "vpn_gateway":
+		return nil
+	case "ids_sensor":
+		return nil
+	case "proxy":
+		return nil
+	case "ap":
+		return nil
+	case "wireless_controller":
+		return nil
+	case "wifi_extender":
+		return nil
+	case "mesh_node":
+		return nil
+	case "server":
+		return nil
+	case "virtual_machine":
+		return nil
+	case "hypervisor":
+		return nil
+	case "bmc":
+		return nil
+	case "domain_controller":
+		return nil
+	case "mail_server":
+		return nil
+	case "database_server":
+		return nil
+	case "backup_server":
+		return nil
+	case "pc":
+		return nil
+	case "laptop":
+		return nil
+	case "workstation":
+		return nil
+	case "thin_client":
+		return nil
+	case "pos_terminal":
+		return nil
+	case "kiosk":
+		return nil
+	case "smartphone":
+		return nil
+	case "tablet":
+		return nil
+	case "smartwatch":
+		return nil
+	case "printer":
+		return nil
+	case "mfp":
+		return nil
+	case "scanner":
+		return nil
+	case "label_printer":
+		return nil
+	case "receipt_printer":
+		return nil
+	case "plotter":
+		return nil
+	case "3d_printer":
+		return nil
+	case "camera":
+		return nil
+	case "nvr":
+		return nil
+	case "dvr":
+		return nil
+	case "video_encoder":
+		return nil
+	case "doorbell":
+		return nil
+	case "video_conferencing":
+		return nil
+	case "ip_phone":
+		return nil
+	case "pbx":
+		return nil
+	case "voip_adapter":
+		return nil
+	case "voip_gateway":
+		return nil
+	case "conference_phone":
+		return nil
+	case "intercom":
+		return nil
+	case "nas":
+		return nil
+	case "san":
+		return nil
+	case "backup_appliance":
+		return nil
+	case "tape_library":
+		return nil
+	case "iot":
+		return nil
+	case "smart_tv":
+		return nil
+	case "media_player":
+		return nil
+	case "smart_speaker":
+		return nil
+	case "game_console":
+		return nil
+	case "smart_plug":
+		return nil
+	case "smart_light":
+		return nil
+	case "smart_hub":
+		return nil
+	case "thermostat":
+		return nil
+	case "projector":
+		return nil
+	case "digital_signage":
+		return nil
+	case "single_board_computer":
+		return nil
+	case "smart_appliance":
+		return nil
+	case "robot_vacuum":
+		return nil
+	case "wireless_bridge":
+		return nil
+	case "plc":
+		return nil
+	case "hmi":
+		return nil
+	case "rtu":
+		return nil
+	case "scada_server":
+		return nil
+	case "industrial_switch":
+		return nil
+	case "ups":
+		return nil
+	case "pdu":
+		return nil
+	case "access_control":
+		return nil
+	case "time_clock":
+		return nil
+	case "alarm_panel":
+		return nil
+	case "hvac_controller":
+		return nil
+	case "building_controller":
+		return nil
+	case "power_meter":
+		return nil
+	case "environment_monitor":
+		return nil
+	case "ev_charger":
+		return nil
+	case "solar_inverter":
+		return nil
+	case "medical_device":
+		return nil
+	case "web":
+		return nil
+	case "cloud_service":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s FindingsGetFindingsInput2DeviceNeedsEntriesItem) Validate() error {
+	switch s.Type {
+	case FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInput2DeviceNeedsEntriesItem:
+		if err := s.FindingsGetFindingsInput1DeviceUnchecked.Validate(); err != nil {
+			return err
+		}
+		return nil
+	case FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInput2DeviceNeedsEntriesItem:
+		if err := s.FindingsGetFindingsInput1Unconfirmed.Validate(); err != nil {
+			return err
+		}
+		return nil
+	case FindingsGetFindingsInput1SoftwareGroupFindingsGetFindingsInput2DeviceNeedsEntriesItem:
+		if err := s.FindingsGetFindingsInput1SoftwareGroup.Validate(); err != nil {
+			return err
+		}
+		return nil
+	default:
+		return errors.Errorf("invalid type %q", s.Type)
+	}
+}
+
+func (s *FindingsGetFindingsInput2DeviceNotAdded) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Device.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "device",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Findings)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "findings",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Status.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "status",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *FindingsGetFindingsInput2DeviceNotAddedDevice) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Kind.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kind",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsGetFindingsInput2DeviceNotAddedDeviceKind) Validate() error {
+	switch s {
+	case "router":
+		return nil
+	case "switch":
+		return nil
+	case "modem":
+		return nil
+	case "sd_wan":
+		return nil
+	case "load_balancer":
+		return nil
+	case "network_controller":
+		return nil
+	case "firewall":
+		return nil
+	case "vpn_gateway":
+		return nil
+	case "ids_sensor":
+		return nil
+	case "proxy":
+		return nil
+	case "ap":
+		return nil
+	case "wireless_controller":
+		return nil
+	case "wifi_extender":
+		return nil
+	case "mesh_node":
+		return nil
+	case "server":
+		return nil
+	case "virtual_machine":
+		return nil
+	case "hypervisor":
+		return nil
+	case "bmc":
+		return nil
+	case "domain_controller":
+		return nil
+	case "mail_server":
+		return nil
+	case "database_server":
+		return nil
+	case "backup_server":
+		return nil
+	case "pc":
+		return nil
+	case "laptop":
+		return nil
+	case "workstation":
+		return nil
+	case "thin_client":
+		return nil
+	case "pos_terminal":
+		return nil
+	case "kiosk":
+		return nil
+	case "smartphone":
+		return nil
+	case "tablet":
+		return nil
+	case "smartwatch":
+		return nil
+	case "printer":
+		return nil
+	case "mfp":
+		return nil
+	case "scanner":
+		return nil
+	case "label_printer":
+		return nil
+	case "receipt_printer":
+		return nil
+	case "plotter":
+		return nil
+	case "3d_printer":
+		return nil
+	case "camera":
+		return nil
+	case "nvr":
+		return nil
+	case "dvr":
+		return nil
+	case "video_encoder":
+		return nil
+	case "doorbell":
+		return nil
+	case "video_conferencing":
+		return nil
+	case "ip_phone":
+		return nil
+	case "pbx":
+		return nil
+	case "voip_adapter":
+		return nil
+	case "voip_gateway":
+		return nil
+	case "conference_phone":
+		return nil
+	case "intercom":
+		return nil
+	case "nas":
+		return nil
+	case "san":
+		return nil
+	case "backup_appliance":
+		return nil
+	case "tape_library":
+		return nil
+	case "iot":
+		return nil
+	case "smart_tv":
+		return nil
+	case "media_player":
+		return nil
+	case "smart_speaker":
+		return nil
+	case "game_console":
+		return nil
+	case "smart_plug":
+		return nil
+	case "smart_light":
+		return nil
+	case "smart_hub":
+		return nil
+	case "thermostat":
+		return nil
+	case "projector":
+		return nil
+	case "digital_signage":
+		return nil
+	case "single_board_computer":
+		return nil
+	case "smart_appliance":
+		return nil
+	case "robot_vacuum":
+		return nil
+	case "wireless_bridge":
+		return nil
+	case "plc":
+		return nil
+	case "hmi":
+		return nil
+	case "rtu":
+		return nil
+	case "scada_server":
+		return nil
+	case "industrial_switch":
+		return nil
+	case "ups":
+		return nil
+	case "pdu":
+		return nil
+	case "access_control":
+		return nil
+	case "time_clock":
+		return nil
+	case "alarm_panel":
+		return nil
+	case "hvac_controller":
+		return nil
+	case "building_controller":
+		return nil
+	case "power_meter":
+		return nil
+	case "environment_monitor":
+		return nil
+	case "ev_charger":
+		return nil
+	case "solar_inverter":
+		return nil
+	case "medical_device":
+		return nil
+	case "web":
+		return nil
+	case "cloud_service":
+		return nil
+	case "unknown":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Code.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "code",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsGetFindingsInput2DeviceNotAddedStatusCode) Validate() error {
+	switch s {
+	case "under_attack":
+		return nil
+	case "exploited":
+		return nil
+	case "public_exploit":
+		return nil
+	case "critical_edge":
+		return nil
+	case "update_recommended":
+		return nil
+	case "needs_input":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *FindingsGetFindingsInput2DevicesNotAdded) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *FindingsGetFindingsInputOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -58470,28 +58828,18 @@ func (s *FindingsGetFindingsInputOK) Validate() error {
 
 func (s FindingsGetFindingsInputOKItemsItem) Validate() error {
 	switch s.Type {
-	case FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem:
-		if err := s.FindingsGetFindingsInput1DeviceNotAdded.Validate(); err != nil {
+	case FindingsGetFindingsInput2DeviceNotAddedFindingsGetFindingsInputOKItemsItem:
+		if err := s.FindingsGetFindingsInput2DeviceNotAdded.Validate(); err != nil {
 			return err
 		}
 		return nil
-	case FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem:
-		if err := s.FindingsGetFindingsInput1DevicesNotAdded.Validate(); err != nil {
+	case FindingsGetFindingsInput2DevicesNotAddedFindingsGetFindingsInputOKItemsItem:
+		if err := s.FindingsGetFindingsInput2DevicesNotAdded.Validate(); err != nil {
 			return err
 		}
 		return nil
-	case FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem:
-		if err := s.FindingsGetFindingsInput1DeviceUnchecked.Validate(); err != nil {
-			return err
-		}
-		return nil
-	case FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInputOKItemsItem:
-		if err := s.FindingsGetFindingsInput1Unconfirmed.Validate(); err != nil {
-			return err
-		}
-		return nil
-	case FindingsGetFindingsInput1QuestionFindingsGetFindingsInputOKItemsItem:
-		if err := s.FindingsGetFindingsInput1Question.Validate(); err != nil {
+	case FindingsGetFindingsInput2DeviceNeedsFindingsGetFindingsInputOKItemsItem:
+		if err := s.FindingsGetFindingsInput2DeviceNeeds.Validate(); err != nil {
 			return err
 		}
 		return nil
@@ -69063,6 +69411,178 @@ func (s *FindingsPostFindingsIDVerifyReq) Validate() error {
 	return nil
 }
 
+func (s *FindingsPostFindingsQuestionsAcceptRiskOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Findings)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "findings",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Questions)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "questions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     96,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Device)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "device",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     500,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Note)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "note",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Question.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     96,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "question",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Software.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     96,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "software",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *FindingsPostFindingsQuestionsIDAnswerReq) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -69118,6 +69638,127 @@ func (s FindingsPostFindingsQuestionsIDAnswerReqAnswer) Validate() error {
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *FindingsPostFindingsQuestionsIgnoreOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9007199254740991,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Answered)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "answered",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *FindingsPostFindingsQuestionsIgnoreReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     96,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Device)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "device",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     500,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Note)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "note",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Software.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     0,
+					MinLengthSet:  false,
+					MaxLength:     96,
+					MaxLengthSet:  true,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "software",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *HoneypotGetHoneypotHitsIDOK) Validate() error {

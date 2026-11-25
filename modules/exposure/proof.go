@@ -8,7 +8,6 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"time"
 	"unicode"
 
 	"github.com/knt048/vedette/core/domainfence"
@@ -330,6 +329,15 @@ func (p proof) gate(t Target) (domain, token, at string) {
 // names under it; its own token on a parent name proves it only.
 func (p proof) coversBelow(value string) bool { return p.found && p.own && p.proven == value }
 
+// keptVia is the Via a check of t records: the target whose token proved t at this check when it passed; when it did not, the one of
+// its last passing check, whose proof still holds inside its days (INV-4) and which a removal of that target withdraws (uncover).
+func keptVia(t Target, p proof) string {
+	if p.found || t.LastCheck == nil {
+		return p.via
+	}
+	return t.LastCheck.Via
+}
+
 // stillOwner re-reads, in the write transaction of a check, the target whose record proved another one: a
 // parent removed, or given a new token, while the lookups ran proves nothing. The target's own record needs no re-read.
 func stillOwner(ctx context.Context, tx *sql.Tx, checked string, p proof) (proof, error) {
@@ -574,7 +582,8 @@ func settleMethod(ctx context.Context, tx *sql.Tx, id string, p proof) error {
 }
 
 // uncover records, in the transaction that removes the domain target gone, that the targets its record proved at their last check are
-// proved no more: their scans were refused from their next start anyway (the token went with the target), and the page says so now.
+// proved no more: removing the target is a person withdrawing that proof, so their own is cleared (verified_at, method) and they are
+// refused at once, not after ValidDays (INV-1). The page says what they need now.
 func (s *Service) uncover(ctx context.Context, tx *sql.Tx, gone Target) error {
 	if gone.Kind != KindDomain {
 		return nil
@@ -585,11 +594,11 @@ func (s *Service) uncover(ctx context.Context, tx *sql.Tx, gone Target) error {
 	}
 	now := s.clock()
 	for _, o := range all {
-		if o.Kind != KindDomain || o.LastCheck == nil || !o.LastCheck.OK || o.LastCheck.Via != gone.Value {
+		if o.Kind != KindDomain || o.VerifiedAt.IsZero() || o.LastCheck == nil || o.LastCheck.Via != gone.Value {
 			continue
 		}
 		msg := fmt.Sprintf("The TXT record of %s proved this name, and %s was removed from the box, so it needs its own proof: add the record shown, then check again.", gone.Value, gone.Value)
-		if err := updateCheck(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: false, Message: msg}, time.Time{}, ""); err != nil {
+		if err := withdrawProof(ctx, tx, o.ID, Check{At: store.FormatTS(now), OK: false, Message: msg}); err != nil {
 			return err
 		}
 	}

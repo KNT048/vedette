@@ -163,8 +163,8 @@ func TestContract_INV21_OnlyTheBoxsOwnCurrentIPIsSent(t *testing.T) {
 		t.Fatalf("before any check = %+v, %v; want nil", v, err)
 	}
 
-	// Not seen for 31 days: expired, nothing sent.
-	e.advance(31 * 24 * time.Hour)
+	// Not seen for 91 days: expired, nothing sent.
+	e.advance(91 * 24 * time.Hour)
 	_, err = e.svc.CheckOutside(ctx, admin, ip.ID)
 	wantAPI(t, err, 409, "expired")
 	if !strings.Contains(err.Error(), "cannot be checked with Shodan") {

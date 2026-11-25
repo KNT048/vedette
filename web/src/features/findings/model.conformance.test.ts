@@ -153,11 +153,13 @@ const steps: Step[] = [
   { name: 'needs your input', role: 'viewer', method: 'GET', path: '/findings/input?limit=100', status: 200, schema: InputList,
     check: (b: Input, c) => {
       expect(b.items).toHaveLength(b.total)
-      const unconfirmed = b.items.find((i) => i.kind === 'unconfirmed')
+      const entries = b.items.flatMap((i) => (i.kind === 'device_needs' ? i.entries : []))
+      const questions = entries.flatMap((e) => (e.kind === 'software_group' ? e.questions : []))
+      const unconfirmed = entries.find((e) => e.kind === 'unconfirmed')
       if (unconfirmed) c.unconfirmed = unconfirmed.id
-      const several = b.items.find((i) => i.kind === 'question' && i.cve === null)
+      const several = questions.find((i) => i.cve === null)
       if (several) c.severalCves = several.id
-      const oneCve = b.items.find((i) => i.kind === 'question' && i.cve !== null)
+      const oneCve = questions.find((i) => i.cve !== null)
       if (oneCve) c.oneCve = oneCve.id
     } },
   { name: 'handled', role: 'viewer', method: 'GET', path: '/findings/handled', status: 200, schema: HandledList,

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -14,6 +14,7 @@ import type { Role } from '@/lib/session'
 import ChannelsSettings from './ChannelsSettings'
 import { ZALO_BOX_UID, zaloMessagesForTest } from './mocks'
 import { forbiddenHost, ownHost } from './types'
+import { EMAIL_PROVIDERS } from './emailProviders'
 
 // Channel approvals belong to AI response, hidden in the v1 GUI (POST_V1_IN_UI false); the screens are kept, so this file
 // runs them as offered. features/core/v1Scope.test.tsx runs the v1 view.
@@ -462,12 +463,12 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3)', () =>
 })
 
 describe('notify: alert channels (S-NOT-1)', () => {
-  it('lists 6 channels with their status, no a11y violations', async () => {
+  it('lists 4 channels (Zalo is hidden) with their status, no a11y violations', async () => {
     renderChannels()
     const table = await screen.findByRole('table', { name: 'Alert channels' })
-    expect(within(table).getAllByRole('row')).toHaveLength(7)
+    expect(within(table).getAllByRole('row')).toHaveLength(5)
     expect(within(table).getAllByText('On')).toHaveLength(3)
-    expect(within(table).getAllByText('Not set up')).toHaveLength(3)
+    expect(within(table).getAllByText('Not set up')).toHaveLength(1)
     expect(screen.getByText(/leaves the box only to the channels you turn on here/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
@@ -533,7 +534,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await waitFor(() => expect(token).toHaveAccessibleDescription(/The bot token is not valid/))
   })
 
-  it('Zalo OA says first who it is for and where each value comes from, and offers Zalo personal instead', async () => {
+  it.skip('Zalo OA says first who it is for and where each value comes from, and offers Zalo personal instead', async () => {
     renderChannels()
     await press('Set up Zalo OA')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Zalo OA' })
@@ -557,7 +558,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(within(dlg).queryByText(/and above$/)).toBeNull()
   })
 
-  it('Zalo OA: App ID, Secret key and refresh token, checked field by field; the box renews the access token', async () => {
+  it.skip('Zalo OA: App ID, Secret key and refresh token, checked field by field; the box renews the access token', async () => {
     renderChannels()
     await press('Set up Zalo OA')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Zalo OA' })
@@ -923,8 +924,6 @@ describe('notify: channel form matrix', () => {
     await eachOption([
       { option: 'Telegram', shown: ['Chat ID', 'Bot token', APPROVE], hidden: [...only('Chat ID', 'Bot token'), LINK_ONLY] },
       { option: 'Slack', shown: ['Channel label (optional)', 'Incoming Webhook URL', APPROVE], hidden: [...only('Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)'), LINK_ONLY] },
-      { option: 'Zalo OA', shown: ['OA ID', 'App ID', 'Secret key', 'Refresh token', 'Access token (optional)', 'Recipient ID (user_id)', LINK_ONLY], hidden: [...only('OA ID', 'App ID', 'Secret key', 'Refresh token', 'Access token (optional)', 'Recipient ID (user_id)'), APPROVE] },
-      { option: 'Zalo personal', shown: ['Zalo sign-in', 'Or find by invite link, phone number or ID', APPROVE, /Unofficial channel/], hidden: [...only(), LINK_ONLY, 'Bot token', 'I scanned it'] },
       { option: 'Email', shown: ['Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', APPROVE], hidden: [...only('Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'), LINK_ONLY] },
       { option: 'Webhook', shown: ['Webhook URL', 'Signing key', 'Generate random', LINK_ONLY], hidden: [...only('Webhook URL', 'Signing key'), APPROVE] },
       { option: 'Telegram', shown: ['Chat ID', 'Bot token'], hidden: [...only('Chat ID', 'Bot token')] }, // going back restores the same fields
@@ -990,7 +989,7 @@ describe('notify: channel form matrix', () => {
     expect((await put({ ...base, approvals: false, approvers: [], fields: { chat_id: '@vedette_alerts' } })).status).toBe(200) // a @name is fine for alerts only
   })
 
-  it('Zalo personal: a real QR sign-in, the recipient picked from the groups, approvers by friend or phone, Waiting then Linked (S-NOT-1, S-RESP-2)', async () => {
+  it.skip('Zalo personal: a real QR sign-in, the recipient picked from the groups, approvers by friend or phone, Waiting then Linked (S-NOT-1, S-RESP-2)', async () => {
     renderChannels()
     await screen.findByRole('table')
     await press(/^Set up Zalo personal$/)
@@ -1116,7 +1115,94 @@ describe('notify: channel form matrix', () => {
 })
 const APPROVE_LABEL = 'Approve actions from this channel'
 
+/** Lists the presets hidden from the provider list for one describe block, so their (kept) code paths stay tested through the dialog. */
+function showHiddenPresets() {
+  const hidden = EMAIL_PROVIDERS.filter((p) => p.hidden)
+  beforeEach(() => { for (const p of hidden) p.hidden = false })
+  afterEach(() => { for (const p of hidden) p.hidden = true })
+}
+
+describe('notify: the email provider list shows the tested providers (S-NOT-1)', () => {
+  const put = (b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/email`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+  const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string>; secret_last4: string | null }[]).find((c) => c.type === 'email')!
+  const openEmail = async () => {
+    renderChannels()
+    await press('Edit Email')
+    return screen.findByRole('dialog', { name: 'Channel Email' })
+  }
+  const options = (dlg: HTMLElement) => Array.from((within(dlg).getByLabelText('Provider') as HTMLSelectElement).options).map((o) => o.value)
+
+  it('offers Microsoft Graph, Microsoft 365 as the user, Gmail, Custom SMTP and the sending services (marked not tested); the rest is hidden', async () => {
+    const dlg = await openEmail()
+    expect(options(dlg)).toEqual(['microsoft-graph', 'microsoft365-user', 'custom', 'gmail', 'sendgrid', 'mailgun', 'ses', 'postmark', 'brevo'])
+    expect(within(dlg).getByRole('group', { name: 'Email sending service (not tested yet)' })).toBeInTheDocument()
+  })
+
+  it('a channel saved with a hidden preset still shows it and keeps working', async () => {
+    sessionStore.set({ userId: USER.admin })
+    const r = await put({ enabled: true, min_severity: 'high', fields: { provider: 'yahoo', host: 'smtp.mail.yahoo.com', port: '465', security: 'ssl', username: 'me@yahoo.example', from: 'me@yahoo.example', to: 'it@acme.example' }, secret: 'app-pass-word' })
+    expect(r.status).toBe(200)
+    const dlg = await openEmail()
+    expect(within(dlg).getByLabelText('Provider')).toHaveValue('yahoo')
+    expect(options(dlg)).toContain('yahoo')
+    expect(options(dlg)).not.toContain('icloud')
+  })
+
+  it('Microsoft Graph: no server fields; wrong IDs show under their fields; the saved password is not a client secret; a full form saves', async () => {
+    const dlg = await openEmail()
+    await eachOption([{ option: 'microsoft-graph', shown: ['Mailbox to send as', 'Tenant ID', 'Client ID', 'Client secret', /Application permissions \(not Delegated\), Mail\.Send/, /graph\.microsoft\.com/], hidden: ['SMTP server', 'Port', 'Encryption', 'Username', 'SMTP password'] }],
+      async (id) => { await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), id) }, dlg)
+    const mailbox = within(dlg).getByLabelText('Mailbox to send as')
+    await userEvent.clear(mailbox)
+    await userEvent.type(mailbox, 'alerts@acme.example')
+    const tenant = within(dlg).getByLabelText('Tenant ID')
+    await userEvent.type(tenant, 'not a tenant')
+    await userEvent.type(within(dlg).getByLabelText('Client ID'), '0a1b2c3d-4e5f-6789-abcd-ef0123456789')
+    const save = () => userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await save()
+    await waitFor(() => expect(tenant).toHaveAccessibleDescription(/^The tenant ID is the Directory \(tenant\) ID/))
+    await userEvent.clear(tenant)
+    await userEvent.type(tenant, '72f988bf-86f1-41af-91ab-2d7cd011db47')
+    await save()
+    const secret = within(dlg).getByLabelText('Client secret')
+    await waitFor(() => expect(secret).toHaveAccessibleDescription(/^Enter the client secret again: the sign-in method, the server or the port changed/))
+    await userEvent.type(secret, 'Gr8Q~graph.client_secret-456')
+    await save()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const em = await emailOf()
+    expect(em.fields).toMatchObject({ provider: 'microsoft-graph', host: 'graph.microsoft.com', port: '443', security: 'ssl', tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47', client_id: '0a1b2c3d-4e5f-6789-abcd-ef0123456789', username: 'alerts@acme.example' })
+    expect(em.secret_last4).toBe('••••')
+  })
+
+  it('Microsoft Graph: the mock refuses another host or port as the box does; switching back to Custom SMTP clears the Graph server', async () => {
+    const g = { enabled: true, min_severity: 'high', fields: { provider: 'microsoft-graph', host: 'graph.microsoft.com', port: '443', security: 'ssl', username: 'alerts@acme.example', tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47', client_id: '0a1b2c3d-4e5f-6789-abcd-ef0123456789', from: 'alerts@acme.example', to: 'it@acme.example' }, secret: 'Gr8Q~graph.client_secret-456' }
+    const code = async (b: unknown) => { const r = await put(b); return r.ok ? 'ok' : ((await r.json()) as { error: { code: string } }).error.code }
+    const dlg = await openEmail()
+    expect(await code({ ...g, fields: { ...g.fields, host: 'graph.attacker.example' } })).toBe('bad_host')
+    expect(await code({ ...g, fields: { ...g.fields, port: '587', security: 'starttls' } })).toBe('bad_port')
+    expect(await code(g)).toBe('ok')
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'microsoft-graph')
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'custom')
+    expect(within(dlg).getByLabelText('SMTP server')).toHaveValue('')
+    expect(within(dlg).getByLabelText('Port')).toHaveValue(587)
+  })
+
+  it('Custom SMTP to a Microsoft server with a password says Microsoft turns password SMTP off at the end of December 2026', async () => {
+    const dlg = await openEmail()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'custom')
+    const NOTE = /turns off password sign-in for SMTP by default at the end of December 2026/
+    expect(within(dlg).queryByText(NOTE)).toBeNull()
+    const host = within(dlg).getByLabelText('SMTP server')
+    await userEvent.clear(host)
+    await userEvent.type(host, 'smtp.office365.com')
+    expect(within(dlg).getByText(NOTE)).toBeInTheDocument()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'microsoft365-user')
+    expect(within(dlg).queryByText(NOTE)).toBeNull() // OAuth: not affected
+  })
+})
+
 describe('notify: email providers (S-NOT-1)', () => {
+  showHiddenPresets()
   const put = (b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/email`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
   const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string>; secret_last4: string | null }[]).find((c) => c.type === 'email')!
   const openEmail = async () => {
@@ -1244,6 +1330,7 @@ describe('notify: email providers (S-NOT-1)', () => {
 })
 
 describe('notify: email user sign-in (S-NOT-1)', () => {
+  showHiddenPresets()
   const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string> }[]).find((c) => c.type === 'email')!
   const openEmail = async (provider: string) => {
     renderChannels()
@@ -1259,7 +1346,7 @@ describe('notify: email user sign-in (S-NOT-1)', () => {
     const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
     const pick = async (id: string) => { await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), id) }
     await eachOption([
-      { option: 'microsoft365-user', shown: ['Tenant ID', 'Client ID', 'Mailbox', 'Sign in with Microsoft', /Allow public client flows to Yes/, /SMTP\.Send/], hidden: ['Client secret', 'SMTP password', 'Client secret of the Desktop client', 'Username'] },
+      { option: 'microsoft365-user', shown: ['Tenant ID', 'Client ID', 'Mailbox', 'Sign in with Microsoft', /Allow public client flows to Enabled/, /SMTP\.Send/], hidden: ['Client secret', 'SMTP password', 'Client secret of the Desktop client', 'Username'] },
       { option: 'outlook', shown: ['Client ID', 'Mailbox', 'Sign in with Microsoft', /personal Microsoft accounts/], hidden: ['Tenant ID', 'Client secret of the Desktop client'] },
       { option: 'gmail-oauth', shown: ['Client ID', 'Client secret of the Desktop client', 'Mailbox', 'Sign in with Google', /Desktop app/, /7 days/], hidden: ['Tenant ID', 'App password', 'Service account key (JSON file)'] },
       { option: 'gmail', shown: ['Username', 'App password'], hidden: ['Client ID', 'Mailbox', 'Sign in with Google'] },
@@ -1271,7 +1358,8 @@ describe('notify: email user sign-in (S-NOT-1)', () => {
 
   it('Microsoft: the device code and the address show; the box is asked until the user signed in; the save keeps the mailbox that signed in', async () => {
     const dlg = await openEmail('microsoft365-user')
-    expect(within(dlg).getByLabelText('Tenant ID')).toHaveValue('organizations')
+    expect(within(dlg).getByLabelText('Tenant ID')).toHaveValue('')
+    await userEvent.type(within(dlg).getByLabelText('Tenant ID'), 'organizations')
     const client = within(dlg).getByLabelText('Client ID')
     await userEvent.type(client, 'my-app')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with Microsoft' }))

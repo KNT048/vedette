@@ -17,7 +17,7 @@ import { OPEN_FINDING_STATUSES as OPEN_STATUSES, FINDING_RESOLUTIONS } from '@/l
 import { FIRST_TOP, MAX_HANDLE, PAGE_DEFAULT, PAGE_MAX, TREND_DAYS } from './contract'
 import type {
   CveRow, CveSeverity, DeviceCard, DeviceCards, DeviceRef, DeviceStatus, FixBlock, FixCard, FixCards, FixDevice, HandledList, HandledRow,
-  AnsweredList, AnsweredQuestion, InputItem, InputList, OpenStatus, Overview, Resolution, SeverityCounts, StatusCode, StatusCounts, View,
+  AnsweredList, AnsweredQuestion, InputGroupItem, InputItem, InputList, InputQuestionItem, InputUncheckedItem, InputUnconfirmedItem, OpenStatus, Overview, Resolution, SeverityCounts, StatusCode, StatusCounts, View,
 } from './types'
 
 export const records = collection<FindingRecord[]>('fnd_finding_model', seedFindingRecords, () => [])
@@ -129,18 +129,49 @@ function inputItems(): InputItem[] {
   const rest = assetsStore.get().filter((a) => !a.approved && a.id !== BOX_ID && visible(a.id) && !isQuiet(a) && !withFindings.has(a.id)).length
   const group: InputItem[] = rest > 0 ? [{ kind: 'devices_not_added', id: 'devices_not_added', count: rest }] : []
   const unconfirmed = all.filter((r) => r.state === 'open' && r.layer <= 4 && r.verified === 'no' && visible(r.asset_id)).sort((a, b) => a.layer - b.layer || bySeverity(a, b))
-    .map((r): InputItem => ({ kind: 'unconfirmed', id: r.id, cve: r.cve, device: deviceRef(r.asset), software: r.software, status: OPEN_STATUSES[r.layer - 1] as 'exploited',
+    .map((r): InputUnconfirmedItem => ({ kind: 'unconfirmed', id: r.id, cve: r.cve, device: deviceRef(r.asset), software: r.software, status: OPEN_STATUSES[r.layer - 1] as 'exploited',
       severity: severityOf(r.cve), basis: r.basis, safe_check: SAFE_CHECKS.has(r.cve) }))
   const assets = new Map(assetsStore.get().map((a) => [a.id, a]))
   const asked = questions.get().filter((x) => !x.answered && assets.has(x.asset_id) && visible(x.asset_id)).sort((a, b) => b.cves - a.cves || a.asked_at.localeCompare(b.asked_at))
-    .map((x): InputItem => ({ kind: 'question', id: x.id, question: x.kind, device: deviceRef(assets.get(x.asset_id)!), software: x.software, cve: x.cve, cves: x.cves,
+    .map((x): InputQuestionItem => ({ kind: 'question', id: x.id, question: x.kind, device: deviceRef(assets.get(x.asset_id)!), software: x.software, cve: x.cve, cves: x.cves,
       asked_at: x.asked_at, url: x.url, command: x.command, choices: x.choices, cve_list: x.cve_list ?? [], fixes: x.fixes ?? [], line: x.line ?? null,
       versions_listed: x.versions_listed ?? false }))
   // a device a person added that Vedette knows nothing to check by: no installed software line and no OS beyond a scan's fingerprint guess
   const unchecked = assetsStore.get().filter((a) => a.approved && a.id !== BOX_ID && visible(a.id) && !(a.origin === 'manual' && !a.hostname && !a.ip) &&
     !a.software.some((s) => !s.not_installed) && (!a.os || (a.os.source === 'nmap' && !a.os.value.includes('(build '))))
-    .map((a): InputItem => ({ kind: 'device_unchecked', id: `unchecked:${a.id}`, device: deviceRef(a) }))
-  return [...notAdded, ...unchecked, ...unconfirmed, ...asked, ...group]
+    .map((a): InputUncheckedItem => ({ kind: 'device_unchecked', id: `unchecked:${a.id}`, device: deviceRef(a) }))
+  return [...notAdded, ...groupNeeds([...unchecked, ...unconfirmed, ...asked]), ...group]
+}
+
+/** One card per device: its questions grouped by software line (the CVEs of a line counted once), with its unconfirmed findings and its
+ *  "cannot check" item, as the server groups the queue. */
+function groupNeeds(items: (InputQuestionItem | InputUnconfirmedItem | InputUncheckedItem)[]): InputItem[] {
+  const cards = new Map<string, Extract<InputItem, { kind: 'device_needs' }>>()
+  const lines = new Map<string, { g: InputGroupItem; cves: Set<string> }>()
+  const card = (d: DeviceRef) => {
+    let c = cards.get(d.id)
+    if (!c) { c = { kind: 'device_needs', id: `needs:${d.id}`, device: d, entries: [] }; cards.set(d.id, c) }
+    return c
+  }
+  for (const it of items) {
+    const c = card(it.device)
+    if (it.kind !== 'question') { c.entries.push(it); continue }
+    const key = it.software ? `${it.device.id}|${it.software.id}` : it.id
+    let l = lines.get(key)
+    if (!l) {
+      l = { g: { kind: 'software_group', id: `sw:${it.software?.id ?? it.id}`, software: it.software, cves: 0, questions: [] }, cves: new Set() }
+      lines.set(key, l)
+      c.entries.push(l.g)
+    }
+    if (it.cve) l.cves.add(it.cve)
+    for (const v of it.cve_list) l.cves.add(v)
+    if (!it.cve && !it.cve_list.length) l.g.cves += Math.max(it.cves, 1)
+    l.g.questions.push(it)
+  }
+  for (const l of lines.values()) l.g.cves = Math.max(l.g.cves + l.cves.size, 1)
+  const order = ['version_needed', 'not_comparable', 'platform', 'package_release', 'older_line', 'no_range_data']
+  for (const l of lines.values()) l.g.questions.sort((a, b) => order.indexOf(a.question) - order.indexOf(b.question) || b.cves - a.cves)
+  return [...cards.values()]
 }
 
 function view(r: FindingRecord & { asset: Asset }): View {
@@ -286,8 +317,12 @@ export const modelHandlers = [
     // the server's search: the device's name or address, the software's name or the CVE id contains q
     const has = (v?: string | null) => !!v && v.toLowerCase().includes(q)
     // the grouped card names no device: not in a queue of one device or a search
+    const inside = (item: object): boolean => {
+      const e = item as { software?: { name: string } | null; cve?: string | null; questions?: object[]; entries?: object[] }
+      return has(e.software?.name) || has(e.cve) || !!e.questions?.some(inside) || !!e.entries?.some(inside)
+    }
     const items = inputItems().filter((i) => i.kind === 'devices_not_added' ? !device && !q : (!device || i.device.id === device)
-      && (!q || has(i.device.name) || has(i.device.ip) || ('software' in i && has(i.software?.name)) || ('cve' in i && has(i.cve))))
+      && (!q || has(i.device.name) || has(i.device.ip) || inside(i)))
     return { items: slice(items), total: items.length } satisfies InputList
   })),
   http.get(`${API}/findings/handled`, ({ request }) => read(() => handledList(query(request)))),
@@ -383,7 +418,7 @@ export const modelHandlers = [
       records.update((l) => [...l, {
         id, asset_id: x.asset_id, cve: x.cve!, software: x.software, verified: 'person', basis: 'person', verified_by: user, verified_at: at,
         fix: { key: `${x.software?.name.toLowerCase() ?? 'unknown'}|unknown|`, kind: 'unknown', product: x.software?.name ?? x.cve!, version: null, ref: null, url: x.url },
-        ...unhandled, layer: 5, urgency_at: at, reasons: [], internet: null, first_seen: at, last_seen: at, reopened: null,
+        ...unhandled, layer: 5 as const, urgency_at: at, reasons: [], internet: null, first_seen: at, last_seen: at, reopened: null,
         events: [event(user, 'created', { note: note || null }), event(user, 'confirmed', { note: note || null })],
       }])
     }
@@ -403,6 +438,52 @@ export const modelHandlers = [
       cve: x.cve, cves: x.cves, answer: 'not_affected', by: x.answered!.by, at: x.answered!.at }))
     return { items, total: l.length } satisfies AnsweredList
   })),
+
+  http.post(`${API}/findings/questions/ignore`, async ({ request }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const b = await body<{ device: string; software?: string; note: string }>(request)
+    if (typeof b.device !== 'string' || !b.device || typeof b.note !== 'string' || b.note.length > 500) return fail(400, 'invalid', 'The request is not valid.')
+    const user = who(), at = nowIso()
+    const hit = (q: { id: string; asset_id: string; answered?: unknown; kind: string; software: { id: string } | null }) =>
+      !q.answered && q.kind !== 'nothing_to_check' && q.asset_id === b.device && (!b.software || q.software?.id === b.software)
+    const n = questions.get().filter(hit).length
+    if (!n) return fail(404, 'not_found', 'This device has no open question to ignore.')
+    questions.update((l) => l.map((q) => (hit(q) ? { ...q, answered: { by: user, at } } : q)))
+    audit('findings.questions_ignored', b.software ?? b.device, `${n} questions on ${b.device} answered not affected${b.note.trim() ? `: ${b.note.trim()}` : ''}`)
+    return HttpResponse.json({ answered: n })
+  }),
+
+  http.post(`${API}/findings/questions/accept-risk`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ device: string; software?: string; question?: string; note: string; until: string }>(request)
+    if (typeof b.device !== 'string' || !b.device || typeof b.note !== 'string' || b.note.length > 500) return fail(400, 'invalid', 'The request is not valid.')
+    const note = b.note.trim()
+    if (note.length < 3) return fail(400, 'note_required', 'Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands.')
+    if (!untilOk(String(b.until ?? ''))) return fail(400, 'bad_until', 'Accept the risk until a date from tomorrow up to one year from today.')
+    const user = who(), at = nowIso()
+    const hit = (q: { id: string; asset_id: string; answered?: unknown; kind: string; software: { id: string } | null }) =>
+      !q.answered && q.kind !== 'nothing_to_check' && q.asset_id === b.device && (!b.software || q.software?.id === b.software) && (!b.question || q.id === b.question)
+    const qs = questions.get().filter(hit)
+    if (!qs.length) return fail(404, 'not_found', 'Nothing is open on this device or software to accept the risk of.')
+    const made = qs.filter((q) => q.cve).map((q) => ({
+      id: newId('fv'), asset_id: q.asset_id, cve: q.cve!, software: q.software, verified: 'person' as const, basis: 'person' as const, verified_by: user, verified_at: at,
+      fix: { key: `${q.software?.name.toLowerCase() ?? 'unknown'}|unknown|`, kind: 'unknown' as const, product: q.software?.name ?? q.cve!, version: null, ref: null, url: q.url },
+      ...unhandled, layer: 5 as const, urgency_at: at, reasons: [], internet: null, first_seen: at, last_seen: at, reopened: null,
+      state: 'handled' as const, resolution: 'accepted' as const, via: 'person' as const, resolved_by: user, resolved_at: at, note, accepted_until: b.until as string,
+      events: [event(user, 'created', { note }), event(user, 'confirmed', { note }), event(user, 'handled', { resolution: 'accepted', via: 'person', note })],
+    }))
+    // a device or line scope also takes the open findings already there, confirmed or suspected
+    const swept = (r: { state: string; asset_id: string; software: { id: string } | null }) =>
+      !b.question && r.state === 'open' && r.asset_id === b.device && (!b.software || r.software?.id === b.software)
+    const nSwept = records.get().filter(swept).length
+    records.update((l) => [...l.map((r) => (swept(r)
+      ? { ...r, state: 'handled' as const, resolution: 'accepted' as const, via: 'person' as const, resolved_by: user, resolved_at: at, note, accepted_until: b.until as string,
+        events: [...r.events, event(user, 'handled', { resolution: 'accepted', via: 'person', note })] } : r)), ...made])
+    questions.update((l) => l.filter((q) => !hit(q)))
+    const total = made.length + nSwept
+    audit('findings.risk_accepted_in_bulk', b.software ?? b.device, `risk accepted on ${b.device} until ${b.until}: ${qs.length} questions answered affected, ${total} findings accepted: ${note}`)
+    return HttpResponse.json({ questions: qs.length, findings: total })
+  }),
 
   http.post(`${API}/findings/questions/:id/unanswer`, ({ params }) => {
     const denied = guard('operator'); if (denied) return denied

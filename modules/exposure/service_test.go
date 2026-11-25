@@ -81,20 +81,19 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 		t.Fatalf("lookups %d->%d, runner calls %d, counts %+v", before, e.dns.lookups(), run.calls, snap.Counts)
 	}
 
-	// the record disappears: the next scan is refused, whatever was verified before
+	// the record disappears: inside the 90 days of its last pass the next scan goes on, and the target says the check failed
 	e.dns.put("acme.example")
-	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID)
-	wantAPI(t, err, 409, "txt_missing")
-	if run.calls != 1 {
-		t.Fatal("the runner ran although the TXT record was missing")
+	e.advance(ScanEvery)
+	if _, err = e.svc.Scan(e.ctx(), "operator@acme.example", v.ID); err != nil || run.calls != 2 {
+		t.Fatalf("scan inside the 90 days: %v, runner calls %d", err, run.calls)
 	}
-	if got := e.target(v.ID); got.Scannable || str((*string)(got.BlockedReason)) != "txt_missing" || got.LastCheck.OK {
+	if got := e.target(v.ID); !got.Scannable || got.BlockedReason != nil || got.LastCheck.OK || !strings.Contains(got.LastCheck.Message, "stays valid until") {
 		t.Fatalf("target after the failed recheck = %+v", got)
 	}
 	// a lookup that fails is not a yes (fail closed)
 	e.dns.put("acme.example", txtRecord(v.Token))
 	e.dns.err = errors.New("dns down")
-	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan@acme.example", v.ID); ok || why != BlockedTxtMissing {
+	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan@acme.example", v.ID); !ok || why != "" { // a warning inside the 90 days
 		t.Fatalf("CheckScannable with DNS down = %v %v", ok, why)
 	}
 	e.dns.err = nil
@@ -102,7 +101,7 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 		t.Fatal("not scannable although the record is back")
 	}
 
-	// (b) an IP: not more than 30 days since the box last saw it
+	// (b) an IP: not more than 90 days since the box last saw it
 	ip := e.detect(ipA)[0]
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", ip.ID)
 	wantAPI(t, err, 400, "commitment_required")
@@ -112,7 +111,8 @@ func TestContract_INV1_NoScanWithoutProof(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", ip.ID); err != nil {
 		t.Fatal(err)
 	}
-	e.advance(31 * day)
+	e.prober.set(ipB) // the box goes out through another IP from now on
+	e.advance(91 * day)
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", ip.ID)
 	wantAPI(t, err, 409, "expired")
 	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan@acme.example", ip.ID); ok || why != BlockedExpired {
@@ -264,7 +264,8 @@ func TestContract_INV12_ScannableIP(t *testing.T) {
 	if may(ipB) || may("10.0.0.1") || may("100.64.0.1") {
 		t.Fatal("an address that is not a verified IP target may be port-scanned")
 	}
-	e.advance(31 * day)
+	e.prober.set(ipB) // the box goes out through another IP from now on
+	e.advance(91 * day)
 	if may(ipA) {
 		t.Fatal("an expired IP may be port-scanned")
 	}
@@ -313,7 +314,7 @@ func TestContract_INV2_MultiIPDetect(t *testing.T) {
 		t.Fatalf("IPs = %v", got)
 	}
 	b, _ := e.svc.Settings(e.ctx())
-	if b.LastRun == nil || !b.LastRun.OK || b.LastRun.Message != "The box reaches the Internet via 2 public IPs: "+ipA+", "+ipB+". Each is verified until 9 Dec 2026." {
+	if b.LastRun == nil || !b.LastRun.OK || b.LastRun.Message != "The box reaches the Internet via 2 public IPs: "+ipA+", "+ipB+". Each is verified until 7 Feb 2027." {
 		t.Fatalf("last run = %+v", b.LastRun)
 	}
 	// a failed probe among answered ones is ignored
@@ -374,36 +375,37 @@ func TestContract_INV4_RenewAndExpire(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ip := e.detect(ipA)[0]
-	if str(ip.VerifiedAt) != store.FormatTS(t0) || str(ip.ExpiresAt) != store.FormatTS(t0.Add(30*day)) || str(ip.Validity) != "valid" {
+	if str(ip.VerifiedAt) != store.FormatTS(t0) || str(ip.ExpiresAt) != store.FormatTS(t0.Add(90*day)) || str(ip.Validity) != "valid" {
 		t.Fatalf("new IP = %+v", ip)
 	}
 	if _, err := e.commit(ip.ID); err != nil {
 		t.Fatal(err)
 	}
 
-	// every sighting renews: 30 days from the last one
+	// every sighting renews: 90 days from the last one
 	e.advance(20 * day)
 	if got := e.target(ip.ID); str(got.Validity) != "valid" {
 		t.Fatalf("day 20 = %+v", got)
 	}
 	e.detect(ipA)
 	got := e.target(ip.ID)
-	if str(got.VerifiedAt) != store.FormatTS(t0.Add(20*day)) || str(got.ExpiresAt) != store.FormatTS(t0.Add(50*day)) {
+	if str(got.VerifiedAt) != store.FormatTS(t0.Add(20*day)) || str(got.ExpiresAt) != store.FormatTS(t0.Add(110*day)) {
 		t.Fatalf("renewed = %+v", got)
 	}
 
 	// expiring at 5 days or less; valid at 6
-	e.advance(24 * day) // day 44: 6 days left
+	e.prober.set(ipB)   // the box goes out through another IP from now on
+	e.advance(84 * day) // day 104: 6 days left
 	if got := e.target(ip.ID); str(got.Validity) != "valid" {
 		t.Fatalf("6 days left = %s", str(got.Validity))
 	}
-	e.advance(day) // day 45: 5 days left
+	e.advance(day) // day 105: 5 days left
 	if got := e.target(ip.ID); str(got.Validity) != "expiring" || got.Status != "verified" || !got.Scannable {
 		t.Fatalf("5 days left = %+v", got)
 	}
 
-	// not seen for 30 days: expired; the box seeing it again makes it valid again, with the old commitment
-	e.advance(6 * day) // day 51
+	// not seen for 90 days: expired; the box seeing it again makes it valid again, with the old commitment
+	e.advance(6 * day) // day 111
 	got = e.target(ip.ID)
 	if str(got.Validity) != "expired" || got.Status != "expired" || got.Scannable || str((*string)(got.BlockedReason)) != "expired" {
 		t.Fatalf("expired = %+v", got)
@@ -418,14 +420,17 @@ func TestContract_INV4_RenewAndExpire(t *testing.T) {
 		t.Fatalf("events = %v", e.pub.names())
 	}
 
-	// a domain has no expiry (its TXT record is checked before every scan)
+	// a domain's proof holds 90 days from its last pass too; a check of its record renews it
 	d := e.addVerifiedDomain()
-	if d.ExpiresAt != nil || d.Validity != nil {
+	if str(d.ExpiresAt) != store.FormatTS(e.clock.Now().Add(90*day)) || str(d.Validity) != "valid" {
 		t.Fatalf("domain = %+v", d)
 	}
-	e.advance(400 * day)
-	if got := e.target(d.ID); got.Status != "verified" {
-		t.Fatalf("domain after a year = %+v", got)
+	e.advance(91 * day)
+	if got := e.target(d.ID); got.Status != "expired" {
+		t.Fatalf("domain after 91 days without a check = %+v", got)
+	}
+	if r, err := e.svc.Verify(e.ctx(), "operator@acme.example", d.ID); err != nil || !r.Verified || r.Target.Status != "verified" {
+		t.Fatalf("domain checked again = %+v %v", r, err)
 	}
 }
 
@@ -545,7 +550,8 @@ func TestContract_INV7_Commitment(t *testing.T) {
 	}
 	// an expired IP cannot be committed
 	ip := e.detect(ipA)[0]
-	e.advance(31 * day)
+	e.prober.set(ipB) // the box goes out through another IP from now on
+	e.advance(91 * day)
 	_, err = e.commit(ip.ID)
 	wantAPI(t, err, 409, "expired")
 	// deleting removes the snapshots and the commitment, not the audit log
@@ -645,8 +651,8 @@ func TestContract_POST2_NotFoundIsNotAnError(t *testing.T) {
 	first := *r.Target.VerifiedAt
 	e.advance(time.Hour)
 	r, _ = e.svc.Verify(e.ctx(), "operator@acme.example", d.ID)
-	if *r.Target.VerifiedAt != first { // a domain keeps its first verification time
-		t.Fatalf("verified_at moved: %s -> %s", first, *r.Target.VerifiedAt)
+	if *r.Target.VerifiedAt != store.FormatTS(e.clock.Now()) || *r.Target.VerifiedAt == first { // every pass renews the 90 days
+		t.Fatalf("verified_at not renewed: %s -> %s", first, *r.Target.VerifiedAt)
 	}
 	if !slices.Equal(e.pub.names(), []string{EventTargetVerified}) {
 		t.Fatalf("events = %v", e.pub.names())

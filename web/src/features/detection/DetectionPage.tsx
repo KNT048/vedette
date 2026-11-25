@@ -26,10 +26,10 @@ export default function DetectionPage() {
       <PageHeader title={t('title')} meta={t('meta')} stories={['S-IDS-1', 'S-LOG-4', 'S-HP-1']} />
       {ov.error ? <ErrorState error={ov.error} onRetry={() => void ov.refetch()} /> : ov.isPending ? <Loading /> : (
         <>
-          <Watchers watchers={ov.data.watchers} badAddresses={ov.data.kinds.find((k) => k.kind === 'bad_address')?.incidents ?? 0} />
           <Kinds kinds={ov.data.kinds} />
           <MirrorHits hits={ov.data.mirror_port_hits} />
           {ov.data.watchers.some((w) => w.id === 'ips_events' && w.state !== 'off') ? <Alerts /> : null}
+          <Watchers watchers={ov.data.watchers} badAddresses={ov.data.kinds.find((k) => k.kind === 'bad_address')?.incidents ?? 0} />
         </>
       )}
     </>

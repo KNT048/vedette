@@ -2,7 +2,7 @@
 import { http, HttpResponse } from 'msw'
 import { logExportHandlers } from './logExport'
 import { API, audit, body, currentUser, fail, guard, EMAIL_RE } from '@/mocks/http'
-import { aiConfigStore, assetsStore, auditStore, emailChannelReady, findingsStore, installStore, isOn, moduleAvailable, modulesStore, orgStore, sessionStore, tempExpiry, twofaMethodOf, usersStore, type User } from '@/mocks/stores'
+import { aiConfigStore, assetsStore, auditStore, emailChannelProven, emailChannelReady, findingsStore, installStore, isOn, moduleAvailable, modulesStore, orgStore, sessionStore, tempExpiry, twofaMethodOf, usersStore, type User } from '@/mocks/stores'
 import { collection, dataMode, daysAgo, newId, nowIso, peek, resetMockDb, setDataMode } from '@/mocks/db'
 import type { Role } from '@/lib/session'
 import type { ModuleId } from '@/lib/modules'
@@ -215,7 +215,7 @@ const accountHandlers = [
     const denied = guard('viewer')
     if (denied) return denied
     const u = currentUser()!
-    const reason = !isOn('notify') ? 'module_off' : !emailChannelReady() ? 'channel_not_ready' : null
+    const reason = !isOn('notify') ? 'module_off' : !emailChannelProven() ? 'channel_not_ready' : null
     return HttpResponse.json({ user: { id: u.id, name: u.name, email: u.email, role: u.role, twofa: u.twofa, twofa_method: twofaMethodOf(u), created_at: u.created_at, last_login: u.last_login, sso: !!u.sso }, twofa_email: { available: reason === null, reason, sent_to: maskEmail(u.email) }, sessions: sessionsOf(u.id) })
   }),
   http.patch(`${API}/core/account`, async ({ request }) => {
@@ -279,7 +279,7 @@ const accountHandlers = [
     const u = currentUser()!
     if ((await body<{ password: string }>(request)).password !== u.password) return fail(400, 'wrong_password', 'Wrong password. The password is needed to turn on two-step sign-in.')
     if (u.twofa) return fail(409, 'already_on', 'Two-step sign-in is already on. Turn it off first to set up the other method.')
-    if (!emailChannelReady()) return fail(409, 'email_channel_not_ready', 'Email codes need the email alert channel. An administrator has to set it up and turn it on first.')
+    if (!emailChannelProven()) return fail(409, 'email_channel_not_ready', 'Email codes need a working email alert channel. An administrator has to set it up, turn it on and send a test message that succeeds.')
     const sent = issueCode(u.id)
     if ('error' in sent) return sent.error
     return HttpResponse.json(sentBody(u.email, sent))
@@ -289,7 +289,7 @@ const accountHandlers = [
     if (denied) return denied
     const u = currentUser()!
     if (u.twofa) return fail(409, 'already_on', 'Two-step sign-in is already on. Turn it off first to set up the other method.')
-    if (!emailChannelReady()) return fail(409, 'email_channel_not_ready', 'Email codes need the email alert channel. An administrator has to set it up and turn it on first.')
+    if (!emailChannelReady()) return fail(409, 'email_channel_not_ready', 'Email codes need a working email alert channel. An administrator has to set it up, turn it on and send a test message that succeeds.')
     const code = String((await body<{ code: string }>(request)).code ?? '').replace(/\s/g, '')
     const bad = checkCode(u.id, code)
     if (bad) return bad

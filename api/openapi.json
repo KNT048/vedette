@@ -6992,7 +6992,7 @@
                       "properties": {
                         "available": {
                           "type": "boolean",
-                          "description": "true only when the notify module is on and an email channel is configured and enabled"
+                          "description": "true only when the notify module is on and the email channel is configured, enabled and its last test (since it was last saved) succeeded"
                         },
                         "reason": {
                           "anyOf": [
@@ -7007,7 +7007,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Why the email method cannot be chosen, null when available"
+                          "description": "Why the email method cannot be chosen, null when available; channel_not_ready also covers a channel whose last test did not succeed"
                         },
                         "sent_to": {
                           "type": "string",
@@ -23030,7 +23030,7 @@
     "/exposure/box-ip/verify": {
       "post": {
         "operationId": "exposure_post_exposure_box_ip_verify",
-        "summary": "\"Detect now\": the box asks three public \"what is my IP\" services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip) over several rounds of new connections, accepts an IP only when at least two of the three agree in a round, and adds or renews (30 days from now) every IP that passed, except those on the Ignored list, so several egress IPs behind a load balancer are all found. Takes no IP input; refuses private, reserved and CGNAT results (400 not_public when none is public); 502 unreachable when no round gave an IP (no service answered, or they did not agree); rate limited to 10 attempts per hour",
+        "summary": "\"Detect now\": the box asks three public \"what is my IP\" services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip) over several rounds of new connections, accepts an IP only when at least two of the three agree in a round, and adds or renews (90 days from now) every IP that passed, except those on the Ignored list, so several egress IPs behind a load balancer are all found. Takes no IP input; refuses private, reserved and CGNAT results (400 not_public when none is public); 502 unreachable when no round gave an IP (no service answered, or they did not agree); rate limited to 10 attempts per hour",
         "tags": [
           "exposure"
         ],
@@ -23071,7 +23071,7 @@
                               "verified",
                               "expired"
                             ],
-                            "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
+                            "description": "expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or file not found since)"
                           },
                           "method": {
                             "anyOf": [
@@ -23104,7 +23104,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Domain: first successful verification. IP the box found: the last time the box saw this IP (every sighting renews it). Typed IP: the last time its proof was found"
+                            "description": "The last time the proof passed (every pass renews it): a domain's record found, the box seeing its IP, a typed IP's file or name found"
                           },
                           "expires_at": {
                             "anyOf": [
@@ -23117,7 +23117,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is re-checked right before every scan)"
+                            "description": "When the proof runs out: 90 days after its last pass (the later of verified_at and a passing last_check). A check that did not find it does not move it"
                           },
                           "validity": {
                             "anyOf": [
@@ -23324,7 +23324,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
+                            "description": "Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a check since that did not find it (a record or file gone, a lookup that failed, an IP the box does not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current are no longer given (kept for older clients)"
                           },
                           "created_at": {
                             "type": "string",
@@ -23666,7 +23666,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
+                            "description": "Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
                           },
                           "scan_state": {
                             "type": "string",
@@ -23679,7 +23679,7 @@
                               "queued",
                               "scanning"
                             ],
-                            "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet)"
+                            "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or testing terms are not accepted yet)"
                           },
                           "open_exposures": {
                             "type": "integer",
@@ -25144,7 +25144,7 @@
                               "verified",
                               "expired"
                             ],
-                            "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
+                            "description": "expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or file not found since)"
                           },
                           "method": {
                             "anyOf": [
@@ -25177,7 +25177,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Domain: first successful verification. IP the box found: the last time the box saw this IP (every sighting renews it). Typed IP: the last time its proof was found"
+                            "description": "The last time the proof passed (every pass renews it): a domain's record found, the box seeing its IP, a typed IP's file or name found"
                           },
                           "expires_at": {
                             "anyOf": [
@@ -25190,7 +25190,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is re-checked right before every scan)"
+                            "description": "When the proof runs out: 90 days after its last pass (the later of verified_at and a passing last_check). A check that did not find it does not move it"
                           },
                           "validity": {
                             "anyOf": [
@@ -25397,7 +25397,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
+                            "description": "Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a check since that did not find it (a record or file gone, a lookup that failed, an IP the box does not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current are no longer given (kept for older clients)"
                           },
                           "created_at": {
                             "type": "string",
@@ -25739,7 +25739,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
+                            "description": "Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
                           },
                           "scan_state": {
                             "type": "string",
@@ -25752,7 +25752,7 @@
                               "queued",
                               "scanning"
                             ],
-                            "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet)"
+                            "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or testing terms are not accepted yet)"
                           },
                           "open_exposures": {
                             "type": "integer",
@@ -25959,7 +25959,7 @@
       },
       "post": {
         "operationId": "exposure_post_exposure_targets",
-        "summary": "Add a target (changes scan scope): a domain, or a public IPv4 address typed in. kind is domain or ip; left out, an IPv4 address is an IP and anything else a domain. A typed IP is accepted into the list at once and is never scanned, nor sent to Shodan, until it is proved: a token file at /.well-known/vedette-verify.txt on the IP (http or https, no redirect off the IP, the ACME HTTP-01 model), or forward-confirmed reverse DNS (its PTR is a name under a domain this box has proved, and that name resolves back to the IP). An A record of a proved domain pointing at the IP is not proof. The proof lasts 30 days and the box checks it again by itself (expires_at, next_check_at). 400 ip_not_allowed for a private, reserved or IPv6 address, 400 bad_value for an address on the Ignored list. The IP the box finds as its own egress address is added by detection, not here",
+        "summary": "Add a target (changes scan scope): a domain, or a public IPv4 address typed in. kind is domain or ip; left out, an IPv4 address is an IP and anything else a domain. A typed IP is accepted into the list at once and is never scanned, nor sent to Shodan, until it is proved: a token file at /.well-known/vedette-verify.txt on the IP (http or https, no redirect off the IP, the ACME HTTP-01 model), or forward-confirmed reverse DNS (its PTR is a name under a domain this box has proved, and that name resolves back to the IP). An A record of a proved domain pointing at the IP is not proof. The proof lasts 90 days from its last pass and the box checks it again by itself (expires_at, next_check_at). 400 ip_not_allowed for a private, reserved or IPv6 address, 400 bad_value for an address on the Ignored list. The IP the box finds as its own egress address is added by detection, not here",
         "tags": [
           "exposure"
         ],
@@ -26021,7 +26021,7 @@
                         "verified",
                         "expired"
                       ],
-                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
+                      "description": "expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or file not found since)"
                     },
                     "method": {
                       "anyOf": [
@@ -26054,7 +26054,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Domain: first successful verification. IP the box found: the last time the box saw this IP (every sighting renews it). Typed IP: the last time its proof was found"
+                      "description": "The last time the proof passed (every pass renews it): a domain's record found, the box seeing its IP, a typed IP's file or name found"
                     },
                     "expires_at": {
                       "anyOf": [
@@ -26067,7 +26067,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is re-checked right before every scan)"
+                      "description": "When the proof runs out: 90 days after its last pass (the later of verified_at and a passing last_check). A check that did not find it does not move it"
                     },
                     "validity": {
                       "anyOf": [
@@ -26274,7 +26274,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
+                      "description": "Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a check since that did not find it (a record or file gone, a lookup that failed, an IP the box does not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current are no longer given (kept for older clients)"
                     },
                     "created_at": {
                       "type": "string",
@@ -26616,7 +26616,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
+                      "description": "Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
                     },
                     "scan_state": {
                       "type": "string",
@@ -26629,7 +26629,7 @@
                         "queued",
                         "scanning"
                       ],
-                      "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet)"
+                      "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or testing terms are not accepted yet)"
                     },
                     "open_exposures": {
                       "type": "integer",
@@ -26782,7 +26782,7 @@
                         "verified",
                         "expired"
                       ],
-                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
+                      "description": "expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or file not found since)"
                     },
                     "method": {
                       "anyOf": [
@@ -26815,7 +26815,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Domain: first successful verification. IP the box found: the last time the box saw this IP (every sighting renews it). Typed IP: the last time its proof was found"
+                      "description": "The last time the proof passed (every pass renews it): a domain's record found, the box seeing its IP, a typed IP's file or name found"
                     },
                     "expires_at": {
                       "anyOf": [
@@ -26828,7 +26828,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is re-checked right before every scan)"
+                      "description": "When the proof runs out: 90 days after its last pass (the later of verified_at and a passing last_check). A check that did not find it does not move it"
                     },
                     "validity": {
                       "anyOf": [
@@ -27035,7 +27035,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
+                      "description": "Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a check since that did not find it (a record or file gone, a lookup that failed, an IP the box does not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current are no longer given (kept for older clients)"
                     },
                     "created_at": {
                       "type": "string",
@@ -27377,7 +27377,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
+                      "description": "Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
                     },
                     "scan_state": {
                       "type": "string",
@@ -27390,7 +27390,7 @@
                         "queued",
                         "scanning"
                       ],
-                      "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet)"
+                      "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or testing terms are not accepted yet)"
                     },
                     "open_exposures": {
                       "type": "integer",
@@ -27644,7 +27644,7 @@
     "/exposure/targets/{id}/openvas": {
       "post": {
         "operationId": "exposure_post_exposure_targets_id_openvas",
-        "summary": "Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24 hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409 not_verified, expired, ip_not_current; 400 commitment_required when the target has no current commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400 bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as exposure.scan",
+        "summary": "Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24 hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409 not_verified, expired; 400 commitment_required when the target has no current commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400 bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as exposure.scan",
         "tags": [
           "exposure"
         ],
@@ -28324,7 +28324,7 @@
     "/exposure/targets/{id}/scan": {
       "post": {
         "operationId": "exposure_post_exposure_targets_id_scan",
-        "summary": "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 proof_missing when the proof of a typed IP is not found now (looked for again right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (it follows this module's switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own verified public IPs and on a typed public IP while its proof is found (looked for again right before, one live result reused for 5 minutes); a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep steps beyond that go to the box's own address, and to a typed IP or an address of a domain through the executors' own fence. 409 module_off while the External exposure module is off. While another scan runs on the box (or others wait) the scan waits in the box's queue: 202 with status queued and the queue, the checks above run again right before it starts, and GET /exposure/scan lists it until then (409 busy only for the target whose scan runs now). 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
+        "summary": "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 not_verified when never proved or the proof was withdrawn, 409 expired when the proof has not passed for 90 days. Right before the scan the proof is looked for again (a domain's TXT record, a typed IP's file or name, a fresh full check that the box goes out through its own IP): found renews it for 90 days; not found is recorded in last_check as a warning and the scan goes on while the proof is inside its 90 days; 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (it follows this module's switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own verified public IPs and on a typed public IP while its proof is found (looked for again right before, one live result reused for 5 minutes); a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep steps beyond that go to the box's own address, and to a typed IP or an address of a domain through the executors' own fence. 409 module_off while the External exposure module is off. While another scan runs on the box (or others wait) the scan waits in the box's queue: 202 with status queued and the queue, the checks above run again right before it starts, and GET /exposure/scan lists it until then (409 busy only for the target whose scan runs now). 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer, the scan does not finish within 5 minutes, or nothing of the target answered while the box could not reach the public IP services either (the box's own network failed: the run is incomplete and the target keeps the results of its last complete scan); module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
         "tags": [
           "exposure"
         ],
@@ -30006,7 +30006,7 @@
                         "verified",
                         "expired"
                       ],
-                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
+                      "description": "expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or file not found since)"
                     },
                     "method": {
                       "anyOf": [
@@ -30039,7 +30039,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Domain: first successful verification. IP the box found: the last time the box saw this IP (every sighting renews it). Typed IP: the last time its proof was found"
+                      "description": "The last time the proof passed (every pass renews it): a domain's record found, the box seeing its IP, a typed IP's file or name found"
                     },
                     "expires_at": {
                       "anyOf": [
@@ -30052,7 +30052,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is re-checked right before every scan)"
+                      "description": "When the proof runs out: 90 days after its last pass (the later of verified_at and a passing last_check). A check that did not find it does not move it"
                     },
                     "validity": {
                       "anyOf": [
@@ -30259,7 +30259,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
+                      "description": "Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a check since that did not find it (a record or file gone, a lookup that failed, an IP the box does not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current are no longer given (kept for older clients)"
                     },
                     "created_at": {
                       "type": "string",
@@ -30601,7 +30601,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
+                      "description": "Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
                     },
                     "scan_state": {
                       "type": "string",
@@ -30614,7 +30614,7 @@
                         "queued",
                         "scanning"
                       ],
-                      "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet)"
+                      "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or testing terms are not accepted yet)"
                     },
                     "open_exposures": {
                       "type": "integer",
@@ -30671,7 +30671,7 @@
       },
       "put": {
         "operationId": "exposure_put_exposure_targets_id_terms",
-        "summary": "Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
+        "summary": "Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (an IP the box does not go out through now); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
         "tags": [
           "exposure"
         ],
@@ -30741,7 +30741,7 @@
                         "verified",
                         "expired"
                       ],
-                      "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
+                      "description": "expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or file not found since)"
                     },
                     "method": {
                       "anyOf": [
@@ -30774,7 +30774,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Domain: first successful verification. IP the box found: the last time the box saw this IP (every sighting renews it). Typed IP: the last time its proof was found"
+                      "description": "The last time the proof passed (every pass renews it): a domain's record found, the box seeing its IP, a typed IP's file or name found"
                     },
                     "expires_at": {
                       "anyOf": [
@@ -30787,7 +30787,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is re-checked right before every scan)"
+                      "description": "When the proof runs out: 90 days after its last pass (the later of verified_at and a passing last_check). A check that did not find it does not move it"
                     },
                     "validity": {
                       "anyOf": [
@@ -30994,7 +30994,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
+                      "description": "Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a check since that did not find it (a record or file gone, a lookup that failed, an IP the box does not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current are no longer given (kept for older clients)"
                     },
                     "created_at": {
                       "type": "string",
@@ -31336,7 +31336,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
+                      "description": "Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
                     },
                     "scan_state": {
                       "type": "string",
@@ -31349,7 +31349,7 @@
                         "queued",
                         "scanning"
                       ],
-                      "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet)"
+                      "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or testing terms are not accepted yet)"
                     },
                     "open_exposures": {
                       "type": "integer",
@@ -31408,7 +31408,7 @@
     "/exposure/targets/{id}/verify": {
       "post": {
         "operationId": "exposure_post_exposure_targets_id_verify",
-        "summary": "Re-check ownership: domain = DNS TXT record; typed IP = its token file, then reverse DNS (a pass renews it for 30 days; once every 30 seconds per target, and inside the box-wide bound of domain checks); IP the box found = the box must currently egress through this same IP (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited: a domain once every 30 seconds per target, and a box-wide burst of 20 domain checks then one more every 10 seconds, the check of a name just added included (429 rate_limited says in how many seconds the next check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the proof of another target of the box (a TXT record on its registered domain covers that name and the names under it) is verified with the message \"Ownership already proven by the TXT record at example.com (checked 18 Nov 2026, 10:00)\"",
+        "summary": "Re-check ownership: domain = DNS TXT record; typed IP = its token file, then reverse DNS (a pass renews it for 90 days; once every 30 seconds per target, and inside the box-wide bound of domain checks); IP the box found = the box must currently egress through this same IP (renews it for 90 days). A domain's record found renews it for 90 days too. Not found is a normal answer (verified:false) and, inside the 90 days of the last pass, a warning only. Rate limited: a domain once every 30 seconds per target, and a box-wide burst of 20 domain checks then one more every 10 seconds, the check of a name just added included (429 rate_limited says in how many seconds the next check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the proof of another target of the box (a TXT record on its registered domain covers that name and the names under it) is verified with the message \"Ownership already proven by the TXT record at example.com (checked 18 Nov 2026, 10:00)\"",
         "tags": [
           "exposure"
         ],
@@ -31463,7 +31463,7 @@
                             "verified",
                             "expired"
                           ],
-                          "description": "expired only exists for IPs: the box has not seen this IP for more than 30 days"
+                          "description": "expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or file not found since)"
                         },
                         "method": {
                           "anyOf": [
@@ -31496,7 +31496,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Domain: first successful verification. IP the box found: the last time the box saw this IP (every sighting renews it). Typed IP: the last time its proof was found"
+                          "description": "The last time the proof passed (every pass renews it): a domain's record found, the box seeing its IP, a typed IP's file or name found"
                         },
                         "expires_at": {
                           "anyOf": [
@@ -31509,7 +31509,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is re-checked right before every scan)"
+                          "description": "When the proof runs out: 90 days after its last pass (the later of verified_at and a passing last_check). A check that did not find it does not move it"
                         },
                         "validity": {
                           "anyOf": [
@@ -31716,7 +31716,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check that got an answer did not see the IP and no check since has, so scans are paused (until a later check sees it) while the IP stays in the list; verified_at is when the box last saw it"
+                          "description": "Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a check since that did not find it (a record or file gone, a lookup that failed, an IP the box does not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current are no longer given (kept for older clients)"
                         },
                         "created_at": {
                           "type": "string",
@@ -32058,7 +32058,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
+                          "description": "Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it expires, then every 6 hours while it is not found); null otherwise"
                         },
                         "scan_state": {
                           "type": "string",
@@ -32071,7 +32071,7 @@
                             "queued",
                             "scanning"
                           ],
-                          "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the scan confirmation or testing terms are not accepted yet)"
+                          "description": "Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or testing terms are not accepted yet)"
                         },
                         "open_exposures": {
                           "type": "integer",
@@ -32228,7 +32228,7 @@
                                   "expired",
                                   "not_current"
                                 ],
-                                "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days ran out; not_current: an IP the box found that the box no longer goes out through (scans paused)"
+                                "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: never proved, or the proof was withdrawn (the target whose record proved it was removed); expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does not go out through now (still scannable until it expires). A check that did not find the proof is shown in last_check and changes the state only once the 90 days have passed"
                               },
                               "method": {
                                 "anyOf": [
@@ -32295,7 +32295,7 @@
                                     "type": "null"
                                   }
                                 ],
-                                "description": "IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan)"
+                                "description": "90 days after the proof last passed; null while unproved or covered by an ancestor"
                               },
                               "next_check_at": {
                                 "anyOf": [
@@ -33120,7 +33120,7 @@
                             "expired",
                             "not_current"
                           ],
-                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days ran out; not_current: an IP the box found that the box no longer goes out through (scans paused)"
+                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: never proved, or the proof was withdrawn (the target whose record proved it was removed); expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does not go out through now (still scannable until it expires). A check that did not find the proof is shown in last_check and changes the state only once the 90 days have passed"
                         },
                         "method": {
                           "anyOf": [
@@ -33187,7 +33187,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan)"
+                          "description": "90 days after the proof last passed; null while unproved or covered by an ancestor"
                         },
                         "next_check_at": {
                           "anyOf": [
@@ -33887,7 +33887,7 @@
                             "expired",
                             "not_current"
                           ],
-                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days ran out; not_current: an IP the box found that the box no longer goes out through (scans paused)"
+                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: never proved, or the proof was withdrawn (the target whose record proved it was removed); expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does not go out through now (still scannable until it expires). A check that did not find the proof is shown in last_check and changes the state only once the 90 days have passed"
                         },
                         "method": {
                           "anyOf": [
@@ -33954,7 +33954,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan)"
+                          "description": "90 days after the proof last passed; null while unproved or covered by an ancestor"
                         },
                         "next_check_at": {
                           "anyOf": [
@@ -34636,7 +34636,7 @@
                             "expired",
                             "not_current"
                           ],
-                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days ran out; not_current: an IP the box found that the box no longer goes out through (scans paused)"
+                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: never proved, or the proof was withdrawn (the target whose record proved it was removed); expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does not go out through now (still scannable until it expires). A check that did not find the proof is shown in last_check and changes the state only once the 90 days have passed"
                         },
                         "method": {
                           "anyOf": [
@@ -34703,7 +34703,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan)"
+                          "description": "90 days after the proof last passed; null while unproved or covered by an ancestor"
                         },
                         "next_check_at": {
                           "anyOf": [
@@ -36492,7 +36492,7 @@
                             "expired",
                             "not_current"
                           ],
-                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days ran out; not_current: an IP the box found that the box no longer goes out through (scans paused)"
+                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: never proved, or the proof was withdrawn (the target whose record proved it was removed); expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does not go out through now (still scannable until it expires). A check that did not find the proof is shown in last_check and changes the state only once the 90 days have passed"
                         },
                         "method": {
                           "anyOf": [
@@ -36559,7 +36559,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan)"
+                          "description": "90 days after the proof last passed; null while unproved or covered by an ancestor"
                         },
                         "next_check_at": {
                           "anyOf": [
@@ -37232,7 +37232,7 @@
                             "expired",
                             "not_current"
                           ],
-                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days ran out; not_current: an IP the box found that the box no longer goes out through (scans paused)"
+                          "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: never proved, or the proof was withdrawn (the target whose record proved it was removed); expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does not go out through now (still scannable until it expires). A check that did not find the proof is shown in last_check and changes the state only once the 90 days have passed"
                         },
                         "method": {
                           "anyOf": [
@@ -37299,7 +37299,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan)"
+                          "description": "90 days after the proof last passed; null while unproved or covered by an ancestor"
                         },
                         "next_check_at": {
                           "anyOf": [
@@ -37960,7 +37960,7 @@
                                 "expired",
                                 "not_current"
                               ],
-                              "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days ran out; not_current: an IP the box found that the box no longer goes out through (scans paused)"
+                              "description": "proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by); missing: never proved, or the proof was withdrawn (the target whose record proved it was removed); expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does not go out through now (still scannable until it expires). A check that did not find the proof is shown in last_check and changes the state only once the 90 days have passed"
                             },
                             "method": {
                               "anyOf": [
@@ -38027,7 +38027,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan)"
+                              "description": "90 days after the proof last passed; null while unproved or covered by an ancestor"
                             },
                             "next_check_at": {
                               "anyOf": [
@@ -54456,165 +54456,11 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "const": "device_unchecked"
+                                "const": "device_needs"
                               },
                               "id": {
                                 "type": "string",
-                                "description": "The item"
-                              },
-                              "device": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The name the Devices page shows; never the internal id"
-                                  },
-                                  "ip": {
-                                    "description": "null when the device has no IP address",
-                                    "type": [
-                                      "string",
-                                      "null"
-                                    ]
-                                  },
-                                  "kind": {
-                                    "type": "string",
-                                    "enum": [
-                                      "router",
-                                      "switch",
-                                      "modem",
-                                      "sd_wan",
-                                      "load_balancer",
-                                      "network_controller",
-                                      "firewall",
-                                      "vpn_gateway",
-                                      "ids_sensor",
-                                      "proxy",
-                                      "ap",
-                                      "wireless_controller",
-                                      "wifi_extender",
-                                      "mesh_node",
-                                      "server",
-                                      "virtual_machine",
-                                      "hypervisor",
-                                      "bmc",
-                                      "domain_controller",
-                                      "mail_server",
-                                      "database_server",
-                                      "backup_server",
-                                      "pc",
-                                      "laptop",
-                                      "workstation",
-                                      "thin_client",
-                                      "pos_terminal",
-                                      "kiosk",
-                                      "smartphone",
-                                      "tablet",
-                                      "smartwatch",
-                                      "printer",
-                                      "mfp",
-                                      "scanner",
-                                      "label_printer",
-                                      "receipt_printer",
-                                      "plotter",
-                                      "3d_printer",
-                                      "camera",
-                                      "nvr",
-                                      "dvr",
-                                      "video_encoder",
-                                      "doorbell",
-                                      "video_conferencing",
-                                      "ip_phone",
-                                      "pbx",
-                                      "voip_adapter",
-                                      "voip_gateway",
-                                      "conference_phone",
-                                      "intercom",
-                                      "nas",
-                                      "san",
-                                      "backup_appliance",
-                                      "tape_library",
-                                      "iot",
-                                      "smart_tv",
-                                      "media_player",
-                                      "smart_speaker",
-                                      "game_console",
-                                      "smart_plug",
-                                      "smart_light",
-                                      "smart_hub",
-                                      "thermostat",
-                                      "projector",
-                                      "digital_signage",
-                                      "single_board_computer",
-                                      "smart_appliance",
-                                      "robot_vacuum",
-                                      "wireless_bridge",
-                                      "plc",
-                                      "hmi",
-                                      "rtu",
-                                      "scada_server",
-                                      "industrial_switch",
-                                      "ups",
-                                      "pdu",
-                                      "access_control",
-                                      "time_clock",
-                                      "alarm_panel",
-                                      "hvac_controller",
-                                      "building_controller",
-                                      "power_meter",
-                                      "environment_monitor",
-                                      "ev_charger",
-                                      "solar_inverter",
-                                      "medical_device",
-                                      "web",
-                                      "cloud_service",
-                                      "unknown"
-                                    ]
-                                  },
-                                  "added": {
-                                    "type": "boolean",
-                                    "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
-                                  },
-                                  "ignored": {
-                                    "type": "boolean",
-                                    "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "name",
-                                  "ip",
-                                  "kind",
-                                  "added",
-                                  "ignored"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "required": [
-                              "kind",
-                              "id",
-                              "device"
-                            ],
-                            "additionalProperties": false,
-                            "description": "A device a person added that Vedette cannot check: it knows no software, firmware or OS the device runs, so no finding can appear for it. Answered by saying what runs there: its firmware version (POST /inventory/devices/{id}/software), SNMP read access (Sources), or an agent"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "kind": {
-                                "type": "string",
-                                "const": "unconfirmed"
-                              },
-                              "id": {
-                                "type": "string",
-                                "description": "The finding"
-                              },
-                              "cve": {
-                                "type": "string",
-                                "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                "description": "The card: \"needs:<device id>\""
                               },
                               "device": {
                                 "type": "object",
@@ -54746,439 +54592,819 @@
                                 ],
                                 "additionalProperties": false
                               },
-                              "software": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "description": "The software line of the device (inventory)"
-                                      },
-                                      "name": {
-                                        "type": "string",
-                                        "description": "Display name, as on the device page"
-                                      },
-                                      "version": {
-                                        "description": "The version the match compared",
-                                        "type": [
-                                          "string",
-                                          "null"
-                                        ]
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "name",
-                                      "version"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "status": {
-                                "type": "string",
-                                "enum": [
-                                  "under_attack",
-                                  "exploited",
-                                  "public_exploit",
-                                  "critical_edge"
-                                ],
-                                "description": "Only layers 1 to 4 ask for confirmation; update_recommended never does"
-                              },
-                              "severity": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "band": {
-                                        "type": "string",
-                                        "enum": [
-                                          "critical",
-                                          "high",
-                                          "medium",
-                                          "low",
-                                          "none"
-                                        ]
-                                      },
-                                      "score": {
-                                        "type": "number",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      "version": {
-                                        "type": "string",
-                                        "enum": [
-                                          "4.0",
-                                          "3.1",
-                                          "3.0",
-                                          "2.0"
-                                        ]
-                                      },
-                                      "vector": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 200
-                                      }
-                                    },
-                                    "required": [
-                                      "band",
-                                      "score",
-                                      "version",
-                                      "vector"
-                                    ],
-                                    "additionalProperties": false,
-                                    "description": "The CVSS base score of the CVE and its band (the score the catalogue picks for it). Never changes the status. null = \"Not scored yet\", never 0"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "basis": {
-                                "type": "string",
-                                "enum": [
-                                  "scan",
-                                  "device_version",
-                                  "package",
-                                  "banner_version",
-                                  "statement",
-                                  "person"
-                                ],
-                                "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
-                              },
-                              "safe_check": {
-                                "type": "boolean",
-                                "description": "A safe check exists for the CVE and can reach the device: \"Run the safe check\" (POST /scans/runs) comes first"
-                              }
-                            },
-                            "required": [
-                              "kind",
-                              "id",
-                              "cve",
-                              "device",
-                              "software",
-                              "status",
-                              "severity",
-                              "basis",
-                              "safe_check"
-                            ],
-                            "additionalProperties": false,
-                            "description": "An urgent finding not confirmed yet: Run the safe check, Confirm vulnerability (POST /findings/{id}/verify) or Not affected (POST /findings/handle)"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "kind": {
-                                "type": "string",
-                                "const": "question"
-                              },
-                              "id": {
-                                "type": "string",
-                                "description": "The question"
-                              },
-                              "question": {
-                                "type": "string",
-                                "enum": [
-                                  "version_needed",
-                                  "platform",
-                                  "package_release",
-                                  "not_comparable",
-                                  "no_range_data",
-                                  "older_line"
-                                ],
-                                "description": "version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution's package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no versions that decide this one (\"Possibly affected: check the version\"; versions_listed says whether it lists any); older_line = the vendor names fixes for these CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one question for all of them (cve_list)"
-                              },
-                              "device": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The name the Devices page shows; never the internal id"
-                                  },
-                                  "ip": {
-                                    "description": "null when the device has no IP address",
-                                    "type": [
-                                      "string",
-                                      "null"
-                                    ]
-                                  },
-                                  "kind": {
-                                    "type": "string",
-                                    "enum": [
-                                      "router",
-                                      "switch",
-                                      "modem",
-                                      "sd_wan",
-                                      "load_balancer",
-                                      "network_controller",
-                                      "firewall",
-                                      "vpn_gateway",
-                                      "ids_sensor",
-                                      "proxy",
-                                      "ap",
-                                      "wireless_controller",
-                                      "wifi_extender",
-                                      "mesh_node",
-                                      "server",
-                                      "virtual_machine",
-                                      "hypervisor",
-                                      "bmc",
-                                      "domain_controller",
-                                      "mail_server",
-                                      "database_server",
-                                      "backup_server",
-                                      "pc",
-                                      "laptop",
-                                      "workstation",
-                                      "thin_client",
-                                      "pos_terminal",
-                                      "kiosk",
-                                      "smartphone",
-                                      "tablet",
-                                      "smartwatch",
-                                      "printer",
-                                      "mfp",
-                                      "scanner",
-                                      "label_printer",
-                                      "receipt_printer",
-                                      "plotter",
-                                      "3d_printer",
-                                      "camera",
-                                      "nvr",
-                                      "dvr",
-                                      "video_encoder",
-                                      "doorbell",
-                                      "video_conferencing",
-                                      "ip_phone",
-                                      "pbx",
-                                      "voip_adapter",
-                                      "voip_gateway",
-                                      "conference_phone",
-                                      "intercom",
-                                      "nas",
-                                      "san",
-                                      "backup_appliance",
-                                      "tape_library",
-                                      "iot",
-                                      "smart_tv",
-                                      "media_player",
-                                      "smart_speaker",
-                                      "game_console",
-                                      "smart_plug",
-                                      "smart_light",
-                                      "smart_hub",
-                                      "thermostat",
-                                      "projector",
-                                      "digital_signage",
-                                      "single_board_computer",
-                                      "smart_appliance",
-                                      "robot_vacuum",
-                                      "wireless_bridge",
-                                      "plc",
-                                      "hmi",
-                                      "rtu",
-                                      "scada_server",
-                                      "industrial_switch",
-                                      "ups",
-                                      "pdu",
-                                      "access_control",
-                                      "time_clock",
-                                      "alarm_panel",
-                                      "hvac_controller",
-                                      "building_controller",
-                                      "power_meter",
-                                      "environment_monitor",
-                                      "ev_charger",
-                                      "solar_inverter",
-                                      "medical_device",
-                                      "web",
-                                      "cloud_service",
-                                      "unknown"
-                                    ]
-                                  },
-                                  "added": {
-                                    "type": "boolean",
-                                    "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
-                                  },
-                                  "ignored": {
-                                    "type": "boolean",
-                                    "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "name",
-                                  "ip",
-                                  "kind",
-                                  "added",
-                                  "ignored"
-                                ],
-                                "additionalProperties": false
-                              },
-                              "software": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "description": "The software line of the device (inventory)"
-                                      },
-                                      "name": {
-                                        "type": "string",
-                                        "description": "Display name, as on the device page"
-                                      },
-                                      "version": {
-                                        "description": "The version the match compared",
-                                        "type": [
-                                          "string",
-                                          "null"
-                                        ]
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "name",
-                                      "version"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "cve": {
-                                "anyOf": [
-                                  {
-                                    "type": "string",
-                                    "pattern": "^CVE-\\d{4}-\\d{4,}$"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ],
-                                "description": "The CVE the question is about; null when it decides several (version_needed, not_comparable)"
-                              },
-                              "cves": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "maximum": 9007199254740991,
-                                "description": "CVEs that wait on the answer"
-                              },
-                              "asked_at": {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                              },
-                              "url": {
-                                "anyOf": [
-                                  {
-                                    "type": "string",
-                                    "format": "uri"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ],
-                                "description": "The advisory to read"
-                              },
-                              "command": {
-                                "description": "What prints the answer on the device (\"apk info -e -v openssh-server\"); null when none",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
-                              },
-                              "choices": {
+                              "entries": {
+                                "minItems": 1,
                                 "type": "array",
                                 "items": {
-                                  "type": "object",
-                                  "properties": {
-                                    "label": {
-                                      "type": "string",
-                                      "description": "The button: \"Alpine Linux 3.23\", \"Another system\", \"Enter the package release\""
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "const": "device_unchecked"
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "description": "The item"
+                                        },
+                                        "device": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string",
+                                              "description": "The name the Devices page shows; never the internal id"
+                                            },
+                                            "ip": {
+                                              "description": "null when the device has no IP address",
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "router",
+                                                "switch",
+                                                "modem",
+                                                "sd_wan",
+                                                "load_balancer",
+                                                "network_controller",
+                                                "firewall",
+                                                "vpn_gateway",
+                                                "ids_sensor",
+                                                "proxy",
+                                                "ap",
+                                                "wireless_controller",
+                                                "wifi_extender",
+                                                "mesh_node",
+                                                "server",
+                                                "virtual_machine",
+                                                "hypervisor",
+                                                "bmc",
+                                                "domain_controller",
+                                                "mail_server",
+                                                "database_server",
+                                                "backup_server",
+                                                "pc",
+                                                "laptop",
+                                                "workstation",
+                                                "thin_client",
+                                                "pos_terminal",
+                                                "kiosk",
+                                                "smartphone",
+                                                "tablet",
+                                                "smartwatch",
+                                                "printer",
+                                                "mfp",
+                                                "scanner",
+                                                "label_printer",
+                                                "receipt_printer",
+                                                "plotter",
+                                                "3d_printer",
+                                                "camera",
+                                                "nvr",
+                                                "dvr",
+                                                "video_encoder",
+                                                "doorbell",
+                                                "video_conferencing",
+                                                "ip_phone",
+                                                "pbx",
+                                                "voip_adapter",
+                                                "voip_gateway",
+                                                "conference_phone",
+                                                "intercom",
+                                                "nas",
+                                                "san",
+                                                "backup_appliance",
+                                                "tape_library",
+                                                "iot",
+                                                "smart_tv",
+                                                "media_player",
+                                                "smart_speaker",
+                                                "game_console",
+                                                "smart_plug",
+                                                "smart_light",
+                                                "smart_hub",
+                                                "thermostat",
+                                                "projector",
+                                                "digital_signage",
+                                                "single_board_computer",
+                                                "smart_appliance",
+                                                "robot_vacuum",
+                                                "wireless_bridge",
+                                                "plc",
+                                                "hmi",
+                                                "rtu",
+                                                "scada_server",
+                                                "industrial_switch",
+                                                "ups",
+                                                "pdu",
+                                                "access_control",
+                                                "time_clock",
+                                                "alarm_panel",
+                                                "hvac_controller",
+                                                "building_controller",
+                                                "power_meter",
+                                                "environment_monitor",
+                                                "ev_charger",
+                                                "solar_inverter",
+                                                "medical_device",
+                                                "web",
+                                                "cloud_service",
+                                                "unknown"
+                                              ]
+                                            },
+                                            "added": {
+                                              "type": "boolean",
+                                              "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
+                                            },
+                                            "ignored": {
+                                              "type": "boolean",
+                                              "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "name",
+                                            "ip",
+                                            "kind",
+                                            "added",
+                                            "ignored"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "id",
+                                        "device"
+                                      ],
+                                      "additionalProperties": false,
+                                      "description": "A device a person added that Vedette cannot check (an entry of a device card): it knows no software, firmware or OS the device runs, so no finding can appear for it. Answered by saying what runs there: its firmware version (POST /inventory/devices/{id}/software), SNMP read access (Sources), or an agent"
                                     },
-                                    "os": {
-                                      "description": "One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-41)",
-                                      "type": "string"
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "const": "unconfirmed"
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "description": "The finding"
+                                        },
+                                        "cve": {
+                                          "type": "string",
+                                          "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                        },
+                                        "device": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string",
+                                              "description": "The name the Devices page shows; never the internal id"
+                                            },
+                                            "ip": {
+                                              "description": "null when the device has no IP address",
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "router",
+                                                "switch",
+                                                "modem",
+                                                "sd_wan",
+                                                "load_balancer",
+                                                "network_controller",
+                                                "firewall",
+                                                "vpn_gateway",
+                                                "ids_sensor",
+                                                "proxy",
+                                                "ap",
+                                                "wireless_controller",
+                                                "wifi_extender",
+                                                "mesh_node",
+                                                "server",
+                                                "virtual_machine",
+                                                "hypervisor",
+                                                "bmc",
+                                                "domain_controller",
+                                                "mail_server",
+                                                "database_server",
+                                                "backup_server",
+                                                "pc",
+                                                "laptop",
+                                                "workstation",
+                                                "thin_client",
+                                                "pos_terminal",
+                                                "kiosk",
+                                                "smartphone",
+                                                "tablet",
+                                                "smartwatch",
+                                                "printer",
+                                                "mfp",
+                                                "scanner",
+                                                "label_printer",
+                                                "receipt_printer",
+                                                "plotter",
+                                                "3d_printer",
+                                                "camera",
+                                                "nvr",
+                                                "dvr",
+                                                "video_encoder",
+                                                "doorbell",
+                                                "video_conferencing",
+                                                "ip_phone",
+                                                "pbx",
+                                                "voip_adapter",
+                                                "voip_gateway",
+                                                "conference_phone",
+                                                "intercom",
+                                                "nas",
+                                                "san",
+                                                "backup_appliance",
+                                                "tape_library",
+                                                "iot",
+                                                "smart_tv",
+                                                "media_player",
+                                                "smart_speaker",
+                                                "game_console",
+                                                "smart_plug",
+                                                "smart_light",
+                                                "smart_hub",
+                                                "thermostat",
+                                                "projector",
+                                                "digital_signage",
+                                                "single_board_computer",
+                                                "smart_appliance",
+                                                "robot_vacuum",
+                                                "wireless_bridge",
+                                                "plc",
+                                                "hmi",
+                                                "rtu",
+                                                "scada_server",
+                                                "industrial_switch",
+                                                "ups",
+                                                "pdu",
+                                                "access_control",
+                                                "time_clock",
+                                                "alarm_panel",
+                                                "hvac_controller",
+                                                "building_controller",
+                                                "power_meter",
+                                                "environment_monitor",
+                                                "ev_charger",
+                                                "solar_inverter",
+                                                "medical_device",
+                                                "web",
+                                                "cloud_service",
+                                                "unknown"
+                                              ]
+                                            },
+                                            "added": {
+                                              "type": "boolean",
+                                              "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
+                                            },
+                                            "ignored": {
+                                              "type": "boolean",
+                                              "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "name",
+                                            "ip",
+                                            "kind",
+                                            "added",
+                                            "ignored"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "software": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string",
+                                                  "description": "The software line of the device (inventory)"
+                                                },
+                                                "name": {
+                                                  "type": "string",
+                                                  "description": "Display name, as on the device page"
+                                                },
+                                                "version": {
+                                                  "description": "The version the match compared",
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "name",
+                                                "version"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "status": {
+                                          "type": "string",
+                                          "enum": [
+                                            "under_attack",
+                                            "exploited",
+                                            "public_exploit",
+                                            "critical_edge"
+                                          ],
+                                          "description": "Only layers 1 to 4 ask for confirmation; update_recommended never does"
+                                        },
+                                        "severity": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "band": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "critical",
+                                                    "high",
+                                                    "medium",
+                                                    "low",
+                                                    "none"
+                                                  ]
+                                                },
+                                                "score": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 10
+                                                },
+                                                "version": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "4.0",
+                                                    "3.1",
+                                                    "3.0",
+                                                    "2.0"
+                                                  ]
+                                                },
+                                                "vector": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 200
+                                                }
+                                              },
+                                              "required": [
+                                                "band",
+                                                "score",
+                                                "version",
+                                                "vector"
+                                              ],
+                                              "additionalProperties": false,
+                                              "description": "The CVSS base score of the CVE and its band (the score the catalogue picks for it). Never changes the status. null = \"Not scored yet\", never 0"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "basis": {
+                                          "type": "string",
+                                          "enum": [
+                                            "scan",
+                                            "device_version",
+                                            "package",
+                                            "banner_version",
+                                            "statement",
+                                            "person"
+                                          ],
+                                          "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
+                                        },
+                                        "safe_check": {
+                                          "type": "boolean",
+                                          "description": "A safe check exists for the CVE and can reach the device: \"Run the safe check\" (POST /scans/runs) comes first"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "id",
+                                        "cve",
+                                        "device",
+                                        "software",
+                                        "status",
+                                        "severity",
+                                        "basis",
+                                        "safe_check"
+                                      ],
+                                      "additionalProperties": false,
+                                      "description": "An urgent finding not confirmed yet: Run the safe check, Confirm vulnerability (POST /findings/{id}/verify) or Not affected (POST /findings/handle)"
                                     },
-                                    "ask": {
-                                      "description": "What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (the bare release or the line `apk info -e -v openssh-server` prints, \"openssh-server-10.2_p1-r1\"). \"Another system\" asks both: on a row a scan saw only the row's release rules it out",
-                                      "type": "array",
-                                      "items": {
-                                        "type": "string",
-                                        "enum": [
-                                          "os",
-                                          "pkg_version"
-                                        ]
-                                      }
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "const": "software_group"
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "description": "\"sw:<software line id>\""
+                                        },
+                                        "software": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string",
+                                                  "description": "The software line of the device (inventory)"
+                                                },
+                                                "name": {
+                                                  "type": "string",
+                                                  "description": "Display name, as on the device page"
+                                                },
+                                                "version": {
+                                                  "description": "The version the match compared",
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "name",
+                                                "version"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "cves": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "maximum": 9007199254740991,
+                                          "description": "CVEs that wait on this software line, each counted once"
+                                        },
+                                        "questions": {
+                                          "minItems": 1,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "const": "question"
+                                              },
+                                              "id": {
+                                                "type": "string",
+                                                "description": "The question"
+                                              },
+                                              "question": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "version_needed",
+                                                  "platform",
+                                                  "package_release",
+                                                  "not_comparable",
+                                                  "no_range_data",
+                                                  "older_line"
+                                                ],
+                                                "description": "version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution's package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no versions that decide this one (\"Possibly affected: check the version\"; versions_listed says whether it lists any); older_line = the vendor names fixes for these CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one question for all of them (cve_list)"
+                                              },
+                                              "device": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "id": {
+                                                    "type": "string"
+                                                  },
+                                                  "name": {
+                                                    "type": "string",
+                                                    "description": "The name the Devices page shows; never the internal id"
+                                                  },
+                                                  "ip": {
+                                                    "description": "null when the device has no IP address",
+                                                    "type": [
+                                                      "string",
+                                                      "null"
+                                                    ]
+                                                  },
+                                                  "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "router",
+                                                      "switch",
+                                                      "modem",
+                                                      "sd_wan",
+                                                      "load_balancer",
+                                                      "network_controller",
+                                                      "firewall",
+                                                      "vpn_gateway",
+                                                      "ids_sensor",
+                                                      "proxy",
+                                                      "ap",
+                                                      "wireless_controller",
+                                                      "wifi_extender",
+                                                      "mesh_node",
+                                                      "server",
+                                                      "virtual_machine",
+                                                      "hypervisor",
+                                                      "bmc",
+                                                      "domain_controller",
+                                                      "mail_server",
+                                                      "database_server",
+                                                      "backup_server",
+                                                      "pc",
+                                                      "laptop",
+                                                      "workstation",
+                                                      "thin_client",
+                                                      "pos_terminal",
+                                                      "kiosk",
+                                                      "smartphone",
+                                                      "tablet",
+                                                      "smartwatch",
+                                                      "printer",
+                                                      "mfp",
+                                                      "scanner",
+                                                      "label_printer",
+                                                      "receipt_printer",
+                                                      "plotter",
+                                                      "3d_printer",
+                                                      "camera",
+                                                      "nvr",
+                                                      "dvr",
+                                                      "video_encoder",
+                                                      "doorbell",
+                                                      "video_conferencing",
+                                                      "ip_phone",
+                                                      "pbx",
+                                                      "voip_adapter",
+                                                      "voip_gateway",
+                                                      "conference_phone",
+                                                      "intercom",
+                                                      "nas",
+                                                      "san",
+                                                      "backup_appliance",
+                                                      "tape_library",
+                                                      "iot",
+                                                      "smart_tv",
+                                                      "media_player",
+                                                      "smart_speaker",
+                                                      "game_console",
+                                                      "smart_plug",
+                                                      "smart_light",
+                                                      "smart_hub",
+                                                      "thermostat",
+                                                      "projector",
+                                                      "digital_signage",
+                                                      "single_board_computer",
+                                                      "smart_appliance",
+                                                      "robot_vacuum",
+                                                      "wireless_bridge",
+                                                      "plc",
+                                                      "hmi",
+                                                      "rtu",
+                                                      "scada_server",
+                                                      "industrial_switch",
+                                                      "ups",
+                                                      "pdu",
+                                                      "access_control",
+                                                      "time_clock",
+                                                      "alarm_panel",
+                                                      "hvac_controller",
+                                                      "building_controller",
+                                                      "power_meter",
+                                                      "environment_monitor",
+                                                      "ev_charger",
+                                                      "solar_inverter",
+                                                      "medical_device",
+                                                      "web",
+                                                      "cloud_service",
+                                                      "unknown"
+                                                    ]
+                                                  },
+                                                  "added": {
+                                                    "type": "boolean",
+                                                    "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
+                                                  },
+                                                  "ignored": {
+                                                    "type": "boolean",
+                                                    "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "id",
+                                                  "name",
+                                                  "ip",
+                                                  "kind",
+                                                  "added",
+                                                  "ignored"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              "software": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "id": {
+                                                        "type": "string",
+                                                        "description": "The software line of the device (inventory)"
+                                                      },
+                                                      "name": {
+                                                        "type": "string",
+                                                        "description": "Display name, as on the device page"
+                                                      },
+                                                      "version": {
+                                                        "description": "The version the match compared",
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "id",
+                                                      "name",
+                                                      "version"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "cve": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "The CVE the question is about; null when it decides several (version_needed, not_comparable)"
+                                              },
+                                              "cves": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "CVEs that wait on the answer"
+                                              },
+                                              "asked_at": {
+                                                "type": "string",
+                                                "format": "date-time",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                              },
+                                              "url": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "format": "uri"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "The advisory to read"
+                                              },
+                                              "command": {
+                                                "description": "What prints the answer on the device (\"apk info -e -v openssh-server\"); null when none",
+                                                "type": [
+                                                  "string",
+                                                  "null"
+                                                ]
+                                              },
+                                              "choices": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "label": {
+                                                      "type": "string",
+                                                      "description": "The button: \"Alpine Linux 3.23\", \"Another system\", \"Enter the package release\""
+                                                    },
+                                                    "os": {
+                                                      "description": "One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-41)",
+                                                      "type": "string"
+                                                    },
+                                                    "ask": {
+                                                      "description": "What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (the bare release or the line `apk info -e -v openssh-server` prints, \"openssh-server-10.2_p1-r1\"). \"Another system\" asks both: on a row a scan saw only the row's release rules it out",
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "os",
+                                                          "pkg_version"
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "label"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                "description": "platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data, older_line: POST /findings/questions/{id}/answer)"
+                                              },
+                                              "cve_list": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string",
+                                                  "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                                },
+                                                "description": "older_line, version_needed: the CVEs that wait on the answer; empty when the question is about one CVE (cve)"
+                                              },
+                                              "fixes": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                },
+                                                "description": "older_line: the newest release the vendor names as fixed on each newer line, oldest line first (\"7.3.2-86009 Update 5\"); empty for the other kinds"
+                                              },
+                                              "line": {
+                                                "description": "older_line: the release line the device runs (\"7.2.1\"); null for the other kinds",
+                                                "type": [
+                                                  "string",
+                                                  "null"
+                                                ]
+                                              },
+                                              "versions_listed": {
+                                                "type": "boolean",
+                                                "description": "no_range_data: true when the CVE lists affected versions of the software but none that decides this one (only exact releases, or no end); false when it lists none. false for the other kinds"
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "id",
+                                              "question",
+                                              "device",
+                                              "software",
+                                              "cve",
+                                              "cves",
+                                              "asked_at",
+                                              "url",
+                                              "command",
+                                              "choices",
+                                              "cve_list",
+                                              "fixes",
+                                              "line",
+                                              "versions_listed"
+                                            ],
+                                            "additionalProperties": false,
+                                            "description": "What Vedette cannot decide without a person"
+                                          },
+                                          "description": "The line's questions, one per (CVE, kind): the one whose action fixes the most first (version_needed, not_comparable, platform, package_release, older_line, no_range_data), then by CVEs waiting. The version or edition a person enters lives on the line, so one entry fixes every CVE of it at the next match; each CVE's Affected / Not affected is its own question"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "id",
+                                        "software",
+                                        "cves",
+                                        "questions"
+                                      ],
+                                      "additionalProperties": false,
+                                      "description": "One software line of a device inside its card: \"Thunderbird 115.9.0: 196 CVEs waiting\" with its one action; the per-CVE detail is behind a click"
                                     }
-                                  },
-                                  "required": [
-                                    "label"
-                                  ],
-                                  "additionalProperties": false
+                                  ]
                                 },
-                                "description": "platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data, older_line: POST /findings/questions/{id}/answer)"
-                              },
-                              "cve_list": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string",
-                                  "pattern": "^CVE-\\d{4}-\\d{4,}$"
-                                },
-                                "description": "older_line, version_needed: the CVEs that wait on the answer; empty when the question is about one CVE (cve)"
-                              },
-                              "fixes": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                },
-                                "description": "older_line: the newest release the vendor names as fixed on each newer line, oldest line first (\"7.3.2-86009 Update 5\"); empty for the other kinds"
-                              },
-                              "line": {
-                                "description": "older_line: the release line the device runs (\"7.2.1\"); null for the other kinds",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
-                              },
-                              "versions_listed": {
-                                "type": "boolean",
-                                "description": "no_range_data: true when the CVE lists affected versions of the software but none that decides this one (only exact releases, or no end); false when it lists none. false for the other kinds"
+                                "description": "What Vedette needs to know about the device: what runs there (device_unchecked), urgent findings not confirmed yet (unconfirmed), then its software lines by CVEs waiting (software_group)"
                               }
                             },
                             "required": [
                               "kind",
                               "id",
-                              "question",
                               "device",
-                              "software",
-                              "cve",
-                              "cves",
-                              "asked_at",
-                              "url",
-                              "command",
-                              "choices",
-                              "cve_list",
-                              "fixes",
-                              "line",
-                              "versions_listed"
+                              "entries"
                             ],
                             "additionalProperties": false,
-                            "description": "What Vedette cannot decide without a person"
+                            "description": "One card per added device: everything Vedette needs from a person about it, the questions grouped by software line. Ignore for the whole device: POST /findings/questions/ignore"
                           }
                         ]
                       },
-                      "description": "Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting, then the one card of the devices not added yet with no open finding; an item leaves the moment it is answered or stops being true"
+                      "description": "Devices not added yet first, then one card per added device (what runs there, urgent findings not confirmed, its questions grouped by software line) by what waits, then the one card of the devices not added yet with no open finding; an item leaves the moment it is answered or stops being true"
                     },
                     "total": {
                       "type": "integer",
@@ -56374,6 +56600,182 @@
                   },
                   "required": [
                     "id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/findings/questions/accept-risk": {
+      "post": {
+        "operationId": "findings_post_findings_questions_accept_risk",
+        "summary": "Accept the risk of one device, or of one software line of it, until a day, on your word: every open question there is answered \"affected\", the finding of each CVE it asks about is recorded and accepted until the day, and so is every open finding of the same scope, confirmed or suspected; one transaction, one summary audit row plus one history row per finding. The findings open again after the day; a CVE that matches later is a new question. \"Vedette cannot check this device\" is left. It records \"affected\" on your word, so it needs an admin as answering affected does (an operator gets 403 forbidden)",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "operator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96
+                  },
+                  "software": {
+                    "description": "One software line of the device; the whole device when left out",
+                    "type": "string",
+                    "maxLength": 96
+                  },
+                  "question": {
+                    "description": "One open question (one CVE row of a software line): only its CVEs are accepted",
+                    "type": "string",
+                    "maxLength": 96
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "Why you accept it: at least 3 characters"
+                  },
+                  "until": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "The last day of the acceptance, from tomorrow to 365 days ahead (else 400 bad_until)"
+                  }
+                },
+                "required": [
+                  "device",
+                  "note",
+                  "until"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "questions": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "Questions answered affected"
+                    },
+                    "findings": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991,
+                      "description": "Findings accepted until the day"
+                    }
+                  },
+                  "required": [
+                    "questions",
+                    "findings"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/findings/questions/ignore": {
+      "post": {
+        "operationId": "findings_post_findings_questions_ignore",
+        "summary": "Ignore (bypass) every open question of one device, or of one software line of it: each is answered \"not affected\" in one transaction with one audit row; each is listed under Answered and can be asked again one by one. \"Vedette cannot check this device\" is left (operator)",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "operator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96
+                  },
+                  "software": {
+                    "description": "One software line of the device; every open question of the device when left out",
+                    "type": "string",
+                    "maxLength": 96
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "device",
+                  "note"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answered": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991,
+                      "description": "Questions answered"
+                    }
+                  },
+                  "required": [
+                    "answered"
                   ],
                   "additionalProperties": false
                 }
@@ -72699,7 +73101,7 @@
                             "additionalProperties": {
                               "type": "string"
                             },
-                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace|microsoft-graph (sends through Microsoft Graph sendMail: host graph.microsoft.com, port 443, security ssl); user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365, microsoft-graph and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft-graph, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                           },
                           "secret_last4": {
                             "description": "Secrets (token, password, signing key) are never returned, not even a part: a saved one reads \"••••\", none is null (SYS-4)",
@@ -73104,7 +73506,7 @@
                       "additionalProperties": {
                         "type": "string"
                       },
-                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace|microsoft-graph (sends through Microsoft Graph sendMail: host graph.microsoft.com, port 443, security ssl); user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365, microsoft-graph and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft-graph, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                     },
                     "secret_last4": {
                       "description": "Secrets (token, password, signing key) are never returned, not even a part: a saved one reads \"••••\", none is null (SYS-4)",

@@ -198,6 +198,18 @@ func updateCheck(ctx context.Context, tx *sql.Tx, id string, c Check, verifiedAt
 	return nil
 }
 
+// withdrawProof records check c and clears the proof of target id (verified_at, method): it is unproved from now (INV-1).
+func withdrawProof(ctx context.Context, tx *sql.Tx, id string, c Check) error {
+	doc, err := checkDoc(&c)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE exp_target SET last_check = ?, verified_at = NULL, method = NULL WHERE id = ?`, doc, id); err != nil {
+		return fmt.Errorf("withdrawing the proof of target %s: %w", id, err)
+	}
+	return nil
+}
+
 func checkDoc(c *Check) (any, error) {
 	if c == nil {
 		return nil, nil
@@ -223,7 +235,7 @@ func nullString(s string) any {
 	return s
 }
 
-// renewIP sets the last sighting of an IP: verified_at is the time, and with it the 30 days (INV-4). An IP a person typed in that the
+// renewIP sets the last sighting of an IP: verified_at is the time, and with it the ValidDays (INV-4). An IP a person typed in that the
 // box sees as its own egress address becomes the box's: that proof is the stronger one.
 func renewIP(ctx context.Context, tx *sql.Tx, id string, now time.Time, msg string) error {
 	if _, err := tx.ExecContext(ctx, `UPDATE exp_target SET origin = 'box', ip_token = NULL, proof_method = NULL WHERE id = ? AND kind = 'ip' AND origin = 'person'`, id); err != nil {
@@ -232,7 +244,7 @@ func renewIP(ctx context.Context, tx *sql.Tx, id string, now time.Time, msg stri
 	return updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: true, Message: msg}, now, methodBoxEgress)
 }
 
-// recordIPProof records a check of a typed IP's proof: the check, and when it passed (verifiedAt not zero) the time the 30 days run
+// recordIPProof records a check of a typed IP's proof: the check, and when it passed (verifiedAt not zero) the time the ValidDays run
 // from and how it was proved.
 func recordIPProof(ctx context.Context, tx *sql.Tx, id string, c Check, verifiedAt time.Time, method string) error {
 	doc, err := checkDoc(&c)

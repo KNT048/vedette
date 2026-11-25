@@ -222,7 +222,9 @@ function view(t: StoredTarget): Target {
   const expired = ip && verified && !!t.expires_at && Date.parse(t.expires_at) < Date.now()
   const validity = !ip || !verified || !t.expires_at ? null : expired ? 'expired' : dayLeft(t.expires_at) <= EXPIRING_DAYS ? 'expiring' : 'valid'
   const typed = !!t.typed
-  const blocked: Target['blocked_reason'] = !verified ? 'unverified' : expired ? 'expired' : !ip && !t.txt_ok ? 'txt_missing' : typed && t.last_check && !t.last_check.ok ? 'proof_missing' : !current ? 'no_commitment' : ip && !typed && ipNotSeenNow(t) ? 'ip_not_current' : null
+  // A proof holds VERIFY_DAYS from its last pass: a later check that did not find it (a record or file gone, a lookup that failed, an IP
+  // the box does not go out through now) is a warning in last_check, never a reason (INV-4).
+  const blocked: Target['blocked_reason'] = !verified ? 'unverified' : expired ? 'expired' : !current ? 'no_commitment' : null
   const snaps = (snapshots.get()[t.id] ?? []).slice().sort((a, b) => a.date.localeCompare(b.date))
   const last = snaps[snaps.length - 1]
   return {
@@ -235,7 +237,7 @@ function view(t: StoredTarget): Target {
     origin: ip && !typed ? 'box' : 'person', open_exposures: last?.counts.ports ?? 0,
     ip_proof: typed ? { path: '/.well-known/vedette-verify.txt', content: t.token, urls: [`http://${t.value}/.well-known/vedette-verify.txt`, `https://${t.value}/.well-known/vedette-verify.txt`], ptr_domains: targets.get().filter((o) => o.kind === 'domain' && o.verified_at !== null && o.txt_ok).map((o) => o.value) } : null,
     next_check_at: typed && verified && t.expires_at ? plus(t.expires_at, -7) : null,
-    scan_state: blocked === null ? 'ready' : blocked === 'expired' ? 'expired' : blocked === 'ip_not_current' ? 'paused' : blocked === 'no_commitment' ? 'needs_terms' : 'unproved',
+    scan_state: blocked === null ? 'ready' : blocked === 'expired' ? 'expired' : blocked === 'no_commitment' ? 'needs_terms' : 'unproved',
   }
 }
 
@@ -422,13 +424,7 @@ function sightings(verifiedAt: string | null | undefined) {
   return { sawIt: sawIt(lastRun) || sawIt(deep), freshDeep: fresh(deep) }
 }
 
-/** Shown on GET (blocked_reason ip_not_current): the last full check that got an answer did not see this IP and nothing has seen it since. It rests on what is stored, not on a window: it stays until a later check sees the IP; a failed check changes nothing (INV-13). Reading probes nothing. */
-function ipNotSeenNow(t: StoredTarget): boolean {
-  const fullOk = probe.get().full_ok_at
-  return !!fullOk && Date.parse(fullOk) <= Date.now() + CURRENT_MS && Date.parse(t.verified_at ?? '') < Date.parse(fullOk)
-}
-
-/** The 409 ip_not_current answer when the box is not going out through the IP now (INV-13); null when it is. Shared by exposure's scan and the scan module. */
+/** The 409 ip_not_current answer when the box is not going out through the IP now (INV-13); null when it is. The Shodan check needs it (INV-21). */
 export function ipPaused(t: { id: string; value: string }) {
   if (exposureIpCurrent(t.id)) return null
   const seenAt = find(t.id)?.verified_at
@@ -456,11 +452,12 @@ const nodeOf = (id: unknown) => tree.get().find((n) => n.id === String(id))
 const noNode = () => fail(404, 'not_found', 'No such target. It may have been deleted.')
 const zoneOf = (name: string) => name.split('.').slice(-2).join('.')
 
-/** The node's own proof, without its ancestors. */
+/** The node's own proof, without its ancestors: it holds VERIFY_DAYS from its last pass; a later check that did not find it is a warning
+ *  in last_check, never a state of its own (INV-4). */
 function ownProof(n: StoredNode): 'proven' | 'missing' | 'expired' {
   if (!n.method || !n.verified_at) return 'missing'
-  if (n.kind === 'ip' && Date.now() - Date.parse(n.verified_at) > PROOF_DAYS_MS) return 'expired'
-  return n.last_check && !n.last_check.ok ? 'missing' : 'proven'
+  if (Date.now() - Date.parse(n.verified_at) > PROOF_DAYS_MS) return 'expired'
+  return 'proven'
 }
 
 function ancestorsOf(n: StoredNode, all: StoredNode[]): StoredNode[] {
@@ -479,7 +476,7 @@ function nodeProof(n: StoredNode, all: StoredNode[]): Proof {
     method: cover ? null : n.method,
     covered_by: cover ? { id: cover.id, value: cover.value } : null,
     verified_at: cover ? null : n.verified_at,
-    expires_at: n.kind === 'ip' && n.verified_at && !cover ? new Date(Date.parse(n.verified_at) + PROOF_DAYS_MS).toISOString() : null,
+    expires_at: n.verified_at && !cover ? new Date(Date.parse(n.verified_at) + PROOF_DAYS_MS).toISOString() : null,
     next_check_at: n.kind === 'ip' && n.origin === 'person' && n.verified_at ? new Date(Date.parse(n.verified_at) + PROOF_DAYS_MS - 7 * 864e5).toISOString() : null,
     last_check: cover ? null : n.last_check,
     dns: n.kind === 'domain' && !cover ? { zone, host: '@', alt_host: label ? `_vedette-verify.${label}` : '_vedette-verify', value: `vedette-verify=${n.token}` } : null,
@@ -1039,10 +1036,9 @@ export const handlers = [
     const v = view(t)
     if (v.status === 'unverified') return fail(409, 'not_verified', `${t.value} has no ownership proof, so it cannot be scanned. Finish verification first.`)
     if (v.status === 'expired') return fail(409, 'expired', `Verification of ${t.value} expired on ${fmt(t.expires_at!)}, so it cannot be scanned. Verify it again first.`)
-    // Re-check the TXT record right before the scan; a missing record blocks it.
+    // Re-check the TXT record right before the scan; a missing record is a warning on the target, and the scan goes on (INV-4).
     if (t.kind === 'domain' && !t.txt_ok) {
-      targets.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_check: { at: nowIso(), ok: false, message: `The TXT record vedette-verify=${t.token} was not found on ${t.value}.` } } : x)))
-      return fail(409, 'txt_missing', `The DNS TXT record vedette-verify=${t.token} is no longer found on ${t.value}, on _vedette-verify.${t.value} or on a parent domain that covers it, so it cannot be scanned. Add the record back, then check again.`)
+      targets.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_check: { at: nowIso(), ok: false, message: `The TXT record vedette-verify=${t.token} was not found on ${t.value}. The proof found earlier stays valid for ${VERIFY_DAYS} days from its last pass, so scans go on until then.` } } : x)))
     }
     if (v.commitment?.version !== NOTICE_VERSION) {
       // An administrator's first Scan now is the confirmation; an operator cannot scan an unconfirmed target.
@@ -1058,11 +1054,9 @@ export const handlers = [
       commitments.update((m) => ({ ...m, [t.id]: { by: me.email, at: nowIso(), version: NOTICE_VERSION, sentence } }))
       audit('exposure.commitment', t.value, `${v.commitment ? `re-confirmed under the new sentence (replaces notice ${v.commitment.version ?? 'recorded before versions'}, confirmed by ${v.commitment.by} at ${v.commitment.at})` : 'confirmed by the first Scan now'} (notice ${NOTICE_VERSION}): ${sentence}`)
     }
-    // An IP is scanned only while the box still goes out through it (a fresh full check just before the scan sees it). Not seen, or no answer = paused, fail closed; the IP stays in the list.
-    if (t.kind === 'ip') {
-      const paused = ipPaused(t)
-      if (paused) return paused
-    }
+    // The box checks whether it still goes out through the IP (a sighting renews it); one it does not go out through now stays scannable
+    // until its days run out (INV-13, INV-4).
+    if (t.kind === 'ip' && !t.typed) exposureIpCurrent(t.id)
     // The scan module's runner does the scan behind this module's own switch: the Vulnerability scans module may be off.
     // Like the box: 202 with the run at once, and the phases move on while the page polls GET /exposure/scan. The mock has no one-at-a-time or 10-minute limit
     // (its tests scan an IP several times in a row). The result is stored when the run is done.

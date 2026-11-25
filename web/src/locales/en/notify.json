@@ -135,7 +135,7 @@
           "hint": "Fills in the server, port and encryption; you can still change them.",
           "group": {
             "password": "Mailbox with a password or app password",
-            "service": "Email sending service",
+            "service": "Email sending service (not tested yet)",
             "oauth": "Sign in with OAuth (no password)"
           },
           "name": {
@@ -154,6 +154,7 @@
             "outlook": "Outlook.com (personal Microsoft account)",
             "gmail-oauth": "Gmail (sign in with your own Google client)",
             "microsoft365": "Microsoft 365 (app permission, admin)",
+            "microsoft-graph": "Microsoft Graph (app, client secret)",
             "google-workspace": "Google Workspace (service account)"
           },
           "help": {
@@ -168,6 +169,7 @@
             "postmark": "Paste the Server API token: it is both username and password.",
             "brevo": "Use the Brevo SMTP login and an SMTP key, not an API key.",
             "microsoft365": "Vedette signs in as an app with OAuth2, set up once by an administrator.",
+            "microsoft-graph": "Sends through Microsoft Graph as an app with a client secret, set up once by an administrator.",
             "google-workspace": "Vedette signs in as a service account, set up once by a super administrator.",
             "microsoft365-user": "Sign in once as the mailbox user with a code; no password is stored.",
             "outlook": "Sign in once with a code through your own app registration.",
@@ -185,12 +187,20 @@
             "postmark": "Paste the Server API token from the server's API Tokens tab. Postmark uses it as both username and password, so there is no username field.",
             "brevo": "The username is the SMTP login shown in Brevo under SMTP & API, and the password is an SMTP key (not an API key). Send from a domain authenticated in Brevo.",
             "microsoft365": "Vedette signs in as an app with OAuth2, without a user password. The box also contacts login.microsoftonline.com to get a sign-in token. Your Microsoft 365 administrator does this once:",
+            "microsoft-graph": "Vedette sends as an app through Microsoft Graph, without SMTP and without a user password: it gets a token from login.microsoftonline.com and posts the email to graph.microsoft.com. No Exchange PowerShell and no SMTP AUTH are needed. Your Microsoft 365 administrator does this once:",
             "google-workspace": "Vedette signs in as a service account with OAuth2, without a user password. The box also contacts oauth2.googleapis.com to get a sign-in token. A Google Workspace super administrator does this once:",
             "microsoft365-user": "Vedette signs in once as the mailbox's user with a code (no password is stored; Microsoft is ending passwords for SMTP). You need your own app registration; nobody else's client ID is used. The box contacts login.microsoftonline.com for the code and the tokens. Once:",
             "outlook": "Vedette signs in once as your Outlook.com account with a code, through your own app registration (no password is stored). The box contacts login.microsoftonline.com for the code and the tokens. Once:",
             "gmail-oauth": "Instead of an app password, sign in once with your own Google OAuth client (Desktop app). Google sends the browser back to http://127.0.0.1, which does not load: you paste that address into Vedette. The box contacts oauth2.googleapis.com to get the tokens. Once:"
           },
           "steps": {
+            "microsoft-graph": {
+              "s1": "In the Microsoft Entra admin center open App registrations, New registration (this organization only).",
+              "s2": "Under API permissions add Microsoft Graph, Application permissions (not Delegated), Mail.Send, then press Grant admin consent.",
+              "s3": "Under Certificates & secrets create a client secret, and copy its Value (not its Secret ID).",
+              "s4": "Copy the Directory (tenant) ID and the Application (client) ID into the fields below, with the mailbox Vedette sends as.",
+              "s5": "Optional: Mail.Send lets the app send as any mailbox; your admin can limit it to this one with RBAC for Applications in Exchange Online."
+            },
             "microsoft365": {
               "s1": "In Microsoft Entra, register an app. Under API permissions add Office 365 Exchange Online, application permission SMTP.SendAsApp, and grant admin consent.",
               "s2": "Under Certificates & secrets create a client secret, and copy its Value.",
@@ -204,8 +214,8 @@
             },
             "microsoft365-user": {
               "s1": "In the Microsoft Entra admin center open App registrations, New registration. Supported accounts: this organization only (or any organization).",
-              "s2": "Under Authentication, Advanced settings, set Allow public client flows to Yes. The device code sign-in needs it; no redirect URI is needed.",
-              "s3": "Under API permissions add Microsoft Graph, Delegated, SMTP.Send (and keep offline_access). No admin consent is needed unless your tenant asks for it.",
+              "s2": "Open Authentication, the Settings tab, and set Allow public client flows to Enabled, then save. The device code sign-in needs it; no redirect URI is needed.",
+              "s3": "No API permission needs adding: Microsoft asks for consent when the mailbox user signs in. If your organization does not let users consent to apps, an administrator adds the delegated permission SMTP.Send and grants admin consent.",
               "s4": "Copy the Application (client) ID and the Directory (tenant) ID into the fields below, and make sure SMTP AUTH is on for the mailbox.",
               "s5": "Press Sign in with Microsoft, open microsoft.com/devicelogin on any device, enter the code and sign in as the mailbox."
             },
@@ -224,6 +234,7 @@
           },
           "doc": "Read {{name}}'s instructions"
         },
+        "msBasicEnds": "Microsoft turns off password sign-in for SMTP by default at the end of December 2026. Choose Microsoft Graph or Microsoft 365 (sign in as the user) instead.",
         "host": {
           "label": "SMTP server",
           "hint": "For example smtp.company.com.",
@@ -257,8 +268,7 @@
         "tenant_id": {
           "label": "Tenant ID",
           "hint": "The Directory (tenant) ID on the app registration's Overview page.",
-          "hint_microsoft365-user": "The Directory (tenant) ID, your domain, or organizations.",
-          "info_microsoft365-user": "Enter organizations to allow any work or school account."
+          "hint_microsoft365-user": "The Directory (tenant) ID or your domain."
         },
         "client_id": {
           "label": "Client ID",
@@ -282,10 +292,13 @@
           "label_postmark": "Server API token",
           "label_brevo": "SMTP key",
           "label_microsoft_oauth": "Client secret",
+          "label_microsoft_graph": "Client secret",
           "label_google_oauth": "Service account key (JSON file)",
           "hint_service": "Stays on this box, encrypted; only the last 4 characters show.",
           "hint_microsoft_oauth": "The client secret's Value, not its Secret ID.",
           "info_microsoft_oauth": "Client secrets expire: make a new one before then.",
+          "hint_microsoft_graph": "The client secret's Value, not its Secret ID.",
+          "info_microsoft_graph": "Client secrets expire: make a new one before then.",
           "hint_google_oauth": "The JSON key file you downloaded.",
           "info_google_oauth": "It stays on this box, encrypted; Vedette never sends the key itself, only a token request signed with it.",
           "loaded": "Key of {{email}} chosen. Save to keep it.",
@@ -492,6 +505,7 @@
     "loginInfo": "Sign in with a QR code from the Zalo app of the account that sends the alerts. Save keeps the session on the box."
   },
   "incidents": {
+    "moreDevices": "+{{count}} more",
     "title_one": "{{count}} new incident",
     "title_other": "{{count}} new incidents",
     "titleNone": "No new incidents",

@@ -47,7 +47,7 @@ export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string })
 
 /** `badge`: work waiting for the user in that tab (a red number). `label` is the part read after the number for a screen reader, for example "waiting for a decision"
  *  gives the tab name "Requests 3 waiting for a decision" (it contains exactly the visible text, WCAG 2.5.3). */
-export type PageTab = { id: string; label: string; panel: ReactNode; badge?: { count: number; label: string; tone?: 'danger' | 'off' } }
+export type PageTab = { id: string; label: string; panel: ReactNode; badge?: { count: number; label: string; tone?: 'danger' | 'off' }; highlight?: boolean }
 
 /** The open tab is in `?tab=<id>`: reload and Back keep the tab; an unknown or not-allowed id → the first tab. */
 export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
@@ -82,7 +82,7 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
         {tabs.map((x) => (
           // relative: the badge's screen-reader text is absolutely positioned; inside a positioned tab it is clipped with the row,
           // else it sits where the tab would be and widens the page on a phone when the tab is scrolled out of view.
-          <TabsTrigger key={x.id} value={x.id} className="relative mb-0 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap focus-visible:-outline-offset-2">
+          <TabsTrigger key={x.id} value={x.id} className={`relative mb-0 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap focus-visible:-outline-offset-2${x.highlight ? ' font-semibold text-accent' : ''}`}>
             {x.label}{' '}
             {x.badge ? <Counter count={x.badge.count} label={x.badge.label} tone={x.badge.tone ?? 'danger'} /> : null}
           </TabsTrigger>

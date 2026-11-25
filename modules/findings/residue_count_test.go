@@ -94,7 +94,7 @@ func residueCounts(t *testing.T) (items, findings map[string]int, noVersions int
 		t.Fatal(err)
 	}
 	items, findings = map[string]int{}, map[string]int{}
-	for _, it := range in.Items {
+	for _, it := range flatInput(in.Items) {
 		switch it.Kind {
 		case "device_unchecked":
 			c := causeFirewall
@@ -190,9 +190,10 @@ func TestOlderLine_OneQuestionPerLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	var q *InputItemJS
-	for i := range in.Items {
-		if in.Items[i].Question == string(QuestionOlderLine) {
-			q = &in.Items[i]
+	flat := flatInput(in.Items)
+	for i := range flat {
+		if flat[i].Question == string(QuestionOlderLine) {
+			q = &flat[i]
 		}
 	}
 	if q == nil {
@@ -313,6 +314,7 @@ func TestNothingToCheck_QueueBadgeAndAnswer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	in.Items = flatInput(in.Items)
 	if len(in.Items) != 1 || in.Items[0].Kind != "device_unchecked" || in.Items[0].Device.ID != "fw-01" {
 		t.Fatalf("queue for the firewalls: %+v, want one device_unchecked for fw-01", in.Items)
 	}

@@ -35,3 +35,4 @@ flaky	TestContract_SelfUpdate_AnOrphanJournalAfterDispatchGatesWritesUntilItsPha
 flaky	TestContract_INV10_ScanContentIsLimited modules/exposure	https://github.com/KNT048/vedette/issues/1342		2026-11-25
 flaky	TestImportDoesNotBurnCPUOnHostileCells modules/inventory	https://github.com/KNT048/vedette/issues/1342		2026-11-25
 flaky	TestRestoreReadDuringTheHealthCheckShowsTheNewRun modules/core	https://github.com/KNT048/vedette/issues/1342		2026-11-25
+flaky	TestBoxZone_WithoutAHelperThatCanSetItGeneralSaysSo	modules/core	https://github.com/KNT048/vedette/issues/1342	2026-11-25

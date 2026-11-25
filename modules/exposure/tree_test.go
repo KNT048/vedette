@@ -523,13 +523,11 @@ func TestTree_ProofIsInheritedOnlyFromAProvenAncestor(t *testing.T) {
 		t.Fatalf("the child's scan does not carry the apex's proof: %+v", run.last.Proof)
 	}
 	calls := run.calls
-	// The apex's record removed: the child's next scan is refused at its start, nothing is sent
+	// The apex's record removed: inside the 90 days of its last pass the child's next scan goes on, and its check says so
 	e.dns.put("acme.example")
 	e.advance(ScanEvery)
-	_, err := e.svc.Scan(e.ctx(), "admin@acme.example", git.ID)
-	wantAPI(t, err, 409, "txt_missing")
-	if run.calls != calls {
-		t.Fatalf("a refused scan reached the runner")
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", git.ID); err != nil || run.calls != calls+1 || e.target(git.ID).LastCheck.OK {
+		t.Fatalf("scan inside the 90 days: %v, runner calls %d", err, run.calls-calls)
 	}
 	// The record back, the apex removed with its token: refused again, and the child moves to the top
 	e.dns.put("acme.example", txtRecord(apex.Token))
@@ -548,8 +546,8 @@ func TestTree_ProofIsInheritedOnlyFromAProvenAncestor(t *testing.T) {
 		t.Fatalf("the child still reads as proven after its ancestor left: %+v", c.LastCheck)
 	}
 	e.advance(ScanEvery)
-	_, err = e.svc.Scan(e.ctx(), "admin@acme.example", git.ID)
-	wantAPI(t, err, 409, "txt_missing")
+	_, err := e.svc.Scan(e.ctx(), "admin@acme.example", git.ID)
+	wantAPI(t, err, 409, "not_verified") // removing the apex withdrew the proof it gave
 	if run.calls != calls {
 		t.Fatalf("a refused scan reached the runner (%d calls, want %d)", run.calls, calls)
 	}

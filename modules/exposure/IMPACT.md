@@ -6,7 +6,9 @@ in the same commit.
 
 | If you change | Check |
 |---|---|
-| The scan gate (`CheckScannable`, `ScannableIP`, `checkSafety`, INV-1/12/13) | the scan module's runner and surface scan (`cmd/vedette/scan.go`, `cmd/vedette/exposure.go`, `modules/scan/surface`); `TestContract_*` in this module. A looser gate scans someone else's address. |
+| The scan gate (`gate`, `blocked`, `CheckScannable`, `ScannableIP`, `checkSafety`, INV-1/4/12/13) | the scan module's runner and surface scan (`cmd/vedette/scan.go`, `cmd/vedette/exposure.go`, `modules/scan/surface`); `TestContract_*` and `TestClass_EveryOwnershipRecheckBeforeAScanFollowsOneRule` in this module; the node's proof state (`node.go` `proofOf`) and the Ownership tab. A looser gate scans someone else's address. |
+| The proof's validity (`ValidDays`, `provedAt`, `expiresAt`, `RunProofRecheck`) | `PRIVACY.md` flow 9, `docs/LEGAL.md`, the help texts of `web/src/locales/en/exposure.json`, the mocks' `VERIFY_DAYS`. |
+| What makes a scan incomplete (`reached`, INV-41) | `TestClass_EveryScanResultWriterKeepsTheLastResultWhenNothingWasReached`; `PRIVACY.md` flow 9 (the extra round of the "my IP" services). |
 | Ownership proof (`proof.go`, `ipproof.go`, `core/domainfence`) | the deep-scan fence in `vedette-host` and the scan container, which recheck the same TXT records right before each step (`cmd/vedette/exposurefence.go`); the Ownership tab (`ProofPanel.tsx`). |
 | The tree (`tree.go` `settleTree`, `AddNode`) | selfchecks `exposure.subdomain_target_under_its_parent` and `exposure.name_scanned_by_one_target`; the target list and node page (`web/src/features/exposure/node.ts`). |
 | Consent (`exp_consent`, `TermsVersion`, the commitment sentence) | the sentence and version pinned in `web/src/features/exposure/contract.ts`; old versions must count as none. |

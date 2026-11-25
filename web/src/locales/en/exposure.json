@@ -15,7 +15,7 @@
   "meta": {
     "rule": "Only what you have proven you own and confirmed is scanned."
   },
-  "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership of each target: a domain with a DNS TXT record (re-checked right before every scan); a public IP you type in with a token file served on it or a reverse DNS name under one of your proved domains (re-checked right before every scan; the proof lasts 30 days and the box checks it again by itself); a public IP the box finds as its own egress address is proved by that detection and renewed each time the box sees it. Second, an administrator with two-step sign-in confirms that your company owns it and that the scan is authorized: the first Scan now of a target records that confirmation, with the exact sentence shown beside the button. Until then the button stays locked for everyone else. Every verification and scan is written to the audit log.",
+  "rule": "Scanning your external surface is active scanning, so Vedette sets two conditions. First, you prove ownership of each target: a domain with a DNS TXT record; a public IP you type in with a token file served on it or a reverse DNS name under one of your proved domains; a public IP the box finds as its own egress address is proved by that detection. Every proof is looked for again right before every scan and by the box itself before it runs out; each time it is found it holds for 90 days more. A check that does not find it is shown as a warning and does not stop scans until those 90 days have passed. Second, an administrator with two-step sign-in confirms that your company owns it and that the scan is authorized: the first Scan now of a target records that confirmation, with the exact sentence shown beside the button. Until then the button stays locked for everyone else. Every verification and scan is written to the audit log.",
   "kpi": {
     "label": "External exposure at a glance",
     "targets_one": "target",
@@ -29,6 +29,7 @@
   },
   "tabs": {
     "label": "External exposure sections",
+    "scanning": "Scanning",
     "targets": "Targets",
     "ownership": "Ownership",
     "outsideView": "Outside view",
@@ -182,21 +183,21 @@
     },
     "dnsHint": "Paste the value without quotes.",
     "dnsHintInfo": "This record only proves you control the DNS. It gives Vedette no other access. Type the Name as shown: your DNS provider adds the zone to it by itself. DNS usually updates within minutes, can take up to 72 hours (as in Google domain verification guidance). Keep the record in DNS after verification: Vedette checks it again before each scan.",
-    "doneDomain": "Verified with a DNS TXT record on {{time}}.",
-    "doneDomainInfo": "Vedette re-checks the record right before every scan.",
-    "keepRecord": "Keep the TXT record in DNS: if it disappears, scanning is blocked until you add it back.",
-    "paused": "Scans paused: the box no longer reaches the Internet through this IP (last seen {{time}}).",
-    "pausedInfo": "Scanning resumes when the box goes out through it again. Select Verify again to check now.",
-    "pausedChip": "Paused",
+    "doneDomain": "The DNS TXT record was last found on {{time}}.",
+    "doneDomainInfo": "Vedette checks the record again right before every scan, and by itself before the proof runs out. Each time it is found, the proof holds for 90 days more.",
+    "keepRecord": "Keep the TXT record in DNS: if it is not found, the proof still holds for 90 days from the last time it was, then scanning stops until you add it back.",
+    "paused": "The box does not go out through this IP now (last seen {{time}}). It stays scannable until its proof expires.",
+    "pausedInfo": "The proof of this IP holds for 90 days from the last time the box saw it, so an office with two Internet lines keeps scanning both. The steps that check the box's own address right before they run (service identification, templates, web scan, OpenVAS) send nothing while the box does not go out through it. Select Verify again to check now.",
+    "pausedChip": "Not in use now",
     "ipStatus": "Status",
     "valid": "Valid",
     "verifiedOn": "Last seen by the box",
     "expiresOn": "Expires on",
-    "ipExpired": "The box has not seen this IP for 30 days, so it cannot be scanned.",
+    "ipExpired": "The box has not seen this IP for 90 days, so it cannot be scanned.",
     "ipExpiredInfo": "It becomes valid again once the box goes out through it: turn on auto-detect, or route the box through this IP (for example switch WAN) and verify again.",
     "ipRecheck": "Verify again",
     "ipRecheckHint": "Works only while this box currently reaches the Internet through {{value}}.",
-    "ipRecheckHintInfo": "Verify again runs a full check: the box asks checkip.amazonaws.com, icanhazip.com and ifconfig.me/ip over 5 rounds on new connections (15 requests), so any IP behind a load balancer is found. It renews the IP for 30 days and uses one of the 10 attempts an hour.",
+    "ipRecheckHintInfo": "Verify again runs a full check: the box asks checkip.amazonaws.com, icanhazip.com and ifconfig.me/ip over 5 rounds on new connections (15 requests), so any IP behind a load balancer is found. It renews the IP for 90 days and uses one of the 10 attempts an hour.",
     "ipWaiting": "Asking three public services for this box's IP, 5 times each… this can take up to 30 seconds.",
     "found": "Found",
     "notFound": "Not found",
@@ -330,7 +331,7 @@
     },
     "help": {
       "how": "The box asks three public \"what is my IP\" services over HTTPS: checkip.amazonaws.com (AWS), icanhazip.com (Cloudflare) and ifconfig.me/ip (Google Cloud). It accepts an IP only when at least two of them return the same one, so one wrong answer is not enough. A full check does this in 5 rounds on new connections (15 requests), so several IPs behind a load balancer all show up. The first check after install, Detect now and Verify again are full checks. The automatic checks after that ask each service once (3 requests).",
-      "result": "Each IP the box sees is added or renewed for 30 days from that moment. An IP expires only when the box has not seen it for 30 days.",
+      "result": "Each IP the box sees is added or renewed for 90 days from that moment. An IP expires only when the box has not seen it for 90 days; until then it stays scannable, even while the box goes out through another IP.",
       "why": "You cannot type an IP. Only an address the box really uses proves it belongs to your network, so nobody can verify someone else's address.",
       "refuse": "Private, reserved and shared carrier (CGNAT, 100.64.0.0/10) addresses are refused, because scanning them could hit other people.",
       "limit": "Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour. Automatic checks do not use them: they can run as often as every minute, and a full check runs at most once an hour by itself. Every change is written to the audit log."
@@ -491,17 +492,18 @@
       "boxIp": "This IP is proved because this box reaches the Internet through it."
     },
     "descriptionInfo": {
-      "domain": "So nobody can enter someone else's domain. Vedette checks the record again right before every scan.",
-      "ip": "Either one is enough. The proof holds for 30 days and the box checks it again by itself before it runs out. It is looked for again right before every scan.",
-      "boxIp": "It stays valid for 30 days after the box last saw it, and every sighting renews it."
+      "domain": "So nobody can enter someone else's domain. Vedette checks the record again right before every scan; each time it is found, the proof holds for 90 days more.",
+      "ip": "Either one is enough. The proof holds for 90 days and the box checks it again by itself before it runs out. It is looked for again right before every scan; a check that does not find it is a warning until the 90 days have passed.",
+      "boxIp": "It stays valid for 90 days after the box last saw it, and every sighting renews it."
     },
     "state": {
       "proven": "Ownership proven",
       "covered": "Covered",
       "missing": "Needs ownership proof",
       "expired": "Proof expired",
-      "not_current": "Paused"
+      "not_current": "Not in use now"
     },
+    "checkFailed": "Last check failed",
     "coveredBy": "by the proof of",
     "until": "Until {{date}}",
     "coveredLine": "No record is needed for {{value}}: the ownership proof of a domain above it covers it:",

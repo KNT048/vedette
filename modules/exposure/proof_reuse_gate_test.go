@@ -89,8 +89,8 @@ func TestReuse_TheDeepStepOfACoveredNameCarriesTheDonor(t *testing.T) {
 	}
 }
 
-// What a covered name needs at its gate: the record there now (removed: refused), the donor still on the box (deleted: refused),
-// and nothing about the donor's own last check.
+// What a covered name needs at its gate: the record there now (removed: a warning inside the 90 days of its last pass), the donor still
+// on the box (deleted: a person withdrew the proof, refused at once), and nothing about the donor's own last check.
 func TestReuse_TheGateAsksTheRecordNowAndTheDonorNow(t *testing.T) {
 	t.Parallel()
 	e, git, root, www := reuseWorld(t)
@@ -102,24 +102,24 @@ func TestReuse_TheGateAsksTheRecordNowAndTheDonorNow(t *testing.T) {
 	}
 	e.dns.err = nil
 	for _, v := range []TargetView{root, www} {
-		if ok, why, err := e.svc.CheckScannable(e.ctx(), "scan", v.ID); err != nil || why == BlockedTxtMissing {
+		if ok, why, err := e.svc.CheckScannable(e.ctx(), "scan", v.ID); err != nil || why == BlockedUnverified || !e.target(v.ID).LastCheck.OK {
 			t.Errorf("%s after a failed check of the donor: %v %v %v", v.Value, ok, why, err)
 		}
 	}
-	// the record removed: the gate of the covered name refuses
+	// the record removed: the gate of the covered name records the failed check and lets it through inside its 90 days
 	e.dns.put("example.com", "v=spf1 -all")
-	if _, why, _ := e.svc.CheckScannable(e.ctx(), "scan", www.ID); why != BlockedTxtMissing {
-		t.Fatalf("record removed: %v", why)
+	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", www.ID); why == BlockedUnverified || why == BlockedExpired || e.target(www.ID).LastCheck.OK {
+		t.Fatalf("record removed: %v %v", ok, why)
 	}
 	// the record back, the donor deleted: refused again, and the message says which donor's record it looked for
 	e.dns.put("example.com", txtRecord(git.Token))
-	if _, why, _ := e.svc.CheckScannable(e.ctx(), "scan", www.ID); why == BlockedTxtMissing {
+	if _, why, _ := e.svc.CheckScannable(e.ctx(), "scan", www.ID); why == BlockedUnverified || !e.target(www.ID).LastCheck.OK {
 		t.Fatalf("record back: %v", why)
 	}
 	if err := e.svc.Delete(e.ctx(), "admin@acme.example", git.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, why, _ := e.svc.CheckScannable(e.ctx(), "scan", www.ID); why != BlockedTxtMissing {
+	if _, why, _ := e.svc.CheckScannable(e.ctx(), "scan", www.ID); why != BlockedUnverified {
 		t.Fatalf("donor deleted: %v", why)
 	}
 }
@@ -137,7 +137,7 @@ func TestReuse_ANearerRecordOfTheDonorDoesNotDropTheCoverage(t *testing.T) {
 		if r := e.verify(v.ID); !r.Verified || !strings.HasPrefix(r.Message, "Ownership already proven by the TXT record at example.com") {
 			t.Errorf("%s: %+v", v.Value, r)
 		}
-		if _, why, _ := e.svc.CheckScannable(e.ctx(), "scan", v.ID); why == BlockedTxtMissing {
+		if _, _, _ = e.svc.CheckScannable(e.ctx(), "scan", v.ID); !e.target(v.ID).LastCheck.OK {
 			t.Errorf("%s: the gate refuses", v.Value)
 		}
 	}
@@ -360,7 +360,7 @@ func TestReuse_TenSubdomainsAndALateDonorAreAllScannable(t *testing.T) {
 		if e.target(v.ID).Status != "verified" {
 			t.Errorf("%s not covered", v.Value)
 		}
-		if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", v.ID); err != nil || why == BlockedTxtMissing || why == BlockedUnverified {
+		if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", v.ID); err != nil || !e.target(v.ID).LastCheck.OK || why == BlockedUnverified {
 			t.Errorf("%s: its own gate refuses: %v %v", v.Value, why, err)
 		}
 	}
@@ -368,7 +368,7 @@ func TestReuse_TenSubdomainsAndALateDonorAreAllScannable(t *testing.T) {
 	if e.target(late.ID).Status != "verified" {
 		t.Fatalf("a name added later: %+v", e.target(late.ID).LastCheck)
 	}
-	if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", late.ID); err != nil || why == BlockedTxtMissing {
+	if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", late.ID); err != nil || !e.target(late.ID).LastCheck.OK {
 		t.Fatalf("late: %v %v", why, err)
 	}
 }

@@ -254,9 +254,10 @@ export const Urgency = z.object({
 export const Verification = z.object({
   verified: Verified,
   basis: Basis,
-  by: z.string().nullable().describe('verified person: who confirmed it'),
+  by: z.string().nullable().describe('verified person: who confirmed it, or whose entered version confirmed it (entered)'),
+  entered: z.boolean().optional().describe('verified person: true when Vedette confirmed it because the version that person entered is affected, not a Confirm the person pressed ("Confirmed: the version <user> entered")'),
   at: iso.nullable().describe('When it was confirmed; null while not confirmed'),
-}).describe('The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this version", "Confirmed by <user>", "Not confirmed yet: based on a scan banner"')
+}).describe('The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this version", "Confirmed by <user>", "Confirmed: the version <user> entered", "Not confirmed yet: based on a scan banner"')
 export const Handled = z.object({
   resolution: Resolution,
   via: Via,

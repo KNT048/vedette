@@ -21,7 +21,7 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /**
  * S-EXP-1, the box's public-IP settings (the Settings tab). The box finds its own public IPs (first at start, then every interval, three probes each),
- * adds each one to the target list and renews it for 30 days each time it sees it. The customer can turn auto-detect off, change the interval and run a
+ * adds each one to the target list and renews it for 90 days each time it sees it. The customer can turn auto-detect off, change the interval and run a
  * check now; the IPs themselves are rows of the target list, and the Ignored list below keeps the ones detection must not add again.
  */
 export function BoxIpPanel({ settings, ignored }: { settings: BoxIpSettings; ignored: IgnoredIp[] }) {

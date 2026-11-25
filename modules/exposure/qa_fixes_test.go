@@ -11,63 +11,54 @@ import (
 // QA pass 2026-11-09: a paused IP is a state of the target (the GET says so), IPv6 is an IP, messages carry dates in one
 // human format, and the wait after the 10 attempts an hour is part of the settings.
 
-// The scan gate refuses an IP that the latest full check did not see (INV-13). The same state is on the target, so the page
-// and the list can say "paused" and not only a toast after a click. Reading it probes nothing.
+// An IP that the latest full check did not see is a state of the target (INV-13): the node says the box does not go out through it
+// now, so the page can say it, and the IP stays scannable until its ValidDays run out (INV-4). Reading it probes nothing.
 func TestContract_INV13_PausedIsAStateOfTheTarget(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	a := e.committedIP(ipA)
-	if v := e.target(a.ID); !v.Scannable || v.BlockedReason != nil {
-		t.Fatalf("a current IP: %+v", v)
+	if e.isPaused(a.ID) {
+		t.Fatal("a current IP is not current")
 	}
 
 	e.advance(time.Minute)
 	e.detect(ipB) // the box moved to B: the full check just ran and did not see A
 	calls := e.prober.count()
+	if !e.isPaused(a.ID) {
+		t.Fatal("A after the box moved is shown as current")
+	}
 	v := e.target(a.ID)
-	if v.Scannable || v.BlockedReason == nil || *v.BlockedReason != BlockedNotCurrent {
-		t.Fatalf("A after the box moved: scannable=%v blocked=%v", v.Scannable, v.BlockedReason)
-	}
-	if v.Status != "verified" || str(v.VerifiedAt) != "2026-11-09T10:00:00.000Z" {
-		t.Fatalf("A stays verified, last seen at the earlier time: %+v", v)
-	}
-	all, err := e.svc.Targets(e.ctx())
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, x := range all {
-		if x.ID == a.ID && (x.Scannable || x.BlockedReason == nil || *x.BlockedReason != BlockedNotCurrent) {
-			t.Fatalf("the list says %+v", x)
-		}
+	if !v.Scannable || v.BlockedReason != nil || v.Status != "verified" || str(v.VerifiedAt) != "2026-11-09T10:00:00.000Z" {
+		t.Fatalf("A stays verified and scannable, last seen at the earlier time: %+v", v)
 	}
 	if e.prober.count() != calls {
 		t.Fatal("reading the target probed the network")
 	}
 
 	// The gate and the view give the same answer, and the gate runs no new check inside the window.
-	if ok, why := e.scannable(a.ID); ok || why != BlockedNotCurrent {
+	if ok, why := e.scannable(a.ID); !ok || why != "" {
 		t.Fatalf("gate: %v %q", ok, why)
 	}
 	if e.prober.count() != calls {
 		t.Fatal("the gate probed again inside the 5 minutes")
 	}
 
-	// Ownership reasons come first: a paused IP without the commitment says so.
+	// Ownership reasons come first: an IP without the commitment says so.
 	b := e.detect(ipB)[0]
 	if v := e.target(b.ID); v.BlockedReason == nil || *v.BlockedReason != BlockedNoCommitment {
 		t.Fatalf("B without commitment: %v", v.BlockedReason)
 	}
 
-	// Seen again: the pause ends. A full check that does not see it pauses it again, and no clock ends that.
+	// Seen again: current. A full check that does not see it sets it again, and no clock ends that.
 	e.detect(ipA)
-	if v := e.target(a.ID); !v.Scannable || v.BlockedReason != nil {
-		t.Fatalf("A seen again: %+v", v)
+	if e.isPaused(a.ID) {
+		t.Fatal("A seen again is not current")
 	}
 	e.advance(time.Minute)
 	e.detect(ipB)
 	e.advance(6 * time.Minute)
-	if v := e.target(a.ID); v.Scannable || v.BlockedReason == nil || *v.BlockedReason != BlockedNotCurrent {
-		t.Fatalf("A after the window stays paused until a check sees it: %+v", v)
+	if !e.isPaused(a.ID) {
+		t.Fatal("A after the window is current without a check that saw it")
 	}
 }
 
@@ -149,14 +140,15 @@ func TestContract_INV13_MessagesUseOneHumanDateFormat(t *testing.T) {
 	a := e.committedIP(ipA)
 	e.advance(time.Minute)
 	e.detect(ipB)
-	_, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID)
+	_, err := e.svc.Verify(e.ctx(), "operator@acme.example", a.ID)
 	var ae *APIError
-	if !errors.As(err, &ae) || !strings.Contains(ae.Message, "it was last seen 9 Nov 2026, 17:00. Scans of it are paused") || strings.Contains(ae.Message, "UTC") || iso.MatchString(ae.Message) {
-		t.Fatalf("ip_not_current: %v", err)
+	if v := e.target(a.ID); err != nil || v.LastCheck == nil || !strings.Contains(v.LastCheck.Message, "The proof found on 9 Nov 2026 stays valid until 7 Feb 2027") ||
+		strings.Contains(v.LastCheck.Message, "UTC") || iso.MatchString(v.LastCheck.Message) {
+		t.Fatalf("a check of an IP the box does not use now: %v %+v", err, v.LastCheck)
 	}
 
 	r, err := e.svc.Detect(e.ctx(), "admin@acme.example", true)
-	if err != nil || !strings.Contains(r.Message, "Verified until 9 Dec 2026.") || iso.MatchString(r.Message) {
+	if err != nil || !strings.Contains(r.Message, "Verified until 7 Feb 2027.") || iso.MatchString(r.Message) {
 		t.Fatalf("detect message: %q %v", r.Message, err)
 	}
 	v := e.target(r.Items[0].ID)
@@ -164,7 +156,7 @@ func TestContract_INV13_MessagesUseOneHumanDateFormat(t *testing.T) {
 		t.Fatalf("stored message: %+v", v.LastCheck)
 	}
 
-	e.advance(31 * 24 * time.Hour) // not seen for more than 30 days
+	e.advance(91 * 24 * time.Hour) // not seen for more than 90 days
 	e.prober.set(ipC)
 	e.detect(ipC)
 	_, err = e.svc.Scan(e.ctx(), "operator@acme.example", a.ID)
@@ -173,7 +165,8 @@ func TestContract_INV13_MessagesUseOneHumanDateFormat(t *testing.T) {
 	}
 }
 
-// Through the generated response types: the paused reason is in the contract's enum, and the wait is part of box_ip.
+// Through the generated response types: an IP the box does not go out through now stays scannable (no blocked reason), and the wait
+// is part of box_ip.
 func TestContract_INV13_PausedAndRetryOverHTTP(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
@@ -182,28 +175,19 @@ func TestContract_INV13_PausedAndRetryOverHTTP(t *testing.T) {
 	e.detect(ipB)
 
 	code, one := e.call("GET", "/exposure/targets/"+a.ID, "viewer", "")
-	if code != 200 || one["blocked_reason"] != "ip_not_current" || one["scannable"] != false || one["status"] != "verified" {
+	if code != 200 || one["blocked_reason"] != nil || one["scannable"] != true || one["status"] != "verified" {
 		t.Fatalf("GET target: %d %v", code, one)
+	}
+	code, node := e.call("GET", "/exposure/tree/"+a.ID, "viewer", "")
+	if proof, _ := node["proof"].(map[string]any); code != 200 || proof["state"] != ProofNotCurrent || node["blocked"] != nil {
+		t.Fatalf("GET node: %d %v", code, node)
 	}
 	code, all := e.call("GET", "/exposure/targets", "viewer", "")
 	if code != 200 {
 		t.Fatalf("GET list: %d %v", code, all)
 	}
-	paused := 0
-	for _, x := range list(all, "items") {
-		if m, _ := x.(map[string]any); m["id"] == a.ID && m["blocked_reason"] == "ip_not_current" {
-			paused++
-		}
-	}
-	if paused != 1 {
-		t.Fatalf("the list does not show A as paused: %v", all["items"])
-	}
 	if box, _ := all["box_ip"].(map[string]any); box["retry_in_min"] != nil {
 		t.Fatalf("retry_in_min with attempts left = %v", box["retry_in_min"])
-	}
-	code, b := e.call("POST", "/exposure/targets/"+a.ID+"/scan", "operator", "")
-	if code != 409 || errCode(b) != "ip_not_current" {
-		t.Fatalf("scan: %d %v", code, b)
 	}
 
 	for range MaxAttemptsPerHour {
@@ -215,7 +199,7 @@ func TestContract_INV13_PausedAndRetryOverHTTP(t *testing.T) {
 	if box, _ := all["box_ip"].(map[string]any); box["retry_in_min"] != float64(60) {
 		t.Fatalf("retry_in_min = %v", box["retry_in_min"])
 	}
-	code, b = e.call("POST", "/exposure/box-ip/verify", "admin", "")
+	code, b := e.call("POST", "/exposure/box-ip/verify", "admin", "")
 	if code != 429 || errCode(b) != "rate_limited" {
 		t.Fatalf("Detect now: %d %v", code, b)
 	}

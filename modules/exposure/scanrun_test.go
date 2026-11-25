@@ -169,7 +169,7 @@ func TestScanRun_CloseEndsTheRunWithItsAuditRow(t *testing.T) {
 	wantAPI(t, err, 409, "module_off")
 }
 
-// A scan that waits in the queue is checked again when it starts: the ownership record removed meanwhile refuses it, and nothing of it
+// A scan that waits in the queue is checked again when it starts: a proof that ran out meanwhile refuses it, and nothing of it
 // reaches the runner. Consent and ownership are checked right before anything is sent, never only when the scan was asked.
 func TestScanRun_AQueuedScanIsCheckedAgainWhenItStarts(t *testing.T) {
 	t.Parallel()
@@ -190,12 +190,13 @@ func TestScanRun_AQueuedScanIsCheckedAgainWhenItStarts(t *testing.T) {
 	if err != nil || queued.Status != RunQueued {
 		t.Fatalf("queued: %+v %v", queued, err)
 	}
-	e.dns.put("acme.example") // the TXT record is removed while the scan waits
+	e.dns.put("acme.example") // the TXT record is removed while the scan waits, and the wait outlasts its 90 days
+	e.advance(91 * day)
 	close(run.hold)
 	e.waitScan(first.ID)
 	e.waitScan(queued.ID)
 	got, ok, err := e.svc.runOf(e.ctx(), queued.ID)
-	if err != nil || !ok || got.Status != RunFailed || got.Error == nil || !strings.Contains(got.Error.Message, "TXT record") {
+	if err != nil || !ok || got.Status != RunFailed || got.Error == nil || !strings.Contains(got.Error.Message, "expired") {
 		t.Fatalf("the queued scan: %+v %v", got, err)
 	}
 	if run.calls != 1 {

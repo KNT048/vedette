@@ -72,7 +72,7 @@ func TestProof_TheGateAndTheScanUseTheApexRecord(t *testing.T) {
 	if r := e.verify(git.ID); !r.Verified {
 		t.Fatalf("%+v", r)
 	}
-	if ok, why, err := e.svc.CheckScannable(e.ctx(), "scan", git.ID); err != nil || why == BlockedTxtMissing || why == BlockedUnverified {
+	if ok, why, err := e.svc.CheckScannable(e.ctx(), "scan", git.ID); err != nil || why == BlockedUnverified || !e.target(git.ID).LastCheck.OK {
 		t.Fatalf("gate: %v %v %v", ok, why, err)
 	}
 	run := &fakeRunner{content: Content{}}
@@ -87,8 +87,8 @@ func TestProof_TheGateAndTheScanUseTheApexRecord(t *testing.T) {
 	if p := run.last.Proof; p == nil || p.Domain != "git.example.org" || p.ProofAt != "example.org" || p.Token != git.Token {
 		t.Fatalf("scan proof %+v", run.last.Proof)
 	}
-	e.dns.put("example.org", "v=spf1 -all") // the record goes: blocked at the next gate
-	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", git.ID); ok || why != BlockedTxtMissing {
+	e.dns.put("example.org", "v=spf1 -all") // the record goes: a warning at the next gate, inside the 90 days of its last pass
+	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", git.ID); !ok || why != "" || e.target(git.ID).LastCheck.OK {
 		t.Fatalf("record gone: %v %v", ok, why)
 	}
 

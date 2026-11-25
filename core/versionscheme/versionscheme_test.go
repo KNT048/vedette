@@ -223,6 +223,22 @@ func TestJunos(t *testing.T) {
 	}
 }
 
+// Juniper's fix per maintenance branch ("22.3 before 22.3R2-S2, 22.3R3-S1") is two stretches of one train, not two lines: each decides
+// its own releases. Two ranges of one train from the same start that end at different releases still conflict (NetScaler's FIPS build
+// written without the word): nothing in that train is compared.
+func TestJunos_FixPerBranch(t *testing.T) {
+	t.Parallel()
+	sp := spans(t, Junos, [3]string{"22.3", "22.3R2-S2", ""}, [3]string{"22.3R3", "22.3R3-S1", ""})
+	runJudge(t, Junos, sp, []judgeCase{
+		{name: "the R2 branch before its fix", version: "22.3R2-S1", want: Affected, fixLabel: "22.3R2-S2"},
+		{name: "the R2 branch fixed", version: "22.3R2-S3", want: NotAffected},
+		{name: "the R3 branch before its fix", version: "22.3R3", want: Affected, fixLabel: "22.3R3-S1"},
+		{name: "the R3 branch fixed", version: "22.3R3-S2", want: NotAffected},
+	})
+	both := spans(t, Junos, [3]string{"22.3", "22.3R2-S2", ""}, [3]string{"22.3", "22.3R3-S1", ""})
+	runJudge(t, Junos, both, []judgeCase{{name: "two ends of one stretch", version: "22.3R2-S3", want: NotComparable}})
+}
+
 // A range from a line's start to that same start ("7.2.1" before "7.2.1") is empty: the vendor says no release of the line is
 // affected. It reads as a span that ends in the line's own train before its first release, so a release of the line is judged by it
 // (not affected), never by release order against another line's fix.

@@ -12,8 +12,28 @@ import (
 // key, ByRangeName), with the range read in it: its bounds as a versionscheme.Span, and its fixed release when it states one. ok is
 // false when the product has no scheme, a bound does not read in it, the row names one version in its CPE (pinnedInCPE), or it is a CVE
 // record's row that states no version at all (recordBounded): then the row says only what its words say. The matcher reads a row kept in a vendor's notation (Range.Generic false) only through this;
-// the brief shows each row's train and fixed release.
+// the brief shows each row's train and fixed release. A row that states unaffected versions (Range.Unaffected) or holds only on some
+// models (Range.ModelLimited) is no affected range: false, StatementScheme reads those.
 func RangeScheme(r Range) (s *versionscheme.Scheme, sp versionscheme.Span, fixed *versionscheme.Version, ok bool) {
+	if r.Unaffected() || r.ModelLimited() {
+		return nil, versionscheme.Span{}, nil, false
+	}
+	return rangeScheme(r)
+}
+
+// StatementScheme reads, in its product's version scheme, a CVE record row that only supports a "not affected" verdict: a range the
+// vendor states unaffected (unaffected true: Juniper's "0 lessThan 24.4R1", whatever the model) or an affected range that holds only on
+// some models (ModelLimited, unaffected false: a version outside every such range of a product whose unlisted versions are unaffected
+// is not affected, one inside it is not known to be). ok is false for any other row, and as RangeScheme's for one that does not read.
+func StatementScheme(r Range) (s *versionscheme.Scheme, sp versionscheme.Span, unaffected, ok bool) {
+	if !r.Unaffected() && !r.ModelLimited() {
+		return nil, versionscheme.Span{}, false, false
+	}
+	s, sp, _, ok = rangeScheme(r)
+	return s, sp, r.Unaffected(), ok
+}
+
+func rangeScheme(r Range) (s *versionscheme.Scheme, sp versionscheme.Span, fixed *versionscheme.Version, ok bool) {
 	p, found := productid.ByRangeName(r.Part, r.Vendor, r.Product)
 	if !found || p.Scheme == "" || r.StartExcl != "" || pinnedInCPE(r) || r.Origin != OriginNVD && !recordBounded(r) {
 		return nil, versionscheme.Span{}, nil, false

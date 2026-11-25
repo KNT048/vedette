@@ -98,7 +98,7 @@ func record(f Finding, evs []Event, band Severity) Record {
 	switch {
 	case f.Verified == VerifiedScan || f.Basis == DetectScan:
 		r.Basis, r.Confidence = BasisScan, ConfScan
-	case f.Verified == VerifiedPerson:
+	case f.Verified == VerifiedPerson && f.proofHolds(): // a person's own Confirm (not the version they entered: a version match)
 		r.Basis, r.Confidence = BasisPerson, ConfVersion
 	default:
 		r.Basis, r.Confidence = BasisVersion, ConfVersion

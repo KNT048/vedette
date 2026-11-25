@@ -4,7 +4,7 @@ import "time"
 
 // Limits and defaults (CONTRACT INV-4, INV-5, INV-8, INV-11).
 const (
-	ValidDays          = 30 // an IP is valid this long after the box last saw it
+	ValidDays          = 90 // a proof (a domain's record, a typed IP's file or name, the box's sighting of its IP) holds this long after it last passed
 	ExpiringDays       = 5  // at most this many days left: validity "expiring"
 	DeepRounds         = 5  // rounds of a full check (finds every IP of a load balancer); a round asks each of the three services once
 	LightRounds        = 1  // rounds of the check at a short interval
@@ -124,7 +124,7 @@ type Target struct {
 	Value      string
 	Method     string // "dns_txt", "box_egress" or "" while unverified
 	Token      string
-	VerifiedAt time.Time // zero while unverified; for an IP, the last time the box saw it
+	VerifiedAt time.Time // zero while unverified (or after the proof was withdrawn); else the last time the proof passed (an IP: the box saw it)
 	LastCheck  *Check
 	Commitment *Commitment
 	Terms      *Terms // the testing terms; nil when not accepted

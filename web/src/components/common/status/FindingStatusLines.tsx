@@ -25,7 +25,7 @@ export function FindingStatusLines({ value: v, badge = true, className }: { valu
   const open = (OPEN_FINDING_STATUSES as readonly string[]).includes(v.status)
   const reasons = open && v.urgency ? <ReasonsLine urgency={v.urgency} /> : null
   const verified = open && v.verification
-    ? <VerificationLine verified={v.verification.verified} basis={v.verification.basis} by={v.verification.by} at={v.verification.at} />
+    ? <VerificationLine verified={v.verification.verified} basis={v.verification.basis} by={v.verification.by} entered={v.verification.entered} at={v.verification.at} />
     : null
   const handled = !open && v.handled ? <HandledLine underBadge={badge} handled={v.handled} software={v.software} className="block" /> : null
   if (!badge && !reasons && !verified && !handled) return null

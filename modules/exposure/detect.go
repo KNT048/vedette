@@ -159,7 +159,7 @@ func isOutcome(err error) bool {
 
 // Detect is the check of the box's public IPs (POST /exposure/box-ip/verify, PRE-5, INV-2, INV-4, INV-11). It asks
 // the public services (DeepRounds rounds when deep, else LightRounds), then adds every distinct public IP that
-// passed the two-of-three rule as a new target or renews it for 30 days from now. user is the person who asked, or
+// passed the two-of-three rule as a new target or renews it for ValidDays from now. user is the person who asked, or
 // SystemUser when the box runs it by itself; the audit trail says which. Private, reserved and CGNAT addresses are
 // never stored. The outcome is also written to last_run, whether it worked or not. Expected failures come back as an
 // *APIError (not_public, too_many, unreachable). Audit: a person's click is always audited; a run of the box is

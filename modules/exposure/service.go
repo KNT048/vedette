@@ -197,7 +197,7 @@ func (s *Service) loc() *time.Location {
 const clockSlack = 5 * time.Minute
 
 // clampTS returns t, or now when t lies more than clockSlack after now: a time written while the clock was ahead (a wrong RTC
-// that NTP corrected) must neither keep an IP valid for longer than 30 days nor stop a check from being due.
+// that NTP corrected) must neither keep a proof valid for longer than ValidDays nor stop a check from being due.
 func clampTS(t, now time.Time) time.Time {
 	if t.After(now.Add(clockSlack)) {
 		return now
@@ -205,14 +205,31 @@ func clampTS(t, now time.Time) time.Time {
 	return t
 }
 
-func (t Target) expiresAt(now time.Time) time.Time {
-	if t.Kind != KindIP || t.VerifiedAt.IsZero() {
+// provedAt is when the proof of t last passed (INV-4): verified_at, which every pass renews, or the time of a passing last check
+// when that is later (a domain verified by an older release kept its first verification there). Zero while unproved or withdrawn.
+func (t Target) provedAt(now time.Time) time.Time {
+	if t.VerifiedAt.IsZero() {
 		return time.Time{}
 	}
-	return clampTS(t.VerifiedAt, now).Add(ValidDays * 24 * time.Hour)
+	at := clampTS(t.VerifiedAt, now)
+	if t.LastCheck != nil && t.LastCheck.OK {
+		if c, err := parseTS(t.LastCheck.At); err == nil && clampTS(c, now).After(at) {
+			at = clampTS(c, now)
+		}
+	}
+	return at
 }
 
-// validity of an IP at now; the empty string for a domain or an IP that was never verified.
+// expiresAt is when the proof of t runs out: ValidDays after it last passed, whatever the checks since said (INV-1, INV-4).
+func (t Target) expiresAt(now time.Time) time.Time {
+	at := t.provedAt(now)
+	if at.IsZero() {
+		return time.Time{}
+	}
+	return at.Add(ValidDays * 24 * time.Hour)
+}
+
+// validity of a proof at now; the empty string for a target that was never verified.
 func (t Target) validity(now time.Time) string {
 	exp := t.expiresAt(now)
 	switch {
@@ -245,25 +262,23 @@ func (t Target) status(now time.Time) string {
 	return statusVerified
 }
 
-// blocked says why the target cannot be scanned now; empty when it can (INV-1). It judges the stored
-// state: the DNS TXT record is looked up again by CheckScannable and Scan, right before a scan.
+// blocked says why the target cannot be scanned now; empty when it can (INV-1). It judges the stored state: never proved (or the
+// proof withdrawn), a proof that has not passed for ValidDays, no commitment. A later check that did not find the proof (a lookup that
+// failed, a record or file that is gone, an IP the box no longer goes out through) is a warning on the target inside those days, never
+// a reason: the check right before a scan (gate) records it and renews the proof when it passes.
 func (t Target) blocked(now time.Time) BlockedReason {
 	switch {
 	case t.VerifiedAt.IsZero():
 		return BlockedUnverified
 	case t.validity(now) == validityExpired:
 		return BlockedExpired
-	case t.Kind == KindDomain && (t.LastCheck == nil || !t.LastCheck.OK):
-		return BlockedTxtMissing
-	case t.Typed && (t.LastCheck == nil || !t.LastCheck.OK):
-		return BlockedProofMissing
 	case !t.Commitment.current():
 		return BlockedNoCommitment
 	}
 	return ""
 }
 
-func (s *Service) view(t Target, all []Target, latest map[string]latestResult, live map[string]string, c checks, now time.Time) TargetView {
+func (s *Service) view(t Target, all []Target, latest map[string]latestResult, live map[string]string, now time.Time) TargetView {
 	v := TargetView{
 		ID: t.ID, Kind: t.Kind, Value: t.Value, Status: t.status(now), Token: t.Token,
 		LastCheck: t.LastCheck, Commitment: t.Commitment, CreatedAt: store.FormatTS(t.CreatedAt),
@@ -294,15 +309,11 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, l
 		v.Origin = "box"
 	}
 	v.IPProof = ipProofHintOf(t, all)
-	if n := t.ipNext(now); !n.IsZero() {
+	if n := t.proofNext(now); !n.IsZero() {
 		x := store.FormatTS(n)
 		v.NextCheckAt = &x
 	}
-	b := t.blocked(now)
-	if b == "" && t.Kind == KindIP && !t.Typed && c.paused(t) {
-		b = BlockedNotCurrent // the latest full check did not see this IP (INV-13): the same answer the scan gate gives
-	}
-	if b != "" {
+	if b := t.blocked(now); b != "" {
 		v.BlockedReason = &b
 	} else {
 		v.Scannable = true
@@ -323,8 +334,8 @@ func (s *Service) view(t Target, all []Target, latest map[string]latestResult, l
 }
 
 // scanState says where a target stands for scanning (TargetView.scan_state): scanning while a scan of it runs, queued while one waits,
-// then why it cannot be scanned (unproved: no proof now, expired: its 30 days ran out, paused: the box no longer goes out through the
-// IP, needs_terms: the scan confirmation is missing), else ready.
+// then why it cannot be scanned (unproved: no proof, or it was withdrawn; expired: its 90 days ran out; needs_terms: the scan
+// confirmation is missing), else ready. "paused" is no longer given: an IP the box does not go out through now stays scannable (INV-13).
 func (s *Service) scanState(st string, v TargetView) string {
 	switch {
 	case st == "running" || st == "stopping":
@@ -337,8 +348,6 @@ func (s *Service) scanState(st string, v TargetView) string {
 	switch *v.BlockedReason {
 	case BlockedExpired:
 		return "expired"
-	case BlockedNotCurrent:
-		return "paused"
 	case BlockedNoCommitment:
 		return "needs_terms"
 	}
@@ -383,13 +392,10 @@ func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
 	if err != nil {
 		return nil, fmt.Errorf("exposure: listing targets: %w", err)
 	}
-	c, err := s.loadChecks(ctx, db)
-	if err != nil {
-		return nil, fmt.Errorf("exposure: listing targets: %w", err)
-	}
+	now := s.clock()
 	out := make([]TargetView, 0, len(ts))
 	for _, t := range ts {
-		out = append(out, s.view(t, ts, latest, live, c, c.now))
+		out = append(out, s.view(t, ts, latest, live, now))
 	}
 	return out, nil
 }
@@ -426,15 +432,11 @@ func (s *Service) targetView(ctx context.Context, q querier, id string) (TargetV
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
 	}
-	c, err := s.loadChecks(ctx, q)
-	if err != nil {
-		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
-	}
 	all, err := listTargets(ctx, q)
 	if err != nil {
 		return TargetView{}, fmt.Errorf("exposure: reading target: %w", err)
 	}
-	return s.view(t, all, latest, live, c, c.now), nil
+	return s.view(t, all, latest, live, s.clock()), nil
 }
 
 // ---- adding, deleting, committing ----

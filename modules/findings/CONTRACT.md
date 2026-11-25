@@ -54,6 +54,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   `TestHandled_LeavesOutVedettesMatchCorrections`). When the match's proof explains Vedette's close (the distribution's fixed package release, its word on the package),
   the proof's sentence is the closing note, so the handled line says the real reason; the proof is that of the finding's own CVE and
   software line, so of two lines of one product each closes with its own sentence. A safe check's or a person's confirmation is undone only by a newer reading of the device, never by range data.
+  A version match on a version a person typed or corrected is that person's word: it is confirmed by them when it is made (verified
+  `person`, the history names them and the version; `entryConfirms`), never queued for their confirmation, and its confirmation is no
+  Undo's (409); resting on the ranges, it is judged again at every match like the device's own report (`proofHolds`: a range
+  correction closes it as `data_corrected`). A person's own Confirm stays as on any other basis: it holds at every match and Undo takes
+  it back, also on a finding that rests on an entered version; the two are told apart by the newest `confirmed` event (Vedette's for
+  the entry, `Finding.byEntry`), no column of their own. `TestMatch_EnteredVersionIsThePersonsWord`,
+  `TestMatch_OwnConfirmOnEnteredVersionHolds`.
 - **M-4 Invariants.** Held by database CHECKs, `Finding.Validate` and `vedette selfcheck`: open exactly when there is no
   resolution, `via`, `resolved_by` or `resolved_at`; accepted exactly with a last day; `version_moved` exactly with two different
   versions; every open vocabulary value is one the Go type lists; every open finding's `fix_key` names its stored fix (`findings.fix_key_names_stored_fix`).
@@ -93,8 +100,15 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   layers 1–4 is one `findings.finding.urgency_raised`, told once by `Tell` (news, a first-run summary line, or backlog). A device a
   person ignored is not rated. A finding above layer 2 is never called exploited.
 - **M-10 Vendor rows and distribution fixes.** A vendor's own version notation is read through the product's version scheme
-  (`core/versionscheme`); when it places the line's version, the vendor's verdict decides before NVD's ranges. A distribution's
-  fix for a package the device runs is compared before NVD's product ranges.
+  (`core/versionscheme`); when it places the line's version, the vendor's verdict decides before NVD's ranges. The vendor's
+  statements that only support "not affected" (`SchemedRange.Unaffected`: a range it states unaffected for every device, feeds INV-35;
+  `ModelOnly`: an affected range limited to some models) decide "not affected" when the version is inside an unaffected range and
+  inside no affected one, or outside every affected range in a train one of them ends in; they never decide "affected", and a version
+  inside a model-limited range is left to NVD. On a disagreement the affected side wins: when an NVD row (a range or an exact release)
+  covers the version, the statements decide nothing and NVD's rows decide (`nvdCovers`). (`notAffectedByStatements`,
+  `TestMatchAsset_VendorStatementsSayOnlyNotAffected`, `TestJuniperRecord_UnaffectedStatementDecidesTheSwitch`,
+  `TestJuniperRecord_NVDAffectedRowBeatsUnaffectedStatement`). A distribution's fix for a package the device runs is compared before
+  NVD's product ranges.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen
@@ -139,7 +153,15 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   another source recorded that very release, the firmware it states on its management interface, a person's entry); against a
   version read from the network (a banner, the passive sensor) it is neither compared nor asked. A line NVD names only at exact
   releases older than its own is not asked either: the release numbers each side starts with decide, whatever update or build
-  follows them (ESXi 8.0.3 is later than `esxi:6.5:update1`, not than `esxi:8.0:update_3`). A version inside a range with an end
+  follows them (ESXi 8.0.3 is later than `esxi:6.5:update1`, not than `esxi:8.0:update_3`). Nor is one NVD's exact list leaves out
+  by its release line, in a notation whose lines are known (`lineOrder`: Junos 25.4R1 against 24.4 and 25.2 releases, Java 8
+  Update 491 against 8u441 and Java 11, 17 and 21): the list enumerates the affected releases. Only a line newer than or between the
+  listed ones is left out: a line older than every listed one stays asked (end-of-life lines are often not evaluated: Junos 15.1R7.9,
+  Java 7 Update 401), and so does an older update of a listed line (Oracle's "8u77 and earlier").
+  `TestUnchecked_OtherReleaseLinesAreNotListed`, `TestUnchecked_OlderLineThanEveryListedStaysAsked`. NVD's NA in an edition ("-") is the plain
+  edition, one of the alternatives: a version inside the range of every edition NVD lists for the product (Thunderbird 115.9.0 inside
+  "esr before 140.9.0" and "- before 149.0") is a version finding whichever it runs; inside some only, a question; a row that states
+  its edition is judged by it (`pinnedInside`, `TestMatchAsset_PlainEditionIsOneOfTheAlternatives`). A version inside a range with an end
   and an open-ended one is read with the range that has an end. A release the device states is stored as `device_version`. An ESXi
   update is never read as later than NVD's exact GA entry (`esxi:8.0:-`): NVD lists only 8.0 GA for flaws VMware fixed in 8.0 Update
   3d, so the question stays (`TestLaterThan_ESXiUpdateIsNotLaterThanTheGAEntry`). A `no_range_data` question says whether the CVE lists

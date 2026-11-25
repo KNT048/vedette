@@ -305,6 +305,9 @@ func briefRanges(rows []Range) (out []BriefRange, from string, complete bool) {
 	complete = from != "" && from != OriginNVD
 	out = make([]BriefRange, 0, len(rows))
 	for _, r := range rows {
+		if r.Unaffected() { // the versions a vendor states NOT affected are no row of the affected versions (StatementScheme reads them)
+			continue
+		}
 		// rangeOrigin: NVD's rows when there are any, else every row the generic comparison reads
 		counts := r.Generic() && (from != OriginNVD || r.Origin == OriginNVD)
 		if counts && r.Origin != OriginNVD && r.DefaultStatus != DefaultAffected && r.DefaultStatus != DefaultUnaffected {

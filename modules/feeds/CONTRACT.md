@@ -68,6 +68,18 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   every line the list names gets no row (a question, never a finding, never "not affected"): a fix the vendor ships on that line for
   another CVE does not say this one leaves it unaffected.
   NVD's rows of a product NVD writes in the vendor's notation (DSM) are read in the scheme too (`SchemeRangesOf`).
+  Juniper's fixed release of each maintenance branch after lessThan ("22.3 before 22.3R2-S2, 22.3R3-S1") is one row per branch
+  (`branchFixes`: 22.3 to 22.3R2-S2, 22.3R3 to 22.3R3-S1; a plain R fix starts its branch fixed and has none), so the Junos scheme reads
+  the vendor's word; a list in another form stays as written and decides nothing. Two such rows of one train are not a conflict
+  (`versionscheme.Conflicts`: they name stretches that do not overlap). `TestParseCVERecord_JuniperFixPerBranch`.
+  For a product with a version scheme, a record also keeps two kinds of rows that can only support "not affected", never "affected",
+  and that no reader of affected ranges reads (`RangeScheme` refuses them; `StatementScheme` reads them): a range the vendor states
+  unaffected ("0 before 24.4R1": version_type `vendor:unaffected`, `unaffectedRows`), which holds for every device: kept only beside
+  the product's affected rows, never when an entry of the product is kept in no form, and from an entry limited to some models only
+  when every entry of the product names the same models (`TestParseCVERecord_UnaffectedOnlyBesideEveryEntry`); and the rows of
+  an entry limited to some models (Juniper's "EX4000-48T", "EX Series"), stored with the models in `platforms` (`Range.ModelLimited`;
+  at most 64 names of 100 bytes, else the entry is kept in no form). The brief does not list unaffected rows as affected versions.
+  `TestParseCVERecord_VendorUnaffectedAndModelRows`, `TestStoreCVERecord_ModelsKept`.
   A record's open-ended row ("from 1.25.0, every later version") of a product whose bounded rows above its start name fixed
   releases is read as ending where the lowest of those rows starts (`CutCatchAll`, when the match set and the exploited-list view
   read the rows; the stored rows are as the record states them): the vendor's evaluated trains keep their own fixes, versions below

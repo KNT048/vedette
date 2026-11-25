@@ -59,7 +59,7 @@ type Trigger struct {
 type Detection struct {
 	SoftwareID     string // "" only for a safe-check hit on a device with no line for the product
 	Basis          DetectionBasis
-	Verified       Verified // what the data proves now: no, device or scan (never person)
+	Verified       Verified // what the data proves now: no, device or scan; person only for a version a person entered (entryConfirms)
 	RangeOrigin    string
 	MatchedVersion string
 	ProductKey     string // the software line's product, for the fix key
@@ -173,7 +173,7 @@ func (t *transition) close(res Resolution, via Via, by, note string, until time.
 }
 
 func (t *transition) detected(d Detection) error {
-	if !d.Basis.Valid() || !d.Verified.Valid() || d.Verified == VerifiedPerson {
+	if !d.Basis.Valid() || !d.Verified.Valid() || d.Verified == VerifiedPerson && !d.entryConfirms() {
 		return fmt.Errorf("findings: detection with basis %q and verification %q", d.Basis, d.Verified)
 	}
 	if d.RangeOrigin == "" {
@@ -196,7 +196,8 @@ func (t *transition) detected(d Detection) error {
 		t.open()
 		t.emit(SystemUser, EvCreated, EventDetail{})
 		if f.Confirmed() {
-			t.emit(SystemUser, EvConfirmed, EventDetail{From: string(VerifiedNo), To: string(f.Verified)})
+			t.emit(SystemUser, EvConfirmed, EventDetail{From: string(VerifiedNo), To: string(f.Verified), Note: entryNote(d), By: confirmer(d)})
+			f.byEntry = f.Verified == VerifiedPerson
 		}
 		return nil
 	}
@@ -208,8 +209,11 @@ func (t *transition) detected(d Detection) error {
 	// The basis is what the newest detection rests on; a safe check's or a person's confirmation stays as the proof, never as the
 	// basis: it is evidence of the version it saw, and a newer reading of the device decides what follows.
 	f.Basis = d.Basis
-	if !was.Verified.sticky() || was.Verified.rank() <= d.Verified.rank() {
+	if !was.proofHolds() || was.Verified.rank() <= d.Verified.rank() {
 		f.Verified = d.Verified
+	}
+	if f.Verified != VerifiedPerson {
+		f.byEntry = false
 	}
 	f.RangeOrigin = d.RangeOrigin
 	daily := t.now.Sub(was.LastSeen) >= lastSeenStep
@@ -239,7 +243,8 @@ func (t *transition) detected(d Detection) error {
 	}
 	switch {
 	case f.Verified.rank() > was.Verified.rank(): // confirmed, or confirmed by a stronger proof
-		t.emit(SystemUser, EvConfirmed, EventDetail{From: string(was.Verified), To: string(f.Verified)})
+		t.emit(SystemUser, EvConfirmed, EventDetail{From: string(was.Verified), To: string(f.Verified), Note: entryNote(d), By: confirmer(d)})
+		f.byEntry = f.Verified == VerifiedPerson // Vedette confirms at a person's level only on the version a person entered
 	case was.Confirmed() && !f.Confirmed():
 		t.emit(SystemUser, EvUnconfirmed, EventDetail{From: string(was.Verified), To: string(f.Verified)})
 	}
@@ -279,7 +284,7 @@ func (t *transition) gone(tr Trigger) error {
 	if via == ViaVersionMoved && (from == "" || to == "" || from == to) {
 		via = ViaDataCorrected // no version change to credit
 	}
-	if f.Verified.sticky() && (via == ViaDataCorrected || via == ViaDistroFixed) && (f.Verified != VerifiedPerson || !tr.Corrected) {
+	if f.proofHolds() && (via == ViaDataCorrected || via == ViaDistroFixed) && (f.Verified != VerifiedPerson || !tr.Corrected) {
 		// range data (or a question the match asks instead) does not undo what a safe check proved or a person confirmed; a newer
 		// reading of the device does (version_moved, removed), and a person's "not installed" or version correction
 		return nil
@@ -391,9 +396,26 @@ func (t *transition) verify(tr Trigger) error {
 	case n < MinReasonNote:
 		return fmt.Errorf("findings: confirming: %w", ErrConfirmNoteRequired)
 	}
-	t.f.Verified = VerifiedPerson
+	t.f.Verified, t.f.byEntry = VerifiedPerson, false
 	t.emit(t.actor, EvConfirmed, EventDetail{From: string(VerifiedNo), To: string(VerifiedPerson), Note: note})
 	return nil
+}
+
+// confirmer is, for a detection confirmed by the version a person entered, that person (EventDetail.By of Vedette's confirmation:
+// Vedette made it on their word, so the audit names no action of theirs and the finding page names them); "" for any other.
+func confirmer(d Detection) string {
+	if d.Verified == VerifiedPerson && d.entryConfirms() {
+		return d.SetBy
+	}
+	return ""
+}
+
+// entryNote is the history note of a confirmation that rests on the version a person entered ("" for any other).
+func entryNote(d Detection) string {
+	if d.Verified == VerifiedPerson && d.entryConfirms() {
+		return "Version " + jsTrim(d.MatchedVersion) + ", entered by a person, is inside the affected versions."
+	}
+	return ""
 }
 
 func (t *transition) unverify() error {
@@ -403,10 +425,10 @@ func (t *transition) unverify() error {
 	if err := ValidUser(t.actor); err != nil {
 		return err
 	}
-	if t.f.Verified != VerifiedPerson {
-		return fmt.Errorf("findings: undoing a confirmation of a finding verified %s: %w", t.f.Verified, ErrNotConfirmedByHand)
+	if t.f.Verified != VerifiedPerson || !t.f.proofHolds() { // the version a person entered confirms it: the next match would again
+		return fmt.Errorf("findings: undoing a confirmation of a finding verified %s on %s: %w", t.f.Verified, t.f.Basis, ErrNotConfirmedByHand)
 	}
-	t.f.Verified = VerifiedNo
+	t.f.Verified, t.f.byEntry = VerifiedNo, false
 	t.emit(t.actor, EvUnconfirmed, EventDetail{From: string(VerifiedPerson), To: string(VerifiedNo)})
 	return nil
 }

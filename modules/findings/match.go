@@ -207,6 +207,9 @@ type SchemedRange struct {
 	Scheme  *versionscheme.Scheme // the product's version scheme
 	Span    versionscheme.Span
 	Origin  string // RangeNVD, RangeCNA, RangeADP
+	// Unaffected is a range the vendor states NOT affected ("0 before 24.4R1") for every device (feeds unaffectedRows); ModelOnly an
+	// affected range that holds only on some models (Juniper's EX4000). Both only ever support "not affected" (schemeJudge), never "affected".
+	Unaffected, ModelOnly bool
 }
 
 // rangeOrigin is the origin of the ranges the matcher compares for v (fnd_finding.range_origin).
@@ -451,7 +454,7 @@ func aged(v Vuln, now time.Time) bool {
 // compared a version (whoever gave it: the agent, the distribution, SNMP or LLDP, a person, a service's
 // banner), a scan engine hit it, or NVD lists every version of the product as affected (no version could change it). Only
 // a product-only match whose version would decide it is dropped: the noise of XP-era rows on Server 2025, while
-// CVE-2018-13379 on an unpatched FortiGate stays. Labels are unchanged (a banner or a typed version stays suspected). A product
+// CVE-2018-13379 on an unpatched FortiGate stays. Labels are unchanged (a banner stays suspected, a typed version is the person's word). A product
 // match on a row the device's own agent reported (Evidence.AgentRow) stands too: the agent gave the installed version and only
 // Vedette could not compare it, which is agent evidence, not a guess (an unpatched Windows Server 2025 build 26100.1742 had
 // CVE-2024-43572 and CVE-2024-43573 closed for their age). Not when NVD's list names only other products than the row (#904,
@@ -1705,10 +1708,12 @@ func listsOthersOnly(in swInfo, v Vuln) bool {
 // least two distinct editions and the version is inside a range of every one of them: whatever the edition on the device, the version
 // is affected, which is version evidence. It returns the widest range that matched and the editions ("community or enterprise"). A
 // lone edition ("continuous", "enterprise", "data_center") proves nothing about the others NVD leaves out because they are not
-// affected: lone names it, for the could-not-check sentence. Never for a platform pin (language, target_sw, target_hw, other: an
-// AnyConnect for Windows only says nothing on macOS; the platform rules read those), never when an entry pins NA ("-", the
-// plain edition, #906: Firefox not ESR, Jenkins not LTS), never when an edition's ranges leave the version out, and never when an
-// entry cannot be read.
+// affected: lone names it, for the could-not-check sentence. NVD's NA ("-") in an edition is the plain edition (Thunderbird not ESR,
+// Jenkins not LTS) and is one of the alternatives like any named one: Thunderbird 115.9.0 inside both "esr before 140.9.0" and "-
+// before 149.0" is affected whichever it is, while Jenkins 2.430 inside "- before 2.442" but past "lts before 2.426.3" stays a question
+// (#906 holds there: NA never covers an edition the row leaves unstated by itself). Never for a platform pin (language, target_sw,
+// target_hw, other: an AnyConnect for Windows only says nothing on macOS; the platform rules read those), never when an edition's
+// ranges leave the version out, and never when an entry cannot be read.
 func pinnedInside(in swInfo, v Vuln, key []identity) (r VersionRange, editions string, ok bool, lone string) {
 	type state struct {
 		bad  bool
@@ -1783,8 +1788,11 @@ func pinnedInside(in swInfo, v Vuln, key []identity) (r VersionRange, editions s
 	return VersionRange{}, "", false, lone
 }
 
-// pinnedValues are the editions (edition, sw_edition) c pins to a value the row does not state; liftable is false when c pins NA
-// ("-") there, or pins a platform the row does not state (language, target_sw, target_hw, other).
+// plainEdition is how a sentence names NVD's NA ("-") in an edition: the plain edition, beside the named ones ("esr or plain").
+const plainEdition = "plain"
+
+// pinnedValues are the editions (edition, sw_edition) c pins to a value the row does not state, NA ("-") as plainEdition; liftable is
+// false when c pins a platform the row does not state (language, target_sw, target_hw, other), or NA where the row states an edition.
 func pinnedValues(c CPE, in swInfo) (vals []string, liftable bool) {
 	cfa := c.fields()
 	var sfa [11]*Attr
@@ -1796,7 +1804,14 @@ func pinnedValues(c CPE, in swInfo) (vals []string, liftable bool) {
 		if a.Kind == Any || in.hasCPE && attrMatch(*a, *sfa[i]) {
 			continue
 		}
-		if a.Kind != Value || i != 5 && i != 7 { // 5 edition, 7 sw_edition
+		if i != 5 && i != 7 { // 5 edition, 7 sw_edition
+			return nil, false
+		}
+		if a.Kind == NA && (!in.hasCPE || sfa[i].Kind == Any) {
+			vals = append(vals, plainEdition)
+			continue
+		}
+		if a.Kind != Value {
 			return nil, false
 		}
 		lit, _ := a.Literal()

@@ -66,7 +66,7 @@ const (
 
 	deepNotPublic  = "it is not a public IPv4 address, so nothing was sent."
 	deepTerms      = "the testing terms of this domain are no longer accepted (withdrawn, or new terms to accept), so nothing was sent."
-	deepGone       = "this domain can no longer be scanned (its TXT record is gone, or it was removed, paused or needs the scan confirmed again), so nothing was sent."
+	deepGone       = "this domain can no longer be scanned (its ownership proof was withdrawn or has not been found for 90 days, or it was removed, switched off or needs the scan confirmed again), so nothing was sent."
 	deepNotBox     = "this address is no longer this box's own verified IP, so nothing was sent."
 	deepUnchecked  = "the box could not check this domain's ownership, its testing terms or this box's own address right now, so nothing was sent."
 	deepNoFence    = "this box needs the Vedette host's domain fence (update the box), so nothing was sent."

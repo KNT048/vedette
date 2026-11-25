@@ -284,8 +284,9 @@ func TestContract_INV17_ConcurrentFirstScansRecordOnce(t *testing.T) {
 	}
 }
 
-// The first scan of an IP the box no longer goes out through: the administrator did confirm, so the commitment stays, but nothing is scanned.
-func TestContract_INV17_IPNotCurrentRecordsButDoesNotScan(t *testing.T) {
+// The first scan of an IP the box no longer goes out through, inside the 90 days of its last sighting: the administrator confirms,
+// the commitment is recorded and the IP is scanned (INV-4, INV-13).
+func TestContract_INV17_IPNotCurrentRecordsAndScans(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	e.svc.cfg.TwoStep = twoStep("u-admin")
@@ -294,9 +295,10 @@ func TestContract_INV17_IPNotCurrentRecordsButDoesNotScan(t *testing.T) {
 	ip := e.detect(ipA)[0]
 	e.prober.set("1.1.1.1")
 	e.advance(10 * time.Minute)
-	_, err := e.svc.ScanNow(e.ctx(), adminOn, ip.ID, NoticeVersion)
-	wantAPI(t, err, 409, "ip_not_current")
-	if e.target(ip.ID).Commitment == nil || run.calls != 0 {
+	if _, err := e.svc.ScanNow(e.ctx(), adminOn, ip.ID, NoticeVersion); err != nil {
+		t.Fatal(err)
+	}
+	if e.target(ip.ID).Commitment == nil || run.calls != 1 {
 		t.Fatalf("commitment=%v calls=%d", e.target(ip.ID).Commitment, run.calls)
 	}
 }

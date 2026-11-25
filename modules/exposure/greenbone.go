@@ -891,17 +891,17 @@ func (s *Service) greenboneStep(ctx context.Context, st ScanTarget, ports []int)
 	return s.greenboneAt(ctx, st, ip, ports)
 }
 
-// gbOwnNow says that OpenVAS may start on ip, an address without a domain scope: a typed IP target (its proof was looked for by
-// greenbonePlan), or the box's own IP, which the box must go out through now (stillCurrent, fail closed). An IP of the box inside its
-// ValidDays that the box no longer goes out through stays scannable (INV-13), but only by the steps that do not need it to be the
+// gbOwnNow says that OpenVAS may start on ip, an address without a domain scope: only the box's own IP, which the box must go out
+// through now (stillCurrent, fail closed); a typed IP never (it reaches OpenVAS only with its live proof as the scope). An IP of the
+// box inside its ValidDays that the box no longer goes out through stays scannable (INV-13), but only by the steps that do not need it to be the
 // box's: OpenVAS is not one of them, since an address the provider gave to someone else must never get a vulnerability scan.
 func (s *Service) gbOwnNow(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
 	t, ok, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), ip.String())
 	if err != nil || !ok || t.Kind != KindIP {
 		return false, err
 	}
-	if t.Typed {
-		return true, nil
+	if t.Typed { // a typed IP reaches OpenVAS only with its live proof as the domain scope (the host's fence); never bare
+		return false, nil
 	}
 	return s.stillCurrent(ctx, actor, t)
 }

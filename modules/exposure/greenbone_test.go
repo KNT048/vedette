@@ -1842,3 +1842,31 @@ func TestContract_INV25_OpenVASNeverScansAnIPTheBoxNoLongerGoesOutThrough(t *tes
 		t.Fatalf("%v: cmds %q, not checked %q", err, h.gvm.cmds, notChecked(s))
 	}
 }
+
+// A typed IP reaches OpenVAS only with its live proof as the domain scope: the step asked without that scope (the proof's cached
+// live result ran out between planning and starting) never starts OpenVAS on the bare address, whatever the 90-day gate says.
+func TestContract_INV25_OpenVASNeverScansATypedIPWithoutItsScope(t *testing.T) {
+	t.Parallel()
+	w, v := typedWithFence(t)
+	gvm := &fakeGVM{report: gbFixture(t)}
+	h := &fakeGB{gvm: gvm}
+	l := &gbLog{}
+	gvm.log = l
+	w.svc.cfg.Greenbone, w.svc.cfg.Probes, w.svc.cfg.DataDir = h, l, "/data"
+	w.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	g := w.svc.gb()
+	g.memInfo = func() (int64, int64, error) { return 16 * gib, 0, nil }
+	g.diskFree = func(string) (int64, error) { return 200e9, nil }
+	g.poll = 0
+	w.files.serve(ipC, "http", v.Token)
+	w.verify(v.ID)
+	if _, err := w.commit(v.ID); err != nil {
+		t.Fatal(err)
+	}
+	w.acceptTerms(v.ID, false)
+	w.env.enable()
+	o, err := w.svc.greenboneStep(w.ctx(), ScanTarget{ID: v.ID, Kind: KindIP, Value: ipC, User: "admin@acme.example", Mode: ScanMode{Full: true}, Typed: true}, []int{443})
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") || h.gvm.seen("create_task") {
+		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
+	}
+}

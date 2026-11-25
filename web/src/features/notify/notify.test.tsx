@@ -1346,7 +1346,7 @@ describe('notify: email user sign-in (S-NOT-1)', () => {
     const dlg = await screen.findByRole('dialog', { name: 'Channel Email' })
     const pick = async (id: string) => { await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), id) }
     await eachOption([
-      { option: 'microsoft365-user', shown: ['Tenant ID', 'Client ID', 'Mailbox', 'Sign in with Microsoft', /Allow public client flows to Yes/, /SMTP\.Send/], hidden: ['Client secret', 'SMTP password', 'Client secret of the Desktop client', 'Username'] },
+      { option: 'microsoft365-user', shown: ['Tenant ID', 'Client ID', 'Mailbox', 'Sign in with Microsoft', /Allow public client flows to Enabled/, /SMTP\.Send/], hidden: ['Client secret', 'SMTP password', 'Client secret of the Desktop client', 'Username'] },
       { option: 'outlook', shown: ['Client ID', 'Mailbox', 'Sign in with Microsoft', /personal Microsoft accounts/], hidden: ['Tenant ID', 'Client secret of the Desktop client'] },
       { option: 'gmail-oauth', shown: ['Client ID', 'Client secret of the Desktop client', 'Mailbox', 'Sign in with Google', /Desktop app/, /7 days/], hidden: ['Tenant ID', 'App password', 'Service account key (JSON file)'] },
       { option: 'gmail', shown: ['Username', 'App password'], hidden: ['Client ID', 'Mailbox', 'Sign in with Google'] },
@@ -1358,7 +1358,8 @@ describe('notify: email user sign-in (S-NOT-1)', () => {
 
   it('Microsoft: the device code and the address show; the box is asked until the user signed in; the save keeps the mailbox that signed in', async () => {
     const dlg = await openEmail('microsoft365-user')
-    expect(within(dlg).getByLabelText('Tenant ID')).toHaveValue('organizations')
+    expect(within(dlg).getByLabelText('Tenant ID')).toHaveValue('')
+    await userEvent.type(within(dlg).getByLabelText('Tenant ID'), 'organizations')
     const client = within(dlg).getByLabelText('Client ID')
     await userEvent.type(client, 'my-app')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Sign in with Microsoft' }))

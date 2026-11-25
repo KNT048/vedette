@@ -214,8 +214,8 @@
             },
             "microsoft365-user": {
               "s1": "In the Microsoft Entra admin center open App registrations, New registration. Supported accounts: this organization only (or any organization).",
-              "s2": "Under Authentication, Advanced settings, set Allow public client flows to Yes. The device code sign-in needs it; no redirect URI is needed.",
-              "s3": "Under API permissions add Microsoft Graph, Delegated, SMTP.Send (and keep offline_access). No admin consent is needed unless your tenant asks for it.",
+              "s2": "Open Authentication, the Settings tab, and set Allow public client flows to Enabled, then save. The device code sign-in needs it; no redirect URI is needed.",
+              "s3": "No API permission needs adding: Microsoft asks for consent when the mailbox user signs in. If your organization does not let users consent to apps, an administrator adds the delegated permission SMTP.Send and grants admin consent.",
               "s4": "Copy the Application (client) ID and the Directory (tenant) ID into the fields below, and make sure SMTP AUTH is on for the mailbox.",
               "s5": "Press Sign in with Microsoft, open microsoft.com/devicelogin on any device, enter the code and sign in as the mailbox."
             },
@@ -268,8 +268,7 @@
         "tenant_id": {
           "label": "Tenant ID",
           "hint": "The Directory (tenant) ID on the app registration's Overview page.",
-          "hint_microsoft365-user": "The Directory (tenant) ID, your domain, or organizations.",
-          "info_microsoft365-user": "Enter organizations to allow any work or school account."
+          "hint_microsoft365-user": "The Directory (tenant) ID or your domain."
         },
         "client_id": {
           "label": "Client ID",

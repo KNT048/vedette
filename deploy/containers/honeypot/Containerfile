@@ -5,7 +5,7 @@
 #
 # What is in it, and where each part is pinned:
 #   * Debian 13 slim, by digest (pins.env DEBIAN_IMAGE), the same base as scan-base.
-#   * zlib1g 1+deb13u1, a Debian security update the pinned base does not carry yet, pinned by version and SHA-256 (pins.env ZLIB1G_*,
+#   * libzstd1 1.5.7+dfsg-1+deb13u1, a Debian security update the pinned base does not carry yet, pinned by version and SHA-256 (pins.env LIBZSTD1_*,
 #     deploy/containers/security-deb.sh), laid over the base like in scan-base; the inventory file records it.
 #   * Python 3 and Samba: the Debian packages for the TARGET architecture, downloaded by apt on the build machine against the base image's own
 #     dpkg status (so only what the base lacks is added) and unpacked by assemble.py. Versions come from the Debian 13 repositories at build time
@@ -40,10 +40,10 @@ FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS rootfs
 ARG TARGETARCH
 ARG OPENCANARY_VERSION
 ARG SAMBA_MIN_VERSION
-ARG ZLIB1G_VERSION
-ARG ZLIB1G_SNAPSHOT
-ARG ZLIB1G_SHA256_AMD64
-ARG ZLIB1G_SHA256_ARM64
+ARG LIBZSTD1_VERSION
+ARG LIBZSTD1_SNAPSHOT
+ARG LIBZSTD1_SHA256_AMD64
+ARG LIBZSTD1_SHA256_ARM64
 COPY --from=base /var/lib/dpkg/status /target/status
 COPY deploy/containers/security-deb.sh /usr/local/bin/security-deb.sh
 COPY --from=base /etc/passwd /target/passwd
@@ -54,8 +54,8 @@ RUN set -eu; \
     grep -Eq "^opencanary==${OPENCANARY_VERSION} " /hp/requirements.txt || { echo "requirements.txt does not pin opencanary==${OPENCANARY_VERSION} (run lock.py)" >&2; exit 1; }; \
     # 0. the Debian security updates the pinned base does not carry yet (scan-base does the same): into /rootfs, and the status
     # they write is the one apt resolves against and assemble.py merges into (/target/status stays the base's, for the inventory)
-    case "${TARGETARCH}" in amd64) z="${ZLIB1G_SHA256_AMD64}" ;; arm64) z="${ZLIB1G_SHA256_ARM64}" ;; esac; \
-    sh /usr/local/bin/security-deb.sh zlib1g zlib "${ZLIB1G_VERSION}" "${ZLIB1G_SNAPSHOT}" "$z" "${TARGETARCH}" /target/status /rootfs; \
+    case "${TARGETARCH}" in amd64) z="${LIBZSTD1_SHA256_AMD64}" ;; arm64) z="${LIBZSTD1_SHA256_ARM64}" ;; esac; \
+    sh /usr/local/bin/security-deb.sh libzstd1 libzstd "${LIBZSTD1_VERSION}" "${LIBZSTD1_SNAPSHOT}" "$z" "${TARGETARCH}" /target/status /rootfs; \
     cp /rootfs/var/lib/dpkg/status /target/updated-status; \
     apt-get update -qq; \
     apt-get install -y -qq --no-install-recommends ca-certificates python3 python3-pip python3-setuptools python3-wheel >/dev/null; \

@@ -12,7 +12,7 @@ IMAGE_VERSION ?= 0.0.0-dev
 # test channel only (scripts/dev/install-artifacts.sh, #469): the public throwaway keys compiled into core; the Containerfile refuses it unless VERSION has -test.
 TEST_KEYS_B64 ?=
 IMAGE_TAG ?= dev
-PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSION NUCLEI_SRC_SHA256 NMAP_MIN_VERSION SCAN_PACK_VERSION OPENCANARY_VERSION SAMBA_MIN_VERSION ZLIB1G_VERSION ZLIB1G_SNAPSHOT ZLIB1G_SHA256_AMD64 ZLIB1G_SHA256_ARM64,--build-arg $(v)=$($(v))) --build-arg VERSION=$(IMAGE_VERSION)
+PIN_ARGS := $(foreach v,GOLANG_IMAGE DEBIAN_IMAGE DISTROLESS_IMAGE NUCLEI_VERSION NUCLEI_SRC_SHA256 NMAP_MIN_VERSION SCAN_PACK_VERSION OPENCANARY_VERSION SAMBA_MIN_VERSION LIBZSTD1_VERSION LIBZSTD1_SNAPSHOT LIBZSTD1_SHA256_AMD64 LIBZSTD1_SHA256_ARM64,--build-arg $(v)=$($(v))) --build-arg VERSION=$(IMAGE_VERSION)
 PACK_DIR := deploy/containers/scan-base/pack
 # Multi-arch images: `make images` builds sensor, scan-base and core for PLATFORMS as one manifest list per image.
 PLATFORMS ?= linux/amd64,linux/arm64

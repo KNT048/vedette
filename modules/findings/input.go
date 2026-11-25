@@ -343,7 +343,7 @@ func (it InputItemJS) narrow(q string) InputItemJS {
 	}
 	var entries []InputItemJS
 	for _, e := range it.Entries {
-		if e.Kind == KindSoftwareGroup && !(e.Software != nil && has(e.Software.Name)) {
+		if e.Kind == KindSoftwareGroup && (e.Software == nil || !has(e.Software.Name)) {
 			var qs []InputItemJS
 			for _, x := range e.Questions {
 				if x.matches(q) {

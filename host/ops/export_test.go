@@ -94,3 +94,9 @@ func (o *Ops) DockerFwdTick(ctx context.Context) { o.dockerFwdTick(ctx) }
 // HangBound is how long a test waits for something that must happen before it calls the code hung: long enough
 // that a loaded machine never trips it, so a red run means a real hang.
 const HangBound = 30 * time.Second
+
+// The two box_agent.check parsers, compared with install.sh's (TestBoxAgentParsersAgree).
+var (
+	BoxAgentFlagsOwned    = boxAgentFlagsOwned
+	BoxAgentUnitUsesFlags = boxAgentUnitUsesFlags
+)

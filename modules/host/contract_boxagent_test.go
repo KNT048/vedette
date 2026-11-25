@@ -38,7 +38,12 @@ func testCAPEM(t *testing.T, name string) string {
 
 // writeBoxAgent writes what Vedette's Linux install command leaves on a machine: the pinned CA, the flags, the secret, the restart
 // drop-in and osquery's database.
-func writeBoxAgent(e *sysEnv, ca, tlsHost string) {
+func writeBoxAgent(e *sysEnv, ca, tlsHost string) { writeBoxAgentShow(e, ca, tlsHost, pkgUnitShow) }
+
+// writeBoxAgentShow is writeBoxAgent with the unit as `systemctl show` gives it (the package's environment file is written too).
+func writeBoxAgentShow(e *sysEnv, ca, tlsHost, show string) {
+	e.m.RuleText("systemctl", "show", show, 0, "", "")
+	e.m.WriteRoot("etc/default/osqueryd", "FLAG_FILE=\"/etc/osquery/osquery.flags\"\nCONFIG_FILE=\"/etc/osquery/osquery.conf\"\n")
 	e.m.WriteRoot("etc/osquery/vedette-ca.pem", ca)
 	e.m.WriteRoot("etc/osquery/enroll.secret", "vdt_osquery_0123456789abcdef0123456789abcdef")
 	e.m.WriteRoot("etc/osquery/osquery.conf", "{}\n")
@@ -47,6 +52,10 @@ func writeBoxAgent(e *sysEnv, ca, tlsHost string) {
 	e.m.WriteRoot("etc/systemd/system/osqueryd.service.d/vedette-restart.conf", "[Service]\nRestart=on-failure\nRestartSec=10\n")
 	e.m.WriteRoot("var/osquery/osquery.db/CURRENT", "MANIFEST-000001\n")
 }
+
+// pkgUnitShow is `systemctl show -p ExecStart -p Environment -p EnvironmentFiles osqueryd.service` of the official osquery 5.12.1 package.
+const pkgUnitShow = "ExecStart={ path=/opt/osquery/bin/osqueryd ; argv[]=/opt/osquery/bin/osqueryd --flagfile $FLAG_FILE --config_path $CONFIG_FILE ; ignore_errors=no ; start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }\n" +
+	"Environment=\nEnvironmentFiles=/etc/default/osqueryd (ignore_errors=no)\n"
 
 func boxAgentLeft(e *sysEnv) []string {
 	var left []string
@@ -101,7 +110,7 @@ func TestContract_BoxAgent_AStaleAgentOnTheBoxIsStoppedAndItsSettingsRemoved(t *
 			if res := result[api.BoxAgentCheckResult](t, r); res.State != api.BoxAgentRemoved {
 				t.Fatalf("state = %q", res.State)
 			}
-			if got := e.m.Calls("systemctl"); !slices.EqualFunc(got, [][]string{{"disable", "--now", "osqueryd.service"}, {"daemon-reload"}}, slices.Equal) {
+			if got := e.m.Calls("systemctl"); !slices.EqualFunc(got, [][]string{{"show", "-p", "ExecStart", "-p", "Environment", "-p", "EnvironmentFiles", "osqueryd.service"}, {"disable", "--now", "osqueryd.service"}, {"daemon-reload"}}, slices.Equal) {
 				t.Fatalf("systemctl argv = %q", got)
 			}
 			assertEnvClean(t, e.m.Envs("systemctl"))
@@ -131,7 +140,7 @@ func TestContract_BoxAgent_AStaleAgentOnTheBoxIsStoppedAndItsSettingsRemoved(t *
 		writeBoxAgent(e, old, "127.0.0.1:8412")
 		// someone pointed this osquery at a server of their own (here through a local port) and left the old vedette-ca.pem behind
 		e.m.WriteRoot("etc/osquery/osquery.flags", "--enroll_secret_path=/etc/osquery/enroll.secret\n--tls_server_certs=/etc/osquery/fleet.pem\n--tls_hostname=127.0.0.1:8412\n")
-		if res := result[api.BoxAgentCheckResult](t, e.ok(t, api.CmdBoxAgentCheck, api.BoxAgentCheckArgs{CA: current})); res.State != api.BoxAgentNone {
+		if res := result[api.BoxAgentCheckResult](t, e.ok(t, api.CmdBoxAgentCheck, api.BoxAgentCheckArgs{CA: current})); res.State != api.BoxAgentNotVedettes {
 			t.Fatalf("state = %q", res.State)
 		}
 		if left := boxAgentLeft(e); len(left) != 7 || len(e.m.Calls("systemctl")) != 0 {
@@ -150,6 +159,73 @@ func TestContract_BoxAgent_AStaleAgentOnTheBoxIsStoppedAndItsSettingsRemoved(t *
 			}
 		})
 	}
+	// osquery reads a flag file line by line after trimming it, honours a single-dash flag and a --flagfile include, and takes its flag
+	// file from the unit's start command: any of those that could point the agent elsewhere is a doubt, and a doubt touches nothing.
+	stale := "--tls_server_certs=/etc/osquery/vedette-ca.pem\n--tls_hostname=192.0.2.10:8443\n"
+	for name, flags := range map[string]string{
+		"an indented line repoints the CA":   stale + "   --tls_server_certs=/etc/osquery/fleet.pem\n",
+		"a single-dash line repoints the CA": stale + "-tls_server_certs=/etc/osquery/fleet.pem\n",
+		"a flagfile include":                 stale + "--flagfile=/etc/osquery/fleet.flags\n",
+		"a space form":                       stale + "--tls_server_certs /etc/osquery/fleet.pem\n",
+		"a quoted value":                     stale + "--tls_server_certs=\"/etc/osquery/fleet.pem\"\n",
+		"a comment line":                     "# managed by fleet\n" + stale,
+	} {
+		t.Run(name+": not Vedette's, nothing is touched", func(t *testing.T) {
+			t.Parallel()
+			e := startSys(t, lan)
+			writeBoxAgentShow(e, old, "192.0.2.10:8443", pkgUnitShow)
+			e.m.WriteRoot("etc/osquery/osquery.flags", flags)
+			if res := result[api.BoxAgentCheckResult](t, e.ok(t, api.CmdBoxAgentCheck, api.BoxAgentCheckArgs{CA: current})); res.State != api.BoxAgentNotVedettes {
+				t.Fatalf("state = %q", res.State)
+			}
+			if left := boxAgentLeft(e); len(left) != 7 || slices.ContainsFunc(e.m.Calls("systemctl"), func(a []string) bool { return a[0] != "show" }) {
+				t.Fatalf("touched: left %q, systemctl %q", left, e.m.Calls("systemctl"))
+			}
+		})
+	}
+	for name, show := range map[string]string{
+		"the unit's start command names another flag file": strings.Replace(pkgUnitShow, "--flagfile $FLAG_FILE", "--flagfile /etc/fleet/osquery.flags", 1),
+		"a drop-in adds a command-line flag":               strings.Replace(pkgUnitShow, "--config_path $CONFIG_FILE", "--config_path $CONFIG_FILE --tls_server_certs=/etc/fleet/ca.pem", 1),
+		"the environment sets FLAG_FILE":                   strings.Replace(pkgUnitShow, "Environment=\n", "Environment=FLAG_FILE=/etc/fleet/osquery.flags\n", 1),
+		"another environment file":                         pkgUnitShow + "EnvironmentFiles=/etc/fleet/env (ignore_errors=no)\n",
+		"no osqueryd unit":                                 "Environment=\n",
+	} {
+		t.Run(name+": not Vedette's, nothing is touched", func(t *testing.T) {
+			t.Parallel()
+			e := startSys(t, lan)
+			writeBoxAgentShow(e, old, "192.0.2.10:8443", show)
+			if res := result[api.BoxAgentCheckResult](t, e.ok(t, api.CmdBoxAgentCheck, api.BoxAgentCheckArgs{CA: current})); res.State != api.BoxAgentNotVedettes {
+				t.Fatalf("state = %q", res.State)
+			}
+			if left := boxAgentLeft(e); len(left) != 7 {
+				t.Fatalf("touched: left %q", left)
+			}
+		})
+	}
+	t.Run("the package's environment file names another flag file: not Vedette's", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t, lan)
+		writeBoxAgentShow(e, old, "192.0.2.10:8443", pkgUnitShow)
+		e.m.WriteRoot("etc/default/osqueryd", "FLAG_FILE=\"/etc/fleet/osquery.flags\"\n")
+		if res := result[api.BoxAgentCheckResult](t, e.ok(t, api.CmdBoxAgentCheck, api.BoxAgentCheckArgs{CA: current})); res.State != api.BoxAgentNotVedettes {
+			t.Fatalf("state = %q", res.State)
+		}
+	})
+	t.Run("/etc/osquery as a link is refused", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t, lan)
+		writeBoxAgentShow(e, old, "192.0.2.10:8443", pkgUnitShow)
+		if err := os.Rename(filepath.Join(e.m.Root, "etc/osquery"), filepath.Join(e.m.Root, "etc/osquery-real")); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("osquery-real", filepath.Join(e.m.Root, "etc/osquery")); err != nil {
+			t.Fatal(err)
+		}
+		e.final(t, api.CmdBoxAgentCheck, api.BoxAgentCheckArgs{CA: current}, api.StatusFailed, api.CodeEffectNotVerified)
+		if n := len(e.m.Calls("systemctl")); n != 0 {
+			t.Fatalf("systemctl ran: %q", e.m.Calls("systemctl"))
+		}
+	})
 	t.Run("a link in place of the pinned CA is not what the install command writes", func(t *testing.T) {
 		t.Parallel()
 		e := startSys(t, lan)

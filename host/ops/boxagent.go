@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -29,11 +30,16 @@ const (
 	boxAgentDropIn  = boxAgentDropDir + "/vedette-restart.conf"
 	boxAgentDB      = "var/osquery/osquery.db" // osqueryd's node key of the old enrolment and its unsent results
 	boxAgentUnit    = "osqueryd.service"
+	boxAgentDefault = "etc/default/osqueryd" // the official package's EnvironmentFile: FLAG_FILE names the flag file
 	maxBoxAgentFile = 64 << 10
 )
 
-// argsDisableOsqueryd is the one systemctl call of box_agent.check on a unit that is not Vedette's (validateSystemctl).
-var argsDisableOsqueryd = []string{"disable", "--now", boxAgentUnit}
+// argsDisableOsqueryd and argsShowOsqueryd are the two systemctl calls of box_agent.check on a unit that is not Vedette's
+// (validateSystemctl): the read of its start command and environment, and the stop.
+var (
+	argsDisableOsqueryd = []string{"disable", "--now", boxAgentUnit}
+	argsShowOsqueryd    = []string{"show", "-p", "ExecStart", "-p", "Environment", "-p", "EnvironmentFiles", boxAgentUnit}
+)
 
 func (o *Ops) cmdBoxAgentCheck() server.Command {
 	return server.Define(server.Spec[api.BoxAgentCheckArgs]{
@@ -49,6 +55,11 @@ func (o *Ops) cmdBoxAgentCheck() server.Command {
 		Run: func(ctx context.Context, rc *server.RunContext, a api.BoxAgentCheckArgs) (any, error) {
 			o.boxAgentMu.Lock()
 			defer o.boxAgentMu.Unlock()
+			for _, dir := range []string{"etc/osquery", "var/osquery", boxAgentDropDir} {
+				if st, err := os.Lstat(o.path(dir)); err == nil && !st.IsDir() {
+					return nil, fail(api.CodeEffectNotVerified, "/"+dir+" is not a folder (a link?); the osquery agent was left as it is.")
+				}
+			}
 			pinned, ok, err := o.readBoxAgentFile(boxAgentCA)
 			if err != nil {
 				return nil, err
@@ -60,10 +71,12 @@ func (o *Ops) cmdBoxAgentCheck() server.Command {
 			if err != nil {
 				return nil, err
 			}
-			// osquery trusts the file its flags name: an osquery someone pointed at another server (another CA file) is not Vedette's
-			// agent any more, whatever vedette-ca.pem was left behind.
-			if flagOf(flags, "tls_server_certs") != "/"+boxAgentCA {
-				return api.BoxAgentCheckResult{State: api.BoxAgentNone}, nil
+			// osquery trusts the file its flags name: an osquery someone pointed at another server (another CA file), or flags that
+			// are not plainly what the install command writes, are not Vedette's agent, whatever vedette-ca.pem was left behind.
+			tlsHost, ours := boxAgentFlagsOwned(flags)
+			if !ours {
+				rc.Log("/" + boxAgentFlags + " is not what Vedette's install command writes (or pins another CA file): the osquery agent was left as it is.")
+				return api.BoxAgentCheckResult{State: api.BoxAgentNotVedettes}, nil
 			}
 			held := api.ParseAnchor(pinned)
 			if held == nil { // empty, cut short (being written) or not certificates: a doubt, so nothing is touched
@@ -72,10 +85,23 @@ func (o *Ops) cmdBoxAgentCheck() server.Command {
 			if anchorHolds(api.ParseAnchor([]byte(a.CA)), held) {
 				return api.BoxAgentCheckResult{State: api.BoxAgentCurrent}, nil
 			}
-			host := tlsHostOf(flags)
+			host := hostOfHostPort(tlsHost)
 			if !o.isThisMachine(ctx, host) {
 				rc.Log("The osquery agent on this machine reports to " + clipText(host, 120) + ", not to this box: left as it is.")
 				return api.BoxAgentCheckResult{State: api.BoxAgentElsewhere}, nil
+			}
+			// the flag file read above must be the one osqueryd starts with: the unit's start command, its drop-ins and environment decide
+			res, code, err := o.exec(ctx, binSystemctl, argsShowOsqueryd...)
+			if err != nil {
+				return nil, err
+			}
+			defaults, _, err := o.readBoxAgentFile(boxAgentDefault)
+			if err != nil {
+				return nil, err
+			}
+			if code != 0 || !boxAgentUnitUsesFlags(string(res.Stdout), defaults) {
+				rc.Log("osqueryd does not start with /" + boxAgentFlags + " the way the osquery package sets it up: the osquery agent was left as it is.")
+				return api.BoxAgentCheckResult{State: api.BoxAgentNotVedettes}, nil
 			}
 			rc.Log("The osquery agent on this box pins a certificate authority the box no longer has (a reinstall or a data purge made a new one): stopping it and removing its Vedette settings.")
 			if err := o.removeBoxAgent(ctx, rc); err != nil {
@@ -117,20 +143,121 @@ func anchorHolds(now, pinned []*x509.Certificate) bool {
 	return false
 }
 
-// flagOf is the value of --name in osquery.flags ("" when there is none). osquery's flag file is read in order, so the last one counts.
-func flagOf(flags []byte, name string) string {
-	val := ""
+// boxAgentTrim is the whitespace osquery trims around a flag file line; install.sh trims the same set (osq_flags_owned).
+const boxAgentTrim = " \t\r\v\f"
+
+// boxAgentFlagLine is the one line form Vedette's install command writes: --name=value, the value from a plain set of characters.
+var boxAgentFlagLine = regexp.MustCompile(`^--([a-z0-9_]+)=([\[\]A-Za-z0-9._/:@%+,=-]*)$`)
+
+// boxAgentFlagsOwned decides from osquery.flags whether the agent is the one Vedette's install command set up, and returns its last
+// --tls_hostname. Fail closed: every line, trimmed of boxAgentTrim, is empty or exactly --name=value of the plain form; a comment, a
+// single-dash flag, the space form, quotes or any other character, and any --flagfile include are a doubt (osquery honours forms
+// this reading would not follow). The last --tls_server_certs, as osquery reads the file in order, must be vedette-ca.pem.
+// install.sh's osq_flags_owned gives the same answer for the same bytes (TestBoxAgentParsersAgree).
+func boxAgentFlagsOwned(flags []byte) (tlsHost string, ours bool) {
+	certs := ""
 	for line := range strings.SplitSeq(string(flags), "\n") {
-		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "--"+name+"="); ok {
-			val = v
+		line = strings.Trim(line, boxAgentTrim)
+		if line == "" {
+			continue
+		}
+		m := boxAgentFlagLine.FindStringSubmatch(line)
+		if m == nil || m[1] == "flagfile" {
+			return "", false
+		}
+		switch m[1] {
+		case "tls_server_certs":
+			certs = m[2]
+		case "tls_hostname":
+			tlsHost = m[2]
 		}
 	}
-	return val
+	if certs != "/"+boxAgentCA {
+		return "", false
+	}
+	return tlsHost, true
 }
 
-// tlsHostOf is the host part of --tls_hostname in osquery.flags ("" when there is none).
-func tlsHostOf(flags []byte) string {
-	v := flagOf(flags, "tls_hostname")
+// boxAgentUnitUsesFlags decides from `systemctl show -p ExecStart -p Environment -p EnvironmentFiles osqueryd.service` (show) and the
+// package's /etc/default/osqueryd (defaults) whether osqueryd starts with /etc/osquery/osquery.flags. Fail closed: exactly one start
+// command, osqueryd with only --flagfile and --config_path (each at most once, "--x v" or "--x=v"); the flag file is the fixed path,
+// or $FLAG_FILE with no Environment= naming FLAG_FILE, exactly one EnvironmentFiles (/etc/default/osqueryd) and in it a last
+// FLAG_FILE= line of the fixed path (plain or in double quotes). Anything else is a doubt. install.sh's osq_unit_parse agrees.
+func boxAgentUnitUsesFlags(show string, defaults []byte) bool {
+	const want = "/" + boxAgentFlags
+	var argv string
+	execs, envFiles, envFile := 0, 0, ""
+	for line := range strings.SplitSeq(show, "\n") {
+		switch {
+		case strings.HasPrefix(line, "ExecStart="):
+			n := strings.Count(line, "argv[]=")
+			execs += n
+			if n == 1 {
+				a := line[strings.Index(line, "argv[]=")+len("argv[]="):]
+				end := strings.Index(a, " ;")
+				if end < 0 {
+					return false
+				}
+				argv = a[:end]
+			}
+		case strings.HasPrefix(line, "Environment="):
+			if strings.Contains(line, "FLAG_FILE") {
+				return false
+			}
+		case strings.HasPrefix(line, "EnvironmentFiles="):
+			envFiles++
+			if f := strings.Fields(strings.TrimPrefix(line, "EnvironmentFiles=")); len(f) > 0 {
+				envFile = f[0]
+			}
+		}
+	}
+	if execs != 1 {
+		return false
+	}
+	t := strings.FieldsFunc(argv, func(r rune) bool { return r == ' ' || r == '\t' })
+	if len(t) == 0 || !strings.HasSuffix(t[0], "/osqueryd") {
+		return false
+	}
+	ff, haveFF, haveCP := "", false, false
+	for i := 1; i < len(t); i++ {
+		switch {
+		case t[i] == "--flagfile" && i+1 < len(t) && !haveFF:
+			ff, haveFF = t[i+1], true
+			i++
+		case strings.HasPrefix(t[i], "--flagfile=") && !haveFF:
+			ff, haveFF = strings.TrimPrefix(t[i], "--flagfile="), true
+		case t[i] == "--config_path" && i+1 < len(t) && !haveCP:
+			haveCP = true
+			i++
+		case strings.HasPrefix(t[i], "--config_path=") && !haveCP:
+			haveCP = true
+		default:
+			return false
+		}
+	}
+	switch ff {
+	case want:
+		return true
+	case "$FLAG_FILE", "${FLAG_FILE}":
+	default:
+		return false
+	}
+	if envFiles != 1 || envFile != "/"+boxAgentDefault {
+		return false
+	}
+	ok := false
+	for line := range strings.SplitSeq(string(defaults), "\n") {
+		line = strings.Trim(line, boxAgentTrim)
+		if !strings.Contains(line, "FLAG_FILE") {
+			continue
+		}
+		ok = line == "FLAG_FILE="+want || line == `FLAG_FILE="`+want+`"`
+	}
+	return ok
+}
+
+// hostOfHostPort is the host part of a --tls_hostname value.
+func hostOfHostPort(v string) string {
 	if h, _, err := net.SplitHostPort(v); err == nil {
 		return h
 	}

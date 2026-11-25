@@ -21,7 +21,10 @@ const (
 	BoxAgentNone      = "none"      // no Vedette agent configuration on the box
 	BoxAgentCurrent   = "current"   // it pins a certificate of the anchor core gave: left as it is
 	BoxAgentElsewhere = "elsewhere" // it reports to another address than the box's own (another Vedette box): left as it is
-	BoxAgentRemoved   = "removed"   // it pinned another CA and pointed at the box: stopped, disabled and its Vedette settings removed
+	// BoxAgentNotVedettes: the osquery here is not set up the way Vedette's install command sets it up (its flags or its unit could
+	// point it at another server): a doubt, so it is left as it is.
+	BoxAgentNotVedettes = "not_vedette"
+	BoxAgentRemoved     = "removed" // it pinned another CA and pointed at the box: stopped, disabled and its Vedette settings removed
 )
 
 // BoxAgentCheckArgs are the args of box_agent.check: the certificates (PEM) agents pin to trust the box now (GET /intake/ca.pem).

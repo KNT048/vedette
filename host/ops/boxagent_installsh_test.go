@@ -11,6 +11,17 @@ import (
 // install.sh --uninstall without --keep-data deletes the box CA with the data. An osquery agent set up on the box itself with Vedette's
 // install command would pin a CA no box has any more: remove_box_agent stops it and removes what that command wrote (the osquery package
 // and osquery.conf stay), the same files as vedette-host's box_agent.check. An agent that reports to another box is left alone.
+// boxAgentShFns are install.sh's functions of the box agent's removal.
+var boxAgentShFns = []string{"names_this_machine", "osq_flags_owned", "osq_unit_parse", "remove_box_agent"}
+
+// pkgUnitShow and pkgDefaults are the official osquery 5.12.1 package as `systemctl show -p ExecStart -p Environment -p
+// EnvironmentFiles osqueryd.service` gives its unit, and its /etc/default/osqueryd.
+const (
+	pkgUnitShow = "ExecStart={ path=/opt/osquery/bin/osqueryd ; argv[]=/opt/osquery/bin/osqueryd --flagfile $FLAG_FILE --config_path $CONFIG_FILE ; ignore_errors=no ; start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }\n" +
+		"Environment=\nEnvironmentFiles=/etc/default/osqueryd (ignore_errors=no)\n"
+	pkgDefaults = "FLAG_FILE=\"/etc/osquery/osquery.flags\"\nCONFIG_FILE=\"/etc/osquery/osquery.conf\"\nLOCAL_PIDFILE=\"/var/osquery/osqueryd.pidfile\"\nPIDFILE=\"/var/run/osqueryd.pidfile\"\n"
+)
+
 func TestInstallSh_UninstallRemovesTheBoxsOwnStaleAgent(t *testing.T) {
 	files := []string{"etc/osquery/vedette-ca.pem", "etc/osquery/enroll.secret", "etc/osquery/osquery.flags", "etc/osquery/osquery.conf",
 		"etc/systemd/system/osqueryd.service.d/vedette-restart.conf", "var/osquery/osquery.db/CURRENT"}
@@ -32,7 +43,16 @@ func TestInstallSh_UninstallRemovesTheBoxsOwnStaleAgent(t *testing.T) {
 		fakeProgram(t, bin, "hostname", `case "$1" in -s) echo vedette-box ;; -f) echo vedette-box.lan.example ;; *) echo vedette-box ;; esac`)
 		fakeProgram(t, bin, "ip", `echo "2: eth0    inet 192.0.2.10/24 brd 192.0.2.255 scope global eth0\n2: eth0    inet6 2001:db8::10/64 scope global"`)
 		fakeProgram(t, bin, "getent", `[ "$2" = box.lan.example ] && echo "192.0.2.10      STREAM box.lan.example"; exit 0`)
-		fakeProgram(t, bin, "systemctl", `echo "systemctl $*" >>"$FAKE/calls"`)
+		fakeProgram(t, bin, "systemctl", `echo "systemctl $*" >>"$FAKE/calls"; [ "$1" = show ] && cat "$FAKE/show"; exit 0`)
+		if err := os.WriteFile(filepath.Join(bin, "show"), []byte(pkgUnitShow), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(root, "etc/default"), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "etc/default/osqueryd"), []byte(pkgDefaults), 0o600); err != nil {
+			t.Fatal(err)
+		}
 		return bin, root
 	}
 	left := func(root string) []string {
@@ -47,7 +67,7 @@ func TestInstallSh_UninstallRemovesTheBoxsOwnStaleAgent(t *testing.T) {
 	for _, host := range []string{"192.0.2.10:8443", "vedette-box:8443", "VEDETTE-BOX.lan.example:8443", "box.lan.example:8443", "[2001:db8::10]:8443", "127.0.0.1:8443"} {
 		t.Run(host, func(t *testing.T) {
 			bin, root := setup(t, host)
-			out, err := runInstallShFns(t, bin, []string{"OSQ_ROOT=" + root, "FAKE=" + bin}, []string{"names_this_machine", "remove_box_agent"}, "remove_box_agent")
+			out, err := runInstallShFns(t, bin, []string{"OSQ_ROOT=" + root, "FAKE=" + bin}, boxAgentShFns, "remove_box_agent")
 			if err != nil {
 				t.Fatalf("remove_box_agent: %v\n%s", err, out)
 			}
@@ -62,7 +82,7 @@ func TestInstallSh_UninstallRemovesTheBoxsOwnStaleAgent(t *testing.T) {
 	for _, host := range []string{"203.0.113.5:8443", "other-box.example:8443", "", "vedette-box;reboot:8443"} {
 		t.Run("elsewhere "+host, func(t *testing.T) {
 			bin, root := setup(t, host)
-			out, err := runInstallShFns(t, bin, []string{"OSQ_ROOT=" + root, "FAKE=" + bin}, []string{"names_this_machine", "remove_box_agent"}, "remove_box_agent")
+			out, err := runInstallShFns(t, bin, []string{"OSQ_ROOT=" + root, "FAKE=" + bin}, boxAgentShFns, "remove_box_agent")
 			if err != nil {
 				t.Fatalf("remove_box_agent: %v\n%s", err, out)
 			}
@@ -77,7 +97,7 @@ func TestInstallSh_UninstallRemovesTheBoxsOwnStaleAgent(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(root, "etc/osquery/osquery.flags"), []byte(flags), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		out, err := runInstallShFns(t, bin, []string{"OSQ_ROOT=" + root, "FAKE=" + bin}, []string{"names_this_machine", "remove_box_agent"}, "remove_box_agent")
+		out, err := runInstallShFns(t, bin, []string{"OSQ_ROOT=" + root, "FAKE=" + bin}, boxAgentShFns, "remove_box_agent")
 		if err != nil {
 			t.Fatalf("remove_box_agent: %v\n%s", err, out)
 		}
@@ -87,7 +107,7 @@ func TestInstallSh_UninstallRemovesTheBoxsOwnStaleAgent(t *testing.T) {
 	})
 	t.Run("no agent", func(t *testing.T) {
 		bin, root := t.TempDir(), t.TempDir()
-		out, err := runInstallShFns(t, bin, []string{"OSQ_ROOT=" + root, "FAKE=" + bin}, []string{"names_this_machine", "remove_box_agent"}, "remove_box_agent")
+		out, err := runInstallShFns(t, bin, []string{"OSQ_ROOT=" + root, "FAKE=" + bin}, boxAgentShFns, "remove_box_agent")
 		if err != nil || out != "" {
 			t.Fatalf("no agent: %v %q", err, out)
 		}

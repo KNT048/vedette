@@ -39,6 +39,12 @@ func (c *Client) OSTimezoneSet(ctx context.Context, zone, requestID, actor strin
 	return c.Run(ctx, api.CmdOSTimezoneSet, api.OSTimezoneArgs{Zone: zone}, requestID, actor)
 }
 
+// BoxAgentCheck runs box_agent.check with the certificates (PEM) agents pin now. A host older than the command answers 404
+// unknown_command.
+func (c *Client) BoxAgentCheck(ctx context.Context, ca, requestID, actor string) (api.Run, error) {
+	return c.Run(ctx, api.CmdBoxAgentCheck, api.BoxAgentCheckArgs{CA: ca}, requestID, actor)
+}
+
 // StateTime returns GET /v1/state/time: the operating system's time zone. A host older than it answers 404 unknown_command.
 func (c *Client) StateTime(ctx context.Context) (api.TimeState, error) {
 	var out api.TimeState

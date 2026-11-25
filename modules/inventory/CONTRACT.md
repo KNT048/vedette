@@ -118,7 +118,12 @@ detail is in its doc comment.
   device, off for one added by hand). A change is audited.
 - **INV-56** The agent source can be switched off per device; while off, every agent's data for that device is refused.
 - **INV-55** A device's three sources (network scan, SNMP, agent) and their states are decided on the server
-  (`GET /inventory/devices/{id}/sources`).
+  (`GET /inventory/devices/{id}/sources`). The agent row says `cert_changed` (red, button: the install command again) when the
+  device's agent pins a certificate authority the box no longer has (a reinstall or a data purge made a new one): the box heard
+  the device's address refuse its certificate at least twice in the last two hours (`Config.TLSRefusals`: osquery's "bad record
+  MAC" or the alert unknown_ca, never a browser's refusal; kept in memory since the start, `refused` says since when and how
+  often), or its osquery agent is quiet or never reported and was last seen before the CA in use began (`Config.TrustSince`).
+  An agent that reports, a Wazuh agent and the box itself never say it; a person's off switch wins.
 - **INV-9** A device a sensor finds is not approved and is listed under To review; `inventory.asset.discovered` is always emitted.
 - **INV-49** A device with only private Wi-Fi addresses that shows nothing to look at is listed but not To review and sends no
   new-device notice; once it shows a reason, its review is sticky (`review_earned_at`).

@@ -326,6 +326,7 @@
         "setup": "First-run setup",
         "general": "Change general settings",
         "os_time_zone": "Set the operating system's time zone",
+        "box_agent_removed": "Stop the box's own agent that trusted an earlier certificate",
         "terms_accept": "Accept the terms of use"
       },
       "user": {

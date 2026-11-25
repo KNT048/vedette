@@ -60,6 +60,8 @@
       "quietUnknown": "Quiet",
       "never_reported": "Enrolled, never reported",
       "replaced": "Replaced by a newer enrolment",
+      "cert_changed": "Cannot connect: the box's certificate changed (a reinstall or a data purge) and this agent still trusts the old one. Install it again.",
+      "certChangedSince": "Cannot connect: the box's certificate changed (a reinstall or a data purge) and this agent still trusts the old one; {{count}} refused connections, the first {{when}}. Install it again.",
       "unavailable": "Not known just now",
       "box": "Read by the box itself",
       "boxRow": {

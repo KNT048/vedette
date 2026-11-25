@@ -89,6 +89,9 @@ type Deps struct {
 	// Interfaces lists the network interfaces and their addresses (default: the net package). Probe is
 	// the ARP side of the network commands (default: the real packet socket, Linux only).
 	Interfaces func() ([]HostIface, error)
+	// Hostname and LookupHost name this machine for box_agent.check (default: os.Hostname and the system resolver's IPv4 answer).
+	Hostname   func() (string, error)
+	LookupHost func(ctx context.Context, name string) ([]netip.Addr, error)
 	// NeighDump is the kernel's neighbour table as the reply of a netlink RTM_GETNEIGH dump (default: syscall.NetlinkRIB on Linux, an
 	// error elsewhere); state/net reads the default gateways' MACs from it.
 	NeighDump func() ([]byte, error)
@@ -157,6 +160,7 @@ type Ops struct {
 
 	installing *atomic.Bool // true while os.install runs (shared with Deps.Installing so a test can raise it)
 	tzMu       sync.Mutex   // one os.timezone.set at a time (it takes no shared write lock)
+	boxAgentMu sync.Mutex   // one box_agent.check at a time (it takes no shared write lock)
 
 	mu       sync.Mutex // guards the notifier and the export sweep timer
 	notifier Notifier
@@ -325,6 +329,12 @@ func NewWithDeps(cfg Config, d Deps) (*Ops, error) {
 	if d.Interfaces == nil {
 		d.Interfaces = systemInterfaces
 	}
+	if d.Hostname == nil {
+		d.Hostname = os.Hostname
+	}
+	if d.LookupHost == nil {
+		d.LookupHost = lookupIPv4
+	}
 	if d.NeighDump == nil {
 		d.NeighDump = systemNeighDump
 	}
@@ -391,6 +401,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(), o.cmdDecoySetPorts(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
 		o.cmdHostSelfUpdate(), o.cmdZapBaseline(), o.cmdExposureToken(), o.cmdExposureFenceCheck(), o.cmdExposureTokenForget(),
+		o.cmdBoxAgentCheck(),
 		o.cmdGreenboneUp(), o.cmdGreenboneDown(), o.cmdGreenboneSyncFeed(),
 	}
 }

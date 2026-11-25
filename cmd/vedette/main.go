@@ -374,6 +374,10 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	listed := server.HostMatcher(hosts, boxOwnAddress(d.HostNet)) //nolint:contextcheck // the Host check runs per request, with no context to pass
 	hostAllowed := func(h string) bool { return listed(h) || d.BoxAddr.Allows(h) }
 	d.TrustAnchor, d.HostAllowed, d.OsqueryDir = trustAnchor(o, intakeTrustAnchor(tlsCfg, boxCAs, renew)), hostAllowed, o.osqueryDir //nolint:contextcheck // agent-intake reads them when it is built; the Host check runs per request, with no context to pass
+	if o.tlsCert == "" {
+		d.BoxCASince = caSince(d.TrustAnchor)
+	}
+	d.Handshakes = newHandshakeNoise(log.Handler())
 	d.MCPInContainer = inContainer()
 	if d.MCPListen, err = parseMCPListen(o.mcpListen, d.MCPInContainer); err != nil {
 		return err
@@ -386,6 +390,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	defer d.Response.Close()         // ends the approval requests still being sent before the database closes
 	defer exposureService(d).Close() // OpenVAS's start and feed update end with the box; the run manager ends the scan that runs
 	exposureAtStart(ctx, d)          // OpenVAS enabled before this start runs again
+	startBoxAgentCheck(ctx, d)       // the osquery agent on the box itself: one that pins the CA of an earlier install is stopped
 	scanService(d)                   // builds the scan module's service, which registers its kind of run before the manager starts
 	if d.SensorDispatcher != nil {   // the same for active discovery: its sweeps, checks and reads are runs
 		if _, err := sensorActiveService(ctx, d); err != nil {
@@ -454,7 +459,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 		ReadTimeout:       60 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 		MaxHeaderBytes:    64 << 10,
-		ErrorLog:          slog.NewLogLogger(newHandshakeNoise(log.Handler()), slog.LevelWarn),
+		ErrorLog:          slog.NewLogLogger(d.Handshakes, slog.LevelWarn),
 	}
 	ln, err := new(net.ListenConfig).Listen(ctx, "tcp", o.listen)
 	if err != nil {

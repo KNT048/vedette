@@ -35,6 +35,7 @@ const (
 	StateQuiet         = "quiet"          // agent: silent for more than three of its own rhythm (agent-intake NodeHealth)
 	StateNeverReported = "never_reported" // agent: enrolled, never sent its data
 	StateReplaced      = "replaced"       // agent: a newer enrolment of the same machine took over
+	StateCertChanged   = "cert_changed"   // agent: its agent pins a certificate authority the box no longer has (a reinstall or a data purge made a new one)
 	StateUnavailable   = "unavailable"    // the module could not say just now (logged)
 	StateBox           = "box"            // the Vedette box itself: it reads its own packages and ports; it is not scanned or read over SNMP
 	StateIgnored       = "ignored"        // a person ignored the device: the box does not scan or read it until they stop ignoring it
@@ -82,7 +83,31 @@ type SourceRow struct {
 	// NextAt is when the source reads the device next by itself: the box's own agent row (its hourly read, BoxEvery after the last one
 	// since start); nil otherwise or when not known yet.
 	NextAt *string `json:"next_at"`
+	// Refused is the agent row of state cert_changed when the box heard the device's agent refuse its certificate: since when, the
+	// last time and how often (since the box's start); nil otherwise.
+	Refused *Refused `json:"refused"`
 }
+
+// Refused is how an agent refused the box's certificate (contract.ts AgentRefused).
+type Refused struct {
+	Since string `json:"since"`
+	Last  string `json:"last"`
+	Count int    `json:"count"`
+}
+
+// TLSRefusal is what the box heard from one address since its start (Config.TLSRefusals): handshakes that ended because the client
+// pins another certificate authority than the box's. Count is 0 when none.
+type TLSRefusal struct {
+	First, Last time.Time
+	Count       int
+}
+
+// An agent row says cert_changed from the handshakes alone when they are recent and more than one: osquery retries within seconds
+// and refreshes every five minutes, so a stale agent has refused many times within the hour; one odd handshake does not count.
+const (
+	refusedFresh = 2 * time.Hour
+	refusedMin   = 2
+)
 
 // AgentToken is an agent enrolment token as the agent row shows it (contract.ts AgentToken): never its secret.
 type AgentToken struct {
@@ -257,6 +282,8 @@ func (s *Service) agentRow(ctx context.Context, d Device, times map[string]strin
 			}
 		}
 		switch {
+		case s.certChanged(ctx, d, f, &r):
+			// before every other state: whatever the agent's record says, it cannot reach the box until it is installed again
 		case f.Agent == AgentOsquery && f.State == StateNeverReported:
 			r.State, r.Action = f.State, ptrTo(ActionShowSetup)
 		case f.Agent == AgentOsquery || f.Agent == AgentWazuh:
@@ -273,11 +300,43 @@ func (s *Service) agentRow(ctx context.Context, d Device, times map[string]strin
 			r.Switch = ptrTo(sw)
 		}
 		if sw == SourceOff {
-			r.State = StateOff
+			r.State, r.Refused = StateOff, nil
 		}
 	}
 	r.Dot = dotOf(r.State)
 	return r
+}
+
+// certChanged says the device's agent pins a certificate authority the box no longer has, and fills the row for it: the box heard the
+// device's address refuse its certificate recently (TLSRefusals), or its osquery agent has been silent since before the CA in use
+// began (TrustSince: no report can have reached the box under it). The button is the install command again: the token's when one
+// exists, else a new token (a purge or a reinstall removed them all).
+func (s *Service) certChanged(ctx context.Context, d Device, f AgentFact, r *SourceRow) bool {
+	if f.Agent == AgentWazuh || f.Agent == AgentBox || f.State == StateReporting || f.State == StateReplaced {
+		return false // a Wazuh agent talks to its own server; an agent that reports reaches the box (a refusal from its address is another client)
+	}
+	var ref TLSRefusal
+	if s.tlsRefusals != nil {
+		ref = s.tlsRefusals(d.IP)
+	}
+	heard := ref.Count >= refusedMin && s.clock().Sub(ref.Last) <= refusedFresh
+	before := false
+	if !heard && s.trustSince != nil && f.Agent == AgentOsquery && (f.State == StateQuiet || f.State == StateNeverReported) && !f.LastSeen.IsZero() {
+		if since := s.trustSince(ctx); !since.IsZero() && f.LastSeen.Before(since) {
+			before = true
+		}
+	}
+	if !heard && !before {
+		return false
+	}
+	r.State, r.Action = StateCertChanged, ptrTo(ActionCreateToken)
+	if f.Token != nil {
+		r.Action = ptrTo(ActionShowSetup)
+	}
+	if heard {
+		r.Refused = &Refused{Since: store.FormatTS(ref.First), Last: store.FormatTS(ref.Last), Count: ref.Count}
+	}
+	return true
 }
 
 // agentSwitch is the device's agent switch, the default resolved (agentState).
@@ -297,7 +356,7 @@ func dotOf(state string) string {
 		return DotGreen
 	case StateQuiet, StateNeverReported:
 		return DotAmber
-	case StateNotAnswering:
+	case StateNotAnswering, StateCertChanged:
 		return DotRed
 	}
 	return DotGrey

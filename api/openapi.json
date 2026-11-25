@@ -61852,11 +61852,12 @@
                               "quiet",
                               "never_reported",
                               "replaced",
+                              "cert_changed",
                               "unavailable",
                               "box",
                               "ignored"
                             ],
-                            "description": "module_off: the module behind the source is off. no_address: the device has no address to send to (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting = a token was made for this device and no agent reads it yet; off = a person turned the agent off for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the same machine took over. unavailable: the module could not say just now. box: the Vedette box itself, which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no button)"
+                            "description": "module_off: the module behind the source is off. no_address: the device has no address to send to (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting = a token was made for this device and no agent reads it yet; off = a person turned the agent off for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the same machine took over. cert_changed: the agent of this device pins a certificate authority the box no longer has (a reinstall or a data purge made a new one), so it cannot report until it is installed again: the box heard it refuse the certificate within the last two hours (refused), or the osquery agent has been silent since before the box's certificate authority began; the button is show_setup (the token exists) or create_token. unavailable: the module could not say just now. box: the Vedette box itself, which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no button)"
                           },
                           "dot": {
                             "type": "string",
@@ -61948,6 +61949,43 @@
                               }
                             ],
                             "description": "When the source reads the device next by itself: the box's own agent row (its hourly read of its packages and ports); null on the other rows and before the box's first read since it started"
+                          },
+                          "refused": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "since": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "The first refusal the box heard from the device's address since it started"
+                                  },
+                                  "last": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "The last one"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "How many handshakes it refused since then"
+                                  }
+                                },
+                                "required": [
+                                  "since",
+                                  "last",
+                                  "count"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Agent row of state cert_changed: how the box heard the device's agent refuse its certificate since the box started; null otherwise (and when cert_changed was decided from the silence alone)"
                           },
                           "token": {
                             "anyOf": [
@@ -62049,6 +62087,7 @@
                           "action",
                           "agent",
                           "next_at",
+                          "refused",
                           "token"
                         ],
                         "additionalProperties": false
@@ -66822,11 +66861,12 @@
                               "quiet",
                               "never_reported",
                               "replaced",
+                              "cert_changed",
                               "unavailable",
                               "box",
                               "ignored"
                             ],
-                            "description": "module_off: the module behind the source is off. no_address: the device has no address to send to (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting = a token was made for this device and no agent reads it yet; off = a person turned the agent off for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the same machine took over. unavailable: the module could not say just now. box: the Vedette box itself, which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no button)"
+                            "description": "module_off: the module behind the source is off. no_address: the device has no address to send to (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read the device, or SNMP answers. not_approved: SNMP reads approved devices only. not_set_up: no SNMP settings for this device. not_answering: the last SNMP read got no answer. none: no agent of this box reads the device. reporting: the agent reports on its rhythm (osquery by its own calls, Wazuh by its pull, the box by its own hourly list). quiet: an agent (osquery or Wazuh) silent for more than three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting = a token was made for this device and no agent reads it yet; off = a person turned the agent off for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the same machine took over. cert_changed: the agent of this device pins a certificate authority the box no longer has (a reinstall or a data purge made a new one), so it cannot report until it is installed again: the box heard it refuse the certificate within the last two hours (refused), or the osquery agent has been silent since before the box's certificate authority began; the button is show_setup (the token exists) or create_token. unavailable: the module could not say just now. box: the Vedette box itself, which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button). ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it (no switch, no button)"
                           },
                           "dot": {
                             "type": "string",
@@ -66918,6 +66958,43 @@
                               }
                             ],
                             "description": "When the source reads the device next by itself: the box's own agent row (its hourly read of its packages and ports); null on the other rows and before the box's first read since it started"
+                          },
+                          "refused": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "since": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "The first refusal the box heard from the device's address since it started"
+                                  },
+                                  "last": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "The last one"
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "How many handshakes it refused since then"
+                                  }
+                                },
+                                "required": [
+                                  "since",
+                                  "last",
+                                  "count"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Agent row of state cert_changed: how the box heard the device's agent refuse its certificate since the box started; null otherwise (and when cert_changed was decided from the silence alone)"
                           },
                           "token": {
                             "anyOf": [
@@ -67019,6 +67096,7 @@
                           "action",
                           "agent",
                           "next_at",
+                          "refused",
                           "token"
                         ],
                         "additionalProperties": false

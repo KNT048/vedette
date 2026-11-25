@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/test/server'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { modulesStore, sessionStore } from '@/mocks/stores'
 import { ensureBox } from './mocks'
@@ -58,6 +60,23 @@ describe('Device page: Sources, three rows from the server', () => {
     await user.click(within(agent).getByRole('button', { name: 'Check now' }))
     expect(await screen.findByText('The box read its packages and open ports again.', undefined, T)).toBeInTheDocument()
     await waitFor(async () => expect(await row('agent')).toHaveTextContent(/next report in (60 minutes|1 hour)/), T)
+  })
+
+  it('an agent installed before the box\'s certificate changed: the row says it cannot connect, since when, and offers the install command again', async () => {
+    enableModule('agent-intake', true)
+    const user = userEvent.setup()
+    const since = new Date(Date.now() - 3 * 3_600_000).toISOString()
+    const grey = { dot: 'grey', last_at: null, switch: null, action: null, agent: null, token: null, next_at: null, refused: null }
+    server.use(http.get('*/api/v1/inventory/devices/a-srvad/sources', () => HttpResponse.json({ only: null, manual_at: null, rows: [
+      { ...grey, source: 'scan', state: 'off' }, { ...grey, source: 'snmp', state: 'not_set_up' },
+      { ...grey, source: 'agent', state: 'cert_changed', dot: 'red', agent: 'none', action: 'create_token', refused: { since, last: new Date().toISOString(), count: 412 } },
+    ] })))
+    renderApp('/devices/a-srvad', { role: 'admin' })
+    const agent = await row('agent')
+    await waitFor(() => expect(agent).toHaveAttribute('data-state', 'cert_changed'), T)
+    expect(agent).toHaveTextContent(/Cannot connect: the box's certificate changed \(a reinstall or a data purge\) and this agent still trusts the old one; 412 refused connections, the first 3 hours ago\. Install it again\./)
+    await user.click(within(agent).getByRole('button', { name: 'Create agent token' }))
+    expect(await screen.findByRole('dialog', { name: 'Install osquery on SRV-AD' }, T)).toBeInTheDocument()
   })
 
   it('a module that is off: the row says so and offers to turn it on; a person who is not an administrator is told who can', async () => {

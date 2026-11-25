@@ -72,6 +72,8 @@ RUNNING=
 # where running_conmons reads the processes, and how long still_running waits for a conmon that is ending
 PROC=/proc
 CONMON_WAIT=10
+# the root of the osquery agent's files that remove_box_agent looks at ("" on a real box; a test's folder in the tests)
+OSQ_ROOT=
 HOST_STOPPED=
 HP_STOPPED=
 RELEASE=
@@ -1404,6 +1406,126 @@ purge_added_packages() {
 	fi
 }
 
+# names_this_machine: whether a host (an address or a name, from osquery's --tls_hostname) is this machine: loopback, an address of one of
+# its cards, its host name (short or full), or a name the resolver gives one of those addresses.
+names_this_machine() {
+	h=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+	h=${h%.}
+	case $h in "" | *[!a-z0-9.:-]*) return 1 ;; localhost | 127.* | ::1) return 0 ;; esac
+	if [ "$h" = "$(hostname 2>/dev/null | tr 'A-Z' 'a-z')" ] || [ "$h" = "$(hostname -s 2>/dev/null | tr 'A-Z' 'a-z')" ] || [ "$h" = "$(hostname -f 2>/dev/null | tr 'A-Z' 'a-z')" ]; then return 0; fi
+	mine=$(ip -o addr show 2>/dev/null | awk '{ sub(/\/.*/, "", $4); print $4 }')
+	addrs=$h
+	# a name is resolved; an IPv6 address (a name never holds ":") or an IPv4 one is compared as it is
+	case $h in *:*) ;; *[!0-9.]*) addrs=$(getent ahosts "$h" 2>/dev/null | awk '{ print $1 }' | sort -u) ;; esac
+	for a in $addrs; do
+		case $a in 127.* | ::1) return 0 ;; esac
+		if printf '%s\n' "$mine" | grep -qxF "$a"; then return 0; fi
+	done
+	return 1
+}
+
+# osq_flags_owned FILE: whether osquery.flags is the one Vedette's install command writes; prints its last --tls_hostname. Fail
+# closed, line for line as vedette-host's boxAgentFlagsOwned (TestBoxAgentParsersAgree): every line trimmed of space, tab, CR, VT and FF
+# is empty or exactly --name=value of the plain form; a comment, a single-dash flag, the space form, quotes, any other character, a NUL
+# byte and any --flagfile include are a doubt (osquery honours them); the last --tls_server_certs must be /etc/osquery/vedette-ca.pem.
+osq_flags_owned() {
+	[ -f "$1" ] && [ ! -L "$1" ] || return 1
+	[ "$(tr -d '\000' <"$1" | wc -c)" = "$(wc -c <"$1")" ] || return 1
+	LC_ALL=C awk 'BEGIN { ok = 1 }
+	{ sub(/^[ \t\r\v\f]+/, ""); sub(/[ \t\r\v\f]+$/, "") }
+	$0 == "" { next }
+	!/^--[a-z0-9_]+=[][A-Za-z0-9._\/:@%+,=-]*$/ { ok = 0; next }
+	{
+		n = index($0, "="); name = substr($0, 3, n - 3); val = substr($0, n + 1)
+		if (name == "flagfile") ok = 0
+		if (name == "tls_server_certs") certs = val
+		if (name == "tls_hostname") host = val
+	}
+	END { if (!ok || certs != "/etc/osquery/vedette-ca.pem") exit 1; print host }' "$1"
+}
+
+# osq_unit_parse DEFAULTS: reads `systemctl show -p ExecStart -p Environment -p EnvironmentFiles osqueryd.service` on stdin and says
+# whether osqueryd starts with /etc/osquery/osquery.flags, as vedette-host's boxAgentUnitUsesFlags: one start command, osqueryd with only
+# --flagfile and --config_path (each once, "--x v" or "--x=v"); the flag file is the fixed path, or $FLAG_FILE with no Environment=
+# naming FLAG_FILE, exactly one EnvironmentFiles (/etc/default/osqueryd) and in DEFAULTS a last FLAG_FILE= line of the fixed path.
+osq_unit_parse() {
+	LC_ALL=C awk -v def="$1" -v want=/etc/osquery/osquery.flags '
+	BEGIN { bad = 0; execs = 0; envn = 0 }
+	substr($0, 1, 10) == "ExecStart=" {
+		c = $0; n = gsub(/argv\[\]=/, "", c); execs += n
+		if (n == 1) {
+			a = substr($0, index($0, "argv[]=") + 7); e = index(a, " ;")
+			if (e == 0) bad = 1; else argv = substr(a, 1, e - 1)
+		}
+		next
+	}
+	substr($0, 1, 12) == "Environment=" { if (index($0, "FLAG_FILE")) bad = 1; next }
+	substr($0, 1, 17) == "EnvironmentFiles=" { envn++; r = substr($0, 18); sub(/^[ \t]+/, "", r); split(r, f, /[ \t]+/); envf = f[1]; next }
+	END {
+		if (bad || execs != 1) exit 1
+		gsub(/^[ \t]+|[ \t]+$/, "", argv); n = split(argv, t, /[ \t]+/)
+		if (n == 0 || t[1] !~ /\/osqueryd$/) exit 1
+		ff = ""; hff = 0; hcp = 0
+		for (i = 2; i <= n; i++) {
+			if (t[i] == "--flagfile" && i < n && !hff) { ff = t[i + 1]; hff = 1; i++ }
+			else if (substr(t[i], 1, 11) == "--flagfile=" && !hff) { ff = substr(t[i], 12); hff = 1 }
+			else if (t[i] == "--config_path" && i < n && !hcp) { hcp = 1; i++ }
+			else if (substr(t[i], 1, 14) == "--config_path=" && !hcp) { hcp = 1 }
+			else exit 1
+		}
+		if (ff == want) exit 0
+		if (ff != "$FLAG_FILE" && ff != "${FLAG_FILE}") exit 1
+		if (envn != 1 || envf != "/etc/default/osqueryd") exit 1
+		ok = 0
+		while ((getline l < def) > 0) {
+			sub(/^[ \t\r\v\f]+/, "", l); sub(/[ \t\r\v\f]+$/, "", l)
+			if (index(l, "FLAG_FILE")) ok = (l == "FLAG_FILE=" want || l == "FLAG_FILE=\"" want "\"")
+		}
+		exit ok ? 0 : 1
+	}'
+}
+
+# remove_box_agent: the osquery agent someone set up on the box itself with Vedette's Linux install command pins the box CA, which
+# --uninstall without --keep-data deletes with the data. Left alone it would fail against the next install (a new CA) every few seconds,
+# so it is stopped and disabled and what that command wrote goes: the restart drop-in, the flags, the enroll secret, osquery's database
+# (the old node key) and the pinned CA. The osquery package and osquery.conf stay. Only when every check says it is Vedette's agent
+# (osq_flags_owned, a --tls_hostname naming this machine, osqueryd started with that flag file); on any doubt nothing is touched.
+remove_box_agent() {
+	for d in /etc/osquery /var/osquery /etc/systemd/system/osqueryd.service.d; do
+		if [ -L "$OSQ_ROOT$d" ]; then say "$d is a link: the osquery agent on this machine was left as it is"; return 0; fi
+	done
+	ca=$OSQ_ROOT/etc/osquery/vedette-ca.pem
+	flags=$OSQ_ROOT/etc/osquery/osquery.flags
+	[ -f "$ca" ] && [ ! -L "$ca" ] || return 0
+	if ! tls=$(osq_flags_owned "$flags"); then
+		say "the osquery on this machine is not set up the way Vedette's install command sets it up: it was left as it is"
+		return 0
+	fi
+	case $tls in
+	\[*\]*) host=${tls#\[}; host=${host%%\]*} ;;
+	*:*:*) host=$tls ;;
+	*) host=${tls%:*} ;;
+	esac
+	if ! names_this_machine "$host"; then
+		say "the osquery agent on this machine reports to ${host:-an unknown address}, not to this box: it was left as it is"
+		return 0
+	fi
+	def=$OSQ_ROOT/etc/default/osqueryd
+	{ [ -f "$def" ] && [ ! -L "$def" ]; } || def=/dev/null
+	if ! systemctl show -p ExecStart -p Environment -p EnvironmentFiles osqueryd.service 2>/dev/null | osq_unit_parse "$def"; then
+		say "osqueryd does not start with /etc/osquery/osquery.flags the way the osquery package sets it up: it was left as it is"
+		return 0
+	fi
+	systemctl disable --now osqueryd.service >/dev/null 2>&1 || true
+	rm -f "$OSQ_ROOT/etc/systemd/system/osqueryd.service.d/vedette-restart.conf"
+	rmdir "$OSQ_ROOT/etc/systemd/system/osqueryd.service.d" 2>/dev/null || true
+	systemctl daemon-reload >/dev/null 2>&1 || true
+	rm -f "$flags" "$OSQ_ROOT/etc/osquery/enroll.secret"
+	rm -rf "$OSQ_ROOT/var/osquery/osquery.db"
+	rm -f "$ca"
+	say "the osquery agent on this box was set up for this install of Vedette (it pinned the box's certificate, which is deleted with the data): it was stopped and its Vedette settings removed; the osquery package stays. After installing Vedette again, run the install command from Devices › Setup › Agents on the box to enrol it again"
+}
+
 do_uninstall() {
 	if [ ! -d "$STATE" ] && ! installed_pkg vedette-host && [ ! -e /etc/vedette/host.conf ]; then
 		say "nothing to remove: no Vedette install made by this script was found"
@@ -1414,6 +1536,7 @@ do_uninstall() {
 		say "the packages this script asked apt for (listed in $STATE/asked-packages) and the ones apt installed for them or for an update of"
 		say "vedette-host ($STATE/installed-by-us, $HOST_STATE/selfupdate/installed-by-us), each when nothing else needs it${KEEP_DATA:+ (the data and the users are KEPT)}"
 		[ -n "$KEEP_DATA" ] || say "and DELETE the database and the master key in /var/lib/vedette (no way back), /etc/vedette and the users vedette and vedette-sensor"
+		[ -n "$KEEP_DATA" ] || [ ! -f /etc/osquery/vedette-ca.pem ] || say "an osquery agent set up on this box with Vedette's install command is stopped and its Vedette settings removed (it would no longer trust the box); the osquery package stays"
 		say "podman, the packages it runs with and /var/lib/containers stay when podman holds anything that is not Vedette's (containers, pods,"
 		say "networks, volumes, images), while any container still runs${KEEP_DATA:+, and always with --keep-data}; only Vedette's own containers, images, volumes and network are removed from it"
 		say "OpenVAS, if it was ever enabled, stays as it is: Greenbone's own containers, images and feed volumes are not Vedette's"
@@ -1525,6 +1648,7 @@ do_uninstall() {
 		rm -f "$STATE/runtime-saved" "$STATE/ip_forward.orig" "$STATE/ip6_forward.orig" "$STATE/nft.before"
 		say "kept: /var/lib/vedette*, /etc/vedette and the users. Running install.sh again (this release or a newer one) brings Vedette back with them."
 	else
+		remove_box_agent
 		rm -rf /var/lib/vedette /var/lib/vedette-host /var/lib/vedette-honeypot /var/lib/vedette-creds /var/lib/vedette-fence /etc/vedette /var/log/vedette-host /run/vedette
 		# a kept podman's containers with --userns=auto take their ids from the containers: range
 		if [ -z "$KEEP_PODMAN" ]; then

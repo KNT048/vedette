@@ -147605,8 +147605,11 @@ type InventoryGetInventoryDevicesIDSourcesOKRowsItem struct {
 	LastAt NilDateTime `json:"last_at"`
 	// When the source reads the device next by itself: the box's own agent row (its hourly read of its
 	// packages and ports); null on the other rows and before the box's first read since it started.
-	NextAt NilDateTime                                           `json:"next_at"`
-	Source InventoryGetInventoryDevicesIDSourcesOKRowsItemSource `json:"source"`
+	NextAt NilDateTime `json:"next_at"`
+	// Agent row of state cert_changed: how the box heard the device's agent refuse its certificate since
+	// the box started; null otherwise (and when cert_changed was decided from the silence alone).
+	Refused NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused `json:"refused"`
+	Source  InventoryGetInventoryDevicesIDSourcesOKRowsItemSource     `json:"source"`
 	// Module_off: the module behind the source is off. no_address: the device has no address to send to
 	// (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet
 	// (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read
@@ -147617,10 +147620,14 @@ type InventoryGetInventoryDevicesIDSourcesOKRowsItem struct {
 	// three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting
 	// = a token was made for this device and no agent reads it yet; off = a person turned the agent off
 	// for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the
-	// same machine took over. unavailable: the module could not say just now. box: the Vedette box itself,
-	// which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button).
-	// ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it
-	// (no switch, no button).
+	// same machine took over. cert_changed: the agent of this device pins a certificate authority the box
+	// no longer has (a reinstall or a data purge made a new one), so it cannot report until it is
+	// installed again: the box heard it refuse the certificate within the last two hours (refused), or the
+	// osquery agent has been silent since before the box's certificate authority began; the button is
+	// show_setup (the token exists) or create_token. unavailable: the module could not say just now. box:
+	// the Vedette box itself, which reads its own packages and ports and is not scanned or read over SNMP
+	// (no switch, no button). ignored: a person ignored the device: the box does not scan or read it until
+	// they stop ignoring it (no switch, no button).
 	State InventoryGetInventoryDevicesIDSourcesOKRowsItemState `json:"state"`
 	// The person's switch of this source for this device (PUT /inventory/devices/{id}/sources); null when
 	// the row has none: SNMP before it is set up, an agent row with no agent (unless it is off), the box
@@ -147656,6 +147663,11 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) GetLastAt() NilDateTim
 // GetNextAt returns the value of NextAt.
 func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) GetNextAt() NilDateTime {
 	return s.NextAt
+}
+
+// GetRefused returns the value of Refused.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) GetRefused() NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused {
+	return s.Refused
 }
 
 // GetSource returns the value of Source.
@@ -147701,6 +147713,11 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetLastAt(val NilDateT
 // SetNextAt sets the value of NextAt.
 func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetNextAt(val NilDateTime) {
 	s.NextAt = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItem) SetRefused(val NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) {
+	s.Refused = val
 }
 
 // SetSource sets the value of Source.
@@ -147934,6 +147951,45 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemDot) UnmarshalText(data 
 	}
 }
 
+type InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused struct {
+	// How many handshakes it refused since then.
+	Count int `json:"count"`
+	// The last one.
+	Last time.Time `json:"last"`
+	// The first refusal the box heard from the device's address since it started.
+	Since time.Time `json:"since"`
+}
+
+// GetCount returns the value of Count.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) GetCount() int {
+	return s.Count
+}
+
+// GetLast returns the value of Last.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) GetLast() time.Time {
+	return s.Last
+}
+
+// GetSince returns the value of Since.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) GetSince() time.Time {
+	return s.Since
+}
+
+// SetCount sets the value of Count.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) SetCount(val int) {
+	s.Count = val
+}
+
+// SetLast sets the value of Last.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) SetLast(val time.Time) {
+	s.Last = val
+}
+
+// SetSince sets the value of Since.
+func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) SetSince(val time.Time) {
+	s.Since = val
+}
+
 type InventoryGetInventoryDevicesIDSourcesOKRowsItemSource string
 
 const (
@@ -147992,10 +148048,14 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemSource) UnmarshalText(da
 // three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting
 // = a token was made for this device and no agent reads it yet; off = a person turned the agent off
 // for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the
-// same machine took over. unavailable: the module could not say just now. box: the Vedette box itself,
-// which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button).
-// ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it
-// (no switch, no button).
+// same machine took over. cert_changed: the agent of this device pins a certificate authority the box
+// no longer has (a reinstall or a data purge made a new one), so it cannot report until it is
+// installed again: the box heard it refuse the certificate within the last two hours (refused), or the
+// osquery agent has been silent since before the box's certificate authority began; the button is
+// show_setup (the token exists) or create_token. unavailable: the module could not say just now. box:
+// the Vedette box itself, which reads its own packages and ports and is not scanned or read over SNMP
+// (no switch, no button). ignored: a person ignored the device: the box does not scan or read it until
+// they stop ignoring it (no switch, no button).
 type InventoryGetInventoryDevicesIDSourcesOKRowsItemState string
 
 const (
@@ -148012,6 +148072,7 @@ const (
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateQuiet         InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "quiet"
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateNeverReported InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "never_reported"
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateReplaced      InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "replaced"
+	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateCertChanged   InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "cert_changed"
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable   InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "unavailable"
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateBox           InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "box"
 	InventoryGetInventoryDevicesIDSourcesOKRowsItemStateIgnored       InventoryGetInventoryDevicesIDSourcesOKRowsItemState = "ignored"
@@ -148033,6 +148094,7 @@ func (InventoryGetInventoryDevicesIDSourcesOKRowsItemState) AllValues() []Invent
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateQuiet,
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateNeverReported,
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateReplaced,
+		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateCertChanged,
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable,
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateBox,
 		InventoryGetInventoryDevicesIDSourcesOKRowsItemStateIgnored,
@@ -148067,6 +148129,8 @@ func (s InventoryGetInventoryDevicesIDSourcesOKRowsItemState) MarshalText() ([]b
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateNeverReported:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateReplaced:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateCertChanged:
 		return []byte(s), nil
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable:
 		return []byte(s), nil
@@ -148120,6 +148184,9 @@ func (s *InventoryGetInventoryDevicesIDSourcesOKRowsItemState) UnmarshalText(dat
 		return nil
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateReplaced:
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemStateReplaced
+		return nil
+	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateCertChanged:
+		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemStateCertChanged
 		return nil
 	case InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable:
 		*s = InventoryGetInventoryDevicesIDSourcesOKRowsItemStateUnavailable
@@ -157841,8 +157908,11 @@ type InventoryPostInventoryBoxCheckOKRowsItem struct {
 	LastAt NilDateTime `json:"last_at"`
 	// When the source reads the device next by itself: the box's own agent row (its hourly read of its
 	// packages and ports); null on the other rows and before the box's first read since it started.
-	NextAt NilDateTime                                    `json:"next_at"`
-	Source InventoryPostInventoryBoxCheckOKRowsItemSource `json:"source"`
+	NextAt NilDateTime `json:"next_at"`
+	// Agent row of state cert_changed: how the box heard the device's agent refuse its certificate since
+	// the box started; null otherwise (and when cert_changed was decided from the silence alone).
+	Refused NilInventoryPostInventoryBoxCheckOKRowsItemRefused `json:"refused"`
+	Source  InventoryPostInventoryBoxCheckOKRowsItemSource     `json:"source"`
 	// Module_off: the module behind the source is off. no_address: the device has no address to send to
 	// (scan, snmp). off: a person turned the source off for this device. waiting: on, nothing read yet
 	// (scan: the first check is the next scan window's; snmp: set up, no read yet). working: the scan read
@@ -157853,10 +157923,14 @@ type InventoryPostInventoryBoxCheckOKRowsItem struct {
 	// three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting
 	// = a token was made for this device and no agent reads it yet; off = a person turned the agent off
 	// for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the
-	// same machine took over. unavailable: the module could not say just now. box: the Vedette box itself,
-	// which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button).
-	// ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it
-	// (no switch, no button).
+	// same machine took over. cert_changed: the agent of this device pins a certificate authority the box
+	// no longer has (a reinstall or a data purge made a new one), so it cannot report until it is
+	// installed again: the box heard it refuse the certificate within the last two hours (refused), or the
+	// osquery agent has been silent since before the box's certificate authority began; the button is
+	// show_setup (the token exists) or create_token. unavailable: the module could not say just now. box:
+	// the Vedette box itself, which reads its own packages and ports and is not scanned or read over SNMP
+	// (no switch, no button). ignored: a person ignored the device: the box does not scan or read it until
+	// they stop ignoring it (no switch, no button).
 	State InventoryPostInventoryBoxCheckOKRowsItemState `json:"state"`
 	// The person's switch of this source for this device (PUT /inventory/devices/{id}/sources); null when
 	// the row has none: SNMP before it is set up, an agent row with no agent (unless it is off), the box
@@ -157892,6 +157966,11 @@ func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetLastAt() NilDateTime {
 // GetNextAt returns the value of NextAt.
 func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetNextAt() NilDateTime {
 	return s.NextAt
+}
+
+// GetRefused returns the value of Refused.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) GetRefused() NilInventoryPostInventoryBoxCheckOKRowsItemRefused {
+	return s.Refused
 }
 
 // GetSource returns the value of Source.
@@ -157937,6 +158016,11 @@ func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetLastAt(val NilDateTime) {
 // SetNextAt sets the value of NextAt.
 func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetNextAt(val NilDateTime) {
 	s.NextAt = val
+}
+
+// SetRefused sets the value of Refused.
+func (s *InventoryPostInventoryBoxCheckOKRowsItem) SetRefused(val NilInventoryPostInventoryBoxCheckOKRowsItemRefused) {
+	s.Refused = val
 }
 
 // SetSource sets the value of Source.
@@ -158170,6 +158254,45 @@ func (s *InventoryPostInventoryBoxCheckOKRowsItemDot) UnmarshalText(data []byte)
 	}
 }
 
+type InventoryPostInventoryBoxCheckOKRowsItemRefused struct {
+	// How many handshakes it refused since then.
+	Count int `json:"count"`
+	// The last one.
+	Last time.Time `json:"last"`
+	// The first refusal the box heard from the device's address since it started.
+	Since time.Time `json:"since"`
+}
+
+// GetCount returns the value of Count.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemRefused) GetCount() int {
+	return s.Count
+}
+
+// GetLast returns the value of Last.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemRefused) GetLast() time.Time {
+	return s.Last
+}
+
+// GetSince returns the value of Since.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemRefused) GetSince() time.Time {
+	return s.Since
+}
+
+// SetCount sets the value of Count.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemRefused) SetCount(val int) {
+	s.Count = val
+}
+
+// SetLast sets the value of Last.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemRefused) SetLast(val time.Time) {
+	s.Last = val
+}
+
+// SetSince sets the value of Since.
+func (s *InventoryPostInventoryBoxCheckOKRowsItemRefused) SetSince(val time.Time) {
+	s.Since = val
+}
+
 type InventoryPostInventoryBoxCheckOKRowsItemSource string
 
 const (
@@ -158228,10 +158351,14 @@ func (s *InventoryPostInventoryBoxCheckOKRowsItemSource) UnmarshalText(data []by
 // three of its own rhythm (rhythm_s of the agents list), the same rule everywhere. Agent row: waiting
 // = a token was made for this device and no agent reads it yet; off = a person turned the agent off
 // for this device. never_reported: enrolled, never sent its data. replaced: a newer enrolment of the
-// same machine took over. unavailable: the module could not say just now. box: the Vedette box itself,
-// which reads its own packages and ports and is not scanned or read over SNMP (no switch, no button).
-// ignored: a person ignored the device: the box does not scan or read it until they stop ignoring it
-// (no switch, no button).
+// same machine took over. cert_changed: the agent of this device pins a certificate authority the box
+// no longer has (a reinstall or a data purge made a new one), so it cannot report until it is
+// installed again: the box heard it refuse the certificate within the last two hours (refused), or the
+// osquery agent has been silent since before the box's certificate authority began; the button is
+// show_setup (the token exists) or create_token. unavailable: the module could not say just now. box:
+// the Vedette box itself, which reads its own packages and ports and is not scanned or read over SNMP
+// (no switch, no button). ignored: a person ignored the device: the box does not scan or read it until
+// they stop ignoring it (no switch, no button).
 type InventoryPostInventoryBoxCheckOKRowsItemState string
 
 const (
@@ -158248,6 +158375,7 @@ const (
 	InventoryPostInventoryBoxCheckOKRowsItemStateQuiet         InventoryPostInventoryBoxCheckOKRowsItemState = "quiet"
 	InventoryPostInventoryBoxCheckOKRowsItemStateNeverReported InventoryPostInventoryBoxCheckOKRowsItemState = "never_reported"
 	InventoryPostInventoryBoxCheckOKRowsItemStateReplaced      InventoryPostInventoryBoxCheckOKRowsItemState = "replaced"
+	InventoryPostInventoryBoxCheckOKRowsItemStateCertChanged   InventoryPostInventoryBoxCheckOKRowsItemState = "cert_changed"
 	InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable   InventoryPostInventoryBoxCheckOKRowsItemState = "unavailable"
 	InventoryPostInventoryBoxCheckOKRowsItemStateBox           InventoryPostInventoryBoxCheckOKRowsItemState = "box"
 	InventoryPostInventoryBoxCheckOKRowsItemStateIgnored       InventoryPostInventoryBoxCheckOKRowsItemState = "ignored"
@@ -158269,6 +158397,7 @@ func (InventoryPostInventoryBoxCheckOKRowsItemState) AllValues() []InventoryPost
 		InventoryPostInventoryBoxCheckOKRowsItemStateQuiet,
 		InventoryPostInventoryBoxCheckOKRowsItemStateNeverReported,
 		InventoryPostInventoryBoxCheckOKRowsItemStateReplaced,
+		InventoryPostInventoryBoxCheckOKRowsItemStateCertChanged,
 		InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable,
 		InventoryPostInventoryBoxCheckOKRowsItemStateBox,
 		InventoryPostInventoryBoxCheckOKRowsItemStateIgnored,
@@ -158303,6 +158432,8 @@ func (s InventoryPostInventoryBoxCheckOKRowsItemState) MarshalText() ([]byte, er
 	case InventoryPostInventoryBoxCheckOKRowsItemStateNeverReported:
 		return []byte(s), nil
 	case InventoryPostInventoryBoxCheckOKRowsItemStateReplaced:
+		return []byte(s), nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateCertChanged:
 		return []byte(s), nil
 	case InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable:
 		return []byte(s), nil
@@ -158356,6 +158487,9 @@ func (s *InventoryPostInventoryBoxCheckOKRowsItemState) UnmarshalText(data []byt
 		return nil
 	case InventoryPostInventoryBoxCheckOKRowsItemStateReplaced:
 		*s = InventoryPostInventoryBoxCheckOKRowsItemStateReplaced
+		return nil
+	case InventoryPostInventoryBoxCheckOKRowsItemStateCertChanged:
+		*s = InventoryPostInventoryBoxCheckOKRowsItemStateCertChanged
 		return nil
 	case InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable:
 		*s = InventoryPostInventoryBoxCheckOKRowsItemStateUnavailable
@@ -188074,6 +188208,51 @@ func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemAgent) Or(d InventoryG
 	return d
 }
 
+// NewNilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused returns new NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused with value set to v.
+func NewNilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused(v InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused {
+	return NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused is nullable InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused.
+type NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused struct {
+	Value InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) SetTo(v InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) Get() (v InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) Or(d InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused) InventoryGetInventoryDevicesIDSourcesOKRowsItemRefused {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch returns new NilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch with value set to v.
 func NewNilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch(v InventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch) NilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch {
 	return NilInventoryGetInventoryDevicesIDSourcesOKRowsItemSwitch{
@@ -189148,6 +189327,51 @@ func (o NilInventoryPostInventoryBoxCheckOKRowsItemAgent) Get() (v InventoryPost
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryPostInventoryBoxCheckOKRowsItemAgent) Or(d InventoryPostInventoryBoxCheckOKRowsItemAgent) InventoryPostInventoryBoxCheckOKRowsItemAgent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventoryBoxCheckOKRowsItemRefused returns new NilInventoryPostInventoryBoxCheckOKRowsItemRefused with value set to v.
+func NewNilInventoryPostInventoryBoxCheckOKRowsItemRefused(v InventoryPostInventoryBoxCheckOKRowsItemRefused) NilInventoryPostInventoryBoxCheckOKRowsItemRefused {
+	return NilInventoryPostInventoryBoxCheckOKRowsItemRefused{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventoryBoxCheckOKRowsItemRefused is nullable InventoryPostInventoryBoxCheckOKRowsItemRefused.
+type NilInventoryPostInventoryBoxCheckOKRowsItemRefused struct {
+	Value InventoryPostInventoryBoxCheckOKRowsItemRefused
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemRefused) SetTo(v InventoryPostInventoryBoxCheckOKRowsItemRefused) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemRefused) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventoryBoxCheckOKRowsItemRefused) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventoryBoxCheckOKRowsItemRefused
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemRefused) Get() (v InventoryPostInventoryBoxCheckOKRowsItemRefused, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventoryBoxCheckOKRowsItemRefused) Or(d InventoryPostInventoryBoxCheckOKRowsItemRefused) InventoryPostInventoryBoxCheckOKRowsItemRefused {
 	if v, ok := o.Get(); ok {
 		return v
 	}

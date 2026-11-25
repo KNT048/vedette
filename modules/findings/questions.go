@@ -165,9 +165,9 @@ func newestPerLine(fixes []versionscheme.Version) []string {
 // network (a banner, the passive sensor; offListReading). Answering a question about the ranges would change nothing there, so it
 // is not asked; the version is compared once the device's agent reports it or a person confirms it.
 //
-// Neither kind counts when NVD names the row only at exact versions older than its own, or of other release lines than its own
-// (newerThanListed): NVD's list enumerates the affected releases and does not name this one at all, so it is no candidate (not a
-// verdict: nothing closes, nothing is "not affected").
+// Neither kind counts when NVD names the row only at exact versions older than its own, or of other release lines than its own and
+// not all of them newer (newerThanListed): NVD's list enumerates the affected releases and does not name this one at all, so it is no
+// candidate (not a verdict: nothing closes, nothing is "not affected").
 //
 // A product match the age rule drops and the network OS a device states without an order (NotComparable) are listed by
 // MatchAsset itself.
@@ -201,28 +201,40 @@ func uncheckedRow(a Asset, s Software, in swInfo, v Vuln, named bool, m Match, o
 }
 
 // newerThanListed says every entry of own (the entries of NVD's list that name the row, rowEntries) is one exact version, with no
-// range, that the row's version is later than (laterThan) or that is of another release line (otherLine): Java 8 Update 491 for
-// CVE-2023-41993, which NVD lists for Java at "1.8.0 update401" only; SQL Server 2022 (16.0.1000.6) for CVE-2012-1856, listed for
-// SQL Server 2000 to 2008; Java 8 Update 491 for CVE-2025-21587, listed at 8u441 and at releases of Java 11, 17 and 21; Junos
-// 15.1R7.9 for CVE-2026-21913, listed at releases of 24.4 and 25.2 only. NVD's configuration enumerates those versions, not the
-// row's, so the row is not a candidate. An older version of a listed line stays one: an exact list is often the last affected
-// update of each line (Oracle's "8u77 and earlier", NVD's 8.0 GA entry for an ESXi flaw fixed in 8.0 Update 3d), and so does any
-// entry with a range, any version or a version that does not read.
+// range, that the row's version is later than (laterThan) or that is of another release line (lineOrder), and the row is not older
+// than every one of them: Java 8 Update 491 for CVE-2023-41993, which NVD lists for Java at "1.8.0 update401" only; SQL Server 2022
+// (16.0.1000.6) for CVE-2012-1856, listed for SQL Server 2000 to 2008; Java 8 Update 491 for CVE-2025-21587, listed at 8u441 and at
+// releases of Java 11, 17 and 21; Junos 21.3R3 for a CVE listed at releases of 21.2, 21.4 and 22.2. NVD's configuration enumerates
+// those versions, not the row's, so the row is not a candidate. A release line older than every listed one stays a candidate: vendors
+// often do not evaluate end-of-life lines (Juniper's advisories say so; Oracle lists supported releases only), so Junos 15.1R7.9 or
+// Java 7 Update 401 against such a list is still asked. An older version of a listed line stays one too: an exact list is often the
+// last affected update of each line (Oracle's "8u77 and earlier", NVD's 8.0 GA entry for an ESXi flaw fixed in 8.0 Update 3d), and so
+// does any entry with a range, any version or a version that does not read.
 func newerThanListed(own []Affected, ver string) bool {
 	if len(own) == 0 || !versionKnown(ver) {
 		return false
 	}
+	anchored := false // an entry the row is later than, or of an older line than the row's: the row is not older than every one
 	for _, af := range own {
 		c, err := af.cpe()
 		if err != nil || !af.Range.IsZero() {
 			return false
 		}
 		lit, ok := c.Version.Literal()
-		if !ok || !laterThan(c, lit, ver) && !otherLine(c, lit, ver) {
+		if !ok {
 			return false
 		}
+		if laterThan(c, lit, ver) {
+			anchored = true
+			continue
+		}
+		o, ok := lineOrder(c, lit, ver)
+		if !ok || o == 0 {
+			return false
+		}
+		anchored = anchored || o > 0
 	}
-	return true
+	return anchored
 }
 
 // uncheckedReason is the reason of an unchecked row, first that applies:

@@ -131,9 +131,11 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   version read from the network (a banner, the passive sensor) it is neither compared nor asked. A line NVD names only at exact
   releases older than its own is not asked either: the release numbers each side starts with decide, whatever update or build
   follows them (ESXi 8.0.3 is later than `esxi:6.5:update1`, not than `esxi:8.0:update_3`). Nor is one NVD's exact list leaves out
-  by its release line, in a notation whose lines are known (`otherLine`: Junos 15.1R7.9 against 24.4 and 25.2 releases, Java 8
-  Update 491 against 8u441 and Java 11, 17 and 21): the list enumerates the affected releases. An older update of a listed line stays
-  asked (Oracle's "8u77 and earlier"). `TestUnchecked_OtherReleaseLinesAreNotListed`. NVD's NA in an edition ("-") is the plain
+  by its release line, in a notation whose lines are known (`lineOrder`: Junos 25.4R1 against 24.4 and 25.2 releases, Java 8
+  Update 491 against 8u441 and Java 11, 17 and 21): the list enumerates the affected releases. Only a line newer than or between the
+  listed ones is left out: a line older than every listed one stays asked (end-of-life lines are often not evaluated: Junos 15.1R7.9,
+  Java 7 Update 401), and so does an older update of a listed line (Oracle's "8u77 and earlier").
+  `TestUnchecked_OtherReleaseLinesAreNotListed`, `TestUnchecked_OlderLineThanEveryListedStaysAsked`. NVD's NA in an edition ("-") is the plain
   edition, one of the alternatives: a version inside the range of every edition NVD lists for the product (Thunderbird 115.9.0 inside
   "esr before 140.9.0" and "- before 149.0") is a version finding whichever it runs; inside some only, a question; a row that states
   its edition is judged by it (`pinnedInside`, `TestMatchAsset_PlainEditionIsOneOfTheAlternatives`). A version inside a range with an end

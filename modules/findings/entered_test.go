@@ -148,10 +148,12 @@ func TestMatchAsset_PlainEditionIsOneOfTheAlternatives(t *testing.T) {
 	}
 }
 
-// NVD's exact list is an enumeration: a row of a release line it does not list is no candidate, so it is never asked (Junos 15.1R7.9
-// for CVE-2026-21913, listed at 24.4 and 25.2 releases only; Java 8 Update 491 for CVE-2025-21587, listed at 8u441 and at Java 11, 17
-// and 21). A row of a listed line stays a question when nothing decides it (an older update than the listed one: Oracle's "8u77 and
-// earlier"), and so does a listed release (it is never taken off as "not listed").
+// NVD's exact list is an enumeration: a row of a release line it does not list, newer than or between the listed lines, is no
+// candidate, so it is never asked (Junos 25.4R1 for CVE-2026-21913, listed at 24.4 and 25.2 releases only; Java 8 Update 491 for
+// CVE-2025-21587, listed at 8u441 and at Java 11, 17 and 21). A line older than every listed one stays a question (Junos 15.1R7.9:
+// end-of-life lines are often not evaluated; the vendor's own record decides it when it says so), and so does a row of a listed line
+// when nothing decides it (an older update than the listed one: Oracle's "8u77 and earlier") and a listed release (it is never taken
+// off as "not listed").
 func TestUnchecked_OtherReleaseLinesAreNotListed(t *testing.T) {
 	t.Parallel()
 	junosRows := func(rels ...string) []Affected {
@@ -180,7 +182,8 @@ func TestUnchecked_OtherReleaseLinesAreNotListed(t *testing.T) {
 		v    Vuln
 		want string // "none", "question", or "kept" (a finding or a question: not taken off)
 	}{
-		{"Junos 15.1R7.9", junosRow("15.1R7.9"), junos, "none"},
+		{"Junos 15.1R7.9 (older than every listed line)", junosRow("15.1R7.9"), junos, "question"},
+		{"Junos 25.4R1 (newer than every listed line)", junosRow("25.4R1"), junos, "none"},
 		{"Junos 24.4R1-S2 (listed)", junosRow("24.4R1-S2"), junos, "kept"},
 		{"Java 8u491", javaRow("8.0.4910.10"), java, "none"},
 		{"Java 8u401 (an older update of the listed line)", javaRow("8.0.4010.7"), java, "question"},
@@ -196,6 +199,51 @@ func TestUnchecked_OtherReleaseLinesAreNotListed(t *testing.T) {
 		}
 		if got != tc.want && (tc.want != "kept" || got == "none") {
 			t.Errorf("%s: %s, want %s (%+v)", tc.name, got, tc.want, r)
+		}
+	}
+}
+
+// A release line older than every line an exact NVD list names is still asked: vendors often do not evaluate end-of-life lines
+// (Juniper's advisories say so; Oracle lists supported releases only), so their absence from the list is no statement about them.
+// Only a line newer than or between the listed lines is no candidate.
+func TestUnchecked_OlderLineThanEveryListedStaysAsked(t *testing.T) {
+	t.Parallel()
+	junosRows := func(rels ...string) []Affected {
+		var out []Affected
+		for _, r := range rels {
+			out = append(out, Affected{CPE: "cpe:2.3:o:juniper:junos:" + r + ":*:*:*:*:*:*"})
+		}
+		return out
+	}
+	exploited := Vuln{CVE: "CVE-2099-0301", Vendor: "Juniper", Product: "Junos OS", NVDAnswered: true, Published: uncNew, DateAdded: uncNew,
+		Affected: junosRows("21.2:r1", "21.2:r3-s7", "21.4:r1", "21.4:r3-s6", "22.2:r1", "22.2:r3-s3")}
+	plain := exploited
+	plain.CVE, plain.Vendor, plain.Product, plain.DateAdded = "CVE-2099-0302", "", "", time.Time{}
+	java := Vuln{CVE: "CVE-2099-0303", NVDAnswered: true, Published: uncNew, Affected: []Affected{
+		{CPE: "cpe:2.3:a:oracle:jre:1.8.0:update441:*:*:-:*:*:*"}, {CPE: "cpe:2.3:a:oracle:jre:11.0.26:*:*:*:*:*:*:*"}}}
+	junosRow := func(ver string) Asset {
+		return Asset{ID: "sw", Name: "sw", Software: []Software{{ID: "s", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS",
+			Version: ver, Source: "agent", KevKeys: []string{"juniper|junos os"}}}}
+	}
+	javaRow := func(ver string) Asset {
+		return Asset{ID: "pc", Name: "pc", Software: []Software{{ID: "s", Display: "Java 7 Update 401", Vendor: "Oracle", Product: "Java SE",
+			Version: ver, Source: "agent", KevKeys: []string{"oracle|java se"}}}}
+	}
+	for _, tc := range []struct {
+		name  string
+		a     Asset
+		v     Vuln
+		asked bool
+	}{
+		{"exploited, Junos 15.1R7.9 (older than every listed line)", junosRow("15.1R7.9"), exploited, true},
+		{"Junos 15.1R7.9 (older than every listed line)", junosRow("15.1R7.9"), plain, true},
+		{"Java 7u401 (older than every listed line)", javaRow("7.0.4010.10"), java, true},
+		{"Junos 21.3R3 (between listed lines)", junosRow("21.3R3"), plain, false},
+		{"Junos 23.4R1 (newer than every listed line)", junosRow("23.4R1"), plain, false},
+	} {
+		r := MatchAsset(tc.a, []Vuln{tc.v}, nil, t0)
+		if asked := len(r.Unchecked) > 0; asked != tc.asked || len(r.New) != 0 {
+			t.Errorf("%s: asked %v, want %v (%+v)", tc.name, asked, tc.asked, r)
 		}
 	}
 }

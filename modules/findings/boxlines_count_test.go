@@ -167,7 +167,8 @@ func TestQueue_Count_OfficeLines(t *testing.T) {
 		forti = "FortiOS 7.2.13: 6.4.0 to before 7.4.10 (exploited)"
 	)
 	wantItems := map[string]int{
-		"question not_comparable / " + sql: 1,
+		"question not_comparable / " + sql:                                               1,
+		"question no_range_data / Junos 15.1R7.9: NVD lists only 24.4 and 25.2 releases": 1, // older than every listed line
 	}
 	if !maps.Equal(items, wantItems) {
 		t.Errorf("queue %v, want %v", items, wantItems)

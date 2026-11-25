@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"cmp"
 	"math"
 	"regexp"
 	"strconv"
@@ -246,34 +247,38 @@ func laterThan(c CPE, lit, ver string) bool {
 	return laterRelease(lit, ver)
 }
 
-// otherLine says the software version ver is certainly of another release line than lit, the one version an exact NVD configuration c
+// lineOrder compares the release line of the software version ver with that of lit, the one version an exact NVD configuration c
 // names (no range), in a notation whose lines are known: a Junos release ("15.1R7.9" against "junos:24.4:r1", by its release numbers)
-// or Java SE (8 Update 491, "8.0.4910.10", against "jre:11.0.26" or "jre:1.7.0:update401"). Every other notation says no:
-// "8.0.600" against Java's "1.8.0" or an ESXi update against NVD's "esxi:8.0" share no notation a line can be read from without
-// guessing. Like laterThan it only takes a row off the "could not be checked" list (newerThanListed), never a verdict about the flaw.
-func otherLine(c CPE, lit, ver string) bool {
+// or Java SE (8 Update 491, "8.0.4910.10", against "jre:11.0.26" or "jre:1.7.0:update401"). It is negative when ver's line is older,
+// 0 for the same line, positive when newer; ok is false for every other notation: "8.0.600" against Java's "1.8.0" or an ESXi update
+// against NVD's "esxi:8.0" share no notation a line can be read from without guessing. Like laterThan it only takes a row off the
+// "could not be checked" list (newerThanListed), never a verdict about the flaw.
+func lineOrder(c CPE, lit, ver string) (int, bool) {
 	if isJunos(c) { // the release numbers only: a train of the same release (an X train beside R) is not certain to be apart
 		jv, okV := junosParse(ver)
 		e, okE := junosRelOf(lit)
-		return okV && okE && junosRelCmp(jv, e) != 0
+		if !okV || !okE {
+			return 0, false
+		}
+		return junosRelCmp(jv, e), true
 	}
 	rl, _, rok := javaRelease(ver)
 	if !rok {
-		return false
+		return 0, false
 	}
 	if el, _, java, ok := javaEntry(c, lit); java {
-		return ok && el != rl
+		return cmp.Compare(rl, el), ok
 	}
 	v, okV := c.Vendor.Literal()
 	p, okP := c.Product.Literal()
 	if !okV || !okP || productid.Norm(v) != "oracle" || productid.Norm(p) != "jre" && productid.Norm(p) != "jdk" {
-		return false
+		return 0, false
 	}
 	el, _, ok := javaRelease(lit) // Java 9 on: "11.0.26", "24"
 	if !ok {
-		return false
+		return 0, false
 	}
-	return el != rl
+	return cmp.Compare(rl, el), true
 }
 
 // leadingRE is the release numbers a version starts with and what follows them: "7.2.1" and "-69057-5" of DSM's "7.2.1-69057-5",

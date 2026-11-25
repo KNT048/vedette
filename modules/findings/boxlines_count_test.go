@@ -5,6 +5,8 @@ import (
 	"maps"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/productid"
 )
 
 // officeLines is a small office's network as a test box held it on 2026-11-25, with NVD's real configurations for one or two CVEs of
@@ -64,8 +66,8 @@ func officeLines(t *testing.T) (*env, map[string]string) {
 			Affected{CPE: fmt.Sprintf(jre8, "-")}, Affected{CPE: fmt.Sprintf(jre8, epp)}, Affected{CPE: fmt.Sprintf(jdk8, "-")},
 			Affected{CPE: fmt.Sprintf(jdk8, epp)}, Affected{CPE: jre11}, Affected{CPE: jre17}, Affected{CPE: jre21})},
 		// Junos: NVD enumerates the 24.4 and 25.2 releases only; Juniper's record says nothing before 24.4R1 is affected
-		{"Junos 15.1R7.9: NVD lists only 24.4 and 25.2 releases", offList("CVE-2026-21913",
-			junosRows("24.4:-", "24.4:r1", "24.4:r1-s2", "24.4:r1-s3", "25.2:-", "25.2:r1", "25.2:r1-s1", "25.2:r2")...)},
+		{"Junos 15.1R7.9: NVD lists only 24.4 and 25.2 releases", juniperRecord(t, offList("CVE-2026-21913",
+			junosRows("24.4:-", "24.4:r1", "24.4:r1-s2", "24.4:r1-s3", "25.2:-", "25.2:r1", "25.2:r1-s1", "25.2:r2")...))},
 		{"Junos 15.1R7.9: before 20.4 (exploited)", listed("CVE-2023-36844", "Juniper", "Junos OS",
 			"Juniper Junos OS EX Series PHP External Variable Modification Vulnerability",
 			append([]Affected{upTo(junos+"*:*:*:*:*:*:*:*", "", "20.4")}, junosRows("20.4:-", "20.4:r1", "20.4:r3-s8", "21.1:r1", "22.4:r2", "23.2:r1")...)...)},
@@ -103,6 +105,26 @@ func officeLines(t *testing.T) (*env, map[string]string) {
 		t.Fatal(err)
 	}
 	return e, cause
+}
+
+// juniperRecord is v with the rows Juniper's CVE record for CVE-2026-21913 gives the Junos scheme (feeds.StatementScheme): its entry
+// is limited to EX4000 models, says versions it does not list are unaffected, states "unaffected" from 0 before 24.4R1, and lists
+// 24.4 before 24.4R2 and 25.2 before 25.2R1-S2 as affected.
+func juniperRecord(t *testing.T, v Vuln) Vuln {
+	t.Helper()
+	p, ok := productid.ResolveStored("Juniper", "Junos OS", "Juniper Junos OS", "")
+	if !ok {
+		t.Fatal("Junos OS is not in the product catalogue")
+	}
+	for _, r := range schemedRows(t, "juniper-junos", p.Key, [3]string{"", "24.4R1", ""}) {
+		r.Unaffected = true
+		v.Schemed = append(v.Schemed, r)
+	}
+	for _, r := range schemedRows(t, "juniper-junos", p.Key, [3]string{"24.4", "24.4R2", ""}, [3]string{"25.2", "25.2R1-S2", ""}) {
+		r.ModelOnly = true
+		v.Schemed = append(v.Schemed, r)
+	}
+	return v
 }
 
 // officeCounts is officeLines' Needs your input by item (a question by its kind and cause, an unconfirmed finding by its basis and cause)
@@ -153,8 +175,10 @@ func officeCounts(t *testing.T) (items, findings map[string]int) {
 // person to confirm them (2, basis statement). Open findings: 2, both unconfirmed.
 //
 // After: 1 item. The Thunderbird CVEs are version findings (inside the range of every edition NVD lists; suspected, on no exploited
-// list, so not queued), the release lines NVD's exact lists do not name are not asked, and the findings on a version a person typed
-// are confirmed by that person's word. Left: SQL Server's x64 pin (a platform the line does not state).
+// list, so not queued); Java 8u491 is of a line newer than NVD's exact list names for its train, so it is not asked; Junos 15.1R7.9 is
+// older than every line NVD lists (so NVD's list alone would still ask), and Juniper's own record decides it: "unaffected" from 0
+// before 24.4R1, whatever the model; the findings on a version a person typed are confirmed by that person's word. Left: SQL Server's
+// x64 pin (a platform the line does not state).
 func TestQueue_Count_OfficeLines(t *testing.T) {
 	t.Parallel()
 	items, findings := officeCounts(t)
@@ -167,8 +191,7 @@ func TestQueue_Count_OfficeLines(t *testing.T) {
 		forti = "FortiOS 7.2.13: 6.4.0 to before 7.4.10 (exploited)"
 	)
 	wantItems := map[string]int{
-		"question not_comparable / " + sql:                                               1,
-		"question no_range_data / Junos 15.1R7.9: NVD lists only 24.4 and 25.2 releases": 1, // older than every listed line
+		"question not_comparable / " + sql: 1,
 	}
 	if !maps.Equal(items, wantItems) {
 		t.Errorf("queue %v, want %v", items, wantItems)

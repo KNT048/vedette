@@ -298,3 +298,67 @@ func TestMatch_OwnConfirmOnEnteredVersionHolds(t *testing.T) {
 		}
 	}
 }
+
+// The vendor's record decides "not affected" from what it states, never "affected" (CVE-2026-21913's real record: Juniper's entry
+// for EX4000 models, defaultStatus unaffected, unaffected from 0 before 24.4R1, affected 24.4 before 24.4R2 and 25.2 before
+// 25.2R1-S2). A version inside a range the vendor states unaffected is not affected whatever the model; a version outside every
+// model-limited range, in a train one of them ends in, is not affected; a version inside a model-limited range is not decided by
+// it (Vedette does not know the model), and a version inside an affected range of every device stays affected.
+func TestMatchAsset_VendorStatementsSayOnlyNotAffected(t *testing.T) {
+	t.Parallel()
+	p, ok := productid.ResolveStored("Juniper", "Junos OS", "Juniper Junos OS", "")
+	if !ok {
+		t.Fatal("Junos OS is not in the product catalogue")
+	}
+	statements := func(unaffected [][3]string, models [][3]string) []SchemedRange {
+		var out []SchemedRange
+		for _, r := range schemedRows(t, "juniper-junos", p.Key, unaffected...) {
+			r.Unaffected = true
+			out = append(out, r)
+		}
+		for _, r := range schemedRows(t, "juniper-junos", p.Key, models...) {
+			r.ModelOnly = true
+			out = append(out, r)
+		}
+		return out
+	}
+	var nvd []Affected
+	for _, r := range []string{"24.4:-", "24.4:r1", "24.4:r1-s2", "24.4:r1-s3", "25.2:-", "25.2:r1", "25.2:r1-s1", "25.2:r2"} {
+		nvd = append(nvd, Affected{CPE: "cpe:2.3:o:juniper:junos:" + r + ":*:*:*:*:*:*"})
+	}
+	record := Vuln{CVE: "CVE-2026-21913", NVDAnswered: true, Published: uncNew, Affected: nvd,
+		Schemed: statements([][3]string{{"", "24.4R1", ""}}, [][3]string{{"24.4", "24.4R2", ""}, {"25.2", "25.2R1-S2", ""}})}
+	everyDevice := record
+	everyDevice.CVE = "CVE-2099-0401"
+	everyDevice.Schemed = append(schemedRows(t, "juniper-junos", p.Key, [3]string{"", "21.2R3-S6", ""}), record.Schemed...)
+	modelsOnly := Vuln{CVE: "CVE-2099-0402", Vendor: "Juniper", Product: "Junos OS", NVDAnswered: true, Published: uncNew, DateAdded: uncNew,
+		Schemed: statements(nil, [][3]string{{"24.4", "24.4R2", ""}})}
+	row := func(ver string) Asset {
+		return Asset{ID: "sw", Name: "sw", Model: "EX4200-48T", Software: []Software{{ID: "s", Display: "Juniper Junos OS", Vendor: "Juniper", Product: "Junos OS",
+			Version: ver, Source: "manual", SetBy: "admin@example.test", KevKeys: []string{"juniper|junos os"}}}}
+	}
+	for _, tc := range []struct {
+		name string
+		ver  string
+		v    Vuln
+		want string // "none", "finding" (a version finding), "kept" (a finding or a question: the vendor's rows do not decide)
+	}{
+		{"15.1R7.9, inside the range the vendor states unaffected", "15.1R7.9", record, "none"},
+		{"24.4R2, past the model-limited range of its train", "24.4R2", record, "none"},
+		{"24.4R1-S2, inside a model-limited range (NVD lists it)", "24.4R1-S2", record, "kept"},
+		{"15.1R7.9, inside an affected range of every device too", "15.1R7.9", everyDevice, "finding"},
+		{"24.4R1, inside a model-limited range only", "24.4R1", modelsOnly, "kept"},
+	} {
+		r := MatchAsset(row(tc.ver), []Vuln{tc.v}, nil, t0)
+		got := "none"
+		switch {
+		case len(r.New) == 1 && r.New[0].Basis == BasisVersion:
+			got = "finding"
+		case len(r.New)+len(r.Unchecked)+len(r.NameOnly)+len(r.NotComparable) > 0:
+			got = "kept"
+		}
+		if got != tc.want {
+			t.Errorf("%s: %s, want %s (%+v)", tc.name, got, tc.want, r)
+		}
+	}
+}

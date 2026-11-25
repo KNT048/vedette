@@ -121,19 +121,31 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 			}
 		}
 		for _, g := range groups {
+			schemed := SchemeProduct(Range{Part: g.key[0], Vendor: g.key[1], Product: g.key[2]})
+			own := func(got []Range) {
+				for _, r := range got {
+					r.CVE, r.Origin, r.Part, r.Vendor, r.Product, r.CPE = cve, origin, g.key[0], g.key[1], g.key[2], g.cpe
+					rows = append(rows, r)
+				}
+			}
+			if schemed { // the vendor's explicit "unaffected" ranges, for the product's version scheme only (unaffectedRows)
+				if got := unaffectedRows(g.entries); len(got) <= min(recordMaxStatedProduct, recordMaxStated-stated) {
+					stated += len(got)
+					own(got)
+				} else {
+					statedDropped++
+				}
+			}
 			switch {
 			case g.unusable:
 				skipped++
-				got, ok := statedRows(g.entries, min(recordMaxStatedProduct, recordMaxStated-stated))
+				got, ok := statedRows(g.entries, min(recordMaxStatedProduct, recordMaxStated-stated), schemed)
 				if !ok { // more rows than a product or the record may keep: none of the product's, counted
 					statedDropped++
 					continue
 				}
 				stated += len(got)
-				for _, r := range got {
-					r.CVE, r.Origin, r.Part, r.Vendor, r.Product, r.CPE = cve, origin, g.key[0], g.key[1], g.key[2], g.cpe
-					rows = append(rows, r)
-				}
+				own(got)
 				continue
 			case len(g.rows) == 0:
 				continue
@@ -168,6 +180,21 @@ const (
 // VendorNotation is the prefix of the version_type of a row kept as the vendor states it (display-only for the generic comparison).
 const VendorNotation = "vendor:"
 
+// UnaffectedNotation is the version_type of a row that states versions the vendor says are NOT affected ("unaffected" from 0 before
+// 24.4R1: Juniper's statement that releases before 24.4 do not have the flaw; unaffectedRows). Kept in the vendor's notation, so no
+// reader of affected ranges reads it (Range.Generic, RangeScheme); StatementScheme reads it for a product's version scheme.
+const UnaffectedNotation = VendorNotation + "unaffected"
+
+// Unaffected says the row states versions the vendor says are not affected (UnaffectedNotation), not affected ones.
+func (r Range) Unaffected() bool { return r.VersionType == UnaffectedNotation }
+
+// ModelLimited says the row is a CVE record's affected range that holds only on the devices its platforms name (Juniper's "EX4000-48T",
+// "EX Series"): Vedette does not know a device's model for certain, so the row can only tell that versions outside it are not
+// affected, never that a version inside it is (StatementScheme). NVD's rows keep their own platforms (running-on CPEs).
+func (r Range) ModelLimited() bool {
+	return r.Origin != OriginNVD && len(r.Platforms) > 0 && !r.Unaffected()
+}
+
 // genericRowSQL is the rows of feeds_cve_range (alias r) the generic comparison reads: NVD's and the record rows it can order.
 const genericRowSQL = `r.version_type NOT LIKE 'vendor:%'`
 
@@ -182,11 +209,13 @@ func (r Range) Generic() bool { return !strings.HasPrefix(r.VersionType, VendorN
 // names one. Left out: git commits (no device reports one), an entry limited to some operating systems or models (the row could not
 // say which), a bound that is not printable ASCII, holds quotes, a backslash or a semicolon, or is longer than the column.
 // At most limit rows: ok is false past it (the work stops there too).
-func statedRows(entries []cnaAffected, limit int) (out []Range, ok bool) {
-	type key struct{ si, ei, ee, fixed, typ, def string }
+func statedRows(entries []cnaAffected, limit int, models bool) (out []Range, ok bool) {
+	type key struct{ si, ei, ee, fixed, typ, def, plats string }
 	seen := map[key]bool{}
+	var plats []string // the models the entry being read is limited to (ModelLimited), nil for every device
 	add := func(r Range) {
-		k := key{r.StartIncl, r.EndIncl, r.EndExcl, r.Fixed, r.VersionType, r.DefaultStatus}
+		r.Platforms = plats
+		k := key{r.StartIncl, r.EndIncl, r.EndExcl, r.Fixed, r.VersionType, r.DefaultStatus, strings.Join(plats, "\x00")}
 		if !seen[k] {
 			seen[k] = true
 			out = append(out, r)
@@ -196,7 +225,9 @@ func statedRows(entries []cnaAffected, limit int) (out []Range, ok bool) {
 		if len(out) > limit {
 			return nil, false
 		}
-		if len(a.Versions) > recordMaxVersions || !anyPlatform(a.Platforms) {
+		var limited bool
+		plats, limited = entryModels(a.Platforms)
+		if len(a.Versions) > recordMaxVersions || limited && (!models || plats == nil) {
 			continue
 		}
 		def := cnaDefault(a.DefaultStatus)
@@ -299,6 +330,82 @@ func statedRows(entries []cnaAffected, limit int) (out []Range, ok bool) {
 		return nil, false
 	}
 	return out, true
+}
+
+// recordMaxModels and recordMaxModel bound the models an entry may be limited to and each model's name (a hostile record cannot make
+// a row of thousands of names); an entry past either is kept in no form, as before models were kept.
+const (
+	recordMaxModels = 64
+	recordMaxModel  = 100
+)
+
+// entryModels is the platforms an entry is limited to, as written (limited: one of them is not a processor word, anyPlatform), nil
+// when it is not limited or when a name cannot be kept (not printable, quotes, too long, too many).
+func entryModels(ps []string) (models []string, limited bool) {
+	if anyPlatform(ps) {
+		return nil, false
+	}
+	if len(ps) > recordMaxModels {
+		return nil, true
+	}
+	for _, p := range ps {
+		p = strings.Join(strings.Fields(p), " ")
+		if p == "" || len(p) > recordMaxModel || !printableASCII(p) || strings.ContainsAny(p, "\"'`;\\") {
+			return nil, true
+		}
+		models = append(models, p)
+	}
+	return models, true
+}
+
+// unaffectedRows keeps the version ranges an entry explicitly states as unaffected ("0" lessThan "24.4R1"), for a product with a
+// version scheme: the vendor's word that those versions do not have the flaw, whatever the model the entry is limited to (its
+// platforms are kept for display). Only an entry whose unlisted versions are not stated affected (defaultStatus not affected: an
+// "affected except" entry's unaffected versions are fixed releases, exceptRows), and only a range with an end: an unaffected version
+// alone is a fixed release (read as such elsewhere), "*" or a list as the end says nothing a scheme reads, and a range with changes
+// is left out.
+func unaffectedRows(entries []cnaAffected) []Range {
+	var out []Range
+	seen := map[[3]string]bool{}
+	for _, a := range entries {
+		def := cnaDefault(a.DefaultStatus)
+		plats, limited := entryModels(a.Platforms)
+		if def == DefaultAffected || len(a.Versions) > recordMaxVersions || limited && plats == nil {
+			continue
+		}
+		for _, v := range a.Versions {
+			if !strings.EqualFold(strings.TrimSpace(v.Status), "unaffected") || strings.EqualFold(strings.TrimSpace(v.VersionType), "git") ||
+				len(v.Changes) > 0 || (v.LessThan == nil) == (v.LessThanOrEqual == nil) {
+				continue
+			}
+			start, ok := vendorBound(v.Version)
+			if !ok {
+				continue
+			}
+			if w := strings.ToLower(start); saysNothing[w] || everyVersion[w] {
+				start = ""
+			}
+			bound, incl := v.LessThan, false
+			if bound == nil {
+				bound, incl = v.LessThanOrEqual, true
+			}
+			end, ok := vendorBound(*bound)
+			if !ok || end == "" || end == "*" || strings.HasSuffix(end, ".*") || strings.Contains(end, ",") {
+				continue
+			}
+			r := Range{StartIncl: start, VersionType: UnaffectedNotation, DefaultStatus: def, Platforms: plats}
+			if incl {
+				r.EndIncl = end
+			} else {
+				r.EndExcl = end
+			}
+			if k := [3]string{start, r.EndIncl, r.EndExcl}; !seen[k] {
+				seen[k] = true
+				out = append(out, r)
+			}
+		}
+	}
+	return out
 }
 
 // junosFixRe is one fixed release of a Junos branch as Juniper's records list them after lessThan: release, R number, an optional

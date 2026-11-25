@@ -623,7 +623,8 @@ func (a findingsFeeds) catalogueEntries(ctx context.Context, scope findings.Matc
 }
 
 // withSchemed adds to each entry of vulns the ranges its vendor states in its own notation, read in the version scheme of the
-// product they name (feeds.RangeScheme): what the matcher and findings.FixOf read the vendor's fixed release of a device's train from.
+// product they name (feeds.RangeScheme): what the matcher and findings.FixOf read the vendor's fixed release of a device's train from;
+// and the rows that only support "not affected" (feeds.StatementScheme: ranges the vendor states unaffected, model-limited ranges).
 // An entry no such range names is left without any.
 func (a findingsFeeds) withSchemed(ctx context.Context, vulns []findings.Vuln) error {
 	if len(vulns) == 0 {
@@ -641,16 +642,21 @@ func (a findingsFeeds) withSchemed(ctx context.Context, vulns []findings.Vuln) e
 		return err
 	}
 	for _, r := range rows {
+		unaffected, modelOnly := false, false
 		s, sp, _, ok := feeds.RangeScheme(r)
-		if !ok {
-			continue
+		if !ok { // a range the vendor states unaffected, or one limited to some models: only ever "not affected"
+			if s, sp, unaffected, ok = feeds.StatementScheme(r); !ok {
+				continue
+			}
+			modelOnly = !unaffected
 		}
 		p, ok := productid.ByRangeName(r.Part, r.Vendor, r.Product)
 		if !ok {
 			continue
 		}
 		i := at[r.CVE]
-		vulns[i].Schemed = append(vulns[i].Schemed, findings.SchemedRange{Product: p.Key, Scheme: s, Span: sp, Origin: r.Origin})
+		vulns[i].Schemed = append(vulns[i].Schemed, findings.SchemedRange{Product: p.Key, Scheme: s, Span: sp, Origin: r.Origin,
+			Unaffected: unaffected, ModelOnly: modelOnly})
 	}
 	return nil
 }

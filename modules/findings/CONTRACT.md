@@ -87,8 +87,13 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   layers 1–4 is one `findings.finding.urgency_raised`, told once by `Tell` (news, a first-run summary line, or backlog). A device a
   person ignored is not rated. A finding above layer 2 is never called exploited.
 - **M-10 Vendor rows and distribution fixes.** A vendor's own version notation is read through the product's version scheme
-  (`core/versionscheme`); when it places the line's version, the vendor's verdict decides before NVD's ranges. A distribution's
-  fix for a package the device runs is compared before NVD's product ranges.
+  (`core/versionscheme`); when it places the line's version, the vendor's verdict decides before NVD's ranges. The vendor's
+  statements that only support "not affected" (`SchemedRange.Unaffected`: a range it states unaffected, whatever the model;
+  `ModelOnly`: an affected range limited to some models) decide "not affected" when the version is inside an unaffected range and
+  inside no affected one, or outside every affected range in a train one of them ends in; they never decide "affected", and a version
+  inside a model-limited range is left to NVD (`notAffectedByStatements`, `TestMatchAsset_VendorStatementsSayOnlyNotAffected`,
+  `TestJuniperRecord_UnaffectedStatementDecidesTheSwitch`). A distribution's fix for a package the device runs is compared before
+  NVD's product ranges.
 - **M-11 One read model.** `View` is a finding as every place shows it (row, device, line, CVSS; `Service.View` adds history and
   urgency reasons). `StatusOf` is the one status; `DeviceStatusOf` the one device badge. A list row (By device, the device's Findings
   tab, Home's Fix first) carries the same urgency reasons and verification as the finding's own view (`listViews`), so every screen

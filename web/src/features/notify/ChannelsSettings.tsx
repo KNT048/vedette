@@ -20,7 +20,7 @@ import { notOffered } from '@/lib/v1'
 import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
-import { EMAIL_PROVIDERS, OAUTH_HOST, emailBinding, emailProvider, isOAuth, isUserSignin, savedFor, type EmailProvider } from './emailProviders'
+import { EMAIL_PROVIDERS, OAUTH_HOST, emailBinding, emailProvider, isMicrosoftSmtp, isOAuth, isUserSignin, savedFor, type EmailProvider } from './emailProviders'
 import { EmailSignin } from './EmailSignin'
 import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
@@ -170,13 +170,15 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved, on
   }
   const secretInfo = type === 'zalo' && (zaloGrant || zaloRefresh) ? t('channels.f.zalo.secret.infoGrant') : type === 'email' ? infoOf(emailKeys(prov, 'secret', 'hint')) : infoOf([`channels.f.${type}.secret.hint`])
   const secretHint = type === 'zalo' && (zaloGrant || zaloRefresh) ? t('channels.f.zalo.secret.hintGrant') : type === 'email' && keyOf ? t('channels.f.email.secret.loaded', { email: keyOf }) : keepsSecret ? t('channels.secretSaved', { last4: channel.secret_last4 }) : type === 'email' ? t(emailKeys(prov, 'secret', 'hint')) : t(`channels.f.${type}.secret.hint`)
+  // Microsoft Graph sends over HTTPS to a fixed host: no server, port or encryption to show.
   const shown = (k: string) => type !== 'email' || (k !== 'username' || prov.auth !== 'token_as_user') &&
-    (k !== 'tenant_id' || prov.auth === 'microsoft_oauth' || prov.id === 'microsoft365-user') && (k !== 'client_id' || ['microsoft_oauth', 'microsoft_user', 'google_user'].includes(prov.auth))
+    (prov.auth !== 'microsoft_graph' || !['host', 'port', 'security'].includes(k)) &&
+    (k !== 'tenant_id' || prov.auth === 'microsoft_oauth' || prov.auth === 'microsoft_graph' || prov.id === 'microsoft365-user') && (k !== 'client_id' || ['microsoft_oauth', 'microsoft_graph', 'microsoft_user', 'google_user'].includes(prov.auth))
   const pickProvider = (id: string) => {
     const p = emailProvider(id) ?? EMAIL_PROVIDERS[0]!
     if (p.auth !== prov.auth) { setSecret(''); setKeyOf(null) } // a password is not a client secret, nor a key file
     setSignin(null)
-    setFields((f) => ({ ...f, provider: p.id, ...(p.host ? { host: p.host, port: p.port, security: p.security } : {}), ...(p.id === 'microsoft365-user' && !f.tenant_id ? { tenant_id: 'organizations' } : {}), ...(p.username ? { username: p.username } : prov.username && f.username === prov.username ? { username: '' } : {}) }))
+    setFields((f) => ({ ...f, provider: p.id, ...(p.host ? { host: p.host, port: p.port, security: p.security } : prov.auth === 'microsoft_graph' ? { host: '', port: '587', security: 'starttls' } : {}), ...(p.id === 'microsoft365-user' && !f.tenant_id ? { tenant_id: 'organizations' } : {}), ...(p.username ? { username: p.username } : prov.username && f.username === prov.username ? { username: '' } : {}) }))
     setFieldErr({})
   }
   async function chooseKey(file: File | undefined) {
@@ -215,9 +217,10 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved, on
                 <div key={k} className="grid gap-2">
                   <Field label={label} hint={t('channels.f.email.provider.hint')} htmlFor={id} error={fieldErr[k]}>
                     <Select id={id} value={prov.id} {...aria(id, k)} onChange={(e) => pickProvider(e.target.value)}>
-                      {(['password', 'service', 'oauth'] as const).map((g) => (
+                      {(['oauth', 'password', 'service'] as const).map((g) => (
                         <optgroup key={g} label={t(`channels.f.email.provider.group.${g}`)}>
-                          {EMAIL_PROVIDERS.filter((p) => p.group === g).map((p) => <option key={p.id} value={p.id}>{t(`channels.f.email.provider.name.${p.id}`)}</option>)}
+                          {/* a hidden preset stays listed only for the channel already saved with it */}
+                          {EMAIL_PROVIDERS.filter((p) => p.group === g && (!p.hidden || p.id === prov.id)).map((p) => <option key={p.id} value={p.id}>{t(`channels.f.email.provider.name.${p.id}`)}</option>)}
                         </optgroup>
                       ))}
                     </Select>
@@ -268,6 +271,7 @@ export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved, on
               </div>
             ) : input
           })}
+          {type === 'email' && prov.auth === 'password' && isMicrosoftSmtp(fields.host) ? <Notice tone="warn" role="note" className="mb-0" title={t('channels.f.email.msBasicEnds')} /> : null}
           {type === 'zalo' ? (
             <div className="grid gap-3">
               <div role="note" aria-label={t('channels.f.zalo.helpTitle')}>

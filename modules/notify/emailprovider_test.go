@@ -1,6 +1,8 @@
 package notify_test
 
 import (
+	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/knt048/vedette/modules/notify"
@@ -109,4 +111,45 @@ func TestEmailSecretIsBoundToMethodServerAndPort(t *testing.T) {
 	ms["host"] = "smtp.attacker.example"
 	_, err = save(ms, "Abc8Q~client.secret_value-123")
 	wantCode(t, err, 400, "bad_host")
+}
+
+// The Microsoft Graph preset keeps its tenant and client IDs, binds its client secret to Graph, and a test message goes to
+// graph.microsoft.com sendMail (no SMTP server is involved).
+func TestEmailGraphPresetSavesAndSendsThroughGraph(t *testing.T) {
+	var hosts []string
+	rt := roundTrip(func(r *http.Request, form url.Values) (int, string) {
+		hosts = append(hosts, r.URL.Host+r.URL.Path)
+		if r.URL.Host == "login.microsoftonline.com" {
+			if form.Get("scope") != "https://graph.microsoft.com/.default" || form.Get("client_secret") != "Gr8Q~graph.client_secret-456" {
+				return 400, `{"error":"invalid_request"}`
+			}
+			return 200, `{"token_type":"Bearer","expires_in":3599,"access_token":"graph-token"}`
+		}
+		if r.URL.Host == "graph.microsoft.com" && r.URL.Path == "/v1.0/users/alerts@acme.example/sendMail" && r.Header.Get("Authorization") == "Bearer graph-token" {
+			return 202, ""
+		}
+		return 404, `{"error":{"code":"ResourceNotFound"}}`
+	})
+	e := newEnv(t, func(c *notify.Config) { c.HTTPClient = &http.Client{Transport: rt} })
+	g := map[string]string{"provider": "microsoft-graph", "host": "graph.microsoft.com", "port": "443", "security": "ssl", "username": "alerts@acme.example",
+		"tenant_id": "72f988bf-86f1-41af-91ab-2d7cd011db47", "client_id": "0a1b2c3d-4e5f-6789-abcd-ef0123456789", "from": "alerts@acme.example", "to": "it@acme.example"}
+	in := notify.ChannelInput{Enabled: true, MinSeverity: notify.High, Secret: "Gr8Q~graph.client_secret-456", Fields: g} //nolint:gosec // G101: a test value, not a credential
+	c, err := e.svc.SaveChannel(e.ctx(), "admin@acme.example", channel.Email, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Fields["tenant_id"] == "" || c.Fields["client_id"] == "" || c.Fields["secret_for"] != "microsoft_graph graph.microsoft.com:443" {
+		t.Fatalf("fields %v", c.Fields)
+	}
+	res, err := e.svc.TestChannel(e.ctx(), "admin@acme.example", channel.Email)
+	if err != nil || !res.OK {
+		t.Fatalf("test = %+v, %v (requests %v)", res, err, hosts)
+	}
+	if len(hosts) != 2 || hosts[1] != "graph.microsoft.com/v1.0/users/alerts@acme.example/sendMail" {
+		t.Errorf("requests %v", hosts)
+	}
+	// The SMTP app preset's client secret is bound elsewhere: switching to it needs the secret again.
+	g["provider"], g["host"], g["port"], g["security"] = "microsoft365", "smtp.office365.com", "587", "starttls"
+	_, err = e.svc.SaveChannel(e.ctx(), "admin@acme.example", channel.Email, notify.ChannelInput{Enabled: true, MinSeverity: notify.High, Fields: g})
+	wantCode(t, err, 400, "secret_required")
 }

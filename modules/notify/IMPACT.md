@@ -25,6 +25,9 @@
 ## Modifying: `notify.Service.EmailReady(ctx) (bool, reason)` and `CodeMailer.SendCode(ctx, to, code)`
 - **core** (email 2FA sign-in, `/core/account` `twofa_email.available`). Changing the returned reason makes the message on the sign-in page wrong; it must never fall back to password only (core INV-8).
 
+## Modifying: `CodeMailer.Proven(ctx)`
+- **core** (`auth.ProvenMailer`): turning on email 2-step and `/core/account` `twofa_email.available` need the email channel's last test (since the last save) to have succeeded. `TestCodeMailerProvenNeedsASuccessfulTest`. Changing it to look at anything that a failed send can flip on the login path would lock people out: login uses `Available` only.
+
 ## Modifying: `CodeMailer.SendStepUpCode(ctx, to, code, summary)`
 - **core** (`auth.VerifyTwoStep` email method): without this function, two-step approval by email returns 503 `twofa_email_unavailable`. The message must have no link or anything besides the code; `summary` always goes through `channel.Line`.
 
@@ -46,7 +49,7 @@ The only caller in every item is `response` (through the adapter in `cmd/vedette
 - **core** (email 2FA goes through this channel): an unknown box address does not block email (unlike the webhook), so the sign-in code does not stop when the host has not answered. **cmd/vedette**: only tests set `notifySMTPLoopback` (`notify_wiring_test.go`), the e2e box (`TestE2EBox`) and `web/e2e-real` email rely on it; `main` never sets it. A box that saved SMTP `127.0.0.1` before this version (it could never send: core always runs in a container and loopback is itself): the send records "The SMTP server cannot be this machine, …" in History, and saving the channel again reports `bad_host` under the SMTP server field.
 
 ## Modifying: email sign-in (`channel.EmailConfig.Provider`, `TenantID`, `ClientID`, `HTTPClient`, `Tokens`; `channel.EmailAuth`, `channel.SignInError`, `channel.TokenCache`)
-- **SPA** `emailProviders.ts` (presets: host, port, encryption, fixed username) must match the `emailProviders` list in `channel/smtpauth.go`; a new preset needs both places. The mock `validateEmail` (`mocks.ts`) follows the box's exact order of checks and sentences.
+- **SPA** `emailProviders.ts` (presets: host, port, encryption, fixed username; `hidden` presets are left out of the list unless the saved channel uses one) must match the `emailProviders` list in `channel/smtpauth.go`; a new preset needs both places. `microsoft-graph` is fixed to `graph.microsoft.com:443` `ssl` (the dialog hides the server fields) and sends through `channel/graphmail.go`. The mock `validateEmail` (`mocks.ts`) follows the box's exact order of checks and sentences.
 - **core** (email 2FA, two-step approval code): the same send path, so if the Microsoft/Google token service does not answer the sign-in code does not go out either; the error sentence is `SignInError.Msg`. `notify.Config.HTTPClient` now also carries token requests (tests set a fake client; `cmd/vedette` leaves it nil so token requests use a client of their own: 30 s limit, no redirects, proxy from the environment).
 - **PRIVACY** flow 5 + Settings → Privacy (`core.json` `privacy.flow.5`): changing a token endpoint or what is sent = change both in the same commit (`privacyFlows.test.ts` requires every host in the "Where to" column to appear in the UI).
 - A channel saved by an older version (or a client that does not send `provider`) is custom: no migration is needed.

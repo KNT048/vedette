@@ -55,7 +55,7 @@ describe('exposure tree', () => {
     try {
       localStorage.setItem('vedette-mock-egress', '198.51.100.9')
       const away = (await call('POST', '/exposure/tree/xt-14/verify', undefined, 'operator')).json as Verify
-      expect(away).toMatchObject({ verified: false, node: { blocked: 'proof', proof: { state: 'missing' } } })
+      expect(away).toMatchObject({ verified: false, node: { blocked: null, proof: { state: 'proven' } } }) // inside its 90 days: a warning only
       expect(away.message).toBe('This box currently reaches the Internet via 198.51.100.9, not 198.51.100.2. Ask your admin to route the box through 198.51.100.2 (for example switch WAN), then verify again.')
       localStorage.setItem('vedette-mock-egress', '198.51.100.2,198.51.100.9')
       const back = (await call('POST', '/exposure/tree/xt-14/verify', undefined, 'operator')).json as Verify

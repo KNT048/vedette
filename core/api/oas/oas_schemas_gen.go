@@ -48420,9 +48420,10 @@ type ExposureDeleteExposureTargetsIDNoContent struct{}
 type ExposureDeleteExposureTargetsIDQueueNoContent struct{}
 
 type ExposureDeleteExposureTargetsIDTermsOK struct {
-	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
-	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
-	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	// Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a
+	// check since that did not find it (a record or file gone, a lookup that failed, an IP the box does
+	// not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current
+	// are no longer given (kept for older clients).
 	BlockedReason NilExposureDeleteExposureTargetsIDTermsOKBlockedReason `json:"blocked_reason"`
 	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
 	// sentence shown next to the button.
@@ -48432,8 +48433,8 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposureDeleteExposureTargetsIDTermsOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                 `json:"created_at"`
-	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
-	// re-checked right before every scan).
+	// When the proof runs out: 90 days after its last pass (the later of verified_at and a passing
+	// last_check). A check that did not find it does not move it.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
@@ -48451,8 +48452,8 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	LastScanFinishedAt OptNilDateTime                                  `json:"last_scan_finished_at"`
 	Latest             NilExposureDeleteExposureTargetsIDTermsOKLatest `json:"latest"`
 	Method             NilExposureDeleteExposureTargetsIDTermsOKMethod `json:"method"`
-	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
-	// every 6 hours while it is not found); null otherwise.
+	// Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it
+	// expires, then every 6 hours while it is not found); null otherwise.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
 	OpenExposures int `json:"open_exposures"`
@@ -48465,12 +48466,13 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposureDeleteExposureTargetsIDTermsOKProof `json:"proof"`
 	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-	// scan confirmation or testing terms are not accepted yet).
+	// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+	// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+	// testing terms are not accepted yet).
 	ScanState ExposureDeleteExposureTargetsIDTermsOKScanState `json:"scan_state"`
 	Scannable bool                                            `json:"scannable"`
-	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+	// file not found since).
 	Status ExposureDeleteExposureTargetsIDTermsOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
 	// count (full_scan is false) until accepted again.
@@ -48487,8 +48489,8 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposureDeleteExposureTargetsIDTermsOKValidity `json:"validity"`
 	Value    string                                            `json:"value"`
-	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
-	// sighting renews it). Typed IP: the last time its proof was found.
+	// The last time the proof passed (every pass renews it): a domain's record found, the box seeing its
+	// IP, a typed IP's file or name found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -49711,9 +49713,9 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKProof) SetZone(val string) {
 }
 
 // Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-// scan confirmation or testing terms are not accepted yet).
+// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+// testing terms are not accepted yet).
 type ExposureDeleteExposureTargetsIDTermsOKScanState string
 
 const (
@@ -49790,7 +49792,8 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKScanState) UnmarshalText(data []b
 	}
 }
 
-// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+// file not found since).
 type ExposureDeleteExposureTargetsIDTermsOKStatus string
 
 const (
@@ -51006,7 +51009,7 @@ type ExposureDeleteExposureTreeIDTermsOKProof struct {
 	CoveredBy NilExposureDeleteExposureTreeIDTermsOKProofCoveredBy `json:"covered_by"`
 	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
 	DNS NilExposureDeleteExposureTreeIDTermsOKProofDNS `json:"dns"`
-	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	// 90 days after the proof last passed; null while unproved or covered by an ancestor.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// IP typed in by a person: where its proof file goes; null otherwise.
 	File      NilExposureDeleteExposureTreeIDTermsOKProofFile      `json:"file"`
@@ -51016,8 +51019,10 @@ type ExposureDeleteExposureTreeIDTermsOKProof struct {
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+	// not go out through now (still scannable until it expires). A check that did not find the proof is
+	// shown in last_check and changes the state only once the 90 days have passed.
 	State ExposureDeleteExposureTreeIDTermsOKProofState `json:"state"`
 	// When this node's own proof was last found.
 	VerifiedAt NilDateTime `json:"verified_at"`
@@ -51322,8 +51327,10 @@ func (s *ExposureDeleteExposureTreeIDTermsOKProofMethod) UnmarshalText(data []by
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+// not go out through now (still scannable until it expires). A check that did not find the proof is
+// shown in last_check and changes the state only once the 90 days have passed.
 type ExposureDeleteExposureTreeIDTermsOKProofState string
 
 const (
@@ -52969,9 +52976,10 @@ func (s *ExposureGetExposureTargetsIDDiffOKRemovedItemKind) UnmarshalText(data [
 }
 
 type ExposureGetExposureTargetsIDOK struct {
-	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
-	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
-	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	// Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a
+	// check since that did not find it (a record or file gone, a lookup that failed, an IP the box does
+	// not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current
+	// are no longer given (kept for older clients).
 	BlockedReason NilExposureGetExposureTargetsIDOKBlockedReason `json:"blocked_reason"`
 	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
 	// sentence shown next to the button.
@@ -52981,8 +52989,8 @@ type ExposureGetExposureTargetsIDOK struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposureGetExposureTargetsIDOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                         `json:"created_at"`
-	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
-	// re-checked right before every scan).
+	// When the proof runs out: 90 days after its last pass (the later of verified_at and a passing
+	// last_check). A check that did not find it does not move it.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
@@ -53000,8 +53008,8 @@ type ExposureGetExposureTargetsIDOK struct {
 	LastScanFinishedAt OptNilDateTime                          `json:"last_scan_finished_at"`
 	Latest             NilExposureGetExposureTargetsIDOKLatest `json:"latest"`
 	Method             NilExposureGetExposureTargetsIDOKMethod `json:"method"`
-	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
-	// every 6 hours while it is not found); null otherwise.
+	// Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it
+	// expires, then every 6 hours while it is not found); null otherwise.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
 	OpenExposures int `json:"open_exposures"`
@@ -53014,12 +53022,13 @@ type ExposureGetExposureTargetsIDOK struct {
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposureGetExposureTargetsIDOKProof `json:"proof"`
 	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-	// scan confirmation or testing terms are not accepted yet).
+	// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+	// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+	// testing terms are not accepted yet).
 	ScanState ExposureGetExposureTargetsIDOKScanState `json:"scan_state"`
 	Scannable bool                                    `json:"scannable"`
-	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+	// file not found since).
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
 	// count (full_scan is false) until accepted again.
@@ -53036,8 +53045,8 @@ type ExposureGetExposureTargetsIDOK struct {
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposureGetExposureTargetsIDOKValidity `json:"validity"`
 	Value    string                                    `json:"value"`
-	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
-	// sighting renews it). Typed IP: the last time its proof was found.
+	// The last time the proof passed (every pass renews it): a domain's record found, the box seeing its
+	// IP, a typed IP's file or name found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -54260,9 +54269,9 @@ func (s *ExposureGetExposureTargetsIDOKProof) SetZone(val string) {
 }
 
 // Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-// scan confirmation or testing terms are not accepted yet).
+// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+// testing terms are not accepted yet).
 type ExposureGetExposureTargetsIDOKScanState string
 
 const (
@@ -54339,7 +54348,8 @@ func (s *ExposureGetExposureTargetsIDOKScanState) UnmarshalText(data []byte) err
 	}
 }
 
-// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+// file not found since).
 type ExposureGetExposureTargetsIDOKStatus string
 
 const (
@@ -58100,9 +58110,10 @@ func (s *ExposureGetExposureTargetsOKIgnoredItem) SetValue(val string) {
 }
 
 type ExposureGetExposureTargetsOKItemsItem struct {
-	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
-	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
-	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	// Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a
+	// check since that did not find it (a record or file gone, a lookup that failed, an IP the box does
+	// not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current
+	// are no longer given (kept for older clients).
 	BlockedReason NilExposureGetExposureTargetsOKItemsItemBlockedReason `json:"blocked_reason"`
 	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
 	// sentence shown next to the button.
@@ -58112,8 +58123,8 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposureGetExposureTargetsOKItemsItemCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                `json:"created_at"`
-	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
-	// re-checked right before every scan).
+	// When the proof runs out: 90 days after its last pass (the later of verified_at and a passing
+	// last_check). A check that did not find it does not move it.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
@@ -58131,8 +58142,8 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	LastScanFinishedAt OptNilDateTime                                 `json:"last_scan_finished_at"`
 	Latest             NilExposureGetExposureTargetsOKItemsItemLatest `json:"latest"`
 	Method             NilExposureGetExposureTargetsOKItemsItemMethod `json:"method"`
-	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
-	// every 6 hours while it is not found); null otherwise.
+	// Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it
+	// expires, then every 6 hours while it is not found); null otherwise.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
 	OpenExposures int `json:"open_exposures"`
@@ -58145,12 +58156,13 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposureGetExposureTargetsOKItemsItemProof `json:"proof"`
 	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-	// scan confirmation or testing terms are not accepted yet).
+	// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+	// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+	// testing terms are not accepted yet).
 	ScanState ExposureGetExposureTargetsOKItemsItemScanState `json:"scan_state"`
 	Scannable bool                                           `json:"scannable"`
-	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+	// file not found since).
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
 	// count (full_scan is false) until accepted again.
@@ -58167,8 +58179,8 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposureGetExposureTargetsOKItemsItemValidity `json:"validity"`
 	Value    string                                           `json:"value"`
-	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
-	// sighting renews it). Typed IP: the last time its proof was found.
+	// The last time the proof passed (every pass renews it): a domain's record found, the box seeing its
+	// IP, a typed IP's file or name found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -59391,9 +59403,9 @@ func (s *ExposureGetExposureTargetsOKItemsItemProof) SetZone(val string) {
 }
 
 // Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-// scan confirmation or testing terms are not accepted yet).
+// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+// testing terms are not accepted yet).
 type ExposureGetExposureTargetsOKItemsItemScanState string
 
 const (
@@ -59470,7 +59482,8 @@ func (s *ExposureGetExposureTargetsOKItemsItemScanState) UnmarshalText(data []by
 	}
 }
 
-// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+// file not found since).
 type ExposureGetExposureTargetsOKItemsItemStatus string
 
 const (
@@ -61695,7 +61708,7 @@ type ExposureGetExposureTreeIDOKProof struct {
 	CoveredBy NilExposureGetExposureTreeIDOKProofCoveredBy `json:"covered_by"`
 	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
 	DNS NilExposureGetExposureTreeIDOKProofDNS `json:"dns"`
-	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	// 90 days after the proof last passed; null while unproved or covered by an ancestor.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// IP typed in by a person: where its proof file goes; null otherwise.
 	File      NilExposureGetExposureTreeIDOKProofFile      `json:"file"`
@@ -61705,8 +61718,10 @@ type ExposureGetExposureTreeIDOKProof struct {
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+	// not go out through now (still scannable until it expires). A check that did not find the proof is
+	// shown in last_check and changes the state only once the 90 days have passed.
 	State ExposureGetExposureTreeIDOKProofState `json:"state"`
 	// When this node's own proof was last found.
 	VerifiedAt NilDateTime `json:"verified_at"`
@@ -62011,8 +62026,10 @@ func (s *ExposureGetExposureTreeIDOKProofMethod) UnmarshalText(data []byte) erro
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+// not go out through now (still scannable until it expires). A check that did not find the proof is
+// shown in last_check and changes the state only once the 90 days have passed.
 type ExposureGetExposureTreeIDOKProofState string
 
 const (
@@ -64195,7 +64212,7 @@ type ExposureGetExposureTreeOKItemsItemProof struct {
 	CoveredBy NilExposureGetExposureTreeOKItemsItemProofCoveredBy `json:"covered_by"`
 	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
 	DNS NilExposureGetExposureTreeOKItemsItemProofDNS `json:"dns"`
-	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	// 90 days after the proof last passed; null while unproved or covered by an ancestor.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// IP typed in by a person: where its proof file goes; null otherwise.
 	File      NilExposureGetExposureTreeOKItemsItemProofFile      `json:"file"`
@@ -64205,8 +64222,10 @@ type ExposureGetExposureTreeOKItemsItemProof struct {
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+	// not go out through now (still scannable until it expires). A check that did not find the proof is
+	// shown in last_check and changes the state only once the 90 days have passed.
 	State ExposureGetExposureTreeOKItemsItemProofState `json:"state"`
 	// When this node's own proof was last found.
 	VerifiedAt NilDateTime `json:"verified_at"`
@@ -64511,8 +64530,10 @@ func (s *ExposureGetExposureTreeOKItemsItemProofMethod) UnmarshalText(data []byt
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+// not go out through now (still scannable until it expires). A check that did not find the proof is
+// shown in last_check and changes the state only once the 90 days have passed.
 type ExposureGetExposureTreeOKItemsItemProofState string
 
 const (
@@ -65697,7 +65718,7 @@ type ExposurePatchExposureTreeIDOKProof struct {
 	CoveredBy NilExposurePatchExposureTreeIDOKProofCoveredBy `json:"covered_by"`
 	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
 	DNS NilExposurePatchExposureTreeIDOKProofDNS `json:"dns"`
-	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	// 90 days after the proof last passed; null while unproved or covered by an ancestor.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// IP typed in by a person: where its proof file goes; null otherwise.
 	File      NilExposurePatchExposureTreeIDOKProofFile      `json:"file"`
@@ -65707,8 +65728,10 @@ type ExposurePatchExposureTreeIDOKProof struct {
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+	// not go out through now (still scannable until it expires). A check that did not find the proof is
+	// shown in last_check and changes the state only once the 90 days have passed.
 	State ExposurePatchExposureTreeIDOKProofState `json:"state"`
 	// When this node's own proof was last found.
 	VerifiedAt NilDateTime `json:"verified_at"`
@@ -66013,8 +66036,10 @@ func (s *ExposurePatchExposureTreeIDOKProofMethod) UnmarshalText(data []byte) er
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+// not go out through now (still scannable until it expires). A check that did not find the proof is
+// shown in last_check and changes the state only once the 90 days have passed.
 type ExposurePatchExposureTreeIDOKProofState string
 
 const (
@@ -66337,9 +66362,10 @@ func (s *ExposurePostExposureBoxIPVerifyOK) SetMessage(val string) {
 }
 
 type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
-	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
-	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
-	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	// Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a
+	// check since that did not find it (a record or file gone, a lookup that failed, an IP the box does
+	// not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current
+	// are no longer given (kept for older clients).
 	BlockedReason NilExposurePostExposureBoxIPVerifyOKItemsItemBlockedReason `json:"blocked_reason"`
 	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
 	// sentence shown next to the button.
@@ -66349,8 +66375,8 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureBoxIPVerifyOKItemsItemCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                     `json:"created_at"`
-	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
-	// re-checked right before every scan).
+	// When the proof runs out: 90 days after its last pass (the later of verified_at and a passing
+	// last_check). A check that did not find it does not move it.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
@@ -66368,8 +66394,8 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	LastScanFinishedAt OptNilDateTime                                      `json:"last_scan_finished_at"`
 	Latest             NilExposurePostExposureBoxIPVerifyOKItemsItemLatest `json:"latest"`
 	Method             NilExposurePostExposureBoxIPVerifyOKItemsItemMethod `json:"method"`
-	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
-	// every 6 hours while it is not found); null otherwise.
+	// Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it
+	// expires, then every 6 hours while it is not found); null otherwise.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
 	OpenExposures int `json:"open_exposures"`
@@ -66382,12 +66408,13 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePostExposureBoxIPVerifyOKItemsItemProof `json:"proof"`
 	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-	// scan confirmation or testing terms are not accepted yet).
+	// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+	// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+	// testing terms are not accepted yet).
 	ScanState ExposurePostExposureBoxIPVerifyOKItemsItemScanState `json:"scan_state"`
 	Scannable bool                                                `json:"scannable"`
-	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+	// file not found since).
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
 	// count (full_scan is false) until accepted again.
@@ -66404,8 +66431,8 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePostExposureBoxIPVerifyOKItemsItemValidity `json:"validity"`
 	Value    string                                                `json:"value"`
-	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
-	// sighting renews it). Typed IP: the last time its proof was found.
+	// The last time the proof passed (every pass renews it): a domain's record found, the box seeing its
+	// IP, a typed IP's file or name found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -67628,9 +67655,9 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemProof) SetZone(val string) {
 }
 
 // Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-// scan confirmation or testing terms are not accepted yet).
+// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+// testing terms are not accepted yet).
 type ExposurePostExposureBoxIPVerifyOKItemsItemScanState string
 
 const (
@@ -67707,7 +67734,8 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemScanState) UnmarshalText(data
 	}
 }
 
-// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+// file not found since).
 type ExposurePostExposureBoxIPVerifyOKItemsItemStatus string
 
 const (
@@ -68770,9 +68798,10 @@ func (s *ExposurePostExposureScanStopOKStatus) UnmarshalText(data []byte) error 
 }
 
 type ExposurePostExposureTargetsCreated struct {
-	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
-	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
-	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	// Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a
+	// check since that did not find it (a record or file gone, a lookup that failed, an IP the box does
+	// not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current
+	// are no longer given (kept for older clients).
 	BlockedReason NilExposurePostExposureTargetsCreatedBlockedReason `json:"blocked_reason"`
 	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
 	// sentence shown next to the button.
@@ -68782,8 +68811,8 @@ type ExposurePostExposureTargetsCreated struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureTargetsCreatedCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                             `json:"created_at"`
-	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
-	// re-checked right before every scan).
+	// When the proof runs out: 90 days after its last pass (the later of verified_at and a passing
+	// last_check). A check that did not find it does not move it.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
@@ -68801,8 +68830,8 @@ type ExposurePostExposureTargetsCreated struct {
 	LastScanFinishedAt OptNilDateTime                              `json:"last_scan_finished_at"`
 	Latest             NilExposurePostExposureTargetsCreatedLatest `json:"latest"`
 	Method             NilExposurePostExposureTargetsCreatedMethod `json:"method"`
-	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
-	// every 6 hours while it is not found); null otherwise.
+	// Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it
+	// expires, then every 6 hours while it is not found); null otherwise.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
 	OpenExposures int `json:"open_exposures"`
@@ -68815,12 +68844,13 @@ type ExposurePostExposureTargetsCreated struct {
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePostExposureTargetsCreatedProof `json:"proof"`
 	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-	// scan confirmation or testing terms are not accepted yet).
+	// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+	// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+	// testing terms are not accepted yet).
 	ScanState ExposurePostExposureTargetsCreatedScanState `json:"scan_state"`
 	Scannable bool                                        `json:"scannable"`
-	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+	// file not found since).
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
 	// count (full_scan is false) until accepted again.
@@ -68837,8 +68867,8 @@ type ExposurePostExposureTargetsCreated struct {
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePostExposureTargetsCreatedValidity `json:"validity"`
 	Value    string                                        `json:"value"`
-	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
-	// sighting renews it). Typed IP: the last time its proof was found.
+	// The last time the proof passed (every pass renews it): a domain's record found, the box seeing its
+	// IP, a typed IP's file or name found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -70061,9 +70091,9 @@ func (s *ExposurePostExposureTargetsCreatedProof) SetZone(val string) {
 }
 
 // Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-// scan confirmation or testing terms are not accepted yet).
+// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+// testing terms are not accepted yet).
 type ExposurePostExposureTargetsCreatedScanState string
 
 const (
@@ -70140,7 +70170,8 @@ func (s *ExposurePostExposureTargetsCreatedScanState) UnmarshalText(data []byte)
 	}
 }
 
-// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+// file not found since).
 type ExposurePostExposureTargetsCreatedStatus string
 
 const (
@@ -71900,9 +71931,10 @@ func (s *ExposurePostExposureTargetsIDVerifyOK) SetVerified(val bool) {
 }
 
 type ExposurePostExposureTargetsIDVerifyOKTarget struct {
-	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
-	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
-	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	// Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a
+	// check since that did not find it (a record or file gone, a lookup that failed, an IP the box does
+	// not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current
+	// are no longer given (kept for older clients).
 	BlockedReason NilExposurePostExposureTargetsIDVerifyOKTargetBlockedReason `json:"blocked_reason"`
 	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
 	// sentence shown next to the button.
@@ -71912,8 +71944,8 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposurePostExposureTargetsIDVerifyOKTargetCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                                      `json:"created_at"`
-	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
-	// re-checked right before every scan).
+	// When the proof runs out: 90 days after its last pass (the later of verified_at and a passing
+	// last_check). A check that did not find it does not move it.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
@@ -71931,8 +71963,8 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	LastScanFinishedAt OptNilDateTime                                       `json:"last_scan_finished_at"`
 	Latest             NilExposurePostExposureTargetsIDVerifyOKTargetLatest `json:"latest"`
 	Method             NilExposurePostExposureTargetsIDVerifyOKTargetMethod `json:"method"`
-	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
-	// every 6 hours while it is not found); null otherwise.
+	// Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it
+	// expires, then every 6 hours while it is not found); null otherwise.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
 	OpenExposures int `json:"open_exposures"`
@@ -71945,12 +71977,13 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePostExposureTargetsIDVerifyOKTargetProof `json:"proof"`
 	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-	// scan confirmation or testing terms are not accepted yet).
+	// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+	// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+	// testing terms are not accepted yet).
 	ScanState ExposurePostExposureTargetsIDVerifyOKTargetScanState `json:"scan_state"`
 	Scannable bool                                                 `json:"scannable"`
-	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+	// file not found since).
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
 	// count (full_scan is false) until accepted again.
@@ -71967,8 +72000,8 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePostExposureTargetsIDVerifyOKTargetValidity `json:"validity"`
 	Value    string                                                 `json:"value"`
-	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
-	// sighting renews it). Typed IP: the last time its proof was found.
+	// The last time the proof passed (every pass renews it): a domain's record found, the box seeing its
+	// IP, a typed IP's file or name found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -73191,9 +73224,9 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetProof) SetZone(val string) {
 }
 
 // Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-// scan confirmation or testing terms are not accepted yet).
+// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+// testing terms are not accepted yet).
 type ExposurePostExposureTargetsIDVerifyOKTargetScanState string
 
 const (
@@ -73270,7 +73303,8 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetScanState) UnmarshalText(dat
 	}
 }
 
-// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+// file not found since).
 type ExposurePostExposureTargetsIDVerifyOKTargetStatus string
 
 const (
@@ -74508,7 +74542,7 @@ type ExposurePostExposureTreeCreatedProof struct {
 	CoveredBy NilExposurePostExposureTreeCreatedProofCoveredBy `json:"covered_by"`
 	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
 	DNS NilExposurePostExposureTreeCreatedProofDNS `json:"dns"`
-	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	// 90 days after the proof last passed; null while unproved or covered by an ancestor.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// IP typed in by a person: where its proof file goes; null otherwise.
 	File      NilExposurePostExposureTreeCreatedProofFile      `json:"file"`
@@ -74518,8 +74552,10 @@ type ExposurePostExposureTreeCreatedProof struct {
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+	// not go out through now (still scannable until it expires). A check that did not find the proof is
+	// shown in last_check and changes the state only once the 90 days have passed.
 	State ExposurePostExposureTreeCreatedProofState `json:"state"`
 	// When this node's own proof was last found.
 	VerifiedAt NilDateTime `json:"verified_at"`
@@ -74824,8 +74860,10 @@ func (s *ExposurePostExposureTreeCreatedProofMethod) UnmarshalText(data []byte) 
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+// not go out through now (still scannable until it expires). A check that did not find the proof is
+// shown in last_check and changes the state only once the 90 days have passed.
 type ExposurePostExposureTreeCreatedProofState string
 
 const (
@@ -76455,7 +76493,7 @@ type ExposurePostExposureTreeIDVerifyOKNodeProof struct {
 	CoveredBy NilExposurePostExposureTreeIDVerifyOKNodeProofCoveredBy `json:"covered_by"`
 	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
 	DNS NilExposurePostExposureTreeIDVerifyOKNodeProofDNS `json:"dns"`
-	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	// 90 days after the proof last passed; null while unproved or covered by an ancestor.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// IP typed in by a person: where its proof file goes; null otherwise.
 	File      NilExposurePostExposureTreeIDVerifyOKNodeProofFile      `json:"file"`
@@ -76465,8 +76503,10 @@ type ExposurePostExposureTreeIDVerifyOKNodeProof struct {
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+	// not go out through now (still scannable until it expires). A check that did not find the proof is
+	// shown in last_check and changes the state only once the 90 days have passed.
 	State ExposurePostExposureTreeIDVerifyOKNodeProofState `json:"state"`
 	// When this node's own proof was last found.
 	VerifiedAt NilDateTime `json:"verified_at"`
@@ -76771,8 +76811,10 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeProofMethod) UnmarshalText(data [
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+// not go out through now (still scannable until it expires). A check that did not find the proof is
+// shown in last_check and changes the state only once the 90 days have passed.
 type ExposurePostExposureTreeIDVerifyOKNodeProofState string
 
 const (
@@ -77557,9 +77599,10 @@ func (s *ExposurePutExposureGreenboneReq) SetEnabled(val bool) {
 }
 
 type ExposurePutExposureTargetsIDTermsOK struct {
-	// Why it cannot be scanned yet; null = can be scanned. ip_not_current (IPs only): the last full check
-	// that got an answer did not see the IP and no check since has, so scans are paused (until a later
-	// check sees it) while the IP stays in the list; verified_at is when the box last saw it.
+	// Why it cannot be scanned yet; null = can be scanned. A proof holds 90 days from its last pass: a
+	// check since that did not find it (a record or file gone, a lookup that failed, an IP the box does
+	// not go out through now) is a warning in last_check, so txt_missing, proof_missing and ip_not_current
+	// are no longer given (kept for older clients).
 	BlockedReason NilExposurePutExposureTargetsIDTermsOKBlockedReason `json:"blocked_reason"`
 	// Recorded by the first Scan now of an administrator with two-step sign-in: who, when and the exact
 	// sentence shown next to the button.
@@ -77569,8 +77612,8 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// a commitment can carry it too.
 	CommitmentNotice NilExposurePutExposureTargetsIDTermsOKCommitmentNotice `json:"commitment_notice"`
 	CreatedAt        time.Time                                              `json:"created_at"`
-	// IP: verified_at + 30 days (the proof expiry of a typed IP). Domain: null (the TXT record is
-	// re-checked right before every scan).
+	// When the proof runs out: 90 days after its last pass (the later of verified_at and a passing
+	// last_check). A check that did not find it does not move it.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// Scans of this target are deep scans: the current testing terms are accepted. Otherwise the scope of
 	// the Scan now sentence.
@@ -77588,8 +77631,8 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	LastScanFinishedAt OptNilDateTime                               `json:"last_scan_finished_at"`
 	Latest             NilExposurePutExposureTargetsIDTermsOKLatest `json:"latest"`
 	Method             NilExposurePutExposureTargetsIDTermsOKMethod `json:"method"`
-	// Typed IP with a proof: when the box checks the proof again by itself (7 days before it expires, then
-	// every 6 hours while it is not found); null otherwise.
+	// Typed IP or domain with a proof: when the box checks the proof again by itself (7 days before it
+	// expires, then every 6 hours while it is not found); null otherwise.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Open ports of the newest scan (0 when never scanned): the number the target row shows.
 	OpenExposures int `json:"open_exposures"`
@@ -77602,12 +77645,13 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// Domains: where the TXT record goes and which verified domain covers this one already; null for an IP.
 	Proof NilExposurePutExposureTargetsIDTermsOKProof `json:"proof"`
 	// Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-	// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-	// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-	// scan confirmation or testing terms are not accepted yet).
+	// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+	// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+	// testing terms are not accepted yet).
 	ScanState ExposurePutExposureTargetsIDTermsOKScanState `json:"scan_state"`
 	Scannable bool                                         `json:"scannable"`
-	// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+	// file not found since).
 	Status ExposurePutExposureTargetsIDTermsOKStatus `json:"status"`
 	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
 	// count (full_scan is false) until accepted again.
@@ -77624,8 +77668,8 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// IPs only: expiring = 5 days or less left.
 	Validity NilExposurePutExposureTargetsIDTermsOKValidity `json:"validity"`
 	Value    string                                         `json:"value"`
-	// Domain: first successful verification. IP the box found: the last time the box saw this IP (every
-	// sighting renews it). Typed IP: the last time its proof was found.
+	// The last time the proof passed (every pass renews it): a domain's record found, the box seeing its
+	// IP, a typed IP's file or name found.
 	VerifiedAt NilDateTime `json:"verified_at"`
 }
 
@@ -78848,9 +78892,9 @@ func (s *ExposurePutExposureTargetsIDTermsOKProof) SetZone(val string) {
 }
 
 // Where the target stands for scanning: scanning (a scan of it runs now), queued (a scan of it waits
-// for the box's one scan slot), ready, or why not: unproved (no proof now), expired (a typed or
-// detected IP's 30 days ran out), paused (the box no longer goes out through the IP), needs_terms (the
-// scan confirmation or testing terms are not accepted yet).
+// for the box's one scan slot), ready, or why not: unproved (never proved, or the proof was
+// withdrawn), expired (the proof has not passed for 90 days), needs_terms (the scan confirmation or
+// testing terms are not accepted yet).
 type ExposurePutExposureTargetsIDTermsOKScanState string
 
 const (
@@ -78927,7 +78971,8 @@ func (s *ExposurePutExposureTargetsIDTermsOKScanState) UnmarshalText(data []byte
 	}
 }
 
-// Expired only exists for IPs: the box has not seen this IP for more than 30 days.
+// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
+// file not found since).
 type ExposurePutExposureTargetsIDTermsOKStatus string
 
 const (
@@ -80125,7 +80170,7 @@ type ExposurePutExposureTreeIDTermsOKProof struct {
 	CoveredBy NilExposurePutExposureTreeIDTermsOKProofCoveredBy `json:"covered_by"`
 	// Domain not covered by an ancestor: where its TXT record goes; null otherwise.
 	DNS NilExposurePutExposureTreeIDTermsOKProofDNS `json:"dns"`
-	// IPs: verified_at + 30 days; null for a domain (its record is checked again right before every scan).
+	// 90 days after the proof last passed; null while unproved or covered by an ancestor.
 	ExpiresAt NilDateTime `json:"expires_at"`
 	// IP typed in by a person: where its proof file goes; null otherwise.
 	File      NilExposurePutExposureTreeIDTermsOKProofFile      `json:"file"`
@@ -80135,8 +80180,10 @@ type ExposurePutExposureTreeIDTermsOKProof struct {
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-	// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-	// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+	// not go out through now (still scannable until it expires). A check that did not find the proof is
+	// shown in last_check and changes the state only once the 90 days have passed.
 	State ExposurePutExposureTreeIDTermsOKProofState `json:"state"`
 	// When this node's own proof was last found.
 	VerifiedAt NilDateTime `json:"verified_at"`
@@ -80441,8 +80488,10 @@ func (s *ExposurePutExposureTreeIDTermsOKProofMethod) UnmarshalText(data []byte)
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
-// missing: no proof, or the record or file was not found at the last check; expired: an IP's 30 days
-// ran out; not_current: an IP the box found that the box no longer goes out through (scans paused).
+// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
+// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
+// not go out through now (still scannable until it expires). A check that did not find the proof is
+// shown in last_check and changes the state only once the 90 days have passed.
 type ExposurePutExposureTreeIDTermsOKProofState string
 
 const (

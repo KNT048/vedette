@@ -22,21 +22,31 @@ Shapes: `web/src/features/exposure/contract.ts`.
 IDs are stable (code comments cite them); a retired ID is not reused.
 
 **What may be scanned**
-- **INV-1** A target is scanned only when all hold, checked again right before every scan: ownership verified; an IP seen by the
-  box within 30 days (INV-4) and still the box's egress address (INV-13); a domain's TXT proof still present (INV-32); the
-  commitment of the current version recorded (INV-7). A missing condition is a 409 or 400 with the reason, never a scan.
+- **INV-1** A target is scanned only when all hold, checked right before every scan (Scan now and a scheduled scan when the run
+  starts, the scan module, each deep step): ownership proved and the proof passed within the last 90 days (INV-4); the proof not
+  withdrawn; the commitment of the current version recorded (INV-7). Right before the scan the proof is looked for again (a domain's
+  TXT record, INV-32; a typed IP's file or name, INV-35; the box's own sighting of its IP, INV-13): found renews it, not found (a
+  lookup that failed, or a record, file or egress that is gone) is recorded as the target's last check and shown as a warning, never a
+  refusal while the proof is inside its 90 days. Removing the target whose record proved another one withdraws that proof at once
+  (the other is unproved); a public suffix is never proved. A missing condition is a 409 or 400 with the reason, never a scan.
 - **INV-2** A public IP the box finds itself is only the address it uses to reach the Internet, read from three fixed "my IP"
   services run by three different operators, with no proxy and no redirects.
 - **INV-3** Only global unicast IPv4 is accepted; private, reserved, CGNAT and documentation ranges never enter the store.
-- **INV-4** An IP is valid for 30 days from the last time the box saw it, renewed on every sighting.
-- **INV-13** Before scanning an IP, the box confirms it still egresses through it (a probe within the last 5 minutes, else one
-  full probe): a dynamic IP may belong to someone else now.
+- **INV-4** A proof holds 90 days from its last pass (`ValidDays`), renewed by every pass: a domain's record found, a typed IP's
+  file or name found, the box seeing its IP. The box checks a domain's record and a typed IP's proof again by itself from 7 days
+  before they run out (every 6 hours while not found; an expired domain too, since a record found is a new proof).
+- **INV-13** Before scanning an IP the box found, it checks whether it still egresses through it (a probe within the last 5 minutes,
+  else one full probe): a sighting renews it (INV-4). An IP it does not go out through now stays scannable until its 90 days run
+  out, and the node says so (`not_current`); the steps of the scan container and vedette-host that check the box's own address right
+  before they run (service identification, templates, the web scan, OpenVAS) still send nothing to it while it is not current. The
+  Shodan check needs it current (INV-21).
 - **INV-32** A domain is proved by its own TXT token (`vedette-verify=<token>`) on the name, on `_vedette-verify.<name>`, on a
   parent name up to the registered domain, or by a verified ancestor target (`core/domainfence`). Proof is checked with
-  `proof.go` only.
-- **INV-35** A public IP the customer types is listed at once but never scanned or sent to Shodan without proof found at that
-  moment: its token file `/.well-known/vedette-verify.txt` served on the IP, or forward-confirmed reverse DNS to a name under a
-  domain the box proves.
+  `proof.go` only. The executors' fence (scan container, vedette-host) still needs the record now for every deep step to an address
+  that is not the box's own.
+- **INV-35** A public IP the customer types is listed at once but never scanned before its proof is found: its token file
+  `/.well-known/vedette-verify.txt` served on the IP, or forward-confirmed reverse DNS to a name under a domain the box proves. Then
+  it holds 90 days from its last pass (INV-4); it is sent to Shodan, and its deep steps run, only with the proof found at that moment.
 - **INV-6** A domain target is a bare domain name and never a public suffix.
 - **INV-12** `CheckScannable` and `ScannableIP` are the only way the scan module asks whether an external target may be scanned.
 - **INV-31** Scan speed and exclusions come from the shared safety block (`ScanSafety` port), the same one LAN scans use.
@@ -70,6 +80,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   read from `first_seen`, `last_seen` and `state`.
 - **INV-8** The old per-day snapshot and diff endpoints answer 501.
 - **INV-22** A port the scan did not probe, or probed and missed once, is not marked closed.
+- **INV-41** A scan to which nothing of the target answered while the box could not reach the public IP services either (INV-2,
+  one round asked only then) is incomplete: it ends failed with 502 `unreachable` saying the box could not reach the target, and
+  nothing is written, so the target keeps the rows of its last complete scan. When the services answer, "nothing open" is a result.
 - **INV-19** Service identification runs before results are stored.
 - **INV-20** Exploited CVEs of a service are matched at scan time through findings' matcher (`Config.Matcher`).
 - **INV-23** nuclei templates run only for exploited CVEs matched on a service identified in this run.
@@ -107,7 +120,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 
 ## Forbidden
 
-- **FORBID-1** Scanning a target whose ownership is not proved or has expired.
+- **FORBID-1** Scanning a target whose ownership is not proved, was withdrawn, or has not passed for 90 days.
 - **FORBID-3** A consent tick box or text separate from the first Scan now.
 - **FORBID-4** Relying on inventory's LAN scope confirmation for an external target.
 - **FORBID-5** Sending internal data (devices, logs) to the CT log or the "my IP" services.

@@ -102,7 +102,7 @@ export function useRestoreIgnored() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (ip: string) => api.del<void>(`/exposure/box-ip/ignored/${enc(ip)}`), onSuccess: inv })
 }
-/** "Detect now": the box probes its own public IPs and adds or renews each one for 30 days. No IP is sent. */
+/** "Detect now": the box probes its own public IPs and adds or renews each one for 90 days. No IP is sent. */
 export function useDetectBoxIp() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: () => api.post<BoxIpDetectResult>('/exposure/box-ip/verify'), onSuccess: inv, onError: inv })
@@ -121,7 +121,7 @@ export function useCheckOutside() {
   return useMutation({
     mutationFn: (id: string) => api.post<OutsideView>(`/exposure/targets/${enc(id)}/outside`),
     onSuccess: (v, id) => { qc.setQueryData(['exposure', 'outside', id], v) },
-    // a refusal may have found the IP paused, which the page must then show
+    // a refusal may have found the IP not in use now, which the page must then show
     onError: () => qc.invalidateQueries({ queryKey: ['exposure', 'node'] }),
   })
 }

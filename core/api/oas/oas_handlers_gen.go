@@ -21707,7 +21707,7 @@ func (s *Server) handleExposurePatchExposureTreeIDRequest(args [1]string, argsEs
 //
 // "Detect now": the box asks three public "what is my IP" services (checkip.amazonaws.com,
 // icanhazip.com, ifconfig.me/ip) over several rounds of new connections, accepts an IP only when at
-// least two of the three agree in a round, and adds or renews (30 days from now) every IP that passed,
+// least two of the three agree in a round, and adds or renews (90 days from now) every IP that passed,
 // except those on the Ignored list, so several egress IPs behind a load balancer are all found. Takes
 // no IP input; refuses private, reserved and CGNAT results (400 not_public when none is public); 502
 // unreachable when no round gave an IP (no service answered, or they did not agree); rate limited to
@@ -21780,7 +21780,7 @@ func (s *Server) handleExposurePostExposureBoxIPVerifyRequest(args [0]string, ar
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureBoxIPVerifyOperation,
-			OperationSummary: "\"Detect now\": the box asks three public \"what is my IP\" services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip) over several rounds of new connections, accepts an IP only when at least two of the three agree in a round, and adds or renews (30 days from now) every IP that passed, except those on the Ignored list, so several egress IPs behind a load balancer are all found. Takes no IP input; refuses private, reserved and CGNAT results (400 not_public when none is public); 502 unreachable when no round gave an IP (no service answered, or they did not agree); rate limited to 10 attempts per hour",
+			OperationSummary: "\"Detect now\": the box asks three public \"what is my IP\" services (checkip.amazonaws.com, icanhazip.com, ifconfig.me/ip) over several rounds of new connections, accepts an IP only when at least two of the three agree in a round, and adds or renews (90 days from now) every IP that passed, except those on the Ignored list, so several egress IPs behind a load balancer are all found. Takes no IP input; refuses private, reserved and CGNAT results (400 not_public when none is public); 502 unreachable when no round gave an IP (no service answered, or they did not agree); rate limited to 10 attempts per hour",
 			OperationID:      "exposure_post_exposure_box_ip_verify",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -22255,9 +22255,10 @@ func (s *Server) handleExposurePostExposureScanStopRequest(args [0]string, argsE
 // /.well-known/vedette-verify.txt on the IP (http or https, no redirect off the IP, the ACME HTTP-01
 // model), or forward-confirmed reverse DNS (its PTR is a name under a domain this box has proved, and
 // that name resolves back to the IP). An A record of a proved domain pointing at the IP is not proof.
-// The proof lasts 30 days and the box checks it again by itself (expires_at, next_check_at). 400
-// ip_not_allowed for a private, reserved or IPv6 address, 400 bad_value for an address on the Ignored
-// list. The IP the box finds as its own egress address is added by detection, not here.
+// The proof lasts 90 days from its last pass and the box checks it again by itself (expires_at,
+// next_check_at). 400 ip_not_allowed for a private, reserved or IPv6 address, 400 bad_value for an
+// address on the Ignored list. The IP the box finds as its own egress address is added by detection,
+// not here.
 //
 // POST /exposure/targets
 func (s *Server) handleExposurePostExposureTargetsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22341,7 +22342,7 @@ func (s *Server) handleExposurePostExposureTargetsRequest(args [0]string, argsEs
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsOperation,
-			OperationSummary: "Add a target (changes scan scope): a domain, or a public IPv4 address typed in. kind is domain or ip; left out, an IPv4 address is an IP and anything else a domain. A typed IP is accepted into the list at once and is never scanned, nor sent to Shodan, until it is proved: a token file at /.well-known/vedette-verify.txt on the IP (http or https, no redirect off the IP, the ACME HTTP-01 model), or forward-confirmed reverse DNS (its PTR is a name under a domain this box has proved, and that name resolves back to the IP). An A record of a proved domain pointing at the IP is not proof. The proof lasts 30 days and the box checks it again by itself (expires_at, next_check_at). 400 ip_not_allowed for a private, reserved or IPv6 address, 400 bad_value for an address on the Ignored list. The IP the box finds as its own egress address is added by detection, not here",
+			OperationSummary: "Add a target (changes scan scope): a domain, or a public IPv4 address typed in. kind is domain or ip; left out, an IPv4 address is an IP and anything else a domain. A typed IP is accepted into the list at once and is never scanned, nor sent to Shodan, until it is proved: a token file at /.well-known/vedette-verify.txt on the IP (http or https, no redirect off the IP, the ACME HTTP-01 model), or forward-confirmed reverse DNS (its PTR is a name under a domain this box has proved, and that name resolves back to the IP). An A record of a proved domain pointing at the IP is not proof. The proof lasts 90 days from its last pass and the box checks it again by itself (expires_at, next_check_at). 400 ip_not_allowed for a private, reserved or IPv6 address, 400 bad_value for an address on the Ignored list. The IP the box finds as its own egress address is added by detection, not here",
 			OperationID:      "exposure_post_exposure_targets",
 			Body:             request,
 			RawBody:          rawBody,
@@ -22404,12 +22405,11 @@ func (s *Server) handleExposurePostExposureTargetsRequest(args [0]string, argsEs
 // checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot;
 // the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone);
 // the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409
-// not_verified, expired, ip_not_current; 400 commitment_required when the target has no current
-// commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400
-// bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no
-// such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now
-// (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as
-// exposure.scan.
+// not_verified, expired; 400 commitment_required when the target has no current commitment; 400
+// out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400 bad_value for a domain
+// (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step or started
+// more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading
+// its feed, testing terms not accepted). Every attempt is audited as exposure.scan.
 //
 // POST /exposure/targets/{id}/openvas
 func (s *Server) handleExposurePostExposureTargetsIDOpenvasRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22488,7 +22488,7 @@ func (s *Server) handleExposurePostExposureTargetsIDOpenvasRequest(args [1]strin
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDOpenvasOperation,
-			OperationSummary: "Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24 hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409 not_verified, expired, ip_not_current; 400 commitment_required when the target has no current commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400 bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as exposure.scan",
+			OperationSummary: "Run OpenVAS again, on its own, for the newest scan of a public IP of this box, started less than 24 hours ago, whose OpenVAS step started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS before it found anything: findings it had are kept until a new deep scan). It checks the open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409 not_verified, expired; 400 commitment_required when the target has no current commitment; 400 out_of_scope; 409 busy, also while OpenVAS runs; 429 rate_limited), then 400 bad_value for a domain (run its deep scan again), 409 nothing_to_rerun when the newest scan has no such step or started more than 24 hours ago, 503 scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not accepted). Every attempt is audited as exposure.scan",
 			OperationID:      "exposure_post_exposure_targets_id_openvas",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -22699,34 +22699,36 @@ func (s *Server) handleExposurePostExposureTargetsIDOutsideRequest(args [1]strin
 //
 // Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in
 // the background and the page polls GET /exposure/scan. The checks below still answer synchronously.
-// 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before
-// the scan); 409 proof_missing when the proof of a typed IP is not found now (looked for again right
-// before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the
-// latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when
-// the commitment is missing and the caller is an operator (an administrator must run the first scan).
-// For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account
-// (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400
-// commitment_required when left out, 409 notice_changed when it is not the current one); the
-// commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target
-// whose commitment is of the current sentence records nothing again; one of an older sentence is asked
-// again once: it counts as missing (operators get 400 commitment_required "the confirmation text
-// changed"), a request without notice_version gets 409 notice_changed, and the administrator's press
-// replaces it. After those checks the scan module's runner does the scan (it follows this module's
-// switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own
-// verified public IPs and on a typed public IP while its proof is found (looked for again right
-// before, one live result reused for 5 minutes); a domain's names from certificate transparency, its
-// MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed
-// with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep
-// steps beyond that go to the box's own address, and to a typed IP or an address of a domain through
-// the executors' own fence. 409 module_off while the External exposure module is off. While another
-// scan runs on the box (or others wait) the scan waits in the box's queue: 202 with status queued and
-// the queue, the checks above run again right before it starts, and GET /exposure/scan lists it until
-// then (409 busy only for the target whose scan runs now). 429 rate_limited within 10 minutes of the
-// target's last scan. Failures that come while the scan runs (400 too_many when the domain has more
-// than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does
-// not answer or the scan does not finish within 5 minutes; module_off when the module is switched off
-// meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt
-// is audited.
+// 409 not_verified when never proved or the proof was withdrawn, 409 expired when the proof has not
+// passed for 90 days. Right before the scan the proof is looked for again (a domain's TXT record, a
+// typed IP's file or name, a fresh full check that the box goes out through its own IP): found renews
+// it for 90 days; not found is recorded in last_check as a warning and the scan goes on while the
+// proof is inside its 90 days; 400 commitment_required when the commitment is missing and the caller
+// is an operator (an administrator must run the first scan). For an administrator that first scan IS
+// the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and
+// `notice_version` of the sentence shown next to the button (400 commitment_required when left out,
+// 409 notice_changed when it is not the current one); the commitment is then recorded with who, when
+// and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence
+// records nothing again; one of an older sentence is asked again once: it counts as missing (operators
+// get 400 commitment_required "the confirmation text changed"), a request without notice_version gets
+// 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's
+// runner does the scan (it follows this module's switch, so the Vulnerability scans module may be
+// off): ports and pages are scanned on the box's own verified public IPs and on a typed public IP
+// while its proof is found (looked for again right before, one live result reused for 5 minutes); a
+// domain's names from certificate transparency, its MX and NS records and a list of common names
+// (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get
+// one GET of / by name on ports 80 and 443; the deep steps beyond that go to the box's own address,
+// and to a typed IP or an address of a domain through the executors' own fence. 409 module_off while
+// the External exposure module is off. While another scan runs on the box (or others wait) the scan
+// waits in the box's queue: 202 with status queued and the queue, the checks above run again right
+// before it starts, and GET /exposure/scan lists it until then (409 busy only for the target whose
+// scan runs now). 429 rate_limited within 10 minutes of the target's last scan. Failures that come
+// while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502
+// unreachable when the certificate-transparency search (crt.sh) does not answer, the scan does not
+// finish within 5 minutes, or nothing of the target answered while the box could not reach the public
+// IP services either (the box's own network failed: the run is incomplete and the target keeps the
+// results of its last complete scan); module_off when the module is switched off meanwhile) end the
+// run as status failed with that code and text, and nothing is saved. Every attempt is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22820,7 +22822,7 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDScanOperation,
-			OperationSummary: "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 proof_missing when the proof of a typed IP is not found now (looked for again right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (it follows this module's switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own verified public IPs and on a typed public IP while its proof is found (looked for again right before, one live result reused for 5 minutes); a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep steps beyond that go to the box's own address, and to a typed IP or an address of a domain through the executors' own fence. 409 module_off while the External exposure module is off. While another scan runs on the box (or others wait) the scan waits in the box's queue: 202 with status queued and the queue, the checks above run again right before it starts, and GET /exposure/scan lists it until then (409 busy only for the target whose scan runs now). 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
+			OperationSummary: "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 not_verified when never proved or the proof was withdrawn, 409 expired when the proof has not passed for 90 days. Right before the scan the proof is looked for again (a domain's TXT record, a typed IP's file or name, a fresh full check that the box goes out through its own IP): found renews it for 90 days; not found is recorded in last_check as a warning and the scan goes on while the proof is inside its 90 days; 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation: it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (it follows this module's switch, so the Vulnerability scans module may be off): ports and pages are scanned on the box's own verified public IPs and on a typed public IP while its proof is found (looked for again right before, one live result reused for 5 minutes); a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; the deep steps beyond that go to the box's own address, and to a typed IP or an address of a domain through the executors' own fence. 409 module_off while the External exposure module is off. While another scan runs on the box (or others wait) the scan waits in the box's queue: 202 with status queued and the queue, the checks above run again right before it starts, and GET /exposure/scan lists it until then (409 busy only for the target whose scan runs now). 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer, the scan does not finish within 5 minutes, or nothing of the target answered while the box could not reach the public IP services either (the box's own network failed: the run is incomplete and the target keeps the results of its last complete scan); module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
 			OperationID:      "exposure_post_exposure_targets_id_scan",
 			Body:             request,
 			RawBody:          rawBody,
@@ -22883,15 +22885,16 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 // handleExposurePostExposureTargetsIDVerifyRequest handles exposure_post_exposure_targets_id_verify operation.
 //
 // Re-check ownership: domain = DNS TXT record; typed IP = its token file, then reverse DNS (a pass
-// renews it for 30 days; once every 30 seconds per target, and inside the box-wide bound of domain
-// checks); IP the box found = the box must currently egress through this same IP (renews it for 30
-// days). Not found is a normal answer (verified:false). Rate limited: a domain once every 30 seconds
-// per target, and a box-wide burst of 20 domain checks then one more every 10 seconds, the check of a
-// name just added included (429 rate_limited says in how many seconds the next check is allowed), an
-// IP within the 10 attempts an hour of the box. A domain already covered by the proof of another
-// target of the box (a TXT record on its registered domain covers that name and the names under it) is
-// verified with the message "Ownership already proven by the TXT record at example.com (checked 18 Nov
-// 2026, 10:00)".
+// renews it for 90 days; once every 30 seconds per target, and inside the box-wide bound of domain
+// checks); IP the box found = the box must currently egress through this same IP (renews it for 90
+// days). A domain's record found renews it for 90 days too. Not found is a normal answer
+// (verified:false) and, inside the 90 days of the last pass, a warning only. Rate limited: a domain
+// once every 30 seconds per target, and a box-wide burst of 20 domain checks then one more every 10
+// seconds, the check of a name just added included (429 rate_limited says in how many seconds the next
+// check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the
+// proof of another target of the box (a TXT record on its registered domain covers that name and the
+// names under it) is verified with the message "Ownership already proven by the TXT record at
+// example.com (checked 18 Nov 2026, 10:00)".
 //
 // POST /exposure/targets/{id}/verify
 func (s *Server) handleExposurePostExposureTargetsIDVerifyRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -22970,7 +22973,7 @@ func (s *Server) handleExposurePostExposureTargetsIDVerifyRequest(args [1]string
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDVerifyOperation,
-			OperationSummary: "Re-check ownership: domain = DNS TXT record; typed IP = its token file, then reverse DNS (a pass renews it for 30 days; once every 30 seconds per target, and inside the box-wide bound of domain checks); IP the box found = the box must currently egress through this same IP (renews it for 30 days). Not found is a normal answer (verified:false). Rate limited: a domain once every 30 seconds per target, and a box-wide burst of 20 domain checks then one more every 10 seconds, the check of a name just added included (429 rate_limited says in how many seconds the next check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the proof of another target of the box (a TXT record on its registered domain covers that name and the names under it) is verified with the message \"Ownership already proven by the TXT record at example.com (checked 18 Nov 2026, 10:00)\"",
+			OperationSummary: "Re-check ownership: domain = DNS TXT record; typed IP = its token file, then reverse DNS (a pass renews it for 90 days; once every 30 seconds per target, and inside the box-wide bound of domain checks); IP the box found = the box must currently egress through this same IP (renews it for 90 days). A domain's record found renews it for 90 days too. Not found is a normal answer (verified:false) and, inside the 90 days of the last pass, a warning only. Rate limited: a domain once every 30 seconds per target, and a box-wide burst of 20 domain checks then one more every 10 seconds, the check of a name just added included (429 rate_limited says in how many seconds the next check is allowed), an IP within the 10 attempts an hour of the box. A domain already covered by the proof of another target of the box (a TXT record on its registered domain covers that name and the names under it) is verified with the message \"Ownership already proven by the TXT record at example.com (checked 18 Nov 2026, 10:00)\"",
 			OperationID:      "exposure_post_exposure_targets_id_verify",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -23774,11 +23777,11 @@ func (s *Server) handleExposurePutExposureGreenboneRequest(args [0]string, argsE
 // denial-of-service, password-guessing, default-password checks and exploit checks that send more than
 // a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409
 // notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or
-// ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT
-// (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new
-// level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the
-// current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with
-// the flag).
+// ip_not_current (an IP the box does not go out through now); 409 shared_address for disruptive on an
+// IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this
+// target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment
+// when the target has none of the current sentence. Accepting what is accepted changes nothing.
+// Audited (exposure.terms_accept, with the flag).
 //
 // PUT /exposure/targets/{id}/terms
 func (s *Server) handleExposurePutExposureTargetsIDTermsRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -23872,7 +23875,7 @@ func (s *Server) handleExposurePutExposureTargetsIDTermsRequest(args [1]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePutExposureTargetsIDTermsOperation,
-			OperationSummary: "Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (a paused IP); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
+			OperationSummary: "Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified, expired or ip_not_current (an IP the box does not go out through now); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
 			OperationID:      "exposure_put_exposure_targets_id_terms",
 			Body:             request,
 			RawBody:          rawBody,

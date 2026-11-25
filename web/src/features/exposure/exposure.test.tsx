@@ -85,7 +85,7 @@ describe('exposure: public IP = only an IP this box uses to reach the Internet',
     expect(first.json.message).toMatch(/Vedette found no proof of 198\.51\.100\.7/)
     const second = await call('POST', `/exposure/targets/${id}/verify`) // the file is served by now
     expect(second.json).toMatchObject({ verified: true, target: { status: 'verified', method: 'ip_file', origin: 'person' } })
-    expect(Math.round((Date.parse(second.json.target.expires_at) - Date.parse(second.json.target.verified_at)) / 864e5)).toBe(30)
+    expect(Math.round((Date.parse(second.json.target.expires_at) - Date.parse(second.json.target.verified_at)) / 864e5)).toBe(90)
     expect(second.json.target.next_check_at).not.toBeNull()
   })
 
@@ -102,13 +102,13 @@ describe('exposure: public IP = only an IP this box uses to reach the Internet',
     expect(r.json.error.message).toMatch(/Choose Public IP/)
   })
 
-  it('detects the IP the box uses and verifies it for 30 days from the sighting; detecting again renews the same target', async () => {
+  it('detects the IP the box uses and verifies it for 90 days from the sighting; detecting again renews the same target', async () => {
     setEgress('198.51.100.7')
     const a = await call('POST', '/exposure/box-ip/verify')
     expect(a.status).toBe(200)
     expect(a.json.items).toHaveLength(1)
     expect(a.json.items[0]).toMatchObject({ kind: 'ip', value: '198.51.100.7', status: 'verified', method: 'box_egress', validity: 'valid', blocked_reason: 'no_commitment' })
-    expect(Math.round((Date.parse(a.json.items[0].expires_at) - Date.parse(a.json.items[0].verified_at)) / 864e5)).toBe(30)
+    expect(Math.round((Date.parse(a.json.items[0].expires_at) - Date.parse(a.json.items[0].verified_at)) / 864e5)).toBe(90)
     expect(a.json.message).toMatch(/^The box reaches the Internet via 198\.51\.100\.7\. Verified until \d{1,2} [A-Z][a-z]{2} \d{4}\.$/)
     const b = await call('POST', '/exposure/box-ip/verify')
     expect(b.status).toBe(200)
@@ -260,7 +260,7 @@ describe('exposure: auto-detect of the box public IPs', () => {
     expect(await ipsOf()).toContain('198.51.100.9') // due: the new IP is added
     const after = (await call('GET', '/exposure/targets/xt-2')).json
     expect(Date.parse(after.verified_at)).toBeGreaterThan(Date.parse(before))
-    expect(Math.round((Date.parse(after.expires_at) - Date.parse(after.verified_at)) / 864e5)).toBe(30)
+    expect(Math.round((Date.parse(after.expires_at) - Date.parse(after.verified_at)) / 864e5)).toBe(90)
   })
 
   it('manual mode: with auto-detect off nothing runs by itself, "Detect now" still works and the list is kept', async () => {
@@ -303,10 +303,10 @@ describe('exposure: auto-detect of the box public IPs', () => {
     expect(await ipsOf()).not.toContain('203.0.113.11')
   })
 
-  it('an IP the box does not see expires after 30 days and is valid again as soon as it is seen', async () => {
+  it('an IP the box does not see expires after 90 days and is valid again as soon as it is seen', async () => {
     await call('PUT', '/exposure/box-ip/settings', { auto: false, interval_min: 60 })
     await state() // seeds the sample at the real time
-    later(31 * 1440)
+    later(91 * 1440)
     expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ status: 'expired', validity: 'expired', scannable: false, blocked_reason: 'expired' })
     expect((await call('POST', '/exposure/box-ip/verify')).status).toBe(200)
     expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ status: 'verified', validity: 'valid', scannable: true }) // the old commitment is kept
@@ -478,34 +478,32 @@ describe('exposure: scan-time check of an IP (INV-13)', () => {
   const advance = (min: number) => { if (!vi.isFakeTimers()) vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(Date.now() + min * 60_000) }
   const scanXt2 = () => call('POST', '/exposure/targets/xt-2/scan')
 
-  it('an IP is scanned while the box still goes out through it; otherwise the scan is paused, the IP stays in the list, and it works again when the box is back', async () => {
+  it('an IP stays scannable for 90 days from its last sighting, even while the box goes out through another IP; a check that sees it renews it', async () => {
     expect((await scanXt2()).status).toBe(202) // the sample box goes out through 203.0.113.10: a full check just ran and saw it
-    setEgress('198.51.100.50') // the modem rebooted and the address went elsewhere
-    expect((await scanXt2()).status).toBe(202) // the check of the last 5 minutes saw it, so no new probe yet
+    const before = (await call('GET', '/exposure/targets/xt-2')).json.verified_at as string
+    setEgress('198.51.100.50') // the box switched to its other Internet line
     advance(6)
-    const paused = await scanXt2()
-    expect(paused.status).toBe(409)
-    expect(paused.json.error.code).toBe('ip_not_current')
-    expect(paused.json.error.message).toMatch(/^This box no longer reaches the Internet through 203\.0\.113\.10; it was last seen \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}\. Scans of it are paused until the box uses it again\.$/)
-    expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ value: '203.0.113.10', status: 'verified' }) // still in the list
+    expect((await scanXt2()).status).toBe(202) // not seen now: a warning, not a block
+    expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ value: '203.0.113.10', status: 'verified', scannable: true, blocked_reason: null })
     for (const down of ['offline', 'disagree']) {
       advance(6)
       setEgress(down)
-      expect((await scanXt2()).json.error.code).toBe('ip_not_current') // fail closed
+      expect((await scanXt2()).status).toBe(202) // a check that could not tell changes nothing
     }
     advance(6)
-    setEgress('203.0.113.10,203.0.113.11') // a load balancer: every IP is seen, so every IP is scannable
+    setEgress('203.0.113.10,203.0.113.11') // back on this line: the check sees it and renews it
     expect((await scanXt2()).status).toBe(202)
+    expect(Date.parse((await call('GET', '/exposure/targets/xt-2')).json.verified_at)).toBeGreaterThan(Date.parse(before))
   })
 
   it('a full check is reused for 5 minutes, a "not seen" included; after that the box is asked again', async () => {
     advance(10) // the sample's last check is old
     setEgress('198.51.100.50')
-    expect((await scanXt2()).json.error.code).toBe('ip_not_current') // one full check, not seen
+    expect((await scanXt2()).status).toBe(202) // one full check, not seen
     const first = (await call('GET', '/exposure/targets')).json.box_ip.last_run.at
     setEgress('203.0.113.10') // the box is back, but the answer of the last full check still stands for 5 minutes
     advance(2)
-    expect((await scanXt2()).json.error.code).toBe('ip_not_current')
+    expect((await scanXt2()).status).toBe(202)
     expect((await call('GET', '/exposure/targets')).json.box_ip.last_run.at).toBe(first) // nothing was probed again
     advance(4)
     expect((await scanXt2()).status).toBe(202)
@@ -570,44 +568,34 @@ describe('exposure: add target form matrix', () => {
 
 })
 
-describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, rate limit)', () => {
+describe('exposure: QA pass fixes (IP not in use now, copy, dates, IPv6, remove dialog, rate limit)', () => {
   const iso = /\b\d{4}-\d{2}-\d{2}\b/
-  const pause = async () => {
+  const leave = async () => {
     setEgress('203.0.113.11') // the box no longer goes out through 203.0.113.10
-    expect((await call('POST', '/exposure/targets/xt-2/scan')).json.error.code).toBe('ip_not_current')
+    expect((await call('POST', '/exposure/targets/xt-2/scan')).status).toBe(202) // still scannable inside its 90 days
   }
 
-  it('1. the paused state rests on stored facts: it stays after 10 minutes and 3 hours, a failed check changes nothing, a later check that sees the IP clears it', async () => {
+  it('1. an IP the box does not go out through now stays scannable: after 10 minutes, 3 hours and failed checks, no blocked reason', async () => {
     const advance = (min: number) => { if (!vi.isFakeTimers()) vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(Date.now() + min * 60_000) }
-    const state = async () => (await call('GET', '/exposure/targets/xt-2')).json.blocked_reason
-    expect(await state()).toBeNull() // no full check yet: nothing is known against the IP
+    const state = async () => (await call('GET', '/exposure/targets/xt-2')).json
     advance(1)
-    await pause()
+    await leave()
     for (const min of [10, 170]) {
       advance(min)
-      expect(await state()).toBe('ip_not_current') // no window: it stays until a check sees the IP
+      expect(await state()).toMatchObject({ scannable: true, blocked_reason: null })
     }
     for (const down of ['offline', 'disagree']) {
       advance(6)
       setEgress(down)
       await call('POST', '/exposure/box-ip/verify') // a failed check (no answer)
-      expect(await state()).toBe('ip_not_current') // changes nothing
+      expect(await state()).toMatchObject({ scannable: true, blocked_reason: null })
     }
-    advance(6)
-    setEgress('203.0.113.10,203.0.113.11') // a load balancer: both seen
-    expect((await call('POST', '/exposure/box-ip/verify')).status).toBe(200)
-    expect(await state()).toBeNull()
-    advance(180)
-    expect(await state()).toBeNull() // it does not come back by itself
-    // a new full check that does not see the IP pauses it again
-    advance(1)
-    setEgress('203.0.113.11')
-    await call('POST', '/exposure/box-ip/verify')
-    expect(await state()).toBe('ip_not_current')
   })
 
-  it('1. the pause ends when the box uses the IP again (Verify again)', async () => {
-    await pause()
+  it('1. Verify again says the box does not go out through it, and renews it once the box does', async () => {
+    await leave()
+    expect((await call('POST', '/exposure/targets/xt-2/verify')).json.verified).toBe(false)
+    expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ scannable: true, blocked_reason: null })
     setEgress('203.0.113.10')
     expect((await call('POST', '/exposure/targets/xt-2/verify')).json.verified).toBe(true)
     expect((await call('GET', '/exposure/targets/xt-2')).json).toMatchObject({ scannable: true, blocked_reason: null })

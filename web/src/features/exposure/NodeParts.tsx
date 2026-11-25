@@ -8,15 +8,19 @@ import type { Scan, TargetNode } from './types'
 
 const link = 'font-medium text-accent underline-offset-4 hover:underline'
 
-/** Whose proof makes the node scannable, in one chip: its own, an ancestor's (named), or why it does not hold. */
+/** Whose proof makes the node scannable, in one chip: its own, an ancestor's (named), or why it does not hold. A proof holds 90 days from
+ *  its last pass: a check since that did not find it is a warning under the chip, not another state. */
 export function ProofChip({ node, linkParent = true }: { node: Pick<TargetNode, 'proof' | 'kind'>; linkParent?: boolean }) {
   const { t } = useTranslation('exposure')
   const p = node.proof
+  const failed = !!p.last_check && !p.last_check.ok && p.state !== 'missing' && p.state !== 'expired'
+  const warning = failed ? <span className="text-caption text-warn">{t('proof.checkFailed')}</span> : null
   if (p.state === 'covered' && p.covered_by) {
     return (
       <span className="grid gap-0.5">
         <Chip tone="ok">{t('proof.state.covered')}</Chip>
         <span className="text-caption text-muted">{t('proof.coveredBy')} {linkParent ? <Link className={link} to={`/exposure/${encodeURIComponent(p.covered_by.id)}`}>{p.covered_by.value}</Link> : p.covered_by.value}</span>
+        {warning}
       </span>
     )
   }
@@ -24,7 +28,8 @@ export function ProofChip({ node, linkParent = true }: { node: Pick<TargetNode, 
   return (
     <span className="grid gap-0.5">
       <Chip tone={tone}>{t(`proof.state.${p.state}`)}</Chip>
-      {node.kind === 'ip' && p.state === 'proven' && p.expires_at ? <span className="text-caption text-muted">{t('proof.until', { date: fmtDate(p.expires_at) })}</span> : null}
+      {(p.state === 'proven' || p.state === 'not_current') && p.expires_at ? <span className="text-caption text-muted">{t('proof.until', { date: fmtDate(p.expires_at) })}</span> : null}
+      {warning}
     </span>
   )
 }

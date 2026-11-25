@@ -185,7 +185,7 @@ Everything Vedette keeps, including the key that unlocks its secrets, is in the 
 ```sh
 docker compose --env-file vedette.env stop core
 docker run --rm --network none -v vedette_data:/data:ro -v "$PWD":/backup \
-  docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 \
+  docker.io/library/debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0 \
   sh -c 'umask 077 && tar czf /backup/vedette-data.tgz -C /data .'
 docker compose --env-file vedette.env start core
 ```
@@ -197,7 +197,7 @@ To restore into a fresh machine or after `down --volumes`: create the volume wit
 ```sh
 docker compose --env-file vedette.env create core
 docker run --rm --network none -v vedette_data:/data -v "$PWD":/backup:ro \
-  docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 \
+  docker.io/library/debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0 \
   sh -c 'cd /data && tar xzf /backup/vedette-data.tgz'
 docker compose --env-file vedette.env start core
 ```
@@ -207,7 +207,7 @@ With Podman the commands are the same with `podman` for `docker` (`podman compos
 ```sh
 podman compose --env-file vedette.env stop core
 podman run --rm --network none -v vedette_data:/data:ro -v "$PWD":/backup:Z \
-  docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 \
+  docker.io/library/debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0 \
   sh -c 'umask 077 && tar czf /backup/vedette-data.tgz -C /data .'
 podman compose --env-file vedette.env start core
 ```

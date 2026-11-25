@@ -18,10 +18,12 @@ import { useAddToken, useDeleteToken, useTestToken, useTokens } from './api'
 import { testAlertToast } from './testAlert'
 import { TOKEN_PRESETS, tokenPresetName, type TokenPreset } from './presets'
 import { TOKEN_TYPES, type OfferedTokenType, type Token } from './types'
+import ReadyMade from './ReadyMade'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-/** S-HP-2: honey tokens. Each says where to plant it and what triggers it. A preset fills a believable token, every field stays editable.
+/** S-HP-2: honey tokens. Ready-made decoys switch on and off in one click; Create custom opens the form, where a preset fills a
+ * believable token and every field stays editable. Each token says where to plant it and what triggers it.
  * No DNS token is offered: the box answers no DNS, so it could never alert; an older one still lists, saying so. */
 export default function TokensSection() {
   const { t } = useTranslation('honeypot')
@@ -50,8 +52,9 @@ function Inner({ items }: { items: Token[] }) {
   const searchCols: ColumnDef<Token>[] = [{ id: 'text', accessorFn: (k) => [k.name, t(`token.type.${k.type}`), k.plant_at].join(' ') }]
   return (
     <div className="grid gap-4">
+      <ReadyMade items={items} />
       <div>
-        <Button variant="primary" disabled={!admin} onClick={() => setAdding(true)} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : undefined}><Plus />{t('token.form.new')}</Button>
+        <Button disabled={!admin} onClick={() => setAdding(true)} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : undefined}><Plus />{t('token.form.new')}</Button>
       </div>
       <Dialog open={adding} onOpenChange={setAdding}>
         {adding ? (

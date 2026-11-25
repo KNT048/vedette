@@ -32,7 +32,7 @@ describe('CoverageSection', () => {
   it('bait is not covered while no decoy file or URL token exists, and says how to add one', () => {
     render(<MemoryRouter><CoverageSection services={['smb', 'ssh']} listeningIps={2} bait={0} admin /></MemoryRouter>)
     expect(within(row('Opening or following bait')).getByText('Not covered')).toBeTruthy()
-    expect(within(row('Opening or following bait')).getByRole('link', { name: 'Add a token' })).toHaveAttribute('href', '/?tab=tokens&add=token#tokens')
+    expect(within(row('Opening or following bait')).getByRole('link', { name: 'Turn on a decoy' })).toHaveAttribute('href', '/?tab=tokens#tokens')
   })
   it('every gap a person can close carries its action, for an administrator only', () => {
     const { unmount } = render(<MemoryRouter><CoverageSection services={['tftp']} listeningIps={1} bait={1} admin /></MemoryRouter>)

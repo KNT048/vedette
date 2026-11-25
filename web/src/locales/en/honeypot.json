@@ -348,7 +348,7 @@
       "type": "Token type",
       "ext": "File type",
       "plant": "Where will you plant it?",
-      "new": "Add a token",
+      "new": "Create custom token",
       "create": "Create token",
       "name": {
         "file": "File name",
@@ -380,6 +380,10 @@
         "label": "Bank account list (.xlsx)",
         "plant": "Finance folder on the file share"
       },
+      "customer_list": {
+        "label": "Customer list (.xlsx)",
+        "plant": "Sales folder on the file share"
+      },
       "network_diagram": {
         "label": "Network diagram (.docx)",
         "plant": "IT folder on the file share"
@@ -400,6 +404,10 @@
         "label": "Reporting database login",
         "plant": "Config file of a reporting script"
       },
+      "nas_admin": {
+        "label": "NAS admin login",
+        "plant": "Notes file on the IT admin PC"
+      },
       "wiki": {
         "label": "Internal wiki bookmark",
         "plant": "Browser bookmarks on the IT admin PC"
@@ -408,13 +416,17 @@
         "label": "Router admin bookmark",
         "plant": "Intranet page about the network"
       },
+      "backup_console": {
+        "label": "Backup console bookmark",
+        "plant": "Browser bookmarks on the backup server"
+      },
       "custom": {
         "label": "Custom (blank)"
       }
     },
     "created": "Token created",
     "emptyTitle": "No honey tokens yet",
-    "emptyBody": "Create one above, then plant it where an intruder would look first.",
+    "emptyBody": "Switch on a ready-made decoy above, or create a custom token and plant it where an intruder would look first.",
     "listLabel": "Honey tokens",
     "plantedAt": "Plant at: {{where}}",
     "lastTriggered_one": "Last triggered {{when}} ({{count}} real trigger)",
@@ -449,7 +461,62 @@
       "urlInfo": "For example a wiki page, a document or a note. Whoever opens it sees a plain \"404 page not found\", like a dead link, and the box records who opened it.",
       "dns": "Do not plant {{value}}: it can never alert, because the box runs no DNS server. Delete this token and use a URL token instead."
     },
-    "noAlert": "Cannot alert"
+    "noAlert": "Cannot alert",
+    "ready": {
+      "filePlant": "The decoy's file share",
+      "group": {
+        "file": {
+          "title": "Files on the decoy's share",
+          "body": "Each file sits on the decoy's file share. Opening it there raises an alert.",
+          "bodyNamed": "Each file sits on the decoy's file share (\\\\{{name}}). Opening it there raises an alert.",
+          "info": "The file holds one line of text under a spreadsheet or document name; it is not a real Office file. The alert comes from opening it on the share, from any machine. A copy taken elsewhere does not alert.",
+          "blocked": "No Trap IP has SMB on, so these files are on no share yet."
+        },
+        "credential": {
+          "title": "Fake accounts on the decoy's services",
+          "body": "A sign-in with the account's user name on a Trap IP's login (SSH, RDP, the web login…) raises an alert, from any machine.",
+          "info": "The box makes a user name and password only this account uses. So that an intruder finds it, also put it where they would look, such as a password manager or a script's config. Do not create it in Active Directory: a real account would let the sign-in succeed.",
+          "blocked": "No Trap IP has a login service on (SSH, RDP, a web login…), so nobody can try these accounts yet."
+        },
+        "url": {
+          "title": "Links",
+          "body": "A link alerts only once it is pasted where someone will find it: copy it into the place named on its row.",
+          "info": "Whoever opens it sees a plain \"404 page not found\", like a dead link, and the box records who opened it. A link scanner that fetches it also alerts."
+        }
+      },
+      "off": {
+        "file": "Puts {{value}} on the share.",
+        "credential": "The box makes a user name and password for it.",
+        "url": "The box makes a link for it; you paste it somewhere."
+      },
+      "on": {
+        "file": "{{value}} is on \\\\{{name}}.",
+        "fileNoSmb": "{{value}} goes on the share once a Trap IP has SMB on.",
+        "credential": "Live: a sign-in as {{value}} on a Trap IP alerts.",
+        "url": "Not alerting until pasted: copy the link below."
+      },
+      "pasteIn": "Paste it in: {{where}}",
+      "putIn": "Also put it in: {{where}}",
+      "onToast": "{{name}} is on",
+      "offToast": "{{name}} is off",
+      "confirm": {
+        "title": "Turn off {{name}}?",
+        "file": "The file leaves the decoy's share.",
+        "credential": "The account stops alerting. Switched on again, it gets a new user name and password, so a copy you planted would not alert.",
+        "url": "The link stops alerting. Switched on again, it gets a new link, so a copy you pasted would not alert.",
+        "hits_one": "It fired {{count}} time. That hit stays in Hits.",
+        "hits_other": "It fired {{count}} times. Those hits stay in Hits.",
+        "turnOff": "Turn off"
+      },
+      "fix": {
+        "enable": "Turn on {{name}}",
+        "add": "Add {{service}} to {{name}}",
+        "addFileServer": "Add a file server Trap IP",
+        "addLoginServer": "Add a Linux server Trap IP",
+        "askAdmin": "An administrator can turn it on.",
+        "done": "{{name}} is changing; it answers in a few minutes."
+      }
+    }
   },
   "notHere": {
     "page": "Honeypot",
@@ -476,7 +543,7 @@
       "addSmb": "Add a file server Trap IP (SMB)",
       "addLogin": "Add a Linux server Trap IP (SSH)",
       "addSecond": "Add a second Trap IP",
-      "addToken": "Add a token",
+      "addToken": "Turn on a decoy",
       "addTrap": "Add a Trap IP"
     },
     "row": {

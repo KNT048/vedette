@@ -8,7 +8,7 @@
 # runs with -duc, -ni).
 # The pack is the output of scripts/scanpack: templates/ -> /usr/share/vedette/nuclei-templates (nucleiargv.TemplatesDir), index.json ->
 # /usr/local/share/vedette/nuclei-pack/index.json (the default of `vedette-sensor active --nuclei-index`). Plain files and folders only.
-# Debian security updates the pinned base does not carry yet (zlib1g) are pinned by version and SHA-256 in pins.env and laid over it.
+# Debian security updates the pinned base does not carry yet (libzstd1) are pinned by version and SHA-256 in pins.env and laid over it.
 # Init: the unit runs this image under podman's init (RunInit=true), so vedette-sensor is not a subreaper.
 ARG DEBIAN_IMAGE
 ARG GOLANG_IMAGE
@@ -81,15 +81,15 @@ FROM ${DEBIAN_IMAGE} AS base
 # build machine for the target architecture with the base's dpkg status updated (security-deb.sh says how; the honeypot does the same).
 FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS security
 ARG TARGETARCH
-ARG ZLIB1G_VERSION
-ARG ZLIB1G_SNAPSHOT
-ARG ZLIB1G_SHA256_AMD64
-ARG ZLIB1G_SHA256_ARM64
+ARG LIBZSTD1_VERSION
+ARG LIBZSTD1_SNAPSHOT
+ARG LIBZSTD1_SHA256_AMD64
+ARG LIBZSTD1_SHA256_ARM64
 COPY --from=base /var/lib/dpkg/status /target/status
 COPY deploy/containers/security-deb.sh /usr/local/bin/security-deb.sh
 RUN set -eu; \
-    case "${TARGETARCH}" in amd64) z="${ZLIB1G_SHA256_AMD64}" ;; arm64) z="${ZLIB1G_SHA256_ARM64}" ;; *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; esac; \
-    sh /usr/local/bin/security-deb.sh zlib1g zlib "${ZLIB1G_VERSION}" "${ZLIB1G_SNAPSHOT}" "$z" "${TARGETARCH}" /target/status /overlay
+    case "${TARGETARCH}" in amd64) z="${LIBZSTD1_SHA256_AMD64}" ;; arm64) z="${LIBZSTD1_SHA256_ARM64}" ;; *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; esac; \
+    sh /usr/local/bin/security-deb.sh libzstd1 libzstd "${LIBZSTD1_VERSION}" "${LIBZSTD1_SNAPSHOT}" "$z" "${TARGETARCH}" /target/status /overlay
 
 FROM base
 ARG VERSION
@@ -106,7 +106,7 @@ COPY --from=pack /usr/share/doc/vedette/ /usr/share/doc/vedette/
 # installed, so this stage stays COPY-only (no apt, no emulation).
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /usr/share/doc/ca-certificates/copyright /usr/share/doc/ca-certificates/copyright
-# zlib1g 1+deb13u1 over the base's +b1: its files and the dpkg status that names it.
+# libzstd1 1.5.7+dfsg-1+deb13u1 over the base's 1.5.7+dfsg-1: its files and the dpkg status that names it.
 COPY --from=security /overlay/ /
 USER 65532:65532
 ENTRYPOINT ["/vedette-sensor"]

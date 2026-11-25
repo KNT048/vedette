@@ -48,13 +48,13 @@ ok "scan-base: pack index present, $n template files, only plain files and folde
 if $c run --rm --entrypoint sh "localhost/vedette-scan-base:$tag" -c 'command -v nmap' >/dev/null 2>&1; then fail "scan-base holds nmap"; fi
 ok "scan-base: no nmap (command -v nmap finds nothing)"
 # The pinned Debian security update over the base: dpkg names exactly the pinned version and its files are the package's
-# (skipped once the update is retired and ZLIB1G_VERSION is gone from pins.env).
-if [ -n "${ZLIB1G_VERSION:-}" ]; then
+# (skipped once the update is retired and LIBZSTD1_VERSION is gone from pins.env).
+if [ -n "${LIBZSTD1_VERSION:-}" ]; then
 	# shellcheck disable=SC2016 # dpkg-query's own format
-	zl=$($c run --rm --entrypoint dpkg-query "localhost/vedette-scan-base:$tag" -W -f '${Version}' zlib1g)
-	[ "$zl" = "$ZLIB1G_VERSION" ] || fail "scan-base: zlib1g is '$zl', pinned $ZLIB1G_VERSION (security-deb.sh)"
-	$c run --rm --entrypoint dpkg "localhost/vedette-scan-base:$tag" --verify zlib1g || fail "scan-base: dpkg --verify zlib1g reports changed or missing files"
-	ok "scan-base: zlib1g $zl, and dpkg --verify finds its files intact"
+	zl=$($c run --rm --entrypoint dpkg-query "localhost/vedette-scan-base:$tag" -W -f '${Version}' libzstd1)
+	[ "$zl" = "$LIBZSTD1_VERSION" ] || fail "scan-base: libzstd1 is '$zl', pinned $LIBZSTD1_VERSION (security-deb.sh)"
+	$c run --rm --entrypoint dpkg "localhost/vedette-scan-base:$tag" --verify libzstd1 || fail "scan-base: dpkg --verify libzstd1 reports changed or missing files"
+	ok "scan-base: libzstd1 $zl, and dpkg --verify finds its files intact"
 fi
 # The licences of the modules linked into nuclei, with the one recorded exception (censys-sdk-go, MIT per its README).
 for f in /usr/local/share/vedette/licenses/nuclei-third-party-licenses /usr/share/doc/vedette/nuclei-third-party-licenses; do

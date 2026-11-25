@@ -358,12 +358,12 @@ if echo "$inv" | grep -E '^pip ' | grep -iE 'GPL|GNU General'; then fail "a GPL 
 if echo "$inv" | grep -qi '^pip hpfeeds'; then fail "hpfeeds is in the image, not the stub"; fi
 ok "no GPL Python package in the image (hpfeeds is the stub)"
 # The pinned Debian security update over the base, in dpkg and in the inventory (the honeypot keeps only the copyright file of
-# each package's docs, so no dpkg --verify; skipped once the update is retired and ZLIB1G_VERSION is gone from pins.env)
-if [ -n "${ZLIB1G_VERSION:-}" ]; then
+# each package's docs, so no dpkg --verify; skipped once the update is retired and LIBZSTD1_VERSION is gone from pins.env)
+if [ -n "${LIBZSTD1_VERSION:-}" ]; then
 	# shellcheck disable=SC2016 # dpkg-query's own format
-	zl=$($c run --rm --entrypoint dpkg-query "$img" -W -f '${Version}' zlib1g)
-	[ "$zl" = "$ZLIB1G_VERSION" ] || fail "zlib1g is '$zl', pinned $ZLIB1G_VERSION (security-deb.sh)"
-	echo "$inv" | grep -Fq "deb zlib1g $ZLIB1G_VERSION (over the base's " || fail "the inventory does not record zlib1g $ZLIB1G_VERSION over the base"
-	ok "zlib1g $zl (pins.env ZLIB1G_VERSION), recorded in the inventory as a security update over the base"
+	zl=$($c run --rm --entrypoint dpkg-query "$img" -W -f '${Version}' libzstd1)
+	[ "$zl" = "$LIBZSTD1_VERSION" ] || fail "libzstd1 is '$zl', pinned $LIBZSTD1_VERSION (security-deb.sh)"
+	echo "$inv" | grep -Fq "deb libzstd1 $LIBZSTD1_VERSION (over the base's " || fail "the inventory does not record libzstd1 $LIBZSTD1_VERSION over the base"
+	ok "libzstd1 $zl (pins.env LIBZSTD1_VERSION), recorded in the inventory as a security update over the base"
 fi
 echo "honeypot-check: all checks passed"

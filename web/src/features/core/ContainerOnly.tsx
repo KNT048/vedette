@@ -21,7 +21,7 @@ export function InstallPending() {
 }
 
 // docs/INSTALL-CONTAINER.md section 5 and 6, word for word (the image is deploy/containers/pins.env DEBIAN_IMAGE).
-const DEBIAN = 'docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2'
+const DEBIAN = 'docker.io/library/debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0'
 export const UPDATE_CMD = `docker compose --env-file vedette.env pull
 docker compose --env-file vedette.env up -d`
 export const BACKUP_CMD = `docker compose --env-file vedette.env stop core

@@ -81,13 +81,13 @@ func TestPinsAreExact(t *testing.T) {
 		t.Errorf("NMAP_MIN_VERSION=%q is the floor, major.minor, of the nmap the box installs", p["NMAP_MIN_VERSION"])
 	}
 	// A Debian security update laid over the base: an exact Debian version, a debian-security snapshot time, a hash per architecture
-	if !regexp.MustCompile(`^[0-9]+:[A-Za-z0-9.+~-]+$`).MatchString(p["ZLIB1G_VERSION"]) {
-		t.Errorf("ZLIB1G_VERSION=%q must be the exact Debian version, epoch included", p["ZLIB1G_VERSION"])
+	if !regexp.MustCompile(`^([0-9]+:)?[A-Za-z0-9.+~-]+$`).MatchString(p["LIBZSTD1_VERSION"]) {
+		t.Errorf("LIBZSTD1_VERSION=%q must be the exact Debian version, epoch included if it has one", p["LIBZSTD1_VERSION"])
 	}
-	if !regexp.MustCompile(`^[0-9]{8}T[0-9]{6}Z$`).MatchString(p["ZLIB1G_SNAPSHOT"]) {
-		t.Errorf("ZLIB1G_SNAPSHOT=%q must be a snapshot.debian.org timestamp (yyyymmddThhmmssZ)", p["ZLIB1G_SNAPSHOT"])
+	if !regexp.MustCompile(`^[0-9]{8}T[0-9]{6}Z$`).MatchString(p["LIBZSTD1_SNAPSHOT"]) {
+		t.Errorf("LIBZSTD1_SNAPSHOT=%q must be a snapshot.debian.org timestamp (yyyymmddThhmmssZ)", p["LIBZSTD1_SNAPSHOT"])
 	}
-	for _, k := range []string{"ZLIB1G_SHA256_AMD64", "ZLIB1G_SHA256_ARM64"} {
+	for _, k := range []string{"LIBZSTD1_SHA256_AMD64", "LIBZSTD1_SHA256_ARM64"} {
 		if !sha256RE.MatchString(p[k]) {
 			t.Errorf("%s=%q must be a lower-case SHA-256", k, p[k])
 		}
@@ -639,17 +639,17 @@ func TestDevComposePassesEveryBuildArg(t *testing.T) {
 	}
 }
 
-// The two published images on DEBIAN_IMAGE (scan-base, honeypot) lay the pinned zlib1g security update over the base, on the
+// The two published images on DEBIAN_IMAGE (scan-base, honeypot) lay the pinned libzstd1 security update over the base, on the
 // build machine (security-deb.sh checks the hash and writes the dpkg status), with every pin of pins.env passed by make, and scan-base's
 // final stage copies the result; the build context lets the script in.
 func TestDebianImagesTakeThePinnedSecurityUpdate(t *testing.T) {
 	t.Parallel()
-	call := `sh /usr/local/bin/security-deb.sh zlib1g zlib "${ZLIB1G_VERSION}" "${ZLIB1G_SNAPSHOT}" "$z" "${TARGETARCH}" /target/status `
+	call := `sh /usr/local/bin/security-deb.sh libzstd1 libzstd "${LIBZSTD1_VERSION}" "${LIBZSTD1_SNAPSHOT}" "$z" "${TARGETARCH}" /target/status `
 	for _, f := range []string{"scan-base/Containerfile", "honeypot/Containerfile"} {
 		text := read(t, f)
 		for _, want := range []string{
-			"ARG ZLIB1G_VERSION\n", "ARG ZLIB1G_SNAPSHOT\n", "ARG ZLIB1G_SHA256_AMD64\n", "ARG ZLIB1G_SHA256_ARM64\n",
-			`amd64) z="${ZLIB1G_SHA256_AMD64}" ;; arm64) z="${ZLIB1G_SHA256_ARM64}" ;;`, call,
+			"ARG LIBZSTD1_VERSION\n", "ARG LIBZSTD1_SNAPSHOT\n", "ARG LIBZSTD1_SHA256_AMD64\n", "ARG LIBZSTD1_SHA256_ARM64\n",
+			`amd64) z="${LIBZSTD1_SHA256_AMD64}" ;; arm64) z="${LIBZSTD1_SHA256_ARM64}" ;;`, call,
 			"COPY deploy/containers/security-deb.sh /usr/local/bin/security-deb.sh\n", "COPY --from=base /var/lib/dpkg/status /target/status\n",
 		} {
 			if !strings.Contains(text, want) {
@@ -667,7 +667,7 @@ func TestDebianImagesTakeThePinnedSecurityUpdate(t *testing.T) {
 		t.Error("honeypot: apt and assemble.py must work from the updated status, /target/status stays the base's (for the inventory)")
 	}
 	mk := read(t, "../../Makefile")
-	for _, k := range []string{"ZLIB1G_VERSION", "ZLIB1G_SNAPSHOT", "ZLIB1G_SHA256_AMD64", "ZLIB1G_SHA256_ARM64"} {
+	for _, k := range []string{"LIBZSTD1_VERSION", "LIBZSTD1_SNAPSHOT", "LIBZSTD1_SHA256_AMD64", "LIBZSTD1_SHA256_ARM64"} {
 		if !regexp.MustCompile(`(?m)^PIN_ARGS := .* ` + k + `[ ,]`).MatchString(mk) {
 			t.Errorf("Makefile PIN_ARGS does not pass %s", k)
 		}
@@ -686,16 +686,16 @@ func TestSecurityDebRefusesBeforeDownloading(t *testing.T) {
 		t.Skip("dpkg is not installed (Debian/Ubuntu only)")
 	}
 	p := pins(t)
-	ver, sha := p["ZLIB1G_VERSION"], p["ZLIB1G_SHA256_AMD64"]
+	ver, sha := p["LIBZSTD1_VERSION"], p["LIBZSTD1_SHA256_AMD64"]
 	stanza := func(pkg, arch, v string) string {
 		return "Package: " + pkg + "\nStatus: install ok installed\nArchitecture: " + arch + "\nVersion: " + v + "\n\n"
 	}
 	for _, c := range []struct{ name, status, version, want string }{
-		{"base at the pinned version", stanza("zlib1g-dev", "amd64", "1:1.0") + stanza("zlib1g", "amd64", ver), ver, "DEBIAN_IMAGE carries the fix"},
-		{"base newer than the pin", stanza("zlib1g", "amd64", strings.Replace(ver, "deb13u1", "deb13u2", 1)), ver, "DEBIAN_IMAGE carries the fix"},
-		{"base of another architecture", stanza("zlib1g", "arm64", "1:1.0"), ver, "is not for amd64"},
-		{"package matched as text, not as a regex", stanza("zlib1gX", "amd64", "1:1.0"), ver, "not in the base image's dpkg status"},
-		{"newline in an argument", stanza("zlib1g", "amd64", "1:1.0"), ver + "\nx", "holds a newline"},
+		{"base at the pinned version", stanza("libzstd-dev", "amd64", "1:1.0") + stanza("libzstd1", "amd64", ver), ver, "DEBIAN_IMAGE carries the fix"},
+		{"base newer than the pin", stanza("libzstd1", "amd64", strings.Replace(ver, "deb13u1", "deb13u2", 1)), ver, "DEBIAN_IMAGE carries the fix"},
+		{"base of another architecture", stanza("libzstd1", "arm64", "1:1.0"), ver, "is not for amd64"},
+		{"package matched as text, not as a regex", stanza("libzstd1X", "amd64", "1:1.0"), ver, "not in the base image's dpkg status"},
+		{"newline in an argument", stanza("libzstd1", "amd64", "1:1.0"), ver + "\nx", "holds a newline"},
 	} {
 		dir := t.TempDir()
 		status, out := filepath.Join(dir, "status"), filepath.Join(dir, "out")
@@ -704,7 +704,7 @@ func TestSecurityDebRefusesBeforeDownloading(t *testing.T) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		//nolint:gosec // fixed argv: the repository's script, the pins and paths this test made
-		cmd := exec.CommandContext(ctx, "sh", "security-deb.sh", "zlib1g", "zlib", c.version, p["ZLIB1G_SNAPSHOT"], sha, "amd64", status, out)
+		cmd := exec.CommandContext(ctx, "sh", "security-deb.sh", "libzstd1", "libzstd", c.version, p["LIBZSTD1_SNAPSHOT"], sha, "amd64", status, out)
 		b, err := cmd.CombinedOutput()
 		cancel()
 		var ee *exec.ExitError

@@ -8,6 +8,7 @@ import { renderApp } from '@/test/render'
 import { Counter } from '@/components/common/Counter'
 import { pageSizes } from '@/components/common/Pager'
 import { questions, records } from './modelMocks'
+import { openNeeds } from './needsTestUtil'
 import { useFixTitle } from './parts'
 import type { Fix } from './types'
 
@@ -64,6 +65,7 @@ describe('Needs your input', () => {
   it('a question\'s link says what it is: NVD\'s entry is not called the vendor advisory', async () => {
     questions.update((l) => l.map((q) => (q.id === 'fq-nas01-range' ? { ...q, url: 'https://nvd.nist.gov/vuln/detail/CVE-2026-118204' } : q)))
     renderApp('/findings?tab=input')
+    await openNeeds()
     const link = await screen.findByRole('link', { name: /NVD/ }, T)
     expect(link).toHaveAttribute('href', 'https://nvd.nist.gov/vuln/detail/CVE-2026-118204')
     expect(screen.queryByRole('link', { name: 'Vendor advisory' })).toBeNull()
@@ -71,6 +73,7 @@ describe('Needs your input', () => {
 
   it('"Not affected" can be undone from its toast', async () => {
     renderApp('/findings?tab=input')
+    await openNeeds()
     const cve = await screen.findByRole('link', { name: 'CVE-2026-118204' }, T)
     const item = cve.closest('tr, li, [role="listitem"]') ?? cve.parentElement!.parentElement!
     await userEvent.click(within(item as HTMLElement).getByRole('button', { name: 'Not affected' }))

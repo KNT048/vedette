@@ -254,3 +254,20 @@ func (h *FindingHandlers) FindingsPostFindingsQuestionsIDUnanswer(ctx context.Co
 	}
 	return &oas.FindingsPostFindingsQuestionsIDUnanswerOK{ID: params.ID}, nil
 }
+
+// FindingsPostFindingsQuestionsIgnore implements findings_post_findings_questions_ignore (operator): every open question of a device,
+// or of one software line of it, is answered "not affected" in one transaction with one audit row.
+func (h *FindingHandlers) FindingsPostFindingsQuestionsIgnore(ctx context.Context, req *oas.FindingsPostFindingsQuestionsIgnoreReq) (*oas.FindingsPostFindingsQuestionsIgnoreOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	if err := cleanNote(req.Note); err != nil {
+		return nil, err
+	}
+	n, err := h.svc.IgnoreQuestions(ctx, req.Device, req.Software.Or(""), req.Note, p.Email)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return &oas.FindingsPostFindingsQuestionsIgnoreOK{Answered: n}, nil
+}

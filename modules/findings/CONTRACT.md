@@ -13,8 +13,16 @@ the product reads findings from.
 |---|---|
 | `GET /findings/devices`, `/findings/fixes`, `/findings/input`, `/findings/answered`, `/findings/handled`, `/findings/overview`, `/findings/{id}/view` | viewer |
 | `GET /findings?asset=` (one device), `GET /findings/{id}` (the finding page's evidence and "What to do", filled by mitigation) | viewer |
-| `POST /findings/handle`, `POST /findings/{id}/reopen`, `POST /findings/questions/{id}/answer`, `POST /findings/questions/{id}/unanswer` | operator |
+| `POST /findings/handle`, `POST /findings/{id}/reopen`, `POST /findings/questions/{id}/answer`, `POST /findings/questions/{id}/unanswer`, `POST /findings/questions/ignore` | operator |
 | `POST /findings/{id}/verify`, `POST /findings/{id}/unverify` | admin |
+
+Needs your input (`GET /findings/input`) is one card per added device (`device_needs`), collapsed by default: its entries are what runs
+there (`device_unchecked`), urgent findings not confirmed yet (`unconfirmed`) and its questions grouped by software line (`software_group`,
+one entry per line with the CVEs counted once, the line's `fnd_question` rows inside, the one whose action fixes the most first). A device
+nobody added keeps its own `device_not_added` card; `total` counts cards. A question stays one row per (line, CVE, kind), since Affected
+or Not affected is a per-CVE judgement; the version or edition a person enters lives on the software line, so one entry fixes every CVE of
+it at the next match. `POST /findings/questions/ignore` (a device, or one line of it) answers Not affected to every open question there
+in one transaction with one audit row (`findings.questions_ignored`); each answer is listed under Answered and can be asked again.
 
 `POST /findings/{id}/applied` and `POST /findings/{id}/ai` are served by mitigation under the same prefix. Shapes:
 `web/src/features/findings/contract.ts`.

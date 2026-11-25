@@ -1518,6 +1518,14 @@ type Handler interface {
 	//
 	// POST /findings/questions/{id}/unanswer
 	FindingsPostFindingsQuestionsIDUnanswer(ctx context.Context, params FindingsPostFindingsQuestionsIDUnanswerParams) (*FindingsPostFindingsQuestionsIDUnanswerOK, error)
+	// FindingsPostFindingsQuestionsIgnore implements findings_post_findings_questions_ignore operation.
+	//
+	// Ignore (bypass) every open question of one device, or of one software line of it: each is answered
+	// "not affected" in one transaction with one audit row; each is listed under Answered and can be asked
+	// again one by one. "Vedette cannot check this device" is left (operator).
+	//
+	// POST /findings/questions/ignore
+	FindingsPostFindingsQuestionsIgnore(ctx context.Context, req *FindingsPostFindingsQuestionsIgnoreReq) (*FindingsPostFindingsQuestionsIgnoreOK, error)
 	// HoneypotDeleteHoneypotTokensID implements honeypot_delete_honeypot_tokens_id operation.
 	//
 	// Delete a honey token; the planted copy stops alerting.

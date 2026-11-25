@@ -8,6 +8,7 @@ import { server } from '@/test/server'
 import { auditStore } from '@/mocks/stores'
 import { metaStore } from '@/features/inventory/mocks'
 import { records } from './modelMocks'
+import { openNeeds } from './needsTestUtil'
 
 const T = { timeout: 5000 }
 const posts: { url: string; body: unknown }[] = []
@@ -213,6 +214,7 @@ describe('Findings: Needs your input', () => {
   it('an urgent finding not confirmed yet: Run the safe check first when one exists, Confirm vulnerability, Not affected…', async () => {
     renderApp('/findings?tab=input')
     const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
+    await openNeeds(table)
     expect(await within(table).findByRole('button', { name: 'Run the safe check for CVE-2024-4577 on WEB01' }, T)).toBeInTheDocument()
     expect(within(table).queryByRole('button', { name: /^Run the safe check for CVE-2026-123890/ })).toBeNull()
     await userEvent.click(within(table).getByRole('button', { name: 'Confirm vulnerability: CVE-2026-123890 on BN340' }))
@@ -230,11 +232,14 @@ describe('Findings: Needs your input', () => {
     const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
     const box = screen.getByRole('searchbox', { name: 'Search devices, software or CVEs' })
     expect(box).toHaveValue('CVE-2026-123890')
+    await openNeeds(table)
     expect(await within(table).findByRole('button', { name: 'Confirm vulnerability: CVE-2026-123890 on BN340' }, T)).toBeInTheDocument()
     expect(within(table).queryByRole('button', { name: 'Run the safe check for CVE-2024-4577 on WEB01' })).toBeNull()
     // typing searches the whole queue on the server, not the page in view
     await userEvent.clear(box)
     await userEvent.type(box, 'web01')
+    await waitFor(() => expect(within(table).queryByRole('article', { name: 'What BN340 needs' })).toBeNull(), T)
+    await openNeeds(table)
     expect(await within(table).findByRole('button', { name: 'Run the safe check for CVE-2024-4577 on WEB01' }, T)).toBeInTheDocument()
     await waitFor(() => expect(within(table).queryByRole('button', { name: 'Confirm vulnerability: CVE-2026-123890 on BN340' })).toBeNull(), T)
   })
@@ -242,6 +247,7 @@ describe('Findings: Needs your input', () => {
   it('an operator may say Not affected but not confirm', async () => {
     renderApp('/findings?tab=input', { role: 'operator' })
     const table = await screen.findByRole('table', { name: 'What needs your input' }, T)
+    await openNeeds(table)
     expect(await within(table).findByRole('button', { name: 'Confirm vulnerability: CVE-2026-123890 on BN340' }, T)).toBeDisabled()
     await userEvent.click(within(table).getByRole('button', { name: 'Not affected: CVE-2026-123890 on BN340' }))
     const dlg = await screen.findByRole('dialog', { name: 'CVE-2026-123890 does not affect BN340' })

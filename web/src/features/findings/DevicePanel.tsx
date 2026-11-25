@@ -41,7 +41,8 @@ export function useDeviceFindingsSummary(assetId: string): DeviceFindingsSummary
   if (!on) return undefined
   if (!cards.data) return undefined
   const card = cards.data.items.find((c) => c.device.id === assetId) ?? null
-  const waiting = input.data?.total ?? 0
+  // one thing per entry of the device's card (a software line is one, whatever its CVEs), one for a device nobody added yet
+  const waiting = (input.data?.items ?? []).reduce((n, i) => n + (i.kind === 'device_needs' ? i.entries.length : 1), 0)
   return {
     badge: card?.status ?? (waiting ? { code: 'needs_input', count: waiting } : null),
     open: card?.findings ?? 0,

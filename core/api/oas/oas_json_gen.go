@@ -191486,716 +191486,6 @@ func (s *FindingsGetFindingsIDViewOKVerificationVerified) UnmarshalJSON(data []b
 }
 
 // Encode implements json.Marshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAdded) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *FindingsGetFindingsInput1DeviceNotAdded) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("device")
-		s.Device.Encode(e)
-	}
-	{
-		e.FieldStart("findings")
-		e.Int(s.Findings)
-	}
-	{
-		e.FieldStart("id")
-		e.Str(s.ID)
-	}
-	{
-		e.FieldStart("kind")
-		e.Str("device_not_added")
-	}
-	{
-		e.FieldStart("status")
-		s.Status.Encode(e)
-	}
-}
-
-var jsonFieldsNameOfFindingsGetFindingsInput1DeviceNotAdded = [5]string{
-	0: "device",
-	1: "findings",
-	2: "id",
-	3: "kind",
-	4: "status",
-}
-
-// Decode decodes FindingsGetFindingsInput1DeviceNotAdded from json.
-func (s *FindingsGetFindingsInput1DeviceNotAdded) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1DeviceNotAdded to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "device":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				if err := s.Device.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"device\"")
-			}
-		case "findings":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Int()
-				s.Findings = int(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"findings\"")
-			}
-		case "id":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Str()
-				s.ID = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"id\"")
-			}
-		case "kind":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				v, err := d.Str()
-				s.Kind = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"kind\"")
-			}
-		case "status":
-			requiredBitSet[0] |= 1 << 4
-			if err := func() error {
-				if err := s.Status.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"status\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode FindingsGetFindingsInput1DeviceNotAdded")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00011111,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1DeviceNotAdded) {
-					name = jsonFieldsNameOfFindingsGetFindingsInput1DeviceNotAdded[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAdded) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAdded) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAddedDevice) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *FindingsGetFindingsInput1DeviceNotAddedDevice) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("added")
-		e.Bool(s.Added)
-	}
-	{
-		e.FieldStart("id")
-		e.Str(s.ID)
-	}
-	{
-		e.FieldStart("ignored")
-		e.Bool(s.Ignored)
-	}
-	{
-		e.FieldStart("ip")
-		s.IP.Encode(e)
-	}
-	{
-		e.FieldStart("kind")
-		s.Kind.Encode(e)
-	}
-	{
-		e.FieldStart("name")
-		e.Str(s.Name)
-	}
-}
-
-var jsonFieldsNameOfFindingsGetFindingsInput1DeviceNotAddedDevice = [6]string{
-	0: "added",
-	1: "id",
-	2: "ignored",
-	3: "ip",
-	4: "kind",
-	5: "name",
-}
-
-// Decode decodes FindingsGetFindingsInput1DeviceNotAddedDevice from json.
-func (s *FindingsGetFindingsInput1DeviceNotAddedDevice) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1DeviceNotAddedDevice to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "added":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Bool()
-				s.Added = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"added\"")
-			}
-		case "id":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Str()
-				s.ID = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"id\"")
-			}
-		case "ignored":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Bool()
-				s.Ignored = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"ignored\"")
-			}
-		case "ip":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				if err := s.IP.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"ip\"")
-			}
-		case "kind":
-			requiredBitSet[0] |= 1 << 4
-			if err := func() error {
-				if err := s.Kind.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"kind\"")
-			}
-		case "name":
-			requiredBitSet[0] |= 1 << 5
-			if err := func() error {
-				v, err := d.Str()
-				s.Name = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"name\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode FindingsGetFindingsInput1DeviceNotAddedDevice")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00111111,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1DeviceNotAddedDevice) {
-					name = jsonFieldsNameOfFindingsGetFindingsInput1DeviceNotAddedDevice[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAddedDevice) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAddedDevice) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsGetFindingsInput1DeviceNotAddedDeviceKind as json.
-func (s FindingsGetFindingsInput1DeviceNotAddedDeviceKind) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes FindingsGetFindingsInput1DeviceNotAddedDeviceKind from json.
-func (s *FindingsGetFindingsInput1DeviceNotAddedDeviceKind) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1DeviceNotAddedDeviceKind to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch FindingsGetFindingsInput1DeviceNotAddedDeviceKind(v) {
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindRouter:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindRouter
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSwitch:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSwitch
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindModem:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindModem
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSdWan:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSdWan
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindLoadBalancer:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindLoadBalancer
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindNetworkController:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindNetworkController
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindFirewall:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindFirewall
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindVpnGateway:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindVpnGateway
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindIdsSensor:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindIdsSensor
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindProxy:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindProxy
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindAp:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindAp
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindWirelessController:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindWirelessController
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindWifiExtender:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindWifiExtender
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindMeshNode:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindMeshNode
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindServer:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindServer
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindVirtualMachine:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindVirtualMachine
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindHypervisor:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindHypervisor
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindBmc:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindBmc
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindDomainController:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindDomainController
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindMailServer:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindMailServer
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindDatabaseServer:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindDatabaseServer
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindBackupServer:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindBackupServer
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindPc:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindPc
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindLaptop:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindLaptop
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindWorkstation:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindWorkstation
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindThinClient:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindThinClient
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindPosTerminal:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindPosTerminal
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindKiosk:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindKiosk
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartphone:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartphone
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindTablet:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindTablet
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartwatch:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartwatch
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindPrinter:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindPrinter
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindMfp:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindMfp
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindScanner:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindScanner
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindLabelPrinter:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindLabelPrinter
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindReceiptPrinter:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindReceiptPrinter
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindPlotter:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindPlotter
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKind3dPrinter:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKind3dPrinter
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindCamera:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindCamera
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindNvr:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindNvr
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindDvr:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindDvr
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindVideoEncoder:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindVideoEncoder
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindDoorbell:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindDoorbell
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindVideoConferencing:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindVideoConferencing
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindIPPhone:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindIPPhone
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindPbx:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindPbx
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindVoipAdapter:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindVoipAdapter
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindVoipGateway:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindVoipGateway
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindConferencePhone:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindConferencePhone
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindIntercom:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindIntercom
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindNas:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindNas
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSan:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSan
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindBackupAppliance:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindBackupAppliance
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindTapeLibrary:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindTapeLibrary
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindIot:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindIot
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartTv:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartTv
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindMediaPlayer:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindMediaPlayer
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartSpeaker:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartSpeaker
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindGameConsole:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindGameConsole
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartPlug:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartPlug
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartLight:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartLight
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartHub:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartHub
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindThermostat:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindThermostat
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindProjector:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindProjector
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindDigitalSignage:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindDigitalSignage
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSingleBoardComputer:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSingleBoardComputer
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartAppliance:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSmartAppliance
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindRobotVacuum:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindRobotVacuum
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindWirelessBridge:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindWirelessBridge
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindPlc:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindPlc
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindHmi:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindHmi
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindRtu:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindRtu
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindScadaServer:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindScadaServer
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindIndustrialSwitch:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindIndustrialSwitch
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindUps:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindUps
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindPdu:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindPdu
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindAccessControl:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindAccessControl
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindTimeClock:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindTimeClock
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindAlarmPanel:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindAlarmPanel
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindHvacController:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindHvacController
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindBuildingController:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindBuildingController
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindPowerMeter:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindPowerMeter
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindEnvironmentMonitor:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindEnvironmentMonitor
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindEvCharger:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindEvCharger
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindSolarInverter:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindSolarInverter
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindMedicalDevice:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindMedicalDevice
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindWeb:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindWeb
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindCloudService:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindCloudService
-	case FindingsGetFindingsInput1DeviceNotAddedDeviceKindUnknown:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKindUnknown
-	default:
-		*s = FindingsGetFindingsInput1DeviceNotAddedDeviceKind(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s FindingsGetFindingsInput1DeviceNotAddedDeviceKind) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAddedDeviceKind) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAddedStatus) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *FindingsGetFindingsInput1DeviceNotAddedStatus) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("code")
-		s.Code.Encode(e)
-	}
-	{
-		e.FieldStart("count")
-		e.Int(s.Count)
-	}
-}
-
-var jsonFieldsNameOfFindingsGetFindingsInput1DeviceNotAddedStatus = [2]string{
-	0: "code",
-	1: "count",
-}
-
-// Decode decodes FindingsGetFindingsInput1DeviceNotAddedStatus from json.
-func (s *FindingsGetFindingsInput1DeviceNotAddedStatus) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1DeviceNotAddedStatus to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "code":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				if err := s.Code.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"code\"")
-			}
-		case "count":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Int()
-				s.Count = int(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"count\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode FindingsGetFindingsInput1DeviceNotAddedStatus")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000011,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1DeviceNotAddedStatus) {
-					name = jsonFieldsNameOfFindingsGetFindingsInput1DeviceNotAddedStatus[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAddedStatus) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAddedStatus) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsGetFindingsInput1DeviceNotAddedStatusCode as json.
-func (s FindingsGetFindingsInput1DeviceNotAddedStatusCode) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes FindingsGetFindingsInput1DeviceNotAddedStatusCode from json.
-func (s *FindingsGetFindingsInput1DeviceNotAddedStatusCode) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1DeviceNotAddedStatusCode to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch FindingsGetFindingsInput1DeviceNotAddedStatusCode(v) {
-	case FindingsGetFindingsInput1DeviceNotAddedStatusCodeUnderAttack:
-		*s = FindingsGetFindingsInput1DeviceNotAddedStatusCodeUnderAttack
-	case FindingsGetFindingsInput1DeviceNotAddedStatusCodeExploited:
-		*s = FindingsGetFindingsInput1DeviceNotAddedStatusCodeExploited
-	case FindingsGetFindingsInput1DeviceNotAddedStatusCodePublicExploit:
-		*s = FindingsGetFindingsInput1DeviceNotAddedStatusCodePublicExploit
-	case FindingsGetFindingsInput1DeviceNotAddedStatusCodeCriticalEdge:
-		*s = FindingsGetFindingsInput1DeviceNotAddedStatusCodeCriticalEdge
-	case FindingsGetFindingsInput1DeviceNotAddedStatusCodeUpdateRecommended:
-		*s = FindingsGetFindingsInput1DeviceNotAddedStatusCodeUpdateRecommended
-	case FindingsGetFindingsInput1DeviceNotAddedStatusCodeNeedsInput:
-		*s = FindingsGetFindingsInput1DeviceNotAddedStatusCodeNeedsInput
-	default:
-		*s = FindingsGetFindingsInput1DeviceNotAddedStatusCode(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s FindingsGetFindingsInput1DeviceNotAddedStatusCode) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1DeviceNotAddedStatusCode) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
 func (s *FindingsGetFindingsInput1DeviceUnchecked) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -192715,54 +192005,68 @@ func (s *FindingsGetFindingsInput1DeviceUncheckedDeviceKind) UnmarshalJSON(data 
 }
 
 // Encode implements json.Marshaler.
-func (s *FindingsGetFindingsInput1DevicesNotAdded) Encode(e *jx.Encoder) {
+func (s *FindingsGetFindingsInput1SoftwareGroup) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *FindingsGetFindingsInput1DevicesNotAdded) encodeFields(e *jx.Encoder) {
+func (s *FindingsGetFindingsInput1SoftwareGroup) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("count")
-		e.Int(s.Count)
+		e.FieldStart("cves")
+		e.Int(s.Cves)
 	}
 	{
 		e.FieldStart("id")
-		e.Str("devices_not_added")
+		e.Str(s.ID)
 	}
 	{
 		e.FieldStart("kind")
-		e.Str("devices_not_added")
+		e.Str("software_group")
+	}
+	{
+		e.FieldStart("questions")
+		e.ArrStart()
+		for _, elem := range s.Questions {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("software")
+		s.Software.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsInput1DevicesNotAdded = [3]string{
-	0: "count",
+var jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroup = [5]string{
+	0: "cves",
 	1: "id",
 	2: "kind",
+	3: "questions",
+	4: "software",
 }
 
-// Decode decodes FindingsGetFindingsInput1DevicesNotAdded from json.
-func (s *FindingsGetFindingsInput1DevicesNotAdded) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsInput1SoftwareGroup from json.
+func (s *FindingsGetFindingsInput1SoftwareGroup) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1DevicesNotAdded to nil")
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1SoftwareGroup to nil")
 	}
 	var requiredBitSet [1]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "count":
+		case "cves":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Int()
-				s.Count = int(v)
+				s.Cves = int(v)
 				if err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"count\"")
+				return errors.Wrap(err, "decode field \"cves\"")
 			}
 		case "id":
 			requiredBitSet[0] |= 1 << 1
@@ -192788,17 +192092,45 @@ func (s *FindingsGetFindingsInput1DevicesNotAdded) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
+		case "questions":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				s.Questions = make([]FindingsGetFindingsInput1SoftwareGroupQuestionsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem FindingsGetFindingsInput1SoftwareGroupQuestionsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Questions = append(s.Questions, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"questions\"")
+			}
+		case "software":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Software.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode FindingsGetFindingsInput1DevicesNotAdded")
+		return errors.Wrap(err, "decode FindingsGetFindingsInput1SoftwareGroup")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -192810,8 +192142,8 @@ func (s *FindingsGetFindingsInput1DevicesNotAdded) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1DevicesNotAdded) {
-					name = jsonFieldsNameOfFindingsGetFindingsInput1DevicesNotAdded[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroup) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroup[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -192832,27 +192164,27 @@ func (s *FindingsGetFindingsInput1DevicesNotAdded) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *FindingsGetFindingsInput1DevicesNotAdded) MarshalJSON() ([]byte, error) {
+func (s *FindingsGetFindingsInput1SoftwareGroup) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1DevicesNotAdded) UnmarshalJSON(data []byte) error {
+func (s *FindingsGetFindingsInput1SoftwareGroup) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
 // Encode implements json.Marshaler.
-func (s *FindingsGetFindingsInput1Question) Encode(e *jx.Encoder) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *FindingsGetFindingsInput1Question) encodeFields(e *jx.Encoder) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("asked_at")
 		json.EncodeDateTime(e, s.AskedAt)
@@ -192927,7 +192259,7 @@ func (s *FindingsGetFindingsInput1Question) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsInput1Question = [15]string{
+var jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItem = [15]string{
 	0:  "asked_at",
 	1:  "choices",
 	2:  "command",
@@ -192945,10 +192277,10 @@ var jsonFieldsNameOfFindingsGetFindingsInput1Question = [15]string{
 	14: "versions_listed",
 }
 
-// Decode decodes FindingsGetFindingsInput1Question from json.
-func (s *FindingsGetFindingsInput1Question) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItem from json.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1Question to nil")
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1SoftwareGroupQuestionsItem to nil")
 	}
 	var requiredBitSet [2]uint8
 
@@ -192969,9 +192301,9 @@ func (s *FindingsGetFindingsInput1Question) Decode(d *jx.Decoder) error {
 		case "choices":
 			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
-				s.Choices = make([]FindingsGetFindingsInput1QuestionChoicesItem, 0)
+				s.Choices = make([]FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem FindingsGetFindingsInput1QuestionChoicesItem
+					var elem FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem
 					if err := elem.Decode(d); err != nil {
 						return err
 					}
@@ -193147,7 +192479,7 @@ func (s *FindingsGetFindingsInput1Question) Decode(d *jx.Decoder) error {
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode FindingsGetFindingsInput1Question")
+		return errors.Wrap(err, "decode FindingsGetFindingsInput1SoftwareGroupQuestionsItem")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -193165,8 +192497,8 @@ func (s *FindingsGetFindingsInput1Question) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1Question) {
-					name = jsonFieldsNameOfFindingsGetFindingsInput1Question[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItem) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItem[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -193187,27 +192519,27 @@ func (s *FindingsGetFindingsInput1Question) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *FindingsGetFindingsInput1Question) MarshalJSON() ([]byte, error) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1Question) UnmarshalJSON(data []byte) error {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
 // Encode implements json.Marshaler.
-func (s *FindingsGetFindingsInput1QuestionChoicesItem) Encode(e *jx.Encoder) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *FindingsGetFindingsInput1QuestionChoicesItem) encodeFields(e *jx.Encoder) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem) encodeFields(e *jx.Encoder) {
 	{
 		if s.Ask != nil {
 			e.FieldStart("ask")
@@ -193230,16 +192562,16 @@ func (s *FindingsGetFindingsInput1QuestionChoicesItem) encodeFields(e *jx.Encode
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsInput1QuestionChoicesItem = [3]string{
+var jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem = [3]string{
 	0: "ask",
 	1: "label",
 	2: "os",
 }
 
-// Decode decodes FindingsGetFindingsInput1QuestionChoicesItem from json.
-func (s *FindingsGetFindingsInput1QuestionChoicesItem) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem from json.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1QuestionChoicesItem to nil")
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem to nil")
 	}
 	var requiredBitSet [1]uint8
 
@@ -193247,9 +192579,9 @@ func (s *FindingsGetFindingsInput1QuestionChoicesItem) Decode(d *jx.Decoder) err
 		switch string(k) {
 		case "ask":
 			if err := func() error {
-				s.Ask = make([]FindingsGetFindingsInput1QuestionChoicesItemAskItem, 0)
+				s.Ask = make([]FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem FindingsGetFindingsInput1QuestionChoicesItemAskItem
+					var elem FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem
 					if err := elem.Decode(d); err != nil {
 						return err
 					}
@@ -193289,7 +192621,7 @@ func (s *FindingsGetFindingsInput1QuestionChoicesItem) Decode(d *jx.Decoder) err
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode FindingsGetFindingsInput1QuestionChoicesItem")
+		return errors.Wrap(err, "decode FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -193306,8 +192638,8 @@ func (s *FindingsGetFindingsInput1QuestionChoicesItem) Decode(d *jx.Decoder) err
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1QuestionChoicesItem) {
-					name = jsonFieldsNameOfFindingsGetFindingsInput1QuestionChoicesItem[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -193328,67 +192660,67 @@ func (s *FindingsGetFindingsInput1QuestionChoicesItem) Decode(d *jx.Decoder) err
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *FindingsGetFindingsInput1QuestionChoicesItem) MarshalJSON() ([]byte, error) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1QuestionChoicesItem) UnmarshalJSON(data []byte) error {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes FindingsGetFindingsInput1QuestionChoicesItemAskItem as json.
-func (s FindingsGetFindingsInput1QuestionChoicesItemAskItem) Encode(e *jx.Encoder) {
+// Encode encodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem as json.
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes FindingsGetFindingsInput1QuestionChoicesItemAskItem from json.
-func (s *FindingsGetFindingsInput1QuestionChoicesItemAskItem) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem from json.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1QuestionChoicesItemAskItem to nil")
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch FindingsGetFindingsInput1QuestionChoicesItemAskItem(v) {
-	case FindingsGetFindingsInput1QuestionChoicesItemAskItemOs:
-		*s = FindingsGetFindingsInput1QuestionChoicesItemAskItemOs
-	case FindingsGetFindingsInput1QuestionChoicesItemAskItemPkgVersion:
-		*s = FindingsGetFindingsInput1QuestionChoicesItemAskItemPkgVersion
+	switch FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem(v) {
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItemOs:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItemOs
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItemPkgVersion:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItemPkgVersion
 	default:
-		*s = FindingsGetFindingsInput1QuestionChoicesItemAskItem(v)
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s FindingsGetFindingsInput1QuestionChoicesItemAskItem) MarshalJSON() ([]byte, error) {
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1QuestionChoicesItemAskItem) UnmarshalJSON(data []byte) error {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItemAskItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
 // Encode implements json.Marshaler.
-func (s *FindingsGetFindingsInput1QuestionDevice) Encode(e *jx.Encoder) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *FindingsGetFindingsInput1QuestionDevice) encodeFields(e *jx.Encoder) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("added")
 		e.Bool(s.Added)
@@ -193415,7 +192747,7 @@ func (s *FindingsGetFindingsInput1QuestionDevice) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsInput1QuestionDevice = [6]string{
+var jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice = [6]string{
 	0: "added",
 	1: "id",
 	2: "ignored",
@@ -193424,10 +192756,10 @@ var jsonFieldsNameOfFindingsGetFindingsInput1QuestionDevice = [6]string{
 	5: "name",
 }
 
-// Decode decodes FindingsGetFindingsInput1QuestionDevice from json.
-func (s *FindingsGetFindingsInput1QuestionDevice) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice from json.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1QuestionDevice to nil")
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice to nil")
 	}
 	var requiredBitSet [1]uint8
 
@@ -193506,7 +192838,7 @@ func (s *FindingsGetFindingsInput1QuestionDevice) Decode(d *jx.Decoder) error {
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode FindingsGetFindingsInput1QuestionDevice")
+		return errors.Wrap(err, "decode FindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -193523,8 +192855,8 @@ func (s *FindingsGetFindingsInput1QuestionDevice) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1QuestionDevice) {
-					name = jsonFieldsNameOfFindingsGetFindingsInput1QuestionDevice[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -193545,289 +192877,289 @@ func (s *FindingsGetFindingsInput1QuestionDevice) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *FindingsGetFindingsInput1QuestionDevice) MarshalJSON() ([]byte, error) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1QuestionDevice) UnmarshalJSON(data []byte) error {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemDevice) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes FindingsGetFindingsInput1QuestionDeviceKind as json.
-func (s FindingsGetFindingsInput1QuestionDeviceKind) Encode(e *jx.Encoder) {
+// Encode encodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind as json.
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes FindingsGetFindingsInput1QuestionDeviceKind from json.
-func (s *FindingsGetFindingsInput1QuestionDeviceKind) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind from json.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1QuestionDeviceKind to nil")
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch FindingsGetFindingsInput1QuestionDeviceKind(v) {
-	case FindingsGetFindingsInput1QuestionDeviceKindRouter:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindRouter
-	case FindingsGetFindingsInput1QuestionDeviceKindSwitch:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSwitch
-	case FindingsGetFindingsInput1QuestionDeviceKindModem:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindModem
-	case FindingsGetFindingsInput1QuestionDeviceKindSdWan:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSdWan
-	case FindingsGetFindingsInput1QuestionDeviceKindLoadBalancer:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindLoadBalancer
-	case FindingsGetFindingsInput1QuestionDeviceKindNetworkController:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindNetworkController
-	case FindingsGetFindingsInput1QuestionDeviceKindFirewall:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindFirewall
-	case FindingsGetFindingsInput1QuestionDeviceKindVpnGateway:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindVpnGateway
-	case FindingsGetFindingsInput1QuestionDeviceKindIdsSensor:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindIdsSensor
-	case FindingsGetFindingsInput1QuestionDeviceKindProxy:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindProxy
-	case FindingsGetFindingsInput1QuestionDeviceKindAp:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindAp
-	case FindingsGetFindingsInput1QuestionDeviceKindWirelessController:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindWirelessController
-	case FindingsGetFindingsInput1QuestionDeviceKindWifiExtender:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindWifiExtender
-	case FindingsGetFindingsInput1QuestionDeviceKindMeshNode:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindMeshNode
-	case FindingsGetFindingsInput1QuestionDeviceKindServer:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindServer
-	case FindingsGetFindingsInput1QuestionDeviceKindVirtualMachine:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindVirtualMachine
-	case FindingsGetFindingsInput1QuestionDeviceKindHypervisor:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindHypervisor
-	case FindingsGetFindingsInput1QuestionDeviceKindBmc:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindBmc
-	case FindingsGetFindingsInput1QuestionDeviceKindDomainController:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindDomainController
-	case FindingsGetFindingsInput1QuestionDeviceKindMailServer:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindMailServer
-	case FindingsGetFindingsInput1QuestionDeviceKindDatabaseServer:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindDatabaseServer
-	case FindingsGetFindingsInput1QuestionDeviceKindBackupServer:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindBackupServer
-	case FindingsGetFindingsInput1QuestionDeviceKindPc:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindPc
-	case FindingsGetFindingsInput1QuestionDeviceKindLaptop:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindLaptop
-	case FindingsGetFindingsInput1QuestionDeviceKindWorkstation:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindWorkstation
-	case FindingsGetFindingsInput1QuestionDeviceKindThinClient:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindThinClient
-	case FindingsGetFindingsInput1QuestionDeviceKindPosTerminal:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindPosTerminal
-	case FindingsGetFindingsInput1QuestionDeviceKindKiosk:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindKiosk
-	case FindingsGetFindingsInput1QuestionDeviceKindSmartphone:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSmartphone
-	case FindingsGetFindingsInput1QuestionDeviceKindTablet:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindTablet
-	case FindingsGetFindingsInput1QuestionDeviceKindSmartwatch:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSmartwatch
-	case FindingsGetFindingsInput1QuestionDeviceKindPrinter:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindPrinter
-	case FindingsGetFindingsInput1QuestionDeviceKindMfp:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindMfp
-	case FindingsGetFindingsInput1QuestionDeviceKindScanner:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindScanner
-	case FindingsGetFindingsInput1QuestionDeviceKindLabelPrinter:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindLabelPrinter
-	case FindingsGetFindingsInput1QuestionDeviceKindReceiptPrinter:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindReceiptPrinter
-	case FindingsGetFindingsInput1QuestionDeviceKindPlotter:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindPlotter
-	case FindingsGetFindingsInput1QuestionDeviceKind3dPrinter:
-		*s = FindingsGetFindingsInput1QuestionDeviceKind3dPrinter
-	case FindingsGetFindingsInput1QuestionDeviceKindCamera:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindCamera
-	case FindingsGetFindingsInput1QuestionDeviceKindNvr:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindNvr
-	case FindingsGetFindingsInput1QuestionDeviceKindDvr:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindDvr
-	case FindingsGetFindingsInput1QuestionDeviceKindVideoEncoder:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindVideoEncoder
-	case FindingsGetFindingsInput1QuestionDeviceKindDoorbell:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindDoorbell
-	case FindingsGetFindingsInput1QuestionDeviceKindVideoConferencing:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindVideoConferencing
-	case FindingsGetFindingsInput1QuestionDeviceKindIPPhone:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindIPPhone
-	case FindingsGetFindingsInput1QuestionDeviceKindPbx:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindPbx
-	case FindingsGetFindingsInput1QuestionDeviceKindVoipAdapter:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindVoipAdapter
-	case FindingsGetFindingsInput1QuestionDeviceKindVoipGateway:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindVoipGateway
-	case FindingsGetFindingsInput1QuestionDeviceKindConferencePhone:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindConferencePhone
-	case FindingsGetFindingsInput1QuestionDeviceKindIntercom:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindIntercom
-	case FindingsGetFindingsInput1QuestionDeviceKindNas:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindNas
-	case FindingsGetFindingsInput1QuestionDeviceKindSan:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSan
-	case FindingsGetFindingsInput1QuestionDeviceKindBackupAppliance:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindBackupAppliance
-	case FindingsGetFindingsInput1QuestionDeviceKindTapeLibrary:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindTapeLibrary
-	case FindingsGetFindingsInput1QuestionDeviceKindIot:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindIot
-	case FindingsGetFindingsInput1QuestionDeviceKindSmartTv:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSmartTv
-	case FindingsGetFindingsInput1QuestionDeviceKindMediaPlayer:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindMediaPlayer
-	case FindingsGetFindingsInput1QuestionDeviceKindSmartSpeaker:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSmartSpeaker
-	case FindingsGetFindingsInput1QuestionDeviceKindGameConsole:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindGameConsole
-	case FindingsGetFindingsInput1QuestionDeviceKindSmartPlug:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSmartPlug
-	case FindingsGetFindingsInput1QuestionDeviceKindSmartLight:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSmartLight
-	case FindingsGetFindingsInput1QuestionDeviceKindSmartHub:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSmartHub
-	case FindingsGetFindingsInput1QuestionDeviceKindThermostat:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindThermostat
-	case FindingsGetFindingsInput1QuestionDeviceKindProjector:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindProjector
-	case FindingsGetFindingsInput1QuestionDeviceKindDigitalSignage:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindDigitalSignage
-	case FindingsGetFindingsInput1QuestionDeviceKindSingleBoardComputer:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSingleBoardComputer
-	case FindingsGetFindingsInput1QuestionDeviceKindSmartAppliance:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSmartAppliance
-	case FindingsGetFindingsInput1QuestionDeviceKindRobotVacuum:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindRobotVacuum
-	case FindingsGetFindingsInput1QuestionDeviceKindWirelessBridge:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindWirelessBridge
-	case FindingsGetFindingsInput1QuestionDeviceKindPlc:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindPlc
-	case FindingsGetFindingsInput1QuestionDeviceKindHmi:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindHmi
-	case FindingsGetFindingsInput1QuestionDeviceKindRtu:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindRtu
-	case FindingsGetFindingsInput1QuestionDeviceKindScadaServer:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindScadaServer
-	case FindingsGetFindingsInput1QuestionDeviceKindIndustrialSwitch:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindIndustrialSwitch
-	case FindingsGetFindingsInput1QuestionDeviceKindUps:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindUps
-	case FindingsGetFindingsInput1QuestionDeviceKindPdu:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindPdu
-	case FindingsGetFindingsInput1QuestionDeviceKindAccessControl:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindAccessControl
-	case FindingsGetFindingsInput1QuestionDeviceKindTimeClock:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindTimeClock
-	case FindingsGetFindingsInput1QuestionDeviceKindAlarmPanel:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindAlarmPanel
-	case FindingsGetFindingsInput1QuestionDeviceKindHvacController:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindHvacController
-	case FindingsGetFindingsInput1QuestionDeviceKindBuildingController:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindBuildingController
-	case FindingsGetFindingsInput1QuestionDeviceKindPowerMeter:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindPowerMeter
-	case FindingsGetFindingsInput1QuestionDeviceKindEnvironmentMonitor:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindEnvironmentMonitor
-	case FindingsGetFindingsInput1QuestionDeviceKindEvCharger:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindEvCharger
-	case FindingsGetFindingsInput1QuestionDeviceKindSolarInverter:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindSolarInverter
-	case FindingsGetFindingsInput1QuestionDeviceKindMedicalDevice:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindMedicalDevice
-	case FindingsGetFindingsInput1QuestionDeviceKindWeb:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindWeb
-	case FindingsGetFindingsInput1QuestionDeviceKindCloudService:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindCloudService
-	case FindingsGetFindingsInput1QuestionDeviceKindUnknown:
-		*s = FindingsGetFindingsInput1QuestionDeviceKindUnknown
+	switch FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind(v) {
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindRouter:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindRouter
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSwitch:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSwitch
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindModem:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindModem
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSdWan:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSdWan
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindLoadBalancer:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindLoadBalancer
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindNetworkController:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindNetworkController
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindFirewall:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindFirewall
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVpnGateway:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVpnGateway
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindIdsSensor:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindIdsSensor
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindProxy:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindProxy
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindAp:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindAp
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindWirelessController:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindWirelessController
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindWifiExtender:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindWifiExtender
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindMeshNode:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindMeshNode
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindServer:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindServer
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVirtualMachine:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVirtualMachine
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindHypervisor:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindHypervisor
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindBmc:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindBmc
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindDomainController:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindDomainController
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindMailServer:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindMailServer
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindDatabaseServer:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindDatabaseServer
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindBackupServer:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindBackupServer
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPc:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPc
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindLaptop:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindLaptop
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindWorkstation:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindWorkstation
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindThinClient:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindThinClient
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPosTerminal:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPosTerminal
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindKiosk:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindKiosk
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartphone:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartphone
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindTablet:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindTablet
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartwatch:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartwatch
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPrinter:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPrinter
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindMfp:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindMfp
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindScanner:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindScanner
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindLabelPrinter:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindLabelPrinter
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindReceiptPrinter:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindReceiptPrinter
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPlotter:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPlotter
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind3dPrinter:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind3dPrinter
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindCamera:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindCamera
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindNvr:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindNvr
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindDvr:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindDvr
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVideoEncoder:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVideoEncoder
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindDoorbell:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindDoorbell
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVideoConferencing:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVideoConferencing
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindIPPhone:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindIPPhone
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPbx:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPbx
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVoipAdapter:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVoipAdapter
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVoipGateway:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindVoipGateway
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindConferencePhone:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindConferencePhone
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindIntercom:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindIntercom
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindNas:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindNas
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSan:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSan
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindBackupAppliance:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindBackupAppliance
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindTapeLibrary:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindTapeLibrary
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindIot:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindIot
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartTv:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartTv
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindMediaPlayer:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindMediaPlayer
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartSpeaker:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartSpeaker
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindGameConsole:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindGameConsole
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartPlug:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartPlug
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartLight:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartLight
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartHub:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartHub
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindThermostat:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindThermostat
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindProjector:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindProjector
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindDigitalSignage:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindDigitalSignage
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSingleBoardComputer:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSingleBoardComputer
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartAppliance:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSmartAppliance
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindRobotVacuum:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindRobotVacuum
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindWirelessBridge:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindWirelessBridge
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPlc:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPlc
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindHmi:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindHmi
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindRtu:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindRtu
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindScadaServer:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindScadaServer
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindIndustrialSwitch:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindIndustrialSwitch
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindUps:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindUps
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPdu:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPdu
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindAccessControl:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindAccessControl
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindTimeClock:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindTimeClock
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindAlarmPanel:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindAlarmPanel
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindHvacController:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindHvacController
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindBuildingController:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindBuildingController
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPowerMeter:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindPowerMeter
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindEnvironmentMonitor:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindEnvironmentMonitor
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindEvCharger:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindEvCharger
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSolarInverter:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindSolarInverter
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindMedicalDevice:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindMedicalDevice
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindWeb:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindWeb
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindCloudService:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindCloudService
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindUnknown:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKindUnknown
 	default:
-		*s = FindingsGetFindingsInput1QuestionDeviceKind(v)
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s FindingsGetFindingsInput1QuestionDeviceKind) MarshalJSON() ([]byte, error) {
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1QuestionDeviceKind) UnmarshalJSON(data []byte) error {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemDeviceKind) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes FindingsGetFindingsInput1QuestionQuestion as json.
-func (s FindingsGetFindingsInput1QuestionQuestion) Encode(e *jx.Encoder) {
+// Encode encodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestion as json.
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestion) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes FindingsGetFindingsInput1QuestionQuestion from json.
-func (s *FindingsGetFindingsInput1QuestionQuestion) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestion from json.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestion) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1QuestionQuestion to nil")
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestion to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch FindingsGetFindingsInput1QuestionQuestion(v) {
-	case FindingsGetFindingsInput1QuestionQuestionVersionNeeded:
-		*s = FindingsGetFindingsInput1QuestionQuestionVersionNeeded
-	case FindingsGetFindingsInput1QuestionQuestionPlatform:
-		*s = FindingsGetFindingsInput1QuestionQuestionPlatform
-	case FindingsGetFindingsInput1QuestionQuestionPackageRelease:
-		*s = FindingsGetFindingsInput1QuestionQuestionPackageRelease
-	case FindingsGetFindingsInput1QuestionQuestionNotComparable:
-		*s = FindingsGetFindingsInput1QuestionQuestionNotComparable
-	case FindingsGetFindingsInput1QuestionQuestionNoRangeData:
-		*s = FindingsGetFindingsInput1QuestionQuestionNoRangeData
-	case FindingsGetFindingsInput1QuestionQuestionOlderLine:
-		*s = FindingsGetFindingsInput1QuestionQuestionOlderLine
+	switch FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestion(v) {
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionVersionNeeded:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionVersionNeeded
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionPlatform:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionPlatform
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionPackageRelease:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionPackageRelease
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionNotComparable:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionNotComparable
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionNoRangeData:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionNoRangeData
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionOlderLine:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestionOlderLine
 	default:
-		*s = FindingsGetFindingsInput1QuestionQuestion(v)
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestion(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s FindingsGetFindingsInput1QuestionQuestion) MarshalJSON() ([]byte, error) {
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestion) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1QuestionQuestion) UnmarshalJSON(data []byte) error {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemQuestion) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
 // Encode implements json.Marshaler.
-func (s *FindingsGetFindingsInput1QuestionSoftware) Encode(e *jx.Encoder) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *FindingsGetFindingsInput1QuestionSoftware) encodeFields(e *jx.Encoder) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("id")
 		e.Str(s.ID)
@@ -193842,16 +193174,16 @@ func (s *FindingsGetFindingsInput1QuestionSoftware) encodeFields(e *jx.Encoder) 
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsInput1QuestionSoftware = [3]string{
+var jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware = [3]string{
 	0: "id",
 	1: "name",
 	2: "version",
 }
 
-// Decode decodes FindingsGetFindingsInput1QuestionSoftware from json.
-func (s *FindingsGetFindingsInput1QuestionSoftware) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware from json.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsInput1QuestionSoftware to nil")
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware to nil")
 	}
 	var requiredBitSet [1]uint8
 
@@ -193896,7 +193228,7 @@ func (s *FindingsGetFindingsInput1QuestionSoftware) Decode(d *jx.Decoder) error 
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode FindingsGetFindingsInput1QuestionSoftware")
+		return errors.Wrap(err, "decode FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -193913,8 +193245,8 @@ func (s *FindingsGetFindingsInput1QuestionSoftware) Decode(d *jx.Decoder) error 
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1QuestionSoftware) {
-					name = jsonFieldsNameOfFindingsGetFindingsInput1QuestionSoftware[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -193935,14 +193267,142 @@ func (s *FindingsGetFindingsInput1QuestionSoftware) Decode(d *jx.Decoder) error 
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *FindingsGetFindingsInput1QuestionSoftware) MarshalJSON() ([]byte, error) {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsInput1QuestionSoftware) UnmarshalJSON(data []byte) error {
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsInput1SoftwareGroupSoftware) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsInput1SoftwareGroupSoftware) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("version")
+		s.Version.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupSoftware = [3]string{
+	0: "id",
+	1: "name",
+	2: "version",
+}
+
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupSoftware from json.
+func (s *FindingsGetFindingsInput1SoftwareGroupSoftware) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1SoftwareGroupSoftware to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "version":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsInput1SoftwareGroupSoftware")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupSoftware) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupSoftware[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsInput1SoftwareGroupSoftware) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput1SoftwareGroupSoftware) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -195015,6 +194475,1559 @@ func (s *FindingsGetFindingsInput1UnconfirmedStatus) UnmarshalJSON(data []byte) 
 }
 
 // Encode implements json.Marshaler.
+func (s *FindingsGetFindingsInput2DeviceNeeds) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsInput2DeviceNeeds) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("device")
+		s.Device.Encode(e)
+	}
+	{
+		e.FieldStart("entries")
+		e.ArrStart()
+		for _, elem := range s.Entries {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("kind")
+		e.Str("device_needs")
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsInput2DeviceNeeds = [4]string{
+	0: "device",
+	1: "entries",
+	2: "id",
+	3: "kind",
+}
+
+// Decode decodes FindingsGetFindingsInput2DeviceNeeds from json.
+func (s *FindingsGetFindingsInput2DeviceNeeds) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput2DeviceNeeds to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "device":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Device.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device\"")
+			}
+		case "entries":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Entries = make([]FindingsGetFindingsInput2DeviceNeedsEntriesItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem FindingsGetFindingsInput2DeviceNeedsEntriesItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Entries = append(s.Entries, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"entries\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Kind = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsInput2DeviceNeeds")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput2DeviceNeeds) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput2DeviceNeeds[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsInput2DeviceNeeds) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput2DeviceNeeds) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsInput2DeviceNeedsDevice) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsInput2DeviceNeedsDevice) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("added")
+		e.Bool(s.Added)
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
+	}
+	{
+		e.FieldStart("ip")
+		s.IP.Encode(e)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsInput2DeviceNeedsDevice = [6]string{
+	0: "added",
+	1: "id",
+	2: "ignored",
+	3: "ip",
+	4: "kind",
+	5: "name",
+}
+
+// Decode decodes FindingsGetFindingsInput2DeviceNeedsDevice from json.
+func (s *FindingsGetFindingsInput2DeviceNeedsDevice) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput2DeviceNeedsDevice to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "added":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Added = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"added\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
+		case "ip":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.IP.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsInput2DeviceNeedsDevice")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput2DeviceNeedsDevice) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput2DeviceNeedsDevice[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsInput2DeviceNeedsDevice) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput2DeviceNeedsDevice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsInput2DeviceNeedsDeviceKind as json.
+func (s FindingsGetFindingsInput2DeviceNeedsDeviceKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsInput2DeviceNeedsDeviceKind from json.
+func (s *FindingsGetFindingsInput2DeviceNeedsDeviceKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput2DeviceNeedsDeviceKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsInput2DeviceNeedsDeviceKind(v) {
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindRouter:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindRouter
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSwitch:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSwitch
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindModem:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindModem
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSdWan:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSdWan
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindLoadBalancer:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindLoadBalancer
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindNetworkController:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindNetworkController
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindFirewall:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindFirewall
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindVpnGateway:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindVpnGateway
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindIdsSensor:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindIdsSensor
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindProxy:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindProxy
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindAp:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindAp
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindWirelessController:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindWirelessController
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindWifiExtender:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindWifiExtender
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindMeshNode:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindMeshNode
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindServer:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindServer
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindVirtualMachine:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindVirtualMachine
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindHypervisor:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindHypervisor
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindBmc:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindBmc
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindDomainController:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindDomainController
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindMailServer:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindMailServer
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindDatabaseServer:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindDatabaseServer
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindBackupServer:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindBackupServer
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindPc:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindPc
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindLaptop:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindLaptop
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindWorkstation:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindWorkstation
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindThinClient:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindThinClient
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindPosTerminal:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindPosTerminal
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindKiosk:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindKiosk
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartphone:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartphone
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindTablet:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindTablet
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartwatch:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartwatch
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindPrinter:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindPrinter
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindMfp:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindMfp
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindScanner:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindScanner
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindLabelPrinter:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindLabelPrinter
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindReceiptPrinter:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindReceiptPrinter
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindPlotter:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindPlotter
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKind3dPrinter:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKind3dPrinter
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindCamera:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindCamera
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindNvr:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindNvr
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindDvr:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindDvr
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindVideoEncoder:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindVideoEncoder
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindDoorbell:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindDoorbell
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindVideoConferencing:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindVideoConferencing
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindIPPhone:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindIPPhone
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindPbx:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindPbx
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindVoipAdapter:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindVoipAdapter
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindVoipGateway:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindVoipGateway
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindConferencePhone:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindConferencePhone
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindIntercom:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindIntercom
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindNas:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindNas
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSan:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSan
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindBackupAppliance:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindBackupAppliance
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindTapeLibrary:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindTapeLibrary
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindIot:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindIot
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartTv:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartTv
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindMediaPlayer:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindMediaPlayer
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartSpeaker:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartSpeaker
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindGameConsole:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindGameConsole
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartPlug:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartPlug
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartLight:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartLight
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartHub:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartHub
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindThermostat:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindThermostat
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindProjector:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindProjector
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindDigitalSignage:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindDigitalSignage
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSingleBoardComputer:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSingleBoardComputer
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartAppliance:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSmartAppliance
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindRobotVacuum:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindRobotVacuum
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindWirelessBridge:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindWirelessBridge
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindPlc:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindPlc
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindHmi:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindHmi
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindRtu:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindRtu
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindScadaServer:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindScadaServer
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindIndustrialSwitch:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindIndustrialSwitch
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindUps:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindUps
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindPdu:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindPdu
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindAccessControl:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindAccessControl
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindTimeClock:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindTimeClock
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindAlarmPanel:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindAlarmPanel
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindHvacController:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindHvacController
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindBuildingController:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindBuildingController
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindPowerMeter:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindPowerMeter
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindEnvironmentMonitor:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindEnvironmentMonitor
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindEvCharger:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindEvCharger
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindSolarInverter:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindSolarInverter
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindMedicalDevice:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindMedicalDevice
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindWeb:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindWeb
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindCloudService:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindCloudService
+	case FindingsGetFindingsInput2DeviceNeedsDeviceKindUnknown:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKindUnknown
+	default:
+		*s = FindingsGetFindingsInput2DeviceNeedsDeviceKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsInput2DeviceNeedsDeviceKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput2DeviceNeedsDeviceKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsInput2DeviceNeedsEntriesItem as json.
+func (s FindingsGetFindingsInput2DeviceNeedsEntriesItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+func (s FindingsGetFindingsInput2DeviceNeedsEntriesItem) encodeFields(e *jx.Encoder) {
+	switch s.Type {
+	case FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInput2DeviceNeedsEntriesItem:
+		e.FieldStart("kind")
+		e.Str("device_unchecked")
+		{
+			s := s.FindingsGetFindingsInput1DeviceUnchecked
+			{
+				e.FieldStart("device")
+				s.Device.Encode(e)
+			}
+			{
+				e.FieldStart("id")
+				e.Str(s.ID)
+			}
+		}
+	case FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInput2DeviceNeedsEntriesItem:
+		e.FieldStart("kind")
+		e.Str("unconfirmed")
+		{
+			s := s.FindingsGetFindingsInput1Unconfirmed
+			{
+				e.FieldStart("basis")
+				s.Basis.Encode(e)
+			}
+			{
+				e.FieldStart("cve")
+				e.Str(s.Cve)
+			}
+			{
+				e.FieldStart("device")
+				s.Device.Encode(e)
+			}
+			{
+				e.FieldStart("id")
+				e.Str(s.ID)
+			}
+			{
+				e.FieldStart("safe_check")
+				e.Bool(s.SafeCheck)
+			}
+			{
+				e.FieldStart("severity")
+				s.Severity.Encode(e)
+			}
+			{
+				e.FieldStart("software")
+				s.Software.Encode(e)
+			}
+			{
+				e.FieldStart("status")
+				s.Status.Encode(e)
+			}
+		}
+	case FindingsGetFindingsInput1SoftwareGroupFindingsGetFindingsInput2DeviceNeedsEntriesItem:
+		e.FieldStart("kind")
+		e.Str("software_group")
+		{
+			s := s.FindingsGetFindingsInput1SoftwareGroup
+			{
+				e.FieldStart("cves")
+				e.Int(s.Cves)
+			}
+			{
+				e.FieldStart("id")
+				e.Str(s.ID)
+			}
+			{
+				e.FieldStart("questions")
+				e.ArrStart()
+				for _, elem := range s.Questions {
+					elem.Encode(e)
+				}
+				e.ArrEnd()
+			}
+			{
+				e.FieldStart("software")
+				s.Software.Encode(e)
+			}
+		}
+	}
+}
+
+// Decode decodes FindingsGetFindingsInput2DeviceNeedsEntriesItem from json.
+func (s *FindingsGetFindingsInput2DeviceNeedsEntriesItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput2DeviceNeedsEntriesItem to nil")
+	}
+	// Sum type discriminator.
+	if typ := d.Next(); typ != jx.Object {
+		return errors.Errorf("unexpected json type %q", typ)
+	}
+
+	var found bool
+	if err := d.Capture(func(d *jx.Decoder) error {
+		return d.ObjBytes(func(d *jx.Decoder, key []byte) error {
+			if found {
+				return d.Skip()
+			}
+			switch string(key) {
+			case "kind":
+				typ, err := d.Str()
+				if err != nil {
+					return err
+				}
+				switch typ {
+				case "device_unchecked":
+					s.Type = FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInput2DeviceNeedsEntriesItem
+					found = true
+				case "unconfirmed":
+					s.Type = FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInput2DeviceNeedsEntriesItem
+					found = true
+				case "software_group":
+					s.Type = FindingsGetFindingsInput1SoftwareGroupFindingsGetFindingsInput2DeviceNeedsEntriesItem
+					found = true
+				default:
+					return errors.Errorf("unknown type %s", typ)
+				}
+				return nil
+			}
+			return d.Skip()
+		})
+	}); err != nil {
+		return errors.Wrap(err, "capture")
+	}
+	if !found {
+		return errors.New("unable to detect sum type variant")
+	}
+	switch s.Type {
+	case FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInput2DeviceNeedsEntriesItem:
+		if err := s.FindingsGetFindingsInput1DeviceUnchecked.Decode(d); err != nil {
+			return err
+		}
+	case FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInput2DeviceNeedsEntriesItem:
+		if err := s.FindingsGetFindingsInput1Unconfirmed.Decode(d); err != nil {
+			return err
+		}
+	case FindingsGetFindingsInput1SoftwareGroupFindingsGetFindingsInput2DeviceNeedsEntriesItem:
+		if err := s.FindingsGetFindingsInput1SoftwareGroup.Decode(d); err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("inferred invalid type: %s", s.Type)
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsInput2DeviceNeedsEntriesItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput2DeviceNeedsEntriesItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAdded) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsInput2DeviceNotAdded) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("device")
+		s.Device.Encode(e)
+	}
+	{
+		e.FieldStart("findings")
+		e.Int(s.Findings)
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("kind")
+		e.Str("device_not_added")
+	}
+	{
+		e.FieldStart("status")
+		s.Status.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAdded = [5]string{
+	0: "device",
+	1: "findings",
+	2: "id",
+	3: "kind",
+	4: "status",
+}
+
+// Decode decodes FindingsGetFindingsInput2DeviceNotAdded from json.
+func (s *FindingsGetFindingsInput2DeviceNotAdded) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput2DeviceNotAdded to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "device":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Device.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device\"")
+			}
+		case "findings":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Findings = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"findings\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Kind = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "status":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Status.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"status\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsInput2DeviceNotAdded")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAdded) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAdded[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAdded) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAdded) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAddedDevice) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsInput2DeviceNotAddedDevice) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("added")
+		e.Bool(s.Added)
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("ignored")
+		e.Bool(s.Ignored)
+	}
+	{
+		e.FieldStart("ip")
+		s.IP.Encode(e)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAddedDevice = [6]string{
+	0: "added",
+	1: "id",
+	2: "ignored",
+	3: "ip",
+	4: "kind",
+	5: "name",
+}
+
+// Decode decodes FindingsGetFindingsInput2DeviceNotAddedDevice from json.
+func (s *FindingsGetFindingsInput2DeviceNotAddedDevice) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput2DeviceNotAddedDevice to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "added":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Added = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"added\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "ignored":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.Ignored = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ignored\"")
+			}
+		case "ip":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.IP.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsInput2DeviceNotAddedDevice")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00111111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAddedDevice) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAddedDevice[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAddedDevice) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAddedDevice) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsInput2DeviceNotAddedDeviceKind as json.
+func (s FindingsGetFindingsInput2DeviceNotAddedDeviceKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsInput2DeviceNotAddedDeviceKind from json.
+func (s *FindingsGetFindingsInput2DeviceNotAddedDeviceKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput2DeviceNotAddedDeviceKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsInput2DeviceNotAddedDeviceKind(v) {
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindRouter:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindRouter
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSwitch:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSwitch
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindModem:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindModem
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSdWan:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSdWan
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindLoadBalancer:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindLoadBalancer
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindNetworkController:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindNetworkController
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindFirewall:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindFirewall
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindVpnGateway:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindVpnGateway
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindIdsSensor:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindIdsSensor
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindProxy:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindProxy
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindAp:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindAp
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindWirelessController:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindWirelessController
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindWifiExtender:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindWifiExtender
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindMeshNode:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindMeshNode
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindServer:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindServer
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindVirtualMachine:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindVirtualMachine
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindHypervisor:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindHypervisor
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindBmc:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindBmc
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindDomainController:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindDomainController
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindMailServer:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindMailServer
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindDatabaseServer:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindDatabaseServer
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindBackupServer:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindBackupServer
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindPc:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindPc
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindLaptop:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindLaptop
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindWorkstation:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindWorkstation
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindThinClient:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindThinClient
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindPosTerminal:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindPosTerminal
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindKiosk:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindKiosk
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartphone:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartphone
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindTablet:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindTablet
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartwatch:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartwatch
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindPrinter:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindPrinter
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindMfp:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindMfp
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindScanner:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindScanner
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindLabelPrinter:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindLabelPrinter
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindReceiptPrinter:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindReceiptPrinter
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindPlotter:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindPlotter
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKind3dPrinter:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKind3dPrinter
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindCamera:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindCamera
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindNvr:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindNvr
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindDvr:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindDvr
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindVideoEncoder:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindVideoEncoder
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindDoorbell:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindDoorbell
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindVideoConferencing:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindVideoConferencing
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindIPPhone:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindIPPhone
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindPbx:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindPbx
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindVoipAdapter:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindVoipAdapter
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindVoipGateway:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindVoipGateway
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindConferencePhone:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindConferencePhone
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindIntercom:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindIntercom
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindNas:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindNas
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSan:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSan
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindBackupAppliance:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindBackupAppliance
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindTapeLibrary:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindTapeLibrary
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindIot:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindIot
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartTv:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartTv
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindMediaPlayer:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindMediaPlayer
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartSpeaker:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartSpeaker
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindGameConsole:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindGameConsole
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartPlug:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartPlug
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartLight:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartLight
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartHub:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartHub
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindThermostat:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindThermostat
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindProjector:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindProjector
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindDigitalSignage:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindDigitalSignage
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSingleBoardComputer:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSingleBoardComputer
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartAppliance:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSmartAppliance
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindRobotVacuum:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindRobotVacuum
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindWirelessBridge:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindWirelessBridge
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindPlc:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindPlc
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindHmi:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindHmi
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindRtu:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindRtu
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindScadaServer:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindScadaServer
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindIndustrialSwitch:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindIndustrialSwitch
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindUps:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindUps
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindPdu:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindPdu
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindAccessControl:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindAccessControl
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindTimeClock:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindTimeClock
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindAlarmPanel:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindAlarmPanel
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindHvacController:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindHvacController
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindBuildingController:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindBuildingController
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindPowerMeter:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindPowerMeter
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindEnvironmentMonitor:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindEnvironmentMonitor
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindEvCharger:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindEvCharger
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindSolarInverter:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindSolarInverter
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindMedicalDevice:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindMedicalDevice
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindWeb:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindWeb
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindCloudService:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindCloudService
+	case FindingsGetFindingsInput2DeviceNotAddedDeviceKindUnknown:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKindUnknown
+	default:
+		*s = FindingsGetFindingsInput2DeviceNotAddedDeviceKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsInput2DeviceNotAddedDeviceKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAddedDeviceKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("code")
+		s.Code.Encode(e)
+	}
+	{
+		e.FieldStart("count")
+		e.Int(s.Count)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAddedStatus = [2]string{
+	0: "code",
+	1: "count",
+}
+
+// Decode decodes FindingsGetFindingsInput2DeviceNotAddedStatus from json.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput2DeviceNotAddedStatus to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "code":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Code.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
+		case "count":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Count = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"count\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsInput2DeviceNotAddedStatus")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAddedStatus) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput2DeviceNotAddedStatus[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatus) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsInput2DeviceNotAddedStatusCode as json.
+func (s FindingsGetFindingsInput2DeviceNotAddedStatusCode) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsInput2DeviceNotAddedStatusCode from json.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatusCode) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput2DeviceNotAddedStatusCode to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsInput2DeviceNotAddedStatusCode(v) {
+	case FindingsGetFindingsInput2DeviceNotAddedStatusCodeUnderAttack:
+		*s = FindingsGetFindingsInput2DeviceNotAddedStatusCodeUnderAttack
+	case FindingsGetFindingsInput2DeviceNotAddedStatusCodeExploited:
+		*s = FindingsGetFindingsInput2DeviceNotAddedStatusCodeExploited
+	case FindingsGetFindingsInput2DeviceNotAddedStatusCodePublicExploit:
+		*s = FindingsGetFindingsInput2DeviceNotAddedStatusCodePublicExploit
+	case FindingsGetFindingsInput2DeviceNotAddedStatusCodeCriticalEdge:
+		*s = FindingsGetFindingsInput2DeviceNotAddedStatusCodeCriticalEdge
+	case FindingsGetFindingsInput2DeviceNotAddedStatusCodeUpdateRecommended:
+		*s = FindingsGetFindingsInput2DeviceNotAddedStatusCodeUpdateRecommended
+	case FindingsGetFindingsInput2DeviceNotAddedStatusCodeNeedsInput:
+		*s = FindingsGetFindingsInput2DeviceNotAddedStatusCodeNeedsInput
+	default:
+		*s = FindingsGetFindingsInput2DeviceNotAddedStatusCode(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsInput2DeviceNotAddedStatusCode) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput2DeviceNotAddedStatusCode) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsInput2DevicesNotAdded) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsInput2DevicesNotAdded) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("count")
+		e.Int(s.Count)
+	}
+	{
+		e.FieldStart("id")
+		e.Str("devices_not_added")
+	}
+	{
+		e.FieldStart("kind")
+		e.Str("devices_not_added")
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsInput2DevicesNotAdded = [3]string{
+	0: "count",
+	1: "id",
+	2: "kind",
+}
+
+// Decode decodes FindingsGetFindingsInput2DevicesNotAdded from json.
+func (s *FindingsGetFindingsInput2DevicesNotAdded) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput2DevicesNotAdded to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "count":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Count = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"count\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Kind = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsInput2DevicesNotAdded")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsInput2DevicesNotAdded) {
+					name = jsonFieldsNameOfFindingsGetFindingsInput2DevicesNotAdded[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsInput2DevicesNotAdded) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput2DevicesNotAdded) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *FindingsGetFindingsInputOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -195146,11 +196159,11 @@ func (s FindingsGetFindingsInputOKItemsItem) Encode(e *jx.Encoder) {
 
 func (s FindingsGetFindingsInputOKItemsItem) encodeFields(e *jx.Encoder) {
 	switch s.Type {
-	case FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem:
+	case FindingsGetFindingsInput2DeviceNotAddedFindingsGetFindingsInputOKItemsItem:
 		e.FieldStart("kind")
 		e.Str("device_not_added")
 		{
-			s := s.FindingsGetFindingsInput1DeviceNotAdded
+			s := s.FindingsGetFindingsInput2DeviceNotAdded
 			{
 				e.FieldStart("device")
 				s.Device.Encode(e)
@@ -195168,11 +196181,11 @@ func (s FindingsGetFindingsInputOKItemsItem) encodeFields(e *jx.Encoder) {
 				s.Status.Encode(e)
 			}
 		}
-	case FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem:
+	case FindingsGetFindingsInput2DevicesNotAddedFindingsGetFindingsInputOKItemsItem:
 		e.FieldStart("kind")
 		e.Str("devices_not_added")
 		{
-			s := s.FindingsGetFindingsInput1DevicesNotAdded
+			s := s.FindingsGetFindingsInput2DevicesNotAdded
 			{
 				e.FieldStart("count")
 				e.Int(s.Count)
@@ -195182,130 +196195,26 @@ func (s FindingsGetFindingsInputOKItemsItem) encodeFields(e *jx.Encoder) {
 				e.Str("devices_not_added")
 			}
 		}
-	case FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem:
+	case FindingsGetFindingsInput2DeviceNeedsFindingsGetFindingsInputOKItemsItem:
 		e.FieldStart("kind")
-		e.Str("device_unchecked")
+		e.Str("device_needs")
 		{
-			s := s.FindingsGetFindingsInput1DeviceUnchecked
+			s := s.FindingsGetFindingsInput2DeviceNeeds
 			{
 				e.FieldStart("device")
 				s.Device.Encode(e)
 			}
 			{
-				e.FieldStart("id")
-				e.Str(s.ID)
-			}
-		}
-	case FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInputOKItemsItem:
-		e.FieldStart("kind")
-		e.Str("unconfirmed")
-		{
-			s := s.FindingsGetFindingsInput1Unconfirmed
-			{
-				e.FieldStart("basis")
-				s.Basis.Encode(e)
-			}
-			{
-				e.FieldStart("cve")
-				e.Str(s.Cve)
-			}
-			{
-				e.FieldStart("device")
-				s.Device.Encode(e)
-			}
-			{
-				e.FieldStart("id")
-				e.Str(s.ID)
-			}
-			{
-				e.FieldStart("safe_check")
-				e.Bool(s.SafeCheck)
-			}
-			{
-				e.FieldStart("severity")
-				s.Severity.Encode(e)
-			}
-			{
-				e.FieldStart("software")
-				s.Software.Encode(e)
-			}
-			{
-				e.FieldStart("status")
-				s.Status.Encode(e)
-			}
-		}
-	case FindingsGetFindingsInput1QuestionFindingsGetFindingsInputOKItemsItem:
-		e.FieldStart("kind")
-		e.Str("question")
-		{
-			s := s.FindingsGetFindingsInput1Question
-			{
-				e.FieldStart("asked_at")
-				json.EncodeDateTime(e, s.AskedAt)
-			}
-			{
-				e.FieldStart("choices")
+				e.FieldStart("entries")
 				e.ArrStart()
-				for _, elem := range s.Choices {
+				for _, elem := range s.Entries {
 					elem.Encode(e)
 				}
 				e.ArrEnd()
 			}
 			{
-				e.FieldStart("command")
-				s.Command.Encode(e)
-			}
-			{
-				e.FieldStart("cve")
-				s.Cve.Encode(e)
-			}
-			{
-				e.FieldStart("cve_list")
-				e.ArrStart()
-				for _, elem := range s.CveList {
-					e.Str(elem)
-				}
-				e.ArrEnd()
-			}
-			{
-				e.FieldStart("cves")
-				e.Int(s.Cves)
-			}
-			{
-				e.FieldStart("device")
-				s.Device.Encode(e)
-			}
-			{
-				e.FieldStart("fixes")
-				e.ArrStart()
-				for _, elem := range s.Fixes {
-					e.Str(elem)
-				}
-				e.ArrEnd()
-			}
-			{
 				e.FieldStart("id")
 				e.Str(s.ID)
-			}
-			{
-				e.FieldStart("line")
-				s.Line.Encode(e)
-			}
-			{
-				e.FieldStart("question")
-				s.Question.Encode(e)
-			}
-			{
-				e.FieldStart("software")
-				s.Software.Encode(e)
-			}
-			{
-				e.FieldStart("url")
-				s.URL.Encode(e)
-			}
-			{
-				e.FieldStart("versions_listed")
-				e.Bool(s.VersionsListed)
 			}
 		}
 	}
@@ -195335,19 +196244,13 @@ func (s *FindingsGetFindingsInputOKItemsItem) Decode(d *jx.Decoder) error {
 				}
 				switch typ {
 				case "device_not_added":
-					s.Type = FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem
+					s.Type = FindingsGetFindingsInput2DeviceNotAddedFindingsGetFindingsInputOKItemsItem
 					found = true
 				case "devices_not_added":
-					s.Type = FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem
+					s.Type = FindingsGetFindingsInput2DevicesNotAddedFindingsGetFindingsInputOKItemsItem
 					found = true
-				case "device_unchecked":
-					s.Type = FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem
-					found = true
-				case "unconfirmed":
-					s.Type = FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInputOKItemsItem
-					found = true
-				case "question":
-					s.Type = FindingsGetFindingsInput1QuestionFindingsGetFindingsInputOKItemsItem
+				case "device_needs":
+					s.Type = FindingsGetFindingsInput2DeviceNeedsFindingsGetFindingsInputOKItemsItem
 					found = true
 				default:
 					return errors.Errorf("unknown type %s", typ)
@@ -195363,24 +196266,16 @@ func (s *FindingsGetFindingsInputOKItemsItem) Decode(d *jx.Decoder) error {
 		return errors.New("unable to detect sum type variant")
 	}
 	switch s.Type {
-	case FindingsGetFindingsInput1DeviceNotAddedFindingsGetFindingsInputOKItemsItem:
-		if err := s.FindingsGetFindingsInput1DeviceNotAdded.Decode(d); err != nil {
+	case FindingsGetFindingsInput2DeviceNotAddedFindingsGetFindingsInputOKItemsItem:
+		if err := s.FindingsGetFindingsInput2DeviceNotAdded.Decode(d); err != nil {
 			return err
 		}
-	case FindingsGetFindingsInput1DevicesNotAddedFindingsGetFindingsInputOKItemsItem:
-		if err := s.FindingsGetFindingsInput1DevicesNotAdded.Decode(d); err != nil {
+	case FindingsGetFindingsInput2DevicesNotAddedFindingsGetFindingsInputOKItemsItem:
+		if err := s.FindingsGetFindingsInput2DevicesNotAdded.Decode(d); err != nil {
 			return err
 		}
-	case FindingsGetFindingsInput1DeviceUncheckedFindingsGetFindingsInputOKItemsItem:
-		if err := s.FindingsGetFindingsInput1DeviceUnchecked.Decode(d); err != nil {
-			return err
-		}
-	case FindingsGetFindingsInput1UnconfirmedFindingsGetFindingsInputOKItemsItem:
-		if err := s.FindingsGetFindingsInput1Unconfirmed.Decode(d); err != nil {
-			return err
-		}
-	case FindingsGetFindingsInput1QuestionFindingsGetFindingsInputOKItemsItem:
-		if err := s.FindingsGetFindingsInput1Question.Decode(d); err != nil {
+	case FindingsGetFindingsInput2DeviceNeedsFindingsGetFindingsInputOKItemsItem:
+		if err := s.FindingsGetFindingsInput2DeviceNeeds.Decode(d); err != nil {
 			return err
 		}
 	default:
@@ -228545,6 +229440,232 @@ func (s *FindingsPostFindingsQuestionsIDUnanswerOK) MarshalJSON() ([]byte, error
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsPostFindingsQuestionsIDUnanswerOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsPostFindingsQuestionsIgnoreOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsPostFindingsQuestionsIgnoreOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("answered")
+		e.Int(s.Answered)
+	}
+}
+
+var jsonFieldsNameOfFindingsPostFindingsQuestionsIgnoreOK = [1]string{
+	0: "answered",
+}
+
+// Decode decodes FindingsPostFindingsQuestionsIgnoreOK from json.
+func (s *FindingsPostFindingsQuestionsIgnoreOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsQuestionsIgnoreOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "answered":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Answered = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"answered\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsPostFindingsQuestionsIgnoreOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsPostFindingsQuestionsIgnoreOK) {
+					name = jsonFieldsNameOfFindingsPostFindingsQuestionsIgnoreOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsPostFindingsQuestionsIgnoreOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsQuestionsIgnoreOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsPostFindingsQuestionsIgnoreReq) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsPostFindingsQuestionsIgnoreReq) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("device")
+		e.Str(s.Device)
+	}
+	{
+		e.FieldStart("note")
+		e.Str(s.Note)
+	}
+	{
+		if s.Software.Set {
+			e.FieldStart("software")
+			s.Software.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfFindingsPostFindingsQuestionsIgnoreReq = [3]string{
+	0: "device",
+	1: "note",
+	2: "software",
+}
+
+// Decode decodes FindingsPostFindingsQuestionsIgnoreReq from json.
+func (s *FindingsPostFindingsQuestionsIgnoreReq) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsPostFindingsQuestionsIgnoreReq to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "device":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Device = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device\"")
+			}
+		case "note":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Note = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"note\"")
+			}
+		case "software":
+			if err := func() error {
+				s.Software.Reset()
+				if err := s.Software.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsPostFindingsQuestionsIgnoreReq")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsPostFindingsQuestionsIgnoreReq) {
+					name = jsonFieldsNameOfFindingsPostFindingsQuestionsIgnoreReq[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsPostFindingsQuestionsIgnoreReq) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsPostFindingsQuestionsIgnoreReq) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -294319,8 +295440,8 @@ func (s *NilFindingsGetFindingsIDViewOKSoftware) UnmarshalJSON(data []byte) erro
 	return s.Decode(d)
 }
 
-// Encode encodes FindingsGetFindingsInput1DeviceNotAddedStatus as json.
-func (o NilFindingsGetFindingsInput1DeviceNotAddedStatus) Encode(e *jx.Encoder) {
+// Encode encodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware as json.
+func (o NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware) Encode(e *jx.Encoder) {
 	if o.Null {
 		e.Null()
 		return
@@ -294328,17 +295449,17 @@ func (o NilFindingsGetFindingsInput1DeviceNotAddedStatus) Encode(e *jx.Encoder) 
 	o.Value.Encode(e)
 }
 
-// Decode decodes FindingsGetFindingsInput1DeviceNotAddedStatus from json.
-func (o *NilFindingsGetFindingsInput1DeviceNotAddedStatus) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware from json.
+func (o *NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware) Decode(d *jx.Decoder) error {
 	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsGetFindingsInput1DeviceNotAddedStatus to nil")
+		return errors.New("invalid: unable to decode NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware to nil")
 	}
 	if d.Next() == jx.Null {
 		if err := d.Null(); err != nil {
 			return err
 		}
 
-		var v FindingsGetFindingsInput1DeviceNotAddedStatus
+		var v FindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware
 		o.Value = v
 		o.Null = true
 		return nil
@@ -294351,20 +295472,20 @@ func (o *NilFindingsGetFindingsInput1DeviceNotAddedStatus) Decode(d *jx.Decoder)
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsGetFindingsInput1DeviceNotAddedStatus) MarshalJSON() ([]byte, error) {
+func (s NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsGetFindingsInput1DeviceNotAddedStatus) UnmarshalJSON(data []byte) error {
+func (s *NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemSoftware) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes FindingsGetFindingsInput1QuestionSoftware as json.
-func (o NilFindingsGetFindingsInput1QuestionSoftware) Encode(e *jx.Encoder) {
+// Encode encodes FindingsGetFindingsInput1SoftwareGroupSoftware as json.
+func (o NilFindingsGetFindingsInput1SoftwareGroupSoftware) Encode(e *jx.Encoder) {
 	if o.Null {
 		e.Null()
 		return
@@ -294372,17 +295493,17 @@ func (o NilFindingsGetFindingsInput1QuestionSoftware) Encode(e *jx.Encoder) {
 	o.Value.Encode(e)
 }
 
-// Decode decodes FindingsGetFindingsInput1QuestionSoftware from json.
-func (o *NilFindingsGetFindingsInput1QuestionSoftware) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupSoftware from json.
+func (o *NilFindingsGetFindingsInput1SoftwareGroupSoftware) Decode(d *jx.Decoder) error {
 	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsGetFindingsInput1QuestionSoftware to nil")
+		return errors.New("invalid: unable to decode NilFindingsGetFindingsInput1SoftwareGroupSoftware to nil")
 	}
 	if d.Next() == jx.Null {
 		if err := d.Null(); err != nil {
 			return err
 		}
 
-		var v FindingsGetFindingsInput1QuestionSoftware
+		var v FindingsGetFindingsInput1SoftwareGroupSoftware
 		o.Value = v
 		o.Null = true
 		return nil
@@ -294395,14 +295516,14 @@ func (o *NilFindingsGetFindingsInput1QuestionSoftware) Decode(d *jx.Decoder) err
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsGetFindingsInput1QuestionSoftware) MarshalJSON() ([]byte, error) {
+func (s NilFindingsGetFindingsInput1SoftwareGroupSoftware) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsGetFindingsInput1QuestionSoftware) UnmarshalJSON(data []byte) error {
+func (s *NilFindingsGetFindingsInput1SoftwareGroupSoftware) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -294491,6 +295612,50 @@ func (s NilFindingsGetFindingsInput1UnconfirmedSoftware) MarshalJSON() ([]byte, 
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilFindingsGetFindingsInput1UnconfirmedSoftware) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsInput2DeviceNotAddedStatus as json.
+func (o NilFindingsGetFindingsInput2DeviceNotAddedStatus) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes FindingsGetFindingsInput2DeviceNotAddedStatus from json.
+func (o *NilFindingsGetFindingsInput2DeviceNotAddedStatus) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilFindingsGetFindingsInput2DeviceNotAddedStatus to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v FindingsGetFindingsInput2DeviceNotAddedStatus
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilFindingsGetFindingsInput2DeviceNotAddedStatus) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilFindingsGetFindingsInput2DeviceNotAddedStatus) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

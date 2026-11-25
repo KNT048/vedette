@@ -337,7 +337,7 @@
       "dns": "DNS token"
     },
     "what": {
-      "file": "A .docx or .xlsx for a file share. It calls home when opened.",
+      "file": "A decoy file on the decoy's file share. Opening it alerts.",
       "credential": "User and password for a password manager or script; any login alerts.",
       "url": "A web link. Opening it alerts."
     },
@@ -434,15 +434,17 @@
     "triggerLabel": "Triggers when:",
     "howLabel": "How to plant:",
     "trigger": {
-      "file": "someone opens the file in Word or Excel and it loads a hidden image from the box.",
+      "file": "someone opens it on the decoy's file share (\\\\{{name}}).",
+      "fileNoSmb": "nobody yet: no Trap IP has SMB on, so the file is not on any share.",
       "credential": "anyone tries to sign in with this user name, from any machine.",
       "url": "anyone opens the link in a browser or a link scanner fetches it.",
       "dns": "nothing: the box runs no DNS server.",
       "dnsInfo": "A lookup of this name is never seen, even if your DNS server forwards vedette.internal to the box. New DNS tokens are no longer offered: use a URL token or fake credentials for an alert you can count on."
     },
     "how": {
-      "file": "Download {{value}} from this page and copy it to the share.",
-      "fileInfo": "In this preview there is no download: the real box generates the file with its call-home address inside, and you copy it to the share like any other document.",
+      "file": "It is already on the decoy's file share; nothing to copy.",
+      "fileNoSmb": "Turn on SMB on a Trap IP; the file then appears on its share.",
+      "fileInfo": "The box puts a file with this name on the share of its decoy machine. Nothing to download or copy.",
       "credential": "Save it in a password manager or script config. Do not create it in AD.",
       "credentialInfo": "The box alerts on the failed login; a real Active Directory account would let the login succeed.",
       "url": "Paste the link where an intruder reads about admin systems.",

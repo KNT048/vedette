@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { useAddToken, useDeleteToken, useTestToken, useTokens } from './api'
+import { useAddToken, useDeleteToken, useOverview, useTestToken, useTokens } from './api'
 import { testAlertToast } from './testAlert'
 import { TOKEN_PRESETS, tokenPresetName, type TokenPreset } from './presets'
 import { TOKEN_TYPES, type OfferedTokenType, type Token } from './types'
@@ -35,6 +35,9 @@ export default function TokensSection() {
 
 function Inner({ items }: { items: Token[] }) {
   const { t } = useTranslation('honeypot')
+  const ov = useOverview().data
+  const smbName = ov?.smb_name ?? null
+  const noSmb = !!ov && !ov.smb_name
   const admin = useCan('admin')
   const operator = useCan('operator')
   const del = useDeleteToken()
@@ -84,11 +87,11 @@ function Inner({ items }: { items: Token[] }) {
                 </div>
                 <div className="grid content-start gap-1 text-meta">
                   <div className="flex items-start gap-1">
-                    <p><span className="font-medium">{t('token.triggerLabel')}</span> {t(`token.trigger.${k.type}`)}</p>
+                    <p><span className="font-medium">{t('token.triggerLabel')}</span> {t(k.type === 'file' && noSmb ? 'token.trigger.fileNoSmb' : `token.trigger.${k.type}`, { name: smbName })}</p>
                     {k.type === 'dns' ? <InfoTip topic={t('token.triggerLabel')}>{t('token.trigger.dnsInfo')}</InfoTip> : null}
                   </div>
                   <div className="flex items-start gap-1">
-                    <p><span className="font-medium">{t('token.howLabel')}</span> {t(`token.how.${k.type}`, { value: k.value })}</p>
+                    <p><span className="font-medium">{t('token.howLabel')}</span> {t(k.type === 'file' && noSmb ? 'token.how.fileNoSmb' : `token.how.${k.type}`, { value: k.value })}</p>
                     {k.type !== 'dns' ? <InfoTip topic={t('token.howLabel')}>{t(`token.how.${k.type}Info`)}</InfoTip> : null}
                   </div>
                 </div>

@@ -44,7 +44,10 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   A version match on a version a person typed or corrected is that person's word: it is confirmed by them when it is made (verified
   `person`, the history names them and the version; `entryConfirms`), never queued for their confirmation, and its confirmation is no
   Undo's (409); resting on the ranges, it is judged again at every match like the device's own report (`proofHolds`: a range
-  correction closes it as `data_corrected`). `TestMatch_EnteredVersionIsThePersonsWord`.
+  correction closes it as `data_corrected`). A person's own Confirm stays as on any other basis: it holds at every match and Undo takes
+  it back, also on a finding that rests on an entered version; the two are told apart by the newest `confirmed` event (Vedette's for
+  the entry, `Finding.byEntry`), no column of their own. `TestMatch_EnteredVersionIsThePersonsWord`,
+  `TestMatch_OwnConfirmOnEnteredVersionHolds`.
 - **M-4 Invariants.** Held by database CHECKs, `Finding.Validate` and `vedette selfcheck`: open exactly when there is no
   resolution, `via`, `resolved_by` or `resolved_at`; accepted exactly with a last day; `version_moved` exactly with two different
   versions; every open vocabulary value is one the Go type lists; every open finding's `fix_key` names its stored fix (`findings.fix_key_names_stored_fix`).

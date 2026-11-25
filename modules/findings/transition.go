@@ -197,6 +197,7 @@ func (t *transition) detected(d Detection) error {
 		t.emit(SystemUser, EvCreated, EventDetail{})
 		if f.Confirmed() {
 			t.emit(SystemUser, EvConfirmed, EventDetail{From: string(VerifiedNo), To: string(f.Verified), Note: entryNote(d), By: confirmer(d)})
+			f.byEntry = f.Verified == VerifiedPerson
 		}
 		return nil
 	}
@@ -210,6 +211,9 @@ func (t *transition) detected(d Detection) error {
 	f.Basis = d.Basis
 	if !was.proofHolds() || was.Verified.rank() <= d.Verified.rank() {
 		f.Verified = d.Verified
+	}
+	if f.Verified != VerifiedPerson {
+		f.byEntry = false
 	}
 	f.RangeOrigin = d.RangeOrigin
 	daily := t.now.Sub(was.LastSeen) >= lastSeenStep
@@ -240,6 +244,7 @@ func (t *transition) detected(d Detection) error {
 	switch {
 	case f.Verified.rank() > was.Verified.rank(): // confirmed, or confirmed by a stronger proof
 		t.emit(SystemUser, EvConfirmed, EventDetail{From: string(was.Verified), To: string(f.Verified), Note: entryNote(d), By: confirmer(d)})
+		f.byEntry = f.Verified == VerifiedPerson // Vedette confirms at a person's level only on the version a person entered
 	case was.Confirmed() && !f.Confirmed():
 		t.emit(SystemUser, EvUnconfirmed, EventDetail{From: string(was.Verified), To: string(f.Verified)})
 	}
@@ -391,7 +396,7 @@ func (t *transition) verify(tr Trigger) error {
 	case n < MinReasonNote:
 		return fmt.Errorf("findings: confirming: %w", ErrConfirmNoteRequired)
 	}
-	t.f.Verified = VerifiedPerson
+	t.f.Verified, t.f.byEntry = VerifiedPerson, false
 	t.emit(t.actor, EvConfirmed, EventDetail{From: string(VerifiedNo), To: string(VerifiedPerson), Note: note})
 	return nil
 }
@@ -423,7 +428,7 @@ func (t *transition) unverify() error {
 	if t.f.Verified != VerifiedPerson || !t.f.proofHolds() { // the version a person entered confirms it: the next match would again
 		return fmt.Errorf("findings: undoing a confirmation of a finding verified %s on %s: %w", t.f.Verified, t.f.Basis, ErrNotConfirmedByHand)
 	}
-	t.f.Verified = VerifiedNo
+	t.f.Verified, t.f.byEntry = VerifiedNo, false
 	t.emit(t.actor, EvUnconfirmed, EventDetail{From: string(VerifiedPerson), To: string(VerifiedNo)})
 	return nil
 }

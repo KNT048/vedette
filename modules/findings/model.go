@@ -120,10 +120,11 @@ func (v Verified) Valid() bool { return v == VerifiedNo || v.rank() > 0 }
 func (v Verified) sticky() bool { return v == VerifiedScan || v == VerifiedPerson }
 
 // proofHolds reports whether f's confirmation is one the match pass never takes back (Verified.sticky): a safe check's, or a person's
-// own Confirm or answer. A confirmation that rests on the version a person entered (basis statement) is judged again at every match,
-// like the device's own report: the person stated the version, the ranges decide the flaw, so a correction of the ranges closes it.
+// own Confirm or answer, whatever the finding rests on. Vedette's confirmation on the version a person entered (byEntry) is judged
+// again at every match, like the device's own report: the person stated the version, the ranges decide the flaw, so a correction of
+// the ranges closes it.
 func (f Finding) proofHolds() bool {
-	return f.Verified.sticky() && (f.Verified != VerifiedPerson || f.Basis != DetectStatement)
+	return f.Verified.sticky() && (f.Verified != VerifiedPerson || !f.byEntry)
 }
 
 // entryConfirms says a detection rests on the version a person entered (basis statement, with the person who entered it): the
@@ -235,6 +236,11 @@ type Finding struct {
 	UrgencyAt time.Time
 
 	FirstSeen, LastSeen, UpdatedAt time.Time
+
+	// byEntry says the confirmation that holds is Vedette's on the version a person entered (Detection.entryConfirms), not a person's
+	// own Confirm: the newest confirmed event is Vedette's while the finding is confirmed by a person. Read from the history when the
+	// row is loaded (findingSelect), kept up to date by Transition; no column of its own.
+	byEntry bool
 }
 
 // Open reports whether the finding needs attention.

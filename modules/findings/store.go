@@ -91,6 +91,11 @@ const findingColumns = `id, asset_id, cve, software_id, detected, basis, verifie
 	fix_key, evidence, state, resolution, via, resolved_by, resolved_at, note, accepted_until, from_version, to_version, urgency, urgency_at,
 	first_seen, last_seen, updated_at`
 
+// findingSelect is findingColumns as read, with Finding.byEntry from the history: a finding confirmed by a person whose newest
+// confirmed event is Vedette's (only the version a person entered makes Vedette confirm one at that level).
+const findingSelect = findingColumns + `, (verified = 'person' AND ifnull((SELECT e.actor FROM fnd_finding_event e
+	WHERE e.finding_id = fnd_finding.id AND e.kind = 'confirmed' ORDER BY e.id DESC LIMIT 1), '') = '` + SystemUser + `')`
+
 func scanFinding(s scanner) (Finding, error) {
 	var (
 		f                                           Finding
@@ -102,7 +107,7 @@ func scanFinding(s scanner) (Finding, error) {
 	)
 	if err := s.Scan(&f.ID, &f.AssetID, &f.CVE, &softwareID, &f.Detected, &basis, &verified, &f.RangeOrigin, &matched, &fixKind, &fixVersion, &fixRef,
 		&f.FixKey, &evidence, &state, &resolution, &via, &resolvedBy, &resolvedAt, &note, &until, &from, &to, &f.Urgency, &urgencyAt,
-		&first, &last, &updated); err != nil {
+		&first, &last, &updated, &f.byEntry); err != nil {
 		return Finding{}, err
 	}
 	f.SoftwareID, f.MatchedVersion = softwareID.String, matched.String
@@ -180,7 +185,7 @@ func nullTS(t time.Time) any {
 
 // loadFinding returns one finding, or an error wrapping ErrNotFound.
 func loadFinding(ctx context.Context, q querier, id string) (Finding, error) {
-	f, err := scanFinding(q.QueryRowContext(ctx, `SELECT `+findingColumns+` FROM fnd_finding WHERE id = ?`, id))
+	f, err := scanFinding(q.QueryRowContext(ctx, `SELECT `+findingSelect+` FROM fnd_finding WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Finding{}, fmt.Errorf("findings: loading finding: %w", ErrNotFound)
 	}
@@ -197,7 +202,7 @@ func queryFindings(ctx context.Context, q querier, where string, args ...any) ([
 
 // selectFindings returns the findings of a WHERE clause with its own order (and limit).
 func selectFindings(ctx context.Context, q querier, whereOrder string, args ...any) ([]Finding, error) {
-	rows, err := q.QueryContext(ctx, `SELECT `+findingColumns+` FROM fnd_finding WHERE `+whereOrder, args...)
+	rows, err := q.QueryContext(ctx, `SELECT `+findingSelect+` FROM fnd_finding WHERE `+whereOrder, args...)
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading findings: %w", err)
 	}

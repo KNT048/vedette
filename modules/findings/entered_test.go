@@ -247,3 +247,49 @@ func TestUnchecked_OlderLineThanEveryListedStaysAsked(t *testing.T) {
 		}
 	}
 }
+
+// A person's own Confirm stays as on a finding of any other basis: it holds at every match (a correction of the ranges does not take
+// it back) and Undo takes it back, also on a finding that rests on a version a person entered, and also when that version's author
+// is known only after the Confirm (a finding confirmed by hand before entries were confirmed by themselves). Only Vedette's
+// confirmation on the entered version is judged again at every match.
+func TestMatch_OwnConfirmOnEnteredVersionHolds(t *testing.T) {
+	t.Parallel()
+	for _, laterBy := range []string{"", "admin@example.test"} {
+		e := newEnv(t)
+		e.feeds.vulns = []Vuln{qnapRanged}
+		a := nas("6.1.1")
+		a.Software[0].Source = "manual"
+		e.inv.mu.Lock()
+		e.inv.match[a.ID] = a
+		e.inv.mu.Unlock()
+		if _, err := e.svc.UpsertFromMatch(t.Context(), a, e.feeds.vulns); err != nil {
+			t.Fatal(err)
+		}
+		f := e.only(t)
+		if _, err := e.svc.Verify(t.Context(), f.ID, "logged in, the affected build runs", "anna@example.com"); err != nil {
+			t.Fatal(err)
+		}
+		a.Software[0].SetBy = laterBy
+		e.advance(time.Hour)
+		if _, err := e.svc.UpsertFromMatch(t.Context(), a, e.feeds.vulns); err != nil {
+			t.Fatal(err)
+		}
+		if f := e.only(t); f.Verified != VerifiedPerson {
+			t.Errorf("author %q: after the next match verified %s, want the person's own Confirm to hold", laterBy, f.Verified)
+		}
+		if rec, err := e.svc.Get(t.Context(), f.ID); err != nil || rec.Basis != BasisPerson {
+			t.Errorf("author %q: older read model basis %q (%v), want person (the Undo button)", laterBy, rec.Basis, err)
+		}
+		e.advance(time.Hour)
+		fixed := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{StartIncl: "6.0", EndExcl: "6.1.0"}})
+		if _, err := e.svc.UpsertFromMatch(t.Context(), a, []Vuln{fixed}); err != nil {
+			t.Fatal(err)
+		}
+		if f := e.only(t); f.State != StateOpen || f.Verified != VerifiedPerson {
+			t.Errorf("author %q: after a range correction %s verified %s, want open and still confirmed by the person", laterBy, f.State, f.Verified)
+		}
+		if _, err := e.svc.Unverify(t.Context(), f.ID, "anna@example.com"); err != nil {
+			t.Errorf("author %q: undo of the person's own Confirm: %v", laterBy, err)
+		}
+	}
+}

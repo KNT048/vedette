@@ -211,6 +211,7 @@ const (
 	FindingsPostFindingsIDReopenOperation                    OperationName = "FindingsPostFindingsIDReopen"
 	FindingsPostFindingsIDUnverifyOperation                  OperationName = "FindingsPostFindingsIDUnverify"
 	FindingsPostFindingsIDVerifyOperation                    OperationName = "FindingsPostFindingsIDVerify"
+	FindingsPostFindingsQuestionsAcceptRiskOperation         OperationName = "FindingsPostFindingsQuestionsAcceptRisk"
 	FindingsPostFindingsQuestionsIDAnswerOperation           OperationName = "FindingsPostFindingsQuestionsIDAnswer"
 	FindingsPostFindingsQuestionsIDUnanswerOperation         OperationName = "FindingsPostFindingsQuestionsIDUnanswer"
 	FindingsPostFindingsQuestionsIgnoreOperation             OperationName = "FindingsPostFindingsQuestionsIgnore"

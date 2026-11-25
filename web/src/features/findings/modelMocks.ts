@@ -418,7 +418,7 @@ export const modelHandlers = [
       records.update((l) => [...l, {
         id, asset_id: x.asset_id, cve: x.cve!, software: x.software, verified: 'person', basis: 'person', verified_by: user, verified_at: at,
         fix: { key: `${x.software?.name.toLowerCase() ?? 'unknown'}|unknown|`, kind: 'unknown', product: x.software?.name ?? x.cve!, version: null, ref: null, url: x.url },
-        ...unhandled, layer: 5, urgency_at: at, reasons: [], internet: null, first_seen: at, last_seen: at, reopened: null,
+        ...unhandled, layer: 5 as const, urgency_at: at, reasons: [], internet: null, first_seen: at, last_seen: at, reopened: null,
         events: [event(user, 'created', { note: note || null }), event(user, 'confirmed', { note: note || null })],
       }])
     }
@@ -451,6 +451,38 @@ export const modelHandlers = [
     questions.update((l) => l.map((q) => (hit(q) ? { ...q, answered: { by: user, at } } : q)))
     audit('findings.questions_ignored', b.software ?? b.device, `${n} questions on ${b.device} answered not affected${b.note.trim() ? `: ${b.note.trim()}` : ''}`)
     return HttpResponse.json({ answered: n })
+  }),
+
+  http.post(`${API}/findings/questions/accept-risk`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<{ device: string; software?: string; question?: string; note: string; until: string }>(request)
+    if (typeof b.device !== 'string' || !b.device || typeof b.note !== 'string' || b.note.length > 500) return fail(400, 'invalid', 'The request is not valid.')
+    const note = b.note.trim()
+    if (note.length < 3) return fail(400, 'note_required', 'Write why this is a false positive, not relevant or an accepted risk (at least 3 characters) so the next person understands.')
+    if (!untilOk(String(b.until ?? ''))) return fail(400, 'bad_until', 'Accept the risk until a date from tomorrow up to one year from today.')
+    const user = who(), at = nowIso()
+    const hit = (q: { id: string; asset_id: string; answered?: unknown; kind: string; software: { id: string } | null }) =>
+      !q.answered && q.kind !== 'nothing_to_check' && q.asset_id === b.device && (!b.software || q.software?.id === b.software) && (!b.question || q.id === b.question)
+    const qs = questions.get().filter(hit)
+    if (!qs.length) return fail(404, 'not_found', 'Nothing is open on this device or software to accept the risk of.')
+    const made = qs.filter((q) => q.cve).map((q) => ({
+      id: newId('fv'), asset_id: q.asset_id, cve: q.cve!, software: q.software, verified: 'person' as const, basis: 'person' as const, verified_by: user, verified_at: at,
+      fix: { key: `${q.software?.name.toLowerCase() ?? 'unknown'}|unknown|`, kind: 'unknown' as const, product: q.software?.name ?? q.cve!, version: null, ref: null, url: q.url },
+      ...unhandled, layer: 5 as const, urgency_at: at, reasons: [], internet: null, first_seen: at, last_seen: at, reopened: null,
+      state: 'handled' as const, resolution: 'accepted' as const, via: 'person' as const, resolved_by: user, resolved_at: at, note, accepted_until: b.until as string,
+      events: [event(user, 'created', { note }), event(user, 'confirmed', { note }), event(user, 'handled', { resolution: 'accepted', via: 'person', note })],
+    }))
+    // a device or line scope also takes the open findings already there, confirmed or suspected
+    const swept = (r: { state: string; asset_id: string; software: { id: string } | null }) =>
+      !b.question && r.state === 'open' && r.asset_id === b.device && (!b.software || r.software?.id === b.software)
+    const nSwept = records.get().filter(swept).length
+    records.update((l) => [...l.map((r) => (swept(r)
+      ? { ...r, state: 'handled' as const, resolution: 'accepted' as const, via: 'person' as const, resolved_by: user, resolved_at: at, note, accepted_until: b.until as string,
+        events: [...r.events, event(user, 'handled', { resolution: 'accepted', via: 'person', note })] } : r)), ...made])
+    questions.update((l) => l.filter((q) => !hit(q)))
+    const total = made.length + nSwept
+    audit('findings.risk_accepted_in_bulk', b.software ?? b.device, `risk accepted on ${b.device} until ${b.until}: ${qs.length} questions answered affected, ${total} findings accepted: ${note}`)
+    return HttpResponse.json({ questions: qs.length, findings: total })
   }),
 
   http.post(`${API}/findings/questions/:id/unanswer`, ({ params }) => {

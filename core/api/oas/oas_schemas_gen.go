@@ -129506,6 +129506,95 @@ func (s *FindingsPostFindingsIDVerifyReq) SetNote(val string) {
 	s.Note = val
 }
 
+type FindingsPostFindingsQuestionsAcceptRiskOK struct {
+	// Findings accepted until the day.
+	Findings int `json:"findings"`
+	// Questions answered affected.
+	Questions int `json:"questions"`
+}
+
+// GetFindings returns the value of Findings.
+func (s *FindingsPostFindingsQuestionsAcceptRiskOK) GetFindings() int {
+	return s.Findings
+}
+
+// GetQuestions returns the value of Questions.
+func (s *FindingsPostFindingsQuestionsAcceptRiskOK) GetQuestions() int {
+	return s.Questions
+}
+
+// SetFindings sets the value of Findings.
+func (s *FindingsPostFindingsQuestionsAcceptRiskOK) SetFindings(val int) {
+	s.Findings = val
+}
+
+// SetQuestions sets the value of Questions.
+func (s *FindingsPostFindingsQuestionsAcceptRiskOK) SetQuestions(val int) {
+	s.Questions = val
+}
+
+type FindingsPostFindingsQuestionsAcceptRiskReq struct {
+	Device string `json:"device"`
+	// Why you accept it: at least 3 characters.
+	Note string `json:"note"`
+	// One open question (one CVE row of a software line): only its CVEs are accepted.
+	Question OptString `json:"question"`
+	// One software line of the device; the whole device when left out.
+	Software OptString `json:"software"`
+	// The last day of the acceptance, from tomorrow to 365 days ahead (else 400 bad_until).
+	Until time.Time `json:"until"`
+}
+
+// GetDevice returns the value of Device.
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) GetDevice() string {
+	return s.Device
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) GetNote() string {
+	return s.Note
+}
+
+// GetQuestion returns the value of Question.
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) GetQuestion() OptString {
+	return s.Question
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) GetSoftware() OptString {
+	return s.Software
+}
+
+// GetUntil returns the value of Until.
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) GetUntil() time.Time {
+	return s.Until
+}
+
+// SetDevice sets the value of Device.
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) SetDevice(val string) {
+	s.Device = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) SetNote(val string) {
+	s.Note = val
+}
+
+// SetQuestion sets the value of Question.
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) SetQuestion(val OptString) {
+	s.Question = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) SetSoftware(val OptString) {
+	s.Software = val
+}
+
+// SetUntil sets the value of Until.
+func (s *FindingsPostFindingsQuestionsAcceptRiskReq) SetUntil(val time.Time) {
+	s.Until = val
+}
+
 type FindingsPostFindingsQuestionsIDAnswerOK struct {
 	// Affected: the finding.
 	Finding NilString `json:"finding"`

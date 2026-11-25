@@ -137,20 +137,29 @@ func officeCounts(t *testing.T) (items, findings map[string]int) {
 		t.Fatal(err)
 	}
 	items, findings = map[string]int{}, map[string]int{}
-	for _, it := range in.Items {
-		c := ""
-		if it.CVE != nil {
-			c = cause[*it.CVE]
-		}
-		switch it.Kind {
-		case "question":
-			items["question "+it.Question+" / "+c]++
-		case "unconfirmed":
-			items["unconfirmed, basis "+it.Basis+" / "+c]++
-		default:
-			items[it.Kind]++
+	// The queue groups a device's questions in one card and a software line's questions in one entry: count what is asked, the
+	// questions and unconfirmed findings inside them, not the cards.
+	var walk func(its []InputItemJS)
+	walk = func(its []InputItemJS) {
+		for _, it := range its {
+			c := ""
+			if it.CVE != nil {
+				c = cause[*it.CVE]
+			}
+			switch {
+			case it.Kind == "question":
+				items["question "+it.Question+" / "+c]++
+			case it.Kind == "unconfirmed":
+				items["unconfirmed, basis "+it.Basis+" / "+c]++
+			case len(it.Entries) > 0 || len(it.Questions) > 0:
+				walk(it.Entries)
+				walk(it.Questions)
+			default:
+				items[it.Kind]++
+			}
 		}
 	}
+	walk(in.Items)
 	rows, err := e.db.Reader().QueryContext(t.Context(), `SELECT cve, verified FROM fnd_finding WHERE state = 'open'`)
 	if err != nil {
 		t.Fatal(err)

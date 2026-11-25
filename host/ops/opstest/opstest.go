@@ -14,8 +14,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -555,6 +557,9 @@ func (m *Machine) Deps(now func() time.Time) ops.Deps {
 		// The machine has no network cards unless a test says so: never the real ones of the developer's computer.
 		Interfaces: func() ([]ops.HostIface, error) { return nil, nil },
 		NeighDump:  func() ([]byte, error) { return nil, nil }, // nor its neighbour table
+		// nor its host name and resolver
+		Hostname:   func() (string, error) { return "vedette-box", nil },
+		LookupHost: func(context.Context, string) ([]netip.Addr, error) { return nil, errors.New("no resolver in tests") },
 		// The fake namespace file is a plain file; there is no nsfs in a test.
 		IsNetNS: func(*os.File) (bool, error) { return true, nil },
 		// The waits between two looks at a container take no time; they are still counted, so the

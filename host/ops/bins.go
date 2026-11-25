@@ -172,6 +172,8 @@ func validateSystemctl(coreUnit string) func([]string) error {
 			return nil
 		case len(args) == 2 && coreUnit != "" && args[1] == coreUnit && args[1] != hostUnit && (args[0] == "stop" || args[0] == "start" || args[0] == "is-active"):
 			return nil
+		case slices.Equal(args, argsDisableOsqueryd): // box_agent.check: the one call on a unit that is not Vedette's, fixed
+			return nil
 		case slices.Equal(args, []string{"is-active", upgradeUnit}): // host.self_update: is the applier still running
 			return nil
 		case len(args) == 2 && args[0] == "is-enabled" && slices.Contains(aptTimers, args[1]):

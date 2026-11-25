@@ -410,12 +410,18 @@ describe('findings: status changes and permissions', () => {
   })
 })
 
+/** Findings are collapsed until clicked: opens every closed toggle inside `root`. */
+async function expandAll(root: HTMLElement = document.body) {
+  for (const b of within(root).queryAllByRole('button').filter((x) => x.getAttribute('aria-expanded') === 'false')) await userEvent.click(b)
+}
+
 describe('findings: the device page\'s Findings tab', () => {
   it('shows this device\'s card only: its fix blocks, each CVE a link to its finding, Mark as handled… in place', async () => {
     sessionStore.set({ userId: 'u-admin' })
     renderApp('/devices/a-nas02?tab=findings')
     expect(await screen.findByRole('heading', { name: 'Findings on this device' })).toBeInTheDocument()
     const card = await screen.findByRole('article', { name: 'NAS-PHOTOS' })
+    await expandAll(card)
     expect(within(card).getByRole('link', { name: 'CVE-2022-27593' })).toHaveAttribute('href', '/findings/fv-nas02-ps-1')
     expect(within(card).queryByRole('link', { name: 'NAS-PHOTOS' })).toBeNull() // the page names the device already
     expect(within(card).getAllByRole('button', { name: /^Mark as handled: CVE-/ }).length).toBeGreaterThan(0)
@@ -436,6 +442,7 @@ describe('findings: the device page\'s Findings tab', () => {
     sessionStore.set({ userId: 'u-admin' })
     const u = userEvent.setup()
     renderApp('/devices/a-fw01?tab=findings')
+    await expandAll(await screen.findByRole('article', { name: 'FW-HQ' }))
     expect(await screen.findByRole('link', { name: 'CVE-2026-123159' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'CVE-2024-21762' })).toBeInTheDocument()
     const search = screen.getByRole('searchbox', { name: "Search this device's findings" })

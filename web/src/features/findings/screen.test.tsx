@@ -24,7 +24,11 @@ const summary = async (tab: 'device' | 'fix') => {
 }
 const devicesTable = () => screen.findByRole('table', { name: 'Devices with open findings' }, T)
 const fixesTable = () => screen.findByRole('table', { name: 'Fixes for open findings' }, T)
-const card = async (name: string) => within(await devicesTable()).findByRole('article', { name }, T)
+/** Findings are collapsed until clicked: opens every closed toggle inside `root`. */
+async function expandAll(root: HTMLElement = document.body) {
+  for (const b of within(root).queryAllByRole('button').filter((x) => x.getAttribute('aria-expanded') === 'false')) await userEvent.click(b)
+}
+const card = async (name: string) => { const c = await within(await devicesTable()).findByRole('article', { name }, T); await expandAll(c); return c }
 /** Every card of a list: the findings it counts ("5 findings, 4 CVEs" on a device; "3 devices, 61 findings" on a fix). */
 const sumOf = (table: HTMLElement, re: RegExp) => within(table).getAllByRole('article').reduce((n, a) => n + num(a.textContent, re), 0)
 const openTab = async (name: RegExp) => userEvent.click(await screen.findByRole('tab', { name }, T))
@@ -57,6 +61,7 @@ describe('Findings: one screen, open = Σ by device = Σ by fix', () => {
     renderApp('/findings')
     const table = await devicesTable()
     const fw = await card('FW-HQ')
+    await expandAll(table)
     expect(within(fw).getByRole('listitem', { name: 'Update OpenSSH 10.2p1 → 10.6' })).toHaveTextContent(/fixes 3 CVEs/)
     const cves = within(fw).getByRole('list', { name: 'CVEs fixed by: Update OpenSSH 10.2p1 → 10.6' })
     expect(within(cves).getByRole('link', { name: 'CVE-2026-123159' })).toHaveAttribute('href', '/findings/fv-fw01-ssh-1')

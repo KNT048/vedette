@@ -12,12 +12,17 @@ import { useFixTitle } from './parts'
 import type { Fix } from './types'
 
 const T = { timeout: 5000 }
+/** Findings are collapsed until clicked: opens every closed toggle inside `root`. */
+async function expandAll(root: HTMLElement = document.body) {
+  for (const b of within(root).queryAllByRole('button').filter((x) => x.getAttribute('aria-expanded') === 'false')) await userEvent.click(b)
+}
 
 describe('a finding reads the same in every list', () => {
   it('By device: each CVE row says its reasons and how Vedette knows, under its badge, as the finding page does', async () => {
     const r = records.get().find((x) => x.state === 'open' && x.reasons.some((y) => y.source === 'cisa-kev'))!
     renderApp('/findings?tab=device')
-    const link = await screen.findByRole('link', { name: r.cve }, T)
+    await screen.findAllByRole('article', undefined, T)
+    const link = await waitFor(async () => { for (const a of screen.getAllByRole('article')) await expandAll(a); return screen.getByRole('link', { name: r.cve }) }, T)
     const row = link.closest('li')!
     const lines = within(row).getByTestId('finding-status')
     expect(within(lines).getByTestId('reasons-line')).toHaveTextContent(/^Exploited in the wild: .*CISA KEV.* \(\d{1,2} [A-Z][a-z]{2} \d{4}\)/)

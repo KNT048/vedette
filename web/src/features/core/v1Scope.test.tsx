@@ -15,10 +15,10 @@ const LEAVING = 'This feature is not part of this release. Its settings are kept
 const BADGE = 'Not in this release'
 
 describe('preview modules (#818)', () => {
-  it('a preview module that is on has a Preview badge in the nav, on its Settings → Modules row and on its page header; a v1 module has none', async () => {
+  it('a preview module that is on has a Preview badge on its Settings → Modules row and on its page header, none in the nav; a v1 module has none', async () => {
     renderApp('/honeypot')
-    const traps = await within(await screen.findByRole('navigation', { name: 'Main navigation' })).findByRole('link', { name: 'Internal traps Preview' })
-    expect(within(traps).getByText('Preview')).toBeInTheDocument()
+    const traps = await within(await screen.findByRole('navigation', { name: 'Main navigation' })).findByRole('link', { name: 'Internal traps' })
+    expect(within(traps).queryByText('Preview')).toBeNull() // the menus carry no Preview word
     expect(await mainNavLink(/^Devices( \d+ to review)?$/)).toBeInTheDocument() // v1: no Preview badge in its name (a count may follow)
     const header = (await screen.findByRole('heading', { level: 1 })).closest('header')!
     expect(within(header).getByText('Preview')).toBeInTheDocument()

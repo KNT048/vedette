@@ -11,7 +11,6 @@ import { useCan } from '@/lib/session'
 import { useApproveAll, useDeviceAction, useNotifyNew } from './api'
 import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { TurnOnModule } from './Inline'
-import { DeleteDialog } from './DeleteDialog'
 import { IgnoreDialog } from './IgnoreDevice'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
@@ -26,11 +25,10 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
   const can = useCan('operator')
   const act = useDeviceAction(d.id)
   const navigate = useNavigate()
-  const [del, setDel] = useState(false)
   const [ign, setIgn] = useState(false)
   const name = nameOf(d, kindLabel(d.kind))
   const title = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
-  const busy = act.approve.isPending || act.ignore.isPending || act.remove.isPending
+  const busy = act.approve.isPending || act.ignore.isPending
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
     <li className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
@@ -51,13 +49,10 @@ function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
           aria-label={t('pending.approveLabel', { name })} onClick={() => void act.approve.mutateAsync().then(() => toast.success(t('pending.approved', { name }), { description: t('pending.findLater'), action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${d.id}`) } }), fail)}>{t('pending.approve')}</Button>
         {/* Ignore replaces "Remove unknown mark" here; marking stays on the device page. */}
         <Button size="sm" disabled={!can || busy} busy={act.ignore.isPending} busyLabel={t('common:busy.saving')} title={title} onClick={() => setIgn(true)}>{t('pending.ignore')}</Button>
-        <Button size="sm" disabled={!can || busy} busy={act.remove.isPending} busyLabel={t('common:busy.deleting')} title={title} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </div>
       {/* mutateAsync: the row leaves this list when the list reloads (as Approve) */}
       <IgnoreDialog open={ign} onOpenChange={setIgn} name={name} mac={d.mac} findings={d.findings_count} pending={act.ignore.isPending}
         onConfirm={() => void act.ignore.mutateAsync(true).then(() => { setIgn(false); toast.success(t('pending.ignored', { name }), { description: t('pending.ignoredLater') }) }, fail)} />
-      <DeleteDialog open={del} onOpenChange={setDel} name={name} findings={d.findings_count} pending={act.remove.isPending}
-        onConfirm={() => act.remove.mutate(undefined, { onSuccess: () => { setDel(false); toast.success(t('delete.done', { name })) }, onError: fail })} />
     </li>
   )
 }

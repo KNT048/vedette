@@ -85,15 +85,14 @@ describe('exposure screens: a target page', () => {
     expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
   })
 
-  it('Scan now shows the live run with a link to it; Stop goes through the shared run', async () => {
+  it('Scan now: the Scans tab reads Scanning while the run is live, and the running scan is its first row', async () => {
     renderApp('/exposure/xt-12', { role: 'operator' })
     await userEvent.click(await screen.findByRole('button', { name: 'Scan now' }))
-    const live = await screen.findByText(/Surface scan started/)
-    const line = live.closest('[role="status"]') as HTMLElement
-    expect(within(line).getByText('Running')).toBeInTheDocument()
-    expect(within(line).getByRole('link', { name: 'Open the run' }).getAttribute('href')).toMatch(/^\/runs\/run-/)
-    await userEvent.click(within(line).getByRole('button', { name: 'Stop' }))
-    expect(await screen.findByText(/^Stopped by it@acme\.example$/)).toBeInTheDocument()
+    const tab = await screen.findByRole('tab', { name: 'Scanning' })
+    expect(screen.queryByText(/Surface scan started/)).toBeNull() // no "Running … Open the run" block above the tabs
+    await userEvent.click(tab)
+    expect(await screen.findByText('Running')).toBeInTheDocument()
+    expect(screen.getAllByRole('link').some((l) => /^\/runs\/run-/.test(l.getAttribute('href') ?? ''))).toBe(true)
   })
 
   it("an administrator's first Scan now asks in a dialog with the sentence it records and the scope; without two-step the server's refusal says what to do", async () => {

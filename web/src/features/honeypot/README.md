@@ -6,4 +6,4 @@ Scan detection: one source touching ≥ 2 Trap IPs within 1 minute = one `scan` 
 Vedette's own scanner (the box 192.168.10.250) is always excluded and shown plainly on the page; "Test trap" creates a hit labelled "test" on the first Trap IP that has that service, not counted in the figures, no alert sent.
 Mock tables: `hp_config`, `hp_trap_ips` (the core network mock reads them with `peek`), `hp_hits` (`kind` service|token|scan, `source_ip`, `token_id`, `trap_ip`, `trap_hostname`; the response module reads them with `peek`), `hp_tokens`. Each hit has a Respond link to `/response`. Reads `assetsStore` (checks for a duplicate IP/name, looks up the source device).
 Slot provided: `device.panels` (props `{ assetId }`). Consumes no slot.
-Permissions: add/edit/enable/disable/delete a Trap IP = admin; Test trap, Test scan, Test token = operator; view = viewer.
+Permissions: add/edit/enable/disable/delete a Trap IP, switch a ready-made decoy on or off, create or delete a token = admin; Test trap, Test scan, Test token = operator; view = viewer.

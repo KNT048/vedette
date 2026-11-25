@@ -38,19 +38,37 @@ export const LOGIN_SERVICES: HpService[] = ['ssh', 'rdp', 'mssql', 'http', 'http
 // type, name, file type and place of the form (the place text is token.preset.<id>.plant); every field stays editable. Web only:
 // the API gets the fields, never the preset. {year} becomes this year. Custom is the blank form. A credential preset's name is the
 // token's label, by role: the box makes the bait account name itself (svc_ + 6 letters).
-export type TokenPreset = 'payroll' | 'passwords' | 'bank_accounts' | 'network_diagram' | 'vpn_setup' | 'backup_account' | 'old_admin' | 'db_login' | 'wiki' | 'router_admin' | 'custom'
+export type TokenPreset = 'payroll' | 'passwords' | 'bank_accounts' | 'customer_list' | 'network_diagram' | 'vpn_setup' | 'backup_account' | 'old_admin' | 'db_login' | 'nas_admin'
+  | 'wiki' | 'router_admin' | 'backup_console' | 'custom'
 export interface TokenPresetDef { id: TokenPreset; type: OfferedTokenType; name: string; ext?: 'docx' | 'xlsx' }
 
 export const TOKEN_PRESETS: TokenPresetDef[] = [
   { id: 'payroll', type: 'file', name: 'Payroll-{year}', ext: 'xlsx' },
   { id: 'passwords', type: 'file', name: 'Passwords', ext: 'xlsx' },
   { id: 'bank_accounts', type: 'file', name: 'Bank-accounts-{year}', ext: 'xlsx' },
+  { id: 'customer_list', type: 'file', name: 'Customer-list-{year}', ext: 'xlsx' },
   { id: 'network_diagram', type: 'file', name: 'Network-diagram', ext: 'docx' },
   { id: 'vpn_setup', type: 'file', name: 'VPN-setup', ext: 'docx' },
   { id: 'backup_account', type: 'credential', name: 'Backup service account' },
   { id: 'old_admin', type: 'credential', name: 'Old admin account' },
   { id: 'db_login', type: 'credential', name: 'Reporting database login' },
+  { id: 'nas_admin', type: 'credential', name: 'NAS admin login' },
   { id: 'wiki', type: 'url', name: 'Wiki admin page' },
   { id: 'router_admin', type: 'url', name: 'Router admin' },
+  { id: 'backup_console', type: 'url', name: 'Backup console' },
 ]
 export const tokenPresetName = (p: TokenPresetDef) => p.name.replace('{year}', String(new Date().getFullYear()))
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** The token a preset made, whatever year it was made in (Payroll-2025 still counts in 2026); undefined when there is none. The box
+ *  refuses a second token of a type with the same name, so type and name find it. */
+export function presetToken<T extends { type: string; name: string }>(p: TokenPresetDef, items: T[]): T | undefined {
+  const re = new RegExp(`^${p.name.split('{year}').map(escapeRe).join('\\d{4}')}$`, 'i')
+  return items.find((k) => k.type === p.type && re.test(k.name))
+}
+
+/** The login service to add to a Trap IP of each look so fake accounts can be tried on it: what that machine would really offer. */
+export const LOGIN_TO_ADD: Record<TrapPreset, HpService> = {
+  file_server: 'rdp', nas: 'http', printer: 'http', camera: 'http', linux: 'ssh', database: 'mssql', custom: 'ssh',
+}
+/** Looks that may carry a file share: a printer or a camera with SMB would stand out. */
+export const SMB_LOOKS: TrapPreset[] = ['file_server', 'nas', 'linux', 'database', 'custom']

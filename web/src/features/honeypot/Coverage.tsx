@@ -25,12 +25,12 @@ const ROWS: { id: string; level: Level }[] = [
 const ROW_INFO = new Set(['howNoLogin', 'howOneTrap'])
 
 /** Where a row's gap is closed, for an administrator: the Trap IPs tab with the Add dialog open on a look that has what is
- *  missing, or the Tokens tab with the Add dialog open. */
+ *  missing, or the Tokens tab, where the ready-made decoys switch on in one click. */
 const FIX: Record<string, { to: string; label: string }> = {
   howNoSmb: { to: '?tab=trap-ips&add=file_server#trap-ips', label: 'addSmb' },
   howNoLogin: { to: '?tab=trap-ips&add=linux#trap-ips', label: 'addLogin' },
   howOneTrap: { to: '?tab=trap-ips&add=suggested#trap-ips', label: 'addSecond' },
-  howNoBait: { to: '?tab=tokens&add=token#tokens', label: 'addToken' },
+  howNoBait: { to: '?tab=tokens#tokens', label: 'addToken' },
 }
 
 /** What really fires now (Coverage claims only that). services: the services some Trap IP listens on; listeningIps: how many Trap IPs listen;

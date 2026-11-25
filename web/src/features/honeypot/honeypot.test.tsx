@@ -15,7 +15,7 @@ import DevicePanel from './DevicePanel'
 import TrapIpsTab from './TrapIps'
 import { feature } from './index'
 
-const addToken = async () => userEvent.click(await screen.findByRole('button', { name: 'Add a token' }))
+const addToken = async () => userEvent.click(await screen.findByRole('button', { name: 'Create custom token' }))
 
 // Respond opens the response module, which this build does not offer; this file runs it as offered, and
 // features/core/v1Scope.test.tsx runs the build's own view.

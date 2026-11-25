@@ -57,6 +57,7 @@ func (c *Clock) Advance(d time.Duration) {
 type Mailer struct {
 	mu        sync.Mutex
 	available bool
+	unproven  bool
 	failSend  bool
 	sent      []Mail
 }
@@ -71,6 +72,16 @@ type Mail struct {
 
 // SetAvailable sets what Available reports.
 func (m *Mailer) SetAvailable(v bool) { m.mu.Lock(); m.available = v; m.mu.Unlock() }
+
+// SetProven sets what Proven reports (true by default).
+func (m *Mailer) SetProven(v bool) { m.mu.Lock(); m.unproven = !v; m.mu.Unlock() }
+
+// Proven implements auth.ProvenMailer: Available and not marked unproven.
+func (m *Mailer) Proven(context.Context) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.available && !m.unproven
+}
 
 // FailSend makes SendCode fail.
 func (m *Mailer) FailSend(v bool) { m.mu.Lock(); m.failSend = v; m.mu.Unlock() }

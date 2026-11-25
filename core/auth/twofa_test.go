@@ -330,3 +330,29 @@ func TestConsoleReset(t *testing.T) {
 		t.Fatal("the old password still signs in")
 	}
 }
+
+// Email two-step sign-in can be chosen only when the mailer has shown it sends (ProvenMailer); an account that already uses it
+// still signs in with a code while the channel is merely available.
+func TestEmailEnrolmentNeedsAProvenChannel(t *testing.T) {
+	t.Parallel()
+	env := authtest.New(t)
+	u := env.User(t, "ann@acme.example", routes.Viewer)
+	ctx := t.Context()
+	env.Mailer.SetAvailable(true)
+	env.Mailer.SetProven(false)
+	if env.Svc.Codes.Choosable(ctx) || !env.Svc.Codes.Available(ctx) {
+		t.Fatal("an unproven channel: available but not choosable")
+	}
+	_, err := env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password)
+	wantAPI(t, err, 409, "email_channel_not_ready")
+	if n := len(env.Mailer.Sent()); n != 0 {
+		t.Fatalf("%d codes sent through an unproven channel", n)
+	}
+	env.Mailer.SetProven(true)
+	if !env.Svc.Codes.Choosable(ctx) {
+		t.Fatal("a proven channel is choosable")
+	}
+	if _, err := env.Svc.StartEmail2FA(ctx, u.ID, "", authtest.Password); err != nil {
+		t.Fatal(err)
+	}
+}

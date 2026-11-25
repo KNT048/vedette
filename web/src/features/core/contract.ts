@@ -66,8 +66,8 @@ export const AccountSession = z.object({ id: z.string(), device: z.string(), ip:
 export const Account = z.object({
   user: z.object({ id: z.string(), name: z.string(), email: z.string(), role: Role, twofa: z.boolean(), twofa_method: TwofaMethod.nullable(), created_at: ts, last_login: ts.nullable(), sso: z.boolean().describe('The account signs in only through SSO: no Vedette password, two-step sign-in is the identity provider\'s') }),
   twofa_email: z.object({
-    available: z.boolean().describe('true only when the notify module is on and an email channel is configured and enabled'),
-    reason: z.enum(['module_off', 'channel_not_ready']).nullable().describe('Why the email method cannot be chosen, null when available'),
+    available: z.boolean().describe('true only when the notify module is on and the email channel is configured, enabled and its last test (since it was last saved) succeeded'),
+    reason: z.enum(['module_off', 'channel_not_ready']).nullable().describe('Why the email method cannot be chosen, null when available; channel_not_ready also covers a channel whose last test did not succeed'),
     sent_to: z.string().describe('Masked sign-in email where codes would go'),
   }),
   sessions: z.array(AccountSession),

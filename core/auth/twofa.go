@@ -29,7 +29,7 @@ func noPending() *apierr.Error {
 }
 
 func emailNotReady() *apierr.Error {
-	return apierr.New(409, CodeEmailNotReady, "Email codes need the email alert channel. An administrator has to set it up and turn it on first.")
+	return apierr.New(409, CodeEmailNotReady, "Email codes need a working email alert channel. An administrator has to set it up, turn it on and send a test message that succeeds.")
 }
 
 // TOTPSetup is what the SPA shows when someone turns on the authenticator-app method: the key to type in
@@ -269,7 +269,8 @@ func (p *pendingTries) forget(secretID string) {
 
 // StartEmail2FA mails a code to the user's address so they can prove the mailbox works before email-code
 // sign-in turns on. It needs the current password (400 wrong_password, counted like a wrong sign-in
-// password). 409 already_on; 409 email_channel_not_ready when the email channel cannot send; the send
+// password). 409 already_on; 409 email_channel_not_ready when the email channel is not set up, off, or has not passed a test
+// (EmailCodes.Choosable); the send
 // limits of EmailCodes.Send (resend_too_soon, too_many_codes). A caller whose account or session is gone
 // (keepSessionID) gets nothing sent.
 func (s *Service) StartEmail2FA(ctx context.Context, userID, keepSessionID, password string) (Sent, error) {
@@ -289,7 +290,7 @@ func (s *Service) StartEmail2FA(ctx context.Context, userID, keepSessionID, pass
 	if t.TwofaMethod != nil {
 		return Sent{}, alreadyOn()
 	}
-	if !s.Codes.Available(ctx) {
+	if !s.Codes.Choosable(ctx) {
 		return Sent{}, emailNotReady()
 	}
 	sent, err := s.Codes.Send(ctx, t.ID, t.Email, false)

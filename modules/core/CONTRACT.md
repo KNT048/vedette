@@ -123,7 +123,7 @@ Source of behaviour: `web/src/features/core/contract.ts` + `web/src/mocks/core.t
 
 ## Dependencies
 - **DEPENDS ON**: nothing (apart from `vedette-host` outside the process, through `host/client`; absent = INV-20).
-- **DEPENDED ON BY**: every module. Optional: `notify` (email 2FA codes, `twofa_email.available` is true only when `notify` is on and the email channel is configured + on).
+- **DEPENDED ON BY**: every module. Optional: `notify` (email 2FA codes, `twofa_email.available` is true only when `notify` is on and the email channel is configured + on and its last test since it was saved succeeded (`auth.ProvenMailer`); turning on email 2-step needs the same (`EmailCodes.Choosable`, else 409 `email_channel_not_ready`), while login and step-up codes need only configured + on, so a failed test never locks anyone out; `TestEmailEnrolmentNeedsAProvenChannel`).
 
 ## Endpoints owned (minimum role)
 | Group | Route | Role |

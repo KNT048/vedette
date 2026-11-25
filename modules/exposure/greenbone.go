@@ -169,8 +169,11 @@ const (
 	notGBStarting = "OpenVAS did not scan: it is still starting."
 	notGBLoading  = "OpenVAS did not scan: it is loading its feed (the first time takes about 2 hours)."
 	notGBGate     = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
-	notGBNoLog    = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
-	notGBSlow     = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
+	// notGBNotOwn: an IP of the box inside its days that the box does not go out through now (another line, or an address the
+	// provider gave to someone else) gets the surface scan only; OpenVAS has no fence of its own on the host (INV-13).
+	notGBNotOwn = "OpenVAS did not scan: the box does not go out through this IP now (or could not check it), so nothing was sent."
+	notGBNoLog  = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
+	notGBSlow   = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
 	// notGBPartial and notGBPartialNone: the cap stopped the task and its report was read: the rows found by then are shown.
 	notGBPartial     = "OpenVAS was stopped after 90 minutes; these are the results it had found by then."
 	notGBPartialNone = "OpenVAS was stopped after 90 minutes; by then it had found no result with QoD 70 or more. Finding nothing is not proof the services are not affected."
@@ -888,6 +891,21 @@ func (s *Service) greenboneStep(ctx context.Context, st ScanTarget, ports []int)
 	return s.greenboneAt(ctx, st, ip, ports)
 }
 
+// gbOwnNow says that OpenVAS may start on ip, an address without a domain scope: a typed IP target (its proof was looked for by
+// greenbonePlan), or the box's own IP, which the box must go out through now (stillCurrent, fail closed). An IP of the box inside its
+// ValidDays that the box no longer goes out through stays scannable (INV-13), but only by the steps that do not need it to be the
+// box's: OpenVAS is not one of them, since an address the provider gave to someone else must never get a vulnerability scan.
+func (s *Service) gbOwnNow(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
+	t, ok, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), ip.String())
+	if err != nil || !ok || t.Kind != KindIP {
+		return false, err
+	}
+	if t.Typed {
+		return true, nil
+	}
+	return s.stillCurrent(ctx, actor, t)
+}
+
 // GreenboneFence is implemented by a GreenboneHost whose host checks the domain fence itself before OpenVAS scans an address of a
 // domain that is not the box's own IP (the OpenVAS target is a domain_ip job): the token is
 // the box's, the domain's TXT carries it, and scope.Name resolves to ip now. A nil error means the host allows that one scan. Without
@@ -951,6 +969,18 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 	m := t.mode()
 	if !m.Full {
 		return line(notGBTerms, "not done: the testing terms are not accepted")
+	}
+	if st.Domain == nil { // no domain scope: the host has no fence for OpenVAS, so the core checks the box's own address here (INV-13)
+		own, err := s.gbOwnNow(ctx, st.User, ip)
+		if ctx.Err() != nil {
+			return gbOutcome{}, ctx.Err()
+		}
+		if err != nil {
+			s.cfg.Log.ErrorContext(ctx, "exposure: checking the box's own address before Greenbone failed", "target", st.Value, "ip", ip, "error", err)
+		}
+		if !own {
+			return line(notGBNotOwn, "not done: the box does not go out through this IP now")
+		}
 	}
 	// Never above the run's snapshot: a tick taken back stops the run, a tick added while it runs waits for the next one
 	st.Mode = ScanMode{Full: true, Disruptive: m.Disruptive && st.Mode.Disruptive}

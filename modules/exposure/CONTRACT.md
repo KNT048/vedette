@@ -37,9 +37,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   before they run out (every 6 hours while not found; an expired domain too, since a record found is a new proof).
 - **INV-13** Before scanning an IP the box found, it checks whether it still egresses through it (a probe within the last 5 minutes,
   else one full probe): a sighting renews it (INV-4). An IP it does not go out through now stays scannable until its 90 days run
-  out, and the node says so (`not_current`); the steps of the scan container and vedette-host that check the box's own address right
-  before they run (service identification, templates, the web scan, OpenVAS) still send nothing to it while it is not current. The
-  Shodan check needs it current (INV-21).
+  out, and the node says so (`not_current`); the steps that check the box's own address right before they run still send nothing to
+  it while it is not current: service identification and templates (the scan container), the web scan (vedette-host), and OpenVAS
+  (the core's OpenVAS step, which asks the same egress check right before it starts, since the host has no fence of its own for it).
+  The Shodan check needs it current (INV-21).
 - **INV-32** A domain is proved by its own TXT token (`vedette-verify=<token>`) on the name, on `_vedette-verify.<name>`, on a
   parent name up to the registered domain, or by a verified ancestor target (`core/domainfence`). Proof is checked with
   `proof.go` only. The executors' fence (scan container, vedette-host) still needs the record now for every deep step to an address

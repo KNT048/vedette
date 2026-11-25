@@ -1,11 +1,12 @@
 package exposure
 
 import (
-	"errors"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/store"
 )
 
 // Tests of the security review of the backend (H1, M1, L1 to L4, L6). The names say which item they pin. The prober's (H1, M1, L2, L6) moved to core/egressip with it.
@@ -26,7 +27,7 @@ func (e *env) ipTargets() []TargetView {
 }
 
 // The clock was ahead (a wrong RTC, then NTP corrected it). A time stored in the future must not keep an IP
-// valid for longer than 30 days, and must not stop the job.
+// valid for longer than ValidDays, and must not stop the job.
 func TestContract_INV4_ClockThatWasAhead(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -39,8 +40,8 @@ func TestContract_INV4_ClockThatWasAhead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if exp.After(t0.Add(30*day + 5*time.Minute)) {
-		t.Fatalf("expires %s, more than 30 days from now", exp)
+	if exp.After(t0.Add(ValidDays*day + 5*time.Minute)) {
+		t.Fatalf("expires %s, more than %d days from now", exp, ValidDays)
 	}
 	calls := e.prober.count()
 	e.runJob() // last_run lies in the future: the check is due
@@ -105,7 +106,7 @@ func TestContract_INV11_AuditOnlyChanges(t *testing.T) {
 
 	// an IP that had expired and is seen again is a change
 	e.prober.offline()
-	e.advance(31 * day)
+	e.advance(91 * day)
 	e.runJob()
 	e.prober.set(ipA)
 	e.advance(time.Hour)
@@ -201,9 +202,9 @@ func (e *env) scannable(id string) (bool, BlockedReason) {
 	return ok, why
 }
 
-// A dynamic IP changes (modem reboot) and is given to somebody else. The IP stays in the list for 30 days,
-// but the scan-time check, the counterpart of the TXT re-check, refuses it while the box does not use it.
-func TestContract_INV13_IPThatIsNoLongerUsedIsNotScanned(t *testing.T) {
+// The box goes out through another IP (a second Internet line, a modem reboot). The IP it proved stays scannable for 90 days from its
+// last sighting (INV-4); the scan-time check (INV-13) runs at most one full check every 5 minutes, which renews the IP when it sees it.
+func TestContract_INV13_IPThatIsNoLongerUsedStaysScannableInsideItsDays(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	run := &fakeRunner{content: sampleContent()}
@@ -219,34 +220,23 @@ func TestContract_INV13_IPThatIsNoLongerUsedIsNotScanned(t *testing.T) {
 		t.Fatalf("scan of a current IP: %v, probes %d", err, e.prober.count()-calls)
 	}
 
-	// the modem reboots: the box now exits through B only
+	// the box now exits through B only: A stays scannable, and the last full check's answer is reused inside the 5 minutes
 	e.advance(time.Minute)
 	e.detect(ipB)
 	calls = e.prober.count()
-	ok, why := e.scannable(a.ID)
-	if ok || why != BlockedNotCurrent {
+	if ok, why := e.scannable(a.ID); !ok || why != "" {
 		t.Fatalf("A after the box moved to B: %v %q", ok, why)
-	}
-	_, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID)
-	wantAPI(t, err, 409, "ip_not_current")
-	var ae *APIError
-	if !errors.As(err, &ae) || !strings.Contains(ae.Message, ipA) || !strings.Contains(ae.Message, "last seen 9 Nov 2026, 10:00.") || !strings.Contains(ae.Message, "paused") {
-		t.Fatalf("message = %v", err)
-	}
-	if run.calls != 1 {
-		t.Fatal("the runner ran for an IP the box no longer uses")
 	}
 	if e.prober.count() != calls {
 		t.Fatal("a check ran again inside the 5 minutes: the result of the last full check is reused")
 	}
-	// the 30-day rule is untouched: still in the list, still verified
-	if got := e.target(a.ID); got.Status != "verified" || str(got.Validity) != "valid" {
+	if got := e.target(a.ID); got.Status != "verified" || str(got.Validity) != "valid" || str(got.VerifiedAt) != "2026-11-09T10:00:00.000Z" {
 		t.Fatalf("A in the list = %+v", got)
 	}
 
-	// after 5 minutes one full check runs (not more than one per 5 minutes), still not seen: refused
+	// after 5 minutes one full check runs (not more than one per 5 minutes), still not seen: still scannable, not renewed
 	e.advance(6 * time.Minute)
-	if ok, why := e.scannable(a.ID); ok || why != BlockedNotCurrent {
+	if ok, why := e.scannable(a.ID); !ok || why != "" {
 		t.Fatalf("A after a fresh check: %v %q", ok, why)
 	}
 	if got := e.prober.count() - calls; got != DeepRounds {
@@ -262,14 +252,14 @@ func TestContract_INV13_IPThatIsNoLongerUsedIsNotScanned(t *testing.T) {
 		t.Fatalf("the scan-time check used %d of the person's 10 attempts an hour", n)
 	}
 
-	// the box goes out through A again: the next check sees it and the scan runs
+	// the box goes out through A again: the next check sees it and renews it
 	e.prober.set(ipA)
 	e.advance(6 * time.Minute)
 	if ok, why := e.scannable(a.ID); !ok || why != "" {
 		t.Fatalf("A after the box came back: %v %q", ok, why)
 	}
-	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID); err != nil {
-		t.Fatal(err)
+	if got := e.target(a.ID); str(got.VerifiedAt) != store.FormatTS(e.clock.Now()) {
+		t.Fatalf("the sighting did not renew A: %+v", got)
 	}
 }
 
@@ -293,8 +283,8 @@ func TestContract_INV13_LoadBalancedEgressStaysScannable(t *testing.T) {
 	}
 }
 
-// A failed probe (no two of three agree, or the services are down) is not a yes.
-func TestContract_INV13_FailedProbeRefuses(t *testing.T) {
+// A failed probe (no two of three agree, or the services are down) renews nothing, and refuses nothing inside the IP's 90 days.
+func TestContract_INV13_FailedProbeRenewsNothing(t *testing.T) {
 	t.Parallel()
 	for name, set := range map[string]func(*fakeProber){"down": func(p *fakeProber) { p.offline() }, "no agreement": func(p *fakeProber) { p.set("~") }} {
 		e := newEnv(t)
@@ -303,13 +293,14 @@ func TestContract_INV13_FailedProbeRefuses(t *testing.T) {
 		a := e.committedIP(ipA)
 		e.advance(6 * time.Minute)
 		set(e.prober)
-		if ok, why := e.scannable(a.ID); ok || why != BlockedNotCurrent {
+		if ok, why := e.scannable(a.ID); !ok || why != "" {
 			t.Fatalf("%s: %v %q", name, ok, why)
 		}
-		_, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID)
-		wantAPI(t, err, 409, "ip_not_current")
-		if run.calls != 0 {
-			t.Fatalf("%s: the runner ran", name)
+		if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID); err != nil || run.calls != 1 {
+			t.Fatalf("%s: %v, runner calls %d", name, err, run.calls)
+		}
+		if got := e.target(a.ID); str(got.VerifiedAt) != store.FormatTS(t0) {
+			t.Fatalf("%s: a failed check renewed the IP: %+v", name, got)
 		}
 	}
 }
@@ -350,9 +341,9 @@ func TestContract_INV1_TXTRecheckIsAttributedAndAuditedOnChange(t *testing.T) {
 	if n, _ := count(); n != 0 {
 		t.Fatalf("%d audit rows for 4 re-checks that changed nothing", n)
 	}
-	e.dns.put(v.Value) // the record is gone
+	e.dns.put(v.Value) // the record is gone: a warning inside the 90 days of its last pass
 	for range 3 {
-		if ok, why := e.scannable(v.ID); ok || why != BlockedTxtMissing {
+		if ok, why := e.scannable(v.ID); !ok || why != "" || e.target(v.ID).LastCheck.OK {
 			t.Fatalf("%v %q", ok, why)
 		}
 	}

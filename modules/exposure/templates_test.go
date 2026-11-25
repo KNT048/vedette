@@ -381,13 +381,13 @@ func (f fakeServicesThen) ScanServices(ctx context.Context, t ScanTarget, ip net
 	return r, err
 }
 
-// INV-23 (M1): the gate runs again right before the step: an IP that became paused while nmap ran gets no probe log row and no call.
+// INV-23 (M1): the gate runs again right before the step: an IP whose proof ran out while nmap ran gets no probe log row and no call.
 func TestContract_INV23_GateRunsAgainBeforeTheTemplates(t *testing.T) {
 	t.Parallel()
 	e, f := tplEnv(t)
 	e.svc.cfg.Services = fakeServicesThen{ServiceScanner: e.svc.cfg.Services, after: func() {
-		e.advance(time.Minute)
-		e.fullAs(ipB) // a full check that does not see A pauses it
+		e.prober.set(ipB)   // the box goes out through another IP
+		e.advance(91 * day) // and A has not been seen for 90 days: expired
 	}}
 	s := e.scanIP(Content{})
 	if len(f.jobs) != 0 || len(f.log.rows) != 0 || !slices.Contains(notChecked(s), notTemplatesGate) {

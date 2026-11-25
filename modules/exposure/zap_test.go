@@ -268,10 +268,10 @@ func TestContract_INV24_NoRequestForATargetThatDidNotPassTheGate(t *testing.T) {
 	if _, err := e.commit(ips[0].ID); err != nil {
 		t.Fatal(err)
 	}
-	e.advance(ScanEvery)
-	e.fullAs(ipB) // a full check that no longer sees ipA pauses it (INV-13)
+	e.prober.set(ipB)   // the box goes out through another IP from now on
+	e.advance(91 * day) // and ipA has not been seen for 90 days: expired (INV-4)
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err == nil {
-		t.Fatal("scanned a paused IP")
+		t.Fatal("scanned an expired IP")
 	}
 	if len(w.asked) != 0 {
 		t.Fatalf("asked for %q", w.asked)

@@ -947,7 +947,7 @@ func TestContract_INV25_WhenItDoesNotRun(t *testing.T) {
 			t.Fatalf("cmds %q, not checked %q", h.gvm.cmds, notChecked(s))
 		}
 	})
-	t.Run("unverified and paused", func(t *testing.T) {
+	t.Run("unverified and expired", func(t *testing.T) {
 		t.Parallel()
 		e, h := gbEnv(t)
 		e.enable()
@@ -959,10 +959,10 @@ func TestContract_INV25_WhenItDoesNotRun(t *testing.T) {
 		if _, err := e.commit(ips[0].ID); err != nil {
 			t.Fatal(err)
 		}
-		e.advance(ScanEvery)
-		e.fullAs(ipB) // paused (INV-13)
+		e.prober.set(ipB)
+		e.advance(91 * day) // not seen for 90 days: expired (INV-4)
 		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err == nil {
-			t.Fatal("scanned a paused IP")
+			t.Fatal("scanned an expired IP")
 		}
 		if h.gvm.seen("create_target") {
 			t.Fatalf("cmds = %q", h.gvm.cmds)

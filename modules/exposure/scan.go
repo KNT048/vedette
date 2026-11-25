@@ -22,11 +22,13 @@ const ScanIDPrefix = "ext:"
 // scan-time check (INV-13). It is also the least time between two full checks that scans cause.
 const CurrentFor = 5 * time.Minute
 
-// gate decides whether a target may be scanned now (INV-1, INV-13). A domain's TXT record is looked up again here,
-// right before the scan, and the result is kept as the target's last check; a lookup that fails counts as "record
-// missing" (fail closed). An IP that would otherwise be scannable is checked against the network too: the box must
-// still be going out through it. actor is who asked (a person, or the scan module on behalf of a schedule); the audit
-// trail names it.
+// gate decides whether a target may be scanned now (INV-1). Every caller asks it right before something is sent (Scan now and a
+// scheduled scan when the run starts, the scan module, each deep step, each step of a typed IP), so the rule is one: the proof is
+// checked again here (a domain's TXT record, a typed IP's file or reverse DNS name, the box's own sighting of its IP, INV-13), a pass
+// renews it for ValidDays, and a check that does not pass (a lookup that failed, a record or file that is gone, an IP the box no longer
+// goes out through) is recorded as the target's last check, a warning on the page, never a refusal while the proof is inside its
+// ValidDays (INV-4). Only a target never proved, whose proof was withdrawn, or whose proof has not passed for ValidDays is refused
+// (blocked). actor is who asked (a person, or the scan module on behalf of a schedule); the audit trail names it.
 func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedReason, error) {
 	t, err := loadTarget(ctx, s.cfg.DB.Reader(), id)
 	if err != nil {
@@ -36,60 +38,86 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 		return t, BlockedDisabled, nil
 	}
 	switch r := t.blocked(s.clock()); {
-	case r == BlockedUnverified || r == BlockedExpired:
+	case r == BlockedUnverified:
 		return t, r, nil
-	case t.Typed && r != BlockedNoCommitment: // a typed IP: its proof is looked for now, right before the scan, like a domain's record (INV-1, INV-35); not before the confirmation is there
+	case t.Kind == KindDomain: // looked up even when its days ran out: a record found now is a new proof
+		if t, err = s.recheckDomain(ctx, actor, t); err != nil {
+			return Target{}, "", err
+		}
+	case r == BlockedExpired:
+		return t, r, nil
+	case t.Typed && r != BlockedNoCommitment: // a typed IP: its proof is looked for now, right before the scan (INV-35); not before the confirmation is there
 		if t, err = s.liveTypedProof(ctx, actor, t); err != nil {
 			return Target{}, "", err
 		}
-	case t.Kind == KindIP && r == "":
-		current, err := s.stillCurrent(ctx, actor, t)
-		if err != nil {
+	case t.Kind == KindIP && r == "": // the box's own IP: a sighting now renews it; one the box does not go out through stays scannable
+		if _, err := s.stillCurrent(ctx, actor, t); err != nil {
 			return Target{}, "", err
-		}
-		if !current {
-			if t, err = loadTarget(ctx, s.cfg.DB.Reader(), id); err != nil {
-				return Target{}, "", err
-			}
-			return t, BlockedNotCurrent, nil
-		}
-	case t.Kind == KindDomain:
-		pr, err := s.proveDomain(ctx, t) // The name, _vedette-verify.<name>, or a parent down to its registered domain
-		if err != nil {
-			return Target{}, "", err
-		}
-		err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
-			var err error
-			if pr, err = stillOwner(ctx, tx, id, pr); err != nil {
-				return err
-			}
-			found := pr.found
-			now := s.clock()
-			msg, action := proofMessage(t, pr, s.momentText(now)), "exposure.verify_ok"
-			if !found {
-				msg, action = pr.failure, "exposure.verify_fail"
-			}
-			if err := updateCheck(ctx, tx, id, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value), Via: pr.via}, time.Time{}, ""); err != nil {
-				return err
-			}
-			if err := settleMethod(ctx, tx, id, pr); err != nil { // covered by an ancestor now, or proved by itself
-				return err
-			}
-			if t.LastCheck != nil && t.LastCheck.OK == found { // nothing changed: the check is not a row of its own (L5)
-				return nil
-			}
-			return s.audit(ctx, tx, actor, action, t.Value, "dns_txt, right before a scan")
-		})
-		if err != nil {
-			return Target{}, "", fmt.Errorf("recording the TXT check: %w", err)
 		}
 		if t, err = loadTarget(ctx, s.cfg.DB.Reader(), id); err != nil {
 			return Target{}, "", err
 		}
-		// the target whose token proved it now, and the name the record sits on: what the executors' fence checks
-		t.proofDomain, t.proofToken, t.proofAt = pr.gate(t)
 	}
 	return t, t.blocked(s.clock()), nil
+}
+
+// recheckDomain looks a domain's TXT record up again right before a scan (the name, _vedette-verify.<name>, or a parent down to its
+// registered domain) and keeps the result as its last check: found renews the proof for ValidDays; not found (a lookup that failed
+// counts as not found) is a warning that says until when the earlier proof holds. The audit row is written when the answer changes.
+// The target comes back re-read, with the domain and token the executors' fence checks when the record was found.
+func (s *Service) recheckDomain(ctx context.Context, actor string, t Target) (Target, error) {
+	pr, err := s.proveDomain(ctx, t)
+	if err != nil {
+		return Target{}, err
+	}
+	err = s.write(ctx, func(tx *sql.Tx, _ func(string, any)) error {
+		var err error
+		if pr, err = stillOwner(ctx, tx, t.ID, pr); err != nil {
+			return err
+		}
+		found := pr.found
+		now := s.clock()
+		msg, action, renew := proofMessage(t, pr, s.momentText(now)), "exposure.verify_ok", now
+		switch {
+		case !found && len(proofChain(t.Value)) == 0: // a public suffix (an older release's, or one a newer list names): nothing proves it
+			if err := withdrawProof(ctx, tx, t.ID, Check{At: store.FormatTS(now), OK: false, Message: pr.failure}); err != nil {
+				return err
+			}
+			return s.audit(ctx, tx, actor, "exposure.verify_fail", t.Value, "dns_txt, right before a scan: a public suffix")
+		case !found:
+			msg, action, renew = pr.failure+s.stillValid(t, now), "exposure.verify_fail", time.Time{}
+		}
+		if err := updateCheck(ctx, tx, t.ID, Check{At: store.FormatTS(now), OK: found, Message: msg, Covers: pr.coversBelow(t.Value), Via: keptVia(t, pr)}, renew, ""); err != nil {
+			return err
+		}
+		if err := settleMethod(ctx, tx, t.ID, pr); err != nil { // covered by an ancestor now, or proved by itself
+			return err
+		}
+		if t.LastCheck != nil && t.LastCheck.OK == found { // nothing changed: the check is not a row of its own (L5)
+			return nil
+		}
+		return s.audit(ctx, tx, actor, action, t.Value, "dns_txt, right before a scan")
+	})
+	if err != nil {
+		return Target{}, fmt.Errorf("recording the TXT check: %w", err)
+	}
+	cur, err := loadTarget(ctx, s.cfg.DB.Reader(), t.ID)
+	if err != nil {
+		return Target{}, err
+	}
+	// the target whose token proved it now, and the name the record sits on: what the executors' fence checks
+	cur.proofDomain, cur.proofToken, cur.proofAt = pr.gate(cur)
+	return cur, nil
+}
+
+// stillValid ends the message of a check that did not find the proof of t: until when the proof that passed earlier still lets t be
+// scanned (INV-4), or nothing when it never passed or has run out.
+func (s *Service) stillValid(t Target, now time.Time) string {
+	exp := t.expiresAt(now)
+	if exp.IsZero() || !now.Before(exp) {
+		return ""
+	}
+	return fmt.Sprintf(" The proof found on %s stays valid until %s, so scans go on until then.", s.dayText(t.provedAt(now)), s.dayText(exp))
 }
 
 // checks is what the latest checks of the box's IPs say, read without probing anything (INV-13): the time of the latest
@@ -144,8 +172,9 @@ func (c checks) paused(t Target) bool {
 }
 
 // stillCurrent says whether the box is going out through this IP now (INV-13), the counterpart of the TXT re-check of a
-// domain. The IP stays in the list for 30 days from the last sighting (INV-4); this only decides whether it may be
-// scanned now. It is true when the latest check, or the latest full check, ran within CurrentFor and saw the IP.
+// domain: a sighting renews the IP for ValidDays (INV-4). The scan gate asks it for that renewal only: an IP the box does not go
+// out through now stays scannable until its days run out. The Shodan check (INV-21) needs it to be true. It is true when the latest
+// check, or the latest full check, ran within CurrentFor and saw the IP.
 // Otherwise one full check runs (all its rounds, so every IP of a load balancer is seen), as the actor, and not more
 // than once in CurrentFor: inside that window the last full check's answer is reused, a "not seen" included. A
 // check that cannot tell (services down, no agreement) is "not current": fail closed. It takes no attempt of the
@@ -195,16 +224,12 @@ func (s *Service) CheckScannable(ctx context.Context, actor, id string) (ok bool
 func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 	switch r {
 	case BlockedUnverified:
+		if _, ok := registered(t.Value); t.Kind == KindDomain && !ok { // a stored public suffix is told so, not "finish verification"
+			return apiErr(409, "not_verified", "%s", publicSuffixText(t.Value))
+		}
 		return apiErr(409, "not_verified", "%s has no ownership proof, so it cannot be scanned. Finish verification first.", t.Value)
 	case BlockedExpired:
-		return apiErr(409, "expired", "Verification of %s expired on %s, so it cannot be scanned. Verify it again first.", t.Value, s.dayText(t.expiresAt(now)))
-	case BlockedTxtMissing:
-		if _, ok := registered(t.Value); !ok { // a stored public suffix is told so, not "add the record back"
-			return apiErr(409, "txt_missing", "%s", publicSuffixText(t.Value))
-		}
-		return apiErr(409, "txt_missing", "The DNS TXT record %s is no longer found on %s, on %s.%s or on a parent domain of this box that covers it, so it cannot be scanned. Add the record back, then check again.", txtRecord(t.Token), t.Value, verifyLabel, t.Value)
-	case BlockedProofMissing:
-		return apiErr(409, "proof_missing", "The proof of %s is not found now, so it cannot be scanned. %s", t.Value, proofRetry)
+		return apiErr(409, "expired", "The ownership proof of %s expired on %s, so it cannot be scanned: it was last found more than %d days before. Check it again first.", t.Value, s.dayText(t.expiresAt(now)), ValidDays)
 	case BlockedNoCommitment:
 		if t.Commitment != nil {
 			return errNeedAdminReconfirm(t.Value)
@@ -212,13 +237,11 @@ func (s *Service) refusal(t Target, r BlockedReason, now time.Time) error {
 		return errNeedAdminFirstScan(t.Value)
 	case BlockedDisabled:
 		return apiErr(409, "disabled", "%s is switched off, so it is not scanned. Switch it on first.", t.Value)
-	case BlockedNotCurrent:
-		return apiErr(409, "ip_not_current", "This box no longer reaches the Internet through %s; it was last seen %s. Scans of it are paused until the box uses it again.", t.Value, s.momentText(t.VerifiedAt))
 	}
 	return nil
 }
 
-// proofRetry ends the refusal of a typed IP whose proof is not found.
+// proofRetry ends the refusal of a typed IP whose proof is not found (the Shodan check, which needs it now).
 const proofRetry = "Put the token file back (or set the reverse DNS name), then check again."
 
 // ScanEvery is the least time between two scans of one target: a scan asks crt.sh and probes the target, so a click

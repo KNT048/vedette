@@ -30,7 +30,7 @@ func TestReuse_ARecordOnTheRegisteredDomainCoversTheDomainItself(t *testing.T) {
 	if e.target(www.ID).Status != "verified" {
 		t.Fatalf("www: %+v", e.target(www.ID))
 	}
-	if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", root.ID); err != nil || why == BlockedTxtMissing || why == BlockedUnverified {
+	if _, why, err := e.svc.CheckScannable(e.ctx(), "scan", root.ID); err != nil || !e.target(root.ID).LastCheck.OK || why == BlockedUnverified {
 		t.Fatalf("gate: %v %v", why, err)
 	}
 	// the record removed: the next check of the covered name finds nothing, and the gate says so

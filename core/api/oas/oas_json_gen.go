@@ -175182,16 +175182,23 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification
 		s.By.Encode(e)
 	}
 	{
+		if s.Entered.Set {
+			e.FieldStart("entered")
+			s.Entered.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("verified")
 		s.Verified.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification = [4]string{
+var jsonFieldsNameOfFindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification = [5]string{
 	0: "at",
 	1: "basis",
 	2: "by",
-	3: "verified",
+	3: "entered",
+	4: "verified",
 }
 
 // Decode decodes FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification from json.
@@ -175233,8 +175240,18 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"by\"")
 			}
+		case "entered":
+			if err := func() error {
+				s.Entered.Reset()
+				if err := s.Entered.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"entered\"")
+			}
 		case "verified":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -175253,7 +175270,7 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00010111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -191276,16 +191293,23 @@ func (s *FindingsGetFindingsIDViewOKVerification) encodeFields(e *jx.Encoder) {
 		s.By.Encode(e)
 	}
 	{
+		if s.Entered.Set {
+			e.FieldStart("entered")
+			s.Entered.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("verified")
 		s.Verified.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDViewOKVerification = [4]string{
+var jsonFieldsNameOfFindingsGetFindingsIDViewOKVerification = [5]string{
 	0: "at",
 	1: "basis",
 	2: "by",
-	3: "verified",
+	3: "entered",
+	4: "verified",
 }
 
 // Decode decodes FindingsGetFindingsIDViewOKVerification from json.
@@ -191327,8 +191351,18 @@ func (s *FindingsGetFindingsIDViewOKVerification) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"by\"")
 			}
+		case "entered":
+			if err := func() error {
+				s.Entered.Reset()
+				if err := s.Entered.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"entered\"")
+			}
 		case "verified":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -191347,7 +191381,7 @@ func (s *FindingsGetFindingsIDViewOKVerification) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00010111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -199523,16 +199557,23 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) en
 		s.By.Encode(e)
 	}
 	{
+		if s.Entered.Set {
+			e.FieldStart("entered")
+			s.Entered.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("verified")
 		s.Verified.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification = [4]string{
+var jsonFieldsNameOfFindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification = [5]string{
 	0: "at",
 	1: "basis",
 	2: "by",
-	3: "verified",
+	3: "entered",
+	4: "verified",
 }
 
 // Decode decodes FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification from json.
@@ -199574,8 +199615,18 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) De
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"by\"")
 			}
+		case "entered":
+			if err := func() error {
+				s.Entered.Reset()
+				if err := s.Entered.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"entered\"")
+			}
 		case "verified":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -199594,7 +199645,7 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) De
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00010111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -221681,16 +221732,23 @@ func (s *FindingsPostFindingsIDReopenOKVerification) encodeFields(e *jx.Encoder)
 		s.By.Encode(e)
 	}
 	{
+		if s.Entered.Set {
+			e.FieldStart("entered")
+			s.Entered.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("verified")
 		s.Verified.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDReopenOKVerification = [4]string{
+var jsonFieldsNameOfFindingsPostFindingsIDReopenOKVerification = [5]string{
 	0: "at",
 	1: "basis",
 	2: "by",
-	3: "verified",
+	3: "entered",
+	4: "verified",
 }
 
 // Decode decodes FindingsPostFindingsIDReopenOKVerification from json.
@@ -221732,8 +221790,18 @@ func (s *FindingsPostFindingsIDReopenOKVerification) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"by\"")
 			}
+		case "entered":
+			if err := func() error {
+				s.Entered.Reset()
+				if err := s.Entered.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"entered\"")
+			}
 		case "verified":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -221752,7 +221820,7 @@ func (s *FindingsPostFindingsIDReopenOKVerification) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00010111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -224840,16 +224908,23 @@ func (s *FindingsPostFindingsIDUnverifyOKVerification) encodeFields(e *jx.Encode
 		s.By.Encode(e)
 	}
 	{
+		if s.Entered.Set {
+			e.FieldStart("entered")
+			s.Entered.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("verified")
 		s.Verified.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKVerification = [4]string{
+var jsonFieldsNameOfFindingsPostFindingsIDUnverifyOKVerification = [5]string{
 	0: "at",
 	1: "basis",
 	2: "by",
-	3: "verified",
+	3: "entered",
+	4: "verified",
 }
 
 // Decode decodes FindingsPostFindingsIDUnverifyOKVerification from json.
@@ -224891,8 +224966,18 @@ func (s *FindingsPostFindingsIDUnverifyOKVerification) Decode(d *jx.Decoder) err
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"by\"")
 			}
+		case "entered":
+			if err := func() error {
+				s.Entered.Reset()
+				if err := s.Entered.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"entered\"")
+			}
 		case "verified":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -224911,7 +224996,7 @@ func (s *FindingsPostFindingsIDUnverifyOKVerification) Decode(d *jx.Decoder) err
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00010111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -227903,16 +227988,23 @@ func (s *FindingsPostFindingsIDVerifyOKVerification) encodeFields(e *jx.Encoder)
 		s.By.Encode(e)
 	}
 	{
+		if s.Entered.Set {
+			e.FieldStart("entered")
+			s.Entered.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("verified")
 		s.Verified.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKVerification = [4]string{
+var jsonFieldsNameOfFindingsPostFindingsIDVerifyOKVerification = [5]string{
 	0: "at",
 	1: "basis",
 	2: "by",
-	3: "verified",
+	3: "entered",
+	4: "verified",
 }
 
 // Decode decodes FindingsPostFindingsIDVerifyOKVerification from json.
@@ -227954,8 +228046,18 @@ func (s *FindingsPostFindingsIDVerifyOKVerification) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"by\"")
 			}
+		case "entered":
+			if err := func() error {
+				s.Entered.Reset()
+				if err := s.Entered.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"entered\"")
+			}
 		case "verified":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Verified.Decode(d); err != nil {
 					return err
@@ -227974,7 +228076,7 @@ func (s *FindingsPostFindingsIDVerifyOKVerification) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00010111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

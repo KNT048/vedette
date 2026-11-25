@@ -443,6 +443,7 @@ type verificationJS struct {
 	Verified string  `json:"verified"`
 	Basis    string  `json:"basis"`
 	By       *string `json:"by"`
+	Entered  bool    `json:"entered"` // verified person: Vedette confirmed it on the version By entered (Finding.byEntry)
 	At       *string `json:"at"`
 }
 
@@ -454,7 +455,7 @@ func verificationOf(f Finding, evs []Event) verificationJS {
 	if !slices.Contains(knownBases, b) {
 		b = DetectBannerVersion
 	}
-	out := verificationJS{Verified: string(f.Verified), Basis: string(b)}
+	out := verificationJS{Verified: string(f.Verified), Basis: string(b), Entered: f.Verified == VerifiedPerson && f.byEntry}
 	if !f.Confirmed() {
 		return out
 	}

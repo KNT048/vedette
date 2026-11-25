@@ -92183,8 +92183,11 @@ type FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification str
 	// package = a distribution package release; banner_version = a version read from a network banner;
 	// statement = a version a person typed for the device; person = a person said it is affected.
 	Basis FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationBasis `json:"basis"`
-	// Verified person: who confirmed it.
+	// Verified person: who confirmed it, or whose entered version confirmed it (entered).
 	By NilString `json:"by"`
+	// Verified person: true when Vedette confirmed it because the version that person entered is affected,
+	// not a Confirm the person pressed ("Confirmed: the version entered").
+	Entered OptBool `json:"entered"`
 	// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
 	// package list); scan = a safe check confirmed it; person = a person confirmed it.
 	Verified FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified `json:"verified"`
@@ -92205,6 +92208,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification
 	return s.By
 }
 
+// GetEntered returns the value of Entered.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) GetEntered() OptBool {
+	return s.Entered
+}
+
 // GetVerified returns the value of Verified.
 func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) GetVerified() FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerificationVerified {
 	return s.Verified
@@ -92223,6 +92231,11 @@ func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification
 // SetBy sets the value of By.
 func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) SetBy(val NilString) {
 	s.By = val
+}
+
+// SetEntered sets the value of Entered.
+func (s *FindingsGetFindingsDevicesOKItemsItemBlocksItemFindingsItemVerification) SetEntered(val OptBool) {
+	s.Entered = val
 }
 
 // SetVerified sets the value of Verified.
@@ -100898,7 +100911,8 @@ type FindingsGetFindingsIDViewOK struct {
 	// Kept while handled: the layer the finding had.
 	Urgency FindingsGetFindingsIDViewOKUrgency `json:"urgency"`
 	// The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this
-	// version", "Confirmed by ", "Not confirmed yet: based on a scan banner".
+	// version", "Confirmed by ", "Confirmed: the version entered", "Not confirmed yet: based on a scan
+	// banner".
 	Verification FindingsGetFindingsIDViewOKVerification `json:"verification"`
 }
 
@@ -103246,7 +103260,8 @@ func (s *FindingsGetFindingsIDViewOKUrgencyReasonsItem) SetURL(val NilURI) {
 }
 
 // The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this
-// version", "Confirmed by ", "Not confirmed yet: based on a scan banner".
+// version", "Confirmed by ", "Confirmed: the version entered", "Not confirmed yet: based on a scan
+// banner".
 type FindingsGetFindingsIDViewOKVerification struct {
 	// When it was confirmed; null while not confirmed.
 	At NilDateTime `json:"at"`
@@ -103254,8 +103269,11 @@ type FindingsGetFindingsIDViewOKVerification struct {
 	// package = a distribution package release; banner_version = a version read from a network banner;
 	// statement = a version a person typed for the device; person = a person said it is affected.
 	Basis FindingsGetFindingsIDViewOKVerificationBasis `json:"basis"`
-	// Verified person: who confirmed it.
+	// Verified person: who confirmed it, or whose entered version confirmed it (entered).
 	By NilString `json:"by"`
+	// Verified person: true when Vedette confirmed it because the version that person entered is affected,
+	// not a Confirm the person pressed ("Confirmed: the version entered").
+	Entered OptBool `json:"entered"`
 	// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
 	// package list); scan = a safe check confirmed it; person = a person confirmed it.
 	Verified FindingsGetFindingsIDViewOKVerificationVerified `json:"verified"`
@@ -103276,6 +103294,11 @@ func (s *FindingsGetFindingsIDViewOKVerification) GetBy() NilString {
 	return s.By
 }
 
+// GetEntered returns the value of Entered.
+func (s *FindingsGetFindingsIDViewOKVerification) GetEntered() OptBool {
+	return s.Entered
+}
+
 // GetVerified returns the value of Verified.
 func (s *FindingsGetFindingsIDViewOKVerification) GetVerified() FindingsGetFindingsIDViewOKVerificationVerified {
 	return s.Verified
@@ -103294,6 +103317,11 @@ func (s *FindingsGetFindingsIDViewOKVerification) SetBasis(val FindingsGetFindin
 // SetBy sets the value of By.
 func (s *FindingsGetFindingsIDViewOKVerification) SetBy(val NilString) {
 	s.By = val
+}
+
+// SetEntered sets the value of Entered.
+func (s *FindingsGetFindingsIDViewOKVerification) SetEntered(val OptBool) {
+	s.Entered = val
 }
 
 // SetVerified sets the value of Verified.
@@ -110332,8 +110360,11 @@ type FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification struct 
 	// package = a distribution package release; banner_version = a version read from a network banner;
 	// statement = a version a person typed for the device; person = a person said it is affected.
 	Basis FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationBasis `json:"basis"`
-	// Verified person: who confirmed it.
+	// Verified person: who confirmed it, or whose entered version confirmed it (entered).
 	By NilString `json:"by"`
+	// Verified person: true when Vedette confirmed it because the version that person entered is affected,
+	// not a Confirm the person pressed ("Confirmed: the version entered").
+	Entered OptBool `json:"entered"`
 	// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
 	// package list); scan = a safe check confirmed it; person = a person confirmed it.
 	Verified FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified `json:"verified"`
@@ -110354,6 +110385,11 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) Ge
 	return s.By
 }
 
+// GetEntered returns the value of Entered.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) GetEntered() OptBool {
+	return s.Entered
+}
+
 // GetVerified returns the value of Verified.
 func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) GetVerified() FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerificationVerified {
 	return s.Verified
@@ -110372,6 +110408,11 @@ func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) Se
 // SetBy sets the value of By.
 func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) SetBy(val NilString) {
 	s.By = val
+}
+
+// SetEntered sets the value of Entered.
+func (s *FindingsGetFindingsOverviewOKFirstItemBlockFindingsItemVerification) SetEntered(val OptBool) {
+	s.Entered = val
 }
 
 // SetVerified sets the value of Verified.
@@ -120895,7 +120936,8 @@ type FindingsPostFindingsIDReopenOK struct {
 	// Kept while handled: the layer the finding had.
 	Urgency FindingsPostFindingsIDReopenOKUrgency `json:"urgency"`
 	// The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this
-	// version", "Confirmed by ", "Not confirmed yet: based on a scan banner".
+	// version", "Confirmed by ", "Confirmed: the version entered", "Not confirmed yet: based on a scan
+	// banner".
 	Verification FindingsPostFindingsIDReopenOKVerification `json:"verification"`
 }
 
@@ -123243,7 +123285,8 @@ func (s *FindingsPostFindingsIDReopenOKUrgencyReasonsItem) SetURL(val NilURI) {
 }
 
 // The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this
-// version", "Confirmed by ", "Not confirmed yet: based on a scan banner".
+// version", "Confirmed by ", "Confirmed: the version entered", "Not confirmed yet: based on a scan
+// banner".
 type FindingsPostFindingsIDReopenOKVerification struct {
 	// When it was confirmed; null while not confirmed.
 	At NilDateTime `json:"at"`
@@ -123251,8 +123294,11 @@ type FindingsPostFindingsIDReopenOKVerification struct {
 	// package = a distribution package release; banner_version = a version read from a network banner;
 	// statement = a version a person typed for the device; person = a person said it is affected.
 	Basis FindingsPostFindingsIDReopenOKVerificationBasis `json:"basis"`
-	// Verified person: who confirmed it.
+	// Verified person: who confirmed it, or whose entered version confirmed it (entered).
 	By NilString `json:"by"`
+	// Verified person: true when Vedette confirmed it because the version that person entered is affected,
+	// not a Confirm the person pressed ("Confirmed: the version entered").
+	Entered OptBool `json:"entered"`
 	// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
 	// package list); scan = a safe check confirmed it; person = a person confirmed it.
 	Verified FindingsPostFindingsIDReopenOKVerificationVerified `json:"verified"`
@@ -123273,6 +123319,11 @@ func (s *FindingsPostFindingsIDReopenOKVerification) GetBy() NilString {
 	return s.By
 }
 
+// GetEntered returns the value of Entered.
+func (s *FindingsPostFindingsIDReopenOKVerification) GetEntered() OptBool {
+	return s.Entered
+}
+
 // GetVerified returns the value of Verified.
 func (s *FindingsPostFindingsIDReopenOKVerification) GetVerified() FindingsPostFindingsIDReopenOKVerificationVerified {
 	return s.Verified
@@ -123291,6 +123342,11 @@ func (s *FindingsPostFindingsIDReopenOKVerification) SetBasis(val FindingsPostFi
 // SetBy sets the value of By.
 func (s *FindingsPostFindingsIDReopenOKVerification) SetBy(val NilString) {
 	s.By = val
+}
+
+// SetEntered sets the value of Entered.
+func (s *FindingsPostFindingsIDReopenOKVerification) SetEntered(val OptBool) {
+	s.Entered = val
 }
 
 // SetVerified sets the value of Verified.
@@ -123471,7 +123527,8 @@ type FindingsPostFindingsIDUnverifyOK struct {
 	// Kept while handled: the layer the finding had.
 	Urgency FindingsPostFindingsIDUnverifyOKUrgency `json:"urgency"`
 	// The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this
-	// version", "Confirmed by ", "Not confirmed yet: based on a scan banner".
+	// version", "Confirmed by ", "Confirmed: the version entered", "Not confirmed yet: based on a scan
+	// banner".
 	Verification FindingsPostFindingsIDUnverifyOKVerification `json:"verification"`
 }
 
@@ -125819,7 +125876,8 @@ func (s *FindingsPostFindingsIDUnverifyOKUrgencyReasonsItem) SetURL(val NilURI) 
 }
 
 // The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this
-// version", "Confirmed by ", "Not confirmed yet: based on a scan banner".
+// version", "Confirmed by ", "Confirmed: the version entered", "Not confirmed yet: based on a scan
+// banner".
 type FindingsPostFindingsIDUnverifyOKVerification struct {
 	// When it was confirmed; null while not confirmed.
 	At NilDateTime `json:"at"`
@@ -125827,8 +125885,11 @@ type FindingsPostFindingsIDUnverifyOKVerification struct {
 	// package = a distribution package release; banner_version = a version read from a network banner;
 	// statement = a version a person typed for the device; person = a person said it is affected.
 	Basis FindingsPostFindingsIDUnverifyOKVerificationBasis `json:"basis"`
-	// Verified person: who confirmed it.
+	// Verified person: who confirmed it, or whose entered version confirmed it (entered).
 	By NilString `json:"by"`
+	// Verified person: true when Vedette confirmed it because the version that person entered is affected,
+	// not a Confirm the person pressed ("Confirmed: the version entered").
+	Entered OptBool `json:"entered"`
 	// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
 	// package list); scan = a safe check confirmed it; person = a person confirmed it.
 	Verified FindingsPostFindingsIDUnverifyOKVerificationVerified `json:"verified"`
@@ -125849,6 +125910,11 @@ func (s *FindingsPostFindingsIDUnverifyOKVerification) GetBy() NilString {
 	return s.By
 }
 
+// GetEntered returns the value of Entered.
+func (s *FindingsPostFindingsIDUnverifyOKVerification) GetEntered() OptBool {
+	return s.Entered
+}
+
 // GetVerified returns the value of Verified.
 func (s *FindingsPostFindingsIDUnverifyOKVerification) GetVerified() FindingsPostFindingsIDUnverifyOKVerificationVerified {
 	return s.Verified
@@ -125867,6 +125933,11 @@ func (s *FindingsPostFindingsIDUnverifyOKVerification) SetBasis(val FindingsPost
 // SetBy sets the value of By.
 func (s *FindingsPostFindingsIDUnverifyOKVerification) SetBy(val NilString) {
 	s.By = val
+}
+
+// SetEntered sets the value of Entered.
+func (s *FindingsPostFindingsIDUnverifyOKVerification) SetEntered(val OptBool) {
+	s.Entered = val
 }
 
 // SetVerified sets the value of Verified.
@@ -126033,7 +126104,8 @@ type FindingsPostFindingsIDVerifyOK struct {
 	// Kept while handled: the layer the finding had.
 	Urgency FindingsPostFindingsIDVerifyOKUrgency `json:"urgency"`
 	// The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this
-	// version", "Confirmed by ", "Not confirmed yet: based on a scan banner".
+	// version", "Confirmed by ", "Confirmed: the version entered", "Not confirmed yet: based on a scan
+	// banner".
 	Verification FindingsPostFindingsIDVerifyOKVerification `json:"verification"`
 }
 
@@ -128381,7 +128453,8 @@ func (s *FindingsPostFindingsIDVerifyOKUrgencyReasonsItem) SetURL(val NilURI) {
 }
 
 // The second line under the status: "Confirmed by a safe check", "Confirmed: the device reports this
-// version", "Confirmed by ", "Not confirmed yet: based on a scan banner".
+// version", "Confirmed by ", "Confirmed: the version entered", "Not confirmed yet: based on a scan
+// banner".
 type FindingsPostFindingsIDVerifyOKVerification struct {
 	// When it was confirmed; null while not confirmed.
 	At NilDateTime `json:"at"`
@@ -128389,8 +128462,11 @@ type FindingsPostFindingsIDVerifyOKVerification struct {
 	// package = a distribution package release; banner_version = a version read from a network banner;
 	// statement = a version a person typed for the device; person = a person said it is affected.
 	Basis FindingsPostFindingsIDVerifyOKVerificationBasis `json:"basis"`
-	// Verified person: who confirmed it.
+	// Verified person: who confirmed it, or whose entered version confirmed it (entered).
 	By NilString `json:"by"`
+	// Verified person: true when Vedette confirmed it because the version that person entered is affected,
+	// not a Confirm the person pressed ("Confirmed: the version entered").
+	Entered OptBool `json:"entered"`
 	// No = not confirmed yet; device = the device itself reports the affected version (agent, SNMP,
 	// package list); scan = a safe check confirmed it; person = a person confirmed it.
 	Verified FindingsPostFindingsIDVerifyOKVerificationVerified `json:"verified"`
@@ -128411,6 +128487,11 @@ func (s *FindingsPostFindingsIDVerifyOKVerification) GetBy() NilString {
 	return s.By
 }
 
+// GetEntered returns the value of Entered.
+func (s *FindingsPostFindingsIDVerifyOKVerification) GetEntered() OptBool {
+	return s.Entered
+}
+
 // GetVerified returns the value of Verified.
 func (s *FindingsPostFindingsIDVerifyOKVerification) GetVerified() FindingsPostFindingsIDVerifyOKVerificationVerified {
 	return s.Verified
@@ -128429,6 +128510,11 @@ func (s *FindingsPostFindingsIDVerifyOKVerification) SetBasis(val FindingsPostFi
 // SetBy sets the value of By.
 func (s *FindingsPostFindingsIDVerifyOKVerification) SetBy(val NilString) {
 	s.By = val
+}
+
+// SetEntered sets the value of Entered.
+func (s *FindingsPostFindingsIDVerifyOKVerification) SetEntered(val OptBool) {
+	s.Entered = val
 }
 
 // SetVerified sets the value of Verified.

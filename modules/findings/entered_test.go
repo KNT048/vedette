@@ -39,8 +39,8 @@ func TestMatch_EnteredVersionIsThePersonsWord(t *testing.T) {
 		!strings.Contains(evs[i].Detail.Note, "6.1.1") {
 		t.Errorf("history %+v: want Vedette's confirmation on %s's word naming the version", evs, admin)
 	}
-	if v := verificationOf(f, evs); v.By == nil || *v.By != admin {
-		t.Errorf("verification %+v: the finding page names the person", v)
+	if v := verificationOf(f, evs); v.By == nil || *v.By != admin || !v.Entered {
+		t.Errorf("verification %+v: the finding page names the person whose entered version confirmed it", v)
 	}
 	if acts := e.auditActions(); slices.Contains(acts, "findings.confirm") {
 		t.Errorf("audit %v: Vedette's confirmation is no action of the person", acts)
@@ -276,6 +276,11 @@ func TestMatch_OwnConfirmOnEnteredVersionHolds(t *testing.T) {
 		}
 		if f := e.only(t); f.Verified != VerifiedPerson {
 			t.Errorf("author %q: after the next match verified %s, want the person's own Confirm to hold", laterBy, f.Verified)
+		}
+		if evs, err := e.svc.Events(t.Context(), f.ID); err != nil {
+			t.Fatal(err)
+		} else if v := verificationOf(e.only(t), evs); v.By == nil || *v.By != "anna@example.com" || v.Entered {
+			t.Errorf("author %q: verification %+v, want confirmed by the person who pressed Confirm", laterBy, v)
 		}
 		if rec, err := e.svc.Get(t.Context(), f.ID); err != nil || rec.Basis != BasisPerson {
 			t.Errorf("author %q: older read model basis %q (%v), want person (the Undo button)", laterBy, rec.Basis, err)

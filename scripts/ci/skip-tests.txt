@@ -30,3 +30,8 @@ slow	TestContract_Update_ARunWhosePutBackIsUnrecoverableMarksItAtOnceAndAuditsOn
 slow	TestReview_M2_RunsViewSaysEngineBusyAfterStop	modules/scan	slow: 4 s wall time; daily run	2026-11-12
 slow	TestReview_M2_NoNewRunWhileTheEngineIsBusy	modules/scan	slow: 4 s wall time; daily run	2026-11-12
 slow	TestContract_Bootstrap_CoreAndHoneypotMoveToTheLogVolumeTogether	modules/host	slow: 4 s wall time; daily run	2026-11-12
+flaky	TestRunsScanTheLANNowGoesOnWithTheWaitingPass modules/sensor-active	https://github.com/KNT048/vedette/issues/1342		2026-11-25
+flaky	TestContract_SelfUpdate_AnOrphanJournalAfterDispatchGatesWritesUntilItsPhaseEnds modules/host	https://github.com/KNT048/vedette/issues/1342		2026-11-25
+flaky	TestContract_INV10_ScanContentIsLimited modules/exposure	https://github.com/KNT048/vedette/issues/1342		2026-11-25
+flaky	TestImportDoesNotBurnCPUOnHostileCells modules/inventory	https://github.com/KNT048/vedette/issues/1342		2026-11-25
+flaky	TestRestoreReadDuringTheHealthCheckShowsTheNewRun modules/core	https://github.com/KNT048/vedette/issues/1342		2026-11-25

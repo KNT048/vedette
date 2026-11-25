@@ -320,26 +320,43 @@ func Judge(installed Version, spans []Span) Verdict {
 	return decide(spans)
 }
 
-// Conflicts is the trains (Version.Train) in which two ranges of one product end at two different releases: the notation did not say
-// which line each belongs to (NetScaler's FIPS build "13.1-37.282" written without the word, beside "13.1-64.28"), so nothing in that
-// train is compared and no fixed release is named for it.
+// Conflicts is the trains (Version.Train) in which two ranges of one product end at two different releases while naming the same
+// stretch of the train: the notation did not say which line each belongs to (NetScaler's FIPS build "13.1-37.282" written without the
+// word, beside "13.1-64.28", both from the line's start), so nothing in that train is compared and no fixed release is named for it.
+// Two ranges one of which starts at or after the other's end name two stretches, not two lines (Juniper's fix per maintenance branch,
+// "22.3 lessThan 22.3R2-S2" and "22.3R3 lessThan 22.3R3-S1"; a hotfix hole split into stretches): no conflict.
 func Conflicts(spans []Span) map[string]bool {
 	out := map[string]bool{}
-	ends := map[string]Version{}
+	byTrain := map[string][]Span{}
 	for _, sp := range spans {
 		if sp.End == nil {
 			continue
 		}
 		e := *sp.End
-		if prev, ok := ends[e.Train]; ok && sameTrain(prev, e) {
-			if c, _ := order(prev, e); c != 0 {
+		for _, prev := range byTrain[e.Train] {
+			if !sameTrain(*prev.End, e) {
+				continue
+			}
+			if c, _ := order(*prev.End, e); c != 0 && !apart(prev, sp) {
 				out[e.Train] = true
 			}
-			continue
 		}
-		ends[e.Train] = e
+		byTrain[e.Train] = append(byTrain[e.Train], sp)
 	}
 	return out
+}
+
+// apart says one of two ranges with an end starts at or after the other's end (after it, for an included end): they name two
+// stretches that do not overlap.
+func apart(a, b Span) bool {
+	after := func(x, y Span) bool {
+		if x.Start == nil || x.Start.LineStart {
+			return false
+		}
+		c, ok := order(*x.Start, *y.End)
+		return ok && (c > 0 || c == 0 && !y.EndIncl)
+	}
+	return after(a, b) || after(b, a)
 }
 
 func ptrOr(p *Version, v Version) Version {

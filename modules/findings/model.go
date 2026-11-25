@@ -95,7 +95,7 @@ type Verified string
 // The verification levels, weakest first.
 const (
 	VerifiedNo     Verified = "no"     // not confirmed yet: a version read from a banner, a person's statement, a package list read by name
-	VerifiedPerson Verified = "person" // a person confirmed it on their own word
+	VerifiedPerson Verified = "person" // a person confirmed it on their own word, or the version compared is one a person entered
 	VerifiedDevice Verified = "device" // the device itself reports the affected version (its agent, its SNMP answer)
 	VerifiedScan   Verified = "scan"   // a safe check confirmed it
 )
@@ -118,6 +118,17 @@ func (v Verified) Valid() bool { return v == VerifiedNo || v.rank() > 0 }
 // sticky reports whether the level is a proof the match pass never takes back: a safe check's or a person's word. A device's own
 // report is judged again at every match.
 func (v Verified) sticky() bool { return v == VerifiedScan || v == VerifiedPerson }
+
+// proofHolds reports whether f's confirmation is one the match pass never takes back (Verified.sticky): a safe check's, or a person's
+// own Confirm or answer. A confirmation that rests on the version a person entered (basis statement) is judged again at every match,
+// like the device's own report: the person stated the version, the ranges decide the flaw, so a correction of the ranges closes it.
+func (f Finding) proofHolds() bool {
+	return f.Verified.sticky() && (f.Verified != VerifiedPerson || f.Basis != DetectStatement)
+}
+
+// entryConfirms says a detection rests on the version a person entered (basis statement, with the person who entered it): the
+// person's word, so the match records it as confirmed by them (VerifiedPerson), never queued for their confirmation.
+func (d Detection) entryConfirms() bool { return d.Basis == DetectStatement && d.SetBy != "" }
 
 // DetectionBasis is what a detection rests on (fnd_finding.basis). An open vocabulary.
 type DetectionBasis string
@@ -326,7 +337,7 @@ type EventDetail struct {
 	Layer         int        `json:"layer,omitempty"`      // urgency_changed: the new layer
 	From          string     `json:"from,omitempty"`       // confirmed, unconfirmed: the verification before; fix_changed: the fix key before
 	To            string     `json:"to,omitempty"`         // confirmed, unconfirmed: the verification after; fix_changed: the fix key after
-	By            string     `json:"by,omitempty"`         // reopened detected_again: the person whose version entry made it detected again
+	By            string     `json:"by,omitempty"`         // reopened detected_again, or confirmed by Vedette: the person whose version entry made it so
 }
 
 // QuestionKind is the kind of a fnd_question row. An open vocabulary.

@@ -1,6 +1,7 @@
 package feeds
 
 import (
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -245,6 +246,22 @@ func statedRows(entries []cnaAffected, limit int) (out []Range, ok bool) {
 			if end == "*" {
 				end = ""
 			}
+			if fixes, ok := branchFixes(end); ok && len(v.Changes) == 0 { // Juniper's "22.3R2-S2, 22.3R3-S1": one fix per branch
+				for i, f := range fixes {
+					from := start
+					if i > 0 {
+						if from = branchStart(f); from == "" {
+							continue // a plain release ("22.4R3") starts its own branch fixed: nothing of it is affected
+						}
+					}
+					r := Range{StartIncl: from, EndExcl: f, VersionType: typ, DefaultStatus: def}
+					if def == DefaultUnaffected {
+						r.Fixed = f
+					}
+					add(r)
+				}
+				continue
+			}
 			// the stretches of the range: affected from its start, unaffected from a change, affected again from the next one
 			from, affected := start, true
 			for _, c := range v.Changes {
@@ -282,6 +299,45 @@ func statedRows(entries []cnaAffected, limit int) (out []Range, ok bool) {
 		return nil, false
 	}
 	return out, true
+}
+
+// junosFixRe is one fixed release of a Junos branch as Juniper's records list them after lessThan: release, R number, an optional
+// service release and respin ("22.3R2-S2", "25.2R2", "21.4R3-S5.4").
+var junosFixRe = regexp.MustCompile(`^([0-9]{1,2}\.[0-9]{1,2})R([0-9]{1,3})(?:-S([0-9]{1,3}))?(?:\.[0-9]{1,3})?$`)
+
+// branchFixes reads a lessThan that lists the fixed release of each maintenance branch of one release ("22.3R2-S2, 22.3R3-S1",
+// "25.2R1-S2, 25.2R2"): Juniper writes "22.3 versions before 22.3R2-S2, 22.3R3-S1" for a flaw fixed in 22.3R2-S2 on the R2 branch and in
+// 22.3R3-S1 on the R3 branch, so 22.3R2-S3 is fixed and 22.3R3 is not. ok is false unless every item is such a release of one
+// release, in rising branch order: anything else stays as written (a scheme cannot read it, so it decides nothing).
+func branchFixes(end string) ([]string, bool) {
+	if !strings.Contains(end, ",") {
+		return nil, false
+	}
+	items := strings.Split(end, ",")
+	line, lastR := "", -1
+	for i, it := range items {
+		it = strings.TrimSpace(it)
+		m := junosFixRe.FindStringSubmatch(strings.ToUpper(it))
+		if m == nil || i > 0 && m[1] != line {
+			return nil, false
+		}
+		r, _ := strconv.Atoi(m[2])
+		if r <= lastR {
+			return nil, false
+		}
+		line, lastR, items[i] = m[1], r, it
+	}
+	return items, len(items) > 1
+}
+
+// branchStart is where the branch of a fixed release f of branchFixes starts: its R release when f is a service release of it
+// ("22.3R3" for "22.3R3-S1"), "" when f is the R release itself.
+func branchStart(f string) string {
+	m := junosFixRe.FindStringSubmatch(strings.ToUpper(f))
+	if m == nil || m[3] == "" {
+		return ""
+	}
+	return f[:len(m[1])+1+len(m[2])]
 }
 
 // exceptRows reads an entry whose unlisted versions are affected (defaultStatus affected): each unaffected version it lists, alone or

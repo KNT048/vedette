@@ -464,6 +464,9 @@ func verificationOf(f Finding, evs []Event) verificationJS {
 			out.At = &at
 			if f.Verified == VerifiedPerson {
 				by := e.Actor
+				if e.Actor == SystemUser && e.Detail.By != "" { // the version a person entered confirmed it (entryConfirms)
+					by = e.Detail.By
+				}
 				out.By = &by
 			}
 			break

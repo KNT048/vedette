@@ -72,6 +72,8 @@ RUNNING=
 # where running_conmons reads the processes, and how long still_running waits for a conmon that is ending
 PROC=/proc
 CONMON_WAIT=10
+# the root of the osquery agent's files that remove_box_agent looks at ("" on a real box; a test's folder in the tests)
+OSQ_ROOT=
 HOST_STOPPED=
 HP_STOPPED=
 RELEASE=
@@ -1404,6 +1406,52 @@ purge_added_packages() {
 	fi
 }
 
+# names_this_machine: whether a host (an address or a name, from osquery's --tls_hostname) is this machine: loopback, an address of one of
+# its cards, its host name (short or full), or a name the resolver gives one of those addresses.
+names_this_machine() {
+	h=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
+	h=${h%.}
+	case $h in "" | *[!a-z0-9.:-]*) return 1 ;; localhost | 127.* | ::1) return 0 ;; esac
+	if [ "$h" = "$(hostname 2>/dev/null | tr 'A-Z' 'a-z')" ] || [ "$h" = "$(hostname -s 2>/dev/null | tr 'A-Z' 'a-z')" ] || [ "$h" = "$(hostname -f 2>/dev/null | tr 'A-Z' 'a-z')" ]; then return 0; fi
+	mine=$(ip -o addr show 2>/dev/null | awk '{ sub(/\/.*/, "", $4); print $4 }')
+	addrs=$h
+	# a name is resolved; an IPv6 address (a name never holds ":") or an IPv4 one is compared as it is
+	case $h in *:*) ;; *[!0-9.]*) addrs=$(getent ahosts "$h" 2>/dev/null | awk '{ print $1 }' | sort -u) ;; esac
+	for a in $addrs; do
+		case $a in 127.* | ::1) return 0 ;; esac
+		if printf '%s\n' "$mine" | grep -qxF "$a"; then return 0; fi
+	done
+	return 1
+}
+
+# remove_box_agent: the osquery agent someone set up on the box itself with Vedette's Linux install command pins the box CA, which
+# --uninstall without --keep-data deletes with the data. Left alone it would fail against the next install (a new CA) every few seconds,
+# so it is stopped and disabled and what that command wrote goes: the restart drop-in, the flags, the enroll secret, osquery's database
+# (the old node key) and the pinned CA. The osquery package and osquery.conf stay. An agent that reports to another box is not touched.
+remove_box_agent() {
+	ca=$OSQ_ROOT/etc/osquery/vedette-ca.pem
+	flags=$OSQ_ROOT/etc/osquery/osquery.flags
+	[ -f "$ca" ] && [ ! -L "$ca" ] || return 0
+	tls=$(sed -n 's/^--tls_hostname=//p' "$flags" 2>/dev/null | head -n 1)
+	case $tls in
+	\[*\]*) host=${tls#\[}; host=${host%%\]*} ;;
+	*:*:*) host=$tls ;;
+	*) host=${tls%:*} ;;
+	esac
+	if ! names_this_machine "$host"; then
+		say "the osquery agent on this machine reports to ${host:-an unknown address}, not to this box: it was left as it is"
+		return 0
+	fi
+	if [ -z "$OSQ_ROOT" ]; then systemctl disable --now osqueryd.service >/dev/null 2>&1 || true; fi
+	rm -f "$OSQ_ROOT/etc/systemd/system/osqueryd.service.d/vedette-restart.conf"
+	rmdir "$OSQ_ROOT/etc/systemd/system/osqueryd.service.d" 2>/dev/null || true
+	if [ -z "$OSQ_ROOT" ]; then systemctl daemon-reload >/dev/null 2>&1 || true; fi
+	rm -f "$flags" "$OSQ_ROOT/etc/osquery/enroll.secret"
+	rm -rf "$OSQ_ROOT/var/osquery/osquery.db"
+	rm -f "$ca"
+	say "the osquery agent on this box was set up for this install of Vedette (it pinned the box's certificate, which is deleted with the data): it was stopped and its Vedette settings removed; the osquery package stays. After installing Vedette again, run the install command from Devices › Setup › Agents on the box to enrol it again"
+}
+
 do_uninstall() {
 	if [ ! -d "$STATE" ] && ! installed_pkg vedette-host && [ ! -e /etc/vedette/host.conf ]; then
 		say "nothing to remove: no Vedette install made by this script was found"
@@ -1414,6 +1462,7 @@ do_uninstall() {
 		say "the packages this script asked apt for (listed in $STATE/asked-packages) and the ones apt installed for them or for an update of"
 		say "vedette-host ($STATE/installed-by-us, $HOST_STATE/selfupdate/installed-by-us), each when nothing else needs it${KEEP_DATA:+ (the data and the users are KEPT)}"
 		[ -n "$KEEP_DATA" ] || say "and DELETE the database and the master key in /var/lib/vedette (no way back), /etc/vedette and the users vedette and vedette-sensor"
+		[ -n "$KEEP_DATA" ] || [ ! -f /etc/osquery/vedette-ca.pem ] || say "an osquery agent set up on this box with Vedette's install command is stopped and its Vedette settings removed (it would no longer trust the box); the osquery package stays"
 		say "podman, the packages it runs with and /var/lib/containers stay when podman holds anything that is not Vedette's (containers, pods,"
 		say "networks, volumes, images), while any container still runs${KEEP_DATA:+, and always with --keep-data}; only Vedette's own containers, images, volumes and network are removed from it"
 		say "OpenVAS, if it was ever enabled, stays as it is: Greenbone's own containers, images and feed volumes are not Vedette's"
@@ -1525,6 +1574,7 @@ do_uninstall() {
 		rm -f "$STATE/runtime-saved" "$STATE/ip_forward.orig" "$STATE/ip6_forward.orig" "$STATE/nft.before"
 		say "kept: /var/lib/vedette*, /etc/vedette and the users. Running install.sh again (this release or a newer one) brings Vedette back with them."
 	else
+		remove_box_agent
 		rm -rf /var/lib/vedette /var/lib/vedette-host /var/lib/vedette-honeypot /var/lib/vedette-creds /var/lib/vedette-fence /etc/vedette /var/log/vedette-host /run/vedette
 		# a kept podman's containers with --userns=auto take their ids from the containers: range
 		if [ -z "$KEEP_PODMAN" ]; then

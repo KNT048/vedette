@@ -24,6 +24,16 @@ import (
 // KindDevicesNotAdded is the queue's one card for every device nobody added yet that has no open finding (its id too).
 const KindDevicesNotAdded = "devices_not_added"
 
+// KindDeviceNeeds is the queue's card of one added device: the urgent findings not confirmed yet, the "what runs here" item and the
+// questions of the device, the questions grouped by software line (KindSoftwareGroup). KindSoftwareGroup is one line's entry inside it.
+const (
+	KindDeviceNeeds    = "device_needs"
+	KindSoftwareGroup  = "software_group"
+	kindQuestionItem   = "question"
+	kindUnconfirmedRow = "unconfirmed"
+	kindUncheckedRow   = "device_unchecked"
+)
+
 // InputItemJS is one item of contract.ts InputItem (the fields of its kind are set, the others left out).
 type InputItemJS struct {
 	Kind     string            `json:"kind"`
@@ -47,6 +57,9 @@ type InputItemJS struct {
 	Fixes    []string          `json:"fixes,omitempty"`
 	Line     *string           `json:"line,omitempty"`
 	Listed   *bool             `json:"versions_listed,omitempty"`
+	// device_needs: what Vedette needs to know about one device, its entries; software_group: the questions of one software line
+	Entries   []InputItemJS `json:"entries,omitempty"`
+	Questions []InputItemJS `json:"questions,omitempty"`
 
 	nullables []string // the keys of this kind that are null when unset (encoded explicitly)
 	rank      [3]int
@@ -71,8 +84,18 @@ func (it InputItemJS) MarshalJSON() ([]byte, error) {
 			m[k] = nil
 		}
 	}
-	if it.Kind == KindDevicesNotAdded { // the grouped card names no device
+	if it.Kind == KindDevicesNotAdded || it.Kind == KindSoftwareGroup { // the grouped card, and a line inside a device's card, name no device
 		delete(m, "device")
+	}
+	if it.Kind == KindDeviceNeeds {
+		if _, ok := m["entries"]; !ok {
+			m["entries"] = []any{}
+		}
+	}
+	if it.Kind == KindSoftwareGroup {
+		if _, ok := m["questions"]; !ok {
+			m["questions"] = []any{}
+		}
 	}
 	if it.Kind == "question" {
 		for _, k := range []string{"choices", "cve_list", "fixes"} {
@@ -105,6 +128,9 @@ func (s *Service) Input(ctx context.Context, device, q string, p Page) (InputLis
 	}
 	if q != "" {
 		items = slices.DeleteFunc(items, func(it InputItemJS) bool { return !it.matches(q) })
+		for i := range items {
+			items[i] = items[i].narrow(q)
+		}
 	}
 	lo, hi := p.cut(len(items))
 	return InputList{Items: append([]InputItemJS{}, items[lo:hi]...), Total: len(items)}, nil
@@ -119,6 +145,10 @@ func (it InputItemJS) matches(q string) bool {
 		return true
 	}
 	if it.Software != nil && has(it.Software.Name) {
+		return true
+	}
+	if slices.ContainsFunc(it.Entries, func(e InputItemJS) bool { return e.matches(q) }) ||
+		slices.ContainsFunc(it.Questions, func(e InputItemJS) bool { return e.matches(q) }) {
 		return true
 	}
 	if it.CVE != nil && has(*it.CVE) {
@@ -275,11 +305,145 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 		}
 		out = append(out, it)
 	}
+	out = groupNeeds(out)
 	slices.SortStableFunc(out, func(a, b InputItemJS) int {
 		return cmp.Or(cmp.Compare(a.rank[0], b.rank[0]), cmp.Compare(a.rank[1], b.rank[1]), cmp.Compare(a.rank[2], b.rank[2]),
 			cmp.Compare(strings.ToLower(a.Device.Name), strings.ToLower(b.Device.Name)), cmp.Compare(a.ID, b.ID))
 	})
 	return out, nil
+}
+
+// countCVEs is how many CVEs wait on a software line's questions, each counted once: the CVE of a question about one, the CVE list of a
+// question about several, else the count the question states.
+func countCVEs(qs []InputItemJS) int {
+	seen := map[string]bool{}
+	n := 0
+	for _, q := range qs {
+		switch {
+		case q.CVE != nil:
+			seen[*q.CVE] = true
+		case len(q.CVEList) > 0:
+			for _, v := range q.CVEList {
+				seen[v] = true
+			}
+		default:
+			n += max(q.CVEs, 1)
+		}
+	}
+	return max(n+len(seen), 1)
+}
+
+// narrow keeps of a device's card what a search finds: the whole card when the device's name or address matches, else only the
+// entries that match, and of a software line the whole line when its name matches, else only the questions that match.
+func (it InputItemJS) narrow(q string) InputItemJS {
+	low := strings.ToLower(q)
+	has := func(v string) bool { return v != "" && strings.Contains(strings.ToLower(v), low) }
+	if it.Kind != KindDeviceNeeds || has(it.Device.Name) || it.Device.IP != nil && has(*it.Device.IP) {
+		return it
+	}
+	var entries []InputItemJS
+	for _, e := range it.Entries {
+		if e.Kind == KindSoftwareGroup && !(e.Software != nil && has(e.Software.Name)) {
+			var qs []InputItemJS
+			for _, x := range e.Questions {
+				if x.matches(q) {
+					qs = append(qs, x)
+				}
+			}
+			e.Questions, e.CVEs = qs, countCVEs(qs)
+		}
+		if e.matches(q) {
+			entries = append(entries, e)
+		}
+	}
+	it.Entries = entries
+	return it
+}
+
+// needLess orders the entries inside a device's card: what Vedette cannot check, the urgent findings, then the software lines by the
+// CVEs waiting.
+func needLess(a, b InputItemJS) int {
+	return cmp.Or(cmp.Compare(a.rank[0], b.rank[0]), cmp.Compare(a.rank[1], b.rank[1]), cmp.Compare(a.rank[2], b.rank[2]), cmp.Compare(a.ID, b.ID))
+}
+
+// questionOrder is the order of the questions of one software line: the one whose action fixes the most first (the version, the
+// platform, the package release), then the per-CVE ones.
+var questionOrder = map[string]int{string(QuestionVersionNeeded): 0, string(QuestionNotComparable): 1, string(QuestionPlatform): 2,
+	string(QuestionPackageRelease): 3, string(QuestionOlderLine): 4, string(QuestionNoRangeData): 5}
+
+// needLine is one software line of one device while the queue is grouped.
+type needLine struct {
+	device string
+	group  InputItemJS
+}
+
+// groupNeeds folds the flat items of the queue into one card per device (KindDeviceNeeds): the device's questions grouped by software
+// line (one KindSoftwareGroup per line with its questions inside, each CVE counted once), with its unconfirmed findings and its "cannot
+// check" item beside them. A device not added yet keeps its own card and so does the card of the devices to review.
+func groupNeeds(items []InputItemJS) []InputItemJS {
+	var out []InputItemJS
+	cards := map[string]*InputItemJS{}
+	var order []string
+	card := func(it InputItemJS) *InputItemJS {
+		c, ok := cards[it.Device.ID]
+		if !ok {
+			c = &InputItemJS{Kind: KindDeviceNeeds, ID: "needs:" + it.Device.ID, Device: it.Device, Entries: []InputItemJS{}}
+			cards[it.Device.ID] = c
+			order = append(order, it.Device.ID)
+		}
+		return c
+	}
+	lines := map[string]*needLine{}
+	var lineOrder []*needLine
+	for _, it := range items {
+		switch it.Kind {
+		case kindUnconfirmedRow, kindUncheckedRow:
+			c := card(it)
+			c.Entries = append(c.Entries, it)
+		case kindQuestionItem:
+			card(it)
+			key := it.ID // a question on no line is its own entry
+			if it.Software != nil {
+				key = it.Device.ID + "\x1f" + it.Software.ID
+			}
+			lg, ok := lines[key]
+			if !ok {
+				lg = &needLine{device: it.Device.ID,
+					group: InputItemJS{Kind: KindSoftwareGroup, ID: "sw:" + key, Software: it.Software, Questions: []InputItemJS{}, nullables: []string{"software"}}}
+				if it.Software != nil {
+					lg.group.ID = "sw:" + it.Software.ID
+				}
+				lines[key] = lg
+				lineOrder = append(lineOrder, lg)
+			}
+			lg.group.Questions = append(lg.group.Questions, it)
+			lg.group.terms = append(lg.group.terms, it.terms...)
+		default:
+			out = append(out, it)
+		}
+	}
+	for _, lg := range lineOrder {
+		g := lg.group
+		g.CVEs = countCVEs(g.Questions)
+		slices.SortStableFunc(g.Questions, func(a, b InputItemJS) int {
+			return cmp.Or(cmp.Compare(questionOrder[a.Question], questionOrder[b.Question]), cmp.Compare(b.CVEs, a.CVEs), cmp.Compare(a.ID, b.ID))
+		})
+		g.rank = [3]int{2, -g.CVEs, 0}
+		c := cards[lg.device]
+		c.Entries = append(c.Entries, g)
+	}
+	for _, id := range order {
+		c := cards[id]
+		slices.SortStableFunc(c.Entries, needLess)
+		total, best := 0, 3
+		for _, e := range c.Entries {
+			total += max(e.CVEs, 1)
+			best = min(best, e.rank[0])
+		}
+		c.rank = [3]int{1, best, -total}
+		out = append(out, *c)
+	}
+	return out
 }
 
 // notAddedTerms is, for each device not added yet, what a search also finds it by: the CVE ids and the software names of its open

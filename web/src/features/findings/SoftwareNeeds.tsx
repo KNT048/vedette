@@ -37,8 +37,11 @@ export function useSoftwareNeeds(assetId: string): Map<string, Needs> | 'off' | 
     for (const b of card.blocks) if (b.software) entry(b.software.id).blocks.push(b)
   }
   for (const i of input.data.items) {
-    if (i.kind === 'device_not_added' || i.kind === 'devices_not_added' || i.kind === 'device_unchecked' || !i.software) continue
-    entry(i.software.id).check += i.kind === 'question' ? i.cves : 1
+    if (i.kind !== 'device_needs') continue
+    for (const e of i.entries) {
+      if (e.kind === 'device_unchecked' || !e.software) continue
+      entry(e.software.id).check += e.kind === 'software_group' ? e.cves : 1
+    }
   }
   return m
 }

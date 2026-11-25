@@ -345,6 +345,46 @@ export const FixCards = z.object({
   total: z.number().int().min(0).describe('Fixes that match, every page'),
   findings: z.number().int().min(0).describe('Open findings of those fixes, every page'),
 })
+export const InputUnchecked = z.object({
+  kind: z.literal('device_unchecked'),
+  id: z.string().describe('The item'),
+  device: DeviceRef,
+}).describe('A device a person added that Vedette cannot check (an entry of a device card): it knows no software, firmware or OS the device runs, so no finding can appear for it. Answered by saying what runs there: its firmware version (POST /inventory/devices/{id}/software), SNMP read access (Sources), or an agent')
+export const InputUnconfirmed = z.object({
+  kind: z.literal('unconfirmed'),
+  id: z.string().describe('The finding'),
+  cve,
+  device: DeviceRef,
+  software: SoftwareRef.nullable(),
+  status: z.enum(['under_attack', 'exploited', 'public_exploit', 'critical_edge']).describe('Only layers 1 to 4 ask for confirmation; update_recommended never does'),
+  severity: CveSeverity.nullable(),
+  basis: Basis,
+  safe_check: z.boolean().describe('A safe check exists for the CVE and can reach the device: "Run the safe check" (POST /scans/runs) comes first'),
+}).describe('An urgent finding not confirmed yet: Run the safe check, Confirm vulnerability (POST /findings/{id}/verify) or Not affected (POST /findings/handle)')
+export const InputQuestion = z.object({
+  kind: z.literal('question'),
+  id: z.string().describe('The question'),
+  question: QuestionKind,
+  device: DeviceRef,
+  software: SoftwareRef.nullable(),
+  cve: cve.nullable().describe('The CVE the question is about; null when it decides several (version_needed, not_comparable)'),
+  cves: z.number().int().min(1).describe('CVEs that wait on the answer'),
+  asked_at: iso,
+  url: z.url().nullable().describe('The advisory to read'),
+  command: z.string().nullable().describe('What prints the answer on the device ("apk info -e -v openssh-server"); null when none'),
+  choices: z.array(UncheckedAnswer).describe('platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data, older_line: POST /findings/questions/{id}/answer)'),
+  cve_list: z.array(cve).describe('older_line, version_needed: the CVEs that wait on the answer; empty when the question is about one CVE (cve)'),
+  fixes: z.array(z.string()).describe('older_line: the newest release the vendor names as fixed on each newer line, oldest line first ("7.3.2-86009 Update 5"); empty for the other kinds'),
+  line: z.string().nullable().describe('older_line: the release line the device runs ("7.2.1"); null for the other kinds'),
+  versions_listed: z.boolean().describe('no_range_data: true when the CVE lists affected versions of the software but none that decides this one (only exact releases, or no end); false when it lists none. false for the other kinds'),
+}).describe('What Vedette cannot decide without a person')
+export const InputSoftwareGroup = z.object({
+  kind: z.literal('software_group'),
+  id: z.string().describe('"sw:<software line id>"'),
+  software: SoftwareRef.nullable(),
+  cves: z.number().int().min(1).describe('CVEs that wait on this software line, each counted once'),
+  questions: z.array(InputQuestion).min(1).describe('The line\'s questions, one per (CVE, kind): the one whose action fixes the most first (version_needed, not_comparable, platform, package_release, older_line, no_range_data), then by CVEs waiting. The version or edition a person enters lives on the line, so one entry fixes every CVE of it at the next match; each CVE\'s Affected / Not affected is its own question'),
+}).describe('One software line of a device inside its card: "Thunderbird 115.9.0: 196 CVEs waiting" with its one action; the per-CVE detail is behind a click')
 export const InputItem = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('device_not_added'),
@@ -359,41 +399,14 @@ export const InputItem = z.discriminatedUnion('kind', [
     count: z.number().int().min(1).describe('Devices in the Devices list\'s To review that have no open finding'),
   }).describe('One card for every device nobody added yet that has no open finding, after the unconfirmed findings and the questions; it counts as one item. Review opens the Devices list\'s To review (/devices?tab=review), where each is added or ignored. Not in a queue read for one device or by a search'),
   z.object({
-    kind: z.literal('device_unchecked'),
-    id: z.string().describe('The item'),
+    kind: z.literal('device_needs'),
+    id: z.string().describe('The card: "needs:<device id>"'),
     device: DeviceRef,
-  }).describe('A device a person added that Vedette cannot check: it knows no software, firmware or OS the device runs, so no finding can appear for it. Answered by saying what runs there: its firmware version (POST /inventory/devices/{id}/software), SNMP read access (Sources), or an agent'),
-  z.object({
-    kind: z.literal('unconfirmed'),
-    id: z.string().describe('The finding'),
-    cve,
-    device: DeviceRef,
-    software: SoftwareRef.nullable(),
-    status: z.enum(['under_attack', 'exploited', 'public_exploit', 'critical_edge']).describe('Only layers 1 to 4 ask for confirmation; update_recommended never does'),
-    severity: CveSeverity.nullable(),
-    basis: Basis,
-    safe_check: z.boolean().describe('A safe check exists for the CVE and can reach the device: "Run the safe check" (POST /scans/runs) comes first'),
-  }).describe('An urgent finding not confirmed yet: Run the safe check, Confirm vulnerability (POST /findings/{id}/verify) or Not affected (POST /findings/handle)'),
-  z.object({
-    kind: z.literal('question'),
-    id: z.string().describe('The question'),
-    question: QuestionKind,
-    device: DeviceRef,
-    software: SoftwareRef.nullable(),
-    cve: cve.nullable().describe('The CVE the question is about; null when it decides several (version_needed, not_comparable)'),
-    cves: z.number().int().min(1).describe('CVEs that wait on the answer'),
-    asked_at: iso,
-    url: z.url().nullable().describe('The advisory to read'),
-    command: z.string().nullable().describe('What prints the answer on the device ("apk info -e -v openssh-server"); null when none'),
-    choices: z.array(UncheckedAnswer).describe('platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data, older_line: POST /findings/questions/{id}/answer)'),
-    cve_list: z.array(cve).describe('older_line, version_needed: the CVEs that wait on the answer; empty when the question is about one CVE (cve)'),
-    fixes: z.array(z.string()).describe('older_line: the newest release the vendor names as fixed on each newer line, oldest line first ("7.3.2-86009 Update 5"); empty for the other kinds'),
-    line: z.string().nullable().describe('older_line: the release line the device runs ("7.2.1"); null for the other kinds'),
-    versions_listed: z.boolean().describe('no_range_data: true when the CVE lists affected versions of the software but none that decides this one (only exact releases, or no end); false when it lists none. false for the other kinds'),
-  }).describe('What Vedette cannot decide without a person'),
+    entries: z.array(z.discriminatedUnion('kind', [InputUnchecked, InputUnconfirmed, InputSoftwareGroup])).min(1).describe('What Vedette needs to know about the device: what runs there (device_unchecked), urgent findings not confirmed yet (unconfirmed), then its software lines by CVEs waiting (software_group)'),
+  }).describe('One card per added device: everything Vedette needs from a person about it, the questions grouped by software line. Ignore for the whole device: POST /findings/questions/ignore'),
 ])
 export const InputList = z.object({
-  items: z.array(InputItem).describe('Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting, then the one card of the devices not added yet with no open finding; an item leaves the moment it is answered or stops being true'),
+  items: z.array(InputItem).describe('Devices not added yet first, then one card per added device (what runs there, urgent findings not confirmed, its questions grouped by software line) by what waits, then the one card of the devices not added yet with no open finding; an item leaves the moment it is answered or stops being true'),
   total: z.number().int().min(0).describe('The queue length: the tab count'),
 })
 export const AnsweredQuestion = z.object({
@@ -545,6 +558,9 @@ export const endpoints = defineEndpoints([
   { method: 'post', path: '/findings/questions/{id}/answer', summary: 'Answer a question about one CVE on one device: affected records a finding confirmed by the person and needs an admin, as Confirm vulnerability does (an operator gets 403 forbidden); not affected closes the question (operator); history and audit', stories: ['S-MIT-1'], role: 'operator',
     params: z.object({ id: z.string().min(1).max(96) }), body: z.object({ answer: z.enum(['affected', 'not_affected']), note: z.string().max(500) }),
     response: z.object({ finding: z.string().nullable().describe('affected: the finding') }) },
+  { method: 'post', path: '/findings/questions/ignore', summary: 'Ignore (bypass) every open question of one device, or of one software line of it: each is answered "not affected" in one transaction with one audit row; each is listed under Answered and can be asked again one by one. "Vedette cannot check this device" is left (operator)', stories: ['S-MIT-1'], role: 'operator',
+    body: z.object({ device: z.string().min(1).max(96), software: z.string().max(96).optional().describe('One software line of the device; every open question of the device when left out'), note: z.string().max(500) }),
+    response: z.object({ answered: z.number().int().min(1).describe('Questions answered') }) },
   { method: 'post', path: '/findings/questions/{id}/unanswer', summary: 'Take back a "not affected" answer: the question is asked again in Needs your input (an "affected" answer made a finding and is changed on its page: 409 not_answered); audit', stories: ['S-MIT-1'], role: 'operator',
     params: z.object({ id: z.string().min(1).max(96) }), response: z.object({ id: z.string().describe('The question, open again') }) },
   { method: 'get', path: '/findings', summary: 'The findings of one device in every state, newest first, each with its history: what a version entry, "I updated it" or "Not installed" changed on the device', stories: ['S-MIT-1', 'S-SCAN-3'], role: 'viewer',

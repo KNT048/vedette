@@ -227,6 +227,7 @@ var operationRolesSession = map[string][]string{
 	FindingsPostFindingsIDReopenOperation:                    []string{},
 	FindingsPostFindingsIDUnverifyOperation:                  []string{},
 	FindingsPostFindingsIDVerifyOperation:                    []string{},
+	FindingsPostFindingsQuestionsAcceptRiskOperation:         []string{},
 	FindingsPostFindingsQuestionsIDAnswerOperation:           []string{},
 	FindingsPostFindingsQuestionsIDUnanswerOperation:         []string{},
 	FindingsPostFindingsQuestionsIgnoreOperation:             []string{},

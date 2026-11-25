@@ -2,7 +2,7 @@
 // Devices nobody added yet that have findings (Add device, Ignore); then one card per added device, collapsed, that opens to what it needs:
 // that Vedette cannot check it (Add its firmware, SNMP, an agent), urgent findings not confirmed yet (Run the safe check first when one
 // exists, then Confirm vulnerability or Not affected…), and its questions grouped by software line, one entry per line ("Thunderbird
-// 115.9.0: 196 CVEs waiting") with its one action (the version, the platform, the package release) and Ignore; the CVEs of a line are
+// 115.9.0: 196 CVEs waiting") with its one action (the version, the platform, the package release), Not affected and Accept the risk; the CVEs of a line are
 // behind a click; last, one card for the devices nobody added yet that have no open finding (Review: the Devices list's To review). An
 // item leaves the queue the moment it is answered or stops being true (GET /findings/input).
 import { useMemo, useState } from 'react'
@@ -23,6 +23,7 @@ import { useDeviceAction } from '@/features/inventory/api'
 import { AddDeviceDialog } from '@/features/inventory/AddDeviceDialog'
 import { useStartRun } from '@/features/scan/api'
 import { useAnswer, useAnswered, useIgnoreQuestions, useInputList, useUnanswer, useVerify } from './api'
+import { AcceptRiskDialog } from './AcceptRiskDialog'
 import { AskDialog, type Ask } from './AskDialog'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { errMsg } from './errors'
@@ -190,6 +191,7 @@ function QuestionItem({ i, mode }: { i: InputQuestionItem; mode: 'action' | 'row
   const r = useRoles()
   const act = useDeviceAction(i.device.id)
   const [asking, setAsking] = useState<Asking | null>(null)
+  const [accepting, setAccepting] = useState(false)
   const sw = i.software
   const words = { software: sw?.name ?? t('queue.theSoftware'), version: sw?.version ?? '', device: i.device.name, count: i.cves, cve: i.cve ?? '',
     line: i.line ?? sw?.version ?? '', fixes: i.fixes.join(', ') }
@@ -214,9 +216,12 @@ function QuestionItem({ i, mode }: { i: InputQuestionItem; mode: 'action' | 'row
               <Button size="sm" disabled={!r.admin} title={r.needAdmin} onClick={() => setAsking({ kind: 'answer', answer: 'affected' })}>{t('queue.affected')}</Button>
             ) : null}
             <Button size="sm" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'answer', answer: 'not_affected' })}>{t('queue.not_affected')}</Button>
+            <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.acceptRowOf', { cve: i.cve ?? sw?.name ?? '', device: i.device.name })}
+              onClick={() => setAccepting(true)}>{t('queue.accept')}</Button>
           </div>
         ) : null}
         {asking ? <QuestionDialog i={i} asking={asking} onClose={() => setAsking(null)} /> : null}
+        {accepting ? <AcceptRiskDialog device={i.device} line={sw} question={i.id} what={i.cve ?? sw?.name ?? t('queue.theSoftware')} count={Math.max(i.cves, 1)} onClose={() => setAccepting(false)} /> : null}
       </div>
     )
   }
@@ -235,7 +240,7 @@ function QuestionItem({ i, mode }: { i: InputQuestionItem; mode: 'action' | 'row
   )
 }
 
-/** Ignore (bypass): answers "not affected" to every open question of a software line, or of the whole device, in one step. */
+/** Not affected for all (bypass): answers "not affected" to every open question of a software line, or of the whole device, in one step. */
 function IgnoreDialog({ device, line, count, onClose }: { device: { id: string; name: string }; line: { id: string; name: string } | null; count: number; onClose: () => void }) {
   const { t } = useTranslation('findings')
   const ignore = useIgnoreQuestions()
@@ -256,6 +261,7 @@ function SoftwareEntry({ g, device }: { g: InputGroupItem; device: Item<'device_
   const r = useRoles()
   const [open, setOpen] = useState(false)
   const [ignoring, setIgnoring] = useState(false)
+  const [accepting, setAccepting] = useState(false)
   const primary = g.questions[0]!
   const name = lineName(g, t('queue.theSoftware'))
   const typed = primary.question === 'version_needed' || primary.question === 'not_comparable'
@@ -274,6 +280,9 @@ function SoftwareEntry({ g, device }: { g: InputGroupItem; device: Item<'device_
         {g.software ? (
           <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.ignoreLineOf', { software: name, device: device.name })} onClick={() => setIgnoring(true)}>{t('queue.ignore')}</Button>
         ) : null}
+        {g.software ? (
+          <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.acceptLineOf', { software: name, device: device.name })} onClick={() => setAccepting(true)}>{t('queue.accept')}</Button>
+        ) : null}
       </div>
       <details className="text-meta" onToggle={(e) => setOpen(e.currentTarget.open)}>
         <summary className="w-fit cursor-pointer text-accent">{t('queue.showCves', { count: g.cves })}</summary>
@@ -284,6 +293,7 @@ function SoftwareEntry({ g, device }: { g: InputGroupItem; device: Item<'device_
         ) : null}
       </details>
       {ignoring && g.software ? <IgnoreDialog device={device} line={{ id: g.software!.id, name }} count={g.cves} onClose={() => setIgnoring(false)} /> : null}
+      {accepting && g.software ? <AcceptRiskDialog device={device} line={g.software} what={name} count={g.cves} onClose={() => setAccepting(false)} /> : null}
     </li>
   )
 }
@@ -295,6 +305,7 @@ function DeviceNeeds({ i, link }: { i: Item<'device_needs'>; link: boolean }) {
   const r = useRoles()
   const [open, setOpen] = useState(false)
   const [ignoring, setIgnoring] = useState(false)
+  const [accepting, setAccepting] = useState(false)
   const lines = i.entries.filter((e): e is InputGroupItem => e.kind === 'software_group')
   const cves = lines.reduce((n, g) => n + g.cves, 0)
   const others = i.entries.length - lines.length
@@ -311,7 +322,10 @@ function DeviceNeeds({ i, link }: { i: Item<'device_needs'>; link: boolean }) {
           {link ? <Link to={`/devices/${encodeURIComponent(i.device.id)}`} className="text-meta text-accent underline-offset-4 hover:underline">{t('queue.openDevice')}</Link> : null}
         </div>
         {lines.length ? (
-          <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.ignoreDeviceOf', { device: i.device.name })} onClick={() => setIgnoring(true)}>{t('queue.ignoreAll')}</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.ignoreDeviceOf', { device: i.device.name })} onClick={() => setIgnoring(true)}>{t('queue.ignoreAll')}</Button>
+            <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.acceptDeviceOf', { device: i.device.name })} onClick={() => setAccepting(true)}>{t('queue.acceptAll')}</Button>
+          </div>
         ) : null}
       </div>
       {open ? (
@@ -321,6 +335,7 @@ function DeviceNeeds({ i, link }: { i: Item<'device_needs'>; link: boolean }) {
         </ul>
       ) : null}
       {ignoring ? <IgnoreDialog device={i.device} line={null} count={cves} onClose={() => setIgnoring(false)} /> : null}
+      {accepting ? <AcceptRiskDialog device={i.device} what={t('queue.everythingWaiting')} count={cves} onClose={() => setAccepting(false)} /> : null}
     </article>
   )
 }

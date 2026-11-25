@@ -23,6 +23,7 @@ import (
 type schemeRead struct {
 	installed versionscheme.Version
 	verdict   versionscheme.Verdict
+	stated    bool   // not affected by what the vendor states (a range it says is unaffected, its model-limited ranges): vendorStatements
 	origin    string // who stated the rows (RangeCNA, RangeADP)
 	vendor    string // the product's vendor as the catalogue names it ("VMware")
 	product   string // the product as the catalogue names it ("VMware ESXi")
@@ -44,22 +45,49 @@ func statedBuild(s Software) string {
 // schemedSpans is the spans of v's vendor rows that name the line's product, with the product's scheme; nil when none. A
 // distribution's package is never read by a vendor scheme (the distribution's own data decides it), nor a row a distribution may
 // have built on a device that runs one (an Ubuntu kernel reports 6.8.0 while it carries fixes of later stable releases).
+// The vendor's rows that only support "not affected" (SchemedRange.Unaffected, ModelOnly) are not among them: vendorRows gives those.
 func schemedSpans(a Asset, s Software, in swInfo, v Vuln) (*versionscheme.Scheme, []versionscheme.Span, string, productid.Product) {
+	scheme, spans, origin, p, _ := vendorRows(a, s, in, v)
+	return scheme, spans, origin, p
+}
+
+// statements are the vendor's rows of one product that only support "not affected": the ranges it states unaffected and its affected
+// ranges limited to some models, with their scheme and origin.
+type statements struct {
+	scheme             *versionscheme.Scheme
+	unaffected, models []versionscheme.Span
+	origin             string
+}
+
+// vendorRows is schemedSpans with the vendor's statements of the same product (statements).
+func vendorRows(a Asset, s Software, in swInfo, v Vuln) (*versionscheme.Scheme, []versionscheme.Span, string, productid.Product, statements) {
 	if len(v.Schemed) == 0 && len(v.Affected) == 0 || in.pkgBuilt() || distroBuilt(in) && linuxDistro(cmpOr(a.OS, in.osName)) != "" {
-		return nil, nil, "", productid.Product{}
+		return nil, nil, "", productid.Product{}, statements{}
 	}
 	if len(v.Schemed) == 0 && !oracleNamed(v) { // the common case: nothing a scheme reads, no product lookup
-		return nil, nil, "", productid.Product{}
+		return nil, nil, "", productid.Product{}, statements{}
 	}
 	p, ok := productid.ResolveStored(s.Vendor, s.Product, s.Display, s.CPE)
 	if !ok || p.Scheme == "" {
-		return nil, nil, "", productid.Product{}
+		return nil, nil, "", productid.Product{}, statements{}
 	}
 	var spans []versionscheme.Span
 	var scheme *versionscheme.Scheme
+	var st statements
 	origin := ""
 	for _, r := range v.Schemed {
 		if r.Product != p.Key || r.Scheme == nil || r.Scheme.Name != p.Scheme || fipsWithoutTheWord(r) {
+			continue
+		}
+		if r.Unaffected || r.ModelOnly {
+			if r.Unaffected {
+				st.unaffected = append(st.unaffected, r.Span)
+			} else {
+				st.models = append(st.models, r.Span)
+			}
+			if st.scheme = r.Scheme; st.origin == "" || r.Origin == RangeCNA {
+				st.origin = r.Origin
+			}
 			continue
 		}
 		spans, scheme = append(spans, r.Span), r.Scheme
@@ -72,7 +100,7 @@ func schemedSpans(a Asset, s Software, in swInfo, v Vuln) (*versionscheme.Scheme
 			spans, scheme, origin = tr, versionscheme.Java, v.rangeOrigin()
 		}
 	}
-	return scheme, spans, origin, p
+	return scheme, spans, origin, p, st
 }
 
 // javaOneRelease says a Java version names one release of a train: an update of Java 8 or earlier ("1.8.0_411"), or a version of three
@@ -136,24 +164,71 @@ func cmpOr(a, b string) string {
 // comparable". The verdict is then the vendor's: affected (with the fixed release of the device's train, when the vendor states one)
 // or not affected.
 func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
-	scheme, spans, origin, p := schemedSpans(a, s, in, v)
-	if scheme == nil {
+	scheme, spans, origin, p, st := vendorRows(a, s, in, v)
+	read := scheme
+	if read == nil {
+		read = st.scheme
+	}
+	if read == nil {
 		return schemeRead{}, false
 	}
-	installed, ok := scheme.Installed(in.ver, statedBuild(s))
-	if !ok || !namesLine(spans, installed) {
+	installed, ok := read.Installed(in.ver, statedBuild(s))
+	if !ok {
 		return schemeRead{}, false
 	}
-	verdict := versionscheme.Judge(installed, spans)
-	switch {
-	case verdict.State == versionscheme.NotComparable:
-		return schemeRead{}, false
-	case verdict.State == versionscheme.NotAffected && !endsInTrain(spans, installed):
-		// the vendor's rows are silent on the device's own train (VMware's U3 row missing while NVD lists 8.0 update_3): "not affected"
-		// by release order is no proof, and on a disagreement the affected side wins, so NVD's ranges decide
-		return schemeRead{}, false
+	out := schemeRead{installed: installed, origin: origin, vendor: p.Vendor, product: cmpOr(p.Display, s.Display)}
+	if scheme != nil && namesLine(spans, installed) {
+		verdict := versionscheme.Judge(installed, spans)
+		switch {
+		case verdict.State == versionscheme.Affected:
+			out.verdict = verdict
+			return out, true
+		case verdict.State == versionscheme.NotAffected && endsInTrain(spans, installed) && !inside(installed, st.models):
+			out.verdict = verdict
+			return out, true
+		}
+		// not comparable, or "not affected" by release order only (the vendor's rows are silent on the device's own train: VMware's
+		// U3 row missing while NVD lists 8.0 update_3; on a disagreement the affected side wins, so NVD's ranges decide), or inside a
+		// model-limited range: only the vendor's statements below may still say "not affected"
 	}
-	return schemeRead{installed: installed, verdict: verdict, origin: origin, vendor: p.Vendor, product: cmpOr(p.Display, s.Display)}, true
+	if notAffectedByStatements(installed, spans, st) && !nvdCovers(in, v) {
+		out.verdict, out.stated, out.origin = versionscheme.Verdict{State: versionscheme.NotAffected}, true, cmpOr(st.origin, origin)
+		return out, true
+	}
+	return schemeRead{}, false
+}
+
+// notAffectedByStatements says the vendor's statements prove installed not affected: it is inside a range the vendor states
+// unaffected (for every device: feeds keeps no other) and inside none of the vendor's affected ranges, of every device or of some models; or it is outside
+// every affected range, in a train one of them ends in, when some are model-limited (the vendor's word on the train, as schemeJudge
+// reads its rows). Never "affected": a model-limited range does not say this device's model has the flaw.
+// schemeJudge reads it only when no NVD row covers the version (nvdCovers).
+func notAffectedByStatements(installed versionscheme.Version, spans []versionscheme.Span, st statements) bool {
+	if inside(installed, spans) || inside(installed, st.models) {
+		return false
+	}
+	if inside(installed, st.unaffected) {
+		return true
+	}
+	if len(st.models) == 0 {
+		return false
+	}
+	all := append(slices.Clone(spans), st.models...)
+	return namesLine(all, installed) && endsInTrain(all, installed) && versionscheme.Judge(installed, all).State == versionscheme.NotAffected
+}
+
+// nvdCovers says one of NVD's affected rows (a range or an exact release) covers the line's version (decide: Yes). On a
+// disagreement the affected side wins: the vendor's statements never close what NVD lists as affected, NVD's rows decide it.
+func nvdCovers(in swInfo, v Vuln) bool {
+	t, _, _, _ := decide(in, v, keyIDs(v))
+	return t == Yes
+}
+
+// inside says installed is inside one of spans, each read alone (versionscheme.Judge on one span: its bounds, in release order).
+func inside(installed versionscheme.Version, spans []versionscheme.Span) bool {
+	return slices.ContainsFunc(spans, func(sp versionscheme.Span) bool {
+		return versionscheme.Judge(installed, []versionscheme.Span{sp}).State == versionscheme.Affected
+	})
 }
 
 // fipsWithoutTheWord says a NetScaler row ends at a plain 13.1 build of the 37 series ("13.1 lessThan 13.1-37.235"): Citrix's FIPS and
@@ -231,6 +306,10 @@ func schemeDecision(a Asset, v Vuln, r schemeRead) (Tri, VersionRange, string) {
 		}
 		return Yes, within, ""
 	case versionscheme.NotAffected:
+		if r.stated {
+			return No, VersionRange{}, fmt.Sprintf("Not affected: %s states which releases of %s have %s, and %s runs %s %s, which is not one of them. Vedette closed this by itself and reopens it if a later match says the device is affected.",
+				who, clean(r.product), v.CVE, clean(a.Name), clean(r.product), clean(release))
+		}
 		return No, VersionRange{}, fmt.Sprintf("Not affected: %s states the fixed release of each release train for %s, and %s runs %s %s, which is not affected. Vedette closed this by itself and reopens it if a later match says the device is affected.",
 			who, v.CVE, clean(a.Name), clean(r.product), clean(release))
 	}

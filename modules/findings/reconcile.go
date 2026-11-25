@@ -203,8 +203,11 @@ func detectionOf(x Match, lines map[string]line) Detection {
 	}
 	if d.Verified == "" {
 		d.Verified = VerifiedNo
-		if ev.deviceStated() {
+		switch {
+		case ev.deviceStated():
 			d.Verified = VerifiedDevice
+		case x.Basis == BasisVersion && d.entryConfirms(): // the version a person entered is inside the range: their word
+			d.Verified = VerifiedPerson
 		}
 	}
 	return d

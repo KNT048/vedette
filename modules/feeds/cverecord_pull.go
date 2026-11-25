@@ -84,8 +84,10 @@ const (
 	// recordReader is the revision of the reader that turns a record into ranges (recordRanges), stamped on the cursor's address
 	// (recordCursorURL). Records are not stored whole, so a box whose records an older reader read reads the whole list again, once,
 	// when this changes: "ranges-2" keeps the versions a vendor writes in its own notation (statedRows); "ranges-3" reads VMware's ESXi
-	// versions written as words ("8.0 prior to ESXi80a-20842819", esxiTextRows).
-	recordReader = "ranges-3"
+	// versions written as words ("8.0 prior to ESXi80a-20842819", esxiTextRows); "ranges-4" keeps Juniper's fix per maintenance branch
+	// ("22.3R2-S2, 22.3R3-S1") as one row per branch (branchFixes); "ranges-5" keeps, for a product with a version scheme, the ranges a
+	// vendor states unaffected (unaffectedRows) and the rows of an entry limited to some models, with the models (statedRows).
+	recordReader = "ranges-5"
 	// recordRereadMark marks a cursor whose whole-list read replaces every stored record, a newer one too (recordsBulk).
 	recordRereadMark = "-reread"
 )

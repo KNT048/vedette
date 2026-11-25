@@ -48844,11 +48844,15 @@
                           "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
                         },
                         "by": {
-                          "description": "verified person: who confirmed it",
+                          "description": "verified person: who confirmed it, or whose entered version confirmed it (entered)",
                           "type": [
                             "string",
                             "null"
                           ]
+                        },
+                        "entered": {
+                          "description": "verified person: true when Vedette confirmed it because the version that person entered is affected, not a Confirm the person pressed (\"Confirmed: the version <user> entered\")",
+                          "type": "boolean"
                         },
                         "at": {
                           "anyOf": [
@@ -48871,7 +48875,7 @@
                         "at"
                       ],
                       "additionalProperties": false,
-                      "description": "The second line under the status: \"Confirmed by a safe check\", \"Confirmed: the device reports this version\", \"Confirmed by <user>\", \"Not confirmed yet: based on a scan banner\""
+                      "description": "The second line under the status: \"Confirmed by a safe check\", \"Confirmed: the device reports this version\", \"Confirmed by <user>\", \"Confirmed: the version <user> entered\", \"Not confirmed yet: based on a scan banner\""
                     },
                     "handled": {
                       "anyOf": [
@@ -49692,11 +49696,15 @@
                           "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
                         },
                         "by": {
-                          "description": "verified person: who confirmed it",
+                          "description": "verified person: who confirmed it, or whose entered version confirmed it (entered)",
                           "type": [
                             "string",
                             "null"
                           ]
+                        },
+                        "entered": {
+                          "description": "verified person: true when Vedette confirmed it because the version that person entered is affected, not a Confirm the person pressed (\"Confirmed: the version <user> entered\")",
+                          "type": "boolean"
                         },
                         "at": {
                           "anyOf": [
@@ -49719,7 +49727,7 @@
                         "at"
                       ],
                       "additionalProperties": false,
-                      "description": "The second line under the status: \"Confirmed by a safe check\", \"Confirmed: the device reports this version\", \"Confirmed by <user>\", \"Not confirmed yet: based on a scan banner\""
+                      "description": "The second line under the status: \"Confirmed by a safe check\", \"Confirmed: the device reports this version\", \"Confirmed by <user>\", \"Confirmed: the version <user> entered\", \"Not confirmed yet: based on a scan banner\""
                     },
                     "handled": {
                       "anyOf": [
@@ -50561,11 +50569,15 @@
                           "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
                         },
                         "by": {
-                          "description": "verified person: who confirmed it",
+                          "description": "verified person: who confirmed it, or whose entered version confirmed it (entered)",
                           "type": [
                             "string",
                             "null"
                           ]
+                        },
+                        "entered": {
+                          "description": "verified person: true when Vedette confirmed it because the version that person entered is affected, not a Confirm the person pressed (\"Confirmed: the version <user> entered\")",
+                          "type": "boolean"
                         },
                         "at": {
                           "anyOf": [
@@ -50588,7 +50600,7 @@
                         "at"
                       ],
                       "additionalProperties": false,
-                      "description": "The second line under the status: \"Confirmed by a safe check\", \"Confirmed: the device reports this version\", \"Confirmed by <user>\", \"Not confirmed yet: based on a scan banner\""
+                      "description": "The second line under the status: \"Confirmed by a safe check\", \"Confirmed: the device reports this version\", \"Confirmed by <user>\", \"Confirmed: the version <user> entered\", \"Not confirmed yet: based on a scan banner\""
                     },
                     "handled": {
                       "anyOf": [
@@ -51410,11 +51422,15 @@
                           "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
                         },
                         "by": {
-                          "description": "verified person: who confirmed it",
+                          "description": "verified person: who confirmed it, or whose entered version confirmed it (entered)",
                           "type": [
                             "string",
                             "null"
                           ]
+                        },
+                        "entered": {
+                          "description": "verified person: true when Vedette confirmed it because the version that person entered is affected, not a Confirm the person pressed (\"Confirmed: the version <user> entered\")",
+                          "type": "boolean"
                         },
                         "at": {
                           "anyOf": [
@@ -51437,7 +51453,7 @@
                         "at"
                       ],
                       "additionalProperties": false,
-                      "description": "The second line under the status: \"Confirmed by a safe check\", \"Confirmed: the device reports this version\", \"Confirmed by <user>\", \"Not confirmed yet: based on a scan banner\""
+                      "description": "The second line under the status: \"Confirmed by a safe check\", \"Confirmed: the device reports this version\", \"Confirmed by <user>\", \"Confirmed: the version <user> entered\", \"Not confirmed yet: based on a scan banner\""
                     },
                     "handled": {
                       "anyOf": [
@@ -52886,11 +52902,15 @@
                                             "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
                                           },
                                           "by": {
-                                            "description": "verified person: who confirmed it",
+                                            "description": "verified person: who confirmed it, or whose entered version confirmed it (entered)",
                                             "type": [
                                               "string",
                                               "null"
                                             ]
+                                          },
+                                          "entered": {
+                                            "description": "verified person: true when Vedette confirmed it because the version that person entered is affected, not a Confirm the person pressed (\"Confirmed: the version <user> entered\")",
+                                            "type": "boolean"
                                           },
                                           "at": {
                                             "anyOf": [
@@ -56135,11 +56155,15 @@
                                           "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
                                         },
                                         "by": {
-                                          "description": "verified person: who confirmed it",
+                                          "description": "verified person: who confirmed it, or whose entered version confirmed it (entered)",
                                           "type": [
                                             "string",
                                             "null"
                                           ]
+                                        },
+                                        "entered": {
+                                          "description": "verified person: true when Vedette confirmed it because the version that person entered is affected, not a Confirm the person pressed (\"Confirmed: the version <user> entered\")",
+                                          "type": "boolean"
                                         },
                                         "at": {
                                           "anyOf": [

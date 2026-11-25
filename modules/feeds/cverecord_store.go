@@ -81,8 +81,8 @@ ssvc_impact = ?, description = CASE WHEN nvd_at IS NULL OR description = '' THEN
 WHERE cve = ?`},
 		{&s.readAt, `SELECT record_at IS NOT NULL, EXISTS (SELECT 1 FROM feeds_cve_range r WHERE r.cve = feeds_cve.cve AND r.origin = 'nvd') FROM feeds_cve WHERE cve = ?`},
 		{&s.delRanges, `DELETE FROM feeds_cve_range WHERE cve = ? AND origin IN ('cna', 'adp')`},
-		{&s.insRange, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, fixed, version_type, default_status)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`},
+		{&s.insRange, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, fixed, version_type, default_status,
+platforms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`},
 		{&s.delRefs, `DELETE FROM feeds_cve_ref WHERE cve = ? AND (? OR NOT EXISTS (SELECT 1 FROM feeds_cve_ref n WHERE n.cve = feeds_cve_ref.cve AND n.source = 'nvd'))`},
 		{&s.nvdRefs, `SELECT EXISTS (SELECT 1 FROM feeds_cve_ref WHERE cve = ? AND source = 'nvd')`},
 		{&s.insRef, `INSERT INTO feeds_cve_ref (cve, url, tags, source) VALUES (?, ?, ?, ?)`},
@@ -240,7 +240,7 @@ func replaceRecordRanges(ctx context.Context, tx *sql.Tx, st *recordStmts, r CVE
 	}
 	for _, w := range want {
 		if _, err := st.insRange.ExecContext(ctx, r.CVE, w.Origin, w.Part, clipBytes(w.Vendor), clipBytes(w.Product), w.CPE, w.StartIncl, w.StartExcl,
-			w.EndIncl, w.EndExcl, w.Fixed, w.VersionType, w.DefaultStatus); err != nil {
+			w.EndIncl, w.EndExcl, w.Fixed, w.VersionType, w.DefaultStatus, recordPlatforms(w.Platforms)); err != nil {
 			return false, false, fmt.Errorf("feeds: CVE record %s: %w", r.CVE, err)
 		}
 	}
@@ -250,7 +250,20 @@ func replaceRecordRanges(ctx context.Context, tx *sql.Tx, st *recordStmts, r CVE
 // sameRecordRange compares two record ranges of one CVE on every stored column.
 func sameRecordRange(a, b Range) bool {
 	return a.Origin == b.Origin && a.Part == b.Part && a.Vendor == clipBytes(b.Vendor) && a.Product == clipBytes(b.Product) && a.CPE == b.CPE &&
-		sameSpan(a, b) && a.DefaultStatus == b.DefaultStatus
+		sameSpan(a, b) && a.DefaultStatus == b.DefaultStatus && slices.Equal(a.Platforms, b.Platforms)
+}
+
+// recordPlatforms is the platforms column of a record row: the models a model-limited entry names (Range.ModelLimited, entryModels
+// bounds them), NULL for a row of every device.
+func recordPlatforms(ps []string) any {
+	if len(ps) == 0 {
+		return nil
+	}
+	b, err := json.Marshal(ps)
+	if err != nil {
+		return nil
+	}
+	return string(b)
 }
 
 // ---- the exploited lists' view, as findings reads it today (KevAffected, RangesFromCVEOrg) ----

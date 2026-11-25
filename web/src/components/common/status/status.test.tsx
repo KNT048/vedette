@@ -65,10 +65,11 @@ describe('VerificationLine', () => {
       <VerificationLine verified="scan" basis="scan" />
       <VerificationLine verified="device" basis="device_version" />
       <VerificationLine verified="person" basis="person" by="ana" />
+      <VerificationLine verified="person" basis="statement" by="bo" entered />
       <VerificationLine verified="no" basis="banner_version" />
       <VerificationLine verified="no" />
     </>)
-    for (const s of ['Confirmed by a safe check', 'Confirmed: the device reports this version', 'Confirmed by ana', 'Not confirmed yet: based on a scan banner', 'Not confirmed yet']) {
+    for (const s of ['Confirmed by a safe check', 'Confirmed: the device reports this version', 'Confirmed by ana', 'Confirmed: the version bo entered', 'Not confirmed yet: based on a scan banner', 'Not confirmed yet']) {
       expect(screen.getByText(s)).toBeInTheDocument()
     }
   })

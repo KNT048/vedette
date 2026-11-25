@@ -103,6 +103,12 @@ type deps struct {
 	TrustAnchor func() ([]byte, error)
 	HostAllowed func(host string) bool
 	OsqueryDir  string
+	// BoxCASince is when the box CA agents pin began (its NotBefore); zero when the box serves an owner's certificate, no TLS, or the CA
+	// cannot be read just now. nil in tests.
+	BoxCASince func(ctx context.Context) time.Time
+	// Handshakes is the 8443 server's handshake error log (tlsnoise.go): it also keeps, per address, the handshakes that ended because
+	// the client pins another certificate authority. nil in tests.
+	Handshakes *handshakeNoise
 	// CertKick asks the TLS certificate watcher to look at the box's addresses now; never nil in serve.
 	CertKick func()
 	// SyslogPort is -syslog-port: the port of the logs module's syslog listener; 0 = 514, then 5514.

@@ -118,3 +118,80 @@ func TestDeviceSources_ThreeRowsDecidedOnTheServer(t *testing.T) {
 		t.Fatalf("unknown device: %v", err)
 	}
 }
+
+// After a reinstall or a data purge the box has a new certificate authority, and every agent installed before pins the old one: it can
+// never report again. Its agent row says so, with the install command as the button, instead of none or quiet.
+func TestDeviceSources_AgentRowSaysTheBoxCertificateChanged(t *testing.T) {
+	t.Parallel()
+	agent := map[string]inventory.AgentFact{}
+	refused := map[string]inventory.TLSRefusal{}
+	var since time.Time
+	e := newEnv(t, func(c *inventory.Config) {
+		c.AgentOf = func(_ context.Context, id string) (inventory.AgentFact, error) {
+			if f, ok := agent[id]; ok {
+				return f, nil
+			}
+			return inventory.AgentFact{Agent: inventory.AgentNone}, nil
+		}
+		c.TLSRefusals = func(ip string) inventory.TLSRefusal { return refused[ip] }
+		c.TrustSince = func(context.Context) time.Time { return since }
+	})
+	ctx := e.ctx()
+	for _, a := range []string{"10.0.0.31", "10.0.0.32", "10.0.0.33", "10.0.0.34", "10.0.0.35"} {
+		e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr(a)}, Field: observe.Hostname, Value: "srv-" + a[len(a)-2:], Source: observe.Nmap, Confidence: 0.7})
+	}
+	fresh, purged, quietOld, quietNew, reporting := e.idOf("10.0.0.31"), e.idOf("10.0.0.32"), e.idOf("10.0.0.33"), e.idOf("10.0.0.34"), e.idOf("10.0.0.35")
+	since = e.now.Add(-24 * time.Hour)
+	// a purged box: no token, no node; the machine's old agent keeps refusing the new certificate
+	refused["10.0.0.32"] = inventory.TLSRefusal{First: e.now.Add(-50 * time.Minute), Last: e.now.Add(-time.Minute), Count: 40}
+	// a single odd refusal does not count
+	refused["10.0.0.31"] = inventory.TLSRefusal{First: e.now.Add(-time.Minute), Last: e.now.Add(-time.Minute), Count: 1}
+	// an osquery agent silent since before the CA began (kept data, CA replaced) and one silent since after (ordinary quiet)
+	agent[quietOld] = inventory.AgentFact{Agent: inventory.AgentOsquery, State: "quiet", LastSeen: since.Add(-time.Hour)}
+	agent[quietNew] = inventory.AgentFact{Agent: inventory.AgentOsquery, State: "quiet", LastSeen: since.Add(time.Hour)}
+	// an agent that reports is never cert_changed, whatever else its address sends
+	agent[reporting] = inventory.AgentFact{Agent: inventory.AgentOsquery, State: "reporting", LastSeen: e.now.Add(-time.Minute)}
+	refused["10.0.0.35"] = refused["10.0.0.32"]
+
+	str := func(p *string) string {
+		if p == nil {
+			return ""
+		}
+		return *p
+	}
+	for _, c := range []struct {
+		id, state, dot, action string
+		refused                bool
+	}{
+		{fresh, "none", "grey", "create_token", false},
+		{purged, "cert_changed", "red", "create_token", true},
+		{quietOld, "cert_changed", "red", "create_token", false},
+		{quietNew, "quiet", "amber", "check", false},
+		{reporting, "reporting", "green", "check", false},
+	} {
+		v, err := e.svc.DeviceSources(ctx, c.id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := v.Rows[2]
+		if r.State != c.state || r.Dot != c.dot || str(r.Action) != c.action || (r.Refused != nil) != c.refused {
+			t.Errorf("device %s agent row: %+v (action %q refused %+v), want %s %s %s refused=%v", c.id, r, str(r.Action), r.Refused, c.state, c.dot, c.action, c.refused)
+		}
+		if c.refused && r.Refused != nil && (r.Refused.Count != 40 || r.Refused.Since == "" || r.Refused.Last == "") {
+			t.Errorf("refused of %s: %+v", c.id, r.Refused)
+		}
+	}
+	// refusals older than two hours are history: the machine was fixed or is gone
+	refused["10.0.0.32"] = inventory.TLSRefusal{First: e.now.Add(-5 * time.Hour), Last: e.now.Add(-3 * time.Hour), Count: 40}
+	if v, _ := e.svc.DeviceSources(ctx, purged); v.Rows[2].State != "none" {
+		t.Fatalf("old refusals: %+v", v.Rows[2])
+	}
+	// a person turned the agent off for the device: off wins and says nothing of refusals
+	refused["10.0.0.32"] = inventory.TLSRefusal{First: e.now.Add(-time.Hour), Last: e.now, Count: 9}
+	if _, err := e.svc.ChangeSources(ctx, "admin@example.com", purged, inventory.SourcesChange{Agent: ptr("off")}); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := e.svc.DeviceSources(ctx, purged); v.Rows[2].State != "off" || v.Rows[2].Refused != nil {
+		t.Fatalf("agent off: %+v", v.Rows[2])
+	}
+}

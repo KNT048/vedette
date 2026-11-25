@@ -924,8 +924,8 @@ function sourceRowsOf(a: Asset): DeviceSourcesView {
   const cls = (src: string) => (src === 'nmap' ? 'scan' : src)
   for (const o of obsOf(a)) times.set(cls(o.source), [times.get(cls(o.source)) ?? '', o.seen_at].sort().at(-1)!)
   for (const x of [...a.software, ...a.services]) if (!times.has(cls(x.source))) times.set(cls(x.source), 'set_at' in x && x.set_at ? x.set_at : a.last_seen)
-  const dot = (state: DeviceSourceRow['state']): DeviceSourceRow['dot'] => (state === 'working' || state === 'reporting' ? 'green' : state === 'quiet' || state === 'never_reported' ? 'amber' : state === 'not_answering' ? 'red' : 'grey')
-  const row = (r: Omit<DeviceSourceRow, 'dot' | 'next_at'> & { next_at?: string | null }): DeviceSourceRow => ({ ...r, next_at: r.next_at ?? null, dot: dot(r.state) })
+  const dot = (state: DeviceSourceRow['state']): DeviceSourceRow['dot'] => (state === 'working' || state === 'reporting' ? 'green' : state === 'quiet' || state === 'never_reported' ? 'amber' : state === 'not_answering' || state === 'cert_changed' ? 'red' : 'grey')
+  const row = (r: Omit<DeviceSourceRow, 'dot' | 'next_at' | 'refused'> & { next_at?: string | null; refused?: DeviceSourceRow['refused'] }): DeviceSourceRow => ({ ...r, next_at: r.next_at ?? null, refused: r.refused ?? null, dot: dot(r.state) })
   const ip = hasIp(a)
   const scanSwitch = sourceOf(a, 'scan_source')
   const self = a.id === BOX_ID ? 'box' as const : metaStore.get()[a.id]?.ignored_at ? 'ignored' as const : null // no switch, no button

@@ -65,6 +65,7 @@ function StateWords({ d, row }: { d: DeviceDetail; row: DeviceSourceRow }) {
   if (row.state === 'waiting') return <>{t(`sources.state.waiting.${row.source}`)}</>
   if (row.state === 'reporting' && row.agent && row.agent !== 'none') return <>{t('sources.state.reportingBy', { agent: t(`sources.agentKind.${row.agent}`) })}</>
   if (row.state === 'box') return <>{t(`sources.state.boxRow.${row.source}`)}</>
+  if (row.state === 'cert_changed' && row.refused) return <>{t('sources.state.certChangedSince', { when: fmtRelative(row.refused.since), count: row.refused.count })}</>
   return <>{t(`sources.state.${row.state}`)}</>
 }
 

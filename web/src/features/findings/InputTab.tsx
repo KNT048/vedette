@@ -1,14 +1,15 @@
 // Needs your input: one queue of what only a person can settle, each item with its one action in place (forms open as dialogs).
-// Devices nobody added yet that have findings (Add device, Ignore); devices Vedette cannot check (Add its firmware, SNMP, an agent);
-// urgent findings not confirmed yet (Run the safe check first when one exists, then Confirm vulnerability or Not affected…);
-// questions (the version, the platform, the package release, "possibly affected: check the version", a release line the vendor names
-// no fix for); last, one card for the devices nobody added yet that have no open finding (Review: the Devices list's To review). An
+// Devices nobody added yet that have findings (Add device, Ignore); then one card per added device, collapsed, that opens to what it needs:
+// that Vedette cannot check it (Add its firmware, SNMP, an agent), urgent findings not confirmed yet (Run the safe check first when one
+// exists, then Confirm vulnerability or Not affected…), and its questions grouped by software line, one entry per line ("Thunderbird
+// 115.9.0: 196 CVEs waiting") with its one action (the version, the platform, the package release) and Ignore; the CVEs of a line are
+// behind a click; last, one card for the devices nobody added yet that have no open finding (Review: the Devices list's To review). An
 // item leaves the queue the moment it is answered or stops being true (GET /findings/input).
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { X } from 'lucide-react'
+import { ChevronDown, X } from 'lucide-react'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ListSearch } from '@/components/common/Pager'
 import { useListParams } from '@/components/common/listParams'
@@ -21,7 +22,7 @@ import { useCan } from '@/lib/session'
 import { useDeviceAction } from '@/features/inventory/api'
 import { AddDeviceDialog } from '@/features/inventory/AddDeviceDialog'
 import { useStartRun } from '@/features/scan/api'
-import { useAnswer, useAnswered, useInputList, useUnanswer, useVerify } from './api'
+import { useAnswer, useAnswered, useIgnoreQuestions, useInputList, useUnanswer, useVerify } from './api'
 import { AskDialog, type Ask } from './AskDialog'
 import { PAGE_DEFAULT, PAGE_MAX } from './contract'
 import { errMsg } from './errors'
@@ -29,7 +30,7 @@ import { HandleDialog } from './HandleDialog'
 import { NotAdded } from './NotAdded'
 import { asAsset, DeviceLine } from './parts'
 import { linkLabels } from './links'
-import type { AnsweredQuestion, InputItem } from './types'
+import type { AnsweredQuestion, InputGroupItem, InputItem, InputQuestionItem, InputUncheckedItem, InputUnconfirmedItem } from './types'
 
 /** What PATCH …/software/{sid} accepts as a version (the inventory's versionRE). */
 const VERSION_RE = /^[A-Za-z0-9_.\-+() ]{1,40}$/
@@ -74,7 +75,7 @@ function NotAddedGroupItem({ i }: { i: Item<'devices_not_added'> }) {
 
 /** A device a person added that Vedette cannot check (no software, firmware or OS it can match): its empty findings say nothing. The
  *  ways to say what runs there, the first in place: its firmware version (the software dialog), SNMP read access, an agent. */
-function UncheckedItem({ i, link }: { i: Item<'device_unchecked'>; link: boolean }) {
+function UncheckedItem({ i, link }: { i: InputUncheckedItem; link: boolean }) {
   const { t } = useTranslation('findings')
   const r = useRoles()
   const [adding, setAdding] = useState(false)
@@ -95,7 +96,7 @@ function UncheckedItem({ i, link }: { i: Item<'device_unchecked'>; link: boolean
   )
 }
 
-function UnconfirmedItem({ i, link }: { i: Item<'unconfirmed'>; link: boolean }) {
+function UnconfirmedItem({ i, link }: { i: InputUnconfirmedItem; link: boolean }) {
   const { t } = useTranslation('findings')
   const r = useRoles()
   const run = useStartRun()
@@ -142,7 +143,7 @@ function UnconfirmedItem({ i, link }: { i: Item<'unconfirmed'>; link: boolean })
 type Asking = { kind: 'version' } | { kind: 'choice'; label: string; ask: ('os' | 'pkg_version')[] } | { kind: 'answer'; answer: 'affected' | 'not_affected' }
 
 /** The dialog of a question's answer: what it asks and where it sends it. */
-function QuestionDialog({ i, asking, onClose }: { i: Item<'question'>; asking: Asking; onClose: () => void }) {
+function QuestionDialog({ i, asking, onClose }: { i: InputQuestionItem; asking: Asking; onClose: () => void }) {
   const { t } = useTranslation('findings')
   const act = useDeviceAction(i.device.id)
   const answer = useAnswer()
@@ -182,7 +183,9 @@ function QuestionDialog({ i, asking, onClose }: { i: Item<'question'>; asking: A
   )
 }
 
-function QuestionItem({ i, link }: { i: Item<'question'>; link: boolean }) {
+/** One question of a software line. `action` is the line's one action (the version, the platform, the package release), `row` is one
+ *  CVE of the line behind the click: its link and, when only a person's word decides it, Affected / Not affected. */
+function QuestionItem({ i, mode }: { i: InputQuestionItem; mode: 'action' | 'row' }) {
   const { t } = useTranslation('findings')
   const r = useRoles()
   const act = useDeviceAction(i.device.id)
@@ -194,59 +197,138 @@ function QuestionItem({ i, link }: { i: Item<'question'>; link: boolean }) {
   // what the question says: the CVE lists versions, just none that decides this one; the vendor names fixes only on newer lines
   const text = i.question === 'no_range_data' && i.versions_listed ? 'queue.q.no_range_data_listed'
     : i.question === 'older_line' && !i.fixes.length ? 'queue.q.older_line_none' : `queue.q.${i.question}`
-  return (
-    <div className="grid gap-2">
-      <p className="text-sm">{t(text, words)}</p>
-      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <DeviceLine device={i.device} badge={false} link={link} />
-        {i.cve ? <Link to={`/cve/${encodeURIComponent(i.cve)}`} className="text-meta text-accent underline-offset-4 hover:underline">{i.cve}</Link> : null}
-        {/* the link says what it is: NVD's entry is not the vendor's advisory */}
-        {i.url ? <a href={i.url} target="_blank" rel="noopener noreferrer" className="text-meta text-accent underline-offset-4 hover:underline">{linkLabels(t, [i.url])[0]}</a> : null}
-      </span>
-      {i.question === 'older_line' && i.cve_list.length ? (
-        <details className="text-meta">
-          <summary className="w-fit cursor-pointer text-accent">{t('queue.showCves', { count: i.cve_list.length })}</summary>
-          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-            {i.cve_list.map((c) => <li key={c}><Link to={`/cve/${encodeURIComponent(c)}`} className="text-accent underline-offset-4 hover:underline">{c}</Link></li>)}
-          </ul>
-        </details>
-      ) : null}
-      {i.command && !i.choices.some((c) => c.ask?.includes('pkg_version')) ? <p className="text-meta text-muted">{t('queue.command')} <code className="font-mono">{i.command}</code></p> : null}
-      <div className="flex flex-wrap items-center gap-2">
-        {typed && sw ? <Button size="sm" variant="primary" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'version' })}>{t('queue.addVersion')}</Button> : null}
-        {typed && !sw ? (
-          <Link to={`/devices/${encodeURIComponent(i.device.id)}?tab=software`} className="text-meta text-accent underline underline-offset-4">{t('queue.openSoftware')}</Link>
-        ) : null}
-        {i.choices.map((c) => c.os ? (
-          <Button key={c.label} size="sm" disabled={!r.operator || act.patch.isPending} title={r.needOperator} busy={act.patch.isPending && act.patch.variables?.os === c.os} busyLabel={t('common:busy.saving')}
-            onClick={() => act.patch.mutate({ os: c.os! }, { onSuccess: () => toast.success(t('queue.answerSaved', words)), onError: (e) => toast.error(errMsg(e)) })}>{c.label}</Button>
-        ) : (
-          <Button key={c.label} size="sm" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'choice', label: c.label, ask: c.ask ?? [] })}>{c.label}</Button>
-        ))}
-        {i.question === 'no_range_data' && i.cve ? (
-          <>
-            <Button size="sm" disabled={!r.admin} title={r.needAdmin} onClick={() => setAsking({ kind: 'answer', answer: 'affected' })}>{t('queue.affected')}</Button>
+  const perCve = i.question === 'no_range_data' || i.question === 'older_line'
+  if (mode === 'row') {
+    return (
+      <div className="grid gap-1.5">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {i.cve ? <Link to={`/cve/${encodeURIComponent(i.cve)}`} className="text-accent underline-offset-4 hover:underline">{i.cve}</Link> : null}
+          {/* the link says what it is: NVD's entry is not the vendor's advisory */}
+          {i.url ? <a href={i.url} target="_blank" rel="noopener noreferrer" className="text-meta text-accent underline-offset-4 hover:underline">{linkLabels(t, [i.url])[0]}</a> : null}
+          {i.cve_list.map((c) => <Link key={c} to={`/cve/${encodeURIComponent(c)}`} className="text-accent underline-offset-4 hover:underline">{c}</Link>)}
+        </span>
+        {perCve ? <p className="text-meta text-muted">{t(text, words)}</p> : null}
+        {perCve ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {i.question === 'no_range_data' && i.cve ? (
+              <Button size="sm" disabled={!r.admin} title={r.needAdmin} onClick={() => setAsking({ kind: 'answer', answer: 'affected' })}>{t('queue.affected')}</Button>
+            ) : null}
             <Button size="sm" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'answer', answer: 'not_affected' })}>{t('queue.not_affected')}</Button>
-          </>
+          </div>
         ) : null}
-        {i.question === 'older_line' ? (
-          <>
-            {sw ? <Link to={`/devices/${encodeURIComponent(i.device.id)}?tab=software`} className="text-meta text-accent underline underline-offset-4">{t('queue.openSoftware')}</Link> : null}
-            <Button size="sm" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'answer', answer: 'not_affected' })}>{t('queue.not_affected')}</Button>
-          </>
-        ) : null}
+        {asking ? <QuestionDialog i={i} asking={asking} onClose={() => setAsking(null)} /> : null}
       </div>
+    )
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {typed && sw ? <Button size="sm" variant="primary" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'version' })}>{t('queue.addVersion')}</Button> : null}
+      {i.choices.map((c) => c.os ? (
+        <Button key={c.label} size="sm" disabled={!r.operator || act.patch.isPending} title={r.needOperator} busy={act.patch.isPending && act.patch.variables?.os === c.os} busyLabel={t('common:busy.saving')}
+          onClick={() => act.patch.mutate({ os: c.os! }, { onSuccess: () => toast.success(t('queue.answerSaved', words)), onError: (e) => toast.error(errMsg(e)) })}>{c.label}</Button>
+      ) : (
+        <Button key={c.label} size="sm" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'choice', label: c.label, ask: c.ask ?? [] })}>{c.label}</Button>
+      ))}
+      {i.command && !i.choices.some((c) => c.ask?.includes('pkg_version')) ? <span className="text-meta text-muted">{t('queue.command')} <code className="font-mono">{i.command}</code></span> : null}
       {asking ? <QuestionDialog i={i} asking={asking} onClose={() => setAsking(null)} /> : null}
     </div>
+  )
+}
+
+/** Ignore (bypass): answers "not affected" to every open question of a software line, or of the whole device, in one step. */
+function IgnoreDialog({ device, line, count, onClose }: { device: { id: string; name: string }; line: { id: string; name: string } | null; count: number; onClose: () => void }) {
+  const { t } = useTranslation('findings')
+  const ignore = useIgnoreQuestions()
+  const words = { device: device.name, software: line?.name ?? '', count }
+  return (
+    <AskDialog title={line ? t('queue.ignoreLineTitle', words) : t('queue.ignoreDeviceTitle', words)} description={t('queue.ignoreBody', words)} submit={t('queue.ignoreSubmit')}
+      done={line ? t('queue.ignoredLine', words) : t('queue.ignoredDevice', words)} onClose={onClose}
+      fields={[{ name: 'note', label: t('queue.notAffectedNote'), min: 3, required: true, max: 500, long: true }]}
+      onSend={(v) => ignore.mutateAsync({ device: device.id, software: line?.id, note: v.note! })} />
+  )
+}
+
+const lineName = (g: InputGroupItem, fallback: string) => (g.software ? (g.software.version ? `${g.software.name} ${g.software.version}` : g.software.name) : fallback)
+
+/** One software line of a device: "Thunderbird 115.9.0: 196 CVEs waiting", its one action, an Ignore for the line, the CVEs behind a click. */
+function SoftwareEntry({ g, device }: { g: InputGroupItem; device: Item<'device_needs'>['device'] }) {
+  const { t } = useTranslation('findings')
+  const r = useRoles()
+  const [open, setOpen] = useState(false)
+  const [ignoring, setIgnoring] = useState(false)
+  const primary = g.questions[0]!
+  const name = lineName(g, t('queue.theSoftware'))
+  const typed = primary.question === 'version_needed' || primary.question === 'not_comparable'
+  const sentence = typed ? t(`queue.group.${primary.question}`, { software: name, count: g.cves })
+    : primary.question === 'platform' || primary.question === 'package_release' ? t(`queue.group.${primary.question}`, { software: name, count: g.cves })
+    : t('queue.group.waiting', { software: name, count: g.cves })
+  const panel = `needs-${g.id.replace(/[^\w-]/g, '_')}`
+  return (
+    <li className="grid gap-2 py-3" data-testid="needs-line">
+      <p className="text-sm font-medium">{sentence}</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <QuestionItem i={primary} mode="action" />
+        {!typed && primary.software ? (
+          <Link to={`/devices/${encodeURIComponent(device.id)}?tab=software`} className="text-meta text-accent underline underline-offset-4">{t('queue.openSoftware')}</Link>
+        ) : null}
+        {g.software ? (
+          <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.ignoreLineOf', { software: name, device: device.name })} onClick={() => setIgnoring(true)}>{t('queue.ignore')}</Button>
+        ) : null}
+      </div>
+      <details className="text-meta" onToggle={(e) => setOpen(e.currentTarget.open)}>
+        <summary className="w-fit cursor-pointer text-accent">{t('queue.showCves', { count: g.cves })}</summary>
+        {open ? (
+          <ul id={panel} className="mt-2 grid divide-y divide-rule border-l border-rule pl-3">
+            {g.questions.map((q) => <li key={q.id} className="py-1.5"><QuestionItem i={q} mode="row" /></li>)}
+          </ul>
+        ) : null}
+      </details>
+      {ignoring && g.software ? <IgnoreDialog device={device} line={{ id: g.software!.id, name }} count={g.cves} onClose={() => setIgnoring(false)} /> : null}
+    </li>
+  )
+}
+
+/** One card per added device: everything Vedette needs from a person about it, collapsed to a line by default (as Findings By fix).
+ *  Opened: what runs there, urgent findings not confirmed yet, and its software lines with their questions. */
+function DeviceNeeds({ i, link }: { i: Item<'device_needs'>; link: boolean }) {
+  const { t } = useTranslation('findings')
+  const r = useRoles()
+  const [open, setOpen] = useState(false)
+  const [ignoring, setIgnoring] = useState(false)
+  const lines = i.entries.filter((e): e is InputGroupItem => e.kind === 'software_group')
+  const cves = lines.reduce((n, g) => n + g.cves, 0)
+  const others = i.entries.length - lines.length
+  const panel = `needs-${i.id.replace(/[^\w-]/g, '_')}`
+  return (
+    <article aria-label={t('queue.deviceCard', { device: i.device.name })} className="grid gap-2 py-1">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Button variant="ghost" size="sm" aria-expanded={open} aria-controls={panel} onClick={() => setOpen((o) => !o)} className="-ml-2 h-auto min-h-8 justify-start gap-1.5 whitespace-normal py-1 text-left">
+            <ChevronDown aria-hidden className={open ? 'rotate-180' : ''} />
+            <span className="text-sm font-semibold [overflow-wrap:anywhere]">{i.device.name}</span>
+            <span className="font-normal text-muted">{t('queue.deviceSummary', { lines: lines.length, cves, others })}</span>
+          </Button>
+          {link ? <Link to={`/devices/${encodeURIComponent(i.device.id)}`} className="text-meta text-accent underline-offset-4 hover:underline">{t('queue.openDevice')}</Link> : null}
+        </div>
+        {lines.length ? (
+          <Button size="sm" disabled={!r.operator} title={r.needOperator} aria-label={t('queue.ignoreDeviceOf', { device: i.device.name })} onClick={() => setIgnoring(true)}>{t('queue.ignoreAll')}</Button>
+        ) : null}
+      </div>
+      {open ? (
+        <ul id={panel} aria-label={t('queue.entriesOf', { device: i.device.name })} className="ml-6 grid divide-y divide-rule border-l border-rule pl-3">
+          {i.entries.map((e) => e.kind === 'software_group' ? <SoftwareEntry key={e.id} g={e} device={i.device} />
+            : <li key={e.id} className="py-3">{e.kind === 'unconfirmed' ? <UnconfirmedItem i={e} link={false} /> : <UncheckedItem i={e} link={false} />}</li>)}
+        </ul>
+      ) : null}
+      {ignoring ? <IgnoreDialog device={i.device} line={null} count={cves} onClose={() => setIgnoring(false)} /> : null}
+    </article>
   )
 }
 
 /** One item of the queue. linkDevice false names its device without a link: an earlier item of the page links to its page. */
 export function QueueItem({ i, linkDevice = true }: { i: InputItem; linkDevice?: boolean }) {
   return i.kind === 'devices_not_added' ? <NotAddedGroupItem i={i} />
-    : i.kind === 'device_not_added' ? <NotAddedItem i={i} link={linkDevice} />
-    : i.kind === 'device_unchecked' ? <UncheckedItem i={i} link={linkDevice} />
-    : i.kind === 'unconfirmed' ? <UnconfirmedItem i={i} link={linkDevice} /> : <QuestionItem i={i} link={linkDevice} />
+    : i.kind === 'device_not_added' ? <NotAddedItem i={i} link={linkDevice} /> : <DeviceNeeds i={i} link={linkDevice} />
 }
 
 /** The ids of the items that link to their device's page: the first item of each device on the page, so the page has one link per

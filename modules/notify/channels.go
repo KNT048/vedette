@@ -474,7 +474,7 @@ func (s *Service) checkApprovers(ctx context.Context, t channel.Type, in Channel
 	return nil
 }
 
-// emailFields keeps only the fields the email provider uses: the tenant and client IDs belong to Microsoft 365, and Postmark's
+// emailFields keeps only the fields the email provider uses: the tenant and client IDs belong to Microsoft, and Postmark's
 // username is its server token, a secret, so it is never a field.
 func emailFields(fields map[string]string) error {
 	if fields["provider"] == "" {
@@ -484,10 +484,11 @@ func emailFields(fields map[string]string) error {
 	if !ok {
 		return badRequest("bad_provider", "Choose an email provider from the list, or Custom SMTP.")
 	}
-	if auth != channel.AuthMicrosoft && auth != channel.AuthMicrosoftUser {
+	ms := auth == channel.AuthMicrosoft || auth == channel.AuthMicrosoftGraph || auth == channel.AuthMicrosoftUser
+	if !ms {
 		delete(fields, "tenant_id")
 	}
-	if auth != channel.AuthMicrosoft && auth != channel.AuthMicrosoftUser && auth != channel.AuthGoogleUser {
+	if !ms && auth != channel.AuthGoogleUser {
 		delete(fields, "client_id")
 	}
 	if auth == channel.AuthTokenAsUser {
@@ -521,7 +522,7 @@ func (c channelRow) savedFor() string {
 
 // emailSecretName starts the sentence that asks for the secret again.
 var emailSecretName = map[string]string{channel.AuthPassword: "Enter the password or API key", channel.AuthTokenAsUser: "Enter the server API token",
-	channel.AuthMicrosoft: "Enter the client secret", channel.AuthGoogle: "Choose the service account key",
+	channel.AuthMicrosoft: "Enter the client secret", channel.AuthMicrosoftGraph: "Enter the client secret", channel.AuthGoogle: "Choose the service account key",
 	channel.AuthMicrosoftUser: "Sign in with Microsoft", channel.AuthGoogleUser: "Sign in with Google"}
 
 // SaveChannel stores the configuration of one channel (PUT /notify/channels/{type}, PRE-3, INV-1, INV-7, INV-8).

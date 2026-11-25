@@ -216,7 +216,7 @@ const googleKeyOk = (raw: string) => {
     return k.type === 'service_account' && typeof k.client_email === 'string' && EMAIL_RE.test(k.client_email) && typeof k.private_key === 'string' && /^-----BEGIN (RSA )?PRIVATE KEY-----/.test(k.private_key)
   } catch { return false }
 }
-const SECRET_NAME: Record<string, string> = { password: 'Enter the password or API key', token_as_user: 'Enter the server API token', microsoft_oauth: 'Enter the client secret', google_oauth: 'Choose the service account key', microsoft_user: 'Sign in with Microsoft', google_user: 'Sign in with Google' }
+const SECRET_NAME: Record<string, string> = { password: 'Enter the password or API key', token_as_user: 'Enter the server API token', microsoft_oauth: 'Enter the client secret', microsoft_graph: 'Enter the client secret', google_oauth: 'Choose the service account key', microsoft_user: 'Sign in with Microsoft', google_user: 'Sign in with Google' }
 // eslint-disable-next-line no-control-regex
 const ONE_LINE = /^[^\u0000-\u001f\u007f]+$/
 
@@ -284,9 +284,11 @@ function validateEmail(f: Record<string, string>, secret: string, cur: StoredCha
     const bad = signinFieldError(prov.id, f.tenant_id ?? '', f.client_id ?? ''); if (bad) return bad
     if (!has) return needSecret(prov.auth === 'google_user' ? 'Sign in with Google first.' : 'Sign in with Microsoft first.')
   } else if (isOAuth(prov.auth)) {
-    if (pinned && host.toLowerCase().replace(/\.$/, '') !== pinned) return fail(400, 'bad_host', `This sign-in sends its token only to ${pinned}. Enter ${pinned} as the SMTP server.`)
+    const graph = prov.auth === 'microsoft_graph'
+    if (pinned && host.toLowerCase().replace(/\.$/, '') !== pinned) return fail(400, 'bad_host', graph ? `Microsoft Graph sends its token only to ${pinned}. Choose the Microsoft Graph provider again.` : `This sign-in sends its token only to ${pinned}. Enter ${pinned} as the SMTP server.`)
+    if (graph && (port !== 443 || f.security !== 'ssl')) return fail(400, 'bad_port', 'Microsoft Graph is reached over HTTPS on port 443. Choose the Microsoft Graph provider again.')
     if (!EMAIL_RE.test((f.username ?? '').trim())) return fail(400, 'bad_username', 'Enter the mailbox Vedette sends as, for example alerts@company.com.')
-    if (prov.auth === 'microsoft_oauth') {
+    if (prov.auth === 'microsoft_oauth' || graph) {
       const tenant = (f.tenant_id ?? '').trim()
       if (!GUID_RE.test(tenant) && !DOMAIN_RE.test(tenant)) return fail(400, 'bad_tenant_id', 'The tenant ID is the Directory (tenant) ID of the app registration, for example 72f988bf-86f1-41af-91ab-2d7cd011db47, or your domain such as company.onmicrosoft.com.')
       if (!GUID_RE.test((f.client_id ?? '').trim())) return fail(400, 'bad_client_id', 'The client ID is the Application (client) ID of the app registration, for example 0a1b2c3d-4e5f-6789-abcd-ef0123456789.')
@@ -675,8 +677,8 @@ export const handlers = [
       // only the fields the provider uses (channels.go emailFields): tenant and client IDs are Microsoft 365's; Postmark's username is its token
       const auth = emailProvider(fields.provider)!.auth
       if (!fields.provider) delete fields.provider
-      if (auth !== 'microsoft_oauth' && auth !== 'microsoft_user') delete fields.tenant_id
-      if (!['microsoft_oauth', 'microsoft_user', 'google_user'].includes(auth)) delete fields.client_id
+      if (!['microsoft_oauth', 'microsoft_graph', 'microsoft_user'].includes(auth)) delete fields.tenant_id
+      if (!['microsoft_oauth', 'microsoft_graph', 'microsoft_user', 'google_user'].includes(auth)) delete fields.client_id
       if (auth === 'token_as_user') delete fields.username
     }
     const zalo = type === 'zalo-personal'

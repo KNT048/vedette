@@ -6992,7 +6992,7 @@
                       "properties": {
                         "available": {
                           "type": "boolean",
-                          "description": "true only when the notify module is on and an email channel is configured and enabled"
+                          "description": "true only when the notify module is on and the email channel is configured, enabled and its last test (since it was last saved) succeeded"
                         },
                         "reason": {
                           "anyOf": [
@@ -7007,7 +7007,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "Why the email method cannot be chosen, null when available"
+                          "description": "Why the email method cannot be chosen, null when available; channel_not_ready also covers a channel whose last test did not succeed"
                         },
                         "sent_to": {
                           "type": "string",
@@ -54436,165 +54436,11 @@
                             "properties": {
                               "kind": {
                                 "type": "string",
-                                "const": "device_unchecked"
+                                "const": "device_needs"
                               },
                               "id": {
                                 "type": "string",
-                                "description": "The item"
-                              },
-                              "device": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The name the Devices page shows; never the internal id"
-                                  },
-                                  "ip": {
-                                    "description": "null when the device has no IP address",
-                                    "type": [
-                                      "string",
-                                      "null"
-                                    ]
-                                  },
-                                  "kind": {
-                                    "type": "string",
-                                    "enum": [
-                                      "router",
-                                      "switch",
-                                      "modem",
-                                      "sd_wan",
-                                      "load_balancer",
-                                      "network_controller",
-                                      "firewall",
-                                      "vpn_gateway",
-                                      "ids_sensor",
-                                      "proxy",
-                                      "ap",
-                                      "wireless_controller",
-                                      "wifi_extender",
-                                      "mesh_node",
-                                      "server",
-                                      "virtual_machine",
-                                      "hypervisor",
-                                      "bmc",
-                                      "domain_controller",
-                                      "mail_server",
-                                      "database_server",
-                                      "backup_server",
-                                      "pc",
-                                      "laptop",
-                                      "workstation",
-                                      "thin_client",
-                                      "pos_terminal",
-                                      "kiosk",
-                                      "smartphone",
-                                      "tablet",
-                                      "smartwatch",
-                                      "printer",
-                                      "mfp",
-                                      "scanner",
-                                      "label_printer",
-                                      "receipt_printer",
-                                      "plotter",
-                                      "3d_printer",
-                                      "camera",
-                                      "nvr",
-                                      "dvr",
-                                      "video_encoder",
-                                      "doorbell",
-                                      "video_conferencing",
-                                      "ip_phone",
-                                      "pbx",
-                                      "voip_adapter",
-                                      "voip_gateway",
-                                      "conference_phone",
-                                      "intercom",
-                                      "nas",
-                                      "san",
-                                      "backup_appliance",
-                                      "tape_library",
-                                      "iot",
-                                      "smart_tv",
-                                      "media_player",
-                                      "smart_speaker",
-                                      "game_console",
-                                      "smart_plug",
-                                      "smart_light",
-                                      "smart_hub",
-                                      "thermostat",
-                                      "projector",
-                                      "digital_signage",
-                                      "single_board_computer",
-                                      "smart_appliance",
-                                      "robot_vacuum",
-                                      "wireless_bridge",
-                                      "plc",
-                                      "hmi",
-                                      "rtu",
-                                      "scada_server",
-                                      "industrial_switch",
-                                      "ups",
-                                      "pdu",
-                                      "access_control",
-                                      "time_clock",
-                                      "alarm_panel",
-                                      "hvac_controller",
-                                      "building_controller",
-                                      "power_meter",
-                                      "environment_monitor",
-                                      "ev_charger",
-                                      "solar_inverter",
-                                      "medical_device",
-                                      "web",
-                                      "cloud_service",
-                                      "unknown"
-                                    ]
-                                  },
-                                  "added": {
-                                    "type": "boolean",
-                                    "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
-                                  },
-                                  "ignored": {
-                                    "type": "boolean",
-                                    "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "name",
-                                  "ip",
-                                  "kind",
-                                  "added",
-                                  "ignored"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "required": [
-                              "kind",
-                              "id",
-                              "device"
-                            ],
-                            "additionalProperties": false,
-                            "description": "A device a person added that Vedette cannot check: it knows no software, firmware or OS the device runs, so no finding can appear for it. Answered by saying what runs there: its firmware version (POST /inventory/devices/{id}/software), SNMP read access (Sources), or an agent"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "kind": {
-                                "type": "string",
-                                "const": "unconfirmed"
-                              },
-                              "id": {
-                                "type": "string",
-                                "description": "The finding"
-                              },
-                              "cve": {
-                                "type": "string",
-                                "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                "description": "The card: \"needs:<device id>\""
                               },
                               "device": {
                                 "type": "object",
@@ -54726,439 +54572,819 @@
                                 ],
                                 "additionalProperties": false
                               },
-                              "software": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "description": "The software line of the device (inventory)"
-                                      },
-                                      "name": {
-                                        "type": "string",
-                                        "description": "Display name, as on the device page"
-                                      },
-                                      "version": {
-                                        "description": "The version the match compared",
-                                        "type": [
-                                          "string",
-                                          "null"
-                                        ]
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "name",
-                                      "version"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "status": {
-                                "type": "string",
-                                "enum": [
-                                  "under_attack",
-                                  "exploited",
-                                  "public_exploit",
-                                  "critical_edge"
-                                ],
-                                "description": "Only layers 1 to 4 ask for confirmation; update_recommended never does"
-                              },
-                              "severity": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "band": {
-                                        "type": "string",
-                                        "enum": [
-                                          "critical",
-                                          "high",
-                                          "medium",
-                                          "low",
-                                          "none"
-                                        ]
-                                      },
-                                      "score": {
-                                        "type": "number",
-                                        "minimum": 0,
-                                        "maximum": 10
-                                      },
-                                      "version": {
-                                        "type": "string",
-                                        "enum": [
-                                          "4.0",
-                                          "3.1",
-                                          "3.0",
-                                          "2.0"
-                                        ]
-                                      },
-                                      "vector": {
-                                        "type": "string",
-                                        "minLength": 1,
-                                        "maxLength": 200
-                                      }
-                                    },
-                                    "required": [
-                                      "band",
-                                      "score",
-                                      "version",
-                                      "vector"
-                                    ],
-                                    "additionalProperties": false,
-                                    "description": "The CVSS base score of the CVE and its band (the score the catalogue picks for it). Never changes the status. null = \"Not scored yet\", never 0"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "basis": {
-                                "type": "string",
-                                "enum": [
-                                  "scan",
-                                  "device_version",
-                                  "package",
-                                  "banner_version",
-                                  "statement",
-                                  "person"
-                                ],
-                                "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
-                              },
-                              "safe_check": {
-                                "type": "boolean",
-                                "description": "A safe check exists for the CVE and can reach the device: \"Run the safe check\" (POST /scans/runs) comes first"
-                              }
-                            },
-                            "required": [
-                              "kind",
-                              "id",
-                              "cve",
-                              "device",
-                              "software",
-                              "status",
-                              "severity",
-                              "basis",
-                              "safe_check"
-                            ],
-                            "additionalProperties": false,
-                            "description": "An urgent finding not confirmed yet: Run the safe check, Confirm vulnerability (POST /findings/{id}/verify) or Not affected (POST /findings/handle)"
-                          },
-                          {
-                            "type": "object",
-                            "properties": {
-                              "kind": {
-                                "type": "string",
-                                "const": "question"
-                              },
-                              "id": {
-                                "type": "string",
-                                "description": "The question"
-                              },
-                              "question": {
-                                "type": "string",
-                                "enum": [
-                                  "version_needed",
-                                  "platform",
-                                  "package_release",
-                                  "not_comparable",
-                                  "no_range_data",
-                                  "older_line"
-                                ],
-                                "description": "version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution's package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no versions that decide this one (\"Possibly affected: check the version\"; versions_listed says whether it lists any); older_line = the vendor names fixes for these CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one question for all of them (cve_list)"
-                              },
-                              "device": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "name": {
-                                    "type": "string",
-                                    "description": "The name the Devices page shows; never the internal id"
-                                  },
-                                  "ip": {
-                                    "description": "null when the device has no IP address",
-                                    "type": [
-                                      "string",
-                                      "null"
-                                    ]
-                                  },
-                                  "kind": {
-                                    "type": "string",
-                                    "enum": [
-                                      "router",
-                                      "switch",
-                                      "modem",
-                                      "sd_wan",
-                                      "load_balancer",
-                                      "network_controller",
-                                      "firewall",
-                                      "vpn_gateway",
-                                      "ids_sensor",
-                                      "proxy",
-                                      "ap",
-                                      "wireless_controller",
-                                      "wifi_extender",
-                                      "mesh_node",
-                                      "server",
-                                      "virtual_machine",
-                                      "hypervisor",
-                                      "bmc",
-                                      "domain_controller",
-                                      "mail_server",
-                                      "database_server",
-                                      "backup_server",
-                                      "pc",
-                                      "laptop",
-                                      "workstation",
-                                      "thin_client",
-                                      "pos_terminal",
-                                      "kiosk",
-                                      "smartphone",
-                                      "tablet",
-                                      "smartwatch",
-                                      "printer",
-                                      "mfp",
-                                      "scanner",
-                                      "label_printer",
-                                      "receipt_printer",
-                                      "plotter",
-                                      "3d_printer",
-                                      "camera",
-                                      "nvr",
-                                      "dvr",
-                                      "video_encoder",
-                                      "doorbell",
-                                      "video_conferencing",
-                                      "ip_phone",
-                                      "pbx",
-                                      "voip_adapter",
-                                      "voip_gateway",
-                                      "conference_phone",
-                                      "intercom",
-                                      "nas",
-                                      "san",
-                                      "backup_appliance",
-                                      "tape_library",
-                                      "iot",
-                                      "smart_tv",
-                                      "media_player",
-                                      "smart_speaker",
-                                      "game_console",
-                                      "smart_plug",
-                                      "smart_light",
-                                      "smart_hub",
-                                      "thermostat",
-                                      "projector",
-                                      "digital_signage",
-                                      "single_board_computer",
-                                      "smart_appliance",
-                                      "robot_vacuum",
-                                      "wireless_bridge",
-                                      "plc",
-                                      "hmi",
-                                      "rtu",
-                                      "scada_server",
-                                      "industrial_switch",
-                                      "ups",
-                                      "pdu",
-                                      "access_control",
-                                      "time_clock",
-                                      "alarm_panel",
-                                      "hvac_controller",
-                                      "building_controller",
-                                      "power_meter",
-                                      "environment_monitor",
-                                      "ev_charger",
-                                      "solar_inverter",
-                                      "medical_device",
-                                      "web",
-                                      "cloud_service",
-                                      "unknown"
-                                    ]
-                                  },
-                                  "added": {
-                                    "type": "boolean",
-                                    "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
-                                  },
-                                  "ignored": {
-                                    "type": "boolean",
-                                    "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "name",
-                                  "ip",
-                                  "kind",
-                                  "added",
-                                  "ignored"
-                                ],
-                                "additionalProperties": false
-                              },
-                              "software": {
-                                "anyOf": [
-                                  {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string",
-                                        "description": "The software line of the device (inventory)"
-                                      },
-                                      "name": {
-                                        "type": "string",
-                                        "description": "Display name, as on the device page"
-                                      },
-                                      "version": {
-                                        "description": "The version the match compared",
-                                        "type": [
-                                          "string",
-                                          "null"
-                                        ]
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "name",
-                                      "version"
-                                    ],
-                                    "additionalProperties": false
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ]
-                              },
-                              "cve": {
-                                "anyOf": [
-                                  {
-                                    "type": "string",
-                                    "pattern": "^CVE-\\d{4}-\\d{4,}$"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ],
-                                "description": "The CVE the question is about; null when it decides several (version_needed, not_comparable)"
-                              },
-                              "cves": {
-                                "type": "integer",
-                                "minimum": 1,
-                                "maximum": 9007199254740991,
-                                "description": "CVEs that wait on the answer"
-                              },
-                              "asked_at": {
-                                "type": "string",
-                                "format": "date-time",
-                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                              },
-                              "url": {
-                                "anyOf": [
-                                  {
-                                    "type": "string",
-                                    "format": "uri"
-                                  },
-                                  {
-                                    "type": "null"
-                                  }
-                                ],
-                                "description": "The advisory to read"
-                              },
-                              "command": {
-                                "description": "What prints the answer on the device (\"apk info -e -v openssh-server\"); null when none",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
-                              },
-                              "choices": {
+                              "entries": {
+                                "minItems": 1,
                                 "type": "array",
                                 "items": {
-                                  "type": "object",
-                                  "properties": {
-                                    "label": {
-                                      "type": "string",
-                                      "description": "The button: \"Alpine Linux 3.23\", \"Another system\", \"Enter the package release\""
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "const": "device_unchecked"
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "description": "The item"
+                                        },
+                                        "device": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string",
+                                              "description": "The name the Devices page shows; never the internal id"
+                                            },
+                                            "ip": {
+                                              "description": "null when the device has no IP address",
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "router",
+                                                "switch",
+                                                "modem",
+                                                "sd_wan",
+                                                "load_balancer",
+                                                "network_controller",
+                                                "firewall",
+                                                "vpn_gateway",
+                                                "ids_sensor",
+                                                "proxy",
+                                                "ap",
+                                                "wireless_controller",
+                                                "wifi_extender",
+                                                "mesh_node",
+                                                "server",
+                                                "virtual_machine",
+                                                "hypervisor",
+                                                "bmc",
+                                                "domain_controller",
+                                                "mail_server",
+                                                "database_server",
+                                                "backup_server",
+                                                "pc",
+                                                "laptop",
+                                                "workstation",
+                                                "thin_client",
+                                                "pos_terminal",
+                                                "kiosk",
+                                                "smartphone",
+                                                "tablet",
+                                                "smartwatch",
+                                                "printer",
+                                                "mfp",
+                                                "scanner",
+                                                "label_printer",
+                                                "receipt_printer",
+                                                "plotter",
+                                                "3d_printer",
+                                                "camera",
+                                                "nvr",
+                                                "dvr",
+                                                "video_encoder",
+                                                "doorbell",
+                                                "video_conferencing",
+                                                "ip_phone",
+                                                "pbx",
+                                                "voip_adapter",
+                                                "voip_gateway",
+                                                "conference_phone",
+                                                "intercom",
+                                                "nas",
+                                                "san",
+                                                "backup_appliance",
+                                                "tape_library",
+                                                "iot",
+                                                "smart_tv",
+                                                "media_player",
+                                                "smart_speaker",
+                                                "game_console",
+                                                "smart_plug",
+                                                "smart_light",
+                                                "smart_hub",
+                                                "thermostat",
+                                                "projector",
+                                                "digital_signage",
+                                                "single_board_computer",
+                                                "smart_appliance",
+                                                "robot_vacuum",
+                                                "wireless_bridge",
+                                                "plc",
+                                                "hmi",
+                                                "rtu",
+                                                "scada_server",
+                                                "industrial_switch",
+                                                "ups",
+                                                "pdu",
+                                                "access_control",
+                                                "time_clock",
+                                                "alarm_panel",
+                                                "hvac_controller",
+                                                "building_controller",
+                                                "power_meter",
+                                                "environment_monitor",
+                                                "ev_charger",
+                                                "solar_inverter",
+                                                "medical_device",
+                                                "web",
+                                                "cloud_service",
+                                                "unknown"
+                                              ]
+                                            },
+                                            "added": {
+                                              "type": "boolean",
+                                              "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
+                                            },
+                                            "ignored": {
+                                              "type": "boolean",
+                                              "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "name",
+                                            "ip",
+                                            "kind",
+                                            "added",
+                                            "ignored"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "id",
+                                        "device"
+                                      ],
+                                      "additionalProperties": false,
+                                      "description": "A device a person added that Vedette cannot check (an entry of a device card): it knows no software, firmware or OS the device runs, so no finding can appear for it. Answered by saying what runs there: its firmware version (POST /inventory/devices/{id}/software), SNMP read access (Sources), or an agent"
                                     },
-                                    "os": {
-                                      "description": "One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-41)",
-                                      "type": "string"
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "const": "unconfirmed"
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "description": "The finding"
+                                        },
+                                        "cve": {
+                                          "type": "string",
+                                          "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                        },
+                                        "device": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string",
+                                              "description": "The name the Devices page shows; never the internal id"
+                                            },
+                                            "ip": {
+                                              "description": "null when the device has no IP address",
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ]
+                                            },
+                                            "kind": {
+                                              "type": "string",
+                                              "enum": [
+                                                "router",
+                                                "switch",
+                                                "modem",
+                                                "sd_wan",
+                                                "load_balancer",
+                                                "network_controller",
+                                                "firewall",
+                                                "vpn_gateway",
+                                                "ids_sensor",
+                                                "proxy",
+                                                "ap",
+                                                "wireless_controller",
+                                                "wifi_extender",
+                                                "mesh_node",
+                                                "server",
+                                                "virtual_machine",
+                                                "hypervisor",
+                                                "bmc",
+                                                "domain_controller",
+                                                "mail_server",
+                                                "database_server",
+                                                "backup_server",
+                                                "pc",
+                                                "laptop",
+                                                "workstation",
+                                                "thin_client",
+                                                "pos_terminal",
+                                                "kiosk",
+                                                "smartphone",
+                                                "tablet",
+                                                "smartwatch",
+                                                "printer",
+                                                "mfp",
+                                                "scanner",
+                                                "label_printer",
+                                                "receipt_printer",
+                                                "plotter",
+                                                "3d_printer",
+                                                "camera",
+                                                "nvr",
+                                                "dvr",
+                                                "video_encoder",
+                                                "doorbell",
+                                                "video_conferencing",
+                                                "ip_phone",
+                                                "pbx",
+                                                "voip_adapter",
+                                                "voip_gateway",
+                                                "conference_phone",
+                                                "intercom",
+                                                "nas",
+                                                "san",
+                                                "backup_appliance",
+                                                "tape_library",
+                                                "iot",
+                                                "smart_tv",
+                                                "media_player",
+                                                "smart_speaker",
+                                                "game_console",
+                                                "smart_plug",
+                                                "smart_light",
+                                                "smart_hub",
+                                                "thermostat",
+                                                "projector",
+                                                "digital_signage",
+                                                "single_board_computer",
+                                                "smart_appliance",
+                                                "robot_vacuum",
+                                                "wireless_bridge",
+                                                "plc",
+                                                "hmi",
+                                                "rtu",
+                                                "scada_server",
+                                                "industrial_switch",
+                                                "ups",
+                                                "pdu",
+                                                "access_control",
+                                                "time_clock",
+                                                "alarm_panel",
+                                                "hvac_controller",
+                                                "building_controller",
+                                                "power_meter",
+                                                "environment_monitor",
+                                                "ev_charger",
+                                                "solar_inverter",
+                                                "medical_device",
+                                                "web",
+                                                "cloud_service",
+                                                "unknown"
+                                              ]
+                                            },
+                                            "added": {
+                                              "type": "boolean",
+                                              "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
+                                            },
+                                            "ignored": {
+                                              "type": "boolean",
+                                              "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "name",
+                                            "ip",
+                                            "kind",
+                                            "added",
+                                            "ignored"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "software": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string",
+                                                  "description": "The software line of the device (inventory)"
+                                                },
+                                                "name": {
+                                                  "type": "string",
+                                                  "description": "Display name, as on the device page"
+                                                },
+                                                "version": {
+                                                  "description": "The version the match compared",
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "name",
+                                                "version"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "status": {
+                                          "type": "string",
+                                          "enum": [
+                                            "under_attack",
+                                            "exploited",
+                                            "public_exploit",
+                                            "critical_edge"
+                                          ],
+                                          "description": "Only layers 1 to 4 ask for confirmation; update_recommended never does"
+                                        },
+                                        "severity": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "band": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "critical",
+                                                    "high",
+                                                    "medium",
+                                                    "low",
+                                                    "none"
+                                                  ]
+                                                },
+                                                "score": {
+                                                  "type": "number",
+                                                  "minimum": 0,
+                                                  "maximum": 10
+                                                },
+                                                "version": {
+                                                  "type": "string",
+                                                  "enum": [
+                                                    "4.0",
+                                                    "3.1",
+                                                    "3.0",
+                                                    "2.0"
+                                                  ]
+                                                },
+                                                "vector": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 200
+                                                }
+                                              },
+                                              "required": [
+                                                "band",
+                                                "score",
+                                                "version",
+                                                "vector"
+                                              ],
+                                              "additionalProperties": false,
+                                              "description": "The CVSS base score of the CVE and its band (the score the catalogue picks for it). Never changes the status. null = \"Not scored yet\", never 0"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "basis": {
+                                          "type": "string",
+                                          "enum": [
+                                            "scan",
+                                            "device_version",
+                                            "package",
+                                            "banner_version",
+                                            "statement",
+                                            "person"
+                                          ],
+                                          "description": "What the match rests on: scan = a safe check; device_version = a version the device itself reports; package = a distribution package release; banner_version = a version read from a network banner; statement = a version a person typed for the device; person = a person said it is affected"
+                                        },
+                                        "safe_check": {
+                                          "type": "boolean",
+                                          "description": "A safe check exists for the CVE and can reach the device: \"Run the safe check\" (POST /scans/runs) comes first"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "id",
+                                        "cve",
+                                        "device",
+                                        "software",
+                                        "status",
+                                        "severity",
+                                        "basis",
+                                        "safe_check"
+                                      ],
+                                      "additionalProperties": false,
+                                      "description": "An urgent finding not confirmed yet: Run the safe check, Confirm vulnerability (POST /findings/{id}/verify) or Not affected (POST /findings/handle)"
                                     },
-                                    "ask": {
-                                      "description": "What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (the bare release or the line `apk info -e -v openssh-server` prints, \"openssh-server-10.2_p1-r1\"). \"Another system\" asks both: on a row a scan saw only the row's release rules it out",
-                                      "type": "array",
-                                      "items": {
-                                        "type": "string",
-                                        "enum": [
-                                          "os",
-                                          "pkg_version"
-                                        ]
-                                      }
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "const": "software_group"
+                                        },
+                                        "id": {
+                                          "type": "string",
+                                          "description": "\"sw:<software line id>\""
+                                        },
+                                        "software": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string",
+                                                  "description": "The software line of the device (inventory)"
+                                                },
+                                                "name": {
+                                                  "type": "string",
+                                                  "description": "Display name, as on the device page"
+                                                },
+                                                "version": {
+                                                  "description": "The version the match compared",
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "name",
+                                                "version"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "cves": {
+                                          "type": "integer",
+                                          "minimum": 1,
+                                          "maximum": 9007199254740991,
+                                          "description": "CVEs that wait on this software line, each counted once"
+                                        },
+                                        "questions": {
+                                          "minItems": 1,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "kind": {
+                                                "type": "string",
+                                                "const": "question"
+                                              },
+                                              "id": {
+                                                "type": "string",
+                                                "description": "The question"
+                                              },
+                                              "question": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "version_needed",
+                                                  "platform",
+                                                  "package_release",
+                                                  "not_comparable",
+                                                  "no_range_data",
+                                                  "older_line"
+                                                ],
+                                                "description": "version_needed = the software has no version Vedette can read; platform = the CVE affects only some platforms and nothing says which this is; package_release = the distribution's package release decides; not_comparable = the version cannot be compared with the affected ranges; no_range_data = the CVE names the product but gives no versions that decide this one (\"Possibly affected: check the version\"; versions_listed says whether it lists any); older_line = the vendor names fixes for these CVEs only on newer release lines (fixes) and says nothing about the device's line (line): one question for all of them (cve_list)"
+                                              },
+                                              "device": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "id": {
+                                                    "type": "string"
+                                                  },
+                                                  "name": {
+                                                    "type": "string",
+                                                    "description": "The name the Devices page shows; never the internal id"
+                                                  },
+                                                  "ip": {
+                                                    "description": "null when the device has no IP address",
+                                                    "type": [
+                                                      "string",
+                                                      "null"
+                                                    ]
+                                                  },
+                                                  "kind": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                      "router",
+                                                      "switch",
+                                                      "modem",
+                                                      "sd_wan",
+                                                      "load_balancer",
+                                                      "network_controller",
+                                                      "firewall",
+                                                      "vpn_gateway",
+                                                      "ids_sensor",
+                                                      "proxy",
+                                                      "ap",
+                                                      "wireless_controller",
+                                                      "wifi_extender",
+                                                      "mesh_node",
+                                                      "server",
+                                                      "virtual_machine",
+                                                      "hypervisor",
+                                                      "bmc",
+                                                      "domain_controller",
+                                                      "mail_server",
+                                                      "database_server",
+                                                      "backup_server",
+                                                      "pc",
+                                                      "laptop",
+                                                      "workstation",
+                                                      "thin_client",
+                                                      "pos_terminal",
+                                                      "kiosk",
+                                                      "smartphone",
+                                                      "tablet",
+                                                      "smartwatch",
+                                                      "printer",
+                                                      "mfp",
+                                                      "scanner",
+                                                      "label_printer",
+                                                      "receipt_printer",
+                                                      "plotter",
+                                                      "3d_printer",
+                                                      "camera",
+                                                      "nvr",
+                                                      "dvr",
+                                                      "video_encoder",
+                                                      "doorbell",
+                                                      "video_conferencing",
+                                                      "ip_phone",
+                                                      "pbx",
+                                                      "voip_adapter",
+                                                      "voip_gateway",
+                                                      "conference_phone",
+                                                      "intercom",
+                                                      "nas",
+                                                      "san",
+                                                      "backup_appliance",
+                                                      "tape_library",
+                                                      "iot",
+                                                      "smart_tv",
+                                                      "media_player",
+                                                      "smart_speaker",
+                                                      "game_console",
+                                                      "smart_plug",
+                                                      "smart_light",
+                                                      "smart_hub",
+                                                      "thermostat",
+                                                      "projector",
+                                                      "digital_signage",
+                                                      "single_board_computer",
+                                                      "smart_appliance",
+                                                      "robot_vacuum",
+                                                      "wireless_bridge",
+                                                      "plc",
+                                                      "hmi",
+                                                      "rtu",
+                                                      "scada_server",
+                                                      "industrial_switch",
+                                                      "ups",
+                                                      "pdu",
+                                                      "access_control",
+                                                      "time_clock",
+                                                      "alarm_panel",
+                                                      "hvac_controller",
+                                                      "building_controller",
+                                                      "power_meter",
+                                                      "environment_monitor",
+                                                      "ev_charger",
+                                                      "solar_inverter",
+                                                      "medical_device",
+                                                      "web",
+                                                      "cloud_service",
+                                                      "unknown"
+                                                    ]
+                                                  },
+                                                  "added": {
+                                                    "type": "boolean",
+                                                    "description": "false = \"Not added yet\": nobody added this device; its card offers Add device and Ignore"
+                                                  },
+                                                  "ignored": {
+                                                    "type": "boolean",
+                                                    "description": "A person ignored the device: its findings are left out of every list and count except the Ignored devices tab"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "id",
+                                                  "name",
+                                                  "ip",
+                                                  "kind",
+                                                  "added",
+                                                  "ignored"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              "software": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "id": {
+                                                        "type": "string",
+                                                        "description": "The software line of the device (inventory)"
+                                                      },
+                                                      "name": {
+                                                        "type": "string",
+                                                        "description": "Display name, as on the device page"
+                                                      },
+                                                      "version": {
+                                                        "description": "The version the match compared",
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "id",
+                                                      "name",
+                                                      "version"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "cve": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "The CVE the question is about; null when it decides several (version_needed, not_comparable)"
+                                              },
+                                              "cves": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 9007199254740991,
+                                                "description": "CVEs that wait on the answer"
+                                              },
+                                              "asked_at": {
+                                                "type": "string",
+                                                "format": "date-time",
+                                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                              },
+                                              "url": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "format": "uri"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "The advisory to read"
+                                              },
+                                              "command": {
+                                                "description": "What prints the answer on the device (\"apk info -e -v openssh-server\"); null when none",
+                                                "type": [
+                                                  "string",
+                                                  "null"
+                                                ]
+                                              },
+                                              "choices": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "label": {
+                                                      "type": "string",
+                                                      "description": "The button: \"Alpine Linux 3.23\", \"Another system\", \"Enter the package release\""
+                                                    },
+                                                    "os": {
+                                                      "description": "One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-41)",
+                                                      "type": "string"
+                                                    },
+                                                    "ask": {
+                                                      "description": "What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (the bare release or the line `apk info -e -v openssh-server` prints, \"openssh-server-10.2_p1-r1\"). \"Another system\" asks both: on a row a scan saw only the row's release rules it out",
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                          "os",
+                                                          "pkg_version"
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "label"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                "description": "platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data, older_line: POST /findings/questions/{id}/answer)"
+                                              },
+                                              "cve_list": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string",
+                                                  "pattern": "^CVE-\\d{4}-\\d{4,}$"
+                                                },
+                                                "description": "older_line, version_needed: the CVEs that wait on the answer; empty when the question is about one CVE (cve)"
+                                              },
+                                              "fixes": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                },
+                                                "description": "older_line: the newest release the vendor names as fixed on each newer line, oldest line first (\"7.3.2-86009 Update 5\"); empty for the other kinds"
+                                              },
+                                              "line": {
+                                                "description": "older_line: the release line the device runs (\"7.2.1\"); null for the other kinds",
+                                                "type": [
+                                                  "string",
+                                                  "null"
+                                                ]
+                                              },
+                                              "versions_listed": {
+                                                "type": "boolean",
+                                                "description": "no_range_data: true when the CVE lists affected versions of the software but none that decides this one (only exact releases, or no end); false when it lists none. false for the other kinds"
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "id",
+                                              "question",
+                                              "device",
+                                              "software",
+                                              "cve",
+                                              "cves",
+                                              "asked_at",
+                                              "url",
+                                              "command",
+                                              "choices",
+                                              "cve_list",
+                                              "fixes",
+                                              "line",
+                                              "versions_listed"
+                                            ],
+                                            "additionalProperties": false,
+                                            "description": "What Vedette cannot decide without a person"
+                                          },
+                                          "description": "The line's questions, one per (CVE, kind): the one whose action fixes the most first (version_needed, not_comparable, platform, package_release, older_line, no_range_data), then by CVEs waiting. The version or edition a person enters lives on the line, so one entry fixes every CVE of it at the next match; each CVE's Affected / Not affected is its own question"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "id",
+                                        "software",
+                                        "cves",
+                                        "questions"
+                                      ],
+                                      "additionalProperties": false,
+                                      "description": "One software line of a device inside its card: \"Thunderbird 115.9.0: 196 CVEs waiting\" with its one action; the per-CVE detail is behind a click"
                                     }
-                                  },
-                                  "required": [
-                                    "label"
-                                  ],
-                                  "additionalProperties": false
+                                  ]
                                 },
-                                "description": "platform, package_release: the answers, each an inventory correction; empty for the other kinds (version_needed, not_comparable: type the version on the software line; no_range_data, older_line: POST /findings/questions/{id}/answer)"
-                              },
-                              "cve_list": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string",
-                                  "pattern": "^CVE-\\d{4}-\\d{4,}$"
-                                },
-                                "description": "older_line, version_needed: the CVEs that wait on the answer; empty when the question is about one CVE (cve)"
-                              },
-                              "fixes": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string"
-                                },
-                                "description": "older_line: the newest release the vendor names as fixed on each newer line, oldest line first (\"7.3.2-86009 Update 5\"); empty for the other kinds"
-                              },
-                              "line": {
-                                "description": "older_line: the release line the device runs (\"7.2.1\"); null for the other kinds",
-                                "type": [
-                                  "string",
-                                  "null"
-                                ]
-                              },
-                              "versions_listed": {
-                                "type": "boolean",
-                                "description": "no_range_data: true when the CVE lists affected versions of the software but none that decides this one (only exact releases, or no end); false when it lists none. false for the other kinds"
+                                "description": "What Vedette needs to know about the device: what runs there (device_unchecked), urgent findings not confirmed yet (unconfirmed), then its software lines by CVEs waiting (software_group)"
                               }
                             },
                             "required": [
                               "kind",
                               "id",
-                              "question",
                               "device",
-                              "software",
-                              "cve",
-                              "cves",
-                              "asked_at",
-                              "url",
-                              "command",
-                              "choices",
-                              "cve_list",
-                              "fixes",
-                              "line",
-                              "versions_listed"
+                              "entries"
                             ],
                             "additionalProperties": false,
-                            "description": "What Vedette cannot decide without a person"
+                            "description": "One card per added device: everything Vedette needs from a person about it, the questions grouped by software line. Ignore for the whole device: POST /findings/questions/ignore"
                           }
                         ]
                       },
-                      "description": "Devices not added yet first, then devices Vedette cannot check, then unconfirmed findings by status, then questions by CVEs waiting, then the one card of the devices not added yet with no open finding; an item leaves the moment it is answered or stops being true"
+                      "description": "Devices not added yet first, then one card per added device (what runs there, urgent findings not confirmed, its questions grouped by software line) by what waits, then the one card of the devices not added yet with no open finding; an item leaves the moment it is answered or stops being true"
                     },
                     "total": {
                       "type": "integer",
@@ -56350,6 +56576,84 @@
                   },
                   "required": [
                     "id"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/findings/questions/ignore": {
+      "post": {
+        "operationId": "findings_post_findings_questions_ignore",
+        "summary": "Ignore (bypass) every open question of one device, or of one software line of it: each is answered \"not affected\" in one transaction with one audit row; each is listed under Answered and can be asked again one by one. \"Vedette cannot check this device\" is left (operator)",
+        "tags": [
+          "findings"
+        ],
+        "x-stories": [
+          "S-MIT-1"
+        ],
+        "x-min-role": "operator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96
+                  },
+                  "software": {
+                    "description": "One software line of the device; every open question of the device when left out",
+                    "type": "string",
+                    "maxLength": 96
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "device",
+                  "note"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answered": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991,
+                      "description": "Questions answered"
+                    }
+                  },
+                  "required": [
+                    "answered"
                   ],
                   "additionalProperties": false
                 }
@@ -72675,7 +72979,7 @@
                             "additionalProperties": {
                               "type": "string"
                             },
-                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                            "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace|microsoft-graph (sends through Microsoft Graph sendMail: host graph.microsoft.com, port 443, security ssl); user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365, microsoft-graph and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft-graph, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                           },
                           "secret_last4": {
                             "description": "Secrets (token, password, signing key) are never returned, not even a part: a saved one reads \"••••\", none is null (SYS-4)",
@@ -73080,7 +73384,7 @@
                       "additionalProperties": {
                         "type": "string"
                       },
-                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace; user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
+                      "description": "Non-secret fields: telegram chat_id · zalo oa_id, user_id, app_id (the Zalo app of the refresh-token flow; absent for a channel with only an access token) · zalo-personal user_id (recipient user or group ID), group (\"true\" for a group), name (shown name of the recipient), account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session is the secret) · email provider (preset: custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace|microsoft-graph (sends through Microsoft Graph sendMail: host graph.microsoft.com, port 443, security ssl); user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port, security (starttls|ssl|none), username (the mailbox for microsoft365, microsoft-graph and google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft-graph, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the sign-in method, server and port the saved secret is for; changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional), channel_id (approvals only)"
                     },
                     "secret_last4": {
                       "description": "Secrets (token, password, signing key) are never returned, not even a part: a saved one reads \"••••\", none is null (SYS-4)",

@@ -121,6 +121,9 @@ export const useVerify = () => useModelWrite((v: { id: string; note: string }) =
 export const useUnverify = () => useModelWrite((v: { id: string }) => api.post<View>(`/findings/${encodeURIComponent(v.id)}/unverify`, {}))
 export const useAnswer = () => useModelWrite((v: { id: string; answer: 'affected' | 'not_affected'; note: string }) =>
   api.post<{ finding: string | null }>(`/findings/questions/${encodeURIComponent(v.id)}/answer`, { answer: v.answer, note: v.note }))
+/** Ignore (bypass): every open question of a device, or of one software line of it, answered "not affected" at once. */
+export const useIgnoreQuestions = () => useModelWrite((v: { device: string; software?: string; note: string }) =>
+  api.post<{ answered: number }>('/findings/questions/ignore', v))
 export const useUnanswer = () => useModelWrite((v: { id: string }) => api.post<{ id: string }>(`/findings/questions/${encodeURIComponent(v.id)}/unanswer`, {}))
 /** A view of one finding: its status, the reasons of its urgency and how it is known, as every list row says them. */
 export const useView = (id: string, enabled = true) =>

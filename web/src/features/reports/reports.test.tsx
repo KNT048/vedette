@@ -224,7 +224,9 @@ describe('reports: the security report (S-REP-1)', () => {
     // (cut when long), or only the digest when the document cannot be read, with a link only when the box has a web address
     expect(screen.getByText(/^The report as it stood when it was sent to director@acme\.example, it@acme\.example\.$/)).toBeInTheDocument()
     expect(screen.queryByText(/e-mail carried/)).toBeNull()
-    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('href', '/reports')
+    const back = screen.getAllByRole('link', { name: 'Reports' }).filter((a) => !a.closest('nav[aria-label="Main navigation"]')) // the page's own link, not the menu
+    expect(back).toHaveLength(1)
+    expect(back[0]).toHaveAttribute('href', '/reports')
     expect(screen.queryByText('nav.reports')).toBeNull()
     expect(doc.closest('.print-report')).not.toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Print / Save PDF' }))

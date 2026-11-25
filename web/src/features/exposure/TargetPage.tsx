@@ -23,7 +23,7 @@ import { ProofPanel } from './ProofPanel'
 import { ScanBar, ScanButton, useScanFlow } from './ScanBar'
 import { ScansPanel } from './ScansPanel'
 import { ServicesPanel } from './ServicesPanel'
-import { DeleteTargetDialog, EditTargetDialog } from './TargetDialogs'
+import { DeleteTargetDialog, EditTargetDialog, ScanToggle } from './TargetDialogs'
 import { TermsPanel } from './TermsPanel'
 import type { TargetNode } from './types'
 
@@ -90,6 +90,7 @@ function TargetView({ node }: { node: TargetNode }) {
     : c.services > 0 ? t('target.title.services', { value: node.value, count: c.services })
     : node.last_scan ? t('target.title.clean', { value: node.value }) : t('target.title.ready', { value: node.value })
   const domain = node.kind === 'domain'
+  const live = isLive(node.last_scan)
   return (
     <>
       <PageHeader title={<span className="[overflow-wrap:anywhere]">{title}</span>} stories={['S-EXP-1']}
@@ -101,18 +102,17 @@ function TargetView({ node }: { node: TargetNode }) {
         </span>}
         actions={<>
           <ScanButton node={node} flow={flow} />
-          <Button onClick={() => setEditing(true)} disabled={!admin} title={needAdmin}><Pencil />{t('edit.button')}</Button>
+          {domain ? <Button onClick={() => setEditing(true)} disabled={!admin} title={needAdmin}><Pencil />{t('edit.button')}</Button> : <ScanToggle node={node} disabled={!admin} title={needAdmin} />}
           <Button onClick={() => setDeleting(true)} disabled={!admin} title={needAdmin}><Trash2 />{t('delete.button')}</Button>
         </>} />
       <ScanBar node={node} flow={flow} />
-      <ScanSchedule node={node} />
       <AnchorRedirect map={ANCHOR_TAB} />
       <ScrollToHash />
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'issues', label: t('tabs.issues'), badge: c.issues > 0 ? { count: c.issues, label: t('tabs.issuesCount'), tone: 'off' as const } : undefined, panel: <IssuesPanel node={node} /> },
         { id: 'services', label: t('tabs.services'), badge: c.services > 0 ? { count: c.services, label: t('tabs.servicesCount'), tone: 'off' as const } : undefined, panel: <ServicesPanel node={node} gateway={boxIp(node) ? tree.data?.gateway ?? null : null} /> },
         ...(domain ? [{ id: 'names', label: t('tabs.names'), panel: <NamesPanel node={node} onEdit={() => setEditing(true)} /> }] : []),
-        { id: 'scans', label: t('tabs.scans'), panel: <ScansPanel node={node} /> },
+        { id: 'scans', label: live ? t('tabs.scanning') : t('tabs.scans'), highlight: live, panel: <><ScanSchedule node={node} /><ScansPanel node={node} /></> },
         { id: 'ownership', label: t('tabs.ownership'), badge: needsProof(node) ? { count: 1, label: t('tabs.needsYou') } : undefined, panel: <>
           <Section id="step-verify" title={t('proof.title')} description={t(`proof.description.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)} info={t(`proof.descriptionInfo.${domain ? 'domain' : boxIp(node) ? 'boxIp' : 'ip'}`)}>
             <ProofPanel node={node} />

@@ -517,11 +517,11 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('approved:24h')
   })
 
-  it('S-INV-3: a To review row offers Approve, Ignore and Remove; the unknown mark lives on the device page', async () => {
+  it('S-INV-3: a To review row offers Add device and Ignore, no Remove; the unknown mark lives on the device page', async () => {
     renderApp('/devices?tab=review')
     const list = await screen.findByRole('list', { name: '2 new devices not added yet' }, T)
     const row = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('192.168.10.157'))!
-    expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual(['Add device', 'Ignore', 'Remove'])
+    expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual(['Add device', 'Ignore'])
     // its accessible name says which device it adds: never confused with the toolbar's "Add a device" (a device typed by hand)
     expect(within(row).getByRole('button', { name: /^Add .+ to your devices$/ })).toHaveTextContent('Add device')
     expect(within(list).queryByRole('button', { name: /unknown/ })).toBeNull()
@@ -587,21 +587,6 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const dialog = await screen.findByRole('dialog', undefined, T)
     await user.click(within(dialog).getByRole('button', { name: /^Add \d+ devices$/ }))
     expect(await screen.findByText('No new devices waiting', undefined, T)).toBeInTheDocument()
-  })
-
-  it('S-INV-3: removing a pending device asks for confirmation', async () => {
-    const user = userEvent.setup()
-    const before = assetsStore.get().length
-    renderApp('/devices?tab=review')
-    await screen.findByText('2 new devices not added yet', undefined, T)
-    await user.click(screen.getAllByRole('button', { name: 'Remove' })[0]!)
-    expect(assetsStore.get()).toHaveLength(before) // nothing removed before confirming
-    const dialog = await screen.findByRole('dialog', undefined, T)
-    // a device still on the network comes back to To review; Ignore is what keeps it out
-    expect(dialog).toHaveTextContent('If the device is still on your network, it comes back under To review. To keep it out, choose Ignore instead.')
-    await user.click(within(dialog).getByRole('button', { name: 'Remove from list' }))
-    await waitFor(() => expect(assetsStore.get()).toHaveLength(before - 1), T)
-    expect(auditStore.get().some((e) => e.action === 'inventory.delete')).toBe(true)
   })
 
   it('the delete dialog mentions the findings count when the device has findings, and removes them', async () => {

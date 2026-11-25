@@ -273,13 +273,9 @@ func TestModelAPI_HandleOneFixOnOneDevice(t *testing.T) {
 // The queue: the device nobody added, the urgent finding not confirmed, the question; each leaves when it is answered.
 func TestModelAPI_NeedsYourInput(t *testing.T) {
 	e := modelEnv(t)
-	in := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input", "viewer", "")
-	var kinds []string
-	for _, it := range in.Items {
-		kinds = append(kinds, string(it.Type))
-	}
-	if strings.Join(kinds, ",") != "device_not_added,unconfirmed,unconfirmed,unconfirmed,unconfirmed,question" || in.Items[1].FindingsGetFindingsInput1Unconfirmed.ID != "f-p1" {
-		t.Errorf("kinds %v", kinds)
+	kinds, _ := queueIDs(t, e, "")
+	if got := strings.Join(kinds, ","); got != "device:a-new,f-f1,f-f2,f-f3,f-p1,sw:s-ssh-nas" {
+		t.Errorf("queue %v", kinds)
 	}
 	if code, _ := e.call("POST", "/findings/questions/q-1/answer", "operator", `{"answer":"affected","note":"vendor says so"}`); code != 403 {
 		t.Errorf("an operator answered affected: %d", code)
@@ -291,12 +287,8 @@ func TestModelAPI_NeedsYourInput(t *testing.T) {
 		t.Errorf("answered finding: %+v", v.Verification)
 	}
 	e.call("POST", "/findings/f-p1/verify", "admin", `{"note":"the vendor confirmed it"}`)
-	in = conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input", "viewer", "")
-	kinds = kinds[:0]
-	for _, it := range in.Items {
-		kinds = append(kinds, string(it.Type)+":"+it.FindingsGetFindingsInput1Unconfirmed.ID)
-	}
-	if strings.Join(kinds, ",") != "device_not_added:,unconfirmed:f-f1,unconfirmed:f-f2,unconfirmed:f-f3" {
+	kinds, _ = queueIDs(t, e, "")
+	if got := strings.Join(kinds, ","); got != "device:a-new,f-f1,f-f2,f-f3" {
 		t.Errorf("after the answers: %v", kinds)
 	}
 }
@@ -372,25 +364,15 @@ func TestModelAPI_NeedsYourInputSearch(t *testing.T) {
 		{"nothing-here", ""},                // no match: an empty page, not the whole queue
 		{"lab-box", ""},                     // an ignored device stays out
 	} {
-		in := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q="+url.QueryEscape(c.q), "viewer", "")
-		var ids []string
-		for _, it := range in.Items {
-			switch it.Type {
-			case "device_not_added":
-				ids = append(ids, it.FindingsGetFindingsInput1DeviceNotAdded.ID)
-			case "unconfirmed":
-				ids = append(ids, it.FindingsGetFindingsInput1Unconfirmed.ID)
-			default:
-				ids = append(ids, string(it.Type))
-			}
-		}
-		if got := strings.Join(ids, ","); got != c.want || in.Total != len(in.Items) {
-			t.Errorf("q=%q: %q (total %d), want %q", c.q, got, in.Total, c.want)
+		ids, total := queueIDs(t, e, "?q="+url.QueryEscape(c.q))
+		_ = total
+		if got := strings.Join(ids, ","); got != c.want {
+			t.Errorf("q=%q: %q (total %d), want %q", c.q, got, total, c.want)
 		}
 	}
-	in := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q=fw01&limit=1&offset=1", "viewer", "")
-	if in.Total != 3 || len(in.Items) != 1 || in.Items[0].FindingsGetFindingsInput1Unconfirmed.ID != "f-f2" {
-		t.Errorf("q=fw01 page 2 of 1: total %d, items %+v", in.Total, in.Items)
+	ids, total := queueIDs(t, e, "?q=fw01&limit=1&offset=0")
+	if total != 1 || strings.Join(ids, ",") != "f-f1,f-f2,f-f3" {
+		t.Errorf("q=fw01: total %d, items %v; want the one card of the device with its 3 findings", total, ids)
 	}
 }
 
@@ -412,18 +394,8 @@ func TestModelAPI_NeedsYourInputSearchFindsADeviceNotAddedByItsFindings(t *testi
 		{"CUPS", "device:a-new,f-p1"},     // the software of its findings, any case
 		{"cve-2026-1002", "f-f1"},         // another device's CVE does not find it
 	} {
-		in := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q="+url.QueryEscape(c.q), "viewer", "")
-		var ids []string
-		for _, it := range in.Items {
-			switch it.Type {
-			case "device_not_added":
-				ids = append(ids, it.FindingsGetFindingsInput1DeviceNotAdded.ID)
-			case "unconfirmed":
-				ids = append(ids, it.FindingsGetFindingsInput1Unconfirmed.ID)
-			default:
-				ids = append(ids, string(it.Type))
-			}
-		}
+		ids, total := queueIDs(t, e, "?q="+url.QueryEscape(c.q))
+		_ = total
 		if got := strings.Join(ids, ","); got != c.want {
 			t.Errorf("q=%q: %q, want %q", c.q, got, c.want)
 		}
@@ -461,11 +433,10 @@ func TestModelAPI_NeedsYourInputReadsSearchTermsOnlyForASearch(t *testing.T) {
 		t.Errorf("overview counts %d items needing input, the queue %d", ov.Input, all.Total)
 	}
 	asked() // the overview reads lines for its own blocks
-	found := conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input?q=lprng", "viewer", "")
-	if found.Total != 1 || found.Items[0].Type != "device_not_added" || found.Items[0].FindingsGetFindingsInput1DeviceNotAdded.ID != "device:a-new" {
-		t.Fatalf("q=lprng: %+v, want the device not added that has it", found.Items)
+	if ids, total := queueIDs(t, e, "?q=lprng"); total != 1 || ids[0] != "device:a-new" {
+		t.Fatalf("q=lprng: %v, want the device not added that has it", ids)
 	}
-	if all.Total == 0 || all.Items[0].FindingsGetFindingsInput1DeviceNotAdded.Findings != 2 {
+	if all.Total == 0 || all.Items[0].FindingsGetFindingsInput2DeviceNotAdded.Findings != 2 {
 		t.Fatalf("the queue: %d items, first %+v; want the device not added first with its 2 open findings", all.Total, all.Items[0])
 	}
 }
@@ -559,4 +530,28 @@ func TestModelAPI_NotAddedWithoutFindingsIsOneGroupCard(t *testing.T) {
 	if items, total, _ := read("/findings/input?limit=200", false); total != before || slices.ContainsFunc(items, func(it item) bool { return it.Kind == "devices_not_added" }) {
 		t.Fatalf("none left: %d items, %+v", total, items)
 	}
+}
+
+// queueIDs reads Needs your input and lists what it names, flat: a device not added by its item id, a device's card by what it holds
+// (an unconfirmed finding by its id, a software line as "sw:<line>"); total is the queue's own count (cards). The reply must match the
+// contract.
+func queueIDs(t *testing.T, e *httpEnv, query string) (ids []string, total int) {
+	t.Helper()
+	_ = conform[oas.FindingsGetFindingsInputOK](t, e, "GET", "/findings/input"+query, "viewer", "")
+	_, b := e.call("GET", "/findings/input"+query, "viewer", "")
+	total = int(b["total"].(float64))
+	for _, raw := range b["items"].([]any) {
+		it := raw.(map[string]any)
+		switch it["kind"] {
+		case "device_not_added":
+			ids = append(ids, it["id"].(string))
+		case "device_needs":
+			for _, r := range it["entries"].([]any) {
+				ids = append(ids, r.(map[string]any)["id"].(string))
+			}
+		default:
+			ids = append(ids, it["kind"].(string))
+		}
+	}
+	return ids, total
 }

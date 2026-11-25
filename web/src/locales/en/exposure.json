@@ -29,6 +29,7 @@
   },
   "tabs": {
     "label": "External exposure sections",
+    "scanning": "Scanning",
     "targets": "Targets",
     "ownership": "Ownership",
     "outsideView": "Outside view",

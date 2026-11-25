@@ -85,6 +85,14 @@ type StepUpMailer interface {
 	SendStepUpCode(ctx context.Context, to, code, summary string) error
 }
 
+// ProvenMailer is the optional third interface of a CodeMailer: Proven reports whether the email channel has shown that it sends
+// (its last test succeeded). A person may choose email two-step sign-in only then (EmailCodes.Choosable), so nobody waits for a
+// code that cannot arrive. Sign-in and step-up codes use Available only: a failed test never locks out an account. A mailer
+// without it is proven whenever it is available.
+type ProvenMailer interface {
+	Proven(ctx context.Context) bool
+}
+
 // Config wires a Service.
 type Config struct {
 	DB      *store.DB

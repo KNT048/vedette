@@ -37,6 +37,9 @@ function PageWatch({ ids, onChange }: { ids: string[]; onChange: (key: string) =
   return null
 }
 
+/** An incident row names this many devices; the rest are "+N more" and the incident page has them all. */
+const SHOWN_DEVICES = 2
+
 /** One status, one note for the selected incidents (INV-25): each incident still gets its own audit line; an incident that is already Resolved stays as it is. */
 function BulkDialog({ ids, status, onOpenChange, opener, onDone }: { ids: string[]; status: BulkStatus | null; onOpenChange: (v: boolean) => void; opener: RefObject<HTMLButtonElement | null>; onDone: () => void }) {
   const { t } = useTranslation('notify')
@@ -158,7 +161,10 @@ function Content() {
     ) },
     { id: 'severity', header: t('incidents.col.severity'), accessorFn: (r) => ['info', 'low', 'medium', 'high', 'critical'].indexOf(r.severity), cell: ({ row }) => <SeverityBadge severity={row.original.severity} /> },
     { id: 'device', header: t('incidents.col.device'), accessorFn: (r) => r.devices.map((d) => d.name).join(', '), cell: ({ row: { original: r } }) => (
-      <span className="flex flex-wrap gap-x-2">{r.devices.map((d) => <Link key={d.id} to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className={link}>{d.name}</Link>)}</span>
+      <span className="flex max-w-56 flex-wrap gap-x-2 [overflow-wrap:anywhere]">
+        {r.devices.slice(0, SHOWN_DEVICES).map((d) => <Link key={d.id} to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className={link}>{d.name}</Link>)}
+        {r.devices.length > SHOWN_DEVICES ? <Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`${link} whitespace-nowrap`}>{t('incidents.moreDevices', { count: r.devices.length - SHOWN_DEVICES })}</Link> : null}
+      </span>
     ) },
     { id: 'status', header: t('incidents.col.status'), accessorFn: (r) => r.status, cell: ({ row }) => <Handled i={row.original} /> },
     { id: 'seen', header: t('incidents.col.seen'), accessorFn: (r) => r.last_seen, cell: ({ row }) => <Seen i={row.original} /> },
@@ -209,7 +215,7 @@ function Content() {
                       <Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link>
                       <SeverityBadge severity={r.severity} />
                     </div>
-                    <p className="text-meta text-muted">{t(kindKey(r))}, {r.devices.map((x) => x.name).join(', ')}, {t('incidents.times', { count: r.count })}</p>
+                    <p className="text-meta text-muted">{t(kindKey(r))}, {r.devices.slice(0, SHOWN_DEVICES).map((x) => x.name).join(', ')}{r.devices.length > SHOWN_DEVICES ? ` ${t('incidents.moreDevices', { count: r.devices.length - SHOWN_DEVICES })}` : ''}, {t('incidents.times', { count: r.count })}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta"><Handled i={r} /><DeliveryBadges sends={r.sends} notSent={r.not_sent} admin={admin} noChannelShown={noChannel} /><Seen i={r} /></div>
                     {respond ? <div><RespondLink i={r} /></div> : null}
                   </div>

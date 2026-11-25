@@ -104,6 +104,15 @@ func (c *EmailCodes) Available(ctx context.Context) bool {
 	return c.mailer != nil && c.mailer.Available(ctx)
 }
 
+// Choosable reports whether a person may choose email codes now: Available, and the mailer has shown it sends (ProvenMailer).
+func (c *EmailCodes) Choosable(ctx context.Context) bool {
+	if !c.Available(ctx) {
+		return false
+	}
+	p, ok := c.mailer.(ProvenMailer)
+	return !ok || p.Proven(ctx)
+}
+
 func errEmailUnavailable() *apierr.Error {
 	return apierr.New(503, CodeEmailUnavailable, emailUnavailableMsg)
 }

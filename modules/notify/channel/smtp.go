@@ -198,16 +198,21 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 			return nil, cfgErr("bad_secret", "The saved sign-in cannot be read. Sign in again.")
 		}
 		grant = g
-	case auth == AuthMicrosoft || auth == AuthGoogle:
+	case auth == AuthMicrosoft || auth == AuthGoogle || auth == AuthMicrosoftGraph:
 		// The token goes only to the provider's own server: .default carries every permission of the app, so a token sent to a server
 		// the admin typed by mistake (or on purpose) is a live credential there.
-		if want := oauthHost[cfg.Provider]; host != want {
+		if want := oauthHost[cfg.Provider]; host != want && auth == AuthMicrosoftGraph {
+			return nil, cfgErr("bad_host", "Microsoft Graph sends its token only to "+want+". Choose the Microsoft Graph provider again.")
+		} else if host != want {
 			return nil, cfgErr("bad_host", "This sign-in sends its token only to "+want+". Enter "+want+" as the SMTP server.")
+		}
+		if auth == AuthMicrosoftGraph && (cfg.Port != 443 || cfg.Security != SecuritySSL) {
+			return nil, cfgErr("bad_port", "Microsoft Graph is reached over HTTPS on port 443. Choose the Microsoft Graph provider again.")
 		}
 		if !validEmail(cfg.Username) {
 			return nil, cfgErr("bad_username", "Enter the mailbox Vedette sends as, for example alerts@company.com.")
 		}
-		if auth == AuthMicrosoft {
+		if auth == AuthMicrosoft || auth == AuthMicrosoftGraph {
 			if !guidRE.MatchString(cfg.TenantID) && !validDomain(strings.ToLower(cfg.TenantID)) {
 				return nil, cfgErr("bad_tenant_id", "The tenant ID is the Directory (tenant) ID of the app registration, for example "+
 					"72f988bf-86f1-41af-91ab-2d7cd011db47, or your domain such as company.onmicrosoft.com.")
@@ -218,7 +223,7 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 		}
 		if !isSet(cfg.Password) {
 			return nil, cfgErr("secret_required", map[string]string{AuthMicrosoft: "Enter the client secret of the app registration.",
-				AuthGoogle: "Choose the JSON key file of the service account."}[auth])
+				AuthMicrosoftGraph: "Enter the client secret of the app registration.", AuthGoogle: "Choose the JSON key file of the service account."}[auth])
 		}
 		if auth == AuthGoogle {
 			k, err := parseGoogleKey(cfg.Password.Reveal())
@@ -281,8 +286,8 @@ func NewEmail(cfg EmailConfig) (Sender, error) {
 	}, nil
 }
 
-// oauthHost is the only SMTP server each OAuth2 preset sends its token to.
-var oauthHost = map[string]string{"microsoft365": "smtp.office365.com", "google-workspace": "smtp.gmail.com",
+// oauthHost is the only server each OAuth2 preset sends its token to (an SMTP server; Microsoft Graph for the Graph preset).
+var oauthHost = map[string]string{"microsoft365": "smtp.office365.com", "google-workspace": "smtp.gmail.com", "microsoft-graph": graphHost,
 	"microsoft365-user": "smtp.office365.com", "outlook": "smtp-mail.outlook.com", "gmail-oauth": "smtp.gmail.com"}
 
 // validHeaderText reports whether s is non-empty printable text with no control characters (SMTP username).
@@ -415,6 +420,9 @@ func writeQP(b *bytes.Buffer, s string) error {
 
 // deliver runs one SMTP session.
 func (e *emailSender) deliver(ctx context.Context, raw []byte) error {
+	if e.auth == AuthMicrosoftGraph {
+		return e.deliverGraph(ctx, raw)
+	}
 	ctx, cancel := context.WithTimeout(ctx, emailTimeout)
 	defer cancel()
 	sec := []secrets.Value{e.cfg.Password}

@@ -429,7 +429,7 @@ Codes built by a validation function with its own table (`response/state.ts` `ch
 | `duplicate` | 409 | This email already has an account. | `POST /core/users`; `POST /exposure/targets`; `POST /honeypot/tokens` |
 | `duplicate_ip` | 409 | IP ${ip} is already in the list (${dup.hostname ?? dup.id}). Open that device instead of adding a new one. | module inventory (shared validator) |
 | `duplicate_software` | 409 | This software is already on the device. | `POST /inventory/devices/{id}/software` |
-| `email_channel_not_ready` | 409 | Email codes need the email alert channel. An administrator has to set it up and turn it on first. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start` |
+| `email_channel_not_ready` | 409 | Email codes need a working email alert channel. An administrator has to set it up, turn it on and send a test message that succeeds. | `POST /core/account/2fa/email/confirm`; `POST /core/account/2fa/email/start` |
 | `email_in_use` | 409 | A Vedette account already uses ${email} and does not belong to this SSO identity. Use another email at the identity provider, or ask an administrator. | `POST /auth/oidc/callback` |
 | `engine_off` | 409 | Network discovery is off. Turn it on in Settings, Scanning first. (active discovery's own switch, not a module) | `POST /scanning/engines/nmap-discovery/run` |
 | `execution_off` | 409 | Execution is off (Settings, AI response). | `POST /response/actions/{id}/chat-decision`; `POST /response/proposals/{id}/request`; `POST /response/incidents/{id}/request` |

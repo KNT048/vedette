@@ -32,6 +32,8 @@ const (
 	AuthTokenAsUser = "token_as_user"   // the same, with the secret as both username and password (Postmark's server token)
 	AuthMicrosoft   = "microsoft_oauth" // OAuth2 client credentials (Microsoft 365), XOAUTH2 or OAUTHBEARER
 	AuthGoogle      = "google_oauth"    // OAuth2 service account with domain-wide delegation (Google Workspace), XOAUTH2 or OAUTHBEARER
+	// AuthMicrosoftGraph sends without SMTP: an app-only token (client credentials) and Microsoft Graph sendMail (graphmail.go).
+	AuthMicrosoftGraph = "microsoft_graph"
 )
 
 // emailProviders are the presets of the email dialog (web/src/features/notify/emailProviders.ts fills host, port and security):
@@ -41,7 +43,7 @@ var emailProviders = map[string]string{
 	"gmail": AuthPassword, "yahoo": AuthPassword, "icloud": AuthPassword, "zoho": AuthPassword, "fastmail": AuthPassword,
 	"sendgrid": AuthPassword, "mailgun": AuthPassword, "ses": AuthPassword, "brevo": AuthPassword,
 	"postmark":     AuthTokenAsUser,
-	"microsoft365": AuthMicrosoft, "google-workspace": AuthGoogle,
+	"microsoft365": AuthMicrosoft, "google-workspace": AuthGoogle, "microsoft-graph": AuthMicrosoftGraph,
 	"microsoft365-user": AuthMicrosoftUser, "outlook": AuthMicrosoftUser, "gmail-oauth": AuthGoogleUser,
 }
 
@@ -57,6 +59,7 @@ func EmailAuth(p string) (auth string, ok bool) {
 const (
 	microsoftTokenURL = "https://login.microsoftonline.com/%s/oauth2/v2.0/token" //nolint:gosec // G101: an endpoint, not a credential
 	microsoftScope    = "https://outlook.office365.com/.default"
+	graphScope        = "https://graph.microsoft.com/.default"
 	googleTokenURL    = "https://oauth2.googleapis.com/token" //nolint:gosec // G101: an endpoint, not a credential
 	googleScope       = "https://mail.google.com/"
 )
@@ -271,9 +274,13 @@ func (e *emailSender) fetchToken(ctx context.Context, now time.Time) (secrets.Va
 	var form url.Values
 	var endpoint, who string
 	switch e.auth {
-	case AuthMicrosoft:
+	case AuthMicrosoft, AuthMicrosoftGraph:
+		scope := microsoftScope
+		if e.auth == AuthMicrosoftGraph {
+			scope = graphScope
+		}
 		endpoint, who = fmt.Sprintf(microsoftTokenURL, url.PathEscape(e.cfg.TenantID)), "Microsoft"
-		form = url.Values{"grant_type": {"client_credentials"}, "client_id": {e.cfg.ClientID}, "client_secret": {e.cfg.Password.Reveal()}, "scope": {microsoftScope}}
+		form = url.Values{"grant_type": {"client_credentials"}, "client_id": {e.cfg.ClientID}, "client_secret": {e.cfg.Password.Reveal()}, "scope": {scope}}
 	case AuthGoogle:
 		endpoint, who = googleTokenURL, "Google"
 		jwt, err := googleAssertion(e.gkey, e.cfg.Username, now)
@@ -390,7 +397,7 @@ func (e *emailSender) tokenRefusal(code string, status int) string {
 	case e.auth == AuthGoogleUser:
 		return fmt.Sprintf("Google refused the OAuth client (HTTP %d%s). Check the client ID and the client secret of the Desktop client.", status, codeSuffix(code))
 	}
-	if e.auth == AuthMicrosoft {
+	if e.auth == AuthMicrosoft || e.auth == AuthMicrosoftGraph {
 		switch code {
 		case "invalid_client":
 			return "Microsoft refused the client ID or the client secret. Check them in the app registration; a client secret expires, so create a new one if it has."
@@ -536,7 +543,7 @@ func (e *emailSender) signIn(c *smtp.Client, tok *oauthToken) error {
 }
 
 func (e *emailSender) oauth() bool {
-	return e.auth == AuthMicrosoft || e.auth == AuthGoogle || e.user()
+	return e.auth == AuthMicrosoft || e.auth == AuthGoogle || e.auth == AuthMicrosoftGraph || e.user()
 }
 
 // tokenClient is the client of the token requests: the configured one without redirects (the request carries the secret, and a

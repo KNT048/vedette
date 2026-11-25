@@ -12968,9 +12968,11 @@ func (s *CoreGetCoreAccountOKSessionsItem) SetStartedAt(val time.Time) {
 }
 
 type CoreGetCoreAccountOKTwofaEmail struct {
-	// True only when the notify module is on and an email channel is configured and enabled.
+	// True only when the notify module is on and the email channel is configured, enabled and its last
+	// test (since it was last saved) succeeded.
 	Available bool `json:"available"`
-	// Why the email method cannot be chosen, null when available.
+	// Why the email method cannot be chosen, null when available; channel_not_ready also covers a channel
+	// whose last test did not succeed.
 	Reason NilCoreGetCoreAccountOKTwofaEmailReason `json:"reason"`
 	// Masked sign-in email where codes would go.
 	SentTo string `json:"sent_to"`
@@ -195306,14 +195308,16 @@ type NotifyGetNotifyChannelsOKChannelsItem struct {
 	// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
 	// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session
 	// is the secret) · email provider (preset:
-	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
-	// user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host,
-	// port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace;
-	// none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
-	// outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
-	// sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
-	// webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as
-	// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
+	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace|microsoft-graph
+	// (sends through Microsoft Graph sendMail: host graph.microsoft.com, port 443, security ssl); user
+	// sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port,
+	// security (starttls|ssl|none), username (the mailbox for microsoft365, microsoft-graph and
+	// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+	// microsoft-graph, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to,
+	// secret_for (written by the box: the sign-in method, server and port the saved secret is for;
+	// changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as
+	// scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional),
+	// channel_id (approvals only).
 	Fields      NotifyGetNotifyChannelsOKChannelsItemFields      `json:"fields"`
 	LastTest    NilNotifyGetNotifyChannelsOKChannelsItemLastTest `json:"last_test"`
 	MinSeverity NotifyGetNotifyChannelsOKChannelsItemMinSeverity `json:"min_severity"`
@@ -195494,14 +195498,16 @@ func (s *NotifyGetNotifyChannelsOKChannelsItemApproversItem) SetUserID(val strin
 // (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
 // account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session
 // is the secret) · email provider (preset:
-// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
-// user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host,
-// port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace;
-// none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
-// outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
-// sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
-// webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as
-// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
+// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace|microsoft-graph
+// (sends through Microsoft Graph sendMail: host graph.microsoft.com, port 443, security ssl); user
+// sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port,
+// security (starttls|ssl|none), username (the mailbox for microsoft365, microsoft-graph and
+// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+// microsoft-graph, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to,
+// secret_for (written by the box: the sign-in method, server and port the saved secret is for;
+// changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as
+// scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional),
+// channel_id (approvals only).
 type NotifyGetNotifyChannelsOKChannelsItemFields map[string]string
 
 func (s *NotifyGetNotifyChannelsOKChannelsItemFields) init() NotifyGetNotifyChannelsOKChannelsItemFields {
@@ -202012,14 +202018,16 @@ type NotifyPutNotifyChannelsTypeOK struct {
 	// (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
 	// account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session
 	// is the secret) · email provider (preset:
-	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
-	// user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host,
-	// port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace;
-	// none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
-	// outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
-	// sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
-	// webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as
-	// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
+	// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace|microsoft-graph
+	// (sends through Microsoft Graph sendMail: host graph.microsoft.com, port 443, security ssl); user
+	// sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port,
+	// security (starttls|ssl|none), username (the mailbox for microsoft365, microsoft-graph and
+	// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+	// microsoft-graph, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to,
+	// secret_for (written by the box: the sign-in method, server and port the saved secret is for;
+	// changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as
+	// scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional),
+	// channel_id (approvals only).
 	Fields      NotifyPutNotifyChannelsTypeOKFields      `json:"fields"`
 	LastTest    NilNotifyPutNotifyChannelsTypeOKLastTest `json:"last_test"`
 	MinSeverity NotifyPutNotifyChannelsTypeOKMinSeverity `json:"min_severity"`
@@ -202200,14 +202208,16 @@ func (s *NotifyPutNotifyChannelsTypeOKApproversItem) SetUserID(val string) {
 // (recipient user or group ID), group ("true" for a group), name (shown name of the recipient),
 // account (shown name of the signed-in Zalo account; set by the box from the QR sign-in; the session
 // is the secret) · email provider (preset:
-// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace;
-// user sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host,
-// port, security (starttls|ssl|none), username (the mailbox for microsoft365 and google-workspace;
-// none for postmark, whose server token is the secret), tenant_id (microsoft365, microsoft365-user,
-// outlook) and client_id (those and gmail-oauth), from, to, secret_for (written by the box: the
-// sign-in method, server and port the saved secret is for; changing one needs the secret again) ·
-// webhook url (a secret: sealed on save, returned only as scheme://host/…; send it empty, or as
-// returned, to keep the saved one) · slack label (optional), channel_id (approvals only).
+// custom|gmail|yahoo|icloud|zoho|fastmail|sendgrid|mailgun|ses|postmark|brevo|microsoft365|google-workspace|microsoft-graph
+// (sends through Microsoft Graph sendMail: host graph.microsoft.com, port 443, security ssl); user
+// sign-ins: microsoft365-user|outlook|gmail-oauth, saved with signin; absent = custom), host, port,
+// security (starttls|ssl|none), username (the mailbox for microsoft365, microsoft-graph and
+// google-workspace; none for postmark, whose server token is the secret), tenant_id (microsoft365,
+// microsoft-graph, microsoft365-user, outlook) and client_id (those and gmail-oauth), from, to,
+// secret_for (written by the box: the sign-in method, server and port the saved secret is for;
+// changing one needs the secret again) · webhook url (a secret: sealed on save, returned only as
+// scheme://host/…; send it empty, or as returned, to keep the saved one) · slack label (optional),
+// channel_id (approvals only).
 type NotifyPutNotifyChannelsTypeOKFields map[string]string
 
 func (s *NotifyPutNotifyChannelsTypeOKFields) init() NotifyPutNotifyChannelsTypeOKFields {

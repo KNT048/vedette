@@ -578,3 +578,41 @@ func TestRulesValidation(t *testing.T) {
 		t.Fatal("rules save not audited once")
 	}
 }
+
+// Email two-step sign-in may be chosen only once the email channel has shown it sends: its last test succeeded. Sign-in and
+// step-up codes keep using Available (configured and on), so a failed test never locks out an account that already uses email.
+func TestCodeMailerProvenNeedsASuccessfulTest(t *testing.T) {
+	e := newEnv(t)
+	m := e.svc.CodeMailer()
+	if m.Proven(e.ctx()) {
+		t.Fatal("proven without an email channel")
+	}
+	s := newFakeSMTP(t)
+	e.email(s)
+	if !m.Available(e.ctx()) || m.Proven(e.ctx()) {
+		t.Fatalf("saved, never tested: available %v, proven %v; want true, false", m.Available(e.ctx()), m.Proven(e.ctx()))
+	}
+	s.mu.Lock()
+	s.rcptReply = "550 5.1.1 no such user"
+	s.mu.Unlock()
+	if res, err := e.svc.TestChannel(e.ctx(), "admin@acme.example", channel.Email); err != nil || res.OK {
+		t.Fatalf("test = %+v, %v; want a failure", res, err)
+	}
+	if m.Proven(e.ctx()) || !m.Available(e.ctx()) {
+		t.Fatal("a failed test proves nothing, and must not make codes unavailable")
+	}
+	s.mu.Lock()
+	s.rcptReply = ""
+	s.mu.Unlock()
+	if res, err := e.svc.TestChannel(e.ctx(), "admin@acme.example", channel.Email); err != nil || !res.OK {
+		t.Fatalf("test = %+v, %v", res, err)
+	}
+	if !m.Proven(e.ctx()) {
+		t.Fatal("a successful test should prove the channel")
+	}
+	// Saving the channel again clears the proof: the new settings have not sent anything yet.
+	e.email(s)
+	if m.Proven(e.ctx()) {
+		t.Fatal("proven after the settings changed")
+	}
+}

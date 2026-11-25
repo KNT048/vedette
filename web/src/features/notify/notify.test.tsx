@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -14,6 +14,7 @@ import type { Role } from '@/lib/session'
 import ChannelsSettings from './ChannelsSettings'
 import { ZALO_BOX_UID, zaloMessagesForTest } from './mocks'
 import { forbiddenHost, ownHost } from './types'
+import { EMAIL_PROVIDERS } from './emailProviders'
 
 // Channel approvals belong to AI response, hidden in the v1 GUI (POST_V1_IN_UI false); the screens are kept, so this file
 // runs them as offered. features/core/v1Scope.test.tsx runs the v1 view.
@@ -1116,7 +1117,94 @@ describe('notify: channel form matrix', () => {
 })
 const APPROVE_LABEL = 'Approve actions from this channel'
 
+/** Lists the presets hidden from the provider list for one describe block, so their (kept) code paths stay tested through the dialog. */
+function showHiddenPresets() {
+  const hidden = EMAIL_PROVIDERS.filter((p) => p.hidden)
+  beforeEach(() => { for (const p of hidden) p.hidden = false })
+  afterEach(() => { for (const p of hidden) p.hidden = true })
+}
+
+describe('notify: the email provider list shows the tested providers (S-NOT-1)', () => {
+  const put = (b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/email`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+  const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string>; secret_last4: string | null }[]).find((c) => c.type === 'email')!
+  const openEmail = async () => {
+    renderChannels()
+    await press('Edit Email')
+    return screen.findByRole('dialog', { name: 'Channel Email' })
+  }
+  const options = (dlg: HTMLElement) => Array.from((within(dlg).getByLabelText('Provider') as HTMLSelectElement).options).map((o) => o.value)
+
+  it('offers Microsoft Graph, Microsoft 365 as the user, Gmail, Custom SMTP and the sending services (marked not tested); the rest is hidden', async () => {
+    const dlg = await openEmail()
+    expect(options(dlg)).toEqual(['microsoft-graph', 'microsoft365-user', 'custom', 'gmail', 'sendgrid', 'mailgun', 'ses', 'postmark', 'brevo'])
+    expect(within(dlg).getByRole('group', { name: 'Email sending service (not tested yet)' })).toBeInTheDocument()
+  })
+
+  it('a channel saved with a hidden preset still shows it and keeps working', async () => {
+    sessionStore.set({ userId: USER.admin })
+    const r = await put({ enabled: true, min_severity: 'high', fields: { provider: 'yahoo', host: 'smtp.mail.yahoo.com', port: '465', security: 'ssl', username: 'me@yahoo.example', from: 'me@yahoo.example', to: 'it@acme.example' }, secret: 'app-pass-word' })
+    expect(r.status).toBe(200)
+    const dlg = await openEmail()
+    expect(within(dlg).getByLabelText('Provider')).toHaveValue('yahoo')
+    expect(options(dlg)).toContain('yahoo')
+    expect(options(dlg)).not.toContain('icloud')
+  })
+
+  it('Microsoft Graph: no server fields; wrong IDs show under their fields; the saved password is not a client secret; a full form saves', async () => {
+    const dlg = await openEmail()
+    await eachOption([{ option: 'microsoft-graph', shown: ['Mailbox to send as', 'Tenant ID', 'Client ID', 'Client secret', /Application permissions \(not Delegated\), Mail\.Send/, /graph\.microsoft\.com/], hidden: ['SMTP server', 'Port', 'Encryption', 'Username', 'SMTP password'] }],
+      async (id) => { await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), id) }, dlg)
+    const mailbox = within(dlg).getByLabelText('Mailbox to send as')
+    await userEvent.clear(mailbox)
+    await userEvent.type(mailbox, 'alerts@acme.example')
+    const tenant = within(dlg).getByLabelText('Tenant ID')
+    await userEvent.type(tenant, 'not a tenant')
+    await userEvent.type(within(dlg).getByLabelText('Client ID'), '0a1b2c3d-4e5f-6789-abcd-ef0123456789')
+    const save = () => userEvent.click(within(dlg).getByRole('button', { name: /^Save$/ }))
+    await save()
+    await waitFor(() => expect(tenant).toHaveAccessibleDescription(/^The tenant ID is the Directory \(tenant\) ID/))
+    await userEvent.clear(tenant)
+    await userEvent.type(tenant, '72f988bf-86f1-41af-91ab-2d7cd011db47')
+    await save()
+    const secret = within(dlg).getByLabelText('Client secret')
+    await waitFor(() => expect(secret).toHaveAccessibleDescription(/^Enter the client secret again: the sign-in method, the server or the port changed/))
+    await userEvent.type(secret, 'Gr8Q~graph.client_secret-456')
+    await save()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const em = await emailOf()
+    expect(em.fields).toMatchObject({ provider: 'microsoft-graph', host: 'graph.microsoft.com', port: '443', security: 'ssl', tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47', client_id: '0a1b2c3d-4e5f-6789-abcd-ef0123456789', username: 'alerts@acme.example' })
+    expect(em.secret_last4).toBe('••••')
+  })
+
+  it('Microsoft Graph: the mock refuses another host or port as the box does; switching back to Custom SMTP clears the Graph server', async () => {
+    const g = { enabled: true, min_severity: 'high', fields: { provider: 'microsoft-graph', host: 'graph.microsoft.com', port: '443', security: 'ssl', username: 'alerts@acme.example', tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47', client_id: '0a1b2c3d-4e5f-6789-abcd-ef0123456789', from: 'alerts@acme.example', to: 'it@acme.example' }, secret: 'Gr8Q~graph.client_secret-456' }
+    const code = async (b: unknown) => { const r = await put(b); return r.ok ? 'ok' : ((await r.json()) as { error: { code: string } }).error.code }
+    const dlg = await openEmail()
+    expect(await code({ ...g, fields: { ...g.fields, host: 'graph.attacker.example' } })).toBe('bad_host')
+    expect(await code({ ...g, fields: { ...g.fields, port: '587', security: 'starttls' } })).toBe('bad_port')
+    expect(await code(g)).toBe('ok')
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'microsoft-graph')
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'custom')
+    expect(within(dlg).getByLabelText('SMTP server')).toHaveValue('')
+    expect(within(dlg).getByLabelText('Port')).toHaveValue(587)
+  })
+
+  it('Custom SMTP to a Microsoft server with a password says Microsoft turns password SMTP off at the end of December 2026', async () => {
+    const dlg = await openEmail()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'custom')
+    const NOTE = /turns off password sign-in for SMTP by default at the end of December 2026/
+    expect(within(dlg).queryByText(NOTE)).toBeNull()
+    const host = within(dlg).getByLabelText('SMTP server')
+    await userEvent.clear(host)
+    await userEvent.type(host, 'smtp.office365.com')
+    expect(within(dlg).getByText(NOTE)).toBeInTheDocument()
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider'), 'microsoft365-user')
+    expect(within(dlg).queryByText(NOTE)).toBeNull() // OAuth: not affected
+  })
+})
+
 describe('notify: email providers (S-NOT-1)', () => {
+  showHiddenPresets()
   const put = (b: unknown) => fetch(`${location.origin}/api/v1/notify/channels/email`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
   const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string>; secret_last4: string | null }[]).find((c) => c.type === 'email')!
   const openEmail = async () => {
@@ -1244,6 +1332,7 @@ describe('notify: email providers (S-NOT-1)', () => {
 })
 
 describe('notify: email user sign-in (S-NOT-1)', () => {
+  showHiddenPresets()
   const emailOf = async () => ((await getJson('/notify/channels')).channels as { type: string; fields: Record<string, string> }[]).find((c) => c.type === 'email')!
   const openEmail = async (provider: string) => {
     renderChannels()

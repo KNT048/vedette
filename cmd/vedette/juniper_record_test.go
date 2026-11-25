@@ -81,3 +81,63 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, r.Origin, r.Part, r.Ven
 		t.Errorf("24.4R1: a finding from the EX4000-only range, which says nothing about this model")
 	}
 }
+
+// A record with two entries for Junos OS, each limited to other models: the EX4000 entry states releases before 24.4R1 unaffected,
+// the MX entry names affected 22.2 and 23.4 releases and says nothing about 23.2. The EX4000 statement does not hold for an MX, and
+// Vedette does not know the device's model: a 23.2R1 device is not closed "not affected" on the EX4000 statement, NVD's range decides.
+func TestJuniperRecord_OneModelsStatementDoesNotCloseAnother(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	const cve = "CVE-2026-21914"
+	record := []byte(`{"dataType":"CVE_RECORD","dataVersion":"5.1","cveMetadata":{"cveId":"CVE-2026-21914","state":"PUBLISHED","assignerShortName":"juniper"},` +
+		`"containers":{"cna":{"descriptions":[{"lang":"en","value":"A flaw in Junos OS on EX4000 and MX Series."}],` +
+		`"affected":[{"vendor":"Juniper Networks","product":"Junos OS","defaultStatus":"unaffected","platforms":["EX4000-48T"],"versions":[` +
+		`{"version":"0","lessThan":"24.4R1","status":"unaffected","versionType":"semver"},` +
+		`{"version":"24.4","lessThan":"24.4R2","status":"affected","versionType":"semver"}]},` +
+		`{"vendor":"Juniper Networks","product":"Junos OS","defaultStatus":"unaffected","platforms":["MX Series"],"versions":[` +
+		`{"version":"22.2","lessThan":"22.2R3-S4","status":"affected","versionType":"semver"},` +
+		`{"version":"23.4","lessThan":"23.4R2","status":"affected","versionType":"semver"}]}]}}}`)
+	rec, err := feeds.ParseCVERecord(record, cve)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		if err := seedNVD(ctx, tx, cve, time.Now().AddDate(0, -1, 0), 7.5); err != nil {
+			return err
+		}
+		if err := seedRange(ctx, tx, cve, "cpe:2.3:o:juniper:junos:*:*:*:*:*:*:*:*", "", "", "", "24.4R2"); err != nil {
+			return err
+		}
+		for _, r := range rec.Ranges {
+			var plats any
+			if len(r.Platforms) > 0 {
+				b, err := json.Marshal(r.Platforms)
+				if err != nil {
+					return err
+				}
+				plats = string(b)
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO feeds_cve_range (cve, origin, part, vendor, product, cpe, start_incl, start_excl, end_incl, end_excl, fixed, version_type, default_status, platforms)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, cve, r.Origin, r.Part, r.Vendor, r.Product, r.CPE, r.StartIncl, r.StartExcl, r.EndIncl, r.EndExcl, r.Fixed, r.VersionType, r.DefaultStatus, plats); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := s.d.Inventory.AddDevice(ctx, "it@acme.example", inventory.AddInput{CatalogID: "juniper-junos-os", Version: "23.2R1", Name: "edge-mx", IP: "192.0.2.31"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.d.Findings.Reconcile(ctx); err != nil {
+		t.Fatal(err)
+	}
+	open := slices.Contains(openFindings(t, s, r.ID), cve)
+	asked := s.count(`SELECT count(*) FROM fnd_question WHERE asset_id = ? AND cve = ?`, r.ID, cve) > 0
+	if !open && !asked {
+		t.Errorf("23.2R1: %s neither open nor asked; the EX4000 entry's statement closed it for a device of unknown model", cve)
+	}
+}

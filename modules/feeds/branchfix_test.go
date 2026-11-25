@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/knt048/vedette/core/versionscheme"
@@ -152,5 +153,38 @@ func TestStoreCVERecord_ModelsKept(t *testing.T) {
 	want = map[string][]string{UnaffectedNotation + " -24.4R1": series, "vendor:semver 24.4-24.4R2": series}
 	if got := stored(entry(`"EX Series"`)); !maps.EqualFunc(got, want, slices.Equal) {
 		t.Fatalf("after the models changed: stored %v, want %v", got, want)
+	}
+}
+
+// A statement of unaffected versions is kept only where the product's affected rows are kept beside it: an entry limited to other
+// models (MX) while the stating entry is limited to EX4000 says the statement does not hold for every device, and an entry kept in no
+// form (a model name past the bound) may state affected the very versions the other entry states unaffected.
+func TestParseCVERecord_UnaffectedOnlyBesideEveryEntry(t *testing.T) {
+	t.Parallel()
+	ex := `{"vendor":"Juniper Networks","product":"Junos OS","defaultStatus":"unaffected","platforms":["EX4000-48T"],"versions":[` +
+		`{"version":"0","lessThan":"24.4R1","status":"unaffected","versionType":"semver"},` +
+		`{"version":"24.4","lessThan":"24.4R2","status":"affected","versionType":"semver"}]}`
+	plain := `{"vendor":"Juniper Networks","product":"Junos OS","defaultStatus":"unaffected","versions":[` +
+		`{"version":"0","lessThan":"24.4R1","status":"unaffected","versionType":"semver"}]}`
+	mx := func(model string) string {
+		return `{"vendor":"Juniper Networks","product":"Junos OS","defaultStatus":"unaffected","platforms":["` + model + `"],"versions":[` +
+			`{"version":"22.2","lessThan":"22.2R3-S4","status":"affected","versionType":"semver"}]}`
+	}
+	for name, c := range map[string]struct {
+		entries string
+		want    bool
+	}{
+		"one model set":            {ex, true},
+		"two model sets":           {ex + "," + mx("MX Series"), false},
+		"every device, models":     {plain + "," + mx("MX Series"), true},
+		"an entry kept in no form": {plain + "," + mx(strings.Repeat("MX Series line card ", 6)), false},
+	} {
+		got, err := ParseCVERecord(record(c.entries), "CVE-2026-1000")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if has := slices.ContainsFunc(got.Ranges, Range.Unaffected); has != c.want {
+			t.Errorf("%s: an unaffected row kept %v, want %v (%+v)", name, has, c.want, got.Ranges)
+		}
 	}
 }

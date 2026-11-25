@@ -207,8 +207,8 @@ type SchemedRange struct {
 	Scheme  *versionscheme.Scheme // the product's version scheme
 	Span    versionscheme.Span
 	Origin  string // RangeNVD, RangeCNA, RangeADP
-	// Unaffected is a range the vendor states NOT affected ("0 before 24.4R1"), whatever the model; ModelOnly an affected range that
-	// holds only on some models (Juniper's EX4000). Both only ever support "not affected" (schemeJudge), never "affected".
+	// Unaffected is a range the vendor states NOT affected ("0 before 24.4R1") for every device (feeds unaffectedRows); ModelOnly an
+	// affected range that holds only on some models (Juniper's EX4000). Both only ever support "not affected" (schemeJudge), never "affected".
 	Unaffected, ModelOnly bool
 }
 

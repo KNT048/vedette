@@ -88,7 +88,7 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   person ignored is not rated. A finding above layer 2 is never called exploited.
 - **M-10 Vendor rows and distribution fixes.** A vendor's own version notation is read through the product's version scheme
   (`core/versionscheme`); when it places the line's version, the vendor's verdict decides before NVD's ranges. The vendor's
-  statements that only support "not affected" (`SchemedRange.Unaffected`: a range it states unaffected, whatever the model;
+  statements that only support "not affected" (`SchemedRange.Unaffected`: a range it states unaffected for every device, feeds INV-35;
   `ModelOnly`: an affected range limited to some models) decide "not affected" when the version is inside an unaffected range and
   inside no affected one, or outside every affected range in a train one of them ends in; they never decide "affected", and a version
   inside a model-limited range is left to NVD (`notAffectedByStatements`, `TestMatchAsset_VendorStatementsSayOnlyNotAffected`,

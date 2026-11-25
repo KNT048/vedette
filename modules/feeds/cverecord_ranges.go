@@ -128,7 +128,12 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 					rows = append(rows, r)
 				}
 			}
-			if schemed { // the vendor's explicit "unaffected" ranges, for the product's version scheme only (unaffectedRows)
+			// the vendor's explicit "unaffected" ranges, for the product's version scheme only (unaffectedRows), kept only beside the
+			// product's affected rows: without them nothing would show an affected version inside a range stated unaffected
+			unaffected := func() {
+				if !schemed {
+					return
+				}
 				if got := unaffectedRows(g.entries); len(got) <= min(recordMaxStatedProduct, recordMaxStated-stated) {
 					stated += len(got)
 					own(got)
@@ -145,11 +150,14 @@ func recordRanges(cve, assigner string, cna []cnaAffected, adps []rawContainer) 
 					continue
 				}
 				stated += len(got)
+				unaffected()
 				own(got)
 				continue
 			case len(g.rows) == 0:
+				unaffected()
 				continue
 			}
+			unaffected()
 			if !g.complete && g.noRowPart {
 				for i := range g.rows {
 					g.rows[i].DefaultStatus = DefaultUnknown
@@ -359,18 +367,34 @@ func entryModels(ps []string) (models []string, limited bool) {
 }
 
 // unaffectedRows keeps the version ranges an entry explicitly states as unaffected ("0" lessThan "24.4R1"), for a product with a
-// version scheme: the vendor's word that those versions do not have the flaw, whatever the model the entry is limited to (its
-// platforms are kept for display). Only an entry whose unlisted versions are not stated affected (defaultStatus not affected: an
+// version scheme: the vendor's word that those versions do not have the flaw. An entry limited to some models speaks for every device
+// only when every entry of the product is limited to the same models (the record names no other device; its platforms are kept for
+// display); none is kept when an entry of the product is kept in no form (too many versions, models that cannot be kept). Only an entry whose unlisted versions are not stated affected (defaultStatus not affected: an
 // "affected except" entry's unaffected versions are fixed releases, exceptRows), and only a range with an end: an unaffected version
 // alone is a fixed release (read as such elsewhere), "*" or a list as the end says nothing a scheme reads, and a range with changes
 // is left out.
 func unaffectedRows(entries []cnaAffected) []Range {
+	var first []string
+	sameModels := true // every entry of the product is limited to the same models (or none is limited)
+	for i, a := range entries {
+		plats, limited := entryModels(a.Platforms)
+		if len(a.Versions) > recordMaxVersions || limited && plats == nil {
+			return nil // an entry kept in no form may state affected the versions another entry states unaffected
+		}
+		if i == 0 {
+			first = plats
+		} else if !slices.Equal(first, plats) {
+			sameModels = false
+		}
+	}
 	var out []Range
 	seen := map[[3]string]bool{}
 	for _, a := range entries {
 		def := cnaDefault(a.DefaultStatus)
-		plats, limited := entryModels(a.Platforms)
-		if def == DefaultAffected || len(a.Versions) > recordMaxVersions || limited && plats == nil {
+		plats, _ := entryModels(a.Platforms)
+		if def == DefaultAffected || plats != nil && !sameModels {
+			// an entry limited to some models while another entry names other devices: its statement holds for its models only,
+			// and Vedette does not know the device's model
 			continue
 		}
 		for _, v := range a.Versions {

@@ -199,7 +199,7 @@ func schemeJudge(a Asset, s Software, in swInfo, v Vuln) (schemeRead, bool) {
 }
 
 // notAffectedByStatements says the vendor's statements prove installed not affected: it is inside a range the vendor states
-// unaffected (whatever the model) and inside none of the vendor's affected ranges, of every device or of some models; or it is outside
+// unaffected (for every device: feeds keeps no other) and inside none of the vendor's affected ranges, of every device or of some models; or it is outside
 // every affected range, in a train one of them ends in, when some are model-limited (the vendor's word on the train, as schemeJudge
 // reads its rows). Never "affected": a model-limited range does not say this device's model has the flaw.
 func notAffectedByStatements(installed versionscheme.Version, spans []versionscheme.Span, st statements) bool {

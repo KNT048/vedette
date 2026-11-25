@@ -514,6 +514,8 @@
     "summary_other": "{{count}} open findings on {{devices}}",
     "devices_one": "{{count}} device",
     "devices_other": "{{count}} devices",
+    "toggle": "Show or hide the findings of {{device}}",
+    "worst": "Worst: {{fix}} ({{cve}})",
     "counts_one": "{{count}} finding, {{cves}} CVE",
     "counts_other": "{{count}} findings, {{cves}} CVEs",
     "fixes_one": "fixes {{count}} CVE",

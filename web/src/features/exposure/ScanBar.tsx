@@ -3,13 +3,12 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { toast } from 'sonner'
-import { Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { ScanNowButton } from '@/features/scanning/ScanNow'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { isLive, useScanNode, useStopRun } from './api'
+import { isLive, useScanNode } from './api'
 import { InfoLine } from '@/components/common/InfoLine'
 import { runHref } from './node'
 import { RunState, useTabHref } from './NodeParts'
@@ -99,28 +98,11 @@ export function ScanBar({ node, flow }: { node: TargetNode; flow: Flow }) {
 /** The node's newest run: live with its state and Stop, or how it ended and what it left; its steps and log are on the run page. */
 function LastScan({ node }: { node: TargetNode }) {
   const { t } = useTranslation('exposure')
-  const operator = useCan('operator')
-  const stop = useStopRun()
   const s = node.last_scan
   if (!s) return null
   const when = s.started_at ?? s.queued_at
   const open = <Link className={link} to={runHref(s.run_id)}>{t('run.open')}</Link>
-  if (isLive(s)) {
-    return (
-      <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <RunState scan={s} />
-        <span>{s.status === 'queued' || s.status === 'waiting' ? t('run.queuedAt', { time: fmtDateTime(s.queued_at) }) : t('run.startedAt', { time: fmtDateTime(when), mode: t(`run.mode.${s.mode}`) })}</span>
-        {s.waiting_for ? <span className="text-meta text-muted">{t('run.waitingFor', { what: s.waiting_for })}</span> : null}
-        {open}
-        {s.status !== 'stopping' ? (
-          <Button size="sm" disabled={!operator} title={operator ? undefined : t('common:needRole', { role: t('common:role.operator') })} busy={stop.isPending} busyLabel={t('run.stopping')}
-            onClick={() => stop.mutate(s.run_id, { onSuccess: () => toast.success(t('run.stoppedToast', { value: node.value })), onError: (e) => toast.error(errMsg(e)) })}>
-            <Square />{t('run.stop')}
-          </Button>
-        ) : null}
-      </div>
-    )
-  }
+  if (isLive(s)) return null // a running scan is the Scans tab (its label reads Scanning)
   const c = s.counts
   const result = c ? t('run.result', { services: c.services, newServices: c.new_services, closed: c.closed_services, issues: c.issues, newIssues: c.new_issues }) : null
   return (

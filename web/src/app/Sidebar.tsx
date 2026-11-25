@@ -55,7 +55,7 @@ function EntryLink({ e, rail, drawer, onNavigate }: { e: Entry; rail: boolean; d
   const { t } = useTranslation()
   const label = t(e.item.label)
   const words = e.badge ? t(e.badge.key) : null
-  const preview = e.scope === 'preview' || e.scope === 'leaving' ? t(`scope.${e.scope}`) : null
+  const preview = e.scope === 'leaving' ? t(`scope.${e.scope}`) : null
   const counter = e.badge ? <Counter count={e.badge.count} label={words ?? undefined} tone={e.badge.urgent ? 'danger' : 'off'} className={rail ? 'absolute -right-1 -top-1 h-4 min-w-4 px-1' : 'ml-auto'} /> : null
   if (rail) {
     return (
@@ -69,8 +69,8 @@ function EntryLink({ e, rail, drawer, onNavigate }: { e: Entry; rail: boolean; d
   return (
     <NavLink to={e.item.to} end={e.item.end} onClick={onNavigate} className={itemClass(false, drawer)}>
       <e.item.icon aria-hidden /><span className="min-w-0">{label}</span>{' '}
-      {counter ?? <ScopeBadge scope={e.scope} className="-mr-1 ml-auto h-5 shrink-0 px-1.5 text-caption" />}
-      {counter && preview ? <ScopeBadge scope={e.scope} className="-mr-1 h-5 shrink-0 px-1.5 text-caption" /> : null}
+      {counter ?? <ScopeBadge scope={e.scope === 'preview' ? 'v1' : e.scope} className="-mr-1 ml-auto h-5 shrink-0 px-1.5 text-caption" />}
+      {counter && preview ? <ScopeBadge scope={e.scope === 'preview' ? 'v1' : e.scope} className="-mr-1 h-5 shrink-0 px-1.5 text-caption" /> : null}
     </NavLink>
   )
 }

@@ -462,12 +462,12 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3)', () =>
 })
 
 describe('notify: alert channels (S-NOT-1)', () => {
-  it('lists 6 channels with their status, no a11y violations', async () => {
+  it('lists 4 channels (Zalo is hidden) with their status, no a11y violations', async () => {
     renderChannels()
     const table = await screen.findByRole('table', { name: 'Alert channels' })
-    expect(within(table).getAllByRole('row')).toHaveLength(7)
+    expect(within(table).getAllByRole('row')).toHaveLength(5)
     expect(within(table).getAllByText('On')).toHaveLength(3)
-    expect(within(table).getAllByText('Not set up')).toHaveLength(3)
+    expect(within(table).getAllByText('Not set up')).toHaveLength(1)
     expect(screen.getByText(/leaves the box only to the channels you turn on here/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
@@ -533,7 +533,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     await waitFor(() => expect(token).toHaveAccessibleDescription(/The bot token is not valid/))
   })
 
-  it('Zalo OA says first who it is for and where each value comes from, and offers Zalo personal instead', async () => {
+  it.skip('Zalo OA says first who it is for and where each value comes from, and offers Zalo personal instead', async () => {
     renderChannels()
     await press('Set up Zalo OA')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Zalo OA' })
@@ -557,7 +557,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
     expect(within(dlg).queryByText(/and above$/)).toBeNull()
   })
 
-  it('Zalo OA: App ID, Secret key and refresh token, checked field by field; the box renews the access token', async () => {
+  it.skip('Zalo OA: App ID, Secret key and refresh token, checked field by field; the box renews the access token', async () => {
     renderChannels()
     await press('Set up Zalo OA')
     const dlg = await screen.findByRole('dialog', { name: 'Channel Zalo OA' })
@@ -923,8 +923,6 @@ describe('notify: channel form matrix', () => {
     await eachOption([
       { option: 'Telegram', shown: ['Chat ID', 'Bot token', APPROVE], hidden: [...only('Chat ID', 'Bot token'), LINK_ONLY] },
       { option: 'Slack', shown: ['Channel label (optional)', 'Incoming Webhook URL', APPROVE], hidden: [...only('Channel label (optional)', 'Incoming Webhook URL', 'Channel ID', 'App-level token (xapp-…)', 'Bot token (xoxb-…)'), LINK_ONLY] },
-      { option: 'Zalo OA', shown: ['OA ID', 'App ID', 'Secret key', 'Refresh token', 'Access token (optional)', 'Recipient ID (user_id)', LINK_ONLY], hidden: [...only('OA ID', 'App ID', 'Secret key', 'Refresh token', 'Access token (optional)', 'Recipient ID (user_id)'), APPROVE] },
-      { option: 'Zalo personal', shown: ['Zalo sign-in', 'Or find by invite link, phone number or ID', APPROVE, /Unofficial channel/], hidden: [...only(), LINK_ONLY, 'Bot token', 'I scanned it'] },
       { option: 'Email', shown: ['Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password', APPROVE], hidden: [...only('Provider', 'SMTP server', 'Port', 'Encryption', 'Username', 'Send from', 'Send to', 'SMTP password'), LINK_ONLY] },
       { option: 'Webhook', shown: ['Webhook URL', 'Signing key', 'Generate random', LINK_ONLY], hidden: [...only('Webhook URL', 'Signing key'), APPROVE] },
       { option: 'Telegram', shown: ['Chat ID', 'Bot token'], hidden: [...only('Chat ID', 'Bot token')] }, // going back restores the same fields
@@ -990,7 +988,7 @@ describe('notify: channel form matrix', () => {
     expect((await put({ ...base, approvals: false, approvers: [], fields: { chat_id: '@vedette_alerts' } })).status).toBe(200) // a @name is fine for alerts only
   })
 
-  it('Zalo personal: a real QR sign-in, the recipient picked from the groups, approvers by friend or phone, Waiting then Linked (S-NOT-1, S-RESP-2)', async () => {
+  it.skip('Zalo personal: a real QR sign-in, the recipient picked from the groups, approvers by friend or phone, Waiting then Linked (S-NOT-1, S-RESP-2)', async () => {
     renderChannels()
     await screen.findByRole('table')
     await press(/^Set up Zalo personal$/)

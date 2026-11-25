@@ -94,6 +94,20 @@ export function AddTargetDialog({ items }: { items: TargetNode[] }) {
 }
 
 /** Edit a target: a domain's scope, and whether it is scanned at all. The names of a chosen scope are picked on its Names tab. */
+/** The one thing an address (not a domain) can edit, "Scan this target", as its switch in place of the Edit dialog. */
+export function ScanToggle({ node, disabled, title }: { node: TargetNode; disabled: boolean; title?: string }) {
+  const { t } = useTranslation('exposure')
+  const edit = useEditNode(node.id)
+  return (
+    <span className="flex min-h-10 items-center gap-2" title={title}>
+      <Switch id="ex-scan-target" checked={node.enabled} disabled={disabled || edit.isPending} aria-describedby="ex-scan-target-hint"
+        onCheckedChange={(enabled) => edit.mutate({ enabled }, { onSuccess: () => toast.success(t('edit.toast', { value: node.value })), onError: (er) => toast.error(errMsg(er)) })} />
+      <span className="flex items-center gap-1"><Label htmlFor="ex-scan-target">{t('edit.enabled')}</Label><InfoTip topic={t('edit.enabled')}>{t('edit.enabledInfo')}</InfoTip></span>
+      <span id="ex-scan-target-hint" className="sr-only">{node.enabled ? t('edit.enabledOn') : t('edit.enabledOff')}</span>
+    </span>
+  )
+}
+
 export function EditTargetDialog({ node, open, onOpenChange }: { node: TargetNode; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { t } = useTranslation('exposure')
   const edit = useEditNode(node.id)

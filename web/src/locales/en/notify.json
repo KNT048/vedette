@@ -492,6 +492,7 @@
     "loginInfo": "Sign in with a QR code from the Zalo app of the account that sends the alerts. Save keeps the session on the box."
   },
   "incidents": {
+    "moreDevices": "+{{count}} more",
     "title_one": "{{count}} new incident",
     "title_other": "{{count}} new incidents",
     "titleNone": "No new incidents",

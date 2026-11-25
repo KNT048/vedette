@@ -56,12 +56,21 @@ func (o *Ops) cmdBoxAgentCheck() server.Command {
 			if !ok {
 				return api.BoxAgentCheckResult{State: api.BoxAgentNone}, nil
 			}
-			if anchorHolds(api.ParseAnchor([]byte(a.CA)), api.ParseAnchor(pinned)) {
-				return api.BoxAgentCheckResult{State: api.BoxAgentCurrent}, nil
-			}
 			flags, _, err := o.readBoxAgentFile(boxAgentFlags)
 			if err != nil {
 				return nil, err
+			}
+			// osquery trusts the file its flags name: an osquery someone pointed at another server (another CA file) is not Vedette's
+			// agent any more, whatever vedette-ca.pem was left behind.
+			if flagOf(flags, "tls_server_certs") != "/"+boxAgentCA {
+				return api.BoxAgentCheckResult{State: api.BoxAgentNone}, nil
+			}
+			held := api.ParseAnchor(pinned)
+			if held == nil { // empty, cut short (being written) or not certificates: a doubt, so nothing is touched
+				return nil, fail(api.CodeEffectNotVerified, "/"+boxAgentCA+" holds no certificate that can be read; it was left as it is.")
+			}
+			if anchorHolds(api.ParseAnchor([]byte(a.CA)), held) {
+				return api.BoxAgentCheckResult{State: api.BoxAgentCurrent}, nil
 			}
 			host := tlsHostOf(flags)
 			if !o.isThisMachine(ctx, host) {
@@ -108,19 +117,24 @@ func anchorHolds(now, pinned []*x509.Certificate) bool {
 	return false
 }
 
+// flagOf is the value of --name in osquery.flags ("" when there is none). osquery's flag file is read in order, so the last one counts.
+func flagOf(flags []byte, name string) string {
+	val := ""
+	for line := range strings.SplitSeq(string(flags), "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "--"+name+"="); ok {
+			val = v
+		}
+	}
+	return val
+}
+
 // tlsHostOf is the host part of --tls_hostname in osquery.flags ("" when there is none).
 func tlsHostOf(flags []byte) string {
-	for line := range strings.SplitSeq(string(flags), "\n") {
-		v, ok := strings.CutPrefix(strings.TrimSpace(line), "--tls_hostname=")
-		if !ok {
-			continue
-		}
-		if h, _, err := net.SplitHostPort(v); err == nil {
-			return h
-		}
-		return strings.Trim(v, "[]")
+	v := flagOf(flags, "tls_hostname")
+	if h, _, err := net.SplitHostPort(v); err == nil {
+		return h
 	}
-	return ""
+	return strings.Trim(v, "[]")
 }
 
 // isThisMachine says whether host names this machine: a loopback address, an address of one of its cards, its host name (short or

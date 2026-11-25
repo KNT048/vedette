@@ -71,6 +71,20 @@ func TestInstallSh_UninstallRemovesTheBoxsOwnStaleAgent(t *testing.T) {
 			}
 		})
 	}
+	t.Run("an osquery that pins another file reports to another server", func(t *testing.T) {
+		bin, root := setup(t, "127.0.0.1:8412")
+		flags := "--tls_server_certs=/etc/osquery/fleet.pem\n--tls_hostname=127.0.0.1:8412\n"
+		if err := os.WriteFile(filepath.Join(root, "etc/osquery/osquery.flags"), []byte(flags), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, err := runInstallShFns(t, bin, []string{"OSQ_ROOT=" + root, "FAKE=" + bin}, []string{"names_this_machine", "remove_box_agent"}, "remove_box_agent")
+		if err != nil {
+			t.Fatalf("remove_box_agent: %v\n%s", err, out)
+		}
+		if got := left(root); len(got) != len(files) {
+			t.Fatalf("an osquery set up for another server lost files: left %q\n%s", got, out)
+		}
+	})
 	t.Run("no agent", func(t *testing.T) {
 		bin, root := t.TempDir(), t.TempDir()
 		out, err := runInstallShFns(t, bin, []string{"OSQ_ROOT=" + root, "FAKE=" + bin}, []string{"names_this_machine", "remove_box_agent"}, "remove_box_agent")

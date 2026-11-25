@@ -125,6 +125,31 @@ func TestContract_BoxAgent_AStaleAgentOnTheBoxIsStoppedAndItsSettingsRemoved(t *
 			t.Fatalf("an agent of another box was touched: left %q, systemctl %q", left, e.m.Calls("systemctl"))
 		}
 	})
+	t.Run("an osquery of this machine that pins another file reports to another server and is not touched", func(t *testing.T) {
+		t.Parallel()
+		e := startSys(t, lan)
+		writeBoxAgent(e, old, "127.0.0.1:8412")
+		// someone pointed this osquery at a server of their own (here through a local port) and left the old vedette-ca.pem behind
+		e.m.WriteRoot("etc/osquery/osquery.flags", "--enroll_secret_path=/etc/osquery/enroll.secret\n--tls_server_certs=/etc/osquery/fleet.pem\n--tls_hostname=127.0.0.1:8412\n")
+		if res := result[api.BoxAgentCheckResult](t, e.ok(t, api.CmdBoxAgentCheck, api.BoxAgentCheckArgs{CA: current})); res.State != api.BoxAgentNone {
+			t.Fatalf("state = %q", res.State)
+		}
+		if left := boxAgentLeft(e); len(left) != 7 || len(e.m.Calls("systemctl")) != 0 {
+			t.Fatalf("an osquery set up for another server was touched: left %q, systemctl %q", left, e.m.Calls("systemctl"))
+		}
+	})
+	for name, body := range map[string]string{"empty (being written)": "", "cut short": old[:len(old)/2], "not a certificate": "garbage\n"} {
+		t.Run("a pinned CA that is "+name+" is a doubt: nothing is removed", func(t *testing.T) {
+			t.Parallel()
+			e := startSys(t, lan)
+			writeBoxAgent(e, old, "192.0.2.10:8443")
+			e.m.WriteRoot("etc/osquery/vedette-ca.pem", body)
+			e.final(t, api.CmdBoxAgentCheck, api.BoxAgentCheckArgs{CA: current}, api.StatusFailed, api.CodeEffectNotVerified)
+			if left := boxAgentLeft(e); len(left) != 7 || len(e.m.Calls("systemctl")) != 0 {
+				t.Fatalf("an agent whose CA could not be read was touched: left %q, systemctl %q", left, e.m.Calls("systemctl"))
+			}
+		})
+	}
 	t.Run("a link in place of the pinned CA is not what the install command writes", func(t *testing.T) {
 		t.Parallel()
 		e := startSys(t, lan)

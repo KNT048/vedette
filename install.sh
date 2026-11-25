@@ -1432,7 +1432,9 @@ remove_box_agent() {
 	ca=$OSQ_ROOT/etc/osquery/vedette-ca.pem
 	flags=$OSQ_ROOT/etc/osquery/osquery.flags
 	[ -f "$ca" ] && [ ! -L "$ca" ] || return 0
-	tls=$(sed -n 's/^--tls_hostname=//p' "$flags" 2>/dev/null | head -n 1)
+	# osquery trusts the file its flags name (the last one counts): one pointed at another server is not Vedette's agent any more
+	[ "$(sed -n 's/^--tls_server_certs=//p' "$flags" 2>/dev/null | tail -n 1)" = /etc/osquery/vedette-ca.pem ] || return 0
+	tls=$(sed -n 's/^--tls_hostname=//p' "$flags" 2>/dev/null | tail -n 1)
 	case $tls in
 	\[*\]*) host=${tls#\[}; host=${host%%\]*} ;;
 	*:*:*) host=$tls ;;

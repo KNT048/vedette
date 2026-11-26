@@ -170,7 +170,7 @@ func TestTermsTextIsPinnedToItsVersion(t *testing.T) {
 		"2026-11-18":  "ffec2d4a5e941b0ba409f61cca2e35ea16caa8a82a93ecdf927881a041c93929", // The disclaimer names the Vedette authors
 		"2026-11-18b": "8267255defc8ea3f3874050caf8333b8ccc2531ce5e19bd285c65fbb315e4491", // The box also scans on the schedule, never disruptive
 		// From here the disruptive checks are a paragraph of the templates, not a third text: the hash is of the two templates.
-		"2026-11-26": "8a2de13959eb625030e7289c7360e437211a458207df0358deaef0cccf80f556", // One acceptance: the disruptive checks are part of the terms
+		"2026-11-26": "50b07fc3842602a5798e34da7c15cd092b34e74b3712ccdba3ba677616ddd50f", // One acceptance: the disruptive checks are part of the terms
 	}
 	sum := sha256.Sum256([]byte(termsTemplate + "\x00" + termsTemplateDomain))
 	if got := pinned[TermsVersion]; got != hex.EncodeToString(sum[:]) {

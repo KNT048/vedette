@@ -66,7 +66,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   box's own IP it does not go out through now can be accepted while its proof holds; the box's own IP behind a gateway in
   100.64.0.0/10 cannot (409 `shared_address`, checked after verified and not expired), and a scan of it drops the disruptive checks
   while its gateway is in 100.64.0.0/10 or cannot be read (an acceptance stored before keeps the deep scan); a typed IP shows its own
-  warning and can be accepted. A request from an older page that sends `disruptive: false` is 409 `notice_changed`. An acceptance of a version in
+  warning and can be accepted. A request from an older page that sends `disruptive: false` is 409 `notice_changed`. On a domain's
+  run the disruptive checks go only to an address that is a proven public IP of this box (the box's own IP inside its proof, its
+  name's CNAME inside the domain, its gateway not in 100.64.0.0/10); every other address (hosting, a CDN, a proxy, a typed IP, a name
+  pointing outside) gets the deep scan without them and a line that says so (`deepGate`). An acceptance of a version in
   `keptTermsVersions` (2026-11-18b) stays valid after the update with its own text and disruptive flag: with the flag the disruptive
   checks keep running, without it the deep scan only until the current terms are accepted. Every refused acceptance is logged at
   WARN with its code and the target id.

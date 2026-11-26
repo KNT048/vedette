@@ -35,7 +35,8 @@ const (
 	// 2026-11-18: the disclaimer names the Vedette authors instead of a person (an acceptance of an older text is asked again).
 	// 2026-11-18b: the box also scans the target on its schedule, never with the disruptive checks, until the schedule is off (INV-36).
 	// 2026-11-26: the disruptive checks are one paragraph of the terms instead of a separate tick, so one acceptance covers them;
-	// an acceptance of 2026-11-18b stays valid (keptTermsVersions).
+	// a domain's run sends them only to an address that is a proven public IP of this box (deepGate); an acceptance of 2026-11-18b
+	// stays valid (keptTermsVersions).
 	termsTemplate       = termsHead + termsOwnIP + termsTail
 	termsTemplateDomain = termsHead + termsDomain + termsTail
 	termsHead           = "I confirm that my company owns {value} and that I am authorized to test it in depth. Once I accept, every scan of {value} is a deep scan, and Vedette's tools may send it:\n" +
@@ -51,12 +52,13 @@ const (
 	// and the IP-level tools by name, then TERMS.md's own sentences on what verifying a name proves, third-party hosting,
 	// CDN and proxies, the customer's responsibility, and that Vedette does not check who owns the addresses, so the two never disagree.
 	termsDomain = "Every name under {value} that resolves to a public address is scanned at this depth, whatever serves it: your own server, a hosting provider or a CDN. " +
-		"If a provider serves a name, its testing policy applies to you (for example, Cloudflare and AWS forbid denial-of-service tests); accept only if that provider allows the disruptive checks. " +
+		"If a provider serves a name, its testing policy applies to you (for example, Cloudflare and AWS forbid denial-of-service tests). " +
+		"The disruptive checks run only on an address of {value} that is a proven public IP of this box; every other address (a hosting provider, a CDN, a proxy, or the address of a name that points outside {value}) gets the deep scan without them. " +
 		"Vedette's tools reach each address a name under {value} resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the web scan (ZAP). " +
 		"Verifying a name proves you control its DNS, not that you own the machines behind it or may test them. " +
 		"With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission. " +
 		"Vedette does not check who owns those addresses. " +
-		"A name that points (CNAME) to a name outside {value} is scanned at whatever address the owner of that other name sets, so the disruptive checks never run on an address reached only that way. "
+		"A name that points (CNAME) to a name outside {value} is scanned at whatever address the owner of that other name sets. "
 	termsTail = "Vedette also scans {value} by itself on the schedule set on its page (weekly unless changed), never with the disruptive checks, until that schedule is turned off. The deep scan can load or slow the services on {value} and may create, change or delete data. Run scans when you can accept that, and keep a backup. " +
 		"An administrator can withdraw this acceptance at any time. Vedette is provided as is under the Apache-2.0 license; the Vedette authors are not responsible for how you use it."
 )

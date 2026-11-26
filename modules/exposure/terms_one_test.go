@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -411,4 +412,47 @@ func TestTermsOne_AnUnverifiedIPIsNotVerifiedBeforeTheNATCheck(t *testing.T) {
 	e.advance(91 * 24 * time.Hour)
 	_, err = acceptOnce(e, termsAdmin, id, TermsVersion)
 	wantAPI(t, err, 409, "expired")
+}
+
+// A domain's disruptive checks go only to an address proven as this box's own (its public IP inside its proof): the box's IP the
+// domain points at gets them in a person's scan; an address that is not the box's (hosting, a CDN, a name pointing outside) gets the
+// deep scan without them and a line that says so; a scan the box runs by itself never runs them.
+func TestTermsOne_DomainDisruptiveChecksOnlyOnTheBoxsProvenIP(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.svc.cfg.DomainFence = &fakeFence{}
+	d.acceptTerms(d.dom.ID, true)
+	s := d.scan()
+	modes := func() map[string]bool {
+		d.seams.mu.Lock()
+		defer d.seams.mu.Unlock()
+		out := map[string]bool{}
+		for _, c := range append(slices.Clone(d.seams.services), d.seams.templates...) {
+			out[c.ip] = out[c.ip] || c.st.Mode.Disruptive
+			if !c.st.Mode.Full {
+				t.Fatalf("not deep: %+v", c)
+			}
+		}
+		return out
+	}
+	if got := modes(); !got[ipA] || got[ipB] || got[ipC] {
+		t.Fatalf("disruptive per address = %v, want only %s", got, ipA)
+	}
+	if !hasLine(s, ipB+" (api.acme.example, www.acme.example): "+notDeepNotOwn) {
+		t.Fatalf("not checked %q", notChecked(s))
+	}
+	if hasLine(s, ipA+" (acme.example): "+notDeepNotOwn) {
+		t.Fatalf("the box's IP got the line: %q", notChecked(s))
+	}
+
+	d.seams.mu.Lock()
+	d.seams.services, d.seams.templates = nil, nil
+	d.seams.mu.Unlock()
+	d.advance(ScanEvery)
+	if _, err := d.svc.Scan(d.ctx(), SystemUser, d.dom.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := modes(); got[ipA] || got[ipB] || got[ipC] || len(got) == 0 {
+		t.Fatalf("a scan the box ran by itself, disruptive per address = %v", got)
+	}
 }

@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import { Notice, Panel } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
-import { useAcceptTerms, useRevokeTerms } from './api'
+import { useAcceptTerms, useRevokeTerms, useRows } from './api'
 import { InfoLine } from '@/components/common/InfoLine'
 import { boxIp, termsAcceptable } from './node'
 import type { TargetNode } from './types'
@@ -19,6 +19,17 @@ function TermsText({ text, label }: { text: string; label: string }) {
       {lines.length > 1 ? <p>{lines[lines.length - 1]}</p> : null}
     </div>
   )
+}
+
+/** A domain's disruptive checks go only to its addresses that are proven addresses of this box (the box's own public IP); the others
+ *  get the deep scan without them. The addresses are the ones its last scans saw. */
+function DomainDisruptiveLine({ id }: { id: string }) {
+  const { t } = useTranslation('exposure')
+  const q = useRows(id, 'addresses')
+  if (!q.data) return null
+  const own = [...new Set(q.data.items.filter((a) => a.class === 'box' && a.family === 'ipv4').map((a) => a.ip))]
+  const key = own.length > 0 ? 'terms.domainDisruptiveOn' : q.data.items.length > 0 ? 'terms.domainDisruptiveNone' : 'terms.domainDisruptiveRule'
+  return <p className="text-meta text-muted">{t(key, { ips: own.join(', ') })}</p>
 }
 
 /** What the accepted terms do about the disruptive checks. Behind carrier-grade NAT (refused) they never run on the box's own IP and
@@ -57,6 +68,7 @@ export function TermsPanel({ node: target }: { node: TargetNode }) {
         : <TermsText text={n.text} label={t('terms.textLabel')} />}
       {target.terms_warning ? <Notice tone="warn" role="alert" className="mb-0" title={target.terms_warning} />
         : target.kind === 'ip' ? <InfoLine className="text-meta text-muted" topic={t('terms.cgnatTopic')} info={t('terms.cgnatLimitInfo')}>{t('terms.cgnatLimit')}</InfoLine> : null}
+      {target.kind === 'domain' ? <DomainDisruptiveLine id={target.id} /> : null}
       <div className="flex flex-wrap items-center gap-3">
         {!done && !refused ? (
           <Button variant="primary" disabled={!!locked || revoke.isPending} busy={accept.isPending} busyLabel={t('common:busy.saving')} title={locked}

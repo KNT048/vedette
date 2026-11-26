@@ -20,7 +20,7 @@ const gb = (n: number | null) => (n === null ? null : `${(Math.floor(n / 1e8) / 
 
 /**
  * S-EXP-2 (INV-25): the optional deep scan with Greenbone (OpenVAS), off by default, admin only. The box measures its memory and
- * free disk first and refuses with the numbers; the first start loads Greenbone's feed for about 2 hours, shown as a phase.
+ * free disk first and refuses with the numbers; the first start loads Greenbone's feed for 1 to 3 hours, shown as a phase.
  */
 export function GreenboneSetting({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation('exposure')

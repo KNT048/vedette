@@ -734,11 +734,11 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
   })
 
   it('loading its feed is a visible phase; only an administrator can change it', async () => {
-    server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'loading', reason: 'OpenVAS is loading its feed (first time takes about 2 hours)', changed_by: 'admin@acme.example', changed_at: new Date().toISOString(),
+    server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'loading', reason: 'OpenVAS is loading its feed (first time takes 1 to 3 hours)', changed_by: 'admin@acme.example', changed_at: new Date().toISOString(),
       preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, feed: null, enabled: true })))
     renderApp('/exposure?tab=settings', { role: 'viewer' })
     const s = await section()
-    expect(await within(s).findByText('OpenVAS is loading its feed (first time takes about 2 hours)')).toBeInTheDocument()
+    expect(await within(s).findByText('OpenVAS is loading its feed (first time takes 1 to 3 hours)')).toBeInTheDocument()
     expect(within(s).getByRole('button', { name: 'Turn off OpenVAS' })).toBeDisabled()
   })
 

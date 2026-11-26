@@ -51557,8 +51557,8 @@ type ExposureGetExposureGreenboneOK struct {
 	Preflight ExposureGetExposureGreenboneOKPreflight `json:"preflight"`
 	// Why, for unavailable and error; the feed sentence for loading; null otherwise.
 	Reason NilString `json:"reason"`
-	// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
-	// about 2 hours) or its weekly feed update, a phase and not a hang.
+	// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes 1
+	// to 3 hours) or its weekly feed update, a phase and not a hang.
 	State ExposureGetExposureGreenboneOKState `json:"state"`
 }
 
@@ -51790,8 +51790,8 @@ func (s *ExposureGetExposureGreenboneOKPreflight) SetReason(val NilString) {
 	s.Reason = val
 }
 
-// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
-// about 2 hours) or its weekly feed update, a phase and not a hang.
+// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes 1
+// to 3 hours) or its weekly feed update, a phase and not a hang.
 type ExposureGetExposureGreenboneOKState string
 
 const (
@@ -77282,8 +77282,8 @@ type ExposurePutExposureGreenboneOK struct {
 	Preflight ExposurePutExposureGreenboneOKPreflight `json:"preflight"`
 	// Why, for unavailable and error; the feed sentence for loading; null otherwise.
 	Reason NilString `json:"reason"`
-	// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
-	// about 2 hours) or its weekly feed update, a phase and not a hang.
+	// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes 1
+	// to 3 hours) or its weekly feed update, a phase and not a hang.
 	State ExposurePutExposureGreenboneOKState `json:"state"`
 }
 
@@ -77515,8 +77515,8 @@ func (s *ExposurePutExposureGreenboneOKPreflight) SetReason(val NilString) {
 	s.Reason = val
 }
 
-// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes
-// about 2 hours) or its weekly feed update, a phase and not a hang.
+// Unavailable: not set up on this box; loading: Greenbone is loading its feed (the first time takes 1
+// to 3 hours) or its weekly feed update, a phase and not a hang.
 type ExposurePutExposureGreenboneOKState string
 
 const (

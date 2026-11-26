@@ -153,7 +153,7 @@ const (
 	GBUnavailable = "unavailable" // no GreenboneHost on this box
 	GBOff         = "off"
 	GBStarting    = "starting"
-	GBLoading     = "loading" // the feed loads (the first time about 2 hours): a phase, not a hang
+	GBLoading     = "loading" // the feed loads (the first time 1 to 3 hours): a phase, not a hang
 	GBReady       = "ready"
 	GBError       = "error"
 )
@@ -167,7 +167,7 @@ const (
 	// notGBNoDeep: a domain with accepted terms whose deep scan reached no address this run.
 	notGBNoDeep   = "OpenVAS did not scan: no address of this domain's names got the deep scan this run."
 	notGBStarting = "OpenVAS did not scan: it is still starting."
-	notGBLoading  = "OpenVAS did not scan: it is loading its feed (the first time takes about 2 hours)."
+	notGBLoading  = "OpenVAS did not scan: it is loading its feed (the first time takes 1 to 3 hours)."
 	notGBGate     = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
 	// notGBNotOwn: an IP of the box inside its days that the box does not go out through now (another line, or an address the
 	// provider gave to someone else) gets the surface scan only; OpenVAS has no fence of its own on the host (INV-13).
@@ -191,7 +191,7 @@ const (
 	notGBFail         = "OpenVAS failed, so its results are not shown. The box log has the error."
 	notGBUnread       = "OpenVAS returned an answer that could not be read, so its results are not shown."
 	notGBNotCompared  = "The CVEs OpenVAS named were not compared with the list of exploited vulnerabilities: that comparison is not set up on this box yet."
-	gbLoadingReason   = "OpenVAS is loading its feed (first time takes about 2 hours)"
+	gbLoadingReason   = "OpenVAS is loading its feed (first time takes 1 to 3 hours)"
 	gbNotAnswering    = "OpenVAS does not answer on its socket. Turn it off and on again to restart it."
 	gbAuthFailed      = "Vedette could not sign in to OpenVAS (GMP): it refused the login the box set for it. If OpenVAS has finished loading its feed, turn it off and on again so the box sets the login again."
 	gbUnreadable      = "OpenVAS answered in a way Vedette could not read."

@@ -126,7 +126,7 @@ export function useCheckOutside() {
   })
 }
 
-/** The optional deep scan with Greenbone. Asks again every 30 s while it starts or loads its feed (about 2 hours the first time). */
+/** The optional deep scan with Greenbone. Asks again every 30 s while it starts or loads its feed (1 to 3 hours the first time). */
 export const useGreenbone = () => useQuery({
   queryKey: ['exposure', 'greenbone'], queryFn: () => api.get<Greenbone>('/exposure/greenbone'),
   refetchInterval: (q) => (q.state.data?.state === 'starting' || q.state.data?.state === 'loading' ? 30_000 : false) })

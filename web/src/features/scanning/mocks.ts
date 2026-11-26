@@ -126,7 +126,7 @@ function engine(d: Def, running: Run[]): EngineT {
     const g = greenboneMock.view()
     if (g.state === 'unavailable') { state = 'unavailable'; reason = g.reason }
     else if (!g.preflight.ok && !g.enabled) { state = 'unavailable'; reason = g.preflight.reason }
-    else if (g.state === 'starting' || g.state === 'loading') { state = 'starting'; reason = g.reason ?? 'OpenVAS is loading its feed (first time takes about 2 hours).' }
+    else if (g.state === 'starting' || g.state === 'loading') { state = 'starting'; reason = g.reason ?? 'OpenVAS is loading its feed (first time takes 1 to 3 hours).' }
     else if (g.state === 'error') { state = 'error'; reason = g.reason }
     if (running.some((r) => r.engine === 'openvas')) state = 'running'
   }

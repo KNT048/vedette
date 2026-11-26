@@ -117,3 +117,20 @@ func TestNetworkPath_NoCheckKeepsTheOpenPorts(t *testing.T) {
 		t.Fatalf("%d path items without a check", n)
 	}
 }
+
+// A network that answers many ports (a SYN proxy in front of the box) still gets its line on the target: a line longer than a
+// "Not checked" line may be is dropped when the results are written, so it names a few ports and counts the rest.
+func TestNetworkPath_ManyPortsKeepTheirLine(t *testing.T) {
+	t.Parallel()
+	e, scan, _ := deepScans(t)
+	var many []int
+	for p := 10001; p <= 10035; p++ {
+		many = append(many, p)
+	}
+	e.svc.cfg.Path = &fakePath{ports: many}
+	r := scan([]int{80}, swept(append([]int{80}, many...)...), nil)
+	i := slices.IndexFunc(r.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "network_path" })
+	if i < 0 || !strings.Contains(r.NotChecked[i].Text, "answered by your own network") {
+		t.Fatalf("the target's line about 35 ports the network answers: %+v", r.NotChecked)
+	}
+}

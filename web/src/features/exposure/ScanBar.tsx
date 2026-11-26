@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { ScanNowButton } from '@/features/scanning/ScanNow'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { isLive, useRows, useScanNode } from './api'
+import { isLive, useRows, useScanNode, useTree } from './api'
 import { InfoLine } from '@/components/common/InfoLine'
 import { boxIp, runHref } from './node'
 import { RunState, useTabHref } from './NodeParts'
@@ -82,13 +82,19 @@ export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
 
 /** Where the disruptive checks of a deep scan of node go, as the key of its sentence and the addresses it names. They run only on the
  *  box's own public IP (the backend's deepGate): never on a typed-in IP, nor on the box's IP behind carrier-grade NAT; a domain gets
- *  them only on its addresses that are the box's own (as its last scans saw them), the others get the deep scan without them. */
-function disruptiveLine(node: TargetNode, addresses: { ip: string; class: string; family: string }[] | undefined): { key: string; ips?: string[] } {
+ *  them only on its addresses that are the box's own (as its last scans saw them), the others get the deep scan without them. An
+ *  address of kind "box" is one the box may port-scan, which a verified typed-in IP is too: it counts as the box's own only when the
+ *  tree has it as an IP the box found (origin box) and not as a typed-in IP. Without the tree the rule is said, naming none. */
+function disruptiveLine(node: TargetNode, addresses: { ip: string; class: string; family: string }[] | undefined, nodes: TargetNode[] | undefined): { key: string; ips?: string[] } {
   if (!node.terms?.disruptive) return { key: 'scan.deepNotDisruptive' }
   if (node.kind === 'domain') {
-    if (!addresses) return { key: 'scan.deepDomainDisruptiveRule' }
-    const own = [...new Set(addresses.filter((a) => a.class === 'box' && a.family === 'ipv4').map((a) => a.ip))]
-    if (own.length > 0) return { key: 'scan.deepDomainDisruptiveOn', ips: own }
+    if (!addresses || !nodes) return { key: 'scan.deepDomainDisruptiveRule' }
+    const ipNodes = (ip: string) => nodes.filter((n) => n.kind === 'ip' && n.value === ip)
+    const boxOwn = (ip: string) => { const ns = ipNodes(ip); return ns.some(boxIp) && !ns.some((n) => !boxIp(n)) }
+    const own = [...new Set(addresses.filter((a) => a.class === 'box' && a.family === 'ipv4' && boxOwn(a.ip)).map((a) => a.ip))]
+    const reached = own.filter((ip) => !ipNodes(ip).some((n) => n.terms_warning)) // behind carrier-grade NAT: not the box's to test
+    if (reached.length > 0) return { key: 'scan.deepDomainDisruptiveOn', ips: reached }
+    if (own.length > 0) return { key: 'scan.deepSharedNotDisruptive' }
     return { key: addresses.length > 0 ? 'scan.deepDomainDisruptiveNone' : 'scan.deepDomainDisruptiveRule' }
   }
   if (!boxIp(node)) return { key: 'scan.deepTypedNotDisruptive' }
@@ -101,9 +107,10 @@ function disruptiveLine(node: TargetNode, addresses: { ip: string; class: string
 function useScope(node: TargetNode): { scope: string; disruptive: boolean } {
   const { t } = useTranslation('exposure')
   const rows = useRows(node.id, 'addresses', { enabled: node.kind === 'domain' && node.deep && !!node.terms?.disruptive })
+  const tree = useTree()
   if (!node.deep) return { scope: t('scan.safe'), disruptive: false }
   const deepKey = `scan.deep${node.kind === 'domain' ? 'Domain' : 'Ip'}`
-  const d = disruptiveLine(node, rows.data?.items)
+  const d = disruptiveLine(node, rows.data?.items, tree.data?.items)
   const line = d.ips ? t(d.key, { ips: d.ips.join(', '), count: d.ips.length }) : t(d.key)
   return { scope: `${t(deepKey)} ${line}`, disruptive: ['scan.deepDisruptive', 'scan.deepDomainDisruptiveOn', 'scan.deepDomainDisruptiveRule'].includes(d.key) }
 }

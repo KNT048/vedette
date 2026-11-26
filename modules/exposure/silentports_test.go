@@ -226,3 +226,23 @@ func TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore(t *testing.T) {
 		})
 	}
 }
+
+// The target's line about silent ports is kept when many ports are silent: a line longer than a "Not checked" line may be is dropped
+// when the results are written, so the line names a few ports and counts the rest.
+func TestSilentPorts_ManySilentPortsKeepTheirLine(t *testing.T) {
+	t.Parallel()
+	e, scan, _ := deepScans(t)
+	ports := []int{22}
+	answer := map[int]string{}
+	for p := 10001; p <= 10030; p++ {
+		ports = append(ports, p)
+		answer[p] = PortSilent
+	}
+	scan([]int{22}, swept(ports...), nil)
+	e.svc.cfg.Liveness = &fakeProbe{answer: answer}
+	r := scan([]int{22}, swept(22), nil)
+	i := slices.IndexFunc(r.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "silent_ports" })
+	if i < 0 || !strings.Contains(r.NotChecked[i].Text, "were open before and gave no answer at all") {
+		t.Fatalf("the target's line about 30 silent ports: %+v", r.NotChecked)
+	}
+}

@@ -447,7 +447,7 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 			return res
 		}
 	} else if kind.IsExternal() { // argvOf proved it has one public target (external, external_full, external_disruptive)
-		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Targets[0])); !ok {
+		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Targets[0]), cur.job.ProvenAt); !ok {
 			if context.Cause(jctx) != nil {
 				return stopped()
 			}
@@ -475,7 +475,9 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 		dj := w.domainJob(cur.job)
 		go func() { lost <- w.watchDomain(nctx, dj, ticks, kill) }()
 	} else {
-		go func() { lost <- w.watchEgress(nctx, netip.MustParseAddr(cur.job.Targets[0]), ticks, kill) }()
+		go func() {
+			lost <- w.watchEgress(nctx, netip.MustParseAddr(cur.job.Targets[0]), cur.job.ProvenAt, ticks, kill)
+		}()
 	}
 	out, err := w.runNmap(nctx, cur.job.ID, argv)
 	kill()
@@ -586,6 +588,9 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	default:
 		return nil, fmt.Errorf("scope %.20q is not a scope of shape %s", j.Scope, kind.Name())
 	}
+	if j.ProvenAt != nil && (!kind.IsExternal() || j.Scope != "") { // core's proof is of the box's own IP: an external shape only
+		return nil, fmt.Errorf("a %s job of scope %.20q carries no ownership proof", kind.Name(), j.Scope)
+	}
 	targets, err := parseTargets(j.Targets)
 	if err != nil {
 		return nil, err
@@ -632,7 +637,8 @@ func (w *Worker) beat(ctx context.Context) {
 	// their grammar is nmapargv's, and the own-IP fence covers them like the external shape; they are advertised only with the
 	// nmap version their script lists were reviewed against (review r2 LOW-3).
 	full := present && ver == nmapargv.ReviewedNmapVersion
-	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full, Ports: true}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil, TypedIP: w.fence != nil}
+	hb := &sensorlink.ActiveHeartbeat{Version: w.version, Nmap: sensorlink.HeartbeatNmap{Present: present, Version: ver, Full: full, Ports: true}, Nuclei: w.nucleiStatus(ctx), SNMP: true, DomainIP: w.fence != nil, TypedIP: w.fence != nil,
+		OwnProof: true} // core's proof of the box's own IP is read by the own-IP fence of every external and own_ip job
 	inst, err := w.link.ActiveHeartbeat(ctx, hb)
 	if err != nil {
 		if ctx.Err() == nil {

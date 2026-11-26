@@ -165,16 +165,18 @@ func FuzzParseZAPReport(f *testing.F) {
 
 // fakeWeb is the WebScanner seam with a canned answer per page; it records every page it was asked for. errAt fails the n-th call (from 0).
 type fakeWeb struct {
-	report func(page string) []byte
-	err    error
-	errAt  map[int]error
-	pages  []WebPage
-	asked  []string
-	log    *webLog // the probe log it must find rows in before it is called
-	logged []int   // how many rows the log held at each call
+	report  func(page string) []byte
+	err     error
+	errAt   map[int]error
+	pages   []WebPage
+	targets []ScanTarget // the target of each call
+	asked   []string
+	log     *webLog // the probe log it must find rows in before it is called
+	logged  []int   // how many rows the log held at each call
 }
 
-func (f *fakeWeb) Baseline(_ context.Context, _ ScanTarget, p WebPage) (WebScan, error) {
+func (f *fakeWeb) Baseline(_ context.Context, st ScanTarget, p WebPage) (WebScan, error) {
+	f.targets = append(f.targets, st)
 	if f.log != nil {
 		f.logged = append(f.logged, len(f.log.rows))
 	}

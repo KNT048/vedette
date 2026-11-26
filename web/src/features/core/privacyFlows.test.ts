@@ -34,7 +34,7 @@ describe('Settings → Privacy flows match PRIVACY.md', () => {
     expect(flows['16']!.what).toMatch(/then once a week while it stays enabled \(Vedette's feed update/)
   })
   it('flow 9: Greenbone is re-checked against the IP like the other steps, and the name check is not Greenbone\'s', () => {
-    expect(plain(rows.get(9)![2]!)).toMatch(/the box checks again right before it that it still goes out through that IP/)
+    expect(plain(rows.get(9)![2]!)).toMatch(/the box checks again right before it that the IP is still this box's own \(seen as the box's address within the last 90 days and after its current address was first seen\)/)
     expect(flows['9']!.what).toMatch(/one probe-log row for the run written before it starts \(the box checks again right before it that the IP is still its own\)\. For the names of your domain, one web-page check by name on ports 80 and 443\./)
   })
   it('flow 9: the DNS lookups of a domain scan go through the box\'s resolver, the same words in both (exposure INV-27)', () => {

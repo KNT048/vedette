@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/content/nucleipack"
@@ -27,11 +28,12 @@ import (
 // Dispatcher with scope own_ip. exposureService sets it as cfg.Templates; the commitment sentence of NoticeVersion 2026-11-14 (K-4)
 // names "safe checks for known exploited vulnerabilities", and PRIVACY flow 9 says what is sent.
 //
-// Two fences before a packet leaves, both fail closed: (1) core: right before each run, exposure's ScannableIP with the person who
-// pressed Scan now as the actor (verified, committed, the box's own IP seen within 5 minutes, else a fresh full check); (2) the
+// Two fences before a packet leaves, both fail closed: (1) core: right before each run, exposure's gate with the person who
+// pressed Scan now as the actor (OwnIPProof: verified, committed, inside its proof's 90 days; a sighting renews it); (2) the
 // worker: nucleiargv's own_ip grammar (one public IPv4, the job's port, 5 requests a second), the own_ip mark of each template in
-// its own index and its own read of each template file (pack.OwnIPText), and its own check, with the three public IP services,
-// that the box goes out through that address. No argv goes over the wire.
+// its own index and its own read of each template file (pack.OwnIPText), and the address as the box's own: the job carries the time
+// of the sighting core's yes rests on, which the worker takes while it holds (90 days), else its own check, with the three public
+// IP services, that the box goes out through that address. No argv goes over the wire.
 //
 // Templates come only from the verified pack core plans with (content/nucleipack, the index of the image; the worker refuses a job
 // planned for another pack): the template of each CVE of a job (pack.ForCVE; in the KEV pack its id is the CVE id), none chosen by
@@ -42,7 +44,7 @@ type exposureTemplateScan struct {
 	on     func() bool                 // sensor-active is on: it runs the scan container
 	pack   func() (*pack.Index, error) // the pack core plans with
 	run    func(ctx context.Context, r sensoractive.NucleiRequest) (nucleiout.Outcome, error)
-	gate   func(ctx context.Context, actor string, ip netip.Addr) (bool, error)
+	gate   ownIPGate
 	probes func(ctx context.Context, ps []scan.ExternalProbe) error // the scan module's probe log
 	log    *slog.Logger
 	// mode is exposure's ModeNow: the scan mode of the target right before each full run leaves core.
@@ -214,8 +216,9 @@ func (a exposureTemplateScan) runOne(ctx context.Context, actor string, ip netip
 // silent are the templates nuclei printed nothing for (not run, review r1 M1).
 func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.Addr, ix *pack.Index, r templateRun) (res []exposure.TemplateResult, got nucleiout.Outcome, silent []string, err error) {
 	ok := true
+	var proven time.Time // the sighting the gate's yes rests on: the worker takes the address as the box's own on it
 	if r.domain == nil { // A domain_ip run is not the box's own IP; exposure's deepGate checked it, and the worker's fence does
-		ok, err = a.gate(ctx, actor, ip)
+		proven, ok, err = a.gate(ctx, actor, ip)
 	}
 	switch {
 	case ctx.Err() != nil:
@@ -277,7 +280,7 @@ func (a exposureTemplateScan) send(ctx context.Context, actor string, ip netip.A
 	}
 	got, err = a.run(ctx, sensoractive.NucleiRequest{PackVersion: ix.Version, PackSHA256: ix.SHA256, Templates: ids,
 		Targets: []nucleiargv.Target{r.target}, Rate: rate, MaxHostErrors: templatesHostErrors, Scope: scope,
-		Depth: depth, Disruptive: r.full && r.disruptive, Domain: dom})
+		Depth: depth, Disruptive: r.full && r.disruptive, Domain: dom, ProvenAt: proven})
 	if err != nil && ctx.Err() == nil && refusedBeforeSending(err) { // kf-scan item 5: nothing was sent; the rows say refused
 		for i := range rows {
 			rows[i].Result = scan.ProbeRefused
@@ -418,7 +421,7 @@ func templatesErr(ctx context.Context, ip netip.Addr, err error) error {
 }
 
 // exposureTemplatesFor builds the scanner for exposureService.
-func exposureTemplatesFor(d deps, gate func(ctx context.Context, actor string, ip netip.Addr) (bool, error),
+func exposureTemplatesFor(d deps, gate ownIPGate,
 	mode func(ctx context.Context, actor, id string) (exposure.ScanMode, error)) exposureTemplateScan {
 	a := exposureTemplateScan{
 		on:   func() bool { return d.Reg == nil || d.Reg.Enabled("sensor-active") },

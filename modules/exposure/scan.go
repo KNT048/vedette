@@ -280,29 +280,58 @@ func clipText(v string, n int) string {
 
 // ScannableIP says whether ip is a verified IP target that may be scanned now (LEGAL §3): the scan of a domain asks it
 // before it port-scans an address one of the domain's names points at. It runs the same gate as a scan of that target (INV-1,
-// INV-13: it may run one full check of the box's IPs, as actor), so an address that is not the box's own verified, committed and
-// current IP is never port-scanned.
+// INV-13: it may run one full check of the box's IPs, as actor), so an address that is not the box's own verified and committed IP,
+// inside its proof's ValidDays, is never port-scanned.
 func (s *Service) ScannableIP(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
+	_, ok, err := s.OwnIPProof(ctx, actor, ip)
+	return ok, err
+}
+
+// OwnIPProof is ScannableIP with the proof its yes rests on, for the executors' own-IP fences: provenAt is the latest sighting of ip
+// as the box's egress (Target.ownProof), from which the address stays the box's own for ValidDays, also while the box goes out
+// through another line (INV-13). sensor-active sends it with the nmap and nuclei jobs of the address, and the scan worker takes the
+// job on it instead of a sighting of its own right before the scan. provenAt is zero when ok is false and for a typed IP (proved by
+// its file or name, not by a sighting).
+func (s *Service) OwnIPProof(ctx context.Context, actor string, ip netip.Addr) (provenAt time.Time, ok bool, err error) {
 	ip = ip.Unmap()
 	if !IsPublicIPv4(ip) {
-		return false, nil
+		return time.Time{}, false, nil
 	}
 	// INV-31: an address on the shared exclusion list, or any address while the list cannot be read, is never port-scanned
 	if sf, err := s.safety(ctx); err != nil || sf.excluded(ip) {
 		if err != nil {
 			s.cfg.Log.ErrorContext(ctx, "exposure: reading the shared safety settings failed", "error", err)
 		}
-		return false, nil
+		return time.Time{}, false, nil
 	}
-	t, ok, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), ip.String())
-	if err != nil || !ok || t.Kind != KindIP {
-		return false, err
+	t, found, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), ip.String())
+	if err != nil || !found || t.Kind != KindIP {
+		return time.Time{}, false, err
 	}
-	_, reason, err := s.gate(ctx, actor, t.ID)
+	t, reason, err := s.gate(ctx, actor, t.ID)
 	if err != nil {
-		return false, fmt.Errorf("exposure: checking whether %s may be scanned: %w", ip, err)
+		return time.Time{}, false, fmt.Errorf("exposure: checking whether %s may be scanned: %w", ip, err)
 	}
-	return reason == "", nil
+	if reason != "" {
+		return time.Time{}, false, nil
+	}
+	at, err := s.executorProof(ctx, t)
+	return at, true, err
+}
+
+// executorProof is the proof of t the executors get (egressNow.proofOf: the latest sighting of an IP the box found, while it overlaps
+// the box's current egress address); zero for none.
+func (s *Service) executorProof(ctx context.Context, t Target) (time.Time, error) {
+	if !boxEgress(t) {
+		return time.Time{}, nil
+	}
+	all, err := listTargets(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		return time.Time{}, fmt.Errorf("exposure: reading the box's addresses: %w", err)
+	}
+	now := s.clock()
+	at, _, _ := egressNowOf(all, now).proofOf(t, now)
+	return at, nil
 }
 
 // countsOf computes the numbers of what one scan found (INV-8); certs_expiring counts the certificates that

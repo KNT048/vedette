@@ -169,9 +169,9 @@ const (
 	notGBStarting = "OpenVAS did not scan: it is still starting."
 	notGBLoading  = "OpenVAS did not scan: it is loading its feed (the first time takes 1 to 3 hours)."
 	notGBGate     = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
-	// notGBNotOwn: an IP of the box inside its days that the box does not go out through now (another line, or an address the
-	// provider gave to someone else) gets the surface scan only; OpenVAS has no fence of its own on the host (INV-13).
-	notGBNotOwn = "OpenVAS did not scan: the box does not go out through this IP now (or could not check it), so nothing was sent."
+	// notGBNotOwn: the address is not the box's own proven IP (no sighting inside its days, or a typed IP without its scope), so
+	// OpenVAS, which has no fence of its own on the host, gets nothing (INV-13).
+	notGBNotOwn = "OpenVAS did not scan: this IP is not the box's own proven address (the box has not seen it as its address within the last 90 days, or it is a typed IP without its proof), so nothing was sent."
 	notGBNoLog  = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
 	notGBSlow   = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
 	// notGBPartial and notGBPartialNone: the cap stopped the task and its report was read: the rows found by then are shown.
@@ -891,10 +891,11 @@ func (s *Service) greenboneStep(ctx context.Context, st ScanTarget, ports []int)
 	return s.greenboneAt(ctx, st, ip, ports)
 }
 
-// gbOwnNow says that OpenVAS may start on ip, an address without a domain scope: only the box's own IP, which the box must go out
-// through now (stillCurrent, fail closed); a typed IP never (it reaches OpenVAS only with its live proof as the scope). An IP of the
-// box inside its ValidDays that the box no longer goes out through stays scannable (INV-13), but only by the steps that do not need it to be the
-// box's: OpenVAS is not one of them, since an address the provider gave to someone else must never get a vulnerability scan.
+// gbOwnNow says that OpenVAS may start on ip, an address without a domain scope: only the box's own IP, proven by the box's sighting
+// of it inside its ValidDays (OwnIPProof, the gate of the address, fail closed); a typed IP never (it reaches OpenVAS only with its
+// live proof as the scope). An IP of the box that the box does not go out through right now (a second Internet line, a router that
+// balances two lines) is scannable by every step for its whole proof window (INV-13), OpenVAS included, as the scan worker's and the
+// host's own-IP fences take it on the same proof.
 func (s *Service) gbOwnNow(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
 	t, ok, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), ip.String())
 	if err != nil || !ok || t.Kind != KindIP {
@@ -903,7 +904,8 @@ func (s *Service) gbOwnNow(ctx context.Context, actor string, ip netip.Addr) (bo
 	if t.Typed { // a typed IP reaches OpenVAS only with its live proof as the domain scope (the host's fence); never bare
 		return false, nil
 	}
-	return s.stillCurrent(ctx, actor, t)
+	at, ok, err := s.OwnIPProof(ctx, actor, ip) // the gate of the address: a sighting now renews the proof, and it holds for ValidDays
+	return ok && !at.IsZero(), err
 }
 
 // GreenboneFence is implemented by a GreenboneHost whose host checks the domain fence itself before OpenVAS scans an address of a
@@ -979,7 +981,7 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 			s.cfg.Log.ErrorContext(ctx, "exposure: checking the box's own address before Greenbone failed", "target", st.Value, "ip", ip, "error", err)
 		}
 		if !own {
-			return line(notGBNotOwn, "not done: the box does not go out through this IP now")
+			return line(notGBNotOwn, "not done: not the box's own proven IP (no sighting within its 90 days, or a typed IP without its scope)")
 		}
 	}
 	// Never above the run's snapshot: withdrawing the terms stops the run; the disruptive checks added while it runs wait for the next one

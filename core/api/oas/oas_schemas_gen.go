@@ -51016,6 +51016,10 @@ type ExposureDeleteExposureTreeIDTermsOKProof struct {
 	Method NilExposureDeleteExposureTreeIDTermsOKProofMethod `json:"method"`
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
+	// An IP the box found that was replaced: it was last seen before the box's current egress address was
+	// first seen, so the two never overlapped (a dynamic address the provider took back) and it is no
+	// longer scanned unless the box goes out through it again; null otherwise.
+	Replaced NilExposureDeleteExposureTreeIDTermsOKProofReplaced `json:"replaced"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
 	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
 	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
@@ -51061,6 +51065,11 @@ func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetNextCheckAt() NilDateTime 
 	return s.NextCheckAt
 }
 
+// GetReplaced returns the value of Replaced.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetReplaced() NilExposureDeleteExposureTreeIDTermsOKProofReplaced {
+	return s.Replaced
+}
+
 // GetState returns the value of State.
 func (s *ExposureDeleteExposureTreeIDTermsOKProof) GetState() ExposureDeleteExposureTreeIDTermsOKProofState {
 	return s.State
@@ -51104,6 +51113,11 @@ func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetMethod(val NilExposureDele
 // SetNextCheckAt sets the value of NextCheckAt.
 func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetNextCheckAt(val NilDateTime) {
 	s.NextCheckAt = val
+}
+
+// SetReplaced sets the value of Replaced.
+func (s *ExposureDeleteExposureTreeIDTermsOKProof) SetReplaced(val NilExposureDeleteExposureTreeIDTermsOKProofReplaced) {
+	s.Replaced = val
 }
 
 // SetState sets the value of State.
@@ -51322,6 +51336,33 @@ func (s *ExposureDeleteExposureTreeIDTermsOKProofMethod) UnmarshalText(data []by
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureDeleteExposureTreeIDTermsOKProofReplaced struct {
+	// When the box was first seen going out through it.
+	At time.Time `json:"at"`
+	// The box's current egress address.
+	By string `json:"by"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofReplaced) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofReplaced) GetBy() string {
+	return s.By
+}
+
+// SetAt sets the value of At.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofReplaced) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureDeleteExposureTreeIDTermsOKProofReplaced) SetBy(val string) {
+	s.By = val
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
@@ -61695,6 +61736,10 @@ type ExposureGetExposureTreeIDOKProof struct {
 	Method NilExposureGetExposureTreeIDOKProofMethod `json:"method"`
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
+	// An IP the box found that was replaced: it was last seen before the box's current egress address was
+	// first seen, so the two never overlapped (a dynamic address the provider took back) and it is no
+	// longer scanned unless the box goes out through it again; null otherwise.
+	Replaced NilExposureGetExposureTreeIDOKProofReplaced `json:"replaced"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
 	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
 	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
@@ -61740,6 +61785,11 @@ func (s *ExposureGetExposureTreeIDOKProof) GetNextCheckAt() NilDateTime {
 	return s.NextCheckAt
 }
 
+// GetReplaced returns the value of Replaced.
+func (s *ExposureGetExposureTreeIDOKProof) GetReplaced() NilExposureGetExposureTreeIDOKProofReplaced {
+	return s.Replaced
+}
+
 // GetState returns the value of State.
 func (s *ExposureGetExposureTreeIDOKProof) GetState() ExposureGetExposureTreeIDOKProofState {
 	return s.State
@@ -61783,6 +61833,11 @@ func (s *ExposureGetExposureTreeIDOKProof) SetMethod(val NilExposureGetExposureT
 // SetNextCheckAt sets the value of NextCheckAt.
 func (s *ExposureGetExposureTreeIDOKProof) SetNextCheckAt(val NilDateTime) {
 	s.NextCheckAt = val
+}
+
+// SetReplaced sets the value of Replaced.
+func (s *ExposureGetExposureTreeIDOKProof) SetReplaced(val NilExposureGetExposureTreeIDOKProofReplaced) {
+	s.Replaced = val
 }
 
 // SetState sets the value of State.
@@ -62001,6 +62056,33 @@ func (s *ExposureGetExposureTreeIDOKProofMethod) UnmarshalText(data []byte) erro
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureGetExposureTreeIDOKProofReplaced struct {
+	// When the box was first seen going out through it.
+	At time.Time `json:"at"`
+	// The box's current egress address.
+	By string `json:"by"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTreeIDOKProofReplaced) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureTreeIDOKProofReplaced) GetBy() string {
+	return s.By
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTreeIDOKProofReplaced) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureTreeIDOKProofReplaced) SetBy(val string) {
+	s.By = val
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
@@ -64193,6 +64275,10 @@ type ExposureGetExposureTreeOKItemsItemProof struct {
 	Method NilExposureGetExposureTreeOKItemsItemProofMethod `json:"method"`
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
+	// An IP the box found that was replaced: it was last seen before the box's current egress address was
+	// first seen, so the two never overlapped (a dynamic address the provider took back) and it is no
+	// longer scanned unless the box goes out through it again; null otherwise.
+	Replaced NilExposureGetExposureTreeOKItemsItemProofReplaced `json:"replaced"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
 	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
 	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
@@ -64238,6 +64324,11 @@ func (s *ExposureGetExposureTreeOKItemsItemProof) GetNextCheckAt() NilDateTime {
 	return s.NextCheckAt
 }
 
+// GetReplaced returns the value of Replaced.
+func (s *ExposureGetExposureTreeOKItemsItemProof) GetReplaced() NilExposureGetExposureTreeOKItemsItemProofReplaced {
+	return s.Replaced
+}
+
 // GetState returns the value of State.
 func (s *ExposureGetExposureTreeOKItemsItemProof) GetState() ExposureGetExposureTreeOKItemsItemProofState {
 	return s.State
@@ -64281,6 +64372,11 @@ func (s *ExposureGetExposureTreeOKItemsItemProof) SetMethod(val NilExposureGetEx
 // SetNextCheckAt sets the value of NextCheckAt.
 func (s *ExposureGetExposureTreeOKItemsItemProof) SetNextCheckAt(val NilDateTime) {
 	s.NextCheckAt = val
+}
+
+// SetReplaced sets the value of Replaced.
+func (s *ExposureGetExposureTreeOKItemsItemProof) SetReplaced(val NilExposureGetExposureTreeOKItemsItemProofReplaced) {
+	s.Replaced = val
 }
 
 // SetState sets the value of State.
@@ -64499,6 +64595,33 @@ func (s *ExposureGetExposureTreeOKItemsItemProofMethod) UnmarshalText(data []byt
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposureGetExposureTreeOKItemsItemProofReplaced struct {
+	// When the box was first seen going out through it.
+	At time.Time `json:"at"`
+	// The box's current egress address.
+	By string `json:"by"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposureGetExposureTreeOKItemsItemProofReplaced) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposureGetExposureTreeOKItemsItemProofReplaced) GetBy() string {
+	return s.By
+}
+
+// SetAt sets the value of At.
+func (s *ExposureGetExposureTreeOKItemsItemProofReplaced) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposureGetExposureTreeOKItemsItemProofReplaced) SetBy(val string) {
+	s.By = val
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
@@ -65693,6 +65816,10 @@ type ExposurePatchExposureTreeIDOKProof struct {
 	Method NilExposurePatchExposureTreeIDOKProofMethod `json:"method"`
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
+	// An IP the box found that was replaced: it was last seen before the box's current egress address was
+	// first seen, so the two never overlapped (a dynamic address the provider took back) and it is no
+	// longer scanned unless the box goes out through it again; null otherwise.
+	Replaced NilExposurePatchExposureTreeIDOKProofReplaced `json:"replaced"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
 	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
 	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
@@ -65738,6 +65865,11 @@ func (s *ExposurePatchExposureTreeIDOKProof) GetNextCheckAt() NilDateTime {
 	return s.NextCheckAt
 }
 
+// GetReplaced returns the value of Replaced.
+func (s *ExposurePatchExposureTreeIDOKProof) GetReplaced() NilExposurePatchExposureTreeIDOKProofReplaced {
+	return s.Replaced
+}
+
 // GetState returns the value of State.
 func (s *ExposurePatchExposureTreeIDOKProof) GetState() ExposurePatchExposureTreeIDOKProofState {
 	return s.State
@@ -65781,6 +65913,11 @@ func (s *ExposurePatchExposureTreeIDOKProof) SetMethod(val NilExposurePatchExpos
 // SetNextCheckAt sets the value of NextCheckAt.
 func (s *ExposurePatchExposureTreeIDOKProof) SetNextCheckAt(val NilDateTime) {
 	s.NextCheckAt = val
+}
+
+// SetReplaced sets the value of Replaced.
+func (s *ExposurePatchExposureTreeIDOKProof) SetReplaced(val NilExposurePatchExposureTreeIDOKProofReplaced) {
+	s.Replaced = val
 }
 
 // SetState sets the value of State.
@@ -65999,6 +66136,33 @@ func (s *ExposurePatchExposureTreeIDOKProofMethod) UnmarshalText(data []byte) er
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePatchExposureTreeIDOKProofReplaced struct {
+	// When the box was first seen going out through it.
+	At time.Time `json:"at"`
+	// The box's current egress address.
+	By string `json:"by"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePatchExposureTreeIDOKProofReplaced) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePatchExposureTreeIDOKProofReplaced) GetBy() string {
+	return s.By
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePatchExposureTreeIDOKProofReplaced) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePatchExposureTreeIDOKProofReplaced) SetBy(val string) {
+	s.By = val
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
@@ -74490,6 +74654,10 @@ type ExposurePostExposureTreeCreatedProof struct {
 	Method NilExposurePostExposureTreeCreatedProofMethod `json:"method"`
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
+	// An IP the box found that was replaced: it was last seen before the box's current egress address was
+	// first seen, so the two never overlapped (a dynamic address the provider took back) and it is no
+	// longer scanned unless the box goes out through it again; null otherwise.
+	Replaced NilExposurePostExposureTreeCreatedProofReplaced `json:"replaced"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
 	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
 	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
@@ -74535,6 +74703,11 @@ func (s *ExposurePostExposureTreeCreatedProof) GetNextCheckAt() NilDateTime {
 	return s.NextCheckAt
 }
 
+// GetReplaced returns the value of Replaced.
+func (s *ExposurePostExposureTreeCreatedProof) GetReplaced() NilExposurePostExposureTreeCreatedProofReplaced {
+	return s.Replaced
+}
+
 // GetState returns the value of State.
 func (s *ExposurePostExposureTreeCreatedProof) GetState() ExposurePostExposureTreeCreatedProofState {
 	return s.State
@@ -74578,6 +74751,11 @@ func (s *ExposurePostExposureTreeCreatedProof) SetMethod(val NilExposurePostExpo
 // SetNextCheckAt sets the value of NextCheckAt.
 func (s *ExposurePostExposureTreeCreatedProof) SetNextCheckAt(val NilDateTime) {
 	s.NextCheckAt = val
+}
+
+// SetReplaced sets the value of Replaced.
+func (s *ExposurePostExposureTreeCreatedProof) SetReplaced(val NilExposurePostExposureTreeCreatedProofReplaced) {
+	s.Replaced = val
 }
 
 // SetState sets the value of State.
@@ -74796,6 +74974,33 @@ func (s *ExposurePostExposureTreeCreatedProofMethod) UnmarshalText(data []byte) 
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTreeCreatedProofReplaced struct {
+	// When the box was first seen going out through it.
+	At time.Time `json:"at"`
+	// The box's current egress address.
+	By string `json:"by"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTreeCreatedProofReplaced) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTreeCreatedProofReplaced) GetBy() string {
+	return s.By
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTreeCreatedProofReplaced) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTreeCreatedProofReplaced) SetBy(val string) {
+	s.By = val
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
@@ -76435,6 +76640,10 @@ type ExposurePostExposureTreeIDVerifyOKNodeProof struct {
 	Method NilExposurePostExposureTreeIDVerifyOKNodeProofMethod `json:"method"`
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
+	// An IP the box found that was replaced: it was last seen before the box's current egress address was
+	// first seen, so the two never overlapped (a dynamic address the provider took back) and it is no
+	// longer scanned unless the box goes out through it again; null otherwise.
+	Replaced NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced `json:"replaced"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
 	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
 	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
@@ -76480,6 +76689,11 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetNextCheckAt() NilDateTi
 	return s.NextCheckAt
 }
 
+// GetReplaced returns the value of Replaced.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetReplaced() NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced {
+	return s.Replaced
+}
+
 // GetState returns the value of State.
 func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) GetState() ExposurePostExposureTreeIDVerifyOKNodeProofState {
 	return s.State
@@ -76523,6 +76737,11 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetMethod(val NilExposureP
 // SetNextCheckAt sets the value of NextCheckAt.
 func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetNextCheckAt(val NilDateTime) {
 	s.NextCheckAt = val
+}
+
+// SetReplaced sets the value of Replaced.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProof) SetReplaced(val NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced) {
+	s.Replaced = val
 }
 
 // SetState sets the value of State.
@@ -76741,6 +76960,33 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeProofMethod) UnmarshalText(data [
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePostExposureTreeIDVerifyOKNodeProofReplaced struct {
+	// When the box was first seen going out through it.
+	At time.Time `json:"at"`
+	// The box's current egress address.
+	By string `json:"by"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofReplaced) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofReplaced) GetBy() string {
+	return s.By
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofReplaced) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePostExposureTreeIDVerifyOKNodeProofReplaced) SetBy(val string) {
+	s.By = val
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
@@ -80100,6 +80346,10 @@ type ExposurePutExposureTreeIDTermsOKProof struct {
 	Method NilExposurePutExposureTreeIDTermsOKProofMethod `json:"method"`
 	// When the box checks the proof again by itself; null when it does not.
 	NextCheckAt NilDateTime `json:"next_check_at"`
+	// An IP the box found that was replaced: it was last seen before the box's current egress address was
+	// first seen, so the two never overlapped (a dynamic address the provider took back) and it is no
+	// longer scanned unless the box goes out through it again; null otherwise.
+	Replaced NilExposurePutExposureTreeIDTermsOKProofReplaced `json:"replaced"`
 	// Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
 	// missing: never proved, or the proof was withdrawn (the target whose record proved it was removed);
 	// expired: the proof has not passed for 90 days; not_current: an IP the box found that the box does
@@ -80145,6 +80395,11 @@ func (s *ExposurePutExposureTreeIDTermsOKProof) GetNextCheckAt() NilDateTime {
 	return s.NextCheckAt
 }
 
+// GetReplaced returns the value of Replaced.
+func (s *ExposurePutExposureTreeIDTermsOKProof) GetReplaced() NilExposurePutExposureTreeIDTermsOKProofReplaced {
+	return s.Replaced
+}
+
 // GetState returns the value of State.
 func (s *ExposurePutExposureTreeIDTermsOKProof) GetState() ExposurePutExposureTreeIDTermsOKProofState {
 	return s.State
@@ -80188,6 +80443,11 @@ func (s *ExposurePutExposureTreeIDTermsOKProof) SetMethod(val NilExposurePutExpo
 // SetNextCheckAt sets the value of NextCheckAt.
 func (s *ExposurePutExposureTreeIDTermsOKProof) SetNextCheckAt(val NilDateTime) {
 	s.NextCheckAt = val
+}
+
+// SetReplaced sets the value of Replaced.
+func (s *ExposurePutExposureTreeIDTermsOKProof) SetReplaced(val NilExposurePutExposureTreeIDTermsOKProofReplaced) {
+	s.Replaced = val
 }
 
 // SetState sets the value of State.
@@ -80406,6 +80666,33 @@ func (s *ExposurePutExposureTreeIDTermsOKProofMethod) UnmarshalText(data []byte)
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type ExposurePutExposureTreeIDTermsOKProofReplaced struct {
+	// When the box was first seen going out through it.
+	At time.Time `json:"at"`
+	// The box's current egress address.
+	By string `json:"by"`
+}
+
+// GetAt returns the value of At.
+func (s *ExposurePutExposureTreeIDTermsOKProofReplaced) GetAt() time.Time {
+	return s.At
+}
+
+// GetBy returns the value of By.
+func (s *ExposurePutExposureTreeIDTermsOKProofReplaced) GetBy() string {
+	return s.By
+}
+
+// SetAt sets the value of At.
+func (s *ExposurePutExposureTreeIDTermsOKProofReplaced) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetBy sets the value of By.
+func (s *ExposurePutExposureTreeIDTermsOKProofReplaced) SetBy(val string) {
+	s.By = val
 }
 
 // Proven: this node's own proof holds; covered: the proof of an ancestor covers it (covered_by);
@@ -174235,6 +174522,51 @@ func (o NilExposureDeleteExposureTreeIDTermsOKProofMethod) Or(d ExposureDeleteEx
 	return d
 }
 
+// NewNilExposureDeleteExposureTreeIDTermsOKProofReplaced returns new NilExposureDeleteExposureTreeIDTermsOKProofReplaced with value set to v.
+func NewNilExposureDeleteExposureTreeIDTermsOKProofReplaced(v ExposureDeleteExposureTreeIDTermsOKProofReplaced) NilExposureDeleteExposureTreeIDTermsOKProofReplaced {
+	return NilExposureDeleteExposureTreeIDTermsOKProofReplaced{
+		Value: v,
+	}
+}
+
+// NilExposureDeleteExposureTreeIDTermsOKProofReplaced is nullable ExposureDeleteExposureTreeIDTermsOKProofReplaced.
+type NilExposureDeleteExposureTreeIDTermsOKProofReplaced struct {
+	Value ExposureDeleteExposureTreeIDTermsOKProofReplaced
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofReplaced) SetTo(v ExposureDeleteExposureTreeIDTermsOKProofReplaced) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofReplaced) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureDeleteExposureTreeIDTermsOKProofReplaced) SetToNull() {
+	o.Null = true
+	var v ExposureDeleteExposureTreeIDTermsOKProofReplaced
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofReplaced) Get() (v ExposureDeleteExposureTreeIDTermsOKProofReplaced, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureDeleteExposureTreeIDTermsOKProofReplaced) Or(d ExposureDeleteExposureTreeIDTermsOKProofReplaced) ExposureDeleteExposureTreeIDTermsOKProofReplaced {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureDeleteExposureTreeIDTermsOKScopeMode returns new NilExposureDeleteExposureTreeIDTermsOKScopeMode with value set to v.
 func NewNilExposureDeleteExposureTreeIDTermsOKScopeMode(v ExposureDeleteExposureTreeIDTermsOKScopeMode) NilExposureDeleteExposureTreeIDTermsOKScopeMode {
 	return NilExposureDeleteExposureTreeIDTermsOKScopeMode{
@@ -176215,6 +176547,51 @@ func (o NilExposureGetExposureTreeIDOKProofMethod) Or(d ExposureGetExposureTreeI
 	return d
 }
 
+// NewNilExposureGetExposureTreeIDOKProofReplaced returns new NilExposureGetExposureTreeIDOKProofReplaced with value set to v.
+func NewNilExposureGetExposureTreeIDOKProofReplaced(v ExposureGetExposureTreeIDOKProofReplaced) NilExposureGetExposureTreeIDOKProofReplaced {
+	return NilExposureGetExposureTreeIDOKProofReplaced{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeIDOKProofReplaced is nullable ExposureGetExposureTreeIDOKProofReplaced.
+type NilExposureGetExposureTreeIDOKProofReplaced struct {
+	Value ExposureGetExposureTreeIDOKProofReplaced
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeIDOKProofReplaced) SetTo(v ExposureGetExposureTreeIDOKProofReplaced) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeIDOKProofReplaced) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeIDOKProofReplaced) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeIDOKProofReplaced
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeIDOKProofReplaced) Get() (v ExposureGetExposureTreeIDOKProofReplaced, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeIDOKProofReplaced) Or(d ExposureGetExposureTreeIDOKProofReplaced) ExposureGetExposureTreeIDOKProofReplaced {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTreeIDOKScopeMode returns new NilExposureGetExposureTreeIDOKScopeMode with value set to v.
 func NewNilExposureGetExposureTreeIDOKScopeMode(v ExposureGetExposureTreeIDOKScopeMode) NilExposureGetExposureTreeIDOKScopeMode {
 	return NilExposureGetExposureTreeIDOKScopeMode{
@@ -176980,6 +177357,51 @@ func (o NilExposureGetExposureTreeOKItemsItemProofMethod) Or(d ExposureGetExposu
 	return d
 }
 
+// NewNilExposureGetExposureTreeOKItemsItemProofReplaced returns new NilExposureGetExposureTreeOKItemsItemProofReplaced with value set to v.
+func NewNilExposureGetExposureTreeOKItemsItemProofReplaced(v ExposureGetExposureTreeOKItemsItemProofReplaced) NilExposureGetExposureTreeOKItemsItemProofReplaced {
+	return NilExposureGetExposureTreeOKItemsItemProofReplaced{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureTreeOKItemsItemProofReplaced is nullable ExposureGetExposureTreeOKItemsItemProofReplaced.
+type NilExposureGetExposureTreeOKItemsItemProofReplaced struct {
+	Value ExposureGetExposureTreeOKItemsItemProofReplaced
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureTreeOKItemsItemProofReplaced) SetTo(v ExposureGetExposureTreeOKItemsItemProofReplaced) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureTreeOKItemsItemProofReplaced) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureTreeOKItemsItemProofReplaced) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureTreeOKItemsItemProofReplaced
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureTreeOKItemsItemProofReplaced) Get() (v ExposureGetExposureTreeOKItemsItemProofReplaced, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureTreeOKItemsItemProofReplaced) Or(d ExposureGetExposureTreeOKItemsItemProofReplaced) ExposureGetExposureTreeOKItemsItemProofReplaced {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTreeOKItemsItemScopeMode returns new NilExposureGetExposureTreeOKItemsItemScopeMode with value set to v.
 func NewNilExposureGetExposureTreeOKItemsItemScopeMode(v ExposureGetExposureTreeOKItemsItemScopeMode) NilExposureGetExposureTreeOKItemsItemScopeMode {
 	return NilExposureGetExposureTreeOKItemsItemScopeMode{
@@ -177559,6 +177981,51 @@ func (o NilExposurePatchExposureTreeIDOKProofMethod) Get() (v ExposurePatchExpos
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePatchExposureTreeIDOKProofMethod) Or(d ExposurePatchExposureTreeIDOKProofMethod) ExposurePatchExposureTreeIDOKProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePatchExposureTreeIDOKProofReplaced returns new NilExposurePatchExposureTreeIDOKProofReplaced with value set to v.
+func NewNilExposurePatchExposureTreeIDOKProofReplaced(v ExposurePatchExposureTreeIDOKProofReplaced) NilExposurePatchExposureTreeIDOKProofReplaced {
+	return NilExposurePatchExposureTreeIDOKProofReplaced{
+		Value: v,
+	}
+}
+
+// NilExposurePatchExposureTreeIDOKProofReplaced is nullable ExposurePatchExposureTreeIDOKProofReplaced.
+type NilExposurePatchExposureTreeIDOKProofReplaced struct {
+	Value ExposurePatchExposureTreeIDOKProofReplaced
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePatchExposureTreeIDOKProofReplaced) SetTo(v ExposurePatchExposureTreeIDOKProofReplaced) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePatchExposureTreeIDOKProofReplaced) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePatchExposureTreeIDOKProofReplaced) SetToNull() {
+	o.Null = true
+	var v ExposurePatchExposureTreeIDOKProofReplaced
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePatchExposureTreeIDOKProofReplaced) Get() (v ExposurePatchExposureTreeIDOKProofReplaced, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePatchExposureTreeIDOKProofReplaced) Or(d ExposurePatchExposureTreeIDOKProofReplaced) ExposurePatchExposureTreeIDOKProofReplaced {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -179905,6 +180372,51 @@ func (o NilExposurePostExposureTreeCreatedProofMethod) Or(d ExposurePostExposure
 	return d
 }
 
+// NewNilExposurePostExposureTreeCreatedProofReplaced returns new NilExposurePostExposureTreeCreatedProofReplaced with value set to v.
+func NewNilExposurePostExposureTreeCreatedProofReplaced(v ExposurePostExposureTreeCreatedProofReplaced) NilExposurePostExposureTreeCreatedProofReplaced {
+	return NilExposurePostExposureTreeCreatedProofReplaced{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeCreatedProofReplaced is nullable ExposurePostExposureTreeCreatedProofReplaced.
+type NilExposurePostExposureTreeCreatedProofReplaced struct {
+	Value ExposurePostExposureTreeCreatedProofReplaced
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeCreatedProofReplaced) SetTo(v ExposurePostExposureTreeCreatedProofReplaced) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeCreatedProofReplaced) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeCreatedProofReplaced) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeCreatedProofReplaced
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeCreatedProofReplaced) Get() (v ExposurePostExposureTreeCreatedProofReplaced, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeCreatedProofReplaced) Or(d ExposurePostExposureTreeCreatedProofReplaced) ExposurePostExposureTreeCreatedProofReplaced {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTreeCreatedScopeMode returns new NilExposurePostExposureTreeCreatedScopeMode with value set to v.
 func NewNilExposurePostExposureTreeCreatedScopeMode(v ExposurePostExposureTreeCreatedScopeMode) NilExposurePostExposureTreeCreatedScopeMode {
 	return NilExposurePostExposureTreeCreatedScopeMode{
@@ -180529,6 +181041,51 @@ func (o NilExposurePostExposureTreeIDVerifyOKNodeProofMethod) Get() (v ExposureP
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePostExposureTreeIDVerifyOKNodeProofMethod) Or(d ExposurePostExposureTreeIDVerifyOKNodeProofMethod) ExposurePostExposureTreeIDVerifyOKNodeProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTreeIDVerifyOKNodeProofReplaced returns new NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced with value set to v.
+func NewNilExposurePostExposureTreeIDVerifyOKNodeProofReplaced(v ExposurePostExposureTreeIDVerifyOKNodeProofReplaced) NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced {
+	return NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced is nullable ExposurePostExposureTreeIDVerifyOKNodeProofReplaced.
+type NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced struct {
+	Value ExposurePostExposureTreeIDVerifyOKNodeProofReplaced
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced) SetTo(v ExposurePostExposureTreeIDVerifyOKNodeProofReplaced) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTreeIDVerifyOKNodeProofReplaced
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced) Get() (v ExposurePostExposureTreeIDVerifyOKNodeProofReplaced, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTreeIDVerifyOKNodeProofReplaced) Or(d ExposurePostExposureTreeIDVerifyOKNodeProofReplaced) ExposurePostExposureTreeIDVerifyOKNodeProofReplaced {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -181654,6 +182211,51 @@ func (o NilExposurePutExposureTreeIDTermsOKProofMethod) Get() (v ExposurePutExpo
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePutExposureTreeIDTermsOKProofMethod) Or(d ExposurePutExposureTreeIDTermsOKProofMethod) ExposurePutExposureTreeIDTermsOKProofMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureTreeIDTermsOKProofReplaced returns new NilExposurePutExposureTreeIDTermsOKProofReplaced with value set to v.
+func NewNilExposurePutExposureTreeIDTermsOKProofReplaced(v ExposurePutExposureTreeIDTermsOKProofReplaced) NilExposurePutExposureTreeIDTermsOKProofReplaced {
+	return NilExposurePutExposureTreeIDTermsOKProofReplaced{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureTreeIDTermsOKProofReplaced is nullable ExposurePutExposureTreeIDTermsOKProofReplaced.
+type NilExposurePutExposureTreeIDTermsOKProofReplaced struct {
+	Value ExposurePutExposureTreeIDTermsOKProofReplaced
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureTreeIDTermsOKProofReplaced) SetTo(v ExposurePutExposureTreeIDTermsOKProofReplaced) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureTreeIDTermsOKProofReplaced) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureTreeIDTermsOKProofReplaced) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureTreeIDTermsOKProofReplaced
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureTreeIDTermsOKProofReplaced) Get() (v ExposurePutExposureTreeIDTermsOKProofReplaced, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureTreeIDTermsOKProofReplaced) Or(d ExposurePutExposureTreeIDTermsOKProofReplaced) ExposurePutExposureTreeIDTermsOKProofReplaced {
 	if v, ok := o.Get(); ok {
 		return v
 	}

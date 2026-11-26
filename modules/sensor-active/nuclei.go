@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/sensorlink"
@@ -64,6 +65,9 @@ type NucleiRequest struct {
 	// Domain: a job of Scope sensorlink.ScopeDomainIP (depth full, one public target that is not the box's own egress) and
 	// its fence fields; sent only to a worker whose heartbeat says domain_ip, which checks the domain fence itself.
 	Domain *sensorlink.DomainScope
+	// ProvenAt: on a job of Scope own_ip, the latest sighting of its target as the box's own public IP that core's fence took it on
+	// (sensorlink NucleiJob.ProvenAt); zero for none. It goes on the wire only to a worker whose heartbeat says own_proof.
+	ProvenAt time.Time
 }
 
 // Scanner is the seam the scan module calls (the smallest one: scan's own Engine asks only Ready, and the run is what S5 adds).
@@ -114,6 +118,9 @@ func (r NucleiRequest) check() error {
 	}
 	if r.Scope == nucleiargv.ScopeLAN { // the wire says LAN by leaving the scope out: a worker of protocol 5 reads the job it knows
 		return errors.New(`the LAN scope is "" in a request`)
+	}
+	if !r.ProvenAt.IsZero() && r.Scope != nucleiargv.ScopeOwnIP {
+		return errors.New("only an own_ip request carries an ownership proof")
 	}
 	scope := r.Scope
 	switch { // domain_ip is the full own_ip shape with the fence fields; nothing else carries them
@@ -186,6 +193,10 @@ func (d *Dispatcher) RunNuclei(ctx context.Context, r NucleiRequest) (nucleiout.
 		Disruptive:    r.Disruptive,
 		Domain:        r.Domain,
 	}}
+	if !r.ProvenAt.IsZero() {
+		at := r.ProvenAt.UTC()
+		spec.Nuclei.ProvenAt = &at
+	}
 	hostPort := make([]string, len(r.Targets))
 	for i, t := range r.Targets {
 		spec.Nuclei.Targets[i] = sensorlink.NucleiTarget{Host: t.Host, Port: t.Port, Scheme: t.Scheme}

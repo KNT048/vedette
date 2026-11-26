@@ -4,10 +4,22 @@ import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
-import { usersStore } from '@/mocks/stores'
+import { sessionStore, usersStore } from '@/mocks/stores'
 
 const tree = () => screen.findByRole('table', { name: 'Targets' })
 const rowOf = async (table: HTMLElement, text: string) => (await within(table).findByRole('link', { name: text })).closest('tr')!
+
+describe('exposure screens: a replaced IP of the box', () => {
+  it('the Ownership tab of an IP the box no longer uses since a new address came says it was replaced, by what and when', async () => {
+    try {
+      localStorage.setItem('vedette-mock-egress', '198.51.100.9')
+      sessionStore.set({ userId: 'u-admin' })
+      await fetch(`${location.origin}/api/v1/exposure/box-ip/verify`, { method: 'POST' })
+      renderApp('/exposure/xt-14?tab=ownership')
+      expect(await screen.findByText(/^Replaced by 198\.51\.100\.9 on .+: no longer scanned unless the box goes out through it again\.$/)).toBeInTheDocument()
+    } finally { localStorage.removeItem('vedette-mock-egress') }
+  })
+})
 
 describe('exposure screens: the target tree', () => {
   it('a name under a domain sits under it and says whose proof covers it; the counts open the target; axe clean', async () => {

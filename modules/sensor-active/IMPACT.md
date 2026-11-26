@@ -25,6 +25,12 @@
 - **The window rule** (`windowNow`) now also opens for `manualUntil`: a change to it changes the first pass, the queue drain and `SettingsChanged`.
 - **`DiscoverRanges`** runs its batches without the context's progress sink and reports the sweep's own count instead (#830 FAIL 2): a caller that wants a batch's own nmap percent must not rely on the sink.
 
+## Modifying: the ownership proof of the box's own IP (`OwnProver`, `ProvenProber`, `ProbeProven`, `NucleiRequest.ProvenAt`, the worker's `checkIP`; INV-30)
+- **core/sensorlink**: `Job.ProvenAt`, `NucleiJob.ProvenAt` (`proven_at` on the wire) and the heartbeat's `own_proof`; `docs/specs/sensor-protocol.md` says when each is sent. A worker that does not say `own_proof` never sees the field (`pollLocked` strips it).
+- **core/egressip** `ProofValid`, `ProofSlack`, `ProofHolds`: the one rule the worker, the host's ZAP fence and exposure (`ValidDays`, `clockSlack`; `TestOwnProofWindowIsValidDays`) share. Changing the window here without exposure lets the executors refuse (or accept) what core's gate does not.
+- **cmd/vedette** `exposureservices.go` (`ownGate.OwnProof`, `ownIPGate`), `exposuretemplates.go` (the gate's time into `NucleiRequest.ProvenAt`): the time comes from exposure's `OwnIPProof`; an adapter that drops it sends the job without a proof, and the worker's sighting decides again (the refusal on a second Internet line comes back).
+- **The refusal codes** `not_own_ip` / `egress_unverified` and their page lines are unchanged: a proof that does not hold falls back to the sighting with the same codes.
+
 ## Modifying: the two deep shapes `external_full`/`external_disruptive`, `ScanExternal(ctx, ip, kind, own)`, `DeepGate`, `ExternalScript` (INV-19)
 - **cmd/vedette** `exposureservices.go`: chooses the shape from `exposure.ScanTarget.Mode` (`shapeOf`), `ownGate` implements `DeepGate` through `exposure.ModeNow`, turns `ErrNotDeep`/`ErrFullUnsupported` into the page's line, converts `External.Scripts` → `exposure.ScriptRow`. Changing `nmapargv.FullHostTimeout` also changes `exposure.FullHostLimit` and calls for a review of `exposure.FullServicesTimeout` (`TestExposureServiceShapeFollowsTheMode` keeps the three numbers together).
 - **exposure**: the service step of the deep scan, the "did not finish within …" line, the `exp_snapshot.scripts` column (exposure's `scripts`), `modules/core/export_policy.go`.

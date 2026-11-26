@@ -68,6 +68,21 @@ describe('exposure tree', () => {
     } finally { localStorage.removeItem('vedette-mock-egress') }
   })
 
+  it('an IP of the box last seen before its current address was first seen is replaced, until the box goes out through it again', async () => {
+    try {
+      expect(parsed(TargetNode, (await call('GET', '/exposure/tree/xt-14')).json).proof.replaced).toBeNull()
+      localStorage.setItem('vedette-mock-egress', '198.51.100.9') // the provider gave the box a new address
+      expect((await call('POST', '/exposure/box-ip/verify')).status).toBe(200)
+      const after = parsed(TargetNode, (await call('GET', '/exposure/tree/xt-14')).json)
+      expect(after.proof.replaced).toMatchObject({ by: '198.51.100.9' })
+      const fresh = (await tree()).find((n) => n.value === '198.51.100.9')!
+      expect(fresh.proof.replaced).toBeNull()
+      localStorage.setItem('vedette-mock-egress', '198.51.100.2') // seen again: not replaced any more
+      expect((await call('POST', '/exposure/box-ip/verify')).status).toBe(200)
+      expect(parsed(TargetNode, (await call('GET', '/exposure/tree/xt-14')).json).proof.replaced).toBeNull()
+    } finally { localStorage.removeItem('vedette-mock-egress') }
+  })
+
   it('refuses a scope on an IP and a choice of names outside the selected scope', async () => {
     expect((await call('POST', '/exposure/tree', { value: '198.51.100.9', scope_mode: 'all' })).status).toBe(400)
     expect((await call('PATCH', '/exposure/tree/xt-11', { selected: ['xh-2'] })).status).toBe(400)

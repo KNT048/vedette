@@ -220,6 +220,27 @@ func (t Target) provedAt(now time.Time) time.Time {
 	return at
 }
 
+// ownProof is the proof the executors' own-IP fences take t on (the scan worker's, the host's ZAP fence): for an IP the box found as
+// its own egress (box_egress), the latest sighting (provedAt), from which it stays proven for ValidDays also while the box goes out
+// through another line; zero for every other target (a domain, a typed IP: their proof is a record, a file or a name, which the
+// executors check themselves). A sighting stored more than clockSlack after now (written while the clock was ahead) is no proof:
+// provedAt takes it as now, which would let the executors skip their own sighting on a time nobody knows; they ask for one instead.
+func (t Target) ownProof(now time.Time) time.Time {
+	if t.Kind != KindIP || t.Typed || t.Method != methodBoxEgress {
+		return time.Time{}
+	}
+	ahead := func(at time.Time) bool { return at.After(now.Add(clockSlack)) }
+	if ahead(t.VerifiedAt) {
+		return time.Time{}
+	}
+	if t.LastCheck != nil && t.LastCheck.OK {
+		if c, err := parseTS(t.LastCheck.At); err == nil && ahead(c) {
+			return time.Time{}
+		}
+	}
+	return t.provedAt(now)
+}
+
 // expiresAt is when the proof of t runs out: ValidDays after it last passed, whatever the checks since said (INV-1, INV-4).
 func (t Target) expiresAt(now time.Time) time.Time {
 	at := t.provedAt(now)

@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/netip"
 	"regexp"
+	"time"
 
 	"github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
@@ -14,8 +16,9 @@ import (
 
 // exposureWebScan is exposure's WebScanner over vedette-host's zap.baseline (S-EXP-2, exposure INV-24): ZAP's passive
 // baseline in a one-shot container whose only way out is the page's address and port. exposureService sets it as cfg.Web. The host
-// pins ZAP to page.IP, refuses a non-public address and re-checks ownership itself (the box's own egress for an IP target, the TXT
-// token for a domain, which is why the token goes along); the report comes back by a second read, at most MaxWebReport bytes.
+// pins ZAP to page.IP, refuses a non-public address and re-checks ownership itself (for the box's own IP: the sighting its proof rests
+// on, sent as proven_at, while it holds, else the box's own egress now; the TXT token for a domain, which is why the token goes
+// along); the report comes back by a second read, at most MaxWebReport bytes.
 //
 // Every reason the step did not run that holds for the other pages too (no host, busy, still cleaning up, the image is being
 // downloaded, the target is no longer the customer's, the fence could not be set up) is an *exposure.Unavailable with a sentence for the page; a run that
@@ -70,6 +73,8 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 			s := t.Domain.Typed
 			args.TXTToken = t.Domain.Token
 			args.Typed = &api.ExposureTyped{Method: s.Method, PTRName: s.PTRName, CoverDomain: s.CoverDomain, CoverToken: s.CoverToken, CoverProofAt: s.CoverProofAt}
+		case !t.ProvenAt.IsZero() && provenPage(t, page): // the box's own IP: the sighting its proof rests on, which the host takes while it holds (90 days)
+			args.ProvenAt = t.ProvenAt.UTC().Format(time.RFC3339)
 		}
 	case exposure.KindDomain:
 		if p := t.Proof; p != nil { // The domain whose record proved the target at the gate (itself, or a parent covering it)
@@ -99,7 +104,7 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		case ctx.Err() != nil: // exposure's 8 minutes, or the run was stopped: exposure tells them apart
 			return exposure.WebScan{}, ctx.Err()
 		case errors.As(err, &he) && (he.Code == api.CodeUnknownCommand ||
-			he.Code == api.CodeInvalidArgs && (t.Proof != nil && t.Proof.ProofAt != "" || t.Typed)): // an older host refuses a proof it does not know
+			he.Code == api.CodeInvalidArgs && (t.Proof != nil && t.Proof.ProofAt != "" || t.Typed || args.ProvenAt != "")): // an older host refuses a proof it does not know
 
 			return exposure.WebScan{}, &exposure.Unavailable{Reason: webOldHost}
 		}
@@ -136,6 +141,13 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the report: %w", err)
 	}
 	return exposure.WebScan{Report: b}, nil
+}
+
+// provenPage says whether the target's proof is about the page's address: the proof is a sighting of the target's own IP, so it goes
+// to the host only with a page on exactly that address, never with a page on another one.
+func provenPage(t exposure.ScanTarget, page exposure.WebPage) bool {
+	ip, err := netip.ParseAddr(t.Value)
+	return err == nil && ip.Unmap() == page.IP.Unmap()
 }
 
 // webReason is the sentence of a run that ended without a report for a reason that holds for the other pages too; "" for a failure

@@ -407,3 +407,27 @@ func TestIsALeaf(t *testing.T) {
 		}
 	}
 }
+
+// A proof holds from its sighting up to ProofValid after it, and a time a little ahead of the clock; a zero time, one older
+// than ProofValid and one far in the future do not.
+func TestProofHolds(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 26, 6, 0, 0, 0, time.UTC)
+	for name, c := range map[string]struct {
+		at   time.Time
+		want bool
+	}{
+		"just seen":                {now, true},
+		"89 days ago":              {now.Add(-89 * 24 * time.Hour), true},
+		"exactly 90 days ago":      {now.Add(-ProofValid), true},
+		"90 days and 1 s ago":      {now.Add(-ProofValid - time.Second), false},
+		"a clock a little ahead":   {now.Add(ProofSlack), true},
+		"further in the future":    {now.Add(ProofSlack + time.Second), false},
+		"no proof":                 {time.Time{}, false},
+		"another zone, same point": {now.In(time.FixedZone("UTC+7", 7*3600)).Add(-time.Hour), true},
+	} {
+		if got := ProofHolds(c.at, now); got != c.want {
+			t.Errorf("%s: %v, want %v", name, got, c.want)
+		}
+	}
+}

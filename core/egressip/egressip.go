@@ -185,3 +185,21 @@ func ParseAnswer(body []byte) (netip.Addr, error) {
 // scans target IPv4; IPv6 is a later story). The rule lives in core/localnet (localnet.Public) so nucleiargv, which may not link
 // net/http, applies the same one.
 func IsPublicIPv4(a netip.Addr) bool { return localnet.Public(a) }
+
+// The ownership proof of the box's own public IP. The box proves an address its own by going out through it once, seen by Round
+// (exposure's box_egress method); the proof then holds for ProofValid from its latest sighting, also while the box goes out
+// through another line (a second Internet line, a failover, a router that balances two lines). Core sends the time of that
+// sighting with a scan job of the address, and every executor that fences the box's own IP (the scan worker, the host's ZAP
+// fence) accepts it under the same rule, ProofHolds, instead of asking for a sighting right before the scan.
+const (
+	// ProofValid is how long a sighting proves the address: exposure's ValidDays (90 days).
+	ProofValid = 90 * 24 * time.Hour
+	// ProofSlack is how far after now a proof time may lie before it is not believed (a clock that was a little ahead).
+	ProofSlack = 5 * time.Minute
+)
+
+// ProofHolds reports whether a proof whose latest sighting was at still proves its address at now: at is set, not more than
+// ProofSlack after now, and at most ProofValid before it.
+func ProofHolds(at, now time.Time) bool {
+	return !at.IsZero() && !at.After(now.Add(ProofSlack)) && now.Sub(at) <= ProofValid
+}

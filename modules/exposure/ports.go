@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/netip"
 	"regexp"
+	"time"
 
 	"github.com/knt048/vedette/core/events"
 )
@@ -76,6 +77,10 @@ type ScanTarget struct {
 	// Proof is, on a domain's scan, the domain target whose record proved it at the gate (the target itself, or a parent of the box
 	// that covers it) with that target's stored token: the host's re-check of a web page asks that domain's record (ZAP).
 	Proof *ProofOwner
+	// ProvenAt is, on the scan of an IP the box found as its own egress, the latest sighting of it that the gate took it on
+	// (Target.ownProof): the executors' own-IP fences (the host's ZAP fence) take the address on it while the box goes out through
+	// another line, for ValidDays from it. Zero on every other target.
+	ProvenAt time.Time
 	// Names is, on a domain's scan, which names under it this scan reaches (its scope, without the names its enabled children scan
 	// themselves), read when the scan starts. The runner lists the other names it finds without probing them (Content.Listed); nil on an
 	// IP target.

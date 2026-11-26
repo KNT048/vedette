@@ -69,6 +69,21 @@ type OwnEgress interface {
 	OwnEgress(ctx context.Context, ip netip.Addr) (bool, error)
 }
 
+// OwnProver is an OwnEgress that also says what its yes rests on: provenAt is the latest sighting of ip as the box's egress, from
+// which ip stays proven the box's own for egressip.ProofValid (exposure's box_egress proof; zero when the yes rests on no sighting).
+// sensor-active asks it instead of OwnEgress and sends provenAt with the job (sensorlink Job.ProvenAt, through ProvenProber) to a
+// worker whose heartbeat says own_proof: the worker then runs the job on an address the box does not go out through right now (a
+// second line) while the proof holds, instead of needing its own sighting right before nmap.
+type OwnProver interface {
+	OwnProof(ctx context.Context, ip netip.Addr) (provenAt time.Time, ok bool, err error)
+}
+
+// ProvenProber is implemented by a Prober that can send an external job with the ownership proof of its target (*Dispatcher).
+// A Prober without it sends the job without the proof, and the worker's own sighting decides.
+type ProvenProber interface {
+	ProbeProven(ctx context.Context, argv []string, provenAt time.Time) (Output, error)
+}
+
 // DeepGate is the second half of core's fence of a full run, asked right after OwnEgress, right before the job is
 // handed out: which external shape the target's testing terms allow now, given the one asked. A full run is sent only through an
 // OwnEgress that implements it (fail closed). An answer that is not a full shape is ErrNotDeep; ExternalFull for an asked
@@ -310,16 +325,11 @@ func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.
 
 func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, own OwnEgress, dom *DomainIP) (External, error) {
 	var note probeNote
+	var proof time.Time
 	if dom == nil {
-		ok, err := own.OwnEgress(ctx, ip) // exposure's gate result is minutes old by now (exposure INV-13, INV-19)
-		switch {
-		case ctx.Err() != nil:
-			return External{}, ErrStopped
-		case err != nil:
-			return External{}, fmt.Errorf("sensoractive: checking that %s is the box's own public IP: %w", ip, err)
-		case !ok:
-			s.log.WarnContext(ctx, "sensoractive: external scan refused, the address is not the box's own public IP now; no packet sent", "ip", ip.String())
-			return External{}, ErrNotOwnIP
+		var err error // exposure's gate result is minutes old by now (exposure INV-13, INV-19)
+		if proof, err = s.ownNow(ctx, ip, own, false); err != nil {
+			return External{}, err
 		}
 	} else {
 		if _, ok := s.prober.(DomainProber); !ok {
@@ -338,10 +348,10 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 		return External{}, ErrNoTime
 	}
 	if kind == nmapargv.External {
-		return s.probeDefault(ctx, jobID, ip, own)
+		return s.probeDefault(ctx, jobID, ip, own, proof)
 	}
 	var ext External
-	err := s.externalJob(ctx, jobID, ip, kind, batchSpec{}, note, dom, run, func(hosts []host) (string, error) {
+	err := s.externalJob(ctx, jobID, ip, kind, batchSpec{}, note, dom, proof, run, func(hosts []host) (string, error) {
 		var err error
 		if ext, err = externalOf(hosts, ip, kind); err != nil {
 			return "", err
@@ -373,7 +383,7 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 // A refusal of either fence or a stop ends the run as before: nothing more is sent and nothing is kept. A worker lost in the
 // middle keeps the finished batches. A run in which no batch finished says why: ErrHostTimedOut, the batch's error, or ErrNoTime
 // when none started.
-func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr, own OwnEgress) (External, error) {
+func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr, own OwnEgress, proof time.Time) (External, error) {
 	if _, ok := ctx.Deadline(); !ok { // the step's bound when the caller gave none (exposure gives ServicesTimeout)
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, externalRun)
@@ -383,7 +393,7 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 	var scanned, open []int
 	var found []portInfo // the discovery's open ports, as nmap's port table named them
 	everywhere := false
-	err := s.externalJob(ctx, jobID, ip, nmapargv.External, batchSpec{}, probeNote{}, nil, externalRun, func(hosts []host) (string, error) {
+	err := s.externalJob(ctx, jobID, ip, nmapargv.External, batchSpec{}, probeNote{}, nil, proof, externalRun, func(hosts []host) (string, error) {
 		var err error
 		scanned, open, err = discoveryOf(hosts, ip)
 		if errors.Is(err, ErrAnswersEverywhere) {
@@ -417,10 +427,14 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 	inner, cancel := context.WithDeadline(ctx, deadline.Add(-innerMargin))
 	defer cancel()
 	res, err := runBatches(inner, batches, batchRunner{
-		fence: func(ctx context.Context) error { return s.fenceAgain(ctx, ip, own) },
+		fence: func(ctx context.Context) error {
+			var err error
+			proof, err = s.fenceAgain(ctx, ip, own) // the batch goes with the proof of this check
+			return err
+		},
 		run: func(ctx context.Context, b []int, h time.Duration, label string) ([]ExternalService, error) {
 			var got []ExternalService
-			err := s.externalJob(ctx, jobID, ip, nmapargv.External, batchSpec{ports: b, host: h, label: label}, probeNote{}, nil, externalRun, func(hosts []host) (string, error) {
+			err := s.externalJob(ctx, jobID, ip, nmapargv.External, batchSpec{ports: b, host: h, label: label}, probeNote{}, nil, proof, externalRun, func(hosts []host) (string, error) {
 				x, err := versionsOf(hosts, ip, b, false)
 				if err != nil {
 					return "", err
@@ -464,19 +478,36 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 // the result to reach the caller.
 const innerMargin = 15 * time.Second
 
-// fenceAgain is core's own-IP check right before an -sV batch's job leaves.
-func (s *Service) fenceAgain(ctx context.Context, ip netip.Addr, own OwnEgress) error {
-	ok, err := own.OwnEgress(ctx, ip)
+// fenceAgain is core's own-IP check right before an -sV batch's job leaves; it returns the proof the batch goes with.
+func (s *Service) fenceAgain(ctx context.Context, ip netip.Addr, own OwnEgress) (time.Time, error) {
+	return s.ownNow(ctx, ip, own, true)
+}
+
+// ownNow is core's half of the own-IP fence right before a job leaves (batch: an -sV batch after the discovery): own's yes (else
+// ErrNotOwnIP, logged), and, when own is an OwnProver, the time of the sighting its yes rests on (zero otherwise: the job then goes
+// without a proof).
+func (s *Service) ownNow(ctx context.Context, ip netip.Addr, own OwnEgress, batch bool) (time.Time, error) {
+	var proof time.Time
+	var ok bool
+	var err error
+	if p, isProver := own.(OwnProver); isProver {
+		proof, ok, err = p.OwnProof(ctx, ip)
+	} else {
+		ok, err = own.OwnEgress(ctx, ip)
+	}
 	switch {
 	case ctx.Err() != nil:
-		return ErrStopped
+		return time.Time{}, ErrStopped
 	case err != nil:
-		return fmt.Errorf("sensoractive: checking that %s is the box's own public IP: %w", ip, err)
-	case !ok:
+		return time.Time{}, fmt.Errorf("sensoractive: checking that %s is the box's own public IP: %w", ip, err)
+	case !ok && batch:
 		s.log.WarnContext(ctx, "sensoractive: external scan stopped before an -sV batch, the address is not the box's own public IP now; nothing more sent", "ip", ip.String())
-		return ErrNotOwnIP
+		return time.Time{}, ErrNotOwnIP
+	case !ok:
+		s.log.WarnContext(ctx, "sensoractive: external scan refused, the address is not the box's own public IP now; no packet sent", "ip", ip.String())
+		return time.Time{}, ErrNotOwnIP
 	}
-	return nil
+	return proof, nil
 }
 
 // unreadOpen are the ports of open that are not in done, ascending.
@@ -774,8 +805,8 @@ type batchSpec struct {
 
 // externalJob runs one nmap job of an external shape (b: an -sV batch of the External shape, zero otherwise) with its probe row,
 // bounded by what is left of run: read turns the hosts of its XML into the row's "ok" text, or an error the row names.
-func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, b batchSpec, note probeNote, dom *DomainIP, run time.Duration,
-	read func([]host) (string, error)) error {
+func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, b batchSpec, note probeNote, dom *DomainIP, proof time.Time,
+	run time.Duration, read func([]host) (string, error)) error {
 	targets := []netip.Addr{ip}
 	rate := nmapargv.ExternalRateOf(kind)
 	args, err := nmapargv.Build(kind, rate, targets)
@@ -802,9 +833,13 @@ func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, 
 	defer cancel()
 	var out Output
 	var runErr error
-	if dom != nil {
+	pp, proven := s.prober.(ProvenProber)
+	switch {
+	case dom != nil:
 		out, runErr = s.prober.(DomainProber).ProbeDomain(rctx, args, dom.Scope) //nolint:forcetypeassert // checked by probeExternal
-	} else {
+	case proven && !proof.IsZero(): // the box's own IP with the proof core's fence rested on
+		out, runErr = pp.ProbeProven(rctx, args, proof)
+	default:
 		out, runErr = s.prober.Probe(rctx, args)
 	}
 	var refused *DomainRefusedError

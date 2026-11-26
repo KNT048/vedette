@@ -85,6 +85,7 @@ type Dispatcher struct {
 	snmp     bool // the worker's heartbeat says it runs snmp jobs (protocol 5)
 	domainIP bool // the worker's heartbeat says it runs domain_ip jobs: it holds the fence key
 	typedIP  bool // and checks the proof of a typed public IP in them
+	ownProof bool // the worker's heartbeat says own_proof: it takes core's proof of the box's own IP (Job.ProvenAt)
 
 	packInvalid    bool   // the worker found the image's pack damaged (pack_invalid): not trusted until the image holds another pack
 	packInvalidSHA string // the pack hash the heartbeat reported when it happened
@@ -288,19 +289,32 @@ func (d *Dispatcher) usable() error {
 // and no argv. It returns when the result is in, when the worker is gone, or when ctx ended and the worker
 // had 30 seconds to confirm the stop.
 func (d *Dispatcher) Probe(ctx context.Context, argv []string) (Output, error) {
-	return d.probe(ctx, argv, nil)
+	return d.probe(ctx, argv, nil, time.Time{})
+}
+
+// ProbeProven implements ProvenProber: Probe of an external shape (external, external_full, external_disruptive) whose one target
+// core's fence took as the box's own on a sighting at provenAt. The time goes on the wire only to a worker whose heartbeat says
+// own_proof (pollLocked, at hand-over); an older worker gets the job without it and its own sighting decides.
+func (d *Dispatcher) ProbeProven(ctx context.Context, argv []string, provenAt time.Time) (Output, error) {
+	if provenAt.IsZero() {
+		return Output{}, errors.New("sensoractive: an ownership proof without its time")
+	}
+	return d.probe(ctx, argv, nil, provenAt)
 }
 
 // ProbeDomain implements DomainProber: Probe of a full shape with one target as a domain_ip job, sent only to a worker whose
 // heartbeat says domain_ip (else ErrDomainUnsupported, nothing sent); the worker checks the domain fence itself before nmap.
 func (d *Dispatcher) ProbeDomain(ctx context.Context, argv []string, scope sensorlink.DomainScope) (Output, error) {
-	return d.probe(ctx, argv, &scope)
+	return d.probe(ctx, argv, &scope, time.Time{})
 }
 
-func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink.DomainScope) (Output, error) {
+func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink.DomainScope, provenAt time.Time) (Output, error) {
 	kind, rate, ports, targets, err := nmapargv.ParseFor(argv)
 	if err != nil {
 		return Output{}, fmt.Errorf("sensoractive: %w", err)
+	}
+	if !provenAt.IsZero() && (!kind.IsExternal() || len(targets) != 1) { // a proof is of the box's own IP: the one target of an external shape
+		return Output{}, fmt.Errorf("sensoractive: an ownership proof goes with an external shape on one address, not %s on %d", kind.Name(), len(targets))
 	}
 	if err := d.usable(); err != nil {
 		return Output{}, err
@@ -336,6 +350,10 @@ func (d *Dispatcher) probe(ctx context.Context, argv []string, scope *sensorlink
 		HostTimeoutS: int(nmapargv.HostTimeoutOf(argv) / time.Second)}}
 	if scope != nil {
 		j.spec.Scope, j.spec.Domain = sensorlink.ScopeDomainIP, scope
+	}
+	if !provenAt.IsZero() {
+		at := provenAt.UTC()
+		j.spec.ProvenAt = &at
 	}
 	for i, t := range targets {
 		j.spec.Targets[i] = t.String()
@@ -602,6 +620,12 @@ func (d *Dispatcher) pollLocked(running []string) (rep sensorlink.JobsReply, rea
 			continue // the latest heartbeat says this worker runs no full shape (an older worker, or a downgrade since Probe checked): wait
 		}
 		j := s.pending
+		if !d.ownProof { // the latest heartbeat says this worker takes no proof (an older worker): the job in the shape it knows
+			j.spec.ProvenAt = nil
+			if j.spec.Nuclei != nil {
+				j.spec.Nuclei.ProvenAt = nil
+			}
+		}
 		secs := s.maxSeconds
 		if !j.deadline.IsZero() {
 			secs = min(secs, int(math.Ceil(time.Until(j.deadline).Seconds())))
@@ -719,6 +743,7 @@ func (d *Dispatcher) JobResultRejected(id string, e *sensorlink.Error) {
 func (d *Dispatcher) ActiveHeartbeat(_ context.Context, hb *sensorlink.ActiveHeartbeat) (string, error) {
 	d.mu.Lock()
 	d.beatAt, d.haveBeat, d.nmap, d.nuclei, d.snmp, d.domainIP, d.typedIP = d.now(), true, hb.Nmap, hb.Nuclei, hb.SNMP, hb.DomainIP, hb.TypedIP
+	d.ownProof = hb.OwnProof
 	instance, hook := d.instance, d.onReport
 	d.mu.Unlock()
 	if hook != nil {

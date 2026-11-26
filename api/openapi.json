@@ -32379,6 +32379,34 @@
                                   }
                                 ],
                                 "description": "IP typed in by a person: where its proof file goes; null otherwise"
+                              },
+                              "replaced": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "by": {
+                                        "type": "string",
+                                        "description": "The box's current egress address"
+                                      },
+                                      "at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                        "description": "When the box was first seen going out through it"
+                                      }
+                                    },
+                                    "required": [
+                                      "by",
+                                      "at"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "An IP the box found that was replaced: it was last seen before the box's current egress address was first seen, so the two never overlapped (a dynamic address the provider took back) and it is no longer scanned unless the box goes out through it again; null otherwise"
                               }
                             },
                             "required": [
@@ -32390,7 +32418,8 @@
                               "next_check_at",
                               "last_check",
                               "dns",
-                              "file"
+                              "file",
+                              "replaced"
                             ],
                             "additionalProperties": false
                           },
@@ -33266,6 +33295,34 @@
                             }
                           ],
                           "description": "IP typed in by a person: where its proof file goes; null otherwise"
+                        },
+                        "replaced": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "by": {
+                                  "type": "string",
+                                  "description": "The box's current egress address"
+                                },
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "description": "When the box was first seen going out through it"
+                                }
+                              },
+                              "required": [
+                                "by",
+                                "at"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "An IP the box found that was replaced: it was last seen before the box's current egress address was first seen, so the two never overlapped (a dynamic address the provider took back) and it is no longer scanned unless the box goes out through it again; null otherwise"
                         }
                       },
                       "required": [
@@ -33277,7 +33334,8 @@
                         "next_check_at",
                         "last_check",
                         "dns",
-                        "file"
+                        "file",
+                        "replaced"
                       ],
                       "additionalProperties": false
                     },
@@ -34028,6 +34086,34 @@
                             }
                           ],
                           "description": "IP typed in by a person: where its proof file goes; null otherwise"
+                        },
+                        "replaced": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "by": {
+                                  "type": "string",
+                                  "description": "The box's current egress address"
+                                },
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "description": "When the box was first seen going out through it"
+                                }
+                              },
+                              "required": [
+                                "by",
+                                "at"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "An IP the box found that was replaced: it was last seen before the box's current egress address was first seen, so the two never overlapped (a dynamic address the provider took back) and it is no longer scanned unless the box goes out through it again; null otherwise"
                         }
                       },
                       "required": [
@@ -34039,7 +34125,8 @@
                         "next_check_at",
                         "last_check",
                         "dns",
-                        "file"
+                        "file",
+                        "replaced"
                       ],
                       "additionalProperties": false
                     },
@@ -34772,6 +34859,34 @@
                             }
                           ],
                           "description": "IP typed in by a person: where its proof file goes; null otherwise"
+                        },
+                        "replaced": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "by": {
+                                  "type": "string",
+                                  "description": "The box's current egress address"
+                                },
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "description": "When the box was first seen going out through it"
+                                }
+                              },
+                              "required": [
+                                "by",
+                                "at"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "An IP the box found that was replaced: it was last seen before the box's current egress address was first seen, so the two never overlapped (a dynamic address the provider took back) and it is no longer scanned unless the box goes out through it again; null otherwise"
                         }
                       },
                       "required": [
@@ -34783,7 +34898,8 @@
                         "next_check_at",
                         "last_check",
                         "dns",
-                        "file"
+                        "file",
+                        "replaced"
                       ],
                       "additionalProperties": false
                     },
@@ -36623,6 +36739,34 @@
                             }
                           ],
                           "description": "IP typed in by a person: where its proof file goes; null otherwise"
+                        },
+                        "replaced": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "by": {
+                                  "type": "string",
+                                  "description": "The box's current egress address"
+                                },
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "description": "When the box was first seen going out through it"
+                                }
+                              },
+                              "required": [
+                                "by",
+                                "at"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "An IP the box found that was replaced: it was last seen before the box's current egress address was first seen, so the two never overlapped (a dynamic address the provider took back) and it is no longer scanned unless the box goes out through it again; null otherwise"
                         }
                       },
                       "required": [
@@ -36634,7 +36778,8 @@
                         "next_check_at",
                         "last_check",
                         "dns",
-                        "file"
+                        "file",
+                        "replaced"
                       ],
                       "additionalProperties": false
                     },
@@ -37358,6 +37503,34 @@
                             }
                           ],
                           "description": "IP typed in by a person: where its proof file goes; null otherwise"
+                        },
+                        "replaced": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "by": {
+                                  "type": "string",
+                                  "description": "The box's current egress address"
+                                },
+                                "at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "description": "When the box was first seen going out through it"
+                                }
+                              },
+                              "required": [
+                                "by",
+                                "at"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "An IP the box found that was replaced: it was last seen before the box's current egress address was first seen, so the two never overlapped (a dynamic address the provider took back) and it is no longer scanned unless the box goes out through it again; null otherwise"
                         }
                       },
                       "required": [
@@ -37369,7 +37542,8 @@
                         "next_check_at",
                         "last_check",
                         "dns",
-                        "file"
+                        "file",
+                        "replaced"
                       ],
                       "additionalProperties": false
                     },
@@ -38081,6 +38255,34 @@
                                 }
                               ],
                               "description": "IP typed in by a person: where its proof file goes; null otherwise"
+                            },
+                            "replaced": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "by": {
+                                      "type": "string",
+                                      "description": "The box's current egress address"
+                                    },
+                                    "at": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                      "description": "When the box was first seen going out through it"
+                                    }
+                                  },
+                                  "required": [
+                                    "by",
+                                    "at"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "An IP the box found that was replaced: it was last seen before the box's current egress address was first seen, so the two never overlapped (a dynamic address the provider took back) and it is no longer scanned unless the box goes out through it again; null otherwise"
                             }
                           },
                           "required": [
@@ -38092,7 +38294,8 @@
                             "next_check_at",
                             "last_check",
                             "dns",
-                            "file"
+                            "file",
+                            "replaced"
                           ],
                           "additionalProperties": false
                         },

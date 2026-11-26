@@ -148,7 +148,7 @@ func TestZapActive_DisruptiveRulesOnlyOnAProvenOwnIP(t *testing.T) {
 			}
 		}
 	}
-	for _, id := range []int{30001, 30002, 40044, 20015, 40014, 40016, 40017, 90026, 90034} {
+	for _, id := range []int{7, 30001, 30002, 40044, 20015, 40014, 40016, 40017, 90026, 90034} {
 		if _, on := g[id]; on {
 			t.Errorf("disruptive rule %d is on without Disruptive", id)
 		}

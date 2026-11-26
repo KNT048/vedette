@@ -115,7 +115,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   accepted, read again right before each page (`ModeNow`). A scheduled scan keeps the passive baseline only and says so in one line
   ("Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.") on the scan and
   on its web steps. The disruptive rules of the host's rule split (denial of service, data-changing checks, SQL injection's boolean
-  and UNION payloads, the hosting provider's metadata service) and form posting run only on the box's own proven public IP (an IP
+  and UNION payloads, the hosting provider's metadata service, remote file inclusion's third-party URLs) and form posting run only on the box's own proven public IP (an IP
   target that is not typed, the page on exactly that address) when the run's mode allows the disruptive checks (`runMode`: a
   person's scan, the terms include them, the gateway not in 100.64.0.0/10); a domain's page, on hosting or a CDN, gets the active
   scan without them, and the scan says so. ZAP is held to the page's origin by its context (one include path, anchored to scheme,

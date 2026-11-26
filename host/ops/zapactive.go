@@ -74,14 +74,15 @@ type zapRule struct {
 
 // zapActiveRules classifies every active rule of the pinned image. Disruptive = ZAP's denial-of-service style checks (oversized or
 // malformed input meant to crash a parser or server, a memory read of the TLS library), checks that store data in the site or call
-// other actions of a service, and checks that make the server reach its hosting provider's own infrastructure. ZAP's active rules
+// other actions of a service, and checks that make the server fetch something itself (its hosting provider's own infrastructure,
+// a third-party URL). ZAP's active rules
 // guess no password and try no login: none is brute force, and the forced-browse add-on is not run. SQL Injection (40018) runs on
 // every page at strength low (error and expression payloads: a quote or an arithmetic value, never "OR 1=1"); its boolean and UNION
 // payloads (strength medium), which in an UPDATE or DELETE would touch every row, run only with Disruptive.
 var zapActiveRules = []zapRule{
 	{0, zapRuleOn, "Directory Browsing"},
 	{6, zapRuleOn, "Path Traversal (reads files)"},
-	{7, zapRuleOn, "Remote File Inclusion"},
+	{7, zapRuleDisruptive, "Remote File Inclusion: makes the server fetch a third-party URL"},
 	{10045, zapRuleOn, "Source Code Disclosure - /WEB-INF Folder"},
 	{10047, zapRuleOn, "HTTPS Content Available via HTTP"},
 	{10048, zapRuleOn, "Remote Code Execution - Shell Shock (a harmless marker)"},

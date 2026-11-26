@@ -643,7 +643,9 @@ func (s *Service) planOpenVAS(ctx context.Context, t Target, mode ScanMode, user
 // save writes the rows of a scan (writeScan) and publishes what changed.
 func (s *Service) save(ctx context.Context, runID, user string, t Target, c Content, steps *stepLog) (written, error) {
 	at := s.clock()
+	swept := c.Swept // made by this run's own steps (identifyIP), not read from a scanner: kept as it is
 	c = unresolvedLine(sanitize(c))
+	c.Swept = swept
 	c.AdminPanels = applianceAdmins(c.AdminPanels, c.Ports, c.Services) // an appliance's admin page on any port
 	m := vulnSet{Content: c, ID: runID}
 	ranMatch := s.withVulns(ctx, &m)

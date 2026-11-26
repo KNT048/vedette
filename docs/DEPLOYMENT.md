@@ -128,7 +128,7 @@ Each integrated tool runs only the part Vedette uses (LEAN-1/2/3). **The rule fo
 | `sensor` | 1 | 512 MiB | 256 | the cap is adjustable in Box network; target ≤5% of one core at 100 Mbps |
 | `honeypot` | 0.5 | 256 MiB | 128 | one container for all decoys |
 | `scan` | 2, low `CPUWeight` | 1 GiB | 512 | bursts per job; time window + rate (S-SCAN-4) |
-| `greenbone` (the whole group) | 2 | ~3 GiB (re-measure) | per upstream | with it on, 16 GB of RAM is advisable (proposal) |
+| `greenbone` (the whole group) | 2 | a limit per service, at most 9.75 GiB together (gvmd 2 GiB, pg-gvm 1.5 GiB, ospd-openvas 2 GiB, redis-server 1 GiB, openvasd 512 MiB, the feed data and one-shot services 128 to 512 MiB; `deploy/greenbone/compose.vedette.yaml` item 6) | per upstream | with it on, 16 GB of RAM is advisable (proposal); a service over its limit is OOM-killed in its own cgroup and Greenbone's restart policy starts it again |
 
 `core`'s argon2 password-hashing gate (`core/auth/hashgate.go`): the number of concurrent runs = `max(1, GOMAXPROCS/2)`, at most 1/4 of `GOMEMLIMIT` divided by 64 MiB per run. With `--cpus=2` Go 1.26 sets GOMAXPROCS = 2, so on the box only **1 run, 64 MiB** at a time; a second login request queues (queue of 4, waits at most 2 s) and then gets 503 `server_busy` with `Retry-After`. `Config.MaxHashing` is not in `core`'s configuration or flags (`cmd/vedette`), so it cannot be tuned on the box; to allow more concurrent runs, raise `--cpus` in the quadlet.
 

@@ -739,8 +739,8 @@ func TestContract_INV28_Deep_CNAMELookupFailsClosed(t *testing.T) {
 }
 
 // The "did not probe every port" keep-rule is per address. ipC's deep nmap does not finish (its "ports" Not checked line), so its port
-// 10022, found by an earlier deep scan, stays open as it was; ipB's deep nmap finished, so its 10022 that no longer answers is missed,
-// then closed by the next scan that misses it too.
+// 10022, found by an earlier deep scan, stays open as it was; ipB's deep nmap finished and saw the address answer, so its 10022 that
+// no longer answers is closed by that one sweep of every port (INV-22).
 func TestContract_INV28_Deep_KeepRuleIsPerAddress(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
@@ -762,12 +762,12 @@ func TestContract_INV28_Deep_KeepRuleIsPerAddress(t *testing.T) {
 	d.seams.mu.Unlock()
 	d.advance(ScanEvery + time.Minute)
 	d.scan()
-	if state(ipB) != ServiceOpen || state(ipC) != ServiceOpen { // one miss: kept (INV-22)
+	if state(ipB) != ServiceClosed || state(ipC) != ServiceOpen { // a trusted sweep of every port missed it: closed (INV-22)
 		t.Fatalf("second scan: ipB %q, ipC %q", state(ipB), state(ipC))
 	}
 	d.advance(ScanEvery + time.Minute)
 	d.scan()
-	if state(ipB) != ServiceClosed || state(ipC) != ServiceOpen { // missed by two scans in a row that probed it
+	if state(ipB) != ServiceClosed || state(ipC) != ServiceOpen {
 		t.Fatalf("third scan: ipB %q, ipC %q", state(ipB), state(ipC))
 	}
 }

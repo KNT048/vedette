@@ -485,9 +485,12 @@ func (h *fakeGB) with(fn func(*fakeGB)) { h.mu.Lock(); defer h.mu.Unlock(); fn(h
 func (h *fakeGB) dialCount() int { h.mu.Lock(); defer h.mu.Unlock(); return h.dials }
 
 // gbLog is the probe log of Config.Probes with the Greenbone face.
+// gbLog is the probe log of the OpenVAS tests: a second write with the same ID completes the row, as the probe log's upsert does;
+// planned is each row's result at its first write.
 type gbLog struct {
-	rows []GreenboneProbe
-	err  error
+	rows    []GreenboneProbe
+	planned map[string]string
+	err     error
 }
 
 func (l *gbLog) RecordTemplateProbes(context.Context, []TemplateProbe) error { return l.err }
@@ -495,6 +498,16 @@ func (l *gbLog) RecordGreenboneProbe(_ context.Context, p GreenboneProbe) error 
 	if l.err != nil {
 		return l.err
 	}
+	for i, r := range l.rows {
+		if r.ID == p.ID {
+			l.rows[i] = p
+			return nil
+		}
+	}
+	if l.planned == nil {
+		l.planned = map[string]string{}
+	}
+	l.planned[p.ID] = p.Result
 	l.rows = append(l.rows, p)
 	return nil
 }

@@ -431,9 +431,11 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 }
 
 // closeVanished closes each open service of the target that this scan did not report (INV-22): a service on an address that left the
-// domain at once; one on an address and port this scan probed when the scan before that probed it missed it too (its last_seen is
-// older than that scan's start), so one scan that could not reach a port (packet loss, a slow host) never reads as a fix. A service
-// on an address or port the scan did not probe is left as it was: the scan says nothing about it. It returns the ids it closed.
+// domain at once; one on an address whose every TCP port a trusted sweep of this scan probed (Content.Swept) at once; one on an
+// address and port this scan probed otherwise when the scan before that probed it missed it too (its last_seen is older than that
+// scan's start), so one scan that could not reach a port (packet loss, a slow host) never reads as a fix. A service on an address or
+// port the scan did not probe, or on an address that answered nothing this scan (coverage), is left as it was: the scan says nothing
+// about it. It returns the ids it closed.
 func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, reported map[string]bool) ([]string, error) {
 	open, err := servicesOf(ctx, tx, w.target.ID, true)
 	if err != nil {
@@ -447,11 +449,15 @@ func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, re
 		}
 		shut := w.gone[k]
 		if !shut && covers(w.checked[k], w.c.Probed[k], x.Port) {
-			prev, ok, err := previousCheck(ctx, tx, w.target.ID, w.runID, k, x.Port)
-			if err != nil {
-				return nil, err
+			if w.c.Swept[k] && w.checked[k] == coverAll {
+				shut = true // a trusted sweep of every TCP port did not see it (sweepTrusted): one miss is enough
+			} else {
+				prev, ok, err := previousCheck(ctx, tx, w.target.ID, w.runID, k, x.Port)
+				if err != nil {
+					return nil, err
+				}
+				shut = ok && x.LastSeen < prev // the scan before that probed it did not see it either
 			}
-			shut = ok && x.LastSeen < prev // the scan before that probed it did not see it either
 		}
 		if !shut {
 			continue
@@ -806,7 +812,7 @@ func openvasIssue(r GreenboneRow) issueIn {
 	}
 	return issueIn{engine: EngineOpenVAS, key: firstOf(r.OID, r.Name) + "@" + ipKey(r.IP), ip: r.IP, port: greenbonePort(r.Port), severity: sev, cves: r.CVEs,
 		title:  clipText(firstOf(r.Name, r.OID), 300),
-		detail: IssueDetail{Solution: r.Solution, Evidence: []string{strings.TrimSpace(r.IP + " " + r.Port)}}}
+		detail: IssueDetail{Description: firstOf(r.Description, gmpDescription(r.Name, "", "")), Solution: r.Solution, Evidence: []string{strings.TrimSpace(r.IP + " " + r.Port)}}}
 }
 
 // reopenedIssue is an issue a person marked patched or mitigated that a scan reported again: the flaw is still there, so it is open

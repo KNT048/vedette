@@ -506,7 +506,10 @@ func (s *Service) coverage(ctx context.Context, user string, t Target, c Content
 		}
 	}
 	full := func(ip string) string {
+		trusted, swept := c.Swept[ip]
 		switch {
+		case swept && !trusted: // this run's sweep of every port met an address that stopped answering it: the fixed list only
+			return coverList
 		case deep[ip] || !partial:
 			return coverAll
 		case len(c.Probed[ip]) > 0: // the default scan's service step said which ports it probed here
@@ -516,7 +519,9 @@ func (s *Service) coverage(ctx context.Context, user string, t Target, c Content
 	}
 	checked, gone = map[string]string{}, map[string]bool{}
 	if t.Kind == KindIP {
-		checked[ipKey(t.Value)] = full(ipKey(t.Value))
+		if k := ipKey(t.Value); reported[k] { // fail safe: an address that answered nothing this scan says nothing of its ports
+			checked[k] = full(k)
+		}
 		return checked, gone
 	}
 	box := func(k string) bool {
@@ -533,7 +538,9 @@ func (s *Service) coverage(ctx context.Context, user string, t Target, c Content
 		}
 		switch {
 		case deep[k] || box(k):
-			checked[k] = full(k)
+			if reported[k] { // fail safe: a port-scanned address that answered nothing this scan says nothing of its ports
+				checked[k] = full(k)
+			}
 		case contacted || reported[k]:
 			checked[k] = coverWeb
 		}

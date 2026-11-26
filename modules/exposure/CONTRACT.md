@@ -102,7 +102,13 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-37** Results are rows (`exp_host`, `exp_address`, `exp_service`, `exp_issue`), never a document per scan. What changed is
   read from `first_seen`, `last_seen` and `state`.
 - **INV-8** The old per-day snapshot and diff endpoints answer 501.
-- **INV-22** A port the scan did not probe, or probed and missed once, is not marked closed.
+- **INV-22** A port the scan did not probe, or probed and missed once, is not marked closed, except after a trusted sweep: a
+  deep scan's nmap step that probed every TCP port of the address, finished every service batch, saw at least one open port and
+  saw every port the runner found open there this run (`sweepTrusted`) closes a port it did not see at once ("No longer seen";
+  first and last seen stay). A sweep that is not trusted (the address stopped answering it) checks only the fixed list; an
+  address that answered nothing at all this scan is not checked, so it never counts as a miss; a failed nmap step checks only the
+  fixed list. `TestCoverage_AFullPortScanThatDidNotSeeAPortClosesIt`, `TestCoverage_AnUntrustworthyFullPortScanNeverClosesAPort`,
+  `TestCoverage_AScanThatReachedNothingIsNotAMiss`.
 - **INV-41** A scan to which nothing of the target answered while the box could not reach the public IP services either (INV-2,
   one round asked only then) is incomplete: it ends failed with 502 `unreachable` saying the box could not reach the target, and
   nothing is written, so the target keeps the rows of its last complete scan. When the services answer, "nothing open" is a result.
@@ -111,7 +117,12 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-23** nuclei templates run only for exploited CVEs matched on a service identified in this run.
 - **INV-24** ZAP runs passive (baseline, GET only) on services that answered HTTP on a target that passed this run's gate.
 - **INV-25** Greenbone (OpenVAS) is optional and off by default; it runs as its own unmodified project beside Vedette and is
-  driven over GMP. Each address has a time cap (INV-25a).
+  driven over GMP. Each address has a time cap (INV-25a). Its probe log row, written before the task starts, is completed once the
+  scan ended: `matched` (results), `not_matched` (it scanned, no result), `not_run` (it never started scanning); a failure, a stop
+  or results the domain fence discarded keep `no_response` (`TestGreenboneProbeRowSaysHowTheScanEnded`). An OpenVAS issue's
+  description is Greenbone's own text of the result: the test's summary, the detection result on the host, insight, affected
+  software and impact, plain text, at most 1,500 characters; a result with none names the test
+  (`TestContract_INV25_IssueDetailHasGreenbonesDescription`). Each Greenbone service has a memory limit (`deploy/greenbone`).
 - **INV-27** A proved domain's surface: names from the CT log, the domain itself, its MX and NS hosts under it, and a short common
   wordlist.
 - **INV-28** Deep scanning of addresses of names under a domain happens only in a full scan with the domain's terms accepted.

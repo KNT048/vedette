@@ -293,6 +293,28 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	return c, err
 }
 
+// sweepTrusted says a deep scan's nmap step on every TCP port of ip, which finished with the services got and every service batch,
+// can be trusted to have seen every open port there: it saw at least one, and it saw each port the runner found open on ip this run
+// (ports, before the step adds its own). A sweep that saw nothing, or missed a port that answered the runner minutes before, met an
+// address that stopped answering it (a firewall or IPS cutting in, a link going down): what it did not see says nothing.
+func sweepTrusted(ports []PortRow, got []ServiceRow, ip string) bool {
+	seen := map[int]bool{}
+	for _, r := range got {
+		if r.IP == ip {
+			seen[r.Port] = true
+		}
+	}
+	if len(seen) == 0 {
+		return false
+	}
+	for _, p := range ports {
+		if ipKey(p.IP) == ip && !seen[p.Port] {
+			return false
+		}
+	}
+	return true
+}
+
 // addServicePorts appends a PortRow for each service on ip whose port the rows do not have yet, then says on each row of ip how its
 // service was identified and what the deep scan's scripts read there (identifyPorts).
 func addServicePorts(ports []PortRow, services []ServiceRow, scripts []ScriptRow, ip string) []PortRow {
@@ -369,6 +391,12 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 					c.NotChecked[i].Text = line
 				}
 			}
+		}
+		if st.Mode.Full { // INV-22: one miss of a trusted sweep is enough; an untrusted one checks only the fixed list
+			if c.Swept == nil {
+				c.Swept = map[string]bool{}
+			}
+			c.Swept[ip.String()] = len(unfinished) == 0 && sweepTrusted(c.Ports, got, ip.String())
 		}
 		if n := len(unfinished); n > 0 && !st.Mode.Full {
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: fmt.Sprintf(notServicesUnfinished, plural(n, "port"))})

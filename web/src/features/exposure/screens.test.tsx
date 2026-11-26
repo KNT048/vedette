@@ -123,6 +123,22 @@ describe('exposure screens: a target page', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Turn on two-step sign-in for your account before the first scan of 198.51.100.3')
     expect(screen.queryByRole('dialog')).toBeNull()
   })
+
+  it('Deep scan now asks once, with the warning about the load on the router or firewall in front of the target; Cancel starts nothing', async () => {
+    renderApp('/exposure/xt-14', { role: 'operator' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Deep scan now' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Deep scan 198.51.100.2' })
+    expect(dialog).toHaveTextContent('A deep scan can put a heavy load on the router or firewall in front of the target (for example a CPU spike) while it runs.')
+    expect(dialog).toHaveAccessibleDescription('Deep scan: the testing terms of this IP are accepted. Disruptive checks are included.')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Scanning' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Deep scan now' }))
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Start deep scan' }))
+    expect(await screen.findByRole('tab', { name: 'Scanning' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryAllByText(/heavy load on the router or firewall/)).toHaveLength(0) // shown at that moment only, not on the page
+  })
 })
 
 describe('exposure screens: issues', () => {

@@ -63,6 +63,9 @@ const (
 	gmpMaxCVEs    = 50   // CVE ids kept per result
 	gmpMaxName    = 200
 	gmpMaxText    = 400
+	// gmpMaxDescription bounds the description of an OpenVAS issue (gmpDescription): the summary, the detection result and the
+	// insight, affected and impact texts of one result together.
+	gmpMaxDescription = 1500
 )
 
 // gmpDisruptiveFamilies are the families of "Full and fast" that guess passwords, log in with default accounts or try to crash a
@@ -875,10 +878,46 @@ type gmpResult struct {
 		OID      string   `xml:"oid,attr"`
 		Name     string   `xml:"name"`
 		Solution string   `xml:"solution"`
+		Tags     string   `xml:"tags"`
 		Refs     []gmpRef `xml:"refs>ref"`
 	} `xml:"nvt"`
-	Severity *string `xml:"severity"`
-	QoD      *string `xml:"qod>value"`
+	Severity    *string `xml:"severity"`
+	QoD         *string `xml:"qod>value"`
+	Description string  `xml:"description"` // the detection result on this host (Greenbone's "Detection Result")
+}
+
+// gmpTagParts are the tags of a test that say what the result means, in the order the description shows them, with their heading
+// ("" for the summary, which comes first and stands alone). The other tags (cvss_base_vector, solution_type, qod_type, vuldetect…)
+// are left out: the issue has its own severity and solution.
+var gmpTagParts = []struct{ tag, head string }{{"insight", "Insight"}, {"affected", "Affected"}, {"impact", "Impact"}}
+
+// gmpDescription is the description of an OpenVAS issue, plain text: the test's summary, the detection result on this host, then its
+// insight, affected software and impact, at most gmpMaxDescription runes. gvmd gives the summary and the rest as the test's tags
+// ("summary=…|insight=…|…", a "|" never inside a value) and the detection result as the result's own description. A result
+// with none of them names the test, so the issue never shows an empty description.
+func gmpDescription(name, tags, detection string) string {
+	kv := map[string]string{}
+	for _, part := range strings.Split(tags, "|") {
+		if k, v, ok := strings.Cut(part, "="); ok {
+			kv[strings.TrimSpace(k)] = plainText(v, gmpMaxDescription)
+		}
+	}
+	var parts []string
+	if v := kv["summary"]; v != "" {
+		parts = append(parts, v)
+	}
+	if v := plainText(detection, gmpMaxDescription); v != "" {
+		parts = append(parts, "Detection result: "+v)
+	}
+	for _, p := range gmpTagParts {
+		if v := kv[p.tag]; v != "" {
+			parts = append(parts, p.head+": "+v)
+		}
+	}
+	if len(parts) == 0 {
+		return plainText(fmt.Sprintf("OpenVAS's test %q reported this result.", name), gmpMaxDescription)
+	}
+	return plainText(strings.Join(parts, " "), gmpMaxDescription)
 }
 
 var (
@@ -920,7 +959,7 @@ func parseGMPReport(r *gmpReport, report, ip string) ([]GreenboneRow, int, error
 			name = plainText(x.Name, gmpMaxName)
 		}
 		row, ok := cleanGreenboneRow(GreenboneRow{IP: ip, Severity: sev, Name: name, Port: strings.TrimSpace(x.Port), QoD: qod, OID: strings.TrimSpace(x.NVT.OID),
-			Solution: plainText(x.NVT.Solution, gmpMaxText), CVEs: gmpCVEs(x.NVT.Refs)})
+			Solution: plainText(x.NVT.Solution, gmpMaxText), CVEs: gmpCVEs(x.NVT.Refs), Description: gmpDescription(name, x.NVT.Tags, x.Description)})
 		if !ok {
 			return nil, 0, fmt.Errorf("%w: a result without a name", ErrGMPBad)
 		}

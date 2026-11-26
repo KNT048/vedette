@@ -221,8 +221,15 @@ func TestExposureGreenbone_WiredWithPrivacyFlow16(t *testing.T) {
 	if err := (exposureProbeLog{d: *box.d}).RecordGreenboneProbe(t.Context(), exposure.GreenboneProbe{ID: "pb_gb1", IP: "93.184.216.34", PortList: "T:22,443", Config: "full", Note: "many probes"}); err != nil {
 		t.Fatal(err)
 	}
-	if n := box.count(`SELECT COUNT(*) FROM scan_probe WHERE id = 'pb_gb1' AND ip = '93.184.216.34' AND template LIKE 'exposure: OpenVAS%' AND request LIKE '%Port list T:22,443.%'`); n != 1 {
+	if n := box.count(`SELECT COUNT(*) FROM scan_probe WHERE id = 'pb_gb1' AND ip = '93.184.216.34' AND template LIKE 'exposure: OpenVAS%' AND request LIKE '%Port list T:22,443.%' AND result = 'no_response'`); n != 1 {
 		t.Fatalf("probe rows %d", n)
+	}
+	// Once the scan ended, the same row says how: here OpenVAS reported results.
+	if err := (exposureProbeLog{d: *box.d}).RecordGreenboneProbe(t.Context(), exposure.GreenboneProbe{ID: "pb_gb1", IP: "93.184.216.34", PortList: "T:22,443", Config: "full", Note: "many probes", Result: "matched"}); err != nil {
+		t.Fatal(err)
+	}
+	if n := box.count(`SELECT COUNT(*) FROM scan_probe WHERE id = 'pb_gb1' AND result = 'matched' AND request LIKE '%Port list T:22,443.%'`); n != 1 {
+		t.Fatalf("completed probe rows %d", n)
 	}
 }
 

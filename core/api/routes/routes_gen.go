@@ -341,6 +341,7 @@ var Operations = map[string]Operation{
 	"notify_post_notify_zalo_resolve":                        {Method: "POST", Path: "/notify/zalo/resolve", MinRole: Admin, Tag: "notify"},
 	"notify_put_notify_channels_type":                        {Method: "PUT", Path: "/notify/channels/{type}", MinRole: Admin, Tag: "notify"},
 	"notify_put_notify_rules":                                {Method: "PUT", Path: "/notify/rules", MinRole: Admin, Tag: "notify"},
+	"notify_put_notify_triggers":                             {Method: "PUT", Path: "/notify/triggers", MinRole: Admin, Tag: "notify"},
 	"reports_get_reports_definition":                         {Method: "GET", Path: "/reports/definition", MinRole: Viewer, Tag: "reports"},
 	"reports_get_reports_document":                           {Method: "GET", Path: "/reports/document", MinRole: Viewer, Tag: "reports"},
 	"reports_get_reports_history":                            {Method: "GET", Path: "/reports/history", MinRole: Viewer, Tag: "reports"},

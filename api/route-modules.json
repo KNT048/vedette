@@ -387,6 +387,7 @@
   "PUT /logs/sources/{id}": "logs",
   "PUT /notify/channels/{type}": "notify",
   "PUT /notify/rules": "notify",
+  "PUT /notify/triggers": "notify",
   "PUT /reports/definition": "reports",
   "PUT /reports/pdpl/org": "reports",
   "PUT /response/allowlist": "response",

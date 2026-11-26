@@ -196839,6 +196839,8 @@ type NotifyGetNotifyChannelsOK struct {
 	EmailCodeUsers int                               `json:"email_code_users"`
 	Grouping       NotifyGetNotifyChannelsOKGrouping `json:"grouping"`
 	Quiet          NotifyGetNotifyChannelsOKQuiet    `json:"quiet"`
+	// Which kinds of event send an alert, and from which severity.
+	Triggers []NotifyGetNotifyChannelsOKTriggersItem `json:"triggers"`
 }
 
 // GetChannels returns the value of Channels.
@@ -196861,6 +196863,11 @@ func (s *NotifyGetNotifyChannelsOK) GetQuiet() NotifyGetNotifyChannelsOKQuiet {
 	return s.Quiet
 }
 
+// GetTriggers returns the value of Triggers.
+func (s *NotifyGetNotifyChannelsOK) GetTriggers() []NotifyGetNotifyChannelsOKTriggersItem {
+	return s.Triggers
+}
+
 // SetChannels sets the value of Channels.
 func (s *NotifyGetNotifyChannelsOK) SetChannels(val []NotifyGetNotifyChannelsOKChannelsItem) {
 	s.Channels = val
@@ -196879,6 +196886,11 @@ func (s *NotifyGetNotifyChannelsOK) SetGrouping(val NotifyGetNotifyChannelsOKGro
 // SetQuiet sets the value of Quiet.
 func (s *NotifyGetNotifyChannelsOK) SetQuiet(val NotifyGetNotifyChannelsOKQuiet) {
 	s.Quiet = val
+}
+
+// SetTriggers sets the value of Triggers.
+func (s *NotifyGetNotifyChannelsOK) SetTriggers(val []NotifyGetNotifyChannelsOKTriggersItem) {
+	s.Triggers = val
 }
 
 type NotifyGetNotifyChannelsOKChannelsItem struct {
@@ -197354,6 +197366,246 @@ func (s *NotifyGetNotifyChannelsOKQuiet) SetFrom(val string) {
 // SetTo sets the value of To.
 func (s *NotifyGetNotifyChannelsOKQuiet) SetTo(val string) {
 	s.To = val
+}
+
+type NotifyGetNotifyChannelsOKTriggersItem struct {
+	DefaultMin NotifyGetNotifyChannelsOKTriggersItemDefaultMin `json:"default_min"`
+	DefaultOn  bool                                            `json:"default_on"`
+	ID         NotifyGetNotifyChannelsOKTriggersItemID         `json:"id"`
+	// The lowest severity of this kind that sends a message.
+	Min NotifyGetNotifyChannelsOKTriggersItemMin `json:"min"`
+	// Off: the event is still recorded (Incidents, the finding), but no message is sent.
+	On bool `json:"on"`
+}
+
+// GetDefaultMin returns the value of DefaultMin.
+func (s *NotifyGetNotifyChannelsOKTriggersItem) GetDefaultMin() NotifyGetNotifyChannelsOKTriggersItemDefaultMin {
+	return s.DefaultMin
+}
+
+// GetDefaultOn returns the value of DefaultOn.
+func (s *NotifyGetNotifyChannelsOKTriggersItem) GetDefaultOn() bool {
+	return s.DefaultOn
+}
+
+// GetID returns the value of ID.
+func (s *NotifyGetNotifyChannelsOKTriggersItem) GetID() NotifyGetNotifyChannelsOKTriggersItemID {
+	return s.ID
+}
+
+// GetMin returns the value of Min.
+func (s *NotifyGetNotifyChannelsOKTriggersItem) GetMin() NotifyGetNotifyChannelsOKTriggersItemMin {
+	return s.Min
+}
+
+// GetOn returns the value of On.
+func (s *NotifyGetNotifyChannelsOKTriggersItem) GetOn() bool {
+	return s.On
+}
+
+// SetDefaultMin sets the value of DefaultMin.
+func (s *NotifyGetNotifyChannelsOKTriggersItem) SetDefaultMin(val NotifyGetNotifyChannelsOKTriggersItemDefaultMin) {
+	s.DefaultMin = val
+}
+
+// SetDefaultOn sets the value of DefaultOn.
+func (s *NotifyGetNotifyChannelsOKTriggersItem) SetDefaultOn(val bool) {
+	s.DefaultOn = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyGetNotifyChannelsOKTriggersItem) SetID(val NotifyGetNotifyChannelsOKTriggersItemID) {
+	s.ID = val
+}
+
+// SetMin sets the value of Min.
+func (s *NotifyGetNotifyChannelsOKTriggersItem) SetMin(val NotifyGetNotifyChannelsOKTriggersItemMin) {
+	s.Min = val
+}
+
+// SetOn sets the value of On.
+func (s *NotifyGetNotifyChannelsOKTriggersItem) SetOn(val bool) {
+	s.On = val
+}
+
+type NotifyGetNotifyChannelsOKTriggersItemDefaultMin string
+
+const (
+	NotifyGetNotifyChannelsOKTriggersItemDefaultMinCritical NotifyGetNotifyChannelsOKTriggersItemDefaultMin = "critical"
+	NotifyGetNotifyChannelsOKTriggersItemDefaultMinHigh     NotifyGetNotifyChannelsOKTriggersItemDefaultMin = "high"
+	NotifyGetNotifyChannelsOKTriggersItemDefaultMinMedium   NotifyGetNotifyChannelsOKTriggersItemDefaultMin = "medium"
+	NotifyGetNotifyChannelsOKTriggersItemDefaultMinLow      NotifyGetNotifyChannelsOKTriggersItemDefaultMin = "low"
+)
+
+// AllValues returns all NotifyGetNotifyChannelsOKTriggersItemDefaultMin values.
+func (NotifyGetNotifyChannelsOKTriggersItemDefaultMin) AllValues() []NotifyGetNotifyChannelsOKTriggersItemDefaultMin {
+	return []NotifyGetNotifyChannelsOKTriggersItemDefaultMin{
+		NotifyGetNotifyChannelsOKTriggersItemDefaultMinCritical,
+		NotifyGetNotifyChannelsOKTriggersItemDefaultMinHigh,
+		NotifyGetNotifyChannelsOKTriggersItemDefaultMinMedium,
+		NotifyGetNotifyChannelsOKTriggersItemDefaultMinLow,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyChannelsOKTriggersItemDefaultMin) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyChannelsOKTriggersItemDefaultMinCritical:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemDefaultMinHigh:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemDefaultMinMedium:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemDefaultMinLow:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyChannelsOKTriggersItemDefaultMin) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyChannelsOKTriggersItemDefaultMin(data) {
+	case NotifyGetNotifyChannelsOKTriggersItemDefaultMinCritical:
+		*s = NotifyGetNotifyChannelsOKTriggersItemDefaultMinCritical
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemDefaultMinHigh:
+		*s = NotifyGetNotifyChannelsOKTriggersItemDefaultMinHigh
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemDefaultMinMedium:
+		*s = NotifyGetNotifyChannelsOKTriggersItemDefaultMinMedium
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemDefaultMinLow:
+		*s = NotifyGetNotifyChannelsOKTriggersItemDefaultMinLow
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyGetNotifyChannelsOKTriggersItemID string
+
+const (
+	NotifyGetNotifyChannelsOKTriggersItemIDTrap          NotifyGetNotifyChannelsOKTriggersItemID = "trap"
+	NotifyGetNotifyChannelsOKTriggersItemIDVulnerability NotifyGetNotifyChannelsOKTriggersItemID = "vulnerability"
+	NotifyGetNotifyChannelsOKTriggersItemIDIntrusion     NotifyGetNotifyChannelsOKTriggersItemID = "intrusion"
+	NotifyGetNotifyChannelsOKTriggersItemIDBadAddress    NotifyGetNotifyChannelsOKTriggersItemID = "bad_address"
+	NotifyGetNotifyChannelsOKTriggersItemIDLogAnomaly    NotifyGetNotifyChannelsOKTriggersItemID = "log_anomaly"
+	NotifyGetNotifyChannelsOKTriggersItemIDUnknownDevice NotifyGetNotifyChannelsOKTriggersItemID = "unknown_device"
+)
+
+// AllValues returns all NotifyGetNotifyChannelsOKTriggersItemID values.
+func (NotifyGetNotifyChannelsOKTriggersItemID) AllValues() []NotifyGetNotifyChannelsOKTriggersItemID {
+	return []NotifyGetNotifyChannelsOKTriggersItemID{
+		NotifyGetNotifyChannelsOKTriggersItemIDTrap,
+		NotifyGetNotifyChannelsOKTriggersItemIDVulnerability,
+		NotifyGetNotifyChannelsOKTriggersItemIDIntrusion,
+		NotifyGetNotifyChannelsOKTriggersItemIDBadAddress,
+		NotifyGetNotifyChannelsOKTriggersItemIDLogAnomaly,
+		NotifyGetNotifyChannelsOKTriggersItemIDUnknownDevice,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyChannelsOKTriggersItemID) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyChannelsOKTriggersItemIDTrap:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemIDVulnerability:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemIDIntrusion:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemIDBadAddress:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemIDLogAnomaly:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemIDUnknownDevice:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyChannelsOKTriggersItemID) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyChannelsOKTriggersItemID(data) {
+	case NotifyGetNotifyChannelsOKTriggersItemIDTrap:
+		*s = NotifyGetNotifyChannelsOKTriggersItemIDTrap
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemIDVulnerability:
+		*s = NotifyGetNotifyChannelsOKTriggersItemIDVulnerability
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemIDIntrusion:
+		*s = NotifyGetNotifyChannelsOKTriggersItemIDIntrusion
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemIDBadAddress:
+		*s = NotifyGetNotifyChannelsOKTriggersItemIDBadAddress
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemIDLogAnomaly:
+		*s = NotifyGetNotifyChannelsOKTriggersItemIDLogAnomaly
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemIDUnknownDevice:
+		*s = NotifyGetNotifyChannelsOKTriggersItemIDUnknownDevice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The lowest severity of this kind that sends a message.
+type NotifyGetNotifyChannelsOKTriggersItemMin string
+
+const (
+	NotifyGetNotifyChannelsOKTriggersItemMinCritical NotifyGetNotifyChannelsOKTriggersItemMin = "critical"
+	NotifyGetNotifyChannelsOKTriggersItemMinHigh     NotifyGetNotifyChannelsOKTriggersItemMin = "high"
+	NotifyGetNotifyChannelsOKTriggersItemMinMedium   NotifyGetNotifyChannelsOKTriggersItemMin = "medium"
+	NotifyGetNotifyChannelsOKTriggersItemMinLow      NotifyGetNotifyChannelsOKTriggersItemMin = "low"
+)
+
+// AllValues returns all NotifyGetNotifyChannelsOKTriggersItemMin values.
+func (NotifyGetNotifyChannelsOKTriggersItemMin) AllValues() []NotifyGetNotifyChannelsOKTriggersItemMin {
+	return []NotifyGetNotifyChannelsOKTriggersItemMin{
+		NotifyGetNotifyChannelsOKTriggersItemMinCritical,
+		NotifyGetNotifyChannelsOKTriggersItemMinHigh,
+		NotifyGetNotifyChannelsOKTriggersItemMinMedium,
+		NotifyGetNotifyChannelsOKTriggersItemMinLow,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyGetNotifyChannelsOKTriggersItemMin) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyGetNotifyChannelsOKTriggersItemMinCritical:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemMinHigh:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemMinMedium:
+		return []byte(s), nil
+	case NotifyGetNotifyChannelsOKTriggersItemMinLow:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyGetNotifyChannelsOKTriggersItemMin) UnmarshalText(data []byte) error {
+	switch NotifyGetNotifyChannelsOKTriggersItemMin(data) {
+	case NotifyGetNotifyChannelsOKTriggersItemMinCritical:
+		*s = NotifyGetNotifyChannelsOKTriggersItemMinCritical
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemMinHigh:
+		*s = NotifyGetNotifyChannelsOKTriggersItemMinHigh
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemMinMedium:
+		*s = NotifyGetNotifyChannelsOKTriggersItemMinMedium
+		return nil
+	case NotifyGetNotifyChannelsOKTriggersItemMinLow:
+		*s = NotifyGetNotifyChannelsOKTriggersItemMinLow
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type NotifyGetNotifyFindingsIDNoticesOK struct {
@@ -197873,7 +198125,9 @@ type NotifyGetNotifyHistoryOKNotSentItemNotSent struct {
 	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
 	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
 	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-	// message could hold; unknown = opened before the reason was kept and today's channels would take it.
+	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
+	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
+	// set there.
 	Reason NotifyGetNotifyHistoryOKNotSentItemNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -197997,7 +198251,9 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentChannel) UnmarshalText(data [
 // Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
 // grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
 // line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-// message could hold; unknown = opened before the reason was kept and today's channels would take it.
+// message could hold; unknown = opened before the reason was kept and today's channels would take it;
+// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
+// set there.
 type NotifyGetNotifyHistoryOKNotSentItemNotSentReason string
 
 const (
@@ -198014,6 +198270,7 @@ const (
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary  NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "first_run_summary"
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonLineLeftOut      NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "line_left_out"
 	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown          NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "unknown"
+	NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff       NotifyGetNotifyHistoryOKNotSentItemNotSentReason = "trigger_off"
 )
 
 // AllValues returns all NotifyGetNotifyHistoryOKNotSentItemNotSentReason values.
@@ -198032,6 +198289,7 @@ func (NotifyGetNotifyHistoryOKNotSentItemNotSentReason) AllValues() []NotifyGetN
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonFirstRunSummary,
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonLineLeftOut,
 		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown,
+		NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff,
 	}
 }
 
@@ -198063,6 +198321,8 @@ func (s NotifyGetNotifyHistoryOKNotSentItemNotSentReason) MarshalText() ([]byte,
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonLineLeftOut:
 		return []byte(s), nil
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown:
+		return []byte(s), nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -198110,6 +198370,9 @@ func (s *NotifyGetNotifyHistoryOKNotSentItemNotSentReason) UnmarshalText(data []
 		return nil
 	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown:
 		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonUnknown
+		return nil
+	case NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff:
+		*s = NotifyGetNotifyHistoryOKNotSentItemNotSentReasonTriggerOff
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -198439,7 +198702,9 @@ type NotifyGetNotifyIncidentsIDOKIncidentNotSent struct {
 	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
 	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
 	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-	// message could hold; unknown = opened before the reason was kept and today's channels would take it.
+	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
+	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
+	// set there.
 	Reason NotifyGetNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -198563,7 +198828,9 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(data 
 // Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
 // grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
 // line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-// message could hold; unknown = opened before the reason was kept and today's channels would take it.
+// message could hold; unknown = opened before the reason was kept and today's channels would take it;
+// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
+// set there.
 type NotifyGetNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
@@ -198580,6 +198847,7 @@ const (
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary  NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "first_run_summary"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut      NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "line_left_out"
 	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown          NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "unknown"
+	NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff       NotifyGetNotifyIncidentsIDOKIncidentNotSentReason = "trigger_off"
 )
 
 // AllValues returns all NotifyGetNotifyIncidentsIDOKIncidentNotSentReason values.
@@ -198598,6 +198866,7 @@ func (NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyGet
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut,
 		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown,
+		NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff,
 	}
 }
 
@@ -198629,6 +198898,8 @@ func (s NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]byte
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -198676,6 +198947,9 @@ func (s *NotifyGetNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data [
 		return nil
 	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
 		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonUnknown
+		return nil
+	case NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
+		*s = NotifyGetNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -199335,7 +199609,9 @@ type NotifyGetNotifyIncidentsOKIncidentsItemNotSent struct {
 	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
 	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
 	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-	// message could hold; unknown = opened before the reason was kept and today's channels would take it.
+	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
+	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
+	// set there.
 	Reason NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -199459,7 +199735,9 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentChannel) UnmarshalText(da
 // Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
 // grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
 // line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-// message could hold; unknown = opened before the reason was kept and today's channels would take it.
+// message could hold; unknown = opened before the reason was kept and today's channels would take it;
+// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
+// set there.
 type NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason string
 
 const (
@@ -199476,6 +199754,7 @@ const (
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFirstRunSummary  NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "first_run_summary"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonLineLeftOut      NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "line_left_out"
 	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown          NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "unknown"
+	NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff       NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason = "trigger_off"
 )
 
 // AllValues returns all NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason values.
@@ -199494,6 +199773,7 @@ func (NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) AllValues() []Notify
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonFirstRunSummary,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonLineLeftOut,
 		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown,
+		NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff,
 	}
 }
 
@@ -199525,6 +199805,8 @@ func (s NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) MarshalText() ([]b
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonLineLeftOut:
 		return []byte(s), nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown:
+		return []byte(s), nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -199572,6 +199854,9 @@ func (s *NotifyGetNotifyIncidentsOKIncidentsItemNotSentReason) UnmarshalText(dat
 		return nil
 	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown:
 		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonUnknown
+		return nil
+	case NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff:
+		*s = NotifyGetNotifyIncidentsOKIncidentsItemNotSentReasonTriggerOff
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -200778,7 +201063,9 @@ type NotifyPatchNotifyIncidentsIDOKIncidentNotSent struct {
 	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
 	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
 	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-	// message could hold; unknown = opened before the reason was kept and today's channels would take it.
+	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
+	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
+	// set there.
 	Reason NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -200902,7 +201189,9 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentChannel) UnmarshalText(dat
 // Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
 // grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
 // line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-// message could hold; unknown = opened before the reason was kept and today's channels would take it.
+// message could hold; unknown = opened before the reason was kept and today's channels would take it;
+// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
+// set there.
 type NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason string
 
 const (
@@ -200919,6 +201208,7 @@ const (
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary  NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "first_run_summary"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut      NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "line_left_out"
 	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown          NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "unknown"
+	NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff       NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason = "trigger_off"
 )
 
 // AllValues returns all NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason values.
@@ -200937,6 +201227,7 @@ func (NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) AllValues() []NotifyP
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonFirstRunSummary,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut,
 		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown,
+		NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff,
 	}
 }
 
@@ -200968,6 +201259,8 @@ func (s NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) MarshalText() ([]by
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonLineLeftOut:
 		return []byte(s), nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
+		return []byte(s), nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -201015,6 +201308,9 @@ func (s *NotifyPatchNotifyIncidentsIDOKIncidentNotSentReason) UnmarshalText(data
 		return nil
 	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown:
 		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonUnknown
+		return nil
+	case NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff:
+		*s = NotifyPatchNotifyIncidentsIDOKIncidentNotSentReasonTriggerOff
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -202634,7 +202930,9 @@ type NotifyPostNotifyNoticesIDSendOKNotSent struct {
 	// Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
 	// grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
 	// line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-	// message could hold; unknown = opened before the reason was kept and today's channels would take it.
+	// message could hold; unknown = opened before the reason was kept and today's channels would take it;
+	// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
+	// set there.
 	Reason NotifyPostNotifyNoticesIDSendOKNotSentReason `json:"reason"`
 	// One plain sentence for the customer, e.g. "Not sent: this incident is medium, and your channels only
 	// send high and above.".
@@ -202758,7 +203056,9 @@ func (s *NotifyPostNotifyNoticesIDSendOKNotSentChannel) UnmarshalText(data []byt
 // Why no channel has it (INV-24): the decision kept when it was opened; queued, quiet_hours and
 // grouped (a vulnerability notice waiting for its grouping window) still go out by themselves;
 // line_left_out = a vulnerability notice that was queued and sent, but its line was past what the
-// message could hold; unknown = opened before the reason was kept and today's channels would take it.
+// message could hold; unknown = opened before the reason was kept and today's channels would take it;
+// trigger_off = its kind of event is turned off in the alert settings, or below the lowest severity
+// set there.
 type NotifyPostNotifyNoticesIDSendOKNotSentReason string
 
 const (
@@ -202775,6 +203075,7 @@ const (
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonFirstRunSummary  NotifyPostNotifyNoticesIDSendOKNotSentReason = "first_run_summary"
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonLineLeftOut      NotifyPostNotifyNoticesIDSendOKNotSentReason = "line_left_out"
 	NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown          NotifyPostNotifyNoticesIDSendOKNotSentReason = "unknown"
+	NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff       NotifyPostNotifyNoticesIDSendOKNotSentReason = "trigger_off"
 )
 
 // AllValues returns all NotifyPostNotifyNoticesIDSendOKNotSentReason values.
@@ -202793,6 +203094,7 @@ func (NotifyPostNotifyNoticesIDSendOKNotSentReason) AllValues() []NotifyPostNoti
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonFirstRunSummary,
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonLineLeftOut,
 		NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown,
+		NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff,
 	}
 }
 
@@ -202824,6 +203126,8 @@ func (s NotifyPostNotifyNoticesIDSendOKNotSentReason) MarshalText() ([]byte, err
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonLineLeftOut:
 		return []byte(s), nil
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown:
+		return []byte(s), nil
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -202871,6 +203175,9 @@ func (s *NotifyPostNotifyNoticesIDSendOKNotSentReason) UnmarshalText(data []byte
 		return nil
 	case NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown:
 		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonUnknown
+		return nil
+	case NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff:
+		*s = NotifyPostNotifyNoticesIDSendOKNotSentReasonTriggerOff
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -204527,6 +204834,437 @@ func (s *NotifyPutNotifyRulesReqQuiet) SetFrom(val string) {
 // SetTo sets the value of To.
 func (s *NotifyPutNotifyRulesReqQuiet) SetTo(val string) {
 	s.To = val
+}
+
+type NotifyPutNotifyTriggersOK struct {
+	Triggers []NotifyPutNotifyTriggersOKTriggersItem `json:"triggers"`
+}
+
+// GetTriggers returns the value of Triggers.
+func (s *NotifyPutNotifyTriggersOK) GetTriggers() []NotifyPutNotifyTriggersOKTriggersItem {
+	return s.Triggers
+}
+
+// SetTriggers sets the value of Triggers.
+func (s *NotifyPutNotifyTriggersOK) SetTriggers(val []NotifyPutNotifyTriggersOKTriggersItem) {
+	s.Triggers = val
+}
+
+type NotifyPutNotifyTriggersOKTriggersItem struct {
+	DefaultMin NotifyPutNotifyTriggersOKTriggersItemDefaultMin `json:"default_min"`
+	DefaultOn  bool                                            `json:"default_on"`
+	ID         NotifyPutNotifyTriggersOKTriggersItemID         `json:"id"`
+	// The lowest severity of this kind that sends a message.
+	Min NotifyPutNotifyTriggersOKTriggersItemMin `json:"min"`
+	// Off: the event is still recorded (Incidents, the finding), but no message is sent.
+	On bool `json:"on"`
+}
+
+// GetDefaultMin returns the value of DefaultMin.
+func (s *NotifyPutNotifyTriggersOKTriggersItem) GetDefaultMin() NotifyPutNotifyTriggersOKTriggersItemDefaultMin {
+	return s.DefaultMin
+}
+
+// GetDefaultOn returns the value of DefaultOn.
+func (s *NotifyPutNotifyTriggersOKTriggersItem) GetDefaultOn() bool {
+	return s.DefaultOn
+}
+
+// GetID returns the value of ID.
+func (s *NotifyPutNotifyTriggersOKTriggersItem) GetID() NotifyPutNotifyTriggersOKTriggersItemID {
+	return s.ID
+}
+
+// GetMin returns the value of Min.
+func (s *NotifyPutNotifyTriggersOKTriggersItem) GetMin() NotifyPutNotifyTriggersOKTriggersItemMin {
+	return s.Min
+}
+
+// GetOn returns the value of On.
+func (s *NotifyPutNotifyTriggersOKTriggersItem) GetOn() bool {
+	return s.On
+}
+
+// SetDefaultMin sets the value of DefaultMin.
+func (s *NotifyPutNotifyTriggersOKTriggersItem) SetDefaultMin(val NotifyPutNotifyTriggersOKTriggersItemDefaultMin) {
+	s.DefaultMin = val
+}
+
+// SetDefaultOn sets the value of DefaultOn.
+func (s *NotifyPutNotifyTriggersOKTriggersItem) SetDefaultOn(val bool) {
+	s.DefaultOn = val
+}
+
+// SetID sets the value of ID.
+func (s *NotifyPutNotifyTriggersOKTriggersItem) SetID(val NotifyPutNotifyTriggersOKTriggersItemID) {
+	s.ID = val
+}
+
+// SetMin sets the value of Min.
+func (s *NotifyPutNotifyTriggersOKTriggersItem) SetMin(val NotifyPutNotifyTriggersOKTriggersItemMin) {
+	s.Min = val
+}
+
+// SetOn sets the value of On.
+func (s *NotifyPutNotifyTriggersOKTriggersItem) SetOn(val bool) {
+	s.On = val
+}
+
+type NotifyPutNotifyTriggersOKTriggersItemDefaultMin string
+
+const (
+	NotifyPutNotifyTriggersOKTriggersItemDefaultMinCritical NotifyPutNotifyTriggersOKTriggersItemDefaultMin = "critical"
+	NotifyPutNotifyTriggersOKTriggersItemDefaultMinHigh     NotifyPutNotifyTriggersOKTriggersItemDefaultMin = "high"
+	NotifyPutNotifyTriggersOKTriggersItemDefaultMinMedium   NotifyPutNotifyTriggersOKTriggersItemDefaultMin = "medium"
+	NotifyPutNotifyTriggersOKTriggersItemDefaultMinLow      NotifyPutNotifyTriggersOKTriggersItemDefaultMin = "low"
+)
+
+// AllValues returns all NotifyPutNotifyTriggersOKTriggersItemDefaultMin values.
+func (NotifyPutNotifyTriggersOKTriggersItemDefaultMin) AllValues() []NotifyPutNotifyTriggersOKTriggersItemDefaultMin {
+	return []NotifyPutNotifyTriggersOKTriggersItemDefaultMin{
+		NotifyPutNotifyTriggersOKTriggersItemDefaultMinCritical,
+		NotifyPutNotifyTriggersOKTriggersItemDefaultMinHigh,
+		NotifyPutNotifyTriggersOKTriggersItemDefaultMinMedium,
+		NotifyPutNotifyTriggersOKTriggersItemDefaultMinLow,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPutNotifyTriggersOKTriggersItemDefaultMin) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPutNotifyTriggersOKTriggersItemDefaultMinCritical:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemDefaultMinHigh:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemDefaultMinMedium:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemDefaultMinLow:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPutNotifyTriggersOKTriggersItemDefaultMin) UnmarshalText(data []byte) error {
+	switch NotifyPutNotifyTriggersOKTriggersItemDefaultMin(data) {
+	case NotifyPutNotifyTriggersOKTriggersItemDefaultMinCritical:
+		*s = NotifyPutNotifyTriggersOKTriggersItemDefaultMinCritical
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemDefaultMinHigh:
+		*s = NotifyPutNotifyTriggersOKTriggersItemDefaultMinHigh
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemDefaultMinMedium:
+		*s = NotifyPutNotifyTriggersOKTriggersItemDefaultMinMedium
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemDefaultMinLow:
+		*s = NotifyPutNotifyTriggersOKTriggersItemDefaultMinLow
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPutNotifyTriggersOKTriggersItemID string
+
+const (
+	NotifyPutNotifyTriggersOKTriggersItemIDTrap          NotifyPutNotifyTriggersOKTriggersItemID = "trap"
+	NotifyPutNotifyTriggersOKTriggersItemIDVulnerability NotifyPutNotifyTriggersOKTriggersItemID = "vulnerability"
+	NotifyPutNotifyTriggersOKTriggersItemIDIntrusion     NotifyPutNotifyTriggersOKTriggersItemID = "intrusion"
+	NotifyPutNotifyTriggersOKTriggersItemIDBadAddress    NotifyPutNotifyTriggersOKTriggersItemID = "bad_address"
+	NotifyPutNotifyTriggersOKTriggersItemIDLogAnomaly    NotifyPutNotifyTriggersOKTriggersItemID = "log_anomaly"
+	NotifyPutNotifyTriggersOKTriggersItemIDUnknownDevice NotifyPutNotifyTriggersOKTriggersItemID = "unknown_device"
+)
+
+// AllValues returns all NotifyPutNotifyTriggersOKTriggersItemID values.
+func (NotifyPutNotifyTriggersOKTriggersItemID) AllValues() []NotifyPutNotifyTriggersOKTriggersItemID {
+	return []NotifyPutNotifyTriggersOKTriggersItemID{
+		NotifyPutNotifyTriggersOKTriggersItemIDTrap,
+		NotifyPutNotifyTriggersOKTriggersItemIDVulnerability,
+		NotifyPutNotifyTriggersOKTriggersItemIDIntrusion,
+		NotifyPutNotifyTriggersOKTriggersItemIDBadAddress,
+		NotifyPutNotifyTriggersOKTriggersItemIDLogAnomaly,
+		NotifyPutNotifyTriggersOKTriggersItemIDUnknownDevice,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPutNotifyTriggersOKTriggersItemID) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPutNotifyTriggersOKTriggersItemIDTrap:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemIDVulnerability:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemIDIntrusion:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemIDBadAddress:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemIDLogAnomaly:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemIDUnknownDevice:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPutNotifyTriggersOKTriggersItemID) UnmarshalText(data []byte) error {
+	switch NotifyPutNotifyTriggersOKTriggersItemID(data) {
+	case NotifyPutNotifyTriggersOKTriggersItemIDTrap:
+		*s = NotifyPutNotifyTriggersOKTriggersItemIDTrap
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemIDVulnerability:
+		*s = NotifyPutNotifyTriggersOKTriggersItemIDVulnerability
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemIDIntrusion:
+		*s = NotifyPutNotifyTriggersOKTriggersItemIDIntrusion
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemIDBadAddress:
+		*s = NotifyPutNotifyTriggersOKTriggersItemIDBadAddress
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemIDLogAnomaly:
+		*s = NotifyPutNotifyTriggersOKTriggersItemIDLogAnomaly
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemIDUnknownDevice:
+		*s = NotifyPutNotifyTriggersOKTriggersItemIDUnknownDevice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The lowest severity of this kind that sends a message.
+type NotifyPutNotifyTriggersOKTriggersItemMin string
+
+const (
+	NotifyPutNotifyTriggersOKTriggersItemMinCritical NotifyPutNotifyTriggersOKTriggersItemMin = "critical"
+	NotifyPutNotifyTriggersOKTriggersItemMinHigh     NotifyPutNotifyTriggersOKTriggersItemMin = "high"
+	NotifyPutNotifyTriggersOKTriggersItemMinMedium   NotifyPutNotifyTriggersOKTriggersItemMin = "medium"
+	NotifyPutNotifyTriggersOKTriggersItemMinLow      NotifyPutNotifyTriggersOKTriggersItemMin = "low"
+)
+
+// AllValues returns all NotifyPutNotifyTriggersOKTriggersItemMin values.
+func (NotifyPutNotifyTriggersOKTriggersItemMin) AllValues() []NotifyPutNotifyTriggersOKTriggersItemMin {
+	return []NotifyPutNotifyTriggersOKTriggersItemMin{
+		NotifyPutNotifyTriggersOKTriggersItemMinCritical,
+		NotifyPutNotifyTriggersOKTriggersItemMinHigh,
+		NotifyPutNotifyTriggersOKTriggersItemMinMedium,
+		NotifyPutNotifyTriggersOKTriggersItemMinLow,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPutNotifyTriggersOKTriggersItemMin) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPutNotifyTriggersOKTriggersItemMinCritical:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemMinHigh:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemMinMedium:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersOKTriggersItemMinLow:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPutNotifyTriggersOKTriggersItemMin) UnmarshalText(data []byte) error {
+	switch NotifyPutNotifyTriggersOKTriggersItemMin(data) {
+	case NotifyPutNotifyTriggersOKTriggersItemMinCritical:
+		*s = NotifyPutNotifyTriggersOKTriggersItemMinCritical
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemMinHigh:
+		*s = NotifyPutNotifyTriggersOKTriggersItemMinHigh
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemMinMedium:
+		*s = NotifyPutNotifyTriggersOKTriggersItemMinMedium
+		return nil
+	case NotifyPutNotifyTriggersOKTriggersItemMinLow:
+		*s = NotifyPutNotifyTriggersOKTriggersItemMinLow
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type NotifyPutNotifyTriggersReq struct {
+	Triggers []NotifyPutNotifyTriggersReqTriggersItem `json:"triggers"`
+}
+
+// GetTriggers returns the value of Triggers.
+func (s *NotifyPutNotifyTriggersReq) GetTriggers() []NotifyPutNotifyTriggersReqTriggersItem {
+	return s.Triggers
+}
+
+// SetTriggers sets the value of Triggers.
+func (s *NotifyPutNotifyTriggersReq) SetTriggers(val []NotifyPutNotifyTriggersReqTriggersItem) {
+	s.Triggers = val
+}
+
+type NotifyPutNotifyTriggersReqTriggersItem struct {
+	ID NotifyPutNotifyTriggersReqTriggersItemID `json:"id"`
+	// The lowest severity of this kind that sends a message.
+	Min NotifyPutNotifyTriggersReqTriggersItemMin `json:"min"`
+	// Off: the event is still recorded (Incidents, the finding), but no message is sent.
+	On bool `json:"on"`
+}
+
+// GetID returns the value of ID.
+func (s *NotifyPutNotifyTriggersReqTriggersItem) GetID() NotifyPutNotifyTriggersReqTriggersItemID {
+	return s.ID
+}
+
+// GetMin returns the value of Min.
+func (s *NotifyPutNotifyTriggersReqTriggersItem) GetMin() NotifyPutNotifyTriggersReqTriggersItemMin {
+	return s.Min
+}
+
+// GetOn returns the value of On.
+func (s *NotifyPutNotifyTriggersReqTriggersItem) GetOn() bool {
+	return s.On
+}
+
+// SetID sets the value of ID.
+func (s *NotifyPutNotifyTriggersReqTriggersItem) SetID(val NotifyPutNotifyTriggersReqTriggersItemID) {
+	s.ID = val
+}
+
+// SetMin sets the value of Min.
+func (s *NotifyPutNotifyTriggersReqTriggersItem) SetMin(val NotifyPutNotifyTriggersReqTriggersItemMin) {
+	s.Min = val
+}
+
+// SetOn sets the value of On.
+func (s *NotifyPutNotifyTriggersReqTriggersItem) SetOn(val bool) {
+	s.On = val
+}
+
+type NotifyPutNotifyTriggersReqTriggersItemID string
+
+const (
+	NotifyPutNotifyTriggersReqTriggersItemIDTrap          NotifyPutNotifyTriggersReqTriggersItemID = "trap"
+	NotifyPutNotifyTriggersReqTriggersItemIDVulnerability NotifyPutNotifyTriggersReqTriggersItemID = "vulnerability"
+	NotifyPutNotifyTriggersReqTriggersItemIDIntrusion     NotifyPutNotifyTriggersReqTriggersItemID = "intrusion"
+	NotifyPutNotifyTriggersReqTriggersItemIDBadAddress    NotifyPutNotifyTriggersReqTriggersItemID = "bad_address"
+	NotifyPutNotifyTriggersReqTriggersItemIDLogAnomaly    NotifyPutNotifyTriggersReqTriggersItemID = "log_anomaly"
+	NotifyPutNotifyTriggersReqTriggersItemIDUnknownDevice NotifyPutNotifyTriggersReqTriggersItemID = "unknown_device"
+)
+
+// AllValues returns all NotifyPutNotifyTriggersReqTriggersItemID values.
+func (NotifyPutNotifyTriggersReqTriggersItemID) AllValues() []NotifyPutNotifyTriggersReqTriggersItemID {
+	return []NotifyPutNotifyTriggersReqTriggersItemID{
+		NotifyPutNotifyTriggersReqTriggersItemIDTrap,
+		NotifyPutNotifyTriggersReqTriggersItemIDVulnerability,
+		NotifyPutNotifyTriggersReqTriggersItemIDIntrusion,
+		NotifyPutNotifyTriggersReqTriggersItemIDBadAddress,
+		NotifyPutNotifyTriggersReqTriggersItemIDLogAnomaly,
+		NotifyPutNotifyTriggersReqTriggersItemIDUnknownDevice,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPutNotifyTriggersReqTriggersItemID) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPutNotifyTriggersReqTriggersItemIDTrap:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersReqTriggersItemIDVulnerability:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersReqTriggersItemIDIntrusion:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersReqTriggersItemIDBadAddress:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersReqTriggersItemIDLogAnomaly:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersReqTriggersItemIDUnknownDevice:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPutNotifyTriggersReqTriggersItemID) UnmarshalText(data []byte) error {
+	switch NotifyPutNotifyTriggersReqTriggersItemID(data) {
+	case NotifyPutNotifyTriggersReqTriggersItemIDTrap:
+		*s = NotifyPutNotifyTriggersReqTriggersItemIDTrap
+		return nil
+	case NotifyPutNotifyTriggersReqTriggersItemIDVulnerability:
+		*s = NotifyPutNotifyTriggersReqTriggersItemIDVulnerability
+		return nil
+	case NotifyPutNotifyTriggersReqTriggersItemIDIntrusion:
+		*s = NotifyPutNotifyTriggersReqTriggersItemIDIntrusion
+		return nil
+	case NotifyPutNotifyTriggersReqTriggersItemIDBadAddress:
+		*s = NotifyPutNotifyTriggersReqTriggersItemIDBadAddress
+		return nil
+	case NotifyPutNotifyTriggersReqTriggersItemIDLogAnomaly:
+		*s = NotifyPutNotifyTriggersReqTriggersItemIDLogAnomaly
+		return nil
+	case NotifyPutNotifyTriggersReqTriggersItemIDUnknownDevice:
+		*s = NotifyPutNotifyTriggersReqTriggersItemIDUnknownDevice
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The lowest severity of this kind that sends a message.
+type NotifyPutNotifyTriggersReqTriggersItemMin string
+
+const (
+	NotifyPutNotifyTriggersReqTriggersItemMinCritical NotifyPutNotifyTriggersReqTriggersItemMin = "critical"
+	NotifyPutNotifyTriggersReqTriggersItemMinHigh     NotifyPutNotifyTriggersReqTriggersItemMin = "high"
+	NotifyPutNotifyTriggersReqTriggersItemMinMedium   NotifyPutNotifyTriggersReqTriggersItemMin = "medium"
+	NotifyPutNotifyTriggersReqTriggersItemMinLow      NotifyPutNotifyTriggersReqTriggersItemMin = "low"
+)
+
+// AllValues returns all NotifyPutNotifyTriggersReqTriggersItemMin values.
+func (NotifyPutNotifyTriggersReqTriggersItemMin) AllValues() []NotifyPutNotifyTriggersReqTriggersItemMin {
+	return []NotifyPutNotifyTriggersReqTriggersItemMin{
+		NotifyPutNotifyTriggersReqTriggersItemMinCritical,
+		NotifyPutNotifyTriggersReqTriggersItemMinHigh,
+		NotifyPutNotifyTriggersReqTriggersItemMinMedium,
+		NotifyPutNotifyTriggersReqTriggersItemMinLow,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s NotifyPutNotifyTriggersReqTriggersItemMin) MarshalText() ([]byte, error) {
+	switch s {
+	case NotifyPutNotifyTriggersReqTriggersItemMinCritical:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersReqTriggersItemMinHigh:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersReqTriggersItemMinMedium:
+		return []byte(s), nil
+	case NotifyPutNotifyTriggersReqTriggersItemMinLow:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *NotifyPutNotifyTriggersReqTriggersItemMin) UnmarshalText(data []byte) error {
+	switch NotifyPutNotifyTriggersReqTriggersItemMin(data) {
+	case NotifyPutNotifyTriggersReqTriggersItemMinCritical:
+		*s = NotifyPutNotifyTriggersReqTriggersItemMinCritical
+		return nil
+	case NotifyPutNotifyTriggersReqTriggersItemMinHigh:
+		*s = NotifyPutNotifyTriggersReqTriggersItemMinHigh
+		return nil
+	case NotifyPutNotifyTriggersReqTriggersItemMinMedium:
+		*s = NotifyPutNotifyTriggersReqTriggersItemMinMedium
+		return nil
+	case NotifyPutNotifyTriggersReqTriggersItemMinLow:
+		*s = NotifyPutNotifyTriggersReqTriggersItemMinLow
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // NewOptAiGetAiActivityResult returns new OptAiGetAiActivityResult with value set to v.

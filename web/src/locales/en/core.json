@@ -641,6 +641,7 @@
       "notify.resend": "Send alert again",
       "notify.notice_send_now": "Send an alert that was not sent",
       "notify.rules_save": "Save alert rules",
+      "notify.triggers_save": "Change alert triggers",
       "notify.stale_dropped": "Old alerts dropped",
       "box-ca.create": "Create box certificate authority",
       "box-ca.migrate": "Move box certificate authority into the database",

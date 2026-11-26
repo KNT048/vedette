@@ -161,8 +161,18 @@ func (s *Service) openIncident(ctx context.Context, in IncidentInput) (r opened,
 			return fmt.Errorf("notify: find incident: %w", err)
 		}
 		created, id, r.firstSeen = true, store.NewID("in"), ts
+		hold := held
+		if hold { // a kind its alert trigger keeps from the channels is not told in the first-run summary either (INV-31)
+			trs, err := loadTriggers(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if off, _ := trs.holds(Notice{Kind: KindIncident, IncidentKind: string(in.Kind), Severity: in.Severity}); off {
+				hold = false
+			}
+		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_incident (id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, dedupe_key, first_run, active_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			id, string(in.Kind), in.Attempt, strings.TrimSpace(in.Title), in.Link, string(in.Severity), in.What, in.Action, ts, ts, key, boolInt(held), store.FormatTS(now)); err != nil {
+			id, string(in.Kind), in.Attempt, strings.TrimSpace(in.Title), in.Link, string(in.Severity), in.What, in.Action, ts, ts, key, boolInt(hold), store.FormatTS(now)); err != nil {
 			return fmt.Errorf("notify: save incident: %w", err)
 		}
 		names, ids := make([]string, 0, len(in.Devices)), make([]string, 0, len(in.Devices))
@@ -175,7 +185,7 @@ func (s *Service) openIncident(ctx context.Context, in IncidentInput) (r opened,
 		if err := s.record(ctx, tx, systemUser, "notify.incident_open", clip(strings.TrimSpace(in.Title), 400), string(in.Kind)); err != nil {
 			return err
 		}
-		if !held {
+		if !hold {
 			if err := s.enqueue(ctx, tx, Notice{ID: id, Kind: KindIncident, Severity: in.Severity, Title: strings.TrimSpace(in.Title), What: in.What, Action: in.Action,
 				Devices: names, DeviceIDs: ids, IncidentKind: string(in.Kind), Link: s.link("/incidents/" + id), At: at}); err != nil {
 				return err

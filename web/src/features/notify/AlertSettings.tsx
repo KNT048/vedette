@@ -9,6 +9,7 @@ import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { useCan } from '@/lib/session'
+import { AlertTriggers } from './AlertTriggers'
 import { useSaveRules } from './api'
 import type { ChannelsResponse, Grouping } from './types'
 
@@ -16,6 +17,7 @@ const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
 
 /** What the Settings tab reads from GET /notify/channels. */
 type Rules = Pick<ChannelsResponse, 'quiet' | 'grouping'>
+type Settings = Pick<ChannelsResponse, 'quiet' | 'grouping' | 'triggers'>
 
 /** Quiet hours and grouping: one form, saved together, for every channel. */
 function RulesForm({ init }: { init: Rules }) {
@@ -63,11 +65,17 @@ function RulesForm({ init }: { init: Rules }) {
 
 /** Settings › Alert channels › Settings: how alerts go out on every channel. Each block is a Section of its own; the delivery rules
  *  (quiet hours, grouping) come first. */
-export function AlertSettings({ quiet, grouping }: Rules) {
+export function AlertSettings({ quiet, grouping, triggers }: Settings) {
   const { t } = useTranslation('notify')
   return (
-    <Section id="alert-rules" title={t('alertSettings.rules.title')} description={t('alertSettings.rules.description')}>
-      <RulesForm init={{ quiet, grouping }} />
-    </Section>
+    <>
+      <Section id="alert-rules" title={t('alertSettings.rules.title')} description={t('alertSettings.rules.description')}>
+        <RulesForm init={{ quiet, grouping }} />
+      </Section>
+      {/* /settings/channels?tab=settings#triggers (NotSentFix of an alert its trigger held back) lands here */}
+      <Section id="triggers" title={t('triggers.title')} description={t('triggers.description')} info={t('triggers.descriptionInfo')}>
+        <AlertTriggers init={triggers} />
+      </Section>
+    </>
   )
 }

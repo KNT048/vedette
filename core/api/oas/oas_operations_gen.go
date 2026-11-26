@@ -323,6 +323,7 @@ const (
 	NotifyPostNotifyZaloResolveOperation                     OperationName = "NotifyPostNotifyZaloResolve"
 	NotifyPutNotifyChannelsTypeOperation                     OperationName = "NotifyPutNotifyChannelsType"
 	NotifyPutNotifyRulesOperation                            OperationName = "NotifyPutNotifyRules"
+	NotifyPutNotifyTriggersOperation                         OperationName = "NotifyPutNotifyTriggers"
 	ReportsGetReportsDefinitionOperation                     OperationName = "ReportsGetReportsDefinition"
 	ReportsGetReportsDocumentOperation                       OperationName = "ReportsGetReportsDocument"
 	ReportsGetReportsHistoryOperation                        OperationName = "ReportsGetReportsHistory"

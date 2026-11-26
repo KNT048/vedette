@@ -3277,6 +3277,16 @@ func (UnimplementedHandler) NotifyPutNotifyRules(ctx context.Context, req *Notif
 	return r, ht.ErrNotImplemented
 }
 
+// NotifyPutNotifyTriggers implements notify_put_notify_triggers operation.
+//
+// Save which kinds of event send an alert and from which severity (a trigger left out keeps its rule);
+// audited with each change. 400 unknown_trigger, duplicate_trigger or bad_min.
+//
+// PUT /notify/triggers
+func (UnimplementedHandler) NotifyPutNotifyTriggers(ctx context.Context, req *NotifyPutNotifyTriggersReq) (r *NotifyPutNotifyTriggersOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ReportsGetReportsDefinition implements reports_get_reports_definition operation.
 //
 // The report definition: name, options, section switches, recipients and the key of its schedule.

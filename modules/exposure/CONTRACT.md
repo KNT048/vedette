@@ -114,7 +114,16 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   nmap step checks only the fixed list. (2) An address with nothing open: "nothing open" is a result when the address answered this
   scan (a TCP reset to the runner's connect or to nmap, `Content.Answered`), and the scan counts as usual. When it answered nothing
   at all (a lost NAT loopback, a firewall dropping the probes) the scan is not a miss (run item `checked_empty`), until the third
-  such scan in a row at least 24 hours after the first, which closes the ports they all probed (`emptyStreak`). (3) An address
+  such scan in a row at least 24 hours after the first, which closes the ports they all probed (`emptyStreak`).
+  (3) Right before the results are written, the ports open before that this scan did not see, on the addresses it port-scanned
+  (an IP target, a domain's swept or own-box addresses; not an address that stopped answering), get one more TCP connect
+  (`recheckMissed`, `PortProber`: cmd/vedette's liveness check, at most 8 addresses and 32 ports each). A port that accepts it is
+  not a miss (`Content.Answering`); a reset leaves the rules above as they are; no answer at all (a firewall or WAF that blocks the
+  box drops its packets while other ports still answer, so the runner and a trusted sweep both miss the port) is not a miss
+  (`Content.Silent`, run item `silent_port`) until the third such scan in a row at least 24 hours after the first (`silentStreak`),
+  which closes it. The run's log and a "Not checked" line of kind `silent_ports` say so. No prober, a failed check or a port past
+  the bounds: the rules above. `TestSilentPorts_AWAFThatBlocksTheBoxClosesNothing`,
+  `TestSilentPorts_ThreeSilentScansWithinADayCloseNothing`, `TestSilentPorts_AResetClosesAndAnAnswerKeeps`. (3) An address
   that stopped answering during the scan (INV-42: a port seen open earlier in the run no longer accepted a TCP connection before
   the results were written) is not a miss of any port: its run item is `stopped_answering`, which checks no port and does not count
   in `emptyStreak` (a router that lost its NAT loopback may answer with resets on its unforwarded ports, which (1) and (2) would
@@ -145,13 +154,16 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   is a line of the run's log). A port that no longer answers is lost for the rest of the run: the later engines skip it and the
   step that lost it ends partly done with "Results incomplete: <ip>:<port> stopped answering during the scan."; when it is the
   box's own public IP the note adds the likely cause (the box could not reach its own public address from inside the network: the
-  router may not support NAT loopback, or something blocked it), never an IPS without evidence. When no port of the target answers
+  router may not support NAT loopback, or something blocked it), never an IPS without evidence, and never for a typed IP among a
+  domain's addresses (scannable, but not the box's). When no port of the target answers
   any more, the later engine steps are skipped with that note. nuclei's own sign counts too: a port where at least half of 20 or
   more templates got no answer (only connection errors, skipped after nuclei gave the address up, or lines about another address)
   makes the template step partly done. Such a run, and a run whose engine image
   is not on the box yet (INV-24, INV-25), ends partly done (`core/run` `Partial`, its first problem as the reason), never done.
   `TestLiveness_ATargetThatStopsAnsweringIsSaidAndIsNotAMiss`, `TestLiveness_APortThatStopsAnsweringMakesTheStepIncomplete`, `TestLiveness_NucleiErrorsOnAPortThatStoppedAnsweringMakeItIncomplete`,
-  `cmd/vedette` `TestExposureLivenessConnectsAndSendsNothing`.
+  `TestLiveness_TheNATLoopbackHintIsOnlyForTheBoxsOwnIP`, `cmd/vedette` `TestExposureLivenessConnectsAndSendsNothing`. The
+  disruptive step of a domain whose own-box address stopped answering says so ("Not run on <ip>. Results incomplete: …"), never
+  "No open port was found" nor that no address is the box's own (`TestDisruptive_ADomainWhoseOwnAddressStoppedAnsweringSaysSo`).
 - **INV-43** The deep scan runs its light checks before its heavy ones, so a ban or an overloaded firewall costs only the last
   steps (`scanPlan`, the one source of the order the run page shows): the runner, nmap's sweep of every TCP port with service
   identification and the reviewed safe scripts (`external_full`; the later steps need the ports and the services), the templates,

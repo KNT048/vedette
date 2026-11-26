@@ -455,9 +455,18 @@ func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, re
 		if reported[portKey(x.IP, x.Port)] || slices.Contains(w.path, x.Port) { // INV-44: a port the network answered was not checked
 			continue
 		}
+		if slices.Contains(w.c.Answering[k], x.Port) { // the scan missed it, and it accepted a connection right after: open
+			continue
+		}
 		shut := w.gone[k]
 		if !shut && covers(w.checked[k], w.c.Probed[k], x.Port) {
 			switch {
+			case slices.Contains(w.c.Silent[k], x.Port): // no answer at all, no reset: a miss only as the third such scan over a day
+				ok, err := silentStreak(ctx, tx, w.target.ID, w.runID, portKey(k, x.Port), x.LastSeen)
+				if err != nil {
+					return nil, err
+				}
+				shut = ok
 			case w.settled[k]: // the third scan in a row, over at least a day, to which the address answered nothing: all of them missed it
 				shut = true
 			case w.c.Swept[k] && w.checked[k] == coverAll && w.listed[k] && slices.Contains(commonports.Numbers(), x.Port):

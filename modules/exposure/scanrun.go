@@ -554,6 +554,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}
 	lt := liveTarget(t, user)
 	s.checkAlive(ctx, lt, &content, "writing the results") // an address that stopped answering is not a miss of its ports (coverage)
+	s.recheckMissed(ctx, t, &content)                      // INV-22: a port open before that is silent now is not a miss
 	lost := s.lostText(ctx, lt, content.Lost)
 	if lost != "" { // the save step stays done (its rows are written: RecentScans and the outside view read it), the run says it
 		rs.problem(lost)
@@ -572,6 +573,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	rs.record(ctx, "", runOn, "")
 	s.recordCoverage(ctx, x, wr.checked, wr.topPorts)
 	s.recordPathPorts(ctx, x, wr.path)
+	s.recordSilent(ctx, x, content.Silent)
 	s.recordNames(ctx, x, wr.probed)
 	for _, h := range content.Hosts { // what the deep scan did with each address: the rotation of the next scans reads it
 		for _, a := range h.IPs {
@@ -581,8 +583,9 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		}
 	}
 	ex.gbRun = GreenboneRun{State: GBRunNotRun}
-	if gb { // the ports seen open earlier must still answer (liveness.go): OpenVAS gets the ones that do
-		gb, gbIP, deep = s.openVASAlive(ctx, lt, &content, gbIP, deep)
+	gbDeep := deep // OpenVAS gets the addresses that still answer; the disruptive step says itself why an address got nothing
+	if gb {        // the ports seen open earlier must still answer (liveness.go): OpenVAS gets the ones that do
+		gb, gbIP, gbDeep = s.openVASAlive(ctx, lt, &content, gbIP, deep)
 	}
 	res = corerun.Result{}
 	if !gb {
@@ -590,7 +593,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		if line == notGBStarting || line == notGBLoading { // OpenVAS is on but not ready yet: the run did not do what it should have
 			rs.problem(line)
 		}
-	} else if res, err = s.openVASStep(ctx, x, ex, user, t, content, deep, gbIP); err != nil {
+	} else if res, err = s.openVASStep(ctx, x, ex, user, t, content, gbDeep, gbIP); err != nil {
 		return res, err
 	}
 	if ctx.Err() == nil { // last: nmap's disruptive scripts (a stop ends the run here; the step is then not reached)
@@ -731,9 +734,9 @@ func (s *Service) planOpenVAS(ctx context.Context, t Target, mode ScanMode, user
 // save writes the rows of a scan (writeScan) and publishes what changed.
 func (s *Service) save(ctx context.Context, runID, user string, t Target, c Content, steps *stepLog) (written, error) {
 	at := s.clock()
-	swept, answered, lost := c.Swept, c.Answered, c.Lost // this run's own coverage facts (identifyIP, the runner, liveness), not text from a target: kept as they are
+	swept, answered, lost, silent, answering := c.Swept, c.Answered, c.Lost, c.Silent, c.Answering // this run's own coverage facts (identifyIP, the runner, liveness), not text from a target: kept as they are
 	c = unresolvedLine(sanitize(c))
-	c.Swept, c.Answered, c.Lost = swept, answered, lost
+	c.Swept, c.Answered, c.Lost, c.Silent, c.Answering = swept, answered, lost, silent, answering
 	c.AdminPanels = applianceAdmins(c.AdminPanels, c.Ports, c.Services) // an appliance's admin page on any port
 	m := vulnSet{Content: c, ID: runID}
 	ranMatch := s.withVulns(ctx, &m)

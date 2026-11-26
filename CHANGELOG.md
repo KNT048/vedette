@@ -16,6 +16,7 @@ All notable changes to Vedette are recorded here. Format: [Keep a Changelog](htt
 
 ### Fixed
 - External targets: a port that the box's own network answers for any address (for example a firewall's SIP or SCCP helper on 5060 or 2000) is no longer shown as an open service of every target. Before a port found open counts, the box checks it against never-routed documentation addresses; such a port is left out, neither opened nor closed, and the target says so in one line.
+- External targets: a firewall or WAF that blocks the box's public IP no longer closes the target's ports. A port open before that a scan did not see is connected to once more before the results are saved: a reset closes it as before, no answer at all keeps it open until three scans over at least a day find it silent.
 - External targets: the deep scan of a domain no longer says "Disruptive checks are included" when they cannot run there. The dialog and the run say they run only on the domain's addresses that are this box's own public IP; a typed-in IP says they are not included.
 - An update or rollback follows the module a person switched when it starts or stops a service, and an automatic install that waits for a restart says so.
 - A network card that answers on two addresses has one main address in the inventory.

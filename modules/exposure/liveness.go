@@ -71,7 +71,7 @@ func (s *Service) lostText(ctx context.Context, st ScanTarget, lost map[string][
 }
 
 // ownAddress says ip is the box's own public IP: an IP target that is not typed in (the box saw it as its own address), or an
-// address of a domain's names that is a scannable IP target (the box's own).
+// address of a domain's names that is a scannable IP target the box found as its own (not one typed in).
 func (s *Service) ownAddress(ctx context.Context, st ScanTarget, ip string) bool {
 	if st.Kind == KindIP {
 		return !st.Typed && ipKey(st.Value) == ip
@@ -80,8 +80,11 @@ func (s *Service) ownAddress(ctx context.Context, st ScanTarget, ip string) bool
 	if err != nil {
 		return false
 	}
-	ok, err := s.ScannableIP(ctx, st.User, a)
-	return err == nil && ok
+	if ok, err := s.ScannableIP(ctx, st.User, a); err != nil || !ok {
+		return false
+	}
+	_, typed := s.typedAddr(ctx, a) // a typed IP of the box's list is scannable, but not the box's own
+	return !typed
 }
 
 // joinAnd is "a", "a and b", "a, b and c", at most most items then "and 3 more".

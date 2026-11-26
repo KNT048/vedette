@@ -31,13 +31,13 @@ export function PreviewCode({ code }: { code?: string }) {
 }
 
 /** The head of a large block of a page (Updates has three blocks): the number, the name, one line of explanation, the main button. A long explanation goes into `info` (ⓘ next to the name, #824). */
-export function Band({ n, title, desc, info, actions, id }: { n: string; title: string; desc?: string; info?: React.ReactNode; actions?: React.ReactNode; id?: string }) {
+export function Band({ n, title, desc, info, actions, id }: { n?: string; title: string; desc?: string; info?: React.ReactNode; actions?: React.ReactNode; id?: string }) {
   // #842 (UI.md §1, FRONTEND §4): no all-caps eyebrow; the step number sits before the title, muted, and the rule is a `rule` line.
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-rule pb-2">
       <div className="grid gap-0.5">
         <div className="flex items-center gap-1">
-          <h2 id={id} className="flex items-baseline gap-2 text-base font-semibold"><span className="tabular-nums text-muted" aria-hidden>{n}</span>{title}</h2>
+          <h2 id={id} className="flex items-baseline gap-2 text-base font-semibold">{n ? <span className="tabular-nums text-muted" aria-hidden>{n}</span> : null}{title}</h2>
           {info ? <InfoTip topic={title}>{info}</InfoTip> : null}
         </div>
         {desc ? <p className="max-w-3xl text-meta text-muted">{desc}</p> : null}

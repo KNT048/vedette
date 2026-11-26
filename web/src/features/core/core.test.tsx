@@ -1466,9 +1466,10 @@ describe('core: updates (S-CORE-2)', () => {
 
   it('changes the channel and mode; on an automatic box the check button says it installs, and the check starts the install', async () => {
     const u = user()
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=settings')
     await u.click(await screen.findByRole('button', { name: 'Automatic' }))
     expect(await screen.findByText(/a check you start here too, inside the maintenance window/)).toBeInTheDocument()
+    await u.click(screen.getByRole('tab', { name: /^Vedette/ }))
     await u.click(screen.getByRole('button', { name: 'Check and install new releases' }))
     expect(await screen.findByText('Found Vedette 0.9.4. Updates are automatic, so the box is installing it now.')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
@@ -1546,12 +1547,81 @@ describe('core: updates (S-CORE-2)', () => {
     expect(line).not.toHaveTextContent(/github\.com|Never checked/)
     expect(screen.queryByText(/^Never checked/)).toBeNull()
     expect(screen.queryByText('No rows.')).toBeNull()
-    expect(screen.getByText('None listed.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About None listed.' })).toHaveAccessibleDescription(/^This list comes from the signed release information/)
     expect(screen.getByText('None known yet.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'About Vedette security advisories' })).toHaveAccessibleDescription(/Advisories arrive with the signed update information/)
     const running = s.components.find((c: { id: string }) => c.id === 'software').version
     expect(screen.getAllByRole('link', { name: `Vedette ${running}` })[0]).toHaveAttribute('href', '/settings/updates')
+  })
+
+  it('the page is four tabs: Vedette (the default), Operating system, Packages managed, Settings', async () => {
+    renderApp('/settings/updates')
+    const tabs = await screen.findAllByRole('tab')
+    expect(tabs.map((x) => x.textContent?.replace(/\s*\d.*$/, '').trim())).toEqual(['Vedette', 'Operating system', 'Packages managed', 'Settings'])
+    expect(screen.getByRole('tab', { name: /^Vedette/ })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('table', { name: 'Versions in use' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Check for Vedette releases' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Stable' })).toBeNull()
+    expect(screen.queryByRole('table', { name: 'Update history' })).toBeNull()
+  })
+
+  it('?tab= opens a tab: Settings has the channel, the update method and the history', async () => {
+    renderApp('/settings/updates?tab=settings')
+    expect(await screen.findByRole('button', { name: 'Stable' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Manual' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Update history' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('table', { name: 'Versions in use' })).toBeNull()
+  })
+
+  it('?tab=managed lists the pinned packages, and an unknown tab falls back to Vedette', async () => {
+    const { unmount } = renderApp('/settings/updates?tab=managed')
+    const managed = await screen.findByRole('table', { name: 'Packages managed by Vedette' })
+    for (const n of ['nuclei', 'nuclei templates', 'OpenCanary']) expect(within(managed).getByText(n)).toBeInTheDocument()
+    expect(within(managed).queryByText('nmap')).toBeNull() // nmap comes from the operating system packages
+    unmount()
+    renderApp('/settings/updates?tab=nope')
+    expect(await screen.findByRole('table', { name: 'Versions in use' })).toBeInTheDocument()
+  })
+
+  it('an install that is running shows on every tab', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
+    const run = { id: 'run-1', component: 'software', action: 'update', status: 'running', from: '0.9.3', to: '0.9.4', step: 'download', steps: ['download', 'verify', 'restart'], started_at: new Date().toISOString(), finished_at: null, user: 'admin@acme.example', error: null }
+    server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...s, run })))
+    renderApp('/settings/updates')
+    expect(await screen.findByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
+    await user().click(screen.getByRole('tab', { name: 'Settings' }))
+    expect(screen.getByRole('heading', { name: 'Updating Vedette software to 0.9.4' })).toBeInTheDocument()
+  })
+
+  describe('Packages managed: why the list can be empty', () => {
+    const empty = async (extra: Record<string, unknown>) => {
+      sessionStore.set({ userId: 'u-admin' })
+      const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
+      server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ ...s, managed: [], ...extra })))
+      renderApp('/settings/updates?tab=managed')
+    }
+    const sw = async (version: string) => {
+      sessionStore.set({ userId: 'u-admin' })
+      const s = await (await fetch(`${location.origin}/api/v1/core/updates`)).json()
+      return { components: s.components.map((c: { id: string }) => (c.id === 'software' ? { ...c, version } : c)) }
+    }
+    it('the update information did not verify: says so and points to the Vedette tab', async () => {
+      await empty({ last_check_error: { at: new Date().toISOString(), code: 'signature_invalid', message: 'The signature did not verify.' } })
+      expect(await screen.findByText(/^This list could not be read: the update information of this box did not verify or could not be checked/)).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'See the error on the Vedette tab.' })).toHaveAttribute('href', '/settings/updates?tab=vedette')
+      expect(screen.queryByText('None listed.')).toBeNull()
+    })
+    it('a build that is not a published release: says it has no signed package list', async () => {
+      await empty({ ...(await sw('0.1.9-test.n103')), last_check_error: null })
+      expect(await screen.findByText('This build is not a published release, so it has no signed package list.')).toBeInTheDocument()
+      expect(screen.queryByText('None listed.')).toBeNull()
+    })
+    it('otherwise a short "None listed."', async () => {
+      await empty({ ...(await sw('0.1.9')), last_check_error: null })
+      expect(await screen.findByText('None listed.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'About None listed.' })).toHaveAccessibleDescription(/nuclei, its template pack and OpenCanary/)
+    })
   })
 
   it('offline bundle: a wrong signature is refused, a right signature is installed', async () => {
@@ -2105,9 +2175,10 @@ describe('core: operating system of the box (S-CORE-7)', () => {
 
   it('shows the operating system part even when the software part is not built yet (501, issue #230)', async () => {
     server.use(http.get('*/api/v1/core/updates', () => HttpResponse.json({ error: { code: 'not_implemented', message: 'Not built yet.' } }, { status: 501 })))
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     expect(await screen.findByRole('heading', { level: 1, name: 'Ubuntu 24.04.3 LTS: 5 security updates waiting' }, T)).toBeInTheDocument()
     expect(osSection().getByRole('button', { name: 'Check for OS updates' })).toBeInTheDocument()
+    await user().click(screen.getByRole('tab', { name: /^Vedette/ }))
     expect(await screen.findByText('Not built yet.')).toBeInTheDocument()
   })
 
@@ -2117,7 +2188,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     const r = await fetch(BASE)
     expect([r.status, (await r.json()).os]).toEqual([200, null]) // not a 409 in the console on every open
     const u = user()
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     expect(await screen.findByText('The box has not looked for operating system updates yet. Click Check now.', undefined, T)).toBeInTheDocument()
     await u.click(osSection().getByRole('button', { name: 'Check for OS updates' }))
     expect(await screen.findByRole('heading', { level: 1, name: /Ubuntu 24.04.3 LTS/ }, T)).toBeInTheDocument()
@@ -2128,25 +2199,24 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     asAdmin()
     const os = await (await fetch(BASE)).json()
     server.use(http.get('*/api/v1/core/updates/os', () => HttpResponse.json({ ...os, pending: os.pending.slice(0, 1).map((p: object) => ({ ...p, security: true })) })))
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     expect(await screen.findByRole('heading', { level: 1, name: /: 1 security update waiting$/ }, T)).toBeInTheDocument()
   })
 
-  it('a container-only install: the 409 is titled for what it is and the page still numbers 1, 2, 3 (issues #239, #241)', async () => {
+  it('a container-only install: the 409 is titled for what it is and the heading stays (issues #239, #241)', async () => {
     server.use(http.get('*/api/v1/core/updates/os', () => HttpResponse.json({ error: { code: 'not_appliance', message: 'This install has no operating system helper (container-only install).' } }, { status: 409 })))
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     expect(await screen.findByText('Not available on this install', undefined, T)).toBeInTheDocument()
     expect(screen.queryByText('Invalid request')).not.toBeInTheDocument()
     expect(screen.getByText('This install has no operating system helper (container-only install).')).toBeInTheDocument()
     expect(osSection().getByRole('heading', { level: 2, name: 'Operating system of this box' })).toBeInTheDocument()
-    const nums = Array.from(document.querySelectorAll('span[aria-hidden="true"]')).map((n) => n.textContent).filter((x) => /^[123]$/.test(x ?? ''))
-    expect(nums).toEqual(['1', '2', '3'])
+    expect(Array.from(document.querySelectorAll('span[aria-hidden="true"]')).map((n) => n.textContent).filter((x) => /^[123]$/.test(x ?? ''))).toEqual([]) // each part is a tab now: no band numbers
   })
 
   it('a failed install says Failed with the reason and no success toast (issue #238)', async () => {
     collection<{ on: boolean }>('core_os_install_fails', () => ({ on: false })).set({ on: true })
     const u = user()
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     await u.click(await screen.findByRole('button', { name: /^Install security updates/ }, T))
     const log = await screen.findByRole('log', { name: 'apt output' })
     expect(await within(log.parentElement!).findByText('Failed', undefined, { timeout: 8000 })).toBeInTheDocument()
@@ -2158,7 +2228,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
   })
 
   it('shows the release, kernel, support end, auto updates, pending packages with security and CVEs, and guidance for a release upgrade', async () => {
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     expect(await screen.findByRole('heading', { level: 1, name: 'Ubuntu 24.04.3 LTS: 5 security updates waiting' }, T)).toBeInTheDocument()
     const os = osSection()
     expect(await os.findByText('6.8.0-71-generic')).toBeInTheDocument()
@@ -2174,17 +2244,13 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     expect(os.getByText(/sudo do-release-upgrade/)).toBeInTheDocument()
     expect(os.queryByRole('button', { name: /^(?!About ).*upgrade/i })).toBeNull() // the ⓘ next to the notice title only explains
     expect(os.getByText(/vedette-host, runs a fixed list of apt commands/)).toBeInTheDocument()
-    // block 2
-    const managed = screen.getByRole('table', { name: 'Packages managed by Vedette' })
-    for (const n of ['nmap', 'OpenCanary', 'osquery mirror files', 'nuclei templates']) expect(within(managed).getByText(n)).toBeInTheDocument()
-    expect(within(managed).getAllByText('Updated together with Vedette releases').length).toBeGreaterThan(0)
     await expectNoA11yViolations()
   })
 
   it('Debian 12: standard support has ended, LTS runs to June 2028', async () => {
     const debian = { os: { distro: 'debian', name: 'Debian GNU/Linux 12 (bookworm)', release: '12', kernel: '6.1.0-37-amd64', support_end: '2026-06-10', extended_end: '2028-06-30', booted_at: new Date().toISOString(), last_check: new Date().toISOString(), mirrors: ['deb.debian.org', 'security.debian.org'] }, pending: [], reboot_required: false, reboot_reasons: [], reboot_scheduled_at: null, auto_security: false, window: { mode: 'always', days: [7], from: '02:00', to: '05:00' }, release_upgrade: { to: 'Debian 13 (trixie)', steps: ['Take a snapshot.'] }, busy: false }
     server.use(http.get('*/api/v1/core/updates/os', () => HttpResponse.json(debian)))
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     const os = osSection
     expect(await screen.findByRole('heading', { level: 1, name: 'Debian GNU/Linux 12 (bookworm): no security updates waiting' }, T)).toBeInTheDocument()
     expect(os().getByText('Standard support ended')).toBeInTheDocument()
@@ -2199,7 +2265,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
 
   it('install security updates: live log, backup, health check, reboot required, then the security rows are gone; a second run is refused meanwhile', async () => {
     const u = user()
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     await u.click(await screen.findByRole('button', { name: /^Install security updates/ }, T))
     expect(await screen.findByText('Install started. Watch the progress below.')).toBeInTheDocument()
     const log = await screen.findByRole('log', { name: 'apt output' })
@@ -2236,19 +2302,20 @@ describe('core: operating system of the box (S-CORE-7)', () => {
     const u = user()
     asAdmin()
     await post('/install', { scope: 'security' })
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     await waitFor(() => expect(osSection().getByText('Reboot required')).toBeInTheDocument(), T)
     await u.click(osSection().getByRole('button', { name: 'Reboot now' }))
     const dlg = await screen.findByRole('dialog', { name: 'Reboot the box now?' })
     await u.click(within(dlg).getByRole('button', { name: 'Reboot now' }))
     await waitFor(() => expect(osSection().getByText('No reboot needed')).toBeInTheDocument(), T)
     expect(osSection().getByText('6.8.0-87-generic')).toBeInTheDocument()
-    const hist = screen.getByRole('table', { name: 'Update history' })
+    await user().click(screen.getByRole('tab', { name: 'Settings' }))
+    const hist = await screen.findByRole('table', { name: 'Update history' })
     expect(within(hist).getByText('Operating system')).toBeInTheDocument()
   })
 
   it('viewer sees everything read-only: every action is disabled with the reason', async () => {
-    renderApp('/settings/updates', { role: 'viewer' })
+    renderApp('/settings/updates?tab=os', { role: 'viewer' })
     const os = osSection
     await screen.findByRole('heading', { level: 1, name: /security updates waiting/ }, T)
     for (const n of [/^Install security updates/, 'Install all updates', 'Reboot now', 'Schedule reboot', 'Check for OS updates']) expect(os().getByRole('button', { name: n })).toBeDisabled()
@@ -2267,7 +2334,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
 
   it('check now refreshes the time; refused when update checks are off under Privacy', async () => {
     const u = user()
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     await u.click(await screen.findByRole('button', { name: 'Check for OS updates' }, T))
     expect(await screen.findByText('Checked the package mirrors.', undefined, T)).toBeInTheDocument()
     asAdmin()
@@ -2279,7 +2346,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
 
   it('automatic security updates switch is saved and audited', async () => {
     const u = user()
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     await screen.findByRole('button', { name: 'Check for OS updates' }, T)
     const sw = await osSection().findByRole('switch', { name: 'Automatic security updates' }, T)
     await u.click(sw)
@@ -2291,7 +2358,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
   describe('form matrix: maintenance window', () => {
     it('every mode shows only its own fields and rejects bad input', async () => {
       const u = user()
-      renderApp('/settings/updates')
+      renderApp('/settings/updates?tab=os')
       await screen.findByRole('button', { name: 'Save window' }, T)
       const os = osSection()
       const group = () => os.getByRole('group', { name: 'Window mode' })
@@ -2330,7 +2397,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
 
   it('saving a window warns first and says so when it cancelled the scheduled reboot (QA b3)', async () => {
     const u = user()
-    renderApp('/settings/updates')
+    renderApp('/settings/updates?tab=os')
     await screen.findByRole('button', { name: 'Check for OS updates' }, T)
     const os = osSection()
     await u.click(await os.findByRole('button', { name: 'Schedule reboot' }, T))
@@ -2355,7 +2422,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
 
     it('with a maintenance window: both choices usable, the time field only for "a time I choose"', async () => {
       const u = user()
-      renderApp('/settings/updates')
+      renderApp('/settings/updates?tab=os')
       const dlg = await open(u)
       const d = within(dlg)
       expect(d.getByRole('radio', { name: 'At the start of the next maintenance window' })).toBeEnabled()
@@ -2386,7 +2453,7 @@ describe('core: operating system of the box (S-CORE-7)', () => {
       const u = user()
       asAdmin()
       expect((await patch({ window: { mode: 'always', days: [7], from: '02:00', to: '05:00' } })).status).toBe(200)
-      renderApp('/settings/updates')
+      renderApp('/settings/updates?tab=os')
       const dlg = await open(u)
       const d = within(dlg)
       await eachOption([

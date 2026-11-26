@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/store"
-	"github.com/knt048/vedette/modules/scan/commonports"
 )
 
 // The scan writer: the one writer of exp_host, exp_address, exp_service and exp_issue. A scan's content is merged into the rows of its
@@ -34,43 +33,33 @@ type scanWrite struct {
 	user   string
 	at     time.Time
 	c      Content // sanitized
-	// checked is which ports this scan probed on each address it reached (coverage: coverAll, coverList, coverTop, coverWeb, coverEmpty); gone is the
-	// addresses of the services open before that no name of the domain points at any more.
-	checked map[string]string
-	gone    map[string]bool
-	// listed is the addresses on which the runner TCP-connected the whole fixed list this scan; settled the addresses to which the
-	// third scan in a row that found nothing open came, at least 24 hours after the first (coverage).
-	listed  map[string]bool
-	settled map[string]bool
-	// path are the ports the box's own network answered this run (INV-44): this scan did not check them on any address. pathAt are
-	// those of them it found open on each address (canonical spelling): a row stored for one of them there is retired (retired).
-	path   []int
-	pathAt map[string][]int
-	ran    engineSet // the engines that ran in this scan, besides the surface (the surface always ran when there is a write)
-	vulns  []VulnRow // the exploited CVEs matched on its services (withVulns)
-	first  bool      // the target had no rows before this scan
+	// verdicts are this run's verdicts of each address and port (observe.go): the only thing the closing of a service reads; gone is
+	// the addresses of the services open before that no name of the domain points at any more.
+	verdicts verdictSet
+	gone     map[string]bool
+	ran      engineSet // the engines that ran in this scan, besides the surface (the surface always ran when there is a write)
+	vulns    []VulnRow // the exploited CVEs matched on its services (withVulns)
+	first    bool      // the target had no rows before this scan
 }
 
 // written is what a write changed.
 type written struct {
 	closed []string // the services this scan closed
-	// retired are the ports, by address, whose rows earlier scans stored open and that this scan retired because the box's own
-	// network answers them (INV-44): no longer listed, their issues gone, not counted as closed by the target.
-	retired map[string][]int
-	checked map[string]string // which ports this scan probed on each address it reached: the run items of the next scans' INV-22
-	// topPorts are the open services (portKey) outside the fixed list on a coverTop address that this scan probed: run items of kind
-	// itemPort, so a later scan knows this one checked them (previousCheck).
-	topPorts  []string
-	final     vulnSet // the content as written, with the exploited CVEs matched on it
-	counts    ScanCounts
-	opened    []PortRow
-	newIssues []string
+	// retired are the ports, by address, whose rows earlier scans stored open and that this scan no longer lists without the target
+	// having closed them: the box's own network answers them (INV-44), or they were not reached for 30 days. Their issues are gone;
+	// they are not counted as closed by the target.
+	retired, unreached map[string][]int
+	verdicts           verdictSet    // the run's verdicts: its run items
+	lines              []vantageLine // what they say: the target's lines, the run's log and its reason
+	final              vulnSet       // the content as written, with the exploited CVEs matched on it
+	counts             ScanCounts
+	opened             []PortRow
+	newIssues          []string
 	// openedAt and newAt are opened and newIssues with the target that holds each row once the tree settled: the target the alert and
 	// the event name.
 	openedAt []OpenedService
 	newAt    []NewIssue
 	first    bool              // the target's first scan: the baseline
-	path     []int             // the ports the box's own network answered this run: run items of kind itemPathPort
 	again    map[string]string // the new issues a scan opened again after a person marked them patched or mitigated: how
 	probed   map[string]string // the names the scan probed (its hosts), with the ids of their rows: items of its run
 }
@@ -106,10 +95,7 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 		return written{}, err
 	}
 	var retiredIDs []string
-	if out.opened, out.closed, retiredIDs, out.retired, err = s.writeServices(ctx, tx, w, at); err != nil {
-		return written{}, err
-	}
-	if out.topPorts, err = topChecked(ctx, tx, w); err != nil {
+	if out.opened, out.closed, retiredIDs, out.retired, out.unreached, err = s.writeServices(ctx, tx, w, at); err != nil {
 		return written{}, err
 	}
 	out.counts.ClosedServices = len(out.closed)
@@ -385,8 +371,8 @@ func storedHosts(ctx context.Context, q querier, target string) ([]HostRow, erro
 // ---- services ----
 
 // writeServices upserts the services a scan reported open and closes the open ones it no longer finds on an address it checked. It
-// returns the services open now that were not before, the ones it closed, and the ones it retired (closeVanished).
-func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at string) ([]PortRow, []string, []string, map[string][]int, error) {
+// returns the services open now that were not before, the ones it closed, and the ones it no longer lists (closeVanished).
+func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at string) ([]PortRow, []string, []string, map[string][]int, map[string][]int, error) {
 	svc := map[string]ServiceRow{}
 	for _, r := range w.c.Services {
 		svc[portKey(r.IP, r.Port)] = r
@@ -413,13 +399,13 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 				store.NewID("xs"), w.target.ID, row.IP, row.Port, row.Name, row.Product, row.Version, row.CPE, row.Title, certDoc(row.Cert), boolInt(row.IsWeb), row.Ident,
 				at, at, w.runID)
 			if err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
+				return nil, nil, nil, nil, nil, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
 			}
 			opened = append(opened, p)
 			continue
 		}
 		if err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("reading the service %s:%d: %w", row.IP, row.Port, err)
+			return nil, nil, nil, nil, nil, fmt.Errorf("reading the service %s:%d: %w", row.IP, row.Port, err)
 		}
 		// What this scan read wins; what it did not read (a lighter scan, a probe that got no answer) keeps the earlier reading.
 		ident := row.Ident
@@ -433,144 +419,97 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 			firstOf(row.Name, prevName), firstOf(row.Product, prevProduct), firstOf(row.Version, prevVersion), firstOf(row.CPE, prevCPE), firstOf(row.Title, prevTitle),
 			cert, boolInt(web), ident, at, w.runID, id)
 		if err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
+			return nil, nil, nil, nil, nil, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
 		}
 		if state == ServiceClosed {
 			opened = append(opened, p)
 		}
 	}
-	closed, retired, retiredAt, err := s.closeVanished(ctx, tx, w, seen)
-	return opened, closed, retired, retiredAt, err
+	v, err := s.closeVanished(ctx, tx, w, seen)
+	return opened, v.closed, v.retired, v.network, v.unreached, err
 }
 
-// closeVanished closes each open service of the target that this scan did not report (INV-22): a service on an address that left the
-// domain at once; one on a port of the fixed list that both the runner's connect and a trusted sweep of every TCP port (Content.Swept)
-// missed this scan at once; one on an address whose third empty scan in a row over at least a day this is (settled) at once; one on
-// an address and port this scan probed otherwise when the scan before that probed it missed it too (its last_seen is older than that
-// scan's start), so one scan that could not reach a port (packet loss, a slow host, a firewall cutting in mid-sweep) never reads as a
-// fix. A service on an address or port the scan did not probe, or on an address that answered nothing this scan (coverEmpty), is left
-// as it was: the scan says nothing about it. It returns the ids it closed.
+// vanished is what closeVanished did: the services it closed, the ones it no longer lists without the target having closed them
+// (retired), and those by address: the network's ports, and the ports not reached for 30 days.
+type vanished struct {
+	closed, retired    []string
+	network, unreached map[string][]int
+}
+
+// closeVanished decides each open service of the target that this scan did not report from this run's verdict of its port (INV-22):
 //
-// A service on a port this scan found open on its address and the network-path check flagged there (w.pathAt, INV-44) is retired,
-// not closed: the box's own network answers that port for any destination, so the row an earlier scan stored (before the check
-// existed, or when it failed) was never the target's. It is no longer listed (state closed: "No longer seen"), its issues go, and it
-// is not counted as closed by the target. A port the network answered elsewhere, or a check that failed or never ran, retires
-// nothing. It returns the ids it closed, the ids it retired, and the retired ports by address.
-func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, reported map[string]bool) (closed, retired []string, retiredAt map[string][]int, err error) {
+//	| verdict                     | the row                                                                                         |
+//	|-----------------------------|-------------------------------------------------------------------------------------------------|
+//	| none (the scan did not probe it), open | kept                                                                               |
+//	| closed                      | closed at once when two probes of this run missed it, else when the newest scan before with a verdict of it missed it too |
+//	| filtered                    | closed by the third filtered scan in a row since it was last seen, at least a day after the first |
+//	| unreached, lost, unknown    | kept; no longer listed once it was last seen more than 30 days ago (not counted as closed, no alert) |
+//	| network                     | no longer listed when no scan ever saw it open over a clean path (it was the network's), else kept |
+//
+// A service on an address that left the domain is closed at once. A row no longer listed has its issues gone like a closed one.
+func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, reported map[string]bool) (vanished, error) {
+	var out vanished
 	open, err := servicesOf(ctx, tx, w.target.ID, true)
 	if err != nil {
-		return nil, nil, nil, err
+		return out, err
+	}
+	now := runStart(ctx, tx, w.runID)
+	if now == "" {
+		now = store.FormatTS(w.at)
+	}
+	retire := func(x ServiceView, into *map[string][]int) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE exp_service SET state = 'closed' WHERE id = ?`, x.ID); err != nil {
+			return fmt.Errorf("retiring the service %s:%d: %w", x.IP, x.Port, err)
+		}
+		if *into == nil {
+			*into = map[string][]int{}
+		}
+		k := ipKey(x.IP)
+		out.retired, (*into)[k] = append(out.retired, x.ID), append((*into)[k], x.Port)
+		return nil
 	}
 	for _, x := range open {
 		k := ipKey(x.IP)
 		if reported[portKey(x.IP, x.Port)] {
 			continue
 		}
-		if slices.Contains(w.pathAt[k], x.Port) { // INV-44: the check flagged this port on this address in this run
-			if _, err := tx.ExecContext(ctx, `UPDATE exp_service SET state = 'closed' WHERE id = ?`, x.ID); err != nil {
-				return nil, nil, nil, fmt.Errorf("retiring the service %s:%d: %w", x.IP, x.Port, err)
-			}
-			if retiredAt == nil {
-				retiredAt = map[string][]int{}
-			}
-			retired, retiredAt[k] = append(retired, x.ID), append(retiredAt[k], x.Port)
-			continue
-		}
-		if slices.Contains(w.path, x.Port) { // INV-44: a port the network answered was not checked
-			continue
-		}
-		if slices.Contains(w.c.Answering[k], x.Port) { // the scan missed it, and it accepted a connection right after: open
-			continue
-		}
+		v, ok := w.verdicts.of(k, x.Port)
 		shut := w.gone[k]
-		if !shut && covers(w.checked[k], w.c.Probed[k], x.Port) {
-			switch {
-			case slices.Contains(w.c.Silent[k], x.Port): // no answer at all, no reset: a miss only as the third such scan over a day
-				ok, err := silentStreak(ctx, tx, w.target.ID, w.runID, portKey(k, x.Port), x.LastSeen)
-				if err != nil {
-					return nil, nil, nil, err
+		if !shut && ok {
+			var prior []priorVerdict
+			if v.v != verdictOpen {
+				if prior, err = priorVerdicts(ctx, tx, w.target.ID, w.runID, portKey(k, x.Port)); err != nil {
+					return out, err
 				}
-				shut = ok
-			case w.settled[k]: // the third scan in a row, over at least a day, to which the address answered nothing: all of them missed it
-				shut = true
-			case w.c.Swept[k] && w.checked[k] == coverAll && w.listed[k] && slices.Contains(commonports.Numbers(), x.Port):
-				shut = true // the runner's connect and a trusted sweep of every TCP port (sweepTrusted) both missed it this scan
-			default:
-				prev, ok, err := previousCheck(ctx, tx, w.target.ID, w.runID, k, x.Port)
-				if err != nil {
-					return nil, nil, nil, err
+			}
+			switch v.v {
+			case verdictClosed:
+				shut = v.probes >= 2 || (len(prior) > 0 && prior[0].outcome == verdictClosed && x.LastSeen < prior[0].at)
+			case verdictFiltered:
+				shut = filteredStreak(prior, x.LastSeen, now)
+			case verdictUnreached, verdictLost, verdictUnknown:
+				if seen, err := parseTS(x.LastSeen); err == nil && w.at.Sub(seen) > notReachedFor {
+					if err := retire(x, &out.unreached); err != nil {
+						return out, err
+					}
 				}
-				shut = ok && x.LastSeen < prev // the scan before that probed it did not see it either
+			case verdictNetwork:
+				if !seenClean(prior) {
+					if err := retire(x, &out.network); err != nil {
+						return out, err
+					}
+				}
 			}
 		}
 		if !shut {
 			continue
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE exp_service SET state = 'closed' WHERE id = ?`, x.ID); err != nil {
-			return nil, nil, nil, fmt.Errorf("closing the service %s:%d: %w", x.IP, x.Port, err)
+			return out, fmt.Errorf("closing the service %s:%d: %w", x.IP, x.Port, err)
 		}
-		closed = append(closed, x.ID)
+		out.closed = append(out.closed, x.ID)
 	}
-	return closed, retired, retiredAt, nil
-}
-
-// previousCheck is the start of the newest scan of target before run that probed port on ip: its run item of the address says it
-// probed the port (coverOutcomes), or, for a port outside the fixed list, its run item of that port says its service step probed it
-// (itemPort, coverTop). A scan whose service step did not reach the port (it failed, its batch did not finish, it ran before the
-// step said which ports it probed) has neither, so it never counts as a miss. Nor does a scan in which the port was answered by the
-// box's own network (itemPathPort), or gave no answer at all to the re-check or accepted it (itemSilentPort, itemAnsweredPort): that
-// scan did not miss it.
-func previousCheck(ctx context.Context, q querier, target, run, ip string, port int) (string, bool, error) {
-	outcomes := coverOutcomes(port)
-	args := []any{ModuleID, RunKind, target, run, run, ip}
-	marks := make([]string, len(outcomes))
-	for i, o := range outcomes {
-		marks[i] = "?"
-		args = append(args, o)
-	}
-	args = append(args, itemPort, portKey(ip, port), coverTop, itemPathPort, strconv.Itoa(port), itemSilentPort, itemAnsweredPort, portKey(ip, port))
-	var at sql.NullString
-	err := q.QueryRowContext(ctx, `SELECT max(r.started_at) FROM core_run_item i JOIN core_run r ON r.id = i.run_id
-		WHERE r.module = ? AND r.kind = ? AND r.subject_kind = 'target' AND r.subject_id = ? AND r.id <> ?
-		AND r.started_at < (SELECT started_at FROM core_run WHERE id = ?)
-		AND ((i.subject_kind = 'address' AND i.subject_id = ? AND i.outcome IN (`+strings.Join(marks, ", ")+`))
-			OR (i.subject_kind = ? AND i.subject_id = ? AND i.outcome = ?))
-		AND NOT EXISTS (SELECT 1 FROM core_run_item n WHERE n.run_id = r.id
-			AND ((n.subject_kind = ? AND n.subject_id = ?) OR (n.subject_kind IN (?, ?) AND n.subject_id = ?)))`, args...).Scan(&at)
-	if err != nil {
-		return "", false, fmt.Errorf("the scan before of %s:%d: %w", ip, port, err)
-	}
-	return at.String, at.Valid, nil
-}
-
-// topChecked is the open services of the target, after this write, that sit outside the fixed list on an address this scan
-// covered as coverTop and whose port its service step probed (portKey, sorted). Only an open service is ever asked about by a later
-// scan's closing (a service opened after this scan has a newer last_seen than this scan's start), so these are all the ports a
-// later scan needs to know this one checked.
-func topChecked(ctx context.Context, tx *sql.Tx, w scanWrite) ([]string, error) {
-	top := false
-	for _, class := range w.checked {
-		top = top || class == coverTop
-	}
-	if !top {
-		return nil, nil
-	}
-	open, err := servicesOf(ctx, tx, w.target.ID, true)
-	if err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, x := range open {
-		k := ipKey(x.IP)
-		if w.checked[k] != coverTop || slices.Contains(commonports.Numbers(), x.Port) || slices.Contains(w.path, x.Port) {
-			continue
-		}
-		if _, ok := slices.BinarySearch(w.c.Probed[k], x.Port); ok {
-			out = append(out, portKey(k, x.Port))
-		}
-	}
-	slices.Sort(out)
-	return slices.Compact(out), nil
+	return out, nil
 }
 
 // goneWithService marks gone the open issues of the services a scan closed: what was found on a port that is closed is no longer

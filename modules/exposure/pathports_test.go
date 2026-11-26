@@ -3,6 +3,7 @@ package exposure
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"slices"
 	"strings"
 	"sync"
@@ -16,23 +17,27 @@ type fakePath struct {
 	asked [][]int
 }
 
-func (f *fakePath) AnsweredByPath(_ context.Context, ports []int) ([]int, error) {
+func (f *fakePath) PathAnswers(_ context.Context, ports []int) (map[int]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.asked = append(f.asked, slices.Clone(ports))
-	var out []int
+	out := map[int]string{}
 	for _, p := range ports {
+		out[p] = PortSilent
 		if slices.Contains(f.ports, p) {
-			out = append(out, p)
+			out[p] = PortOpen
 		}
 	}
 	return out, nil
 }
 
+// SameAsPath: the target's answer on a port the network answers is the network's own.
+func (f *fakePath) SameAsPath(context.Context, netip.Addr, int) (bool, error) { return true, nil }
+
 // INV-44: from a network whose firewall answers the SYN on 2000 and 5060 for any destination (its SCCP and SIP helpers), the runner
 // and nmap both see those ports open on every target. A connect to a never-routed address answers there too, so they are the
 // network's: no service row, no issue, nothing for the engines, and one plain line on the target and in the run's log. The check is
-// asked only about the ports that came back open, each once a run.
+// asked about each port at most once a run: the fixed list and the ports open before at the start, then each port found open.
 func TestNetworkPath_APortAnsweredForANeverRoutedAddressIsLeftOut(t *testing.T) {
 	t.Parallel()
 	e, scan, _ := deepScans(t)
@@ -63,16 +68,20 @@ func TestNetworkPath_APortAnsweredForANeverRoutedAddressIsLeftOut(t *testing.T) 
 		all = append(all, a...)
 	}
 	slices.Sort(all)
-	if !slices.Equal(all, []int{80, 2000, 5060}) {
-		t.Fatalf("the check was asked about %v: want each open port once (80, 2000, 5060)", path.asked)
+	if len(slices.Compact(slices.Clone(all))) != len(all) || !slices.Contains(all, 80) || !slices.Contains(all, 2000) || !slices.Contains(all, 5060) {
+		t.Fatalf("the check was asked about %v: want each port at most once, the open ones (80, 2000, 5060) among them", path.asked)
 	}
 }
 
 // failingPath is a PathChecker whose check fails every time.
 type failingPath struct{}
 
-func (failingPath) AnsweredByPath(context.Context, []int) ([]int, error) {
+func (failingPath) PathAnswers(context.Context, []int) (map[int]string, error) {
 	return nil, errors.New("no route to the documentation addresses")
+}
+
+func (failingPath) SameAsPath(context.Context, netip.Addr, int) (bool, error) {
+	return false, errors.New("no route to the documentation addresses")
 }
 
 // INV-44 with INV-22: rows that earlier scans stored for ports the network answers (scans from before the check, or with a check
@@ -135,8 +144,11 @@ func TestNetworkPath_NoCheckKeepsTheOpenPorts(t *testing.T) {
 	if state(5060) != ServiceOpen {
 		t.Fatalf("5060 without a check: %s", state(5060))
 	}
-	if n := e.count(`SELECT count(*) FROM core_run_item WHERE subject_kind = 'path_port'`); n != 0 {
-		t.Fatalf("%d path items without a check", n)
+	if n := e.count(`SELECT count(*) FROM core_run_item WHERE subject_kind = ? AND outcome = ?`, itemVerdict, verdictNetwork); n != 0 {
+		t.Fatalf("%d network verdicts without a check", n)
+	}
+	if n := e.count(`SELECT count(*) FROM core_run_item WHERE subject_kind = ? AND subject_id = ? AND outcome = ?`, itemVerdict, portKey(ipA, 5060), itemOpenUnchecked); n != 1 {
+		t.Fatalf("%d verdicts of 5060 as open over a path that was not checked, want 1", n)
 	}
 }
 

@@ -479,7 +479,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}()
 	// RunIDOf: the probe log names the run. What the engines report of their progress is the note of the step it belongs to.
 	ctx = withSteps(withRunSteps(WithRunID(ctx, x.ID()), rs), steps)
-	ctx = s.withPathRun(ctx, x) // INV-44: the ports the box's own network answers, checked once a run
+	ctx = s.withObserver(ctx, x) // the run's probe log: what each probe got, and the vantage's calibration (observe.go)
 	if progress.SinkFrom(ctx) == nil {
 		ctx = progress.WithSink(ctx, rs)
 	}
@@ -542,9 +542,6 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	if line != "" {
 		content.NotChecked = append(content.NotChecked, NotCheckedRow{Kind: "greenbone", Text: line})
 	}
-	if _, path := s.pathPortsOf(ctx); path != "" { // INV-44: the ports left out because the box's own network answers them
-		content.NotChecked = append(content.NotChecked, NotCheckedRow{Kind: "network_path", Text: path})
-	}
 	if err := s.reached(ctx, t, content); err != nil { // nothing answered and the box could not reach the Internet: incomplete
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
@@ -555,35 +552,32 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		return corerun.Result{}, err
 	}
 	lt := liveTarget(t, user)
-	s.checkAlive(ctx, lt, &content, "writing the results") // an address that stopped answering is not a miss of its ports (coverage)
-	rechecked := s.recheckMissed(ctx, t, &content)         // INV-22: a port open before that is silent now is not a miss
-	ut := lt
-	ut.Mode = ex.mode
-	if line := s.unansweredLine(ctx, ut, content, rechecked); line != "" {
-		content.NotChecked = append(content.NotChecked, NotCheckedRow{Kind: "unanswered", Text: clipText(line, maxLineText)})
-		rs.problem(line) // the run ends partly done, never "done, 0 ports open"
-		rs.logLine(ctx, corerun.Warn, line)
-	}
-	lost := s.lostText(ctx, lt, content.Lost)
-	if lost != "" { // the save step stays done (its rows are written: RecentScans and the outside view read it), the run says it
-		rs.problem(lost)
-		lost = " " + lost + " This scan does not count as a miss of any port there."
-	}
+	lt.Mode = ex.mode
+	s.checkAlive(ctx, lt, &content, "writing the results")           // a port that stopped answering is lost (observe.go)
+	s.recheckMissed(ctx, t, content, s.askedAddrs(ctx, lt, content)) // the ports open before that this scan missed
 	rs.start(ctx, stepKeySave)
 	wr, err := s.save(ctx, x.ID(), user, t, content, steps)
 	if err != nil {
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
+	lost := ""
+	for _, l := range wr.lines { // what the verdicts say: the run's log, its reason, and the target's lines
+		rs.logLine(ctx, corerun.Warn, l.row.Text)
+		if l.problem {
+			rs.problem(l.row.Text)
+		}
+		if l.row.Kind == "lost" {
+			lost = " " + l.row.Text + " This scan does not count as a miss of any port there."
+		}
+	}
 	ex.content, ex.vulns, ex.gaps, ex.written, ex.first = wr.final.Content, wr.final.Vulns, wr.final.VersionGaps, true, wr.first
 	s.alertNews(ctx, t, x.ID(), "", wr.first, wr.openedAt, wr.newAt)
 	rs.end(ctx, stepKeySave, corerun.Done, fmt.Sprintf("%s (%d new, %d closed), %s (%d new).",
 		plural(wr.counts.Services, "open service"), wr.counts.NewServices, wr.counts.ClosedServices, plural(wr.counts.Issues, "open issue"), wr.counts.NewIssues)+
-		retiredText(wr.retired)+lost)
+		retiredText(wr.retired, wr.unreached)+lost)
 	rs.record(ctx, "", runOn, "")
-	s.recordCoverage(ctx, x, wr.checked, wr.topPorts)
-	s.recordPathPorts(ctx, x, wr.path)
-	s.recordSilent(ctx, x, content.Silent, content.Answering)
+	s.recordVerdicts(ctx, x, wr.verdicts)
 	s.recordNames(ctx, x, wr.probed)
 	for _, h := range content.Hosts { // what the deep scan did with each address: the rotation of the next scans reads it
 		for _, a := range h.IPs {
@@ -594,7 +588,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}
 	ex.gbRun = GreenboneRun{State: GBRunNotRun}
 	gbDeep := deep // OpenVAS gets the addresses that still answer; the disruptive step says itself why an address got nothing
-	if gb {        // the ports seen open earlier must still answer (liveness.go): OpenVAS gets the ones that do
+	if gb {        // the ports seen open earlier must still answer (probes.go): OpenVAS gets the ones that do
 		gb, gbIP, gbDeep = s.openVASAlive(ctx, lt, &content, gbIP, deep)
 	}
 	res = corerun.Result{}
@@ -637,15 +631,17 @@ func (s *Service) openVASAlive(ctx context.Context, lt ScanTarget, c *Content, p
 	if !s.beforeEngine(ctx, lt, c, stepKeyOpenVAS, stepNameOpenVAS, "greenbone") {
 		return false, nil, nil
 	}
+	o := s.observerOf(ctx)
 	if lt.Kind == KindIP {
-		if ports = slices.DeleteFunc(ports, func(p int) bool { return c.lostPort(lt.Value, p) }); len(ports) == 0 {
-			runStepsOf(ctx).skip(ctx, stepKeyOpenVAS, "Not run. "+s.lostText(ctx, lt, c.Lost))
+		if ports = slices.DeleteFunc(ports, func(p int) bool { return o.lostPort(lt.Value, p) }); len(ports) == 0 {
+			runStepsOf(ctx).skip(ctx, stepKeyOpenVAS, "Not run. "+s.lostText(ctx, lt, o.lostOf()))
 			return false, nil, nil
 		}
 		return true, ports, deep
 	}
-	if deep = slices.DeleteFunc(deep, func(a deepAddr) bool { return c.gone(a.ip.String()) }); len(deep) == 0 {
-		runStepsOf(ctx).skip(ctx, stepKeyOpenVAS, "Not run. "+s.lostText(ctx, lt, c.Lost))
+	open := openPorts(*c)
+	if deep = slices.DeleteFunc(deep, func(a deepAddr) bool { return o.gone(a.ip.String(), open) }); len(deep) == 0 {
+		runStepsOf(ctx).skip(ctx, stepKeyOpenVAS, "Not run. "+s.lostText(ctx, lt, o.lostOf()))
 		return false, nil, nil
 	}
 	return true, ports, deep
@@ -655,6 +651,7 @@ func (s *Service) openVASAlive(ctx context.Context, lt ScanTarget, c *Content, p
 func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanMode, steps *stepLog) (Content, []deepAddr, error) {
 	st := s.scanTarget(ctx, t, user, mode)
 	rs := runStepsOf(ctx)
+	s.calibrateStart(ctx, t) // the vantage: what the network answers for every address on the fixed list and the ports open before
 	rs.start(ctx, stepKeySurface)
 	content, err := s.scanRunner().Scan(ctx, st)
 	content.Hosts = clearDeep(content.Hosts) // The deep state of a run is exposure's own, never the runner's
@@ -758,13 +755,10 @@ func (s *Service) planOpenVAS(ctx context.Context, t Target, mode ScanMode, user
 // save writes the rows of a scan (writeScan) and publishes what changed.
 func (s *Service) save(ctx context.Context, runID, user string, t Target, c Content, steps *stepLog) (written, error) {
 	at := s.clock()
-	swept, answered, lost, silent, answering := c.Swept, c.Answered, c.Lost, c.Silent, c.Answering // this run's own coverage facts (identifyIP, the runner, liveness), not text from a target: kept as they are
+	answered := c.Answered // the runner's report of resets: a probe of this run, not text from a target
 	c = unresolvedLine(sanitize(c))
-	c.Swept, c.Answered, c.Lost, c.Silent, c.Answering = swept, answered, lost, silent, answering
+	c.Answered = answered
 	c.AdminPanels = applianceAdmins(c.AdminPanels, c.Ports, c.Services) // an appliance's admin page on any port
-	m := vulnSet{Content: c, ID: runID}
-	ranMatch := s.withVulns(ctx, &m)
-	c = m.Content // with the comparison's lines, and without the web alerts Vedette's rule list treats as noise
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
 	prevOpen, err := servicesOf(wctx, s.cfg.DB.Reader(), t.ID, true)
@@ -779,22 +773,44 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 	for _, x := range prevOpen {
 		prevPorts = append(prevPorts, PortRow{IP: x.IP, Port: x.Port})
 	}
-	cov := s.coverage(wctx, user, t, runID, c, prevPorts, prevHosts)
-	checked := cov.checked
-	path, _ := s.pathPortsOf(ctx)
-	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID), path: path, pathAt: s.pathPortsAt(ctx),
-		checked: checked, gone: cov.gone, listed: cov.listed, settled: cov.settled, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP) || steps.ran(StepZAPActive), EngineMatch: ranMatch}}
+	// The verdicts of the run (observe.go): what each address and port is, from what every probe got; and the lines they say.
+	cov := s.coverage(wctx, user, t, c, prevPorts, prevHosts)
+	st := liveTarget(t, user)
+	if mode, ok := s.modeOf(runID); ok {
+		st.Mode = mode
+	}
+	o := s.observation(wctx, st, c, cov, prevPorts)
+	vs := verdicts(o)
+	lines := vantageLines(o, vs, s.boxPublicIP(wctx))
+	for _, l := range lines {
+		c.NotChecked = append(c.NotChecked, l.row)
+	}
+	m := vulnSet{Content: c, ID: runID}
+	ranMatch := s.withVulns(ctx, &m)
+	c = m.Content // with the comparison's lines, and without the web alerts Vedette's rule list treats as noise
+	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID), verdicts: vs,
+		gone: cov.gone, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP) || steps.ran(StepZAPActive), EngineMatch: ranMatch}}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
 		var err error
 		if out, err = s.writeScan(wctx, tx, w); err != nil {
 			return err
 		}
-		out.final, out.checked, out.first, out.path = m, checked, w.first, path
+		out.final, out.first, out.verdicts, out.lines = m, w.first, vs, lines
 		emit(EventScanWritten, ScanWrittenEvent{TargetID: t.ID, RunID: runID, At: store.FormatTS(at), First: w.first, Counts: out.counts, Opened: nz(out.openedAt), NewIssues: nz(out.newAt)})
 		return nil
 	})
 	return out, err
+}
+
+// modeOf is the mode of run id as this process runs it; false when it does not run it.
+func (s *Service) modeOf(id string) (ScanMode, bool) {
+	s.runMu.Lock()
+	defer s.runMu.Unlock()
+	if x := s.execs[id]; x != nil {
+		return x.mode, true
+	}
+	return ScanMode{}, false
 }
 
 // baseline says this scan (run runID) is the first of target id: no earlier scan of it wrote its results, and it holds no rows (a child
@@ -828,8 +844,8 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 	st := s.scanTarget(ctx, t, user, mode)
 	var o gbOutcome
 	var err error
-	if st.Kind == KindDomain { // not on a port that stopped answering earlier in the run (liveness.go)
-		o, err = s.greenboneDomain(ctx, st, deep, slices.DeleteFunc(slices.Clone(c.Ports), func(p PortRow) bool { return c.lostPort(p.IP, p.Port) }))
+	if st.Kind == KindDomain { // not on a port that stopped answering earlier in the run (probes.go)
+		o, err = s.greenboneDomain(ctx, st, deep, slices.DeleteFunc(slices.Clone(c.Ports), func(p PortRow) bool { return s.lostPort(ctx, p.IP, p.Port) }))
 	} else {
 		o, err = s.greenboneStep(ctx, st, ports)
 	}
@@ -1227,32 +1243,6 @@ func (s *Service) recordNames(ctx context.Context, x *corerun.Exec, probed map[s
 
 // itemName is the kind of a run item that names a name the scan probed.
 const itemName = "name"
-
-// recordCoverage writes, as items of the run, which ports the scan probed on each address it reached, and each open service outside
-// the fixed list its service step probed (topPorts, kind itemPort): the next scan closes a service only when this one, which probed
-// it, missed it too (INV-22). A failure is logged: the next scan then waits one scan more.
-func (s *Service) recordCoverage(ctx context.Context, x *corerun.Exec, checked map[string]string, topPorts []string) {
-	ips := make([]string, 0, len(checked))
-	for ip := range checked {
-		ips = append(ips, ip)
-	}
-	slices.Sort(ips)
-	for _, ip := range ips {
-		if err := x.AddItem(ctx, corerun.Item{SubjectKind: "address", SubjectID: ip, Label: ip, Outcome: checked[ip]}); err != nil {
-			s.cfg.Log.WarnContext(ctx, "exposure: recording what a scan checked", "run", x.ID(), "address", ip, "error", err)
-		}
-	}
-	items := make([]corerun.Item, 0, len(topPorts))
-	for _, k := range topPorts {
-		items = append(items, corerun.Item{SubjectKind: itemPort, SubjectID: k, Label: k, Outcome: coverTop})
-	}
-	if len(items) == 0 {
-		return
-	}
-	if err := x.AddItems(ctx, items...); err != nil {
-		s.cfg.Log.WarnContext(ctx, "exposure: recording the ports a scan's service step checked", "run", x.ID(), "error", err)
-	}
-}
 
 // deepHistory is when each address of target id was last deep-scanned and last taken in turn by a scan (the run items of the
 // deep scan), for the rotation of the addresses past the cap.

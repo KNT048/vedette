@@ -66,7 +66,7 @@ func TestSilentPorts_AWAFThatBlocksTheBoxClosesNothing(t *testing.T) {
 		!strings.Contains(r.NotChecked[i].Text, "If you closed them yourself, they are marked closed after three scans over a day.") {
 		t.Fatalf("the target's line: %+v", r.NotChecked)
 	}
-	if n := e.count(`SELECT count(*) FROM core_run_log WHERE run_id = ? AND text LIKE '%gave no answer at all%'`, r.RunID); n != 1 {
+	if n := e.count(`SELECT count(*) FROM core_run_log WHERE run_id = ? AND text LIKE 'Ports 80 and 443 of %gave no answer at all%'`, r.RunID); n != 1 {
 		t.Fatalf("%d run log lines about the silent ports", n)
 	}
 	e.advance(13 * time.Hour)
@@ -203,7 +203,8 @@ func TestSilentPorts_AnAnswerInBetweenStartsTheSilentCountAgain(t *testing.T) {
 }
 
 // A scan in which the port accepted the re-check, or gave no answer at all, is not a miss of it, so it is never "the scan before
-// that missed it too" of the two-miss rule: a port outside the fixed list needs two scans that really missed it (resets) to close.
+// that missed it too" of the two-miss rule: a port outside the fixed list that one probe of each scan misses (the sweep; no re-check)
+// needs two scans that really missed it to close.
 func TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore(t *testing.T) {
 	t.Parallel()
 	for _, before := range []string{PortOpen, PortSilent} {
@@ -211,19 +212,31 @@ func TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore(t *testing.T) {
 			t.Parallel()
 			e, scan, state := deepScans(t)
 			scan([]int{22}, swept(22, 32400), nil)
-			probe := &fakeProbe{answer: map[int]string{32400: before}}
-			e.svc.cfg.Liveness = probe
+			e.svc.cfg.Liveness = &fakeProbe{answer: map[int]string{32400: before}}
 			scan([]int{22}, swept(22), nil)
-			probe.answer = map[int]string{32400: PortClosed}
+			e.svc.cfg.Liveness = nil
 			scan([]int{22}, swept(22), nil) // the first scan that really missed it
 			if state(32400) != ServiceOpen {
-				t.Fatalf("32400 after a scan to which it was %s, then one reset: %s, want open (one miss)", before, state(32400))
+				t.Fatalf("32400 after a scan to which it was %s, then one miss: %s, want open (one miss)", before, state(32400))
 			}
 			scan([]int{22}, swept(22), nil) // the second
 			if state(32400) != ServiceClosed {
-				t.Fatalf("32400 after two scans that missed it with a reset: %s", state(32400))
+				t.Fatalf("32400 after two scans that missed it: %s", state(32400))
 			}
 		})
+	}
+}
+
+// Two probes of one run that agree close a port at once, outside the fixed list too: a trusted sweep missed it and the re-check got a
+// reset from the target.
+func TestSilentPorts_ASweepMissAndAResetOfTheRecheckCloseAtOnce(t *testing.T) {
+	t.Parallel()
+	e, scan, state := deepScans(t)
+	scan([]int{22}, swept(22, 32400), nil)
+	e.svc.cfg.Liveness = &fakeProbe{answer: map[int]string{32400: PortClosed}}
+	scan([]int{22}, swept(22), nil)
+	if state(32400) != ServiceClosed || closedByNewest(e) != 1 {
+		t.Fatalf("32400 after a sweep miss and a reset to the re-check: %s, %d closed", state(32400), closedByNewest(e))
 	}
 }
 
@@ -285,8 +298,8 @@ func TestUnanswered_NoPortOfADomainAnsweredNamesTheBoxsIP(t *testing.T) {
 	d.run.content.Ports = nil
 	s := d.scan()
 	run := d.runDetail(d.ctx(), s.RunID)
-	want := "No port of acme.example answered this box. If the site has a WAF or firewall, allow this box's public IP " + ipA + " during deep scans."
-	if run.Status != corerun.Partial || !strings.Contains(run.Summary, "No port of acme.example answered this box") {
+	want := "No port of " + ipB + " (www.acme.example and api.acme.example) answered this box. If the site has a WAF or firewall, allow this box's public IP " + ipA + " during deep scans."
+	if run.Status != corerun.Partial || !strings.Contains(run.Summary, "answered this box") {
 		t.Fatalf("run = %s %q", run.Status, run.Summary)
 	}
 	if !hasLine(s, want) {

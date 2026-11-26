@@ -655,13 +655,13 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		kept = append(kept, p)
 	}
 	pages = kept
-	if len(pages) > 0 { // the ports seen open earlier must still answer (liveness.go): a page on a port that stopped answering is not read
+	if len(pages) > 0 { // the ports seen open earlier must still answer (probes.go): a page on a port that stopped answering is not read
 		if !s.beforeEngine(ctx, st, &c, stepKeyZAP, stepNameZAP, "web") {
 			return c, nil
 		}
-		pages = slices.DeleteFunc(pages, func(p WebPage) bool { return c.lostPort(p.IP.String(), p.Port) })
+		pages = slices.DeleteFunc(pages, func(p WebPage) bool { return s.lostPort(ctx, p.IP.String(), p.Port) })
 		if len(pages) == 0 {
-			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText("Passive web scan (ZAP) did not run. "+s.lostText(ctx, st, c.Lost), maxLineText)})
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText("Passive web scan (ZAP) did not run. "+s.lostText(ctx, st, s.observerOf(ctx).lostOf()), maxLineText)})
 			return c, nil
 		}
 	}

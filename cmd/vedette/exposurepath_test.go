@@ -3,11 +3,17 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"slices"
 	"sync"
+	"syscall"
 	"testing"
+
+	"github.com/knt048/vedette/modules/exposure"
 )
 
 // pathConn is a connection that records whether anything was written to it or it was closed.
@@ -33,7 +39,8 @@ func (c pathConn) Close() error {
 }
 
 // INV-44: the check connects only to the RFC 5737 documentation ranges, on the ports asked, sends nothing and closes each connection;
-// a port that two of the three addresses accept is the network's, one that only one accepts (a lab that routes one range) is not.
+// a port that two of the three addresses accept is the network's, one that only one accepts (a lab that routes one range) is not; a
+// port that two of them refuse (an egress filter's reset) is refused by the network.
 func TestExposurePathConnectsOnlyToNeverRoutedAddresses(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
@@ -44,24 +51,29 @@ func TestExposurePathConnectsOnlyToNeverRoutedAddresses(t *testing.T) {
 		"192.0.2.1:2000": true, "203.0.113.1:2000": true, // two of three
 		"203.0.113.1:443": true, // one only: a lab network that routes 203.0.113.0/24
 	}
+	refuse := map[string]bool{"192.0.2.1:25": true, "198.51.100.1:25": true} // an egress filter on port 25
 	p := exposurePath{dial: func(_ context.Context, network, address string) (net.Conn, error) {
 		mu.Lock()
 		dialed = append(dialed, network+" "+address)
 		mu.Unlock()
-		if accept[address] {
+		switch {
+		case accept[address]:
 			return pathConn{mu: &mu, wrote: &wrote, closed: &closed}, nil
+		case refuse[address]:
+			return nil, &net.OpError{Op: "dial", Err: syscall.ECONNREFUSED}
 		}
 		return nil, errors.New("i/o timeout")
 	}}
-	got, err := p.AnsweredByPath(t.Context(), []int{443, 2000, 5060, 70000})
+	got, err := p.PathAnswers(t.Context(), []int{25, 443, 2000, 5060, 70000})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(got, []int{2000, 5060}) {
-		t.Fatalf("answered by the network: %v, want [2000 5060]", got)
+	want := map[int]string{25: exposure.PortClosed, 443: exposure.PortSilent, 2000: exposure.PortOpen, 5060: exposure.PortOpen}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("the network's answers: %v, want %v", got, want)
 	}
-	if len(dialed) != 9 {
-		t.Fatalf("%d connects, want 9 (3 ports x 3 addresses): %v", len(dialed), dialed)
+	if len(dialed) != 12 {
+		t.Fatalf("%d connects, want 12 (4 ports x 3 addresses): %v", len(dialed), dialed)
 	}
 	for _, d := range dialed {
 		ap, err := netip.ParseAddrPort(d[len("tcp "):])
@@ -89,7 +101,50 @@ func TestExposurePathStopsWithTheScan(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	p := exposurePath{dial: func(ctx context.Context, _, _ string) (net.Conn, error) { return nil, ctx.Err() }}
-	if _, err := p.AnsweredByPath(ctx, []int{5060}); !errors.Is(err, context.Canceled) {
+	if _, err := p.PathAnswers(ctx, []int{5060}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err %v", err)
+	}
+}
+
+// A transparent proxy on a web port answers every address with its own page; through it, the target's own web service answers with
+// its own. The comparison tells them apart: the same page as a never-routed address gets is the network's, another page the target's.
+// A port that is not a web or TLS port of the fixed list is not read at all, and only a public address is ever read.
+func TestExposurePathComparesTheTargetsAnswerWithTheNetworks(t *testing.T) {
+	t.Parallel()
+	page := func(title string) *httptest.Server {
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Server", "test")
+			_, _ = fmt.Fprintf(w, "<html><title>%s</title></html>", title)
+		}))
+		t.Cleanup(s.Close)
+		return s
+	}
+	proxy, real := page("Blocked by the proxy"), page("Acme portal")
+	target := netip.MustParseAddr("8.8.8.8")
+	through := func(targetServer *httptest.Server) exposurePath {
+		return exposurePath{public: func(netip.Addr) bool { return true }, dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			ap := netip.MustParseAddrPort(address)
+			to := proxy.Listener.Addr().String()
+			if ap.Addr() == target {
+				to = targetServer.Listener.Addr().String()
+			}
+			return (&net.Dialer{}).DialContext(ctx, network, to)
+		}}
+	}
+	if same, err := through(real).SameAsPath(t.Context(), target, 80); err != nil || same {
+		t.Fatalf("the target's own page through the proxy: same %v, err %v", same, err)
+	}
+	if same, err := through(proxy).SameAsPath(t.Context(), target, 80); err != nil || !same {
+		t.Fatalf("only the proxy's page: same %v, err %v", same, err)
+	}
+	none := exposurePath{dial: func(context.Context, string, string) (net.Conn, error) {
+		t.Fatal("a port that is not a web or TLS port was read")
+		return nil, nil
+	}, public: func(netip.Addr) bool { return true }}
+	if same, err := none.SameAsPath(t.Context(), target, 5060); err != nil || !same {
+		t.Fatalf("5060: same %v, err %v", same, err)
+	}
+	if _, err := (exposurePath{dial: none.dial}).SameAsPath(t.Context(), netip.MustParseAddr("10.0.0.1"), 80); err == nil {
+		t.Fatal("a private address was read")
 	}
 }

@@ -257,14 +257,14 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 			Text: "Safe templates for exploited vulnerabilities: none needed, no identified service matched an exploited CVE."})
 		return c, nil
 	}
-	// The ports seen open earlier must still answer (liveness.go): a port that stopped answering gets no template
+	// The ports seen open earlier must still answer (probes.go): a port that stopped answering gets no template
 	if !s.beforeEngine(ctx, st, &c, stepKeyNuclei, stepNameNuclei, "templates") {
 		return c, nil
 	}
-	if kept := slices.DeleteFunc(slices.Clone(jobs), func(j TemplateJob) bool { return c.lostPort(ip.String(), j.Port) }); len(kept) < len(jobs) {
+	if kept := slices.DeleteFunc(slices.Clone(jobs), func(j TemplateJob) bool { return s.lostPort(ctx, ip.String(), j.Port) }); len(kept) < len(jobs) {
 		jobs = kept
 		if len(jobs) == 0 {
-			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: clipText("Templates did not run. "+s.lostText(ctx, st, c.Lost), maxLineText)})
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: clipText("Templates did not run. "+s.lostText(ctx, st, s.observerOf(ctx).lostOf()), maxLineText)})
 			return c, nil
 		}
 	}
@@ -328,8 +328,7 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	switch {
 	case err == nil:
 		if why := unanswered(ip.String(), res.Results); why != "" { // nuclei's own sign that a port stopped answering while it ran
-			runStepsOf(ctx).incompleteOn(stepKeyNuclei, why)
-			runStepsOf(ctx).problem(why)
+			incomplete(ctx, stepKeyNuclei, why)
 		}
 		rows, notKept := sanitizeTemplateResults(res.Results, jobs)
 		c.Templates = templateRows(c.Services, ip, rows)

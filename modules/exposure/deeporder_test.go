@@ -209,9 +209,9 @@ func TestLiveness_ATargetThatStopsAnsweringIsSaidAndIsNotAMiss(t *testing.T) {
 	if state := e.svcState(22); state != ServiceOpen {
 		t.Fatalf("22 after a scan whose target stopped answering: %s, want still open (not a miss)", state)
 	}
-	if n := e.count(`SELECT count(*) FROM core_run_item WHERE run_id = ? AND subject_kind = 'address' AND subject_id = ? AND outcome IN (?, ?, ?, ?, ?)`,
-		s.RunID, ipA, coverAll, coverList, coverTop, coverWeb, coverEmpty); n != 0 {
-		t.Fatalf("the scan counts as having checked %s: %d coverage items", ipA, n)
+	if n := e.count(`SELECT count(*) FROM core_run_item WHERE run_id = ? AND subject_kind = ? AND subject_id = ? AND outcome = ?`,
+		s.RunID, itemVerdict, portKey(ipA, 22), verdictLost); n != 1 {
+		t.Fatalf("the verdict of %s:22 is not lost: %d such items", ipA, n)
 	}
 	if save := stepOf(t, d, stepNameSave); save.Status != corerun.Done || !strings.Contains(noteOf(save), "does not count as a miss") {
 		t.Fatalf("the save step = %s %q: its rows are written (done), and it says the scan is not a miss", save.Status, noteOf(save))

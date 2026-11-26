@@ -127,19 +127,10 @@ func (e *env) replay(target, startedAt string, c Content, gbAddrs ...GreenboneAd
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	err = e.db.Write(e.ctx(), func(tx *sql.Tx) error { // what execute records through the run (recordCoverage)
-		seq := 0
-		for ip, class := range out.checked {
-			seq++
-			if _, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run_item (run_id, seq, subject_kind, subject_id, label, outcome) VALUES (?, ?, 'address', ?, ?, ?)`,
-				runID, seq, ip, ip, class); err != nil {
-				return err
-			}
-		}
-		for _, k := range out.topPorts {
-			seq++
-			if _, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run_item (run_id, seq, subject_kind, subject_id, label, outcome) VALUES (?, ?, ?, ?, ?, ?)`,
-				runID, seq, itemPort, k, k, coverTop); err != nil {
+	err = e.db.Write(e.ctx(), func(tx *sql.Tx) error { // what execute records through the run (recordVerdicts)
+		for i, it := range verdictItems(out.verdicts) {
+			if _, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run_item (run_id, seq, subject_kind, subject_id, label, outcome, note) VALUES (?, ?, ?, ?, ?, ?, nullif(?, ''))`,
+				runID, i+1, it.SubjectKind, it.SubjectID, it.Label, it.Outcome, it.Note); err != nil {
 				return err
 			}
 		}

@@ -167,12 +167,12 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 		rs.skip(ctx, stepKeyZAPActive, notActiveNoLog)
 		return c, nil
 	}
-	// The ports seen open earlier must still answer (liveness.go): a page on a port that stopped answering is not attacked
+	// The ports seen open earlier must still answer (probes.go): a page on a port that stopped answering is not attacked
 	if !s.beforeEngine(ctx, st, &c, stepKeyZAPActive, stepNameZAPAct, "web") {
 		return c, nil
 	}
-	if pages = slices.DeleteFunc(slices.Clone(pages), func(p WebPage) bool { return c.lostPort(p.IP.String(), p.Port) }); len(pages) == 0 {
-		rs.skip(ctx, stepKeyZAPActive, "Not run. "+s.lostText(ctx, st, c.Lost))
+	if pages = slices.DeleteFunc(slices.Clone(pages), func(p WebPage) bool { return s.lostPort(ctx, p.IP.String(), p.Port) }); len(pages) == 0 {
+		rs.skip(ctx, stepKeyZAPActive, "Not run. "+s.lostText(ctx, st, s.observerOf(ctx).lostOf()))
 		return c, nil
 	}
 	rs.start(ctx, stepKeyZAPActive)

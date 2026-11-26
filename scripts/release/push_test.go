@@ -482,7 +482,7 @@ func atTag(fn func([]string) ([]byte, error), pins, index string) func([]string)
 }
 
 const (
-	tagPins  = "# pins\nNUCLEI_VERSION=3.11.1\nSCAN_PACK_VERSION=2026.11.1\nOPENCANARY_VERSION=0.9.10\n"
+	tagPins  = "# pins\nNUCLEI_VERSION=3.11.1\nSCAN_PACK_VERSION=2026.11.1\nOPENCANARY_VERSION=0.9.10\nZAP_IMAGE=ghcr.io/zaproxy/zaproxy:2.17.0@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nOPENVAS_VERSION=26.43.0\n"
 	tagIndex = `{"version": "2026.11.1", "sha256": "` + "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" + `", "templates": []}`
 )
 
@@ -511,7 +511,9 @@ func TestBuildInputsIsWhatManifestReads(t *testing.T) {
 	// bundled[] is the pins of the tag, as Managed packages shows them
 	want := []release.Bundled{{Service: "scan", Name: "nuclei", Version: "3.11.1", License: "MIT"},
 		{Service: "scan", Name: "nuclei-templates-pack", Version: "2026.11.1", SHA256: strings.Repeat("c", 64), License: "MIT"},
-		{Service: "honeypot", Name: "opencanary", Version: "0.9.10", License: "BSD-3-Clause"}}
+		{Service: "honeypot", Name: "opencanary", Version: "0.9.10", License: "BSD-3-Clause"},
+		{Service: "scan", Name: "zap", Version: "2.17.0", License: "Apache-2.0"},
+		{Service: "greenbone", Name: "openvas", Version: "26.43.0", License: "AGPL-3.0 AND GPL-2.0 AND GPL-3.0"}}
 	if !slices.Equal(back.Bundled, want) {
 		t.Errorf("bundled: %+v", back.Bundled)
 	}
@@ -551,6 +553,9 @@ func TestBuildInputsRefusals(t *testing.T) {
 		"images.json lacks a platform": {mut: func(_ *inputsOpts, d *ImagesDoc) { d.Images[0].Platforms = d.Images[0].Platforms[:1] }, want: "images.json core linux/arm64 is absent now"},
 		"stale pack at the tag":        {pins: strings.Replace(tagPins, "2026.11.1", "2026.12.1", 1), want: "is pack 2026.11.1, pins.env says \"2026.12.1\""},
 		"no opencanary pin":            {pins: strings.Replace(tagPins, "OPENCANARY_VERSION=0.9.10", "", 1), want: "no version for opencanary"},
+		"no zap pin":                   {pins: strings.Replace(tagPins, "ZAP_IMAGE=", "OTHER=", 1), want: "no version for zap"},
+		"zap pin without a tag":        {pins: strings.Replace(tagPins, "zaproxy:2.17.0@", "zaproxy@", 1), want: "no version for zap"},
+		"no openvas pin":               {pins: strings.Replace(tagPins, "OPENVAS_VERSION=26.43.0", "", 1), want: "no version for openvas"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -604,5 +609,19 @@ func TestReadImagesRefusals(t *testing.T) {
 	must(t, os.WriteFile(p, good, 0o600))
 	if _, err := readImages(p); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestImageTag(t *testing.T) {
+	for in, want := range map[string]string{
+		"ghcr.io/zaproxy/zaproxy:2.17.0@sha256:abc": "2.17.0",
+		"localhost:5000/x:1.2":                      "1.2",
+		"localhost:5000/x@sha256:abc":               "",
+		"x":                                         "",
+		"":                                          "",
+	} {
+		if got := imageTag(in); got != want {
+			t.Errorf("imageTag(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

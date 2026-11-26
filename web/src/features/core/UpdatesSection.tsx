@@ -108,6 +108,10 @@ function ReleaseNote({ a, className, open = false }: { a: UpdateAvailable; class
 }
 
 /** memo: the page title also reads the OS query; without it every OS refresh re-renders this body and the table cells remount under the user's click. */
+/** The release information names a package in lower case; the table shows the name people know. */
+const PKG_LABELS: Record<string, string> = { openvas: 'OpenVAS (Greenbone Community Edition)', zap: 'ZAP', opencanary: 'OpenCanary', 'nuclei-templates-pack': 'nuclei templates' }
+const pkgLabel = (name: string) => PKG_LABELS[name] ?? name
+
 type Part = 'vedette' | 'managed' | 'settings'
 const Body = memo(function Body({ s, part, setAfter }: { s: UpdatesState; part: Part; setAfter: (id: string | null | undefined) => void }) {
   const { t } = useTranslation('core')
@@ -217,10 +221,10 @@ const Body = memo(function Body({ s, part, setAfter }: { s: UpdatesState; part: 
     { id: 'u', header: t('updates.hist.by'), accessorFn: (h) => h.user, cell: ({ row }) => (row.original.user === 'system' ? t('updates.hist.system') : row.original.user) },
   ]
   const managedCols: ColumnDef<ManagedPackage>[] = [
-    { id: 'name', header: t('updates.managed.col.package'), accessorFn: (p) => p.name, cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+    { id: 'name', header: t('updates.managed.col.package'), accessorFn: (p) => p.name, cell: ({ row }) => <span className="font-medium">{pkgLabel(row.original.name)}</span> },
     { id: 'version', header: t('updates.managed.col.version'), accessorFn: (p) => p.version, cell: ({ row }) => <span className="font-mono text-meta">{row.original.version}</span> },
     { id: 'status', header: t('updates.managed.col.status'), accessorFn: (p) => p.status, cell: ({ row }) => (row.original.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>) },
-    { id: 'how', header: t('updates.managed.col.how'), enableSorting: false, accessorFn: () => '', cell: () => <span className="text-meta text-muted">{t('updates.managed.how')}</span> },
+    { id: 'how', header: t('updates.managed.col.how'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => <span className="text-meta text-muted">{t(row.original.id === 'openvas' ? 'updates.managed.howOpenvas' : 'updates.managed.how')}</span> },
   ]
   // Why the list is empty: say it, so "None listed." does not read as "Vedette manages nothing".
   const swVersion = s.components.find((c) => c.id === 'software')?.version ?? ''
@@ -304,7 +308,7 @@ const Body = memo(function Body({ s, part, setAfter }: { s: UpdatesState; part: 
         {/* No empty table: the list comes from the running release's signed manifest, which a build without a release never gets. */}
         {s.managed.length ? (
           <DataTable urlKey="updates-managed" data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
-            mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{p.name}</span><span className="font-mono text-caption text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
+            mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{pkgLabel(p.name)}</span><span className="font-mono text-caption text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
         ) : (
           <div className="flex flex-wrap items-center gap-x-1">
             <p className="text-sm text-muted">{t(emptyKey)}</p>

@@ -867,11 +867,12 @@
       "pinned": "Pinned, up to date",
       "pending": "New version in the next release",
       "how": "Updated together with Vedette releases",
+      "howOpenvas": "Updated together with Vedette releases; its vulnerability feed updates by itself every week",
       "none": "None listed.",
       "noneError": "This list could not be read: the update information of this box did not verify or could not be checked.",
       "noneErrorLink": "See the error on the Vedette tab.",
       "noneBuild": "This build is not a published release, so it has no signed package list.",
-      "noneInfo": "This list comes from the signed release information of the version this box runs, which the box reads at a successful update check. It names the tools Vedette pins itself: nuclei, its template pack and OpenCanary. Tools that come from the operating system packages, such as nmap, are not listed here; the Operating system tab updates them."
+      "noneInfo": "This list comes from the signed release information of the version this box runs, which the box reads at a successful update check. It names the tools Vedette pins itself: nuclei and its template pack, OpenCanary, ZAP and OpenVAS. Tools that come from the operating system packages, such as nmap, are not listed here; the Operating system tab updates them."
     },
     "vedette": {
       "title": "Vedette software",

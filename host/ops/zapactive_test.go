@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"net/netip"
 	"os"
 	"regexp"
 	"slices"
@@ -47,8 +48,10 @@ func planRules(t *testing.T, plan string) map[int]string {
 	return out
 }
 
-// The plan keeps ZAP to the page's own origin: one context whose one include path is the scheme, host and port, anchored at both ends;
-// the spider and the active scan both run in that context. The network fence is the page's address and port only, as for the baseline.
+// The plan keeps ZAP to the page's own origin: one context whose include path is the scheme, host and port, anchored at both ends;
+// the spider and the active scan both run in that context. ZAP's Automation Framework adds the context URL's own "<url>.*" to it,
+// unescaped, so a look-alike name is in ZAP's context too: the boundary is the network fence (the page's address and port only, no
+// DNS, the one name pinned), as for the baseline, and the test holds both.
 func TestZapActive_NeverAnotherHost(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -64,7 +67,12 @@ func TestZapActive_NeverAnotherHost(t *testing.T) {
 		plan := zapActivePlan(tc.page, true)
 		inc := regexp.MustCompile(`(?m)^      includePaths:\n        - "(.*)"$`).FindStringSubmatch(plan)
 		if inc == nil || strings.Count(plan, "includePaths") != 1 || strings.Contains(plan, "excludePaths") {
-			t.Fatalf("one include path: %s", plan)
+			t.Fatalf("the plan's one include path: %s", plan)
+		}
+		// What ZAP itself adds (ContextWrapper: the URL + ".*", not quoted): a look-alike of the page's name is in its context, so the
+		// network fence below is what keeps ZAP on the page.
+		if auto := regexp.MustCompile("(?i)^" + tc.page.url + ".*$"); !auto.MatchString(strings.Replace(tc.page.url, ".", "x", 1)) {
+			t.Fatalf("ZAP's own include path of %s no longer matches a look-alike: the comment of zapActivePlan is out of date", tc.page.url)
 		}
 		re := regexp.MustCompile(strings.ReplaceAll(inc[1], `\\`, `\`))
 		if !strings.HasPrefix(re.String(), "^") || !strings.HasSuffix(re.String(), "$") {
@@ -92,6 +100,14 @@ func TestZapActive_NeverAnotherHost(t *testing.T) {
 	}
 	if !strings.Contains(w.plan, `"https://www.example.com/"`) || slices.Index(w.runArgv, "--add-host") < 0 || w.runArgv[slices.Index(w.runArgv, "--add-host")+1] != "www.example.com:"+zapTestIP {
 		t.Fatalf("plan %s, argv %q", w.plan, w.runArgv)
+	}
+	// The boundary: no resolver, exactly one name (the page's, pinned to its address), and the nft rule for exactly that address and
+	// port, so a look-alike name or another host in ZAP's context cannot be reached.
+	if i := slices.Index(w.runArgv, "--dns"); i < 0 || w.runArgv[i+1] != "none" || strings.Count(strings.Join(w.runArgv, " "), "--add-host") != 1 {
+		t.Fatalf("argv %q", w.runArgv)
+	}
+	if rules, _ := zapRuleset(netip.MustParseAddr(zapTestIP), 443); !zapRulesetOK(rules) || strings.Count(rules, " dport ") != 2 || !strings.Contains(rules, "ip daddr "+zapTestIP+" tcp dport 443 accept") {
+		t.Fatalf("the fence: %s", rules)
 	}
 	calls := w.Calls()
 	if slices.Index(calls, "nft -f -") > slices.Index(calls, "podman run") {

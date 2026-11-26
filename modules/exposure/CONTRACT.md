@@ -118,8 +118,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   and UNION payloads, the hosting provider's metadata service, remote file inclusion's third-party URLs) and form posting run only on the box's own proven public IP (an IP
   target that is not typed, the page on exactly that address) when the run's mode allows the disruptive checks (`runMode`: a
   person's scan, the terms include them, the gateway not in 100.64.0.0/10); a domain's page, on hosting or a CDN, gets the active
-  scan without them, and the scan says so. ZAP is held to the page's origin by its context (one include path, anchored to scheme,
-  host and port) and by the host's network fence. Bounds: 21 minutes a page (the host's own 20: spider 2 minutes, depth 5, 20
+  scan without them, and the scan says so. ZAP's context includes the page's origin (anchored to scheme,
+  host and port; ZAP adds its own unescaped "<url>.*", which a look-alike name matches); the boundary is the host's network fence
+  (that address and port only, no DNS, the one name pinned). Bounds: 21 minutes a page (the host's own 20: spider 2 minutes, depth 5, 20
   children a node; active rules 12 minutes, 2 a rule, 2 threads, 100 ms between requests; a 2 GiB container), 60 minutes for the
   active pass of a scan (a page starts only while a whole page still fits; the rest are named as not attacked). Every page is in
   the probe log before ZAP attacks it. A page that reached the 12 minutes keeps what it found and says it was cut short. A

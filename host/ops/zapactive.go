@@ -24,8 +24,10 @@ import (
 // to do: instead of zap-baseline.py, the Automation Framework runs a plan the host writes itself from the validated page (never
 // text from core), with
 //
-//   - one context whose only include path is the page's own origin, anchored: ^scheme://host(:port)?(/ or ? …)?$, so the spider and
-//     the active scan never leave it, whatever a page links or redirects to (the network fence stops it anyway);
+//   - one context with the page's own origin as its include path, anchored: ^scheme://host(:port)?(/ or ? …)?$. The Automation
+//     Framework also includes the context's URL followed by ".*" by itself, unescaped (each dot of the host then matches any
+//     character, so a look-alike name such as wwwxexample.com is in the context too). The context keeps the spider and the active
+//     scan on the page's site in practice; the boundary is the network fence: only IP:Port, no DNS, the one name pinned to IP;
 //   - a spider bounded in time, depth and children per node, that submits forms only with GET unless the disruptive rules run;
 //   - the passive rules off (the baseline already ran them on this page: no alert counted twice);
 //   - the active scan bounded per rule and per page, at two threads with a delay between requests, with the rule split below;
@@ -223,7 +225,7 @@ func zapActivePlan(p zapPage, disruptive bool) string {
 	return b.String()
 }
 
-// zapScopeRE is the one include path of the plan's context: the page's scheme, host and port, anchored at both ends, then nothing or
+// zapScopeRE is the include path the plan gives its context (ZAP adds the context URL's own unescaped "<url>.*"; see the top): the page's scheme, host and port, anchored at both ends, then nothing or
 // a path or query. ZAP writes a URL without the scheme's own port, so the default port may be there or not; any other port must be.
 func zapScopeRE(pageURL string) string {
 	scheme, rest, _ := strings.Cut(pageURL, "://")

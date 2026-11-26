@@ -87,8 +87,11 @@ func TestContract_INV30_ARunThatSkippedAStepLeavesItsEarlierRun(t *testing.T) {
 	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", e.detectedID(ipA)); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.count(`SELECT count(*) FROM core_run_step WHERE name = ?`, stepNameOpenVAS); n != 1 {
-		t.Fatalf("%d OpenVAS steps; the second scan did not run it", n)
+	if n := e.count(`SELECT count(*) FROM core_run_step WHERE name = ? AND status <> 'skipped'`, stepNameOpenVAS); n != 1 {
+		t.Fatalf("%d OpenVAS steps that ran; the second scan did not run it", n)
+	}
+	if n := e.count(`SELECT count(*) FROM core_run_step WHERE name = ? AND status = 'skipped' AND note = ?`, stepNameOpenVAS, notGBOff); n != 1 { // the run page says why
+		t.Fatalf("%d skipped OpenVAS steps saying it is off", n)
 	}
 	second := e.engineRuns()
 	if second[StepOpenVAS] != first[StepOpenVAS] {

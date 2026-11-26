@@ -21,6 +21,9 @@ type ExternalProbe struct {
 	// probe that got no usable answer stays no_response), ProbeNotRun (handed to nuclei, which did not run it) or ProbeRefused (the
 	// scan worker refused the job: nothing was sent; kf-scan item 5). It wins over Answered; any other value is not written.
 	Result string
+	// RunID is the core_run of the exposure scan that sends the probe, so a run's probes can be listed; "" for none. A later write of
+	// the same row never takes its run away.
+	RunID string
 }
 
 // Probe-log results of a template probe that never reached the target (migration 0007).
@@ -43,9 +46,13 @@ func (s *Service) RecordExternalProbes(ctx context.Context, ps []ExternalProbe) 
 			case p.Answered:
 				result = "banner"
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO scan_probe (id, ts, run_id, ip, label, template, request, result) VALUES (?, ?, NULL, ?, ?, ?, ?, ?)
-ON CONFLICT (id) DO UPDATE SET request = excluded.request, result = excluded.result`,
-				clip(p.ID, 96), now, clip(p.IP, 253), clip(p.Label, 300), clip(p.Template, 300), clip(p.Request, 300), result); err != nil {
+			var runID any
+			if p.RunID != "" {
+				runID = clip(p.RunID, 96)
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO scan_probe (id, ts, run_id, ip, label, template, request, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (id) DO UPDATE SET request = excluded.request, result = excluded.result, run_id = coalesce(scan_probe.run_id, excluded.run_id)`,
+				clip(p.ID, 96), now, runID, clip(p.IP, 253), clip(p.Label, 300), clip(p.Template, 300), clip(p.Request, 300), result); err != nil {
 				return err
 			}
 		}

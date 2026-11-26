@@ -134,7 +134,12 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   wordlist.
 - **INV-28** Deep scanning of addresses of names under a domain happens only in a full scan with the domain's terms accepted.
 - **INV-29**, **INV-30**, **INV-34** A running scan shows its step's progress; each engine step keeps its outcome and one sentence;
-  a scan is named by its start and shows its end.
+  a scan is named by its start and shows its end. Its run lists every step of its plan (`runsteps.go` `scanPlan`: the check, the
+  surface step, nmap's port discovery and service step for an IP, a step per deep-scanned address of a domain, nuclei, ZAP, the
+  comparison and save, OpenVAS) from the moment the plan is known, each one queued, running, ended or skipped with why; a step counts
+  as one ("3 of 8 steps"), a running step's note is where it is (the engines' progress reports, at most every 3 s), each start and end
+  is a log line, and the steps the run ends before are skipped as not reached. Every probe of the scan names its run
+  (`RunIDOf` of the scan's context, set with `WithRunID`; `scan_probe.run_id`), the safe templates' rows too.
 - **INV-33** Admin and VPN pages are named from one fingerprint table (`content/adminpages/adminpages.json`), shared with the scan
   module.
 - **INV-36** Every target has a schedule `exposure.target:<id>` (default weekly, Monday 02:30 in the scan window; at most every 6

@@ -16,3 +16,5 @@ export type Run = z.infer<typeof C.Run>
 export type RunDetail = z.infer<typeof C.RunDetail>
 export type RunList = z.infer<typeof C.RunList>
 export type RunStatus = z.infer<typeof C.RunStatus>
+export type RunStep = z.infer<typeof C.RunStep>
+export type StepStatus = z.infer<typeof C.StepStatus>

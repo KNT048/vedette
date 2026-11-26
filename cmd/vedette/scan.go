@@ -391,7 +391,7 @@ func (l scanProbeLog) Record(ctx context.Context, ps []surface.Probe) error {
 		if p.Addr.IsValid() {
 			ip = p.Addr.String()
 		}
-		rows[i] = scan.ExternalProbe{ID: p.ID, IP: ip, Label: p.Label, Template: "exposure: " + p.Kind, Request: p.Request, Answered: p.Answered}
+		rows[i] = scan.ExternalProbe{ID: p.ID, IP: ip, Label: p.Label, Template: "exposure: " + p.Kind, Request: p.Request, Answered: p.Answered, RunID: exposure.RunIDOf(ctx)}
 	}
 	return scanService(l.d).RecordExternalProbes(ctx, rows)
 }

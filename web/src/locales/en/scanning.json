@@ -515,6 +515,35 @@
     "started": "Started",
     "ended": "Ended",
     "steps": "Steps",
+    "stepsOf": "Steps of {{title}}",
+    "stepsDone_one": "{{done}} of {{count}} step finished",
+    "stepsDone_other": "{{done}} of {{count}} steps finished",
+    "stepsFailed_one": "{{count}} failed",
+    "stepsFailed_other": "{{count}} failed",
+    "stepStatus": {
+      "queued": "Waiting",
+      "waiting": "Paused",
+      "running": "Running",
+      "stopping": "Stopping",
+      "done": "Done",
+      "partial": "Partly done",
+      "failed": "Failed",
+      "stopped": "Stopped",
+      "skipped": "Skipped"
+    },
+    "step": {
+      "seconds": "{{s}} s",
+      "minutes": "{{m}} min",
+      "minSec": "{{m}} min {{s}} s",
+      "hours": "{{h}} h",
+      "hourMin": "{{h}} h {{m}} min",
+      "runningFor": "{{d}} so far",
+      "startedAt": "Started {{at}}",
+      "endedAt": "ended {{at}}"
+    },
+    "place": {
+      "scans": "Scans"
+    },
     "children": "Engine steps",
     "items_one": "{{count}} device or address",
     "items_other": "{{count}} devices and addresses",

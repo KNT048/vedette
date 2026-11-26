@@ -274,7 +274,7 @@ func (s *Service) outsideView(ctx context.Context, q querier, id string) (*Outsi
 	// Our own side, read now: the services open on this IP, as of the newest scan that wrote rows.
 	var at sql.NullString
 	if err := q.QueryRowContext(ctx, `SELECT max(r.started_at) FROM exp_scan x JOIN core_run r ON r.id = x.run_id
-		WHERE x.target_id = ? AND EXISTS (SELECT 1 FROM core_run_step st WHERE st.run_id = r.id AND st.name = ? AND st.status = 'done')`, id, stepSurface).Scan(&at); err != nil {
+		WHERE x.target_id = ? AND EXISTS (SELECT 1 FROM core_run_step st WHERE st.run_id = r.id AND st.name IN (?, ?) AND st.status = 'done')`, id, stepNameSave, stepSurface).Scan(&at); err != nil {
 		return nil, err
 	}
 	if !at.Valid {

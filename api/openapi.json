@@ -99529,7 +99529,7 @@
                           },
                           "name": {
                             "type": "string",
-                            "description": "A phase or a range: \"192.0.2.0/24\", \"identify services\", \"ZAP passive scan\""
+                            "description": "A phase or a range: \"192.0.2.0/24\", \"identify services\", \"Find open ports (every TCP port)\", \"OpenVAS\""
                           },
                           "status": {
                             "type": "string",
@@ -99541,14 +99541,16 @@
                               "done",
                               "partial",
                               "failed",
-                              "stopped"
+                              "stopped",
+                              "skipped"
                             ],
-                            "description": "queued: waits for its lane (another run of the same engine runs); waiting: paused with work left until what waiting_for names; running; stopping: a stop was asked and the work is ending; done; partial: ended with part of the work done; failed; stopped: by a person, by its module turned off, or by a restart (stop_reason says which)"
+                            "description": "The run states, and skipped: the step did not run (its note says why: an engine turned off, nothing for it to check, or the run ended before it). A queued step waits for its turn"
                           },
                           "total": {
                             "type": "integer",
                             "minimum": 0,
-                            "maximum": 9007199254740991
+                            "maximum": 9007199254740991,
+                            "description": "Units of work; an exposure scan counts each step as 1, so its run reads \"3 of 8 steps\""
                           },
                           "done": {
                             "type": "integer",
@@ -99556,6 +99558,7 @@
                             "maximum": 9007199254740991
                           },
                           "note": {
+                            "description": "While it runs, where it is (\"finding open ports: 41%, about 9 minutes left\", \"1,240 of 3,600 template checks\"); once it ended or was skipped, what it found or why",
                             "type": [
                               "string",
                               "null"
@@ -99583,7 +99586,8 @@
                               {
                                 "type": "null"
                               }
-                            ]
+                            ],
+                            "description": "When it ended, or when it was skipped"
                           }
                         },
                         "required": [

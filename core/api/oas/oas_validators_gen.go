@@ -130630,6 +130630,8 @@ func (s ScanningGetRunsIDOKStepsItemStatus) Validate() error {
 		return nil
 	case "stopped":
 		return nil
+	case "skipped":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

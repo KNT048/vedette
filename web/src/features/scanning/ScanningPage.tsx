@@ -81,7 +81,7 @@ function Page({ d }: { d: Scanning }) {
 function historyMoved(params: URLSearchParams): string | null {
   if (params.get('tab') !== 'history') return null
   const job = params.get('job') ?? params.get('run')
-  if (job) return runHref(job)
+  if (job) return runHref(job, 'settings')
   const p = new URLSearchParams(params)
   p.set('tab', 'runs')
   const asset = p.get('asset')

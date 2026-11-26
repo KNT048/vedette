@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { OctagonX, Play } from 'lucide-react'
@@ -8,11 +8,14 @@ import { KeyValue, PageHeader, Section } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import type { Crumb } from '@/components/common/Breadcrumbs'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtNumber } from '@/lib/format'
+import { useNavPlace } from '@/lib/navPlace'
 import { useRun, useRunAction } from './api'
-import { runHref, runsHref } from './places'
-import { RunBar, RunStateChip, useKindLabel, useRunCount, useStartedBy } from './RunParts'
+import { runHref, runPlace, runsHref, type RunPlace } from './places'
+import { RunBar, RunStateChip, useKindLabel, useStartedBy } from './RunParts'
+import { RunSteps, useStepsLine } from './RunSteps'
 import type { Run, RunDetail } from './types'
 
 const link = 'text-accent underline-offset-4 hover:underline [overflow-wrap:anywhere]'
@@ -24,6 +27,21 @@ function subjectHref(kind: string, id: string | null): string | null {
   if (kind === 'device') return `/devices/${encodeURIComponent(id)}`
   if (kind === 'target') return `/exposure/${encodeURIComponent(id)}`
   return null
+}
+
+/** The breadcrumb of a run's page and the menu entry it keeps lit (useNavPlace): back to the target's Scans tab, to the device, or to
+ *  Settings › Scanning › Runs. */
+function usePlace(place: RunPlace): { crumbs: Crumb[]; nav: string } {
+  const { t } = useTranslation('scanning')
+  const enc = encodeURIComponent
+  if (place.kind === 'target') {
+    return { nav: '/exposure', crumbs: [{ label: t('common:shell.exposure'), to: '/exposure' }, { label: place.label, to: `/exposure/${enc(place.id)}` },
+      { label: t('runs.place.scans'), to: `/exposure/${enc(place.id)}?tab=scans` }] }
+  }
+  if (place.kind === 'device') {
+    return { nav: '/devices', crumbs: [{ label: t('common:shell.devices'), to: '/devices' }, { label: place.label, to: `/devices/${enc(place.id)}` }] }
+  }
+  return { nav: '/settings/scanning', crumbs: [{ label: t('page.title'), to: '/settings/scanning' }, { label: t('page.tab.runs'), to: runsHref() }] }
 }
 
 /** A queued run waits for the run that holds its lane (blocked_by, from the box): the summary above says its place in line and when it
@@ -68,13 +86,14 @@ function Actions({ r }: { r: RunDetail }) {
   )
 }
 
-function Body({ r }: { r: RunDetail }) {
+function Body({ r, crumbs }: { r: RunDetail; crumbs: Crumb[] }) {
   const { t } = useTranslation('scanning')
   const kindLabel = useKindLabel()
   const startedBy = useStartedBy()
-  const count = useRunCount()
-  const subject = r.subject ? subjectHref(r.subject.kind, r.subject.id) : null
-  const crumbs = [{ label: t('page.title'), to: '/settings/scanning' }, { label: t('page.tab.runs'), to: runsHref() }]
+  const stepsLine = useStepsLine()
+  // the subject's page is linked once: by the breadcrumb when the run's page sits under it, by About otherwise
+  const href = r.subject ? subjectHref(r.subject.kind, r.subject.id) : null
+  const subject = href && !crumbs.some((c) => c.to === href) ? href : null
   // A public scan's items of kind "port" record which ports its service step checked, for the next scan; they are not devices or
   // addresses, so they are neither listed nor counted (the count can only leave out the ones among the items read).
   const items = r.items.filter((it) => it.subject_kind !== 'port')
@@ -103,21 +122,9 @@ function Body({ r }: { r: RunDetail }) {
         ]} />
       </Card>
       {r.steps.length > 1 || r.steps.some((s) => s.note) ? (
-        <Section id="run-steps" title={t('runs.steps')}>
+        <Section id="run-steps" title={t('runs.steps')} description={stepsLine(r.steps)}>
           <Card flush>
-            <ol className="divide-y divide-rule">
-              {r.steps.map((s) => (
-                <li key={s.seq} className="grid gap-1 px-4 py-3 text-meta">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="font-medium [overflow-wrap:anywhere]">{s.name}</span>
-                    <RunStateChip status={s.status} />
-                    {s.total > 0 ? <span className="tabular-nums text-muted">{count(s)}</span> : null}
-                  </div>
-                  {s.total > 0 ? <div className="max-w-xl"><RunBar done={s.done} total={s.total} label={t('runs.progressOf', { title: s.name })} /></div> : null}
-                  {s.note ? <span className="text-muted">{s.note}</span> : null}
-                </li>
-              ))}
-            </ol>
+            <RunSteps steps={r.steps} label={t('runs.stepsOf', { title: r.title })} />
           </Card>
         </Section>
       ) : null}
@@ -180,8 +187,14 @@ function Body({ r }: { r: RunDetail }) {
 export default function RunPage() {
   const { t } = useTranslation('scanning')
   const { id = '' } = useParams()
+  const [params] = useSearchParams()
   const q = useRun(id)
-  const crumbs = [{ label: t('page.title'), to: '/settings/scanning' }, { label: t('page.tab.runs'), to: runsHref() }]
+  const from = params.get('from')
+  // Its place is the run's subject (a target, a device) or Settings › Scanning when opened from there; until the run is read, only a
+  // link from Settings says where it belongs.
+  const known = !!q.data || from === 'settings' || !!q.error
+  const { crumbs, nav } = usePlace(runPlace(q.data?.subject ?? null, q.data || q.error ? from : 'settings'))
+  useNavPlace(known ? nav : null)
   if (q.error instanceof ApiError && q.error.status === 404) {
     return (
       <>
@@ -191,6 +204,6 @@ export default function RunPage() {
     )
   }
   if (q.error) return <><PageHeader breadcrumbs={crumbs} title={t('runs.pageTitle')} /><ErrorState error={q.error} onRetry={() => void q.refetch()} /></>
-  if (q.isPending) return <><PageHeader breadcrumbs={crumbs} title={t('runs.pageTitle')} /><Loading /></>
-  return <Body r={q.data} />
+  if (q.isPending) return <><PageHeader breadcrumbs={known ? crumbs : []} title={t('runs.pageTitle')} /><Loading /></>
+  return <Body r={q.data} crumbs={crumbs} />
 }

@@ -781,3 +781,156 @@ func TestTheHolderIsToldToGiveWayAfterTheQueuedRunIsCommitted(t *testing.T) {
 	g.release <- run.Result{Status: run.Partial, Error: "It gave way to other work"}
 	p.waitEnded(t, holder)
 }
+
+// A step that did not run is skipped with why, and a run whose only unfinished steps are skipped has no work left; a running step's
+// note says where it is, and a late note never overwrites how a step ended.
+func TestSkippedStepsAndLiveNotes(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	p := b.process(nil, g.kind("scan", "multi", "a", false))
+	id := create(t, p, spec("scan", "multi", "Three steps"))
+	p.start(t)
+	x := g.waitStarted(t)
+	ctx := t.Context()
+	first, err := x.AddStep(ctx, "find open ports", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, _ := x.AddStep(ctx, "templates", 1)
+	third, _ := x.AddStep(ctx, "OpenVAS", 1)
+	if err := x.StartStep(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.StepNote(ctx, first, "finding open ports: 41%"); err != nil {
+		t.Fatal(err)
+	}
+	if got := b.get(p, id).Steps[0]; got.Note == nil || *got.Note != "finding open ports: 41%" || got.Status != run.Running {
+		t.Fatalf("running step = %+v", got)
+	}
+	if err := x.Progress(ctx, first, 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.EndStep(ctx, first, run.Done, "5 open TCP ports"); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.StepNote(ctx, first, "finding open ports: 99%"); err != nil { // late: the step has ended
+		t.Fatal(err)
+	}
+	if err := x.Progress(ctx, second, 1, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.SkipStep(ctx, second, "no identified service to check"); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.SkipStep(ctx, third, "OpenVAS is turned off"); err != nil {
+		t.Fatal(err)
+	}
+	d := b.get(p, id)
+	want := []struct {
+		st   run.Status
+		note string
+		done int
+	}{{run.Done, "5 open TCP ports", 1}, {run.Skipped, "no identified service to check", 1}, {run.Skipped, "OpenVAS is turned off", 0}}
+	for i, w := range want {
+		s := d.Steps[i]
+		if s.Status != w.st || s.Note == nil || *s.Note != w.note || s.Done != w.done || s.EndedAt == nil {
+			t.Errorf("step %d = %s %v done %d ended %v, want %s %q done %d", i+1, s.Status, s.Note, s.Done, s.EndedAt, w.st, w.note, w.done)
+		}
+	}
+	if d.Total != 3 || d.Done != 2 {
+		t.Errorf("run = %d of %d, want 2 of 3: a step never reached is not counted done", d.Done, d.Total)
+	}
+	b.invariantsHold()
+	g.release <- run.Result{}
+	p.waitEnded(t, id)
+	if d := b.get(p, id); d.Status != run.Done || d.Steps[1].Status != run.Skipped {
+		t.Errorf("ended run = %s, steps %+v", d.Status, d.Steps)
+	}
+	b.invariantsHold()
+}
+
+// A restart that cuts a run whose kind cannot go on from its steps leaves no step waiting for its turn on a run that has ended: the
+// running step is stopped and the steps it never reached are skipped, with why.
+func TestARestartSkipsTheStepsANonResumableRunNeverReached(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	p1 := b.process(nil, g.kind("exposure", "scan", "exposure", false))
+	id := create(t, p1, spec("exposure", "scan", "Scan of 198.51.100.7"))
+	if err := p1.Start(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	x := g.waitStarted(t)
+	ctx := t.Context()
+	first, err := x.AddStep(ctx, "find open ports", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := x.AddStep(ctx, "templates", 1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := x.AddStep(ctx, "OpenVAS", 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.StartStep(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	p1.Close() // the box stops: the rows are left as they are, as after a crash
+
+	p2 := b.process(nil, newGated().kind("exposure", "scan", "exposure", false))
+	if err := p2.Recover(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	d := b.get(p2, id)
+	if d.Status != run.Stopped || d.CanResume {
+		t.Fatalf("run after the restart = %s (can resume %v), want stopped for good", d.Status, d.CanResume)
+	}
+	if s := d.Steps[0]; s.Status != run.Stopped || s.EndedAt == nil {
+		t.Errorf("running step after the restart = %+v, want stopped", s)
+	}
+	for _, s := range d.Steps[1:] {
+		if s.Status != run.Skipped || s.Note == nil || !strings.Contains(*s.Note, run.RestartReason) || s.EndedAt == nil || s.Done != 0 {
+			t.Errorf("step %q never reached = %s %v ended %v done %d, want skipped, saying the restart", s.Name, s.Status, s.Note, s.EndedAt, s.Done)
+		}
+	}
+	b.invariantsHold()
+}
+
+// FillNote gives a step that ended without a note its note once, and never touches a running step, a step with a note, its state or
+// its end time.
+func TestFillNoteWritesTheNoteOfAnEndedStepOnce(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	p := b.process(nil, g.kind("scan", "multi", "a", false))
+	id := create(t, p, spec("scan", "multi", "Two steps"))
+	p.start(t)
+	x := g.waitStarted(t)
+	ctx := t.Context()
+	ports, _ := x.AddStep(ctx, "find open ports", 1)
+	services, _ := x.AddStep(ctx, "identify services", 1)
+	_ = x.StartStep(ctx, ports)
+	_ = x.EndStep(ctx, ports, run.Done, "")
+	_ = x.StartStep(ctx, services)
+	ended := b.get(p, id).Steps[0].EndedAt
+	b.clock.Advance(time.Minute)
+	for _, n := range []string{"7 open TCP ports found.", "a second note"} {
+		if err := x.FillNote(ctx, ports, n); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := x.FillNote(ctx, services, "not while it runs"); err != nil {
+		t.Fatal(err)
+	}
+	d := b.get(p, id)
+	if s := d.Steps[0]; s.Status != run.Done || s.Note == nil || *s.Note != "7 open TCP ports found." || s.EndedAt == nil || *s.EndedAt != *ended {
+		t.Errorf("ended step = %s %v ended %v (was %v), want done with the first note and the same end", s.Status, s.Note, s.EndedAt, ended)
+	}
+	if s := d.Steps[1]; s.Status != run.Running || s.Note != nil {
+		t.Errorf("running step = %s %v, want running without a note", s.Status, s.Note)
+	}
+	g.release <- run.Result{}
+	p.waitEnded(t, id)
+	b.invariantsHold()
+}

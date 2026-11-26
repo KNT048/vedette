@@ -432818,6 +432818,8 @@ func (s *ScanningGetRunsIDOKStepsItemStatus) Decode(d *jx.Decoder) error {
 		*s = ScanningGetRunsIDOKStepsItemStatusFailed
 	case ScanningGetRunsIDOKStepsItemStatusStopped:
 		*s = ScanningGetRunsIDOKStepsItemStatusStopped
+	case ScanningGetRunsIDOKStepsItemStatusSkipped:
+		*s = ScanningGetRunsIDOKStepsItemStatusSkipped
 	default:
 		*s = ScanningGetRunsIDOKStepsItemStatus(v)
 	}

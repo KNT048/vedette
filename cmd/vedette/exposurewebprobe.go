@@ -20,7 +20,7 @@ var _ exposure.GreenboneProbeLog = exposureProbeLog{}
 // fails. Written again with the same ID once the scan ended, it completes the row with p.Result (matched, not_matched, not_run).
 func (l exposureProbeLog) RecordGreenboneProbe(ctx context.Context, p exposure.GreenboneProbe) error {
 	return scanService(l.d).RecordExternalProbes(ctx, []scan.ExternalProbe{{
-		ID: p.ID, IP: p.IP, Label: p.IP, Template: "exposure: OpenVAS (Greenbone CE), config " + p.Config, Request: greenboneProbeRequest(p), Result: p.Result,
+		ID: p.ID, IP: p.IP, Label: p.IP, Template: "exposure: OpenVAS (Greenbone CE), config " + p.Config, Request: greenboneProbeRequest(p), RunID: exposure.RunIDOf(ctx), Result: p.Result,
 	}})
 }
 
@@ -36,6 +36,6 @@ func greenboneProbeRequest(p exposure.GreenboneProbe) string {
 func (l exposureProbeLog) RecordWebProbe(ctx context.Context, p exposure.WebProbe) error {
 	return scanService(l.d).RecordExternalProbes(ctx, []scan.ExternalProbe{{
 		ID: p.ID, IP: p.IP, Label: fmt.Sprintf("%s:%d", p.IP, p.Port), Template: "exposure: " + p.Tool,
-		Request: fmt.Sprintf("planned: passive web scan of %s, ZAP pinned to %s:%d (no other address, no DNS)", p.URL, p.IP, p.Port),
+		Request: fmt.Sprintf("planned: passive web scan of %s, ZAP pinned to %s:%d (no other address, no DNS)", p.URL, p.IP, p.Port), RunID: exposure.RunIDOf(ctx),
 	}})
 }

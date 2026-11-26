@@ -20,7 +20,7 @@ import (
 //   - The calibration of the vantage (INV-44, PathChecker): once at the start of the run for the fixed list and the ports open before,
 //     then for each port found open, a TCP connect to never-routed addresses (syn-ack, reset or nothing). For a port the network
 //     answers with a syn-ack that the target answered too, the target's answer is compared with the never-routed address's (its TLS
-//     certificate, else its HTTP answer): a different answer is the target's own service.
+//     certificate, else its HTTP answer; on another port the banner it sends first): a different answer is the target's own service.
 //   - The liveness checks (INV-42, Liveness): before each engine step and before the results are written, a TCP connect to the ports
 //     seen open earlier in the run.
 //   - The re-check (INV-22, PortProber): right before the results are written, a TCP connect to the ports open before that the scan

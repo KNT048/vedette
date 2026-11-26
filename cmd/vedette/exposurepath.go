@@ -43,10 +43,12 @@ const (
 //   - PathAnswers: for each port, a plain TCP connect to each never-routed address, closed as soon as it opens (nothing is sent; the
 //     packets reach no one but the box's own network). What two of the three addresses get is the network's answer: two, so a lab
 //     network that routes one of the ranges inside itself cannot make a real port vanish from every target.
-//   - SameAsPath: for a web or TLS port of the fixed list (commonports) that the network accepts for every address, what the target
-//     answers there (its TLS certificate, else the status, Server header and title of one GET of /, as the scan's own check of a web
-//     port reads) against what a never-routed address answers through the same network (the proxy's own certificate or error
-//     page). Any other port is not read: the network's answer stands.
+//   - SameAsPath: for a port the network accepts for every address, what the target answers there against what a never-routed
+//     address answers through the same network (the proxy's own certificate, error page or banner). On a web or TLS port of the
+//     fixed list (commonports): its TLS certificate, else the status, Server header and title of one GET of /, as the scan's own
+//     check of a web port reads. On any other port: what a server that speaks first sends by itself (its banner: at most 512 bytes
+//     within 2 seconds, nothing sent). A target that sends nothing of its own (a client-speaks-first service) cannot be told
+//     apart: the network's answer stands.
 type exposurePath struct {
 	dial   func(ctx context.Context, network, address string) (net.Conn, error)
 	public func(netip.Addr) bool // nil: egressip.IsPublicIPv4
@@ -126,20 +128,53 @@ func (p exposurePath) SameAsPath(ctx context.Context, ip netip.Addr, port int) (
 	if !public(ip.Unmap()) || port < 1 || port > 65535 {
 		return false, fmt.Errorf("exposure path: %s:%d is not a public IPv4 address and port", ip, port)
 	}
-	use, ok := webUse(port)
-	if !ok {
-		return true, nil
+	read := p.bannerOf // any other port: what a server that speaks first sends by itself
+	if use, ok := webUse(port); ok {
+		read = func(ctx context.Context, addr netip.AddrPort) string { return p.answerOf(ctx, addr, use) }
 	}
-	target := p.answerOf(ctx, netip.AddrPortFrom(ip.Unmap(), uint16(port)), use)
+	target := read(ctx, netip.AddrPortFrom(ip.Unmap(), uint16(port)))
+	if target == bannerNone { // the target sends nothing of its own (a client-speaks-first service): the network's answer stands
+		return true, ctx.Err()
+	}
 	for _, a := range neverRouted {
 		if ctx.Err() != nil {
 			return false, ctx.Err()
 		}
-		if p.answerOf(ctx, netip.AddrPortFrom(a, uint16(port)), use) == target {
+		if read(ctx, netip.AddrPortFrom(a, uint16(port))) == target {
 			return true, nil
 		}
 	}
 	return false, ctx.Err()
+}
+
+// Bounds of a banner read: what a server that speaks first sends by itself within bannerTimeout, at most bannerLimit bytes.
+const (
+	bannerTimeout = 2 * time.Second
+	bannerLimit   = 512
+)
+
+// bannerNone is a connection that sent nothing of its own (it closed, failed or stayed silent).
+const bannerNone = "banner none"
+
+var digitsRE = regexp.MustCompile(`[0-9]+`)
+
+// bannerOf is what addr sends by itself right after the connect, nothing sent: at most bannerLimit bytes within bannerTimeout, its
+// digits folded (a time or a counter in a proxy's own banner is the same banner). bannerNone when it sends nothing.
+func (p exposurePath) bannerOf(ctx context.Context, addr netip.AddrPort) string {
+	rctx, cancel := context.WithTimeout(ctx, bannerTimeout)
+	defer cancel()
+	c, err := p.dial(rctx, "tcp", addr.String())
+	if err != nil {
+		return bannerNone
+	}
+	defer func() { _ = c.Close() }()
+	dl, _ := rctx.Deadline()
+	_ = c.SetDeadline(dl)
+	got, _ := io.ReadAll(io.LimitReader(c, bannerLimit)) // until the limit, the deadline, or the end of the connection
+	if len(got) == 0 {
+		return bannerNone
+	}
+	return "banner " + digitsRE.ReplaceAllString(string(got), "0")
 }
 
 // webUse is what the scan reads on port when it is a web or TLS port of the fixed list.

@@ -111,7 +111,8 @@ func TestExposurePathStopsWithTheScan(t *testing.T) {
 
 // A transparent proxy on a web port answers every address with its own page; through it, the target's own web service answers with
 // its own. The comparison tells them apart: the same page as a never-routed address gets is the network's, another page the target's.
-// A port that is not a web or TLS port of the fixed list is not read at all, and only a public address is ever read.
+// A port that is not a web or TLS port of the fixed list gets nothing sent (only its banner is read), and only a public address is
+// ever read.
 func TestExposurePathComparesTheTargetsAnswerWithTheNetworks(t *testing.T) {
 	t.Parallel()
 	page := func(title string) *httptest.Server {
@@ -140,12 +141,13 @@ func TestExposurePathComparesTheTargetsAnswerWithTheNetworks(t *testing.T) {
 	if same, err := through(proxy).SameAsPath(t.Context(), target, 80); err != nil || !same {
 		t.Fatalf("only the proxy's page: same %v, err %v", same, err)
 	}
-	none := exposurePath{dial: func(context.Context, string, string) (net.Conn, error) {
-		t.Fatal("a port that is not a web or TLS port was read")
-		return nil, nil
+	var mu sync.Mutex
+	wrote := false
+	none := exposurePath{dial: func(context.Context, string, string) (net.Conn, error) { // a service that sends nothing first
+		return &bannerConn{mu: &mu, wrote: &wrote}, nil
 	}, public: func(netip.Addr) bool { return true }}
-	if same, err := none.SameAsPath(t.Context(), target, 5060); err != nil || !same {
-		t.Fatalf("5060: same %v, err %v", same, err)
+	if same, err := none.SameAsPath(t.Context(), target, 5060); err != nil || !same || wrote {
+		t.Fatalf("5060 (not a web or TLS port, nothing sent by the target): same %v, err %v, wrote %v", same, err, wrote)
 	}
 	if _, err := (exposurePath{dial: none.dial}).SameAsPath(t.Context(), netip.MustParseAddr("10.0.0.1"), 80); err == nil {
 		t.Fatal("a private address was read")

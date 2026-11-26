@@ -138,8 +138,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   get is the network's answer: accepted, refused or nothing): at the start of the run for the fixed list and the ports open before,
   then for each port a scan step finds open, each port once a run. A port the network accepts for every address is the target's
   only when the target's own answer differs from what a never-routed address gets through the same network (`SameAsPath`: for a web
-  or TLS port of the fixed list, the TLS certificate, else the status, Server header and title of GET /; any other port is not
-  read): a real web service behind a transparent proxy is still found. Otherwise the port is left out of the results before any
+  or TLS port of the fixed list, the TLS certificate, else the status, Server header and title of GET /; for any other port, the
+  banner a server that speaks first sends by itself, at most 512 bytes within 2 seconds, nothing sent, its digits folded; a target
+  that sends nothing of its own, a client-speaks-first service such as SIP, cannot be told apart and stays the network's): a real
+  web, SSH or SMTP service behind a transparent proxy is still found, and its row stored before the check is kept. Otherwise the port is left out of the results before any
   engine step (no service, admin page, certificate or script result, no template, ZAP or OpenVAS job) and its verdict is `network`.
   A reset the network gives for every address is not the target's either: the port's verdict is `network`, and the runner's and the
   sweep's resets no longer show the address answered. The run's log says which ports, once each, and the target's "Not checked"

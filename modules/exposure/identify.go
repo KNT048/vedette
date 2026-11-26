@@ -325,8 +325,8 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 	if s.cfg.Services == nil {
 		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: NotSetUpServices})
-		rs.skip(ctx, stepKeyPorts, NotSetUpServices, true)
-		rs.skip(ctx, stepKeyServices, NotSetUpServices, true)
+		rs.skip(ctx, stepKeyPorts, NotSetUpServices)
+		rs.skip(ctx, stepKeyServices, NotSetUpServices)
 		return s.runTemplates(ctx, st, netip.Addr{}, c) // no services, so it only says why it did not run
 	}
 	// The surface scan already saw the address answer on almost every port. A deep scan is not sent (-sV on every port of a SYN
@@ -335,8 +335,8 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 	if surfaceEverywhere && st.Mode.Full {
 		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notAnswersEverywhere})
-		rs.skip(ctx, stepKeyPorts, notAnswersEverywhere, true)
-		rs.skip(ctx, stepKeyServices, notAnswersEverywhere, true)
+		rs.skip(ctx, stepKeyPorts, notAnswersEverywhere)
+		rs.skip(ctx, stepKeyServices, notAnswersEverywhere)
 		return c, nil
 	}
 	sctx, cancel := context.WithTimeout(ctx, limit)
@@ -411,7 +411,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: everywhere})
 		rs.end(ctx, stepKeyPorts, corerun.Done, everywhere)
-		rs.skip(ctx, stepKeyServices, everywhere, true)
+		rs.skip(ctx, stepKeyServices, everywhere)
 		return c, nil
 	case errors.Is(err, ErrServicesTimedOut):
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: gaveUp})
@@ -419,8 +419,8 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 	case errors.As(err, &un):
 		why := "Service identification (nmap -sV) did not run: " + clipText(un.Reason, 200)
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: why})
-		rs.skip(ctx, stepKeyPorts, why, true) // not a failure of the scan: the box cannot run it now, and says why
-		rs.skip(ctx, stepKeyServices, why, true)
+		rs.skip(ctx, stepKeyPorts, why) // not a failure of the scan: the box cannot run it now, and says why
+		rs.skip(ctx, stepKeyServices, why)
 	case sctx.Err() != nil:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: slow})
 		rs.endFirstOpen(ctx, corerun.Failed, slow, stepKeyPorts, stepKeyServices)

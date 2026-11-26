@@ -119,7 +119,7 @@ func (x *Exec) FillNote(ctx context.Context, seq int, note string) error {
 	if n == nil {
 		return nil
 	}
-	return x.write(ctx, func(tx *sql.Tx, now string) error {
+	return x.write(ctx, func(tx *sql.Tx, _ string) error {
 		_, err := tx.ExecContext(ctx, `UPDATE core_run_step SET note = ? WHERE run_id = ? AND seq = ? AND note IS NULL AND ended_at IS NOT NULL
 			AND status IN (?, ?, ?, ?, ?)`, n, x.id, seq, string(Done), string(Partial), string(Failed), string(Stopped), string(Skipped))
 		return err

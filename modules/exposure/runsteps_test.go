@@ -14,9 +14,9 @@ import (
 )
 
 // runDetail reads run id as the run page does.
-func (e *env) runDetail(id string) corerun.Detail {
+func (e *env) runDetail(ctx context.Context, id string) corerun.Detail {
 	e.t.Helper()
-	d, err := e.svc.cfg.Runs.Get(e.ctx(), id)
+	d, err := e.svc.cfg.Runs.Get(ctx, id)
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func (e *env) newestScanRun() corerun.Detail {
 	if err := e.svc.cfg.DB.Reader().QueryRowContext(e.ctx(), `SELECT r.id FROM exp_scan x JOIN core_run r ON r.id = x.run_id ORDER BY r.queued_at DESC, r.rowid DESC LIMIT 1`).Scan(&id); err != nil {
 		e.t.Fatal(err)
 	}
-	return e.runDetail(id)
+	return e.runDetail(e.ctx(), id)
 }
 
 type wantStep struct {
@@ -74,7 +74,7 @@ func TestRunSteps_ADeepIPScanListsEveryStepInOrder(t *testing.T) {
 	t.Parallel()
 	e := stepsEnv(t)
 	s := e.scanIP(gbOpen())
-	d := e.runDetail(s.RunID)
+	d := e.runDetail(e.ctx(), s.RunID)
 	checkSteps(t, d, []wantStep{
 		{stepNameCheck, corerun.Done, "Deep scan"},
 		{stepNameSurfaceIP, corerun.Done, "open of the commonly exposed ones"},
@@ -106,7 +106,7 @@ func TestRunSteps_ASkippedStepSaysWhy(t *testing.T) {
 	}
 	e.svc.cfg.Services = &fakeServices{err: &Unavailable{Reason: "the Active discovery module is off."}}
 	s := e.scanIP(gbOpen())
-	d := e.runDetail(s.RunID)
+	d := e.runDetail(e.ctx(), s.RunID)
 	off := "Service identification (nmap -sV) did not run: the Active discovery module is off."
 	checkSteps(t, d, []wantStep{
 		{stepNameCheck, corerun.Done, ""},
@@ -186,13 +186,13 @@ func TestRunSteps_ProgressIsTheNoteOfTheRunningStep(t *testing.T) {
 		if RunIDOf(ctx) != midRun { // the probe log names the run
 			t.Errorf("RunIDOf = %q, want %q", RunIDOf(ctx), midRun)
 		}
-		ports := e.runDetail(midRun)
+		ports := e.runDetail(ctx, midRun)
 		if st := ports.Steps[2]; st.Status != corerun.Running || st.Note == nil || *st.Note != "41%, about 9 minutes left" {
 			t.Errorf("port discovery while it runs = %s %v", st.Status, st.Note)
 		}
 		progress.Report(ctx, progress.Update{Phase: progress.PhaseServices, Percent: 50})
 		rs.flush(ctx)
-		mid = e.runDetail(midRun)
+		mid = e.runDetail(ctx, midRun)
 	}}
 	e.scanIP(gbOpen())
 	if mid.Steps[2].Status != corerun.Done || mid.Steps[3].Status != corerun.Running || mid.Steps[3].Note == nil || *mid.Steps[3].Note != "reading service versions: 50%" {
@@ -201,7 +201,7 @@ func TestRunSteps_ProgressIsTheNoteOfTheRunningStep(t *testing.T) {
 	if mid.Summary != "3 of 8 steps" {
 		t.Errorf("summary while it runs = %q", mid.Summary)
 	}
-	if d := e.runDetail(midRun); d.Steps[3].Note == nil || !strings.HasPrefix(*d.Steps[3].Note, "Service identification") {
+	if d := e.runDetail(e.ctx(), midRun); d.Steps[3].Note == nil || !strings.HasPrefix(*d.Steps[3].Note, "Service identification") {
 		t.Errorf("the end replaces the live note: %v", d.Steps[3].Note)
 	}
 }
@@ -242,7 +242,7 @@ func TestRunSteps_ADomainDeepScanListsItsAddresses(t *testing.T) {
 	}
 	d.run.content = Content{Hosts: hosts, Ports: []PortRow{}}
 	s := d.scan()
-	run := d.runDetail(s.RunID)
+	run := d.runDetail(d.ctx(), s.RunID)
 	want := []wantStep{
 		{stepNameCheck, corerun.Done, "Deep scan"},
 		{stepNameSurfaceDom, corerun.Done, "5 names found, on 5 addresses."},
@@ -281,13 +281,13 @@ func TestRunSteps_PortDiscoveryEndsWithItsCountInNmapsPhaseOrder(t *testing.T) {
 			progress.Report(ctx, u)
 			rs.flush(ctx)
 		}
-		mid = e.runDetail(midRun)
+		mid = e.runDetail(ctx, midRun)
 	}}
 	e.scanIP(gbOpen())
 	if p := mid.Steps[2]; p.Status != corerun.Done || p.EndedAt == nil {
 		t.Fatalf("port discovery during the service scan = %s ended %v, want done", p.Status, p.EndedAt)
 	}
-	d := e.runDetail(midRun)
+	d := e.runDetail(e.ctx(), midRun)
 	p := d.Steps[2]
 	if p.Status != corerun.Done || p.Note == nil || !strings.Contains(*p.Note, "open TCP port") {
 		t.Errorf("port discovery at the end = %s %v, want done with the count of open ports", p.Status, p.Note)

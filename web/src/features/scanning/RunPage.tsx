@@ -91,7 +91,9 @@ function Body({ r, crumbs }: { r: RunDetail; crumbs: Crumb[] }) {
   const kindLabel = useKindLabel()
   const startedBy = useStartedBy()
   const stepsLine = useStepsLine()
-  const subject = r.subject ? subjectHref(r.subject.kind, r.subject.id) : null
+  // the subject's page is linked once: by the breadcrumb when the run's page sits under it, by About otherwise
+  const href = r.subject ? subjectHref(r.subject.kind, r.subject.id) : null
+  const subject = href && !crumbs.some((c) => c.to === href) ? href : null
   // A public scan's items of kind "port" record which ports its service step checked, for the next scan; they are not devices or
   // addresses, so they are neither listed nor counted (the count can only leave out the ones among the items read).
   const items = r.items.filter((it) => it.subject_kind !== 'port')

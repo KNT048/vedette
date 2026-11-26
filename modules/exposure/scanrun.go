@@ -567,7 +567,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}
 	ex.gbRun = GreenboneRun{State: GBRunNotRun}
 	if !gb {
-		rs.skip(ctx, stepKeyOpenVAS, cmp.Or(line, "OpenVAS does not run in this scan."), true)
+		rs.skip(ctx, stepKeyOpenVAS, cmp.Or(line, "OpenVAS does not run in this scan."))
 		return corerun.Result{}, nil
 	}
 	return s.openVASStep(ctx, x, ex, user, t, content, deep, gbIP)

@@ -202,15 +202,6 @@ func (rs *runSteps) addTail(ctx context.Context) {
 // addressKey is the key of the step of one of a domain's addresses.
 func addressKey(ip string) string { return "address:" + ip }
 
-func (rs *runSteps) has(key string) bool {
-	if rs == nil {
-		return false
-	}
-	rs.mu.Lock()
-	defer rs.mu.Unlock()
-	return rs.byKey[key] != nil
-}
-
 // start marks a queued step running and logs it; a step that runs or has ended is left as it is.
 func (rs *runSteps) start(ctx context.Context, key string) {
 	if rs == nil {
@@ -298,15 +289,16 @@ func (rs *runSteps) fillLocked(ctx context.Context, st *runStep, how corerun.Sta
 	rs.warn(ctx, "log", rs.x.Log(c, corerun.Info, clipText(st.name+": "+note, 1000)))
 }
 
-// skip records that a step did not run, with why. counts says the scan is complete without it (an engine turned off, nothing for it
-// to check): it counts as done in the run's "3 of 8 steps"; a step the run never reached does not.
-func (rs *runSteps) skip(ctx context.Context, key, note string, counts bool) {
+// skip records that a step did not run, with why, while the scan goes on: the scan is complete without it (an engine turned off,
+// nothing for it to check), so it counts as done in the run's "3 of 8 steps". A step the run never reached is skipped by close, and
+// does not count.
+func (rs *runSteps) skip(ctx context.Context, key, note string) {
 	if rs == nil {
 		return
 	}
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	rs.skipLocked(ctx, key, note, counts)
+	rs.skipLocked(ctx, key, note, true)
 }
 
 func (rs *runSteps) skipLocked(ctx context.Context, key, note string, counts bool) {
@@ -385,7 +377,7 @@ func (rs *runSteps) settle(ctx context.Context, key string, c Content, kinds ...
 		rs.end(ctx, key, corerun.Done, text)
 		return
 	}
-	rs.skip(ctx, key, firstNotChecked(c, "Not needed in this scan.", kinds...), true)
+	rs.skip(ctx, key, firstNotChecked(c, "Not needed in this scan.", kinds...))
 }
 
 // record ends the engine steps whose calls are over (stepLog.rows), with the outcome and the sentence Settings › Scanning shows.

@@ -475,7 +475,7 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 	if waiting > 0 {
 		rs.add(ctx, stepDef{stepKeyWaiting, stepNameWaiting})
 		rs.skip(ctx, stepKeyWaiting, fmt.Sprintf("%s wait for the next scans: one scan deep-scans at most %d addresses, those scanned longest ago first.",
-			nouns(waiting, "address", "addresses"), MaxDeepIPs), true)
+			nouns(waiting, "address", "addresses"), MaxDeepIPs))
 	}
 	if len(queue) == 0 {
 		noAddressStep(ctx, firstNotChecked(Content{NotChecked: lines}, notDeepNone, "deep"))
@@ -514,7 +514,7 @@ func addressStepEnd(ctx context.Context, rs *runSteps, key, label, got string, c
 	}
 	switch got {
 	case DeepRefused:
-		rs.skip(ctx, key, last("Not scanned at depth: the re-check right before refused it.", "deep"), true)
+		rs.skip(ctx, key, last("Not scanned at depth: the re-check right before refused it.", "deep"))
 	case DeepIncomplete:
 		rs.end(ctx, key, corerun.Partial, last(deepNoNmap, "services", "deep"))
 	default:
@@ -532,7 +532,7 @@ func addressStepEnd(ctx context.Context, rs *runSteps, key, label, got string, c
 func noAddressStep(ctx context.Context, why string) {
 	rs := runStepsOf(ctx)
 	rs.add(ctx, stepDef{addressKey("none"), "Deep scan of the names' addresses"})
-	rs.skip(ctx, addressKey("none"), why, true)
+	rs.skip(ctx, addressKey("none"), why)
 }
 
 // deepMode is the run's ScanTarget for one address: an address reached only through a name that points (CNAME) outside the domain

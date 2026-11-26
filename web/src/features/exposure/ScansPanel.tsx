@@ -23,8 +23,9 @@ export function ScansPanel({ node }: { node: TargetNode }) {
 const when = (s: Scan) => s.started_at ?? s.queued_at
 const newest = (scans: Scan[]): Scan | undefined => scans.reduce<Scan | undefined>((a, s) => (!a || when(s) > when(a) ? s : a), undefined)
 
-/** The steps of the newest scan (the run page's list, compact), with where it stands and the way to its run page. A queued scan has no
- *  steps yet: nothing is shown until it starts. */
+/** The steps of the newest scan (the run page's list, compact) and where it stands. Its run page is opened from its row in the list
+ *  below (and the scan line above the tabs), so the panel has no link of its own. A queued scan has no steps yet: nothing is shown
+ *  until it starts. */
 function LatestSteps({ scan }: { scan: Scan }) {
   const { t } = useTranslation('exposure')
   const q = useRun(scan.run_id)
@@ -35,7 +36,7 @@ function LatestSteps({ scan }: { scan: Scan }) {
     <Card flush className="my-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-rule px-3 py-2">
         <h3 className="text-sm font-medium">{t(isLive(scan) ? 'scans.stepsNow' : 'scans.stepsLatest', { when: fmtDateTime(when(scan)) })}</h3>
-        <span className="text-meta text-muted">{stepsLine(steps)} · <Link className={link} to={runHref(scan.run_id)}>{t('run.open')}</Link></span>
+        <span className="text-meta text-muted">{stepsLine(steps)}</span>
       </div>
       <RunSteps steps={steps} compact label={t('scans.stepsOf', { when: fmtDateTime(when(scan)) })} />
     </Card>

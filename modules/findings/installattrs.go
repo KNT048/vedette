@@ -304,6 +304,9 @@ func (s *siblings) read() map[string]*[11]map[string]bool {
 		if lit, _ := c.fields()[attrSWEdition].Literal(); c.fields()[attrSWEdition].Kind == Value && strings.EqualFold(lit, mozillaESR) {
 			from := major(cmp.Or(af.Range.StartIncl, af.Range.StartExcl), 0)
 			to := major(cmp.Or(af.Range.EndExcl, af.Range.EndIncl), math.MaxUint64)
+			if exact, ok := c.Version.Literal(); ok && c.Version.Kind == Value && af.Range.IsZero() {
+				from, to = major(exact, 0), major(exact, math.MaxUint64) // one ESR build (140.9.0 esr): its line only
+			}
 			s.esrLines[k] = append(s.esrLines[k], [2]uint64{from, to})
 		}
 		if out[k] == nil {
@@ -490,6 +493,9 @@ const (
 	AttrEdition      = "edition"      // sw_edition or edition: "ESR or the normal release?"
 	AttrArchitecture = "architecture" // target_hw: "the 64-bit build?"
 	AttrPlatform     = "platform"     // target_sw: "which system?"
+	// AttrUnlistedLine: the build is a Mozilla ESR of a line the CVE's ESR rows do not list (end of life, esrLineUnlisted): the
+	// edition is known, whether that line is affected is not.
+	AttrUnlistedLine = "unlisted_line"
 )
 
 // blockingAttribute is the build attribute that keeps v undecided on the line: a row of the line's own product, judged with what the
@@ -524,11 +530,14 @@ func blockingAttribute(in swInfo, v Vuln, key []identity) string {
 		}
 		for i, name := range map[int]string{attrEdition: AttrEdition, attrSWEdition: AttrEdition, attrTargetHW: AttrArchitecture, attrTargetSW: AttrPlatform} {
 			if f[i].Kind != Any && (!in.hasCPE || !attrMatch(*f[i], *sf[i])) {
+				if i == attrSWEdition && in.install.edition == mozillaESR && sib.esrLineUnlisted(c, in.install.esrLine) {
+					name = AttrUnlistedLine // the plain row judge kept pinned: the edition is known, the line is not listed
+				}
 				found[name] = true
 			}
 		}
 	}
-	for _, a := range []string{AttrEdition, AttrArchitecture, AttrPlatform} {
+	for _, a := range []string{AttrUnlistedLine, AttrEdition, AttrArchitecture, AttrPlatform} {
 		if found[a] {
 			return a
 		}

@@ -57423,6 +57423,8 @@ func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) Validate()
 		return nil
 	case "platform":
 		return nil
+	case "unlisted_line":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}

@@ -86,7 +86,7 @@ export interface QuestionRecord {
   line?: string | null
   versions_listed?: boolean
   /** not_comparable: the build attribute NVD pins that decides it (edition, architecture, platform). */
-  attribute?: 'edition' | 'architecture' | 'platform' | null
+  attribute?: 'edition' | 'architecture' | 'platform' | 'unlisted_line' | null
   /** A "not affected" answer, kept so it can be taken back; absent while the question waits. */
   answered?: { by: string; at: string }
 }

@@ -167,7 +167,8 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   alone decides. A row the derived attribute satisfies is read without that pin; a row about another build does not apply (`judge`): for
   Mozilla, NVD lists the ESR rows whenever an ESR is affected, so an ESR build inside only the plain rows is not affected, except when
   the CVE lists ESR rows and none spans the build's ESR line: Mozilla lists supported ESR lines only, so an end-of-life line
-  (Thunderbird 115, or Firefox ESR 140 between the listed 115 and 153) stays asked (`TestMatchAsset_UnlistedESRLineStaysAsked`). A platform's
+  (Thunderbird 115, or Firefox ESR 140 between the listed 115 and 153; an exact ESR row lists its own line only) stays asked whether that
+  line is affected (`detail.attribute` `unlisted_line`, never the edition: `TestMatchAsset_UnlistedESRLineStaysAsked`). A platform's
   "-" alone is every build (Visual Studio Code); beside named systems (Office's "-" and "macos") it is the build for none of them. A
   derived attribute is the device's evidence (the finding is verified `device`) and the evidence names it. What is not derivable stays
   pinned (#906): a version inside the range of every edition NVD lists is a version finding whichever it runs (`pinnedInside`); inside

@@ -182,6 +182,9 @@ func TestMatchAsset_UnlistedESRLineStaysAsked(t *testing.T) {
 			tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.12.0"})}, "finding"},
 		{"an ESR row fixed on 115 before this build", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{EndExcl: "115.5.0"})}, "none"},
 		{"plain rows only", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"})}, "none"},
+		// NVD also writes an ESR row as one exact build (CVE-2026-5731: thunderbird 140.9.0 esr): it lists line 140 only
+		{"an exact ESR build of 140", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}),
+			{CPE: "cpe:2.3:a:mozilla:thunderbird:140.9.0:*:*:*:esr:*:*:*"}}, "question"},
 	} {
 		r := MatchAsset(row, []Vuln{{CVE: "CVE-2099-0211", NVDAnswered: true, Published: uncNew, Affected: tc.rows}}, nil, t0)
 		got := "none"
@@ -194,6 +197,10 @@ func TestMatchAsset_UnlistedESRLineStaysAsked(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("%s: %s, want %s (%+v)", tc.name, got, tc.want, r)
 		}
+		// the box knows the build is ESR: the question is whether the unlisted line is affected, not which edition it is
+		if got == "question" && r.Unchecked[0].Attribute != AttrUnlistedLine {
+			t.Errorf("%s: the question asks for %q, want %q", tc.name, r.Unchecked[0].Attribute, AttrUnlistedLine)
+		}
 	}
 	// an end-of-life ESR line between the listed ones (Firefox ESR 140 once only 115, kept for older systems, and 153 are listed)
 	ff := func(edition string, r VersionRange) Affected {
@@ -203,8 +210,8 @@ func TestMatchAsset_UnlistedESRLineStaysAsked(t *testing.T) {
 		Version: "140.5.0", Source: "agent"}}}
 	r := MatchAsset(esr140, []Vuln{{CVE: "CVE-2099-0212", NVDAnswered: true, Published: uncNew, Affected: []Affected{ff("-", VersionRange{EndExcl: "157.0"}),
 		ff("esr", VersionRange{StartIncl: "115.1.0", EndExcl: "115.42.0"}), ff("esr", VersionRange{StartIncl: "153.0", EndExcl: "153.4.0"})}}}, nil, t0)
-	if len(r.New) != 0 || len(r.Unchecked) != 1 {
-		t.Errorf("Firefox ESR 140.5.0 between the listed ESR lines: %+v, want it asked", r)
+	if len(r.New) != 0 || len(r.Unchecked) != 1 || r.Unchecked[0].Attribute != AttrUnlistedLine {
+		t.Errorf("Firefox ESR 140.5.0 between the listed ESR lines: %+v, want it asked whether the unlisted line is affected", r)
 	}
 }
 

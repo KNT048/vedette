@@ -50,7 +50,8 @@ type Unchecked struct {
 	Line  string
 	fixes []versionscheme.Version
 	// Attribute: not_comparable only, the build attribute NVD pins that decides it and the box could not derive (blockingAttribute):
-	// AttrEdition, AttrArchitecture or AttrPlatform. The question then asks for it, not for the version. "" otherwise.
+	// AttrEdition, AttrArchitecture or AttrPlatform, or AttrUnlistedLine for a Mozilla ESR line the CVE's ESR rows do not list. The
+	// question then asks for it, not for the version. "" otherwise.
 	Attribute string
 }
 

@@ -111,12 +111,13 @@ func installLines(t *testing.T) (e *env, cause map[string]string, notAffected ma
 // and Linux rows (2), Notepad++ (x64), and Thunderbird 153.0.1 for the plain+ESR-from-140 rows. Open findings 2, both suspected
 // (Thunderbird inside every edition's range).
 //
-// After: 2 questions, each naming the attribute: Notepad++ (is it the 64-bit build? the name does not say, and a 64-bit Windows runs
-// 32-bit programs) and Thunderbird 153.0.1 (an M.0.x build of an ESR major: ESR or the normal release?). Findings on the device's own
-// word: Thunderbird 115.9.0 is an ESR build (2: ESR-only, both-cover), Firefox 160.0 a normal release, SQL Server 2022 the x64 build
-// (named "64-bit"), Node.js by its version (2), VS Code ("-" is no specific system), FortiClient's Windows build. Not affected, with
-// the build named: Thunderbird 115.9.0 for the plain-only, plain+two-ESR and plain+ESR-from-140 rows (NVD lists ESR rows whenever an
-// ESR is affected), FortiClient's Linux build.
+// After: 4 questions, each naming what decides it: Notepad++ (is it the 64-bit build? the name does not say, and a 64-bit Windows
+// runs 32-bit programs), Thunderbird 153.0.1 (an M.0.x build of an ESR major: ESR or the normal release?), and Thunderbird 115.9.0
+// for the plain+two-ESR and plain+ESR-from-140 rows (an end-of-life ESR line the ESR rows do not list: is it affected?). Findings on
+// the device's own word: Thunderbird 115.9.0 is an ESR build (2: ESR-only, both-cover), Firefox 160.0 a normal release, SQL Server
+// 2022 the x64 build (named "64-bit"), Node.js by its version (2), VS Code ("-" is no specific system), FortiClient's Windows build.
+// Not affected, with the build named: Thunderbird 115.9.0 for the plain-only rows (NVD lists ESR rows whenever an ESR is affected),
+// FortiClient's Linux build, SQL Server 2022 for SQL Server 2025's rows.
 func TestQueue_Count_InstallAttributes(t *testing.T) {
 	t.Parallel()
 	e, cause, notAffected, notes := installLines(t)
@@ -168,8 +169,9 @@ func TestQueue_Count_InstallAttributes(t *testing.T) {
 		"DESKTOP-01 not_comparable (architecture) / Notepad++: pinned to x64":        1,
 		"DESKTOP-02 not_comparable (edition) / Thunderbird: plain, and ESR from 140": 1,
 		// 115.9.0 is an ESR build of a line older than every ESR line listed (140, 153): their silence is no proof, it stays asked
-		"DESKTOP-01 not_comparable (edition) / Thunderbird: plain and two ESR branches": 1,
-		"DESKTOP-01 not_comparable (edition) / Thunderbird: plain, and ESR from 140":    1,
+		// whether that line is affected (the edition is known)
+		"DESKTOP-01 not_comparable (unlisted_line) / Thunderbird: plain and two ESR branches": 1,
+		"DESKTOP-01 not_comparable (unlisted_line) / Thunderbird: plain, and ESR from 140":    1,
 	}
 	if !maps.Equal(items, wantItems) {
 		t.Errorf("queue %v, want %v", items, wantItems)

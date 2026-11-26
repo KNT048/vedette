@@ -104347,9 +104347,11 @@ type FindingsGetFindingsInput1SoftwareGroupQuestionsItem struct {
 	AskedAt time.Time `json:"asked_at"`
 	// Not_comparable: the build attribute NVD pins that decides the CVE and Vedette could not derive from
 	// what it knows (edition: ESR or the normal release; architecture: the 64-bit or 32-bit build;
-	// platform: the system the build is for). The question asks for it, not for the version, and is
-	// answered per CVE (POST /findings/questions/{id}/answer). null when the version is what cannot be
-	// compared, and for the other kinds.
+	// platform: the system the build is for), or unlisted_line: the build is a Mozilla ESR of an
+	// end-of-life line the CVE's ESR rows do not list, so whether that line is affected is unknown. The
+	// question asks for it, not for the version, and is answered per CVE (POST
+	// /findings/questions/{id}/answer). null when the version is what cannot be compared, and for the
+	// other kinds.
 	Attribute NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute `json:"attribute"`
 	// Platform, package_release: the answers, each an inventory correction; empty for the other kinds
 	// (version_needed, not_comparable: type the version on the software line; no_range_data, older_line:
@@ -104555,6 +104557,7 @@ const (
 	FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeEdition      FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute = "edition"
 	FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute = "architecture"
 	FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform     FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute = "platform"
+	FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute = "unlisted_line"
 )
 
 // AllValues returns all FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute values.
@@ -104563,6 +104566,7 @@ func (FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) AllValues() 
 		FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeEdition,
 		FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture,
 		FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform,
+		FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine,
 	}
 }
 
@@ -104574,6 +104578,8 @@ func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) MarshalTex
 	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture:
 		return []byte(s), nil
 	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -104591,6 +104597,9 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) Unmarshal
 		return nil
 	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform:
 		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform
+		return nil
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

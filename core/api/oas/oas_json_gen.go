@@ -192602,6 +192602,8 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) Decode(d 
 		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture
 	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform:
 		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine
 	default:
 		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute(v)
 	}

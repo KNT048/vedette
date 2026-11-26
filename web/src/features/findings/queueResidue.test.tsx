@@ -70,4 +70,20 @@ describe('Needs your input: what each item really asks', () => {
     expect(within(row).getByRole('button', { name: 'Affected' })).toBeEnabled()
     expect(within(row).getByRole('button', { name: 'Not affected' })).toBeEnabled()
   })
+
+  it('an ESR line the CVE records do not list is asked whether it is affected, never which edition it is', async () => {
+    questions.update((l) => [...l, { id: 'fq-nas01-tb115', kind: 'not_comparable', attribute: 'unlisted_line', asset_id: 'a-nas01',
+      software: { id: 's-nas01-tb115', name: 'Mozilla Thunderbird', version: '115.9.0' }, cve: 'CVE-2099-0211', cves: 1, asked_at: new Date().toISOString(),
+      url: null, command: null, choices: [] }])
+    renderApp('/findings?tab=input', { role: 'admin' })
+    await openNeeds()
+    const sentence = await screen.findByText('Mozilla Thunderbird 115.9.0: an ESR line past its end of life, which the CVE records no longer list. 1 CVE waits on your answer.', {}, T)
+    const line = sentence.closest('li')!
+    expect(within(line).queryByRole('button', { name: 'Add the version…' })).toBeNull()
+    const row = itemOf(await within(line).findByRole('link', { name: 'CVE-2099-0211' }, T))
+    expect(row).toHaveTextContent('CVE-2099-0211 lists only the ESR lines Mozilla still supports, not the end-of-life line of Mozilla Thunderbird 115.9.0, so its record says neither affected nor fixed. Is this install affected?')
+    expect(row).not.toHaveTextContent('ESR or the normal release')
+    expect(within(row).getByRole('button', { name: 'Affected' })).toBeEnabled()
+    expect(within(row).getByRole('button', { name: 'Not affected' })).toBeEnabled()
+  })
 })

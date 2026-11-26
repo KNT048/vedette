@@ -55361,14 +55361,15 @@
                                                     "enum": [
                                                       "edition",
                                                       "architecture",
-                                                      "platform"
+                                                      "platform",
+                                                      "unlisted_line"
                                                     ]
                                                   },
                                                   {
                                                     "type": "null"
                                                   }
                                                 ],
-                                                "description": "not_comparable: the build attribute NVD pins that decides the CVE and Vedette could not derive from what it knows (edition: ESR or the normal release; architecture: the 64-bit or 32-bit build; platform: the system the build is for). The question asks for it, not for the version, and is answered per CVE (POST /findings/questions/{id}/answer). null when the version is what cannot be compared, and for the other kinds"
+                                                "description": "not_comparable: the build attribute NVD pins that decides the CVE and Vedette could not derive from what it knows (edition: ESR or the normal release; architecture: the 64-bit or 32-bit build; platform: the system the build is for), or unlisted_line: the build is a Mozilla ESR of an end-of-life line the CVE's ESR rows do not list, so whether that line is affected is unknown. The question asks for it, not for the version, and is answered per CVE (POST /findings/questions/{id}/answer). null when the version is what cannot be compared, and for the other kinds"
                                               }
                                             },
                                             "required": [

@@ -39,6 +39,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/knt048/vedette/content/wordlist"
@@ -196,6 +197,9 @@ type (
 		Certs      []Cert
 		Wordlist   string
 		Unresolved []string
+		// Refused are the port-scanned addresses that answered a connect with a TCP reset (a closed port), sorted: they were reachable
+		// in this scan even where nothing was open. An address that only dropped or timed out is not listed.
+		Refused []netip.Addr
 	}
 )
 
@@ -322,7 +326,7 @@ func (s *Scanner) Domain(ctx context.Context, domain string, names Names, maySca
 	for i := range res.Hosts {
 		res.Hosts[i].Addrs = s.classify(d.answers[res.Hosts[i].Name].addrs, box, contacted[res.Hosts[i].Name])
 	}
-	open, err := s.scanPorts(ctx, ips)
+	open, refused, err := s.scanPorts(ctx, ips)
 	if err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
@@ -330,6 +334,7 @@ func (s *Scanner) Domain(ctx context.Context, domain string, names Names, maySca
 	if err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
+	res.Refused = refused
 	return assemble(res, ips, open, jobs, answers), nil
 }
 
@@ -342,7 +347,7 @@ func (s *Scanner) IP(ctx context.Context, ip netip.Addr) (Result, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, scanTimeout)
 	defer cancel()
-	open, err := s.scanPorts(ctx, []netip.Addr{ip})
+	open, refused, err := s.scanPorts(ctx, []netip.Addr{ip})
 	if err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
@@ -356,7 +361,7 @@ func (s *Scanner) IP(ctx context.Context, ip netip.Addr) (Result, error) {
 	if err != nil {
 		return Result{}, s.stopped(ctx, err)
 	}
-	return assemble(Result{}, []netip.Addr{ip}, open, jobs, answers), nil
+	return assemble(Result{Refused: refused}, []netip.Addr{ip}, open, jobs, answers), nil
 }
 
 type hostAddr struct {
@@ -440,16 +445,18 @@ func (s *Scanner) record(ctx context.Context, ps []Probe, done bool) error {
 
 // scanPorts connects to every port of commonPorts on every address, at most dialRate new connections a second and dialParallel at
 // once, and returns the ports that accepted, in order. A connection is closed as soon as it opens: nothing is sent. One probe-log
-// line an address, written before and completed with the open ports after.
-func (s *Scanner) scanPorts(ctx context.Context, ips []netip.Addr) (map[netip.Addr][]int, error) {
+// line an address, written before and completed with the open ports after. refused are the addresses where a connect got a TCP
+// reset (ECONNREFUSED: a closed port answered), sorted.
+func (s *Scanner) scanPorts(ctx context.Context, ips []netip.Addr) (open map[netip.Addr][]int, refused []netip.Addr, err error) {
 	probes := make([]Probe, len(ips))
 	for i, ip := range ips {
 		probes[i] = Probe{ID: probeID(), Addr: ip, Label: ip.String(), Kind: "tcp", Request: "TCP connect to " + strconv.Itoa(len(commonPorts)) + " ports"}
 	}
 	if err := s.record(ctx, probes, false); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	open := map[netip.Addr][]int{}
+	open = map[netip.Addr][]int{}
+	reset := map[netip.Addr]bool{}
 	var mu sync.Mutex
 	sem := make(chan struct{}, dialParallel)
 	tick := time.NewTicker(time.Second / dialRate)
@@ -470,6 +477,11 @@ loop:
 				defer cancel()
 				c, err := s.dialTarget(dctx, netip.AddrPortFrom(ip, uint16(spec.port))) //nolint:gosec // the ports of commonPorts fit in 16 bits
 				if err != nil {
+					if errors.Is(err, syscall.ECONNREFUSED) {
+						mu.Lock()
+						reset[ip] = true
+						mu.Unlock()
+					}
 					return
 				}
 				_ = c.Close()
@@ -490,7 +502,13 @@ loop:
 		probes[i].Request += "; open: " + cmp.Or(strings.Join(list, ", "), "none")
 		s.log.InfoContext(ctx, "exposure_scan_ports", "ip", ip.String(), "tried", len(commonPorts), "open", open[ip])
 	}
-	return open, s.record(ctx, probes, true)
+	for _, ip := range ips {
+		if reset[ip] {
+			refused = append(refused, ip)
+		}
+	}
+	slices.SortFunc(refused, netip.Addr.Compare)
+	return open, refused, s.record(ctx, probes, true)
 }
 
 // dialTarget is the one way to a target: the address must be public (checked again here, whatever planned it).

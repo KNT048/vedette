@@ -168,7 +168,7 @@ function IssueDialog({ issue: i, where, onClose, onHandle, onReopen, reopening }
         <DialogContent wide title={i.title} description={<span className="flex flex-wrap items-center gap-2"><SeverityBadge severity={i.severity} compact />{t(`engine.${i.engine}`)} · {where}</span>}>
           <div className="grid gap-4 text-sm">
             {i.state !== 'open' ? <IssueStatus i={i} /> : null}
-            {i.detail.description ? <p>{i.detail.description}</p> : null}
+            {i.detail.description ? <p className="whitespace-pre-line">{i.detail.description}</p> : null}
             {i.detail.solution ? <div className="grid gap-1"><p className="font-medium">{t('issues.solution')}</p><p>{i.detail.solution}</p></div> : null}
             {i.cves.length ? <CveList rows items={i.cves.map((c) => ({ cve: c.cve, severity: c.severity }))} label={t('issues.cvesOf', { title: i.title })} /> : null}
             <KeyValue items={[

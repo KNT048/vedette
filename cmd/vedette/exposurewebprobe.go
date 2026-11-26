@@ -18,10 +18,10 @@ var _ exposure.GreenboneProbeLog = exposureProbeLog{}
 
 // RecordGreenboneProbe writes the row of one OpenVAS (Greenbone) scan before gvmd's task starts: the address, the port list, the scan
 // config and the note that its probes are not logged one by one. It returns only once the row is written; nothing is started when it
-// fails.
+// fails. Written again with the same ID once the scan ended, it completes the row with p.Result (matched, not_matched, not_run).
 func (l exposureProbeLog) RecordGreenboneProbe(ctx context.Context, p exposure.GreenboneProbe) error {
 	return scanService(l.d).RecordExternalProbes(ctx, []scan.ExternalProbe{{
-		ID: p.ID, IP: p.IP, Label: p.IP, Template: "exposure: OpenVAS (Greenbone CE), config " + p.Config, Request: greenboneProbeRequest(p), RunID: exposure.RunIDOf(ctx),
+		ID: p.ID, IP: p.IP, Label: p.IP, Template: "exposure: OpenVAS (Greenbone CE), config " + p.Config, Request: greenboneProbeRequest(p), RunID: exposure.RunIDOf(ctx), Result: p.Result,
 	}})
 }
 

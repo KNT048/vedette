@@ -154,6 +154,9 @@
     "needTwoStep": "Turn on two-step sign-in for your account before the first scan of {{value}}: that scan records your confirmation of ownership and authorization.",
     "needTwoStepLink": "Turn on two-step sign-in",
     "deepButton": "Deep scan now",
+    "deepConfirmTitle": "Deep scan {{value}}",
+    "deepConfirmButton": "Start deep scan",
+    "deepLoad": "A deep scan can put a heavy load on the router or firewall in front of the target (for example a CPU spike) while it runs. Start it at a time when that does not matter.",
     "acceptTerms": "For a deep scan, accept the testing terms: Ownership tab"
   },
   "step": {

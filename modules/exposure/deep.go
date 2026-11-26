@@ -585,6 +585,18 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 	c.Scripts = append(c.Scripts, sub.Scripts...)
 	c.Templates = append(c.Templates, sub.Templates...)
 	c.TemplatesRan, c.ScriptsRan = append(c.TemplatesRan, sub.TemplatesRan...), append(c.ScriptsRan, sub.ScriptsRan...)
+	for ip, trusted := range sub.Swept {
+		if c.Swept == nil {
+			c.Swept = map[string]bool{}
+		}
+		c.Swept[ip] = trusted
+	}
+	for ip := range sub.Answered {
+		if c.Answered == nil {
+			c.Answered = map[string]bool{}
+		}
+		c.Answered[ip] = true
+	}
 	for _, r := range sub.Checks {
 		r.Text = clipText(label+": "+r.Text, maxLineText)
 		c.Checks = append(c.Checks, r)

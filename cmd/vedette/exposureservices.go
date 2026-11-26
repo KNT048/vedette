@@ -164,7 +164,7 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 		return exposure.ServiceScan{}, err // logged by exposure, shown as a failure without its text (a failed ModeNow too: fail closed)
 	}
 	out := exposure.ServiceScan{Services: make([]exposure.ServiceRow, 0, len(got.Services)), Ports: got.Ports, Probed: got.Probed, DiscoveryCut: got.DiscoveryCut,
-		AnswersEverywhere: got.AnswersEverywhere, Unfinished: got.Unfinished}
+		AnswersEverywhere: got.AnswersEverywhere, Unfinished: got.Unfinished, Refused: got.Refused}
 	for _, s := range got.Services {
 		out.Services = append(out.Services, exposure.ServiceRow{IP: ip.String(), Port: s.Port, Name: s.Name, Product: s.Product, Version: s.Version, CPE: s.CPE, Extra: s.Extra, Method: s.Method, Conf: s.Conf})
 	}

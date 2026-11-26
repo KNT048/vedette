@@ -544,3 +544,28 @@ func TestPortVersionsNeedsAWorkerThatSaysSo(t *testing.T) {
 		t.Fatalf("jobs = %+v %v", rep.Jobs, err)
 	}
 }
+
+// The External shape says whether the address answered its discovery with closed replies (TCP resets): with no open port, that is what tells "nothing open"
+// from "nothing reached the address" for exposure. Ports nmap grouped as filtered (no reply) are not an answer.
+func TestExternalSaysTheAddressAnsweredWithClosedPorts(t *testing.T) {
+	t.Parallel()
+	b, err := os.ReadFile(discoveryFixture(t, boxIP))
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed := filepath.Join(t.TempDir(), "closed.xml")
+	if err := os.WriteFile(closed, bytes.Replace(b, []byte(`<extraports state="filtered" count="997">`), []byte(`<extraports state="closed" count="997">`), 1), 0o600); err != nil { //nolint:gosec // a file of the test's own temp directory
+		t.Fatal(err)
+	}
+	for name, discovery := range map[string]string{"closed replies": closed, "no reply": discoveryFixture(t, boxIP)} {
+		e := externalEnvWithNmap(t, boxIP, fakeOpts{always: svXML(t, false), topPorts: discovery})
+		e.inv.set(func(s *sa.Settings) { s.Enabled, s.LANRanges = false, nil })
+		got, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.External, &ownFence{ok: []netip.Addr{boxIP}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Refused != (name == "closed replies") {
+			t.Fatalf("%s: refused %v", name, got.Refused)
+		}
+	}
+}

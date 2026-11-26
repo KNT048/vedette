@@ -478,6 +478,8 @@ func (h *FeedHandlers) FeedsPostFeedsSourcesIDFetch(ctx context.Context, params 
 		return nil, noSuchFeed()
 	case errors.Is(err, ErrFeedDisabled):
 		return nil, apierr.New(http.StatusConflict, "feed_disabled", "Turn the feed on before fetching it.")
+	case errors.As(err, new(*TooSoonError)):
+		return nil, apierr.New(http.StatusConflict, "fetch_too_soon", err.Error())
 	case err != nil:
 		return nil, err
 	}

@@ -92,6 +92,9 @@ func (s *Service) RunPull(ctx context.Context) error {
 		if !due && r.Enabled && distroFeeds[r.ID] && r.Failures == 0 && !s.busy(r.ID) && s.distroBehind(ctx, r) {
 			due = true // A device runs a package its tier rows were not kept for (6 h floor); a failing feed keeps its back-off
 		}
+		if at, floor := r.fetchFloor(); floor && now.Before(at) {
+			due = false // a source that allows fewer downloads (Spamhaus DROP) waits whatever the schedule or the back-off says
+		}
 		if !r.Enabled || !due || s.busy(r.ID) { // busy: a "Fetch now" is pulling it; never a second pull
 			continue
 		}
@@ -489,6 +492,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	}
 	if !src.Enabled {
 		return sourceRow{}, 0, nil, ErrFeedDisabled
+	}
+	if at, floor := src.fetchFloor(); floor && s.now().Before(at) {
+		return src, 0, nil, &TooSoonError{Name: src.Name, Hours: builtinMinHours(src.ID), At: at}
 	}
 	started := s.now()
 	bctx, cancel := context.WithTimeout(ctx, pullBudget)

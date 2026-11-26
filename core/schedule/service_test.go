@@ -118,7 +118,13 @@ func newBox(t *testing.T, org string) *box {
 	must(t, b.svc.Register(schedule.Owner{
 		Module: "feeds", Key: "feeds.source", PerSubject: true, AdminOnly: true, Default: schedule.Every(60),
 		Limits: schedule.Limits{Freqs: []schedule.Freq{schedule.Interval}, MinEveryMinutes: 60, Reason: "Sources ask clients not to poll more often."},
-		Start:  func(context.Context, *sql.Tx, schedule.Fire) (string, error) { return "", nil },
+		LimitsOf: func(id string) (schedule.Limits, bool) { // one source allows a download a day
+			if id != "daily" {
+				return schedule.Limits{}, false
+			}
+			return schedule.Limits{Freqs: []schedule.Freq{schedule.Interval}, MinEveryMinutes: schedule.MinuteOfDay, Reason: "This source allows one download a day."}, true
+		},
+		Start: func(context.Context, *sql.Tx, schedule.Fire) (string, error) { return "", nil },
 	}))
 	return b
 }
@@ -514,6 +520,28 @@ func TestOwnersKeysAndLimits(t *testing.T) {
 		t.Fatalf("still saved %+v", v)
 	}
 	b.runStatus(id)
+}
+
+// A subject with narrower limits (Owner.LimitsOf): its editor shows them, and saving or previewing a shorter rule is refused with its
+// reason; the owner's other subjects keep the owner's limits.
+func TestSubjectLimits(t *testing.T) {
+	b := newBox(t, "")
+	if v := b.get("feeds.source:daily"); v.Limits.MinEveryMinutes != schedule.MinuteOfDay || v.Limits.Reason != "This source allows one download a day." {
+		t.Fatalf("limits of the subject %+v", v.Limits)
+	}
+	_, err := b.svc.Save(t.Context(), "feeds.source:daily", schedule.Setting{Enabled: true, Rule: schedule.Every(12 * 60)}, "ann@example.com")
+	var re *schedule.RuleError
+	if !errors.As(err, &re) || re.Message != "The interval is at least 1 day. This source allows one download a day." {
+		t.Fatalf("a 12-hour save: %v", err)
+	}
+	if _, _, err := b.svc.Preview(t.Context(), "feeds.source:daily", schedule.Every(12*60), nil); !errors.As(err, &re) {
+		t.Fatalf("a 12-hour preview: %v", err)
+	}
+	b.save("feeds.source:daily", schedule.Setting{Enabled: true, Rule: schedule.Every(schedule.MinuteOfDay)})
+	if v := b.get("feeds.source:nvd"); v.Limits.MinEveryMinutes != 60 {
+		t.Fatalf("limits of another subject %+v", v.Limits)
+	}
+	b.save("feeds.source:nvd", schedule.Setting{Enabled: true, Rule: schedule.Every(60)})
 }
 
 // Review cases: a late start gives way to a regular time just after it; a paused interval starts at the end of the pause; a

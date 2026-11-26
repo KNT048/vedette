@@ -70,6 +70,10 @@ type Source struct {
 	DropClass bool
 	// CreditFetch: the list is credited with the time the box fetched it wherever a listing by it is named (CreditName).
 	CreditFetch bool
+	// MinHours: the source allows at most one download every MinHours hours (Spamhaus DROP: once a day). Its schedule cannot be set
+	// shorter, and neither the pull job nor Fetch now pulls it sooner after a good pull, nor sooner than an hour after any attempt
+	// (fetchFloor). 0 for every other source.
+	MinHours int
 }
 
 func (s Source) rowLimit() int {
@@ -152,7 +156,7 @@ var builtinSources = []Source{
 	{ID: "abusech-feodo", Name: "abuse.ch Feodo Tracker", Kind: KindIOC, Format: FormatLines, URL: "https://feodotracker.abuse.ch/downloads/ipblocklist.txt", License: "CC0", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Weight: 0.95, C2: true},
 	{ID: "tor-exit", Name: "Tor exit list", Kind: KindIOC, Format: FormatLines, URL: "https://check.torproject.org/torbulkexitlist", License: "Attribution: torproject", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Informational: true, Weight: 0.2},
 	{ID: "hagezi-tif", Name: "hagezi TIF", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt", License: "GPL-3.0, unmodified", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), MaxRows: 250_000, Aggregate: true, Subdomains: true, Weight: 0.45},
-	{ID: dropFeedID, Name: "Spamhaus DROP", Kind: KindIOC, Format: FormatJSON, URL: "https://www.spamhaus.org/drop/drop_v4.json", License: dropNotice, IntervalHours: 24, Decoder: DecoderSpamhausDROP, MaxRows: dropMaxRows, DefaultOff: true, Weight: 0.9, DropClass: true, CreditFetch: true},
+	{ID: dropFeedID, Name: "Spamhaus DROP", Kind: KindIOC, Format: FormatJSON, URL: "https://www.spamhaus.org/drop/drop_v4.json", License: dropNotice, IntervalHours: 24, Decoder: DecoderSpamhausDROP, MaxRows: dropMaxRows, DefaultOff: true, Weight: 0.9, DropClass: true, CreditFetch: true, MinHours: 24},
 }
 
 // BuiltinSources returns the built-in feeds in display order. The slice is a

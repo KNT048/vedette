@@ -1,6 +1,9 @@
 package feeds
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // The back-off after a failed pull and the staleness rule, as pure functions of an injected clock (INV-8, INV-9). When a feed is
 // pulled regularly is its schedule (feedschedule.go).
@@ -99,4 +102,40 @@ func IsStale(now, lastSuccess time.Time, intervalHours int) bool {
 		return true
 	}
 	return now.Sub(lastSuccess) > interval(intervalHours)+MaxDataAge
+}
+
+// fetchFloor is the earliest time a source that allows fewer downloads (Source.MinHours: Spamhaus DROP) may be asked again: MinHours
+// after its last good pull, and never sooner than an hour after any attempt (Spamhaus: automated downloads at least an hour apart), a
+// failed one included. ok is false for every other source.
+func (r sourceRow) fetchFloor() (at time.Time, ok bool) {
+	h := builtinMinHours(r.ID)
+	if !r.Builtin || h == 0 {
+		return time.Time{}, false
+	}
+	if r.LastSuccess != nil {
+		at = r.LastSuccess.Add(time.Duration(h) * time.Hour)
+	}
+	if r.LastFetch != nil && r.LastFetch.Add(time.Hour).After(at) {
+		at = r.LastFetch.Add(time.Hour)
+	}
+	return at, true
+}
+
+// builtinMinHours is Source.MinHours of a built-in source, 0 for any other id.
+func builtinMinHours(id string) int {
+	b, _ := BuiltinByID(id)
+	return b.MinHours
+}
+
+// TooSoonError is a pull refused because the source allows fewer downloads (fetchFloor); nothing was asked. The text names the time
+// the next pull is possible.
+type TooSoonError struct {
+	Name  string
+	Hours int
+	At    time.Time
+}
+
+func (e *TooSoonError) Error() string {
+	return fmt.Sprintf("%s can be fetched once every %d hours, and the list on the box is still in use. Fetch it again after %s.",
+		e.Name, e.Hours, e.At.UTC().Format("2 Jan 2006 15:04 UTC"))
 }

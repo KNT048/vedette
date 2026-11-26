@@ -96,7 +96,10 @@ type Owner struct {
 	Key        string
 	PerSubject bool
 	Limits     Limits
-	AdminOnly  bool // changing it or running it once needs an administrator (an operator otherwise)
+	// LimitsOf gives one subject's schedule narrower limits than Limits (PerSubject only): a source that asks for fewer requests.
+	// ok false, or a nil LimitsOf, keeps Limits. The editor shows them, and saving or previewing a rule checks them.
+	LimitsOf  func(subject string) (l Limits, ok bool)
+	AdminOnly bool // changing it or running it once needs an administrator (an operator otherwise)
 	// Default is the rule before anyone saves one. With DefaultOn a schedule of an owner without subjects is saved with it at
 	// start; an owner with subjects saves one with EnsureTx when it creates a subject.
 	Default   Rule

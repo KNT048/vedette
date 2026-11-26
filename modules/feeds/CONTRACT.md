@@ -40,8 +40,12 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   Alpine device at all).
 - **INV-38** Spamhaus DROP (`spamhaus-drop`) is off on a new box and on a box that updates to a version that adds it
   (`Source.DefaultOff`): the box asks `www.spamhaus.org` nothing until an administrator turns it on. Once on, it reads Spamhaus's
-  `drop_v4.json` once a day by default (Spamhaus asks for automated downloads at least an hour apart), conditional on the last
-  file. `TestSpamhausDROPIsOffByDefaultAndMatchesTheAddressesInsideItsNetworks`.
+  `drop_v4.json` once a day by default, conditional on the last file. Spamhaus asks that the list be downloaded at most once a day,
+  and automated downloads at least an hour apart (`Source.MinHours` = 24): the feed's schedule cannot be set below 24 hours
+  (`sourceLimits`, the schedule's `LimitsOf`: the editor says "Spamhaus DROP asks for at most one download every 24 hours."), and
+  neither the pull job nor Fetch now asks it sooner than 24 hours after its last good pull or an hour after any attempt, a failed one
+  included (`fetchFloor`); Fetch now then answers 409 `fetch_too_soon` with the time it becomes possible.
+  `TestSpamhausDROPIsOffByDefaultAndMatchesTheAddressesInsideItsNetworks`, `TestSpamhausDROPIsFetchedAtMostOnceADay`.
 
 **Parsing**
 - **INV-3** The parser fails closed: an invalid row is dropped and counted by reason, never stored. Feed text is untrusted plain

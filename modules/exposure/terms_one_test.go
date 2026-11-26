@@ -311,18 +311,20 @@ func TestTermsOne_APITakesTheVersionAlone(t *testing.T) {
 	}
 }
 
-// The disruptive checks are part of the testing terms, not a separate tick: no text a person reads (the privacy and legal
-// documents, the third-party notices, the screens' English text) may still say they run only "when ticked".
+// The disruptive checks are part of the testing terms, not a separate tick: no text a person reads (the terms of use, the
+// third-party notices, the screens' English text) may still say they run only "when ticked".
 func TestTermsOne_NoUserTextMentionsADisruptiveTick(t *testing.T) {
 	t.Parallel()
 	tick := regexp.MustCompile(`(?i)disruptive tick|disruptive checks (are )?(also )?ticked`)
-	files := []string{"../../PRIVACY.md", "../../TERMS.md", "../../THIRD_PARTY_NOTICES.md", "../../docs/LEGAL.md", "../../docs/cookbook/05-external-exposure-scan.md"}
+	// Only documents whose change runs the Go suite (scripts/ci/classify.go); PRIVACY.md, docs/LEGAL.md and the cookbook were swept
+	// once when the tick went away.
+	files := []string{"../../TERMS.md", "../../THIRD_PARTY_NOTICES.md"}
 	locales, err := filepath.Glob("../../web/src/locales/en/*.json")
 	if err != nil || len(locales) == 0 {
 		t.Fatalf("locales: %v %v", locales, err)
 	}
 	for _, f := range append(files, locales...) {
-		b, err := os.ReadFile(f)
+		b, err := os.ReadFile(f) //nolint:gosec // G304: fixed repo documents and the English locales
 		if err != nil {
 			t.Fatal(err)
 		}

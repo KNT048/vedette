@@ -16,6 +16,12 @@ func topThousand() []int {
 	return out
 }
 
+// verdictOf is the verdict a written scan of the replay's IP gave a port ("" when none: the scan did not probe it).
+func verdictOf(w written, port int) string {
+	v, _ := w.verdicts.of("198.51.100.2", port)
+	return v.v
+}
+
 // INV-22: a port outside the fixed list counts as checked only by a scan whose service step probed it, in this scan and in the scan
 // before alike. 666 is open from a deep scan; scan A is a default scan whose nmap step failed (it probed only the fixed list); scan B
 // probed 666 and missed it. A did not probe 666, so it is not the first miss: after B the service is still open. Scan C probes and
@@ -36,20 +42,17 @@ func TestCoverage_TopPortNeedsTwoScansThatProbedIt(t *testing.T) {
 	partial := []NotCheckedRow{{Kind: "ports", Text: notOtherPortsIP}}
 
 	deep := e.replay("xt-ip", "2026-11-18T02:00:00.000Z", Content{Ports: []PortRow{port(80), port(666)}})
-	if deep.checked[ip] != coverAll {
-		t.Fatalf("the deep scan's coverage: %q", deep.checked[ip])
+	if v := verdictOf(deep, 666); v != verdictOpen {
+		t.Fatalf("the deep scan's verdict of 666: %q", v)
 	}
 	a := e.replay("xt-ip", "2026-11-19T02:00:00.000Z", Content{Ports: []PortRow{port(80)}, NotChecked: partial})
-	if a.checked[ip] != coverList || len(a.topPorts) != 0 || state(666) != ServiceOpen {
-		t.Fatalf("scan A (nmap failed): coverage %q, top ports %q, 666 %s", a.checked[ip], a.topPorts, state(666))
+	if v := verdictOf(a, 666); v != "" || state(666) != ServiceOpen {
+		t.Fatalf("scan A (nmap failed): verdict of 666 %q, 666 %s", v, state(666))
 	}
 	probed := map[string][]int{ip: topThousand()}
 	b := e.replay("xt-ip", "2026-11-20T02:00:00.000Z", Content{Ports: []PortRow{port(80)}, NotChecked: partial, Probed: probed})
-	if b.checked[ip] != coverTop || b.counts.ClosedServices != 0 || state(666) != ServiceOpen {
-		t.Fatalf("scan B (first scan that probed 666): coverage %q, counts %+v, 666 %s", b.checked[ip], b.counts, state(666))
-	}
-	if !slices.Equal(b.topPorts, []string{portKey(ip, 666)}) {
-		t.Fatalf("scan B's port items: %q", b.topPorts)
+	if v := verdictOf(b, 666); v != verdictClosed || b.counts.ClosedServices != 0 || state(666) != ServiceOpen {
+		t.Fatalf("scan B (first scan that probed 666): verdict %q, counts %+v, 666 %s", v, b.counts, state(666))
 	}
 	c := e.replay("xt-ip", "2026-11-21T02:00:00.000Z", Content{Ports: []PortRow{port(80)}, NotChecked: partial, Probed: probed})
 	if c.counts.ClosedServices != 1 || state(666) != ServiceClosed {
@@ -70,8 +73,8 @@ func TestCoverage_ScanThatDidNotProbeThePortIsNotAMiss(t *testing.T) {
 	other := map[string][]int{ip: topThousand()}                                                    // 18443 is not among them
 	for i, at := range []string{"2026-11-19T02:00:00.000Z", "2026-11-20T02:00:00.000Z", "2026-11-21T02:00:00.000Z"} {
 		out := e.replay("xt-ip", at, Content{Ports: []PortRow{port(80)}, NotChecked: partial, Probed: other})
-		if out.counts.ClosedServices != 0 || len(out.topPorts) != 0 {
-			t.Fatalf("scan %d that did not probe 18443: counts %+v, top ports %q", i+1, out.counts, out.topPorts)
+		if v := verdictOf(out, 18443); out.counts.ClosedServices != 0 || v != "" {
+			t.Fatalf("scan %d that did not probe 18443: counts %+v, verdict %q", i+1, out.counts, v)
 		}
 	}
 	probed := map[string][]int{ip: append(topThousand(), 18443)}

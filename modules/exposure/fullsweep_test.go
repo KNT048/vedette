@@ -87,16 +87,42 @@ func TestCoverage_AFullPortScanThatDidNotSeeAPortClosesIt(t *testing.T) {
 
 // A deep scan of an address that has no open port left: nmap's closed replies (TCP RST) show the address answered the sweep, so the
 // sweep counts. The fixed list's port the runner missed too closes at once; the port outside it closes with the second such sweep.
+// The address is a host elsewhere (a typed IP): on the box's own IP, every port flipping to resets is its router's NAT loopback.
 func TestCoverage_AnEmptySweepWithClosedRepliesCounts(t *testing.T) {
 	t.Parallel()
-	_, scan, state := deepScans(t)
-	scan([]int{80}, swept(80, 32400), nil)
+	e, id := typedTarget(t, true)
+	scan := func(runner []int, services ServiceScan) {
+		t.Helper()
+		ports := []PortRow{}
+		for _, p := range runner {
+			ports = append(ports, PortRow{IP: ipC, Port: p, Service: "http", Ident: IdentProbed})
+		}
+		e.svc.cfg.Services = &fakeServices{scan: services}
+		e.svc.SetRunner(&fakeRunner{content: Content{Ports: ports}})
+		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+			t.Fatal(err)
+		}
+		e.advance(ScanEvery + time.Minute)
+	}
+	state := func(port int) string {
+		t.Helper()
+		var st string
+		if err := e.db.Reader().QueryRowContext(e.ctx(), `SELECT state FROM exp_service WHERE ip = ? AND port = ?`, ipC, port).Scan(&st); err != nil {
+			t.Fatal(err)
+		}
+		return st
+	}
+	first := ServiceScan{Ports: 65535}
+	for _, p := range []int{80, 32400} {
+		first.Services = append(first.Services, ServiceRow{IP: ipC, Port: p, Name: "http", Product: "nginx", Version: "1.27.0", Method: "probed"})
+	}
+	scan([]int{80}, first)
 	empty := ServiceScan{Ports: 65535, Refused: true}
-	scan(nil, empty, nil)
+	scan(nil, empty)
 	if state(80) != ServiceClosed || state(32400) != ServiceOpen {
 		t.Fatalf("after one empty sweep with closed replies: 80 %s, 32400 %s", state(80), state(32400))
 	}
-	scan(nil, empty, nil)
+	scan(nil, empty)
 	if state(32400) != ServiceClosed {
 		t.Fatalf("32400 after two empty sweeps with closed replies: %s", state(32400))
 	}
@@ -164,48 +190,85 @@ func TestCoverage_AScanThatReachedNothingIsNotAMiss(t *testing.T) {
 	}
 }
 
-// emptyScans is a verified IP target with 443 open, then scans in which nothing is open: answered says the address replied (the
-// runner's connect or nmap got a TCP RST), so the scan is a miss; gap is the time between two scans.
-func emptyScans(t *testing.T, answered func(c *Content, s *ServiceScan)) (scan func(gap time.Duration), open func() int) {
+// typedTarget is a public IP a person typed in and proved (ipC: reached over the Internet, not the box's own address), with its
+// commitment; terms accepts its testing terms too, so its scans are deep scans.
+func typedTarget(t *testing.T, terms bool) (*env, string) {
 	t.Helper()
 	e := newEnv(t)
-	ips := e.detect(ipA)
-	if _, err := e.commit(ips[0].ID); err != nil {
+	files := &fileSite{files: map[string]string{}}
+	e.svc.cfg.IPFetch = files
+	v, err := e.svc.AddTarget(e.ctx(), "admin@acme.example", KindIP, ipC)
+	if err != nil {
 		t.Fatal(err)
+	}
+	files.serve(ipC, "http", v.Token)
+	e.svc.cfg.DomainFence = omFence(v.Token)
+	e.advance(DomainCheckEvery)
+	if r, err := e.svc.Verify(e.ctx(), "operator@acme.example", v.ID); err != nil || !r.Verified {
+		t.Fatalf("verifying the typed IP: %+v %v", r, err)
+	}
+	if _, err := e.commit(v.ID); err != nil {
+		t.Fatal(err)
+	}
+	if terms {
+		e.acceptTerms(v.ID, false)
+	}
+	return e, v.ID
+}
+
+// emptyScans is a verified IP target with 443 open (the box's own ipA, or a typed ipC), then scans in which nothing is open:
+// answered says the address replied (the runner's connect or nmap got a TCP RST); gap is the time between two scans.
+func emptyScans(t *testing.T, typed bool, answered func(ip string, c *Content, s *ServiceScan)) (scan func(gap time.Duration), open func() int) {
+	t.Helper()
+	var e *env
+	var id string
+	ip := ipA
+	if typed {
+		e, id = typedTarget(t, false)
+		ip = ipC
+	} else {
+		e = newEnv(t)
+		ips := e.detect(ipA)
+		if _, err := e.commit(ips[0].ID); err != nil {
+			t.Fatal(err)
+		}
+		id = ips[0].ID
 	}
 	run := func(c Content, svc ServiceScan) {
 		t.Helper()
 		e.svc.cfg.Services = &fakeServices{scan: svc}
 		e.svc.SetRunner(&fakeRunner{content: c})
-		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err != nil {
+		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
 			t.Fatal(err)
 		}
 	}
-	run(Content{Ports: []PortRow{{IP: ipA, Port: 443, Service: "https", Ident: IdentProbed}}}, ServiceScan{Ports: 1000, Probed: topThousand()})
+	run(Content{Ports: []PortRow{{IP: ip, Port: 443, Service: "https", Ident: IdentProbed}}}, ServiceScan{Ports: 1000, Probed: topThousand()})
 	scan = func(gap time.Duration) {
 		t.Helper()
 		e.advance(gap)
 		c, svc := Content{Ports: []PortRow{}}, ServiceScan{Ports: 1000, Probed: topThousand()}
 		if answered != nil {
-			answered(&c, &svc)
+			answered(ip, &c, &svc)
 		}
 		run(c, svc)
 	}
-	open = func() int { return e.count(`SELECT count(*) FROM exp_service WHERE ip = ? AND state = 'open'`, ipA) }
+	open = func() int { return e.count(`SELECT count(*) FROM exp_service WHERE ip = ? AND state = 'open'`, ip) }
 	return scan, open
 }
 
 // INV-22, INV-41: "nothing open" is a result when the address showed it is reachable in that scan (a TCP RST to the runner's
-// connect or to nmap): the owner closed the last open port, and the normal two-miss rule closes it.
+// connect or to nmap): the owner of a host elsewhere closed the last open port, and the normal two-miss rule closes it. The box's own
+// IP reached through NAT loopback is different: every port flipping to resets with nothing open is the router answering for its own
+// address (it lost its loopback), so the ports are not reached, never closed by it.
 func TestCoverage_AnEmptyScanOfAnAddressThatAnsweredIsAMiss(t *testing.T) {
 	t.Parallel()
-	for name, answered := range map[string]func(c *Content, s *ServiceScan){
-		"the runner got a reset": func(c *Content, _ *ServiceScan) { c.Answered = map[string]bool{ipA: true} },
-		"nmap got a reset":       func(_ *Content, s *ServiceScan) { s.Refused = true },
+	for name, answered := range map[string]func(ip string, c *Content, s *ServiceScan){
+		"the runner got a reset": func(ip string, c *Content, _ *ServiceScan) { c.Answered = map[string]bool{ip: true} },
+		"nmap got a reset":       func(_ string, _ *Content, s *ServiceScan) { s.Refused = true },
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			scan, open := emptyScans(t, answered)
+			scan, open := emptyScans(t, true, answered)
 			scan(ScanEvery + time.Minute)
 			if n := open(); n != 1 {
 				t.Fatalf("after one empty scan, %d open", n)
@@ -215,28 +278,37 @@ func TestCoverage_AnEmptyScanOfAnAddressThatAnsweredIsAMiss(t *testing.T) {
 				t.Fatalf("after two empty scans of an address that answered, %d still open", n)
 			}
 		})
+		t.Run(name+"/own_ip_through_loopback", func(t *testing.T) {
+			t.Parallel()
+			scan, open := emptyScans(t, false, answered)
+			scan(ScanEvery + time.Minute)
+			scan(ScanEvery + time.Minute)
+			scan(ScanEvery + time.Minute)
+			if n := open(); n != 1 {
+				t.Fatalf("after three scans whose resets came through the box's own NAT loopback, %d open", n)
+			}
+		})
 	}
 }
 
-// Fail safe with a limit: scans to which the address replied nothing at all (no open port, no reset) are not misses while they are
-// few or close together (a lost NAT loopback, a firewall dropping the box's probes); the third such scan in a row, at least 24 hours
-// after the first, closes the ports they all missed.
-func TestCoverage_EmptyScansWithNoReplyCloseOnlyAfterThreeOverADay(t *testing.T) {
+// Fail safe: scans to which the address replied nothing at all (no open port, no reset) are not misses, however many there are and
+// however long they last (a lost NAT loopback, a firewall dropping the box's probes): the ports are kept, not reached, until the
+// target answers again. A port last seen more than 30 days ago is no longer listed then, without counting as closed by the target.
+func TestCoverage_EmptyScansWithNoReplyNeverCloseAndRetireAfterThirtyDays(t *testing.T) {
 	t.Parallel()
-	scan, open := emptyScans(t, nil)
+	scan, open := emptyScans(t, false, nil)
 	scan(ScanEvery + time.Minute)
 	scan(ScanEvery + time.Minute)
 	scan(ScanEvery + time.Minute)
-	if n := open(); n != 1 {
-		t.Fatalf("after three empty scans within the hour, %d open", n)
-	}
 	scan(23 * time.Hour)
-	if n := open(); n != 1 {
-		t.Fatalf("after four empty scans within 24 hours, %d open", n)
-	}
 	scan(time.Hour)
+	scan(10 * 24 * time.Hour)
+	if n := open(); n != 1 {
+		t.Fatalf("after empty scans over 11 days with no reply, %d open", n)
+	}
+	scan(20 * 24 * time.Hour)
 	if n := open(); n != 0 {
-		t.Fatalf("after empty scans spanning more than 24 hours, %d still open", n)
+		t.Fatalf("after empty scans over more than 30 days with no reply, %d still open", n)
 	}
 }
 
@@ -272,50 +344,9 @@ func TestCoverage_AListPortTheRunnerDidNotProbeNeedsTwoSweeps(t *testing.T) {
 	}
 }
 
-// A scan that sees the port again ends a streak of scans with no reply: the empty scans after it count from that scan, so one empty
-// scan a day later, or two within a day, close nothing; the third one, a day after the first, does.
-func TestCoverage_AScanThatSeesThePortRestartsTheEmptyStreak(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	ips := e.detect(ipA)
-	if _, err := e.commit(ips[0].ID); err != nil {
-		t.Fatal(err)
-	}
-	scan := func(gap time.Duration, ports ...int) {
-		t.Helper()
-		e.advance(gap)
-		rows := []PortRow{}
-		for _, p := range ports {
-			rows = append(rows, PortRow{IP: ipA, Port: p, Service: "https", Ident: IdentProbed})
-		}
-		e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: 1000, Probed: topThousand()}}
-		e.svc.SetRunner(&fakeRunner{content: Content{Ports: rows}})
-		if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID); err != nil {
-			t.Fatal(err)
-		}
-	}
-	open := func() int { return e.count(`SELECT count(*) FROM exp_service WHERE ip = ? AND state = 'open'`, ipA) }
-	scan(0, 443)
-	scan(ScanEvery + time.Minute)
-	scan(ScanEvery + time.Minute)
-	scan(ScanEvery+time.Minute, 443)
-	scan(24 * time.Hour)
-	if n := open(); n != 1 {
-		t.Fatalf("the first empty scan after 443 was seen again: %d open", n)
-	}
-	scan(ScanEvery + time.Minute)
-	if n := open(); n != 1 {
-		t.Fatalf("the second empty scan after 443 was seen again: %d open", n)
-	}
-	scan(24 * time.Hour)
-	if n := open(); n != 0 {
-		t.Fatalf("the third empty scan, more than a day after the first: %d still open", n)
-	}
-}
-
-// A deep-scanned address whose last open port is outside the fixed list, behind a firewall that drops what is closed (no reset):
-// each sweep sees nothing and is not trusted, but the third such scan over a day still closes the port, like any other.
-func TestCoverage_EmptyDeepScansWithNoReplyCloseAPortOutsideTheList(t *testing.T) {
+// A deep-scanned address whose last open port is outside the fixed list, behind a firewall that drops what is closed (no reset): each
+// sweep sees nothing at all, so the address is not reached, and the port is kept however many such scans run in a day.
+func TestCoverage_EmptyDeepScansWithNoReplyKeepAPortOutsideTheList(t *testing.T) {
 	t.Parallel()
 	e, scan, state := deepScans(t)
 	scan(nil, swept(32400), nil)
@@ -323,7 +354,7 @@ func TestCoverage_EmptyDeepScansWithNoReplyCloseAPortOutsideTheList(t *testing.T
 		scan(nil, ServiceScan{Ports: 65535}, nil)
 		e.advance(12 * time.Hour)
 	}
-	if state(32400) != ServiceClosed {
+	if state(32400) != ServiceOpen {
 		t.Fatalf("32400 after three empty deep scans over a day with no reply: %s", state(32400))
 	}
 }

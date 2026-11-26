@@ -66,7 +66,7 @@ func TestSilentPorts_AWAFThatBlocksTheBoxClosesNothing(t *testing.T) {
 		!strings.Contains(r.NotChecked[i].Text, "If you closed them yourself, they are marked closed after three scans over a day.") {
 		t.Fatalf("the target's line: %+v", r.NotChecked)
 	}
-	if n := e.count(`SELECT count(*) FROM core_run_log WHERE run_id = ? AND text LIKE '%gave no answer at all%'`, r.RunID); n != 1 {
+	if n := e.count(`SELECT count(*) FROM core_run_log WHERE run_id = ? AND text LIKE 'Ports 80 and 443 of %gave no answer at all%'`, r.RunID); n != 1 {
 		t.Fatalf("%d run log lines about the silent ports", n)
 	}
 	e.advance(13 * time.Hour)
@@ -203,7 +203,8 @@ func TestSilentPorts_AnAnswerInBetweenStartsTheSilentCountAgain(t *testing.T) {
 }
 
 // A scan in which the port accepted the re-check, or gave no answer at all, is not a miss of it, so it is never "the scan before
-// that missed it too" of the two-miss rule: a port outside the fixed list needs two scans that really missed it (resets) to close.
+// that missed it too" of the two-miss rule: a port outside the fixed list that one probe of each scan misses (the sweep; no re-check)
+// needs two scans that really missed it to close.
 func TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore(t *testing.T) {
 	t.Parallel()
 	for _, before := range []string{PortOpen, PortSilent} {
@@ -211,19 +212,31 @@ func TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore(t *testing.T) {
 			t.Parallel()
 			e, scan, state := deepScans(t)
 			scan([]int{22}, swept(22, 32400), nil)
-			probe := &fakeProbe{answer: map[int]string{32400: before}}
-			e.svc.cfg.Liveness = probe
+			e.svc.cfg.Liveness = &fakeProbe{answer: map[int]string{32400: before}}
 			scan([]int{22}, swept(22), nil)
-			probe.answer = map[int]string{32400: PortClosed}
+			e.svc.cfg.Liveness = nil
 			scan([]int{22}, swept(22), nil) // the first scan that really missed it
 			if state(32400) != ServiceOpen {
-				t.Fatalf("32400 after a scan to which it was %s, then one reset: %s, want open (one miss)", before, state(32400))
+				t.Fatalf("32400 after a scan to which it was %s, then one miss: %s, want open (one miss)", before, state(32400))
 			}
 			scan([]int{22}, swept(22), nil) // the second
 			if state(32400) != ServiceClosed {
-				t.Fatalf("32400 after two scans that missed it with a reset: %s", state(32400))
+				t.Fatalf("32400 after two scans that missed it: %s", state(32400))
 			}
 		})
+	}
+}
+
+// Two probes of one run that agree close a port at once, outside the fixed list too: a trusted sweep missed it and the re-check got a
+// reset from the target.
+func TestSilentPorts_ASweepMissAndAResetOfTheRecheckCloseAtOnce(t *testing.T) {
+	t.Parallel()
+	e, scan, state := deepScans(t)
+	scan([]int{22}, swept(22, 32400), nil)
+	e.svc.cfg.Liveness = &fakeProbe{answer: map[int]string{32400: PortClosed}}
+	scan([]int{22}, swept(22), nil)
+	if state(32400) != ServiceClosed || closedByNewest(e) != 1 {
+		t.Fatalf("32400 after a sweep miss and a reset to the re-check: %s, %d closed", state(32400), closedByNewest(e))
 	}
 }
 
@@ -285,8 +298,8 @@ func TestUnanswered_NoPortOfADomainAnsweredNamesTheBoxsIP(t *testing.T) {
 	d.run.content.Ports = nil
 	s := d.scan()
 	run := d.runDetail(d.ctx(), s.RunID)
-	want := "No port of acme.example answered this box. If the site has a WAF or firewall, allow this box's public IP " + ipA + " during deep scans."
-	if run.Status != corerun.Partial || !strings.Contains(run.Summary, "No port of acme.example answered this box") {
+	want := "No port of " + ipB + " (www.acme.example and api.acme.example) answered this box. If the site has a WAF or firewall, allow this box's public IP " + ipA + " during deep scans."
+	if run.Status != corerun.Partial || !strings.Contains(run.Summary, "answered this box") {
 		t.Fatalf("run = %s %q", run.Status, run.Summary)
 	}
 	if !hasLine(s, want) {
@@ -351,5 +364,94 @@ func TestUnanswered_PortsOfANameNotLookedUpSayNothing(t *testing.T) {
 	d := e.runDetail(e.ctx(), s.RunID)
 	if d.Status != corerun.Done || slices.ContainsFunc(s.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "unanswered" }) {
 		t.Fatalf("run = %s %q, lines %q", d.Status, d.Summary, notChecked(s))
+	}
+}
+
+// probeRecorder is a PortProber that records which ports of which address it was asked about; every port accepts the liveness
+// check, and the re-check gets no answer at all.
+type probeRecorder struct {
+	mu    sync.Mutex
+	asked map[string][]int
+}
+
+func (f *probeRecorder) Alive(_ context.Context, _ netip.Addr, ports []int) (map[int]bool, error) {
+	out := map[int]bool{}
+	for _, p := range ports {
+		out[p] = true
+	}
+	return out, nil
+}
+
+func (f *probeRecorder) Probe(_ context.Context, ip netip.Addr, ports []int) (map[int]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.asked == nil {
+		f.asked = map[string][]int{}
+	}
+	f.asked[ip.String()] = append(f.asked[ip.String()], ports...)
+	out := map[int]string{}
+	for _, p := range ports {
+		out[p] = PortSilent
+	}
+	return out, nil
+}
+
+// The re-check connects only to ports this scan may probe on the address (PRIVACY flow 9): after the domain's testing terms are
+// withdrawn, a hosting address is checked by name on 80 and 443 only, so a port an earlier deep scan stored there (22) gets no
+// connect, however it is stored.
+func TestSilentPorts_TheRecheckStaysInTheScopeOfTheScan(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.svc.cfg.DomainFence = &fakeFence{}
+	d.acceptTerms(d.dom.ID, false)
+	d.seams.extra = []ServiceRow{{IP: ipB, Port: 22, Name: "ssh", Product: "OpenSSH", Version: "9.6"}}
+	d.scan()
+	if n := d.count(`SELECT count(*) FROM exp_service WHERE ip = ? AND port = 22 AND state = 'open'`, ipB); n != 1 {
+		t.Fatalf("the deep scan stored %d open rows of %s:22", n, ipB)
+	}
+	if _, err := d.svc.RevokeTerms(d.ctx(), "admin@acme.example", d.dom.ID); err != nil {
+		t.Fatal(err)
+	}
+	d.advance(ScanEvery + time.Minute)
+	d.seams.mu.Lock()
+	d.seams.extra = nil
+	d.seams.mu.Unlock()
+	rec := &probeRecorder{}
+	d.svc.cfg.Liveness = rec
+	d.scan()
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	if slices.ContainsFunc(rec.asked[ipB], func(p int) bool { return p != 80 && p != 443 }) {
+		t.Fatalf("the re-check of a scan without testing terms connected to %s on %v", ipB, rec.asked[ipB])
+	}
+}
+
+// Each address that stopped answering gets the hint of its own vantage, in the same words as its line: the box's own IP the NAT
+// loopback hint, any other address what to allow; never the NAT loopback hint for an address that is not the box's.
+func TestLiveness_EachLostAddressGetsTheHintOfItsOwnVantage(t *testing.T) {
+	t.Parallel()
+	w := newIPWorld(t)
+	w.svc.SetRunner(&fakeRunner{content: Content{}})
+	v := w.addIP(ipC)
+	w.files.serve(ipC, "https", v.Token+"\n")
+	if r := w.verify(v.ID); !r.Verified {
+		t.Fatalf("the typed IP is not proved: %+v", r)
+	}
+	if _, err := w.commit(v.ID); err != nil {
+		t.Fatal(err)
+	}
+	box := w.detect(ipA)
+	if _, err := w.commit(box[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	st := ScanTarget{Kind: KindDomain, Value: "acme.example", User: "admin@acme.example"}
+	text := w.svc.lostText(w.ctx(), st, map[string][]int{ipA: {443}, ipC: {8443}})
+	if strings.Count(text, "NAT loopback") != 1 {
+		t.Fatalf("the NAT loopback hint is not said once, for the box's own IP only: %q", text)
+	}
+	own := ipA + ":443 stopped answering during the scan. " + natHint
+	other := ipC + ":8443 stopped answering during the scan. If the site has a WAF or firewall, allow this box's public IP"
+	if !strings.Contains(text, own) || !strings.Contains(text, other) {
+		t.Fatalf("each address does not get the hint of its own vantage: %q", text)
 	}
 }

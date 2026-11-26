@@ -137,10 +137,10 @@ func (s *Service) disruptiveStep(ctx context.Context, x *corerun.Exec, ex *scanE
 	failed, ran := false, false
 	for _, a := range addrs {
 		k := a.ip.String()
-		ports := slices.DeleteFunc(slices.Clone(open[k]), func(p int) bool { return c.lostPort(k, p) })
+		ports := slices.DeleteFunc(slices.Clone(open[k]), func(p int) bool { return s.lostPort(ctx, k, p) })
 		if len(ports) == 0 { // every open port of it stopped answering earlier in the run: the note says so
 			if len(open[k]) > 0 {
-				notes = append(notes, clipText("Not run on "+k+". "+s.lostText(ctx, lt, map[string][]int{k: c.Lost[k]}), maxLineText))
+				notes = append(notes, clipText("Not run on "+k+". "+s.lostText(ctx, lt, map[string][]int{k: s.observerOf(ctx).lostOf()[k]}), maxLineText))
 			}
 			continue
 		}

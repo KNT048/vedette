@@ -359,23 +359,9 @@ type Content struct {
 	// ports (ServiceScan.Probed, INV-22). Only these, besides the runner's fixed list, count as checked by the scan's coverage
 	// (coverTop). nil when no service step said; never the ports of a -sV batch that did not finish.
 	Probed map[string][]int `json:"-"`
-	// Swept says, for each address a deep scan's nmap step probed on every TCP port this run, whether that sweep can be trusted to
-	// have seen every open port there (sweepTrusted): true, a port open before that it did not see is no longer seen after that one
-	// scan; false, only the runner's fixed list counts as checked there (coverage), as for a scan whose nmap step failed (INV-22).
-	Swept map[string]bool `json:"-"`
-	// Answered is each address that replied to this scan's probes even where no port was open: the runner's TCP connect or nmap got
-	// a reset (a closed port) there. An address with no open port counts as missed by the scan only when it answered (coverage).
+	// Answered is each address that replied to the runner's probes even where no port was open: its TCP connect got a reset (a closed
+	// port) there. It is the runner's report, one input of the run's probe log (observe.go); nothing else reads it.
 	Answered map[string]bool `json:"-"`
-	// Lost are the ports of each address, by its canonical spelling, that answered earlier in this scan and no longer accepted a TCP
-	// connection at a later liveness check (liveness.go), ascending: the engines after it skip them, and the scan is not a miss of any
-	// port of such an address (coverage: coverLost).
-	Lost map[string][]int `json:"-"`
-	// Silent and Answering are the ports of each address, by its canonical spelling, that were open before, that this scan did not
-	// see, and that the re-check right before the save (recheckMissed, INV-22) found silent (no answer at all, no reset: a firewall or
-	// WAF dropping the box's packets looks like this) or still accepting a connection. Neither is a miss of the port, except the third
-	// silent scan in a row at least a day after the first (silentStreak).
-	Silent    map[string][]int `json:"-"`
-	Answering map[string][]int `json:"-"`
 }
 
 // MaxIgnored is the most IPs the Ignored list holds; a full list refuses to take one more (400 too_many).

@@ -452,6 +452,10 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 		if err != nil {
 			return c, scanned, err // the run ends the step: stopped, or failed
 		}
+		if why := s.observerOf(ctx).sweepCut(a.ip.String()); why != "" && got == DeepScanned { // its sweep did not see everything it probed
+			rs.incompleteOn(key, why)
+			rs.problem(clipText(a.label()+": "+why, maxLineText))
+		}
 		addressStepEnd(ctx, rs, key, a.label(), got, c.Checks[nc:], c.NotChecked[nn:])
 		switch got {
 		case DeepRefused: // nothing was sent: it does not take a place
@@ -585,18 +589,6 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 	c.Scripts = append(c.Scripts, sub.Scripts...)
 	c.Templates = append(c.Templates, sub.Templates...)
 	c.TemplatesRan, c.ScriptsRan = append(c.TemplatesRan, sub.TemplatesRan...), append(c.ScriptsRan, sub.ScriptsRan...)
-	for ip, trusted := range sub.Swept {
-		if c.Swept == nil {
-			c.Swept = map[string]bool{}
-		}
-		c.Swept[ip] = trusted
-	}
-	for ip := range sub.Answered {
-		if c.Answered == nil {
-			c.Answered = map[string]bool{}
-		}
-		c.Answered[ip] = true
-	}
 	for _, r := range sub.Checks {
 		r.Text = clipText(label+": "+r.Text, maxLineText)
 		c.Checks = append(c.Checks, r)

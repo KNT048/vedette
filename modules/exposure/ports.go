@@ -144,13 +144,21 @@ type Runner interface {
 	Scan(ctx context.Context, t ScanTarget) (Content, error)
 }
 
-// PathChecker says which of ports answer a TCP connect to an address that is never routed (the RFC 5737 documentation ranges): such a
-// port is answered by the network between the box and the Internet (a firewall's SIP or SCCP helper, a transparent proxy, a SYN
-// proxy), whatever the destination, so an "open" there says nothing about a target (INV-44). cmd/vedette implements it with plain
-// TCP connects that are closed at once (nothing is sent, and no one is reached). It returns the ports that answered, ascending; an
-// error is "none known".
+// PathChecker measures the vantage of a run (observe.go): what the network between the box and the Internet answers on a port for an
+// address that is never routed (the RFC 5737 documentation ranges). A firewall's SIP or SCCP helper, a transparent proxy or a SYN proxy
+// accepts a connect for any destination; an egress filter refuses one for any destination. Either way what the box sees on that port
+// says nothing about a target (INV-44). cmd/vedette implements it with plain TCP connects that reach no one.
 type PathChecker interface {
-	AnsweredByPath(ctx context.Context, ports []int) ([]int, error)
+	// PathAnswers says, for each of ports, what a TCP connect to the never-routed addresses got: PortOpen (accepted), PortClosed (a
+	// reset, or an ICMP refusal) or PortSilent (no answer), as two of the three addresses agree (PortSilent when they do not). An
+	// error: nothing is known of these ports this run.
+	PathAnswers(ctx context.Context, ports []int) (map[int]string, error)
+	// SameAsPath says whether what ip answers on port (on a web or TLS port the TLS certificate, else the status, Server header and
+	// page title of GET /; on any other port the banner a server that speaks first sends, nothing sent) is what a never-routed
+	// address gets through the same network on that port: true when it is the network's own answer (a proxy's error page,
+	// certificate or banner, or nothing sent by either), false when the target's own service answered. An error when nothing was
+	// compared, a web or TLS read of the target that got no answer among them: the port stays the network's, its row is not retired.
+	SameAsPath(ctx context.Context, ip netip.Addr, port int) (bool, error)
 }
 
 // Gateway tells the page which device probably answers the open ports of the box's public IP (S-EXP-1). cmd/vedette

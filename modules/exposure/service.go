@@ -37,13 +37,13 @@ type Config struct {
 	Appliances Appliances
 	Services   ServiceScanner // nil: every scan of an IP says service identification is not set up (INV-19)
 	// Liveness checks, before each engine step and before the results are written, that the ports seen open earlier in the scan still
-	// accept a TCP connection (liveness.go); nil: no check.
+	// accept a TCP connection (probes.go); nil: no check.
 	Liveness  Liveness
 	Templates TemplateScanner // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
 	Web       WebScanner      // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
 	Greenbone GreenboneHost   // nil: the setting and every scan of an IP say NotAvailableGreenbone, "OpenVAS is not available on this box." (INV-25)
-	// Path checks which of the ports a scan found open the box's own network answers for an address that is never routed (INV-44);
-	// nil: no check, every open port is taken as the target's.
+	// Path calibrates the vantage of each run (INV-44): what the box's own network answers on a port for an address that is never
+	// routed, and whether a target's answer on such a port is its own; nil: no check, every open port is taken as the target's.
 	Path PathChecker
 	// DomainFence nil: a domain's deep scan reaches only the box's own verified IP; every other public address of its names
 	// gets a "needs the domain fence" line and nothing more than the by-name checks.

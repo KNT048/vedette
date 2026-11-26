@@ -72,7 +72,7 @@ type stepDef struct{ key, name string }
 // The order of a deep scan puts the light checks before the heavy ones: nmap's sweep of every port with service identification and
 // its safe scripts (the later steps need the ports and the services), the templates, ZAP's passive then active scan, the results
 // written, OpenVAS, and nmap's disruptive scripts last, so a ban or an overloaded firewall in front of the target costs only the
-// last steps. Before each engine step the scan checks that the ports seen open earlier still answer (liveness.go).
+// last steps. Before each engine step the scan checks that the ports seen open earlier still answer (probes.go).
 func scanPlan(k Kind, m ScanMode) (head, tail []stepDef) {
 	if k == KindDomain {
 		head = []stepDef{{stepKeySurface, stepNameSurfaceDom}}
@@ -614,7 +614,23 @@ func withinAddress(ctx context.Context, rs *runSteps, key string) context.Contex
 	if rs == nil {
 		return ctx
 	}
-	return progress.WithSink(withRunSteps(ctx, nil), addressSink{rs: rs, key: key})
+	return progress.WithSink(context.WithValue(withRunSteps(ctx, nil), addressStepKey{}, addressSink{rs: rs, key: key}), addressSink{rs: rs, key: key})
+}
+
+type addressStepKey struct{}
+
+// incomplete says the results of step key are incomplete, and why, and the run is partly done; inside the step of one of a domain's
+// addresses it is that step's results that are incomplete.
+func incomplete(ctx context.Context, key, why string) {
+	if rs := runStepsOf(ctx); rs != nil {
+		rs.incompleteOn(key, why)
+		rs.problem(why)
+		return
+	}
+	if a, ok := ctx.Value(addressStepKey{}).(addressSink); ok {
+		a.rs.incompleteOn(a.key, why)
+		a.rs.problem(why)
+	}
 }
 
 // The words of the phases, in a note.

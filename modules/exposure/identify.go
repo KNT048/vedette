@@ -325,6 +325,32 @@ func sweepTrusted(ports []PortRow, got []ServiceRow, ip string, refused bool) bo
 	return true
 }
 
+// sweepCut says a deep sweep of ip that is not trusted shows the address stopped answering it while it ran: it missed a port the runner
+// saw open there minutes before, and saw no port the runner did not (a sweep that sees ports the runner missed was answered). A sweep
+// that saw nothing where the runner saw nothing met an address that answered nothing at all: that is the address's verdict, not a cut.
+func sweepCut(ports []PortRow, got []ServiceRow, ip string) bool {
+	runner := map[int]bool{}
+	for _, p := range ports {
+		if ipKey(p.IP) == ip {
+			runner[p.Port] = true
+		}
+	}
+	missed := false
+	seen := map[int]bool{}
+	for _, r := range got {
+		if r.IP == ip {
+			if !runner[r.Port] {
+				return false
+			}
+			seen[r.Port] = true
+		}
+	}
+	for p := range runner {
+		missed = missed || !seen[p]
+	}
+	return missed
+}
+
 // addServicePorts appends a PortRow for each service on ip whose port the rows do not have yet, then says on each row of ip how its
 // service was identified and what the deep scan's scripts read there (identifyPorts).
 func addServicePorts(ports []PortRow, services []ServiceRow, scripts []ScriptRow, ip string) []PortRow {
@@ -409,17 +435,20 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 				}
 			}
 		}
+		ob := s.observerOf(ctx) // the sweep is a probe source of the run's verdicts (observe.go)
+		cut := ""
 		if st.Mode.Full { // INV-22: one miss of a trusted sweep is enough; an untrusted one checks only the fixed list
-			if c.Swept == nil {
-				c.Swept = map[string]bool{}
+			trusted := sweepTrusted(c.Ports, got, ip.String(), res.Refused)
+			switch {
+			case len(unfinished) > 0:
+				cut = fmt.Sprintf("Service identification of %s did not finish, so this scan says nothing about %s.", plural(len(unfinished), "port"), itThem(len(unfinished), "it", "them"))
+			case !trusted && sweepCut(c.Ports, got, ip.String()):
+				cut = "The sweep missed ports that accepted a connection moments before (a firewall or an IPS may have started dropping this box), so only the fixed list of common ports counts as checked."
 			}
-			c.Swept[ip.String()] = len(unfinished) == 0 && sweepTrusted(c.Ports, got, ip.String(), res.Refused)
+			ob.noteSweep(ip.String(), sweepFacts{ran: cut == "", trusted: trusted && len(unfinished) == 0, cut: cut, unfin: unfinished})
 		}
-		if res.Refused { // a closed port answered: the address was reachable in this scan (coverage)
-			if c.Answered == nil {
-				c.Answered = map[string]bool{}
-			}
-			c.Answered[ip.String()] = true
+		if res.Refused { // a closed port answered: the address was reachable in this scan
+			ob.noteResets(ip.String())
 		}
 		if n := len(unfinished); n > 0 && !st.Mode.Full {
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: fmt.Sprintf(notServicesUnfinished, plural(n, "port"))})
@@ -447,7 +476,12 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			text += fmt.Sprintf(" nmap's scripts: %s, %d saying VULNERABLE.", plural(len(c.Scripts), "result"), vuln)
 		}
 		c.Checks = append(c.Checks, CheckRow{Kind: "services", Text: text, At: store.FormatTS(s.clock())})
-		rs.end(ctx, stepKeyPorts, corerun.Done, portsNote(st.Mode.Full, len(got), len(probed)))
+		if cut != "" { // the sweep did not see everything it probed: its step and the run say so
+			rs.end(ctx, stepKeyPorts, corerun.Partial, portsNote(st.Mode.Full, len(got), len(probed))+" "+cut)
+			rs.problem(cut)
+		} else {
+			rs.end(ctx, stepKeyPorts, corerun.Done, portsNote(st.Mode.Full, len(got), len(probed)))
+		}
 		rs.end(ctx, stepKeyServices, corerun.Done, text)
 	case ctx.Err() != nil: // the run was stopped: nothing is stored
 		return c, err
@@ -460,6 +494,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 	case errors.Is(err, ErrServicesTimedOut):
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: gaveUp})
 		rs.endFirstOpen(ctx, corerun.Failed, gaveUp, stepKeyPorts, stepKeyServices)
+		s.identificationCut(ctx, ip, gaveUp)
 	case errors.As(err, &un):
 		why := "Service identification (nmap -sV) did not run: " + clipText(un.Reason, 200)
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: why})
@@ -468,15 +503,24 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 	case sctx.Err() != nil:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: slow})
 		rs.endFirstOpen(ctx, corerun.Failed, slow, stepKeyPorts, stepKeyServices)
+		s.identificationCut(ctx, ip, slow)
 	default:
 		s.cfg.Log.ErrorContext(ctx, "exposure: service identification failed", "target", st.Value, "ip", ip, "error", err)
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesFail})
 		rs.endFirstOpen(ctx, corerun.Failed, notServicesFail, stepKeyPorts, stepKeyServices)
+		s.identificationCut(ctx, ip, notServicesFail)
 	}
 	if err != nil {
 		notDeep()
 	}
 	return s.runTemplates(ctx, st, ip, c) // INV-23: safe templates for the exploited CVEs the services match
+}
+
+// identificationCut records that service identification of ip failed: the ports it would have probed have no verdict but unknown,
+// and the run is partly done.
+func (s *Service) identificationCut(ctx context.Context, ip netip.Addr, why string) {
+	s.observerOf(ctx).noteCut(ip.String(), why)
+	runStepsOf(ctx).problem(why)
 }
 
 // portsNote is what the port discovery found: open the open ports -sV read, of the probed ports the default scan probed.

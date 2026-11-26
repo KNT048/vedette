@@ -63,11 +63,11 @@ type Triggers []Trigger
 
 // find returns the rule of a trigger; a trigger the box does not know (a kind added by a newer producer) sends, so a new kind of alert is
 // never lost silently.
-func (ts Triggers) find(id string) (Trigger, bool) {
+func (ts Triggers) find(id string) Trigger {
 	if i := slices.IndexFunc(ts, func(t Trigger) bool { return t.ID == id }); i >= 0 {
-		return ts[i], true
+		return ts[i]
 	}
-	return Trigger{ID: id, On: true, Min: Low}, false
+	return Trigger{ID: id, On: true, Min: Low}
 }
 
 // triggerOf is the trigger a notice belongs to; "" for a notice no trigger holds back (a first-run summary: it already tells many
@@ -91,7 +91,7 @@ func (ts Triggers) holds(n Notice) (bool, Severity) {
 	if id == "" || n.Forced {
 		return false, ""
 	}
-	t, _ := ts.find(id)
+	t := ts.find(id)
 	if !t.On {
 		return true, ""
 	}
@@ -132,7 +132,7 @@ func validMin(s Severity) bool { return s.Valid() && s != Info }
 func triggerViews(ts Triggers) []TriggerView {
 	out := make([]TriggerView, 0, len(defaultTriggers))
 	for _, d := range defaultTriggers {
-		t, _ := ts.find(d.ID)
+		t := ts.find(d.ID)
 		out = append(out, TriggerView{Trigger: t, DefaultOn: d.On, DefaultMin: d.Min})
 	}
 	return out
@@ -192,7 +192,7 @@ func (s *Service) SaveTriggers(ctx context.Context, actor string, in []Trigger) 
 		// administrator left as it was
 		var stored []Trigger
 		for _, t := range out {
-			if d, _ := Triggers(defaultTriggers).find(t.ID); d != t {
+			if d := Triggers(defaultTriggers).find(t.ID); d != t {
 				stored = append(stored, t)
 			}
 		}

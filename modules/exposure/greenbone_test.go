@@ -1879,7 +1879,7 @@ func TestContract_INV25_OpenVASScansAProvenIPTheBoxDoesNotGoOutThroughNow(t *tes
 	h.gvm.mu.Unlock()
 	e.advance(ValidDays * 24 * time.Hour)
 	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
-	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBGate || h.gvm.seen("create_target") {
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBGate || len(o.missed) != 0 || h.gvm.seen("create_target") { // a refusal: a plain skip
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
 }
@@ -1898,7 +1898,7 @@ func TestContract_INV25_OpenVASNeverScansAReplacedAddress(t *testing.T) {
 	e.advance(ScanEvery)
 	e.fullAs(ipB) // B is new: A was never seen while B was in use
 	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: ips[0].ID, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
-	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") || h.gvm.seen("create_task") {
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || len(o.missed) != 0 || h.gvm.seen("create_target") || h.gvm.seen("create_task") {
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
 }

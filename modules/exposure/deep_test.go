@@ -598,6 +598,9 @@ func TestContract_INV28_Deep_OpenVASOnTheDeepAddresses(t *testing.T) {
 	if !hasLine(s, ipB+" (www.acme.example): "+notGBNoFence) || hasLine(s, notGBDomain) {
 		t.Fatalf("not checked %q", notChecked(s))
 	}
+	if d := e.runDetail(e.ctx(), s.RunID); d.Status != corerun.Done { // a refusal of one address is a plain skip there, not a miss of the run
+		t.Fatalf("run = %s %q, want done", d.Status, d.Summary)
+	}
 	if !slices.ContainsFunc(s.Checks, func(c CheckRow) bool {
 		return c.Kind == "greenbone" && strings.Contains(c.Text, "OpenVAS scanned "+ipA)
 	}) {

@@ -634,6 +634,9 @@ func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []de
 			n.Text = clipText(a.label()+": "+n.Text, maxLineText)
 			out.not = append(out.not, n)
 		}
+		for _, m := range o.missed {
+			out.missed = append(out.missed, clipText(a.label()+": "+m, maxLineText))
+		}
 		if o.audit != "" {
 			audits = append(audits, a.ip.String()+": "+o.audit)
 		}

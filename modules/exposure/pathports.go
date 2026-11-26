@@ -35,11 +35,12 @@ type pathRun struct {
 	x     *corerun.Exec // nil outside a run (a test of one step)
 
 	mu    sync.Mutex
-	known map[int]bool    // a port checked this run: true when the network answered it
-	addrs map[string]bool // the addresses whose results lost a port to it
-	order []string        // those addresses in the order they lost one (the line names them in that order)
-	ports map[int]bool    // the ports left out
-	said  map[int]bool    // the ports already said in the run's log
+	known map[int]bool            // a port checked this run: true when the network answered it
+	addrs map[string]bool         // the addresses whose results lost a port to it
+	order []string                // those addresses in the order they lost one (the line names them in that order)
+	ports map[int]bool            // the ports left out
+	at    map[string]map[int]bool // the ports left out of each address's results (canonical spelling)
+	said  map[int]bool            // the ports already said in the run's log
 }
 
 type pathRunKey struct{}
@@ -50,7 +51,8 @@ func (s *Service) withPathRun(ctx context.Context, x *corerun.Exec) context.Cont
 }
 
 func (s *Service) newPathRun(x *corerun.Exec) *pathRun {
-	return &pathRun{check: s.cfg.Path, x: x, known: map[int]bool{}, addrs: map[string]bool{}, ports: map[int]bool{}, said: map[int]bool{}}
+	return &pathRun{check: s.cfg.Path, x: x, known: map[int]bool{}, addrs: map[string]bool{}, ports: map[int]bool{}, said: map[int]bool{},
+		at: map[string]map[int]bool{}}
 }
 
 // pathRunOf is ctx's record of the network's answers; a new one when ctx carries none (a step called outside a run).
@@ -113,8 +115,13 @@ func (s *Service) leftOut(ctx context.Context, ip string, ports map[int]bool) {
 		p.addrs[ip] = true
 		p.order = append(p.order, ip)
 	}
+	k := ipKey(ip)
+	if p.at[k] == nil {
+		p.at[k] = map[int]bool{}
+	}
 	for port := range ports {
 		p.ports[port] = true
+		p.at[k][port] = true
 		if !p.said[port] {
 			p.said[port] = true
 			news = append(news, port)
@@ -154,6 +161,35 @@ func (s *Service) pathPortsOf(ctx context.Context) ([]int, string) {
 	}
 	// a "Not checked" line longer than maxLineText is dropped when the results are written: a few ports and addresses, then counts
 	return ports, clipText(upperFirst(fmt.Sprintf(notPathPorts, portsWords(ports), who, itWas(len(ports)))), maxLineText)
+}
+
+// pathPortsAt is, for each address (canonical spelling), the ports this run found open there that the check said the network
+// answers (ascending): the only ports whose stored rows the write retires (INV-44). A check that failed or never ran flagged none.
+func (s *Service) pathPortsAt(ctx context.Context) map[string][]int {
+	p := s.pathRunOf(ctx)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	out := make(map[string][]int, len(p.at))
+	for ip, ports := range p.at {
+		out[ip] = slices.Sorted(maps.Keys(ports))
+	}
+	return out
+}
+
+// retiredText is the sentence of the save step about the rows an earlier scan stored for ports the network answers, which this
+// scan retired, with a space in front ("" when none): " Ports 2000 and 5060 of 203.0.113.5 are no longer listed: they are answered
+// by your own network, not by 203.0.113.5."
+func retiredText(retired map[string][]int) string {
+	var parts []string
+	for _, ip := range slices.Sorted(maps.Keys(retired)) {
+		ports := slices.Sorted(slices.Values(retired[ip]))
+		parts = append(parts, fmt.Sprintf("%s of %s %s no longer listed: %s answered by your own network, not by %s.",
+			upperFirst(portsOnly(ports)), ip, isAre(len(ports)), itThey(len(ports))+" "+isAre(len(ports)), ip))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return " " + strings.Join(parts, " ")
 }
 
 // How many ports and addresses a line names before it counts the rest ("and 3 more"): "Not checked" lines hold maxLineText.

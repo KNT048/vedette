@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
@@ -1155,6 +1156,39 @@ func TestContract_INV25_EndedByOpenVAS(t *testing.T) {
 	}
 }
 
+// An OpenVAS step that was due and never got going (the task stayed queued in OpenVAS for 90 minutes, or OpenVAS ended it before
+// it scanned) failed: the step says so and the run ends partly done with the reason. Only a step with nothing to scan is a plain skip.
+func TestContract_INV25_OpenVASThatNeverStartedEndsTheRunPartlyDone(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		set  func(*fakeGVM)
+		poll time.Duration
+		line string
+	}{
+		{"stayed queued", func(g *fakeGVM) { g.states, g.stopTo, g.report = []string{"Requested"}, "Stopped", gbEmptyReport }, gbPollDefault, notGBQueued},
+		{"ended before it scanned", func(g *fakeGVM) { g.states, g.report = []string{"Requested", "Interrupted"}, gbEmptyReport }, 0, notGBEndedEarly},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				e, h := gbEnv(t)
+				e.enable()
+				h.gvm.with(tc.set)
+				e.svc.gb().poll = tc.poll
+				s := e.scanIP(gbOpen())
+				d := e.runDetail(e.ctx(), s.RunID)
+				if s.GreenboneRun.State != GBRunNotRun || d.Status != corerun.Partial || !strings.Contains(d.Summary, tc.line) {
+					t.Fatalf("OpenVAS %s, run = %s %q, want partly done saying %q", s.GreenboneRun.State, d.Status, d.Summary, tc.line)
+				}
+				if st := stepOf(t, d, stepNameOpenVAS); st.Status != corerun.Failed || !strings.Contains(noteOf(st), tc.line) {
+					t.Fatalf("OpenVAS step = %s %q, want failed saying why", st.Status, noteOf(st))
+				}
+			})
+		})
+	}
+}
+
 // The probe row's port list is clipped with its count, so a row of 40 five-digit ports keeps what follows it.
 func TestGreenboneProbePortsAreClipped(t *testing.T) {
 	t.Parallel()
@@ -1845,7 +1879,7 @@ func TestContract_INV25_OpenVASScansAProvenIPTheBoxDoesNotGoOutThroughNow(t *tes
 	h.gvm.mu.Unlock()
 	e.advance(ValidDays * 24 * time.Hour)
 	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: id, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
-	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBGate || h.gvm.seen("create_target") {
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBGate || len(o.missed) != 0 || h.gvm.seen("create_target") { // a refusal: a plain skip
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
 }
@@ -1864,7 +1898,7 @@ func TestContract_INV25_OpenVASNeverScansAReplacedAddress(t *testing.T) {
 	e.advance(ScanEvery)
 	e.fullAs(ipB) // B is new: A was never seen while B was in use
 	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: ips[0].ID, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
-	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") || h.gvm.seen("create_task") {
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || len(o.missed) != 0 || h.gvm.seen("create_target") || h.gvm.seen("create_task") {
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
 }

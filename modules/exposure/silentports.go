@@ -66,16 +66,17 @@ const (
 )
 
 // recheckMissed re-checks the ports open before on the addresses this scan port-scanned that it did not see (see above) and fills
-// c.Silent and c.Answering. It writes one line of the run's log and, for the silent ones, one "Not checked" line of the target.
-func (s *Service) recheckMissed(ctx context.Context, t Target, c *Content) {
+// c.Silent and c.Answering. It writes one line of the run's log and, for the silent ones, one "Not checked" line of the target. It
+// says whether any port it asked about answered (accepted the connection or reset it).
+func (s *Service) recheckMissed(ctx context.Context, t Target, c *Content) (answered bool) {
 	pp, ok := s.cfg.Liveness.(PortProber)
 	if !ok || ctx.Err() != nil {
-		return
+		return false
 	}
 	prev, err := servicesOf(ctx, s.cfg.DB.Reader(), t.ID, true)
 	if err != nil {
 		s.cfg.Log.WarnContext(ctx, "exposure: reading the open services before the re-check failed", "target", t.Value, "error", err)
-		return
+		return false
 	}
 	seen := openPorts(*c)
 	path, _ := s.pathPortsOf(ctx)
@@ -128,7 +129,7 @@ func (s *Service) recheckMissed(ctx context.Context, t Target, c *Content) {
 		}
 	}
 	if len(silent)+len(answering)+len(closed) == 0 {
-		return
+		return false
 	}
 	line := "Before writing the results: the ports open before that this scan did not see were connected to again (a TCP connect, nothing sent)."
 	if len(closed) > 0 {
@@ -148,6 +149,70 @@ func (s *Service) recheckMissed(ctx context.Context, t Target, c *Content) {
 		}
 	}
 	runStepsOf(ctx).logLine(ctx, corerun.Info, line)
+	return len(answering)+len(closed) > 0
+}
+
+// unansweredLine is the "Not checked" line of a scan to which no port of the target answered at all although it had open ports
+// before ("" otherwise): nothing found open, no address that replied with a reset (Content.Answered), no port of the re-check that
+// answered (rechecked), and no address that stopped answering during the scan (that has its own line). A firewall or WAF that blocks
+// the box's public IP looks like this, so the run ends partly done, never "done, 0 ports open"; the ports stay as they were (INV-22:
+// the scan is not a miss, the silent rule may still close them after three scans over a day). The box's own public IP gets the
+// NAT-loopback hint instead of the WAF one.
+func (s *Service) unansweredLine(ctx context.Context, st ScanTarget, c Content, rechecked bool) string {
+	if len(c.Ports) > 0 || rechecked || ctx.Err() != nil || slices.ContainsFunc(slices.Collect(maps.Values(c.Lost)), func(p []int) bool { return len(p) > 0 }) {
+		return ""
+	}
+	for _, ok := range c.Answered {
+		if ok {
+			return ""
+		}
+	}
+	prev, err := servicesOf(ctx, s.cfg.DB.Reader(), st.ID, true)
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: reading the open services before the scan's end failed", "target", st.Value, "error", err)
+		return ""
+	}
+	at := s.pathPortsAt(ctx)   // a row of a port the network answers is retired by this scan: not an open port of the target
+	asked := askedAddrs(st, c) // only the addresses this scan asked: a name whose lookup got no answer keeps its rows (INV-27)
+	if !slices.ContainsFunc(prev, func(x ServiceView) bool { k := ipKey(x.IP); return asked[k] && !slices.Contains(at[k], x.Port) }) {
+		return ""
+	}
+	line := "No port of " + st.Value + " answered this box."
+	if st.Kind == KindIP && s.ownAddress(ctx, st, ipKey(st.Value)) {
+		return line + " " + natHint
+	}
+	when := "during scans"
+	if st.Mode.Full {
+		when = "during deep scans"
+	}
+	if ip := s.boxPublicIP(ctx); ip != "" {
+		return line + " If the site has a WAF or firewall, allow this box's public IP " + ip + " " + when + "."
+	}
+	return line + " If the site has a WAF or firewall, allow this box's public IP " + when + "."
+}
+
+// askedAddrs are the addresses (canonical spelling) this scan sent packets to: an IP target's own, and a domain's addresses that
+// were port-scanned (portScanned) or checked by name (Contacted).
+func askedAddrs(st ScanTarget, c Content) map[string]bool {
+	out := portScanned(Target{Kind: st.Kind, Value: st.Value}, c)
+	for _, h := range c.Hosts {
+		for _, a := range h.IPs {
+			if a.Contacted {
+				out[ipKey(a.IP)] = true
+			}
+		}
+	}
+	return out
+}
+
+// boxPublicIP is the box's current public IP as its records say ("" when not known).
+func (s *Service) boxPublicIP(ctx context.Context) string {
+	all, err := listTargets(ctx, s.cfg.DB.Reader())
+	if err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: reading the box's addresses failed", "error", err)
+		return ""
+	}
+	return egressNowOf(all, s.clock()).by
 }
 
 // portsOnly is "port 80", "ports 80 and 443", or past maxLinePorts "ports 80, …, 8443 and 3 more".

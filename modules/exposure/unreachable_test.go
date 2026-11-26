@@ -73,14 +73,15 @@ func TestContract_AScanThatReachedNothingWhileTheBoxWasOfflineIsIncomplete(t *te
 	if st != "failed" || !strings.Contains(msg, "could not reach") || !strings.Contains(msg, "incomplete") {
 		t.Fatalf("the run: %s %q", st, msg)
 	}
-	// the box is online again and the target answers nothing at all: that result is real, and it is written
+	// the box is online again and the target answers nothing at all: the result is written, and since the target had open ports the
+	// run ends partly done saying no port answered the box (not "done, 0 ports open")
 	e.prober.set(ipA)
 	e.advance(ScanEvery)
 	if _, err := e.svc.Scan(e.ctx(), "operator@acme.example", a.ID); err != nil {
 		t.Fatalf("an online scan that found nothing open: %v", err)
 	}
-	if st, _ := e.runStatus(e.newestRun(a.ID)); st != "done" {
-		t.Fatalf("an online scan that found nothing open ended %s", st)
+	if st, msg := e.runStatus(e.newestRun(a.ID)); st != "partial" || !strings.Contains(msg, "No port of "+ipA+" answered this box") {
+		t.Fatalf("an online scan to which no port of a target with open ports answered ended %s %q", st, msg)
 	}
 }
 

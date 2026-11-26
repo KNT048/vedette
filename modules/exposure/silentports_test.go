@@ -246,3 +246,110 @@ func TestSilentPorts_ManySilentPortsKeepTheirLine(t *testing.T) {
 		t.Fatalf("the target's line about 30 silent ports: %+v", r.NotChecked)
 	}
 }
+
+// A target that had open ports and of which no port answers the box at all (a WAF or firewall that blocks the box's public IP drops
+// every packet) is not "done, 0 ports open": the run ends partly done with one plain line, the ports stay open (the silent rule may
+// still close them after three scans over a day), and nothing is counted closed. The box's own IP gets the NAT-loopback hint instead.
+func TestUnanswered_NoPortOfTheBoxsOwnIPAnsweredEndsPartlyDone(t *testing.T) {
+	t.Parallel()
+	e, scan, state := deepScans(t)
+	scan([]int{22, 80, 443}, swept(22, 80, 443), nil)
+	e.svc.cfg.Liveness = &fakeProbe{answer: map[int]string{22: PortSilent, 80: PortSilent, 443: PortSilent}}
+	r := scan(nil, ServiceScan{Ports: 65535}, nil)
+	d := e.runDetail(e.ctx(), r.RunID)
+	want := "No port of " + ipA + " answered this box."
+	if d.Status != corerun.Partial || !strings.Contains(d.Summary, want) {
+		t.Fatalf("run = %s %q, want partly done saying %q", d.Status, d.Summary, want)
+	}
+	i := slices.IndexFunc(r.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "unanswered" })
+	if i < 0 || !strings.HasPrefix(r.NotChecked[i].Text, want) || !strings.Contains(r.NotChecked[i].Text, "NAT loopback") {
+		t.Fatalf("the target's line: %+v", r.NotChecked)
+	}
+	if state(22) != ServiceOpen || state(80) != ServiceOpen || state(443) != ServiceOpen || closedByNewest(e) != 0 {
+		t.Fatalf("after a scan nothing answered: 22 %s, 80 %s, 443 %s, %d closed", state(22), state(80), state(443), closedByNewest(e))
+	}
+}
+
+// The same on a domain whose addresses are not the box's: the line names the box's public IP to allow in the site's WAF or firewall.
+func TestUnanswered_NoPortOfADomainAnsweredNamesTheBoxsIP(t *testing.T) {
+	t.Parallel()
+	d := newDeepEnv(t)
+	d.svc.cfg.DomainFence = &fakeFence{}
+	d.acceptTerms(d.dom.ID, false)
+	d.scan()
+	if n := d.count(`SELECT count(*) FROM exp_service WHERE target_id = ? AND state = 'open'`, d.dom.ID); n == 0 {
+		t.Fatal("the first scan found no open port")
+	}
+	d.advance(ScanEvery + time.Minute)
+	d.seams.none = true
+	d.run.content.Ports = nil
+	s := d.scan()
+	run := d.runDetail(d.ctx(), s.RunID)
+	want := "No port of acme.example answered this box. If the site has a WAF or firewall, allow this box's public IP " + ipA + " during deep scans."
+	if run.Status != corerun.Partial || !strings.Contains(run.Summary, "No port of acme.example answered this box") {
+		t.Fatalf("run = %s %q", run.Status, run.Summary)
+	}
+	if !hasLine(s, want) {
+		t.Fatalf("not checked %q, want %q", notChecked(s), want)
+	}
+	if n := d.count(`SELECT count(*) FROM exp_service WHERE target_id = ? AND state = 'closed'`, d.dom.ID); n != 0 {
+		t.Fatalf("%d services closed by a scan nothing answered", n)
+	}
+}
+
+// A target that answers with resets (its owner closed every port) did answer: a plain result, no such line, the run is done.
+func TestUnanswered_ResetsAreAnAnswer(t *testing.T) {
+	t.Parallel()
+	e, scan, _ := deepScans(t)
+	scan([]int{80}, swept(80), nil)
+	e.svc.cfg.Liveness = &fakeProbe{answer: map[int]string{80: PortClosed}}
+	r := scan(nil, ServiceScan{Ports: 65535}, nil)
+	d := e.runDetail(e.ctx(), r.RunID)
+	if d.Status != corerun.Done || slices.ContainsFunc(r.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "unanswered" }) {
+		t.Fatalf("run = %s %q, lines %+v", d.Status, d.Summary, r.NotChecked)
+	}
+}
+
+// A target whose only rows were ports the network answers (retired by this scan) had no open port of its own: no such line.
+func TestUnanswered_OnlyRowsOfTheNetworkSayNothing(t *testing.T) {
+	t.Parallel()
+	e, scan, state := deepScans(t)
+	scan([]int{5060}, swept(5060), nil) // no check: the network's 5060 stored as the target's
+	e.svc.cfg.Path = &fakePath{ports: []int{5060}}
+	r := scan([]int{5060}, swept(5060), nil)
+	d := e.runDetail(e.ctx(), r.RunID)
+	if state(5060) != ServiceClosed || d.Status != corerun.Done || slices.ContainsFunc(r.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "unanswered" }) {
+		t.Fatalf("5060 %s, run = %s %q, lines %+v", state(5060), d.Status, d.Summary, r.NotChecked)
+	}
+}
+
+// The line speaks of the addresses this scan asked only: the open port of a name whose address lookup got no answer this time
+// (INV-27: its rows are kept as they were) was not asked, so a scan whose other names answered nothing ends done, with no such line.
+func TestUnanswered_PortsOfANameNotLookedUpSayNothing(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dom := e.committedDomain()
+	day1 := Content{
+		Hosts: []HostRow{{Name: "acme.example", IP: ipA, Source: "dns", IPs: []HostIP{{IP: ipA, Family: "ipv4", Class: ClassPublic, Contacted: true}}},
+			{Name: "vpn.acme.example", IP: ipB, Source: "wordlist", IPs: []HostIP{{IP: ipB, Family: "ipv4", Class: ClassPublic, Contacted: true}}}},
+		Ports: []PortRow{{IP: ipB, Port: 443, Service: "https", HTTP: true}},
+	}
+	run := &fakeRunner{content: day1}
+	e.svc.SetRunner(run)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM exp_service WHERE target_id = ? AND state = 'open'`, dom.ID); n != 1 {
+		t.Fatalf("%d open services after the first scan, want 1", n)
+	}
+	e.advance(24 * time.Hour)
+	run.content = Content{Hosts: day1.Hosts[:1], Ports: []PortRow{}, Unresolved: []string{"vpn.acme.example"}}
+	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := e.runDetail(e.ctx(), s.RunID)
+	if d.Status != corerun.Done || slices.ContainsFunc(s.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "unanswered" }) {
+		t.Fatalf("run = %s %q, lines %q", d.Status, d.Summary, notChecked(s))
+	}
+}

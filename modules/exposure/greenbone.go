@@ -850,6 +850,10 @@ type gbOutcome struct {
 	state  string          // GreenboneRun.State after the step
 	addrs  []GreenboneAddr // a domain's: the state of each address
 	stop   *GreenboneStop  // why a stopped step was stopped (GreenboneRun.Stop)
+	// missed are the lines of an OpenVAS scan that was due and did not get going (queued for 90 minutes, ended before it scanned, the
+	// engine not available, no probe log): the run ends partly done with them. Nothing to scan (gbPortsLine) and a refusal of the
+	// gate, the terms, the own IP or the domain fence are decisions, not misses: a plain skip.
+	missed []string
 }
 
 // gbRunOf is the state of OpenVAS over several addresses of a domain: stopped, else ended, else partial, else done, else failed,
@@ -957,6 +961,8 @@ func domainNote(st ScanTarget) string {
 // then carries the domain (and, for an address that is not the box's, its scope, which the host checks through GreenboneFence). ports
 // are the TCP ports this run found open there (gbPorts): OpenVAS checks those only.
 func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr, ports []int) (gbOutcome, error) {
+	// line is a step that did not scan by decision (nothing to scan, or a refusal of the gate, the terms, the own IP or the domain
+	// fence): a plain skip with the reason, not a miss of the run.
 	line := func(text, audit string) (gbOutcome, error) {
 		return gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, audit: audit, state: GBRunNotRun}, nil
 	}
@@ -1008,7 +1014,9 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 	}
 	plog, _ := s.cfg.Probes.(GreenboneProbeLog)
 	if plog == nil {
-		return line(notGBNoLog, "not done: no probe log")
+		o, err := line(notGBNoLog, "not done: no probe log")
+		o.missed = []string{notGBNoLog} // due and could not start: a miss of the run
+		return o, err
 	}
 	g := s.gb()
 	g.mu.Lock()
@@ -1024,6 +1032,9 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 	add := func(state, text, audit string) (gbOutcome, error) {
 		out.not = append([]NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, out.not...)
 		out.audit, out.state = audit, state
+		if state == GBRunNotRun { // it was due and never got going
+			out.missed = append(out.missed, clipText(text, maxLineText))
+		}
 		if len(problems) > 0 {
 			out.audit += "; " + strings.Join(problems, "; ")
 		}

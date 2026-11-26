@@ -351,7 +351,8 @@ func refusedBeforeSending(err error) bool {
 // printed a line, no_match when it printed lines and none matched. A template without a line and an address that kept answering
 // has no result (nuclei did not run it): exposure says "no result" for its CVE.
 func outcomes(r templateRun, o nucleiout.Outcome) []exposure.TemplateResult {
-	unreachable := slices.ContainsFunc(o.HostErrors, func(h nucleiout.HostError) bool { return h.Unreachable })
+	unreachable := slices.ContainsFunc(o.HostErrors, func(h nucleiout.HostError) bool { return h.Unreachable }) ||
+		len(nucleiout.GaveUp(o.Results, o.Skipped)) > 0 // nuclei gave the address up itself (a refused or reset connection counts there)
 	var out []exposure.TemplateResult
 	for _, tp := range r.tmpls {
 		seen, matched, failed, elsewhere := false, false, false, false

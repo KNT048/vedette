@@ -172,3 +172,27 @@ func TestContract_INV6_MatchBeforeDeathIsKept(t *testing.T) {
 		t.Fatalf("matched count: %d", got.Matched)
 	}
 }
+
+// nuclei gave the device up (a refused or reset connection counts there, while the worker's host errors count only timeouts) and
+// said so on the skip line of a cluster of templates only: the device is unreachable for the run, as with counted timeouts, not
+// "no match reported" for the templates that had no line of their own.
+func TestContract_INV6_ClusterSkipLineIsAGivenUpDevice(t *testing.T) {
+	t.Parallel()
+	r := newRunEnv(t)
+	r.eng.reply = func(j nucleiargv.Job) (Output, error) {
+		if j.Targets[0].Host == "192.168.10.12" {
+			var b []byte
+			for _, tg := range j.Targets {
+				b = append(b, `{"template-id":"cluster-49941d3cbc6e510ee8b2606610b8f809ecebf7d0c5a21bb373704f46592eb5eb","host":"http://`+tg.Host+`:`+strconv.Itoa(tg.Port)+`","matcher-status":false,"error":"`+nucleiout.UnresponsiveError+`"}`+"\n"...)
+			}
+			return Output{JSONL: b}, nil
+		}
+		return lines("CVE-2022-27593")(j)
+	}
+	v := r.start("a-web01", "a-nas02")
+	r.wait()
+	got := r.run(v.ID)
+	if got.Status != "auto_stopped" || rowOf(got, "a-web01", "no_response") == nil {
+		t.Fatalf("run %s, rows %+v", got.Status, got.Results)
+	}
+}

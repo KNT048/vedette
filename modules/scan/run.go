@@ -892,7 +892,7 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 		}
 		return append(rows, RunRow{TargetID: d.ID, Label: d.Label, IP: d.IP, Result: "no_response", Note: fmt.Sprintf("The device did not finish within %d minutes; skipped.", mins)}), ""
 	}
-	if unresponsive(res) || allUnreachable(out.HostErrors, job.Targets) {
+	if unresponsive(res) || allUnreachable(out.HostErrors, job.Targets) || allGaveUp(nucleiout.GaveUp(res, out.Skipped), job.Targets) {
 		// A device nuclei gave up on mid-run may already have matched: those matches are recorded as usual, a
 		// no_response never drops them. Every other template of the device closes as no_response.
 		for _, c := range checks {
@@ -1004,6 +1004,21 @@ func allUnreachable(he []nucleiout.HostError, targets []nucleiargv.Target) bool 
 	for _, t := range targets {
 		hp := t.Host + ":" + strconv.Itoa(t.Port)
 		if !slices.ContainsFunc(he, func(h nucleiout.HostError) bool { return h.Target == hp && h.Unreachable }) {
+			return false
+		}
+	}
+	return true
+}
+
+// allGaveUp says nuclei gave up every target of the job as unresponsive (nucleiout.GaveUp): its own -mhe count, which a refused or
+// reset connection feeds too, while the worker's host errors count only timeouts. The device is lost for this run, as in
+// allUnreachable.
+func allGaveUp(gave []string, targets []nucleiargv.Target) bool {
+	if len(targets) == 0 {
+		return false
+	}
+	for _, t := range targets {
+		if !slices.Contains(gave, t.Host+":"+strconv.Itoa(t.Port)) {
 			return false
 		}
 	}

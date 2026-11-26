@@ -463,3 +463,68 @@ func FuzzParse(f *testing.F) {
 		}
 	})
 }
+
+// nuclei 3.11.1 merges templates that send the same request into one cluster. When it gives up a host it found unresponsive, it
+// prints one skip line per cluster under the cluster's own id ("cluster-" and a SHA-256), not under the templates of the job. Such
+// a line is not a result of any template: it is skipped and counted, and the run is kept (a deep run of 200 http/technologies
+// templates on a host that stopped answering was thrown away whole, "a template the job did not ask for"). A cluster id with a
+// match, or one that is not exactly that shape, still throws the run away.
+func TestRead_ClusterSkipLineOfAnUnresponsiveHost(t *testing.T) {
+	t.Parallel()
+	const cluster = `"template-id":"cluster-49941d3cbc6e510ee8b2606610b8f809ecebf7d0c5a21bb373704f46592eb5eb","info":{"author":null,"tags":null,"severity":""},"type":"","host":"https://192.0.2.10:9443","timestamp":"2026-11-26T03:49:38.507968195Z"`
+	own := `{"template-id":"gitlab-detect","host":"192.0.2.10","port":"9443","matcher-status":false,"error":"port closed or filtered"}`
+	skip := `{` + cluster + `,"matcher-status":false,"error":"host was skipped as it was found unresponsive"}`
+	out := []byte(own + "\n" + skip + "\n" + skip + "\n")
+	res, sk, err := Read(out, []string{"gitlab-detect", "grafana-detect"}, []string{"192.0.2.10:9443"})
+	if err != nil {
+		t.Fatalf("the run was thrown away: %v", err)
+	}
+	if len(res) != 1 || res[0].Template != "gitlab-detect" || sk.Lines != 2 || sk.Matched != 0 || slices.Contains(sk.Templates, "") {
+		t.Fatalf("results %+v, skipped %+v", res, sk)
+	}
+	for name, line := range map[string]string{
+		"a cluster line with a match":        `{` + cluster + `,"matcher-status":true}`,
+		"a cluster id that is not a SHA-256": strings.Replace(skip, "cluster-49941d3c", "cluster-49941d3X", 1),
+		"a cluster line without an error":    `{` + cluster + `,"matcher-status":false}`,
+	} {
+		if _, _, err := Read([]byte(line+"\n"), []string{"gitlab-detect"}, []string{"192.0.2.10:9443"}); err == nil {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+}
+
+// A run whose first skipped line is a cluster's skip line still names something in the note and the log: the cluster, never an
+// empty template ("first:  on 192.0.2.10:9443").
+func TestRead_ClusterSkipLineFirstNamesTheCluster(t *testing.T) {
+	t.Parallel()
+	cluster := `{"template-id":"cluster-49941d3cbc6e510ee8b2606610b8f809ecebf7d0c5a21bb373704f46592eb5eb","host":"https://192.0.2.10:9443","matcher-status":false,"error":"host was skipped as it was found unresponsive"}`
+	foreign := `{"template-id":"gitlab-detect","host":"198.51.100.7","port":"443","matcher-status":false}`
+	_, sk, err := Read([]byte(cluster+"\n"+foreign+"\n"), []string{"gitlab-detect"}, []string{"192.0.2.10:9443"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sk.Lines != 2 || sk.Template == "" || slices.Contains(sk.Templates, sk.Template) || strings.Contains(sk.Note(), "first:  on") {
+		t.Fatalf("skipped %+v, note %q", sk, sk.Note())
+	}
+}
+
+// A cluster line is accepted only with nuclei's own skip text, and the targets nuclei gave up (by a cluster line or a template's
+// own skip line) are named, so callers read their templates as unreachable instead of "no match reported".
+func TestRead_GaveUpNamesTheTargetsNucleiSkipped(t *testing.T) {
+	t.Parallel()
+	const id = `"template-id":"cluster-49941d3cbc6e510ee8b2606610b8f809ecebf7d0c5a21bb373704f46592eb5eb","host":"https://192.0.2.10:9443"`
+	other := `{` + id + `,"matcher-status":false,"error":"some other error"}`
+	if _, _, err := Read([]byte(other+"\n"), []string{"gitlab-detect"}, []string{"192.0.2.10:9443"}); err == nil {
+		t.Fatal("a cluster line with another error was accepted")
+	}
+	out := []byte(`{` + id + `,"matcher-status":false,"error":"` + UnresponsiveError + `"}` + "\n" +
+		`{"template-id":"gitlab-detect","host":"https://192.0.2.11:443","matcher-status":false,"error":"` + UnresponsiveError + `"}` + "\n" +
+		`{"template-id":"gitlab-detect","host":"192.0.2.12","port":"80","matcher-status":false,"error":"port closed or filtered"}` + "\n")
+	res, sk, err := Read(out, []string{"gitlab-detect"}, []string{"192.0.2.10:9443", "192.0.2.11:443", "192.0.2.12:80"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := GaveUp(res, sk); !slices.Equal(got, []string{"192.0.2.10:9443", "192.0.2.11:443"}) {
+		t.Fatalf("gave up %v", got)
+	}
+}

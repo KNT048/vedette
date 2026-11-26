@@ -159,11 +159,11 @@ func TestMatchAsset_EditionOfTheBuildDecides(t *testing.T) {
 	}
 }
 
-// A Mozilla ESR build of a line older than every ESR line the CVE lists for the product is not "not affected": Mozilla lists only
-// supported ESR lines, so an end-of-life one (Thunderbird 115 once 128 and 140 shipped) is absent whether or not its code has the
-// flaw. Its plain row is then no proof either way and the CVE stays asked, as an older release line does for an exact list. An ESR
+// A Mozilla ESR build of a line no ESR row of the CVE spans is not "not affected": Mozilla lists only supported ESR lines, so an
+// end-of-life one (Thunderbird 115 once 128 and 140 shipped; Firefox ESR 140 between the listed 115 and 153) is absent whether or not
+// its code has the flaw. Its plain row is then no proof either way and the CVE stays asked, as an older release line does for an exact list. An ESR
 // line the rows reach, or a CVE with plain rows only (no supported ESR is affected, so the code is newer than every ESR), is decided.
-func TestMatchAsset_ESRLineOlderThanEveryListedESRLineStaysAsked(t *testing.T) {
+func TestMatchAsset_UnlistedESRLineStaysAsked(t *testing.T) {
 	t.Parallel()
 	tb := func(edition string, r VersionRange) Affected {
 		return Affected{CPE: "cpe:2.3:a:mozilla:thunderbird:*:*:*:*:" + edition + ":*:*:*", Range: r}
@@ -194,6 +194,17 @@ func TestMatchAsset_ESRLineOlderThanEveryListedESRLineStaysAsked(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("%s: %s, want %s (%+v)", tc.name, got, tc.want, r)
 		}
+	}
+	// an end-of-life ESR line between the listed ones (Firefox ESR 140 once only 115, kept for older systems, and 153 are listed)
+	ff := func(edition string, r VersionRange) Affected {
+		return Affected{CPE: "cpe:2.3:a:mozilla:firefox:*:*:*:*:" + edition + ":*:*:*", Range: r}
+	}
+	esr140 := Asset{ID: "pc", Name: "pc", Software: []Software{{ID: "s", Display: "Mozilla Firefox ESR", Vendor: "Mozilla", Product: "Firefox",
+		Version: "140.5.0", Source: "agent"}}}
+	r := MatchAsset(esr140, []Vuln{{CVE: "CVE-2099-0212", NVDAnswered: true, Published: uncNew, Affected: []Affected{ff("-", VersionRange{EndExcl: "157.0"}),
+		ff("esr", VersionRange{StartIncl: "115.1.0", EndExcl: "115.42.0"}), ff("esr", VersionRange{StartIncl: "153.0", EndExcl: "153.4.0"})}}}, nil, t0)
+	if len(r.New) != 0 || len(r.Unchecked) != 1 {
+		t.Errorf("Firefox ESR 140.5.0 between the listed ESR lines: %+v, want it asked", r)
 	}
 }
 

@@ -671,7 +671,9 @@ func (s *Service) planOpenVAS(ctx context.Context, t Target, mode ScanMode, user
 // save writes the rows of a scan (writeScan) and publishes what changed.
 func (s *Service) save(ctx context.Context, runID, user string, t Target, c Content, steps *stepLog) (written, error) {
 	at := s.clock()
+	swept, answered := c.Swept, c.Answered // this run's own coverage facts (identifyIP, the runner), not text from a target: kept as they are
 	c = unresolvedLine(sanitize(c))
+	c.Swept, c.Answered = swept, answered
 	c.AdminPanels = applianceAdmins(c.AdminPanels, c.Ports, c.Services) // an appliance's admin page on any port
 	m := vulnSet{Content: c, ID: runID}
 	ranMatch := s.withVulns(ctx, &m)
@@ -690,9 +692,10 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 	for _, x := range prevOpen {
 		prevPorts = append(prevPorts, PortRow{IP: x.IP, Port: x.Port})
 	}
-	checked, gone := s.coverage(wctx, user, t, c, prevPorts, prevHosts)
+	cov := s.coverage(wctx, user, t, runID, c, prevPorts, prevHosts)
+	checked := cov.checked
 	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID),
-		checked: checked, gone: gone, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP), EngineMatch: ranMatch}}
+		checked: checked, gone: cov.gone, listed: cov.listed, settled: cov.settled, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP), EngineMatch: ranMatch}}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
 		var err error

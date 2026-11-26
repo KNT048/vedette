@@ -911,3 +911,18 @@ func TestRunBatchesKeepsFinishedOnes(t *testing.T) {
 		}
 	})
 }
+
+// A full run says whether the address answered with closed replies (TCP resets): with no open port, that is what tells "nothing
+// open" from "nothing reached the address" for exposure. Ports nmap grouped as filtered (no reply) are not an answer.
+func TestFullRunSaysTheAddressAnsweredWithClosedPorts(t *testing.T) {
+	t.Parallel()
+	ip := netip.MustParseAddr("198.51.100.7")
+	got, err := externalOf([]host{{addr: ip, closed: 65535}}, ip, nmapargv.ExternalFull)
+	if err != nil || !got.Refused || len(got.Services) != 0 {
+		t.Fatalf("a full run with closed ports only: %+v, %v", got, err)
+	}
+	got, err = externalOf([]host{{addr: ip, filtered: 65535}}, ip, nmapargv.ExternalFull)
+	if err != nil || got.Refused {
+		t.Fatalf("a full run with filtered ports only: %+v, %v", got, err)
+	}
+}

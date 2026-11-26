@@ -17,9 +17,11 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -41,6 +43,7 @@ type handler func(c net.Conn)
 type fakeNet struct {
 	mu     sync.Mutex
 	open   map[string]handler
+	reset  map[string]bool // hosts whose closed ports answer with a TCP reset (ECONNREFUSED); the others drop the connection
 	dialed []string
 }
 
@@ -48,8 +51,13 @@ func (n *fakeNet) dial(_ context.Context, network, addr string) (net.Conn, error
 	n.mu.Lock()
 	n.dialed = append(n.dialed, addr)
 	h := n.open[addr]
+	host, _, _ := net.SplitHostPort(addr)
+	reset := n.reset[host]
 	n.mu.Unlock()
 	if network != "tcp" || h == nil {
+		if reset {
+			return nil, &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}
+		}
 		return nil, errors.New("connection refused")
 	}
 	client, server := net.Pipe()
@@ -659,4 +667,28 @@ func TestRedirectTargetDropsUserInfoQueryAndFragment(t *testing.T) {
 			t.Errorf("redirectTarget(%q) = %q, want %q", in, got, want)
 		}
 	}
+}
+
+// An address where nothing is open but whose closed ports answer with a TCP reset is reachable: the result says so, so exposure can
+// tell "nothing open" from "nothing answered". An address that drops every connection is not listed.
+func TestIPScanSaysTheAddressAnsweredWithResets(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		n := &fakeNet{reset: map[string]bool{"203.0.113.7": true}}
+		s := newScanner(t, n, fakeResolver{}, nil, &probeLog{})
+		got, err := s.IP(t.Context(), netip.MustParseAddr("203.0.113.7"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got.Ports) != 0 || !slices.Equal(got.Refused, []netip.Addr{netip.MustParseAddr("203.0.113.7")}) {
+			t.Fatalf("ports %+v, refused %v", got.Ports, got.Refused)
+		}
+		got, err = s.IP(t.Context(), netip.MustParseAddr("203.0.113.8"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got.Refused) != 0 {
+			t.Fatalf("an address that dropped every connection is listed as answering: %v", got.Refused)
+		}
+	})
 }

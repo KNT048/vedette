@@ -102,7 +102,20 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-37** Results are rows (`exp_host`, `exp_address`, `exp_service`, `exp_issue`), never a document per scan. What changed is
   read from `first_seen`, `last_seen` and `state`.
 - **INV-8** The old per-day snapshot and diff endpoints answer 501.
-- **INV-22** A port the scan did not probe, or probed and missed once, is not marked closed.
+- **INV-22** A port the scan did not probe, or probed and missed once, is not marked closed (two scans in a row that probed it
+  must miss it), with two exceptions that close at once ("No longer seen"; first and last seen stay). (1) A trusted sweep: a deep
+  scan's nmap step that probed every TCP port of the address, saw every port the runner found open there this run and saw at least
+  one open port or got closed replies (`sweepTrusted`) closes a port of the runner's fixed list that the runner's connect also
+  missed this scan (two probes of this run missed it). A port outside the fixed list, or on an address the runner did not
+  port-scan, keeps the two-miss rule (two trusted sweeps in a row). A sweep that is not trusted checks only the fixed list; a failed
+  nmap step checks only the fixed list. (2) An address with nothing open: "nothing open" is a result when the address answered this
+  scan (a TCP reset to the runner's connect or to nmap, `Content.Answered`), and the scan counts as usual. When it answered nothing
+  at all (a lost NAT loopback, a firewall dropping the probes) the scan is not a miss (run item `checked_empty`), until the third
+  such scan in a row at least 24 hours after the first, which closes the ports they all probed (`emptyStreak`).
+  `TestCoverage_AFullPortScanThatDidNotSeeAPortClosesIt`, `TestCoverage_AnEmptySweepWithClosedRepliesCounts`,
+  `TestCoverage_AnUntrustworthyFullPortScanNeverClosesAPort`, `TestCoverage_AListPortTheRunnerDidNotProbeNeedsTwoSweeps`,
+  `TestCoverage_AScanThatReachedNothingIsNotAMiss`, `TestCoverage_AnEmptyScanOfAnAddressThatAnsweredIsAMiss`,
+  `TestCoverage_EmptyScansWithNoReplyCloseOnlyAfterThreeOverADay`.
 - **INV-41** A scan to which nothing of the target answered while the box could not reach the public IP services either (INV-2,
   one round asked only then) is incomplete: it ends failed with 502 `unreachable` saying the box could not reach the target, and
   nothing is written, so the target keeps the rows of its last complete scan. When the services answer, "nothing open" is a result.
@@ -111,7 +124,12 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-23** nuclei templates run only for exploited CVEs matched on a service identified in this run.
 - **INV-24** ZAP runs passive (baseline, GET only) on services that answered HTTP on a target that passed this run's gate.
 - **INV-25** Greenbone (OpenVAS) is optional and off by default; it runs as its own unmodified project beside Vedette and is
-  driven over GMP. Each address has a time cap (INV-25a).
+  driven over GMP. Each address has a time cap (INV-25a). Its probe log row, written before the task starts, is completed once the
+  scan ended: `matched` (results), `not_matched` (it scanned, no result), `not_run` (it never started scanning); a failure, a stop
+  or results the domain fence discarded keep `no_response` (`TestGreenboneProbeRowSaysHowTheScanEnded`). An OpenVAS issue's
+  description is Greenbone's own text of the result: the test's summary, the detection result on the host, insight, affected
+  software and impact, plain text with its lines kept, at most 1,500 characters (`TestOpenVASDescriptionKeepsItsLines`); a result with none names the test
+  (`TestContract_INV25_IssueDetailHasGreenbonesDescription`). Each Greenbone service has a memory limit (`deploy/greenbone`).
 - **INV-27** A proved domain's surface: names from the CT log, the domain itself, its MX and NS hosts under it, and a short common
   wordlist.
 - **INV-28** Deep scanning of addresses of names under a domain happens only in a full scan with the domain's terms accepted.

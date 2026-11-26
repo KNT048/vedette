@@ -34,10 +34,14 @@ type scanWrite struct {
 	user   string
 	at     time.Time
 	c      Content // sanitized
-	// checked is which ports this scan probed on each address it reached (coverage: coverAll, coverList, coverTop, coverWeb); gone is the
+	// checked is which ports this scan probed on each address it reached (coverage: coverAll, coverList, coverTop, coverWeb, coverEmpty); gone is the
 	// addresses of the services open before that no name of the domain points at any more.
 	checked map[string]string
 	gone    map[string]bool
+	// listed is the addresses on which the runner TCP-connected the whole fixed list this scan; settled the addresses to which the
+	// third scan in a row that found nothing open came, at least 24 hours after the first (coverage).
+	listed  map[string]bool
+	settled map[string]bool
 	ran     engineSet // the engines that ran in this scan, besides the surface (the surface always ran when there is a write)
 	vulns   []VulnRow // the exploited CVEs matched on its services (withVulns)
 	first   bool      // the target had no rows before this scan
@@ -431,9 +435,12 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 }
 
 // closeVanished closes each open service of the target that this scan did not report (INV-22): a service on an address that left the
-// domain at once; one on an address and port this scan probed when the scan before that probed it missed it too (its last_seen is
-// older than that scan's start), so one scan that could not reach a port (packet loss, a slow host) never reads as a fix. A service
-// on an address or port the scan did not probe is left as it was: the scan says nothing about it. It returns the ids it closed.
+// domain at once; one on a port of the fixed list that both the runner's connect and a trusted sweep of every TCP port (Content.Swept)
+// missed this scan at once; one on an address whose third empty scan in a row over at least a day this is (settled) at once; one on
+// an address and port this scan probed otherwise when the scan before that probed it missed it too (its last_seen is older than that
+// scan's start), so one scan that could not reach a port (packet loss, a slow host, a firewall cutting in mid-sweep) never reads as a
+// fix. A service on an address or port the scan did not probe, or on an address that answered nothing this scan (coverEmpty), is left
+// as it was: the scan says nothing about it. It returns the ids it closed.
 func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, reported map[string]bool) ([]string, error) {
 	open, err := servicesOf(ctx, tx, w.target.ID, true)
 	if err != nil {
@@ -447,11 +454,18 @@ func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, re
 		}
 		shut := w.gone[k]
 		if !shut && covers(w.checked[k], w.c.Probed[k], x.Port) {
-			prev, ok, err := previousCheck(ctx, tx, w.target.ID, w.runID, k, x.Port)
-			if err != nil {
-				return nil, err
+			switch {
+			case w.settled[k]: // the third scan in a row, over at least a day, to which the address answered nothing: all of them missed it
+				shut = true
+			case w.c.Swept[k] && w.checked[k] == coverAll && w.listed[k] && slices.Contains(commonports.Numbers(), x.Port):
+				shut = true // the runner's connect and a trusted sweep of every TCP port (sweepTrusted) both missed it this scan
+			default:
+				prev, ok, err := previousCheck(ctx, tx, w.target.ID, w.runID, k, x.Port)
+				if err != nil {
+					return nil, err
+				}
+				shut = ok && x.LastSeen < prev // the scan before that probed it did not see it either
 			}
-			shut = ok && x.LastSeen < prev // the scan before that probed it did not see it either
 		}
 		if !shut {
 			continue
@@ -806,7 +820,7 @@ func openvasIssue(r GreenboneRow) issueIn {
 	}
 	return issueIn{engine: EngineOpenVAS, key: firstOf(r.OID, r.Name) + "@" + ipKey(r.IP), ip: r.IP, port: greenbonePort(r.Port), severity: sev, cves: r.CVEs,
 		title:  clipText(firstOf(r.Name, r.OID), 300),
-		detail: IssueDetail{Solution: r.Solution, Evidence: []string{strings.TrimSpace(r.IP + " " + r.Port)}}}
+		detail: IssueDetail{Description: firstOf(r.Description, gmpDescription(r.Name, "", "")), Solution: r.Solution, Evidence: []string{strings.TrimSpace(r.IP + " " + r.Port)}}}
 }
 
 // reopenedIssue is an issue a person marked patched or mitigated that a scan reported again: the flaw is still there, so it is open

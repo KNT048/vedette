@@ -64,6 +64,10 @@ type GreenboneProbe struct {
 	PortList string
 	Config   string
 	Note     string
+	// Result is "" at the row's first write, before the task starts (the probe log reads it as sent, no answer yet). The second write
+	// with the same ID completes the row with how the scan ended: matched (it reported results), not_matched (it scanned and reported
+	// none) or not_run (it never started scanning); a scan that failed, was stopped or whose results were discarded keeps "".
+	Result string
 }
 
 // GreenboneProbeLog is implemented by the ProbeLog of Config.Probes next to the template and web probes: the row must be written
@@ -99,6 +103,9 @@ type GreenboneRow struct {
 	CVEs     []string `json:"cves"`
 	Solution string   `json:"solution"`
 	OID      string   `json:"oid"`
+	// Description is what the result says, for its issue's detail only (not stored in the snapshot): the test's summary, the
+	// detection result on this host, the insight, the affected software and the impact (gmpDescription).
+	Description string `json:"-"`
 }
 
 // Limits and timing of the deep scan (INV-25).
@@ -1189,14 +1196,15 @@ func (s *Service) runGreenbone(ctx context.Context, limit time.Duration, st Scan
 	if task, err = g.createTask(gctx, name, target, config); err != nil {
 		return res, err
 	}
-	if err := plog.RecordGreenboneProbe(gctx, GreenboneProbe{ID: store.NewID("pb"), IP: ip.String(), Fence: domainNote(st), PortList: gbProbePorts(ports),
-		Config: lv.name + " (" + lv.text + ")", Note: gbNote}); err != nil { // LEGAL §3: logged before the task starts
+	probe := GreenboneProbe{ID: store.NewID("pb"), IP: ip.String(), Fence: domainNote(st), PortList: gbProbePorts(ports), Config: lv.name + " (" + lv.text + ")", Note: gbNote}
+	if err := plog.RecordGreenboneProbe(gctx, probe); err != nil { // LEGAL §3: logged before the task starts
 		if gctx.Err() != nil {
 			return res, gctx.Err()
 		}
 		s.cfg.Log.ErrorContext(ctx, "exposure: writing the Greenbone probe log failed", "target", st.Value, "error", err)
 		return res, errGBNoLog
 	}
+	defer func() { s.gbProbeDone(ctx, plog, probe, gbProbeResult(ctx, res, err)) }()
 	report, err := g.startTask(gctx, task)
 	if err != nil {
 		running = true // it may have started: stop it to be sure
@@ -1244,6 +1252,38 @@ func (s *Service) runGreenbone(ctx context.Context, limit time.Duration, st Scan
 	res.rows, res.end = p.rows, p.end
 	return res, nil
 }
+
+// gbProbeResult is how one OpenVAS scan ended, for its probe log row: matched when it reported results, not_matched when it scanned
+// and its report held none, not_run when it never started scanning. A stop of the run, an error, a report that could not be read and
+// results the domain fence discarded keep "" (the probe log's no_response: sent, no usable answer).
+func gbProbeResult(ctx context.Context, res gbResult, err error) string {
+	switch {
+	case ctx.Err() != nil, err != nil, res.unread, res.end == gbEndFenced:
+		return ""
+	case len(res.rows) > 0:
+		return "matched"
+	case res.end == gbEndQueued, res.end == gbEndByGVM && !res.scanned:
+		return "not_run"
+	}
+	return "not_matched"
+}
+
+// gbProbeDone completes the probe log row of an OpenVAS scan with how it ended (gbProbeResult), on its own short context so a stopped
+// run still writes it. "" leaves the row as it was written before the task started. A failure is logged: the scan's results stand.
+func (s *Service) gbProbeDone(ctx context.Context, plog GreenboneProbeLog, p GreenboneProbe, result string) {
+	if result == "" {
+		return
+	}
+	p.Result = result
+	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gbProbeWrite)
+	defer cancel()
+	if err := plog.RecordGreenboneProbe(wctx, p); err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: completing the Greenbone probe log row failed", "ip", p.IP, "error", err)
+	}
+}
+
+// gbProbeWrite bounds the write that completes an OpenVAS probe log row.
+const gbProbeWrite = 10 * time.Second
 
 // gbWaited is how gbWait ended: end is "" when the task was not seen to end (err says why); scanned says it was seen scanning
 // (Running or Processing, or a progress above 0).
@@ -1441,7 +1481,7 @@ func (s *Service) gbCleanup(ctx context.Context, task, target, ports string, run
 
 // cleanGreenboneRow is the one check a Greenbone row passes before it is stored (INV-10, INV-25); ok is false for a row that is not one.
 func cleanGreenboneRow(r GreenboneRow) (GreenboneRow, bool) {
-	r.Name, r.Solution = plainText(r.Name, gmpMaxName), plainText(r.Solution, gmpMaxText)
+	r.Name, r.Solution, r.Description = plainText(r.Name, gmpMaxName), plainText(r.Solution, gmpMaxText), plainLines(r.Description)
 	if !gmpPort.MatchString(r.Port) {
 		r.Port = ""
 	}

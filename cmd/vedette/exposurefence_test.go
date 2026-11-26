@@ -193,3 +193,20 @@ func TestDomainTemplateRowKeepsTheRequest(t *testing.T) {
 		t.Fatalf("row (%d) %q", utf8.RuneCountInString(req), req)
 	}
 }
+
+// nmap's closed replies reach exposure: the address answered the service step even with no open port.
+func TestServiceScanSaysTheAddressRefused(t *testing.T) {
+	t.Parallel()
+	a := exposureServiceScan{
+		scan: func(context.Context, netip.Addr, nmapargv.Kind, sensoractive.OwnEgress) (sensoractive.External, error) {
+			return sensoractive.External{Ports: 65535, Refused: true}, nil
+		},
+	}
+	got, err := a.ScanServices(t.Context(), exposure.ScanTarget{ID: "t-2", Kind: exposure.KindIP, Value: ownPublicIP.String(), User: "u-admin", Mode: exposure.ScanMode{Full: true}}, ownPublicIP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Refused {
+		t.Fatalf("got %+v", got)
+	}
+}

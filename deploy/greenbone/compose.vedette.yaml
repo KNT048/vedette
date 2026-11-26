@@ -47,6 +47,21 @@
 #    that crash-loops (gvmd aborted ~470 times a minute for four days on a test box, 3.9 GB of journal) then fills 10 MB of its own and
 #    never the box's journal, which journald bounds only at 10% of the file system up to 4 GB for everything on the box together
 #    (journald.conf(5), SystemMaxUse=), pushing out the host's and core's own history. Nothing of the box's own configuration changes.
+# 6. Every service that runs has a memory limit (compose's mem_limit, the container's cgroup memory limit; swap as the runtime's default
+#    allows), so a runaway feed load or scan can never take the memory Vedette's own core and sensors need. Per service (a
+#    ceiling, not a reservation: the trial measured about 4 GB used by the whole project at the peak of the
+#    first feed load, 2 to 2.5 GB while it scans; Vedette scans one address at a time):
+#      gvmd 2g, pg-gvm 1536m       the manager and its PostgreSQL: they load the feed and the reports (memory.peak measured during
+#                                  a feed load: gvmd 1513 MB, pg-gvm 1079 MB);
+#      ospd-openvas 2g             the scanner and the processes of its tests for one address (869 MB in that load);
+#      redis-server 1g             the scanner's knowledge base and the tests' metadata (396 MB);
+#      openvasd 512m               the Notus service (package checks only; Vedette's scans do not log in);
+#      the four feed data services 512m each, which only copy files (notus-data 803 MB, vulnerability-tests 729 MB, most of it
+#      page cache, which is reclaimed at the limit and is never a reason to kill them), pg-gvm-migrator 512m, configure-openvas 128m,
+#      gpg-data 128m.
+#    Together at most 9.75 GiB. A service over its limit is killed by the kernel (out of memory in its own cgroup, never the
+#    box's OOM killer choosing core); Greenbone's own restart policy (condition: any) starts gvmd, pg-gvm, ospd-openvas,
+#    redis-server and openvasd again; a scan that was running then ends early and its run says so.
 services:
   gvmd:
     command:
@@ -76,6 +91,7 @@ services:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 2g
 
   gsa:
     profiles: [disabled]
@@ -100,46 +116,57 @@ services:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 512m
   notus-data:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 512m
   data-objects:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 512m
   report-formats:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 512m
   gpg-data:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 128m
   redis-server:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 1g
   pg-gvm:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 1536m
   pg-gvm-migrator:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 512m
   configure-openvas:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 128m
   openvasd:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 512m
   ospd-openvas:
     labels:
       io.vedette.started-by: vedette-host
     logging: {driver: json-file, options: {max-size: 10m}}
+    mem_limit: 2g
 
 secrets:
   vedette-gmp-password:

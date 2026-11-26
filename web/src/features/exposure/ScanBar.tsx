@@ -32,7 +32,8 @@ export function useScanFlow(node: TargetNode) {
   const blocked = notice ? null : node.blocked ? t(`blocked.long.${node.blocked}`, { value: node.value }) : null
   const roleReason = operator ? null : t('common:needRole', { role: t('common:role.operator') })
   // The scan that records the confirmation asks first, in a dialog that shows the sentence and the scope: Scan now never records a
-  // confirmation the person has not seen in front of the button they press.
+  // confirmation the person has not seen in front of the button they press. A deep scan asks first too, once, with the one warning
+  // of what it can do to the network in front of the target (the same dialog when it also records the confirmation).
   const [confirming, setConfirming] = useState(false)
   function run() {
     scan.mutate({ id: node.id, noticeVersion: notice?.version }, {
@@ -40,7 +41,7 @@ export function useScanFlow(node: TargetNode) {
       onError: (e) => { setConfirming(false); if ((e as { code?: string }).code !== 'twofa_required') toast.error(errMsg(e)) },
     })
   }
-  const start = () => (notice ? setConfirming(true) : run())
+  const start = () => (notice || node.deep ? setConfirming(true) : run())
   return { scan, notice, needTwoStep, blocked, roleReason, run, start, confirming, setConfirming, live: isLive(node.last_scan) }
 }
 type Flow = ReturnType<typeof useScanFlow>
@@ -52,15 +53,24 @@ export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
     <>
       <ScanNowButton label={node.deep ? t('scan.deepButton') : t('scan.button')} onStart={flow.start} running={flow.live} pending={flow.scan.isPending && !flow.confirming} runningLabel={t('scan.running')}
         blocked={flow.blocked ?? flow.roleReason} describedBy={flow.blocked ? 'scan-reason' : undefined} />
-      {flow.notice ? (
+      {flow.notice || node.deep ? (
         <Dialog open={flow.confirming} onOpenChange={(o) => { if (!o && !flow.scan.isPending) flow.setConfirming(false) }}>
-          {flow.confirming ? (
+          {flow.confirming && flow.notice ? (
             <DialogContent title={t('scan.confirmTitle', { value: node.value })} description={scopeLine(t, node)} info={<><p>{t('scan.noticeWho')}</p>{node.commitment ? <p>{t('scan.noticeChangedInfo')}</p> : null}</>}>
               {node.commitment ? <p className="text-meta text-muted">{t('scan.noticeChanged')}</p> : null}
               <p className="rounded-md border border-rule p-3 text-sm">{flow.notice.text}</p>
+              {node.deep ? <p className="text-sm text-warn">{t('scan.deepLoad')}</p> : null}
               <DialogFooter>
                 <Button disabled={flow.scan.isPending} onClick={() => flow.setConfirming(false)}>{t('common:cancel')}</Button>
                 <Button variant="primary" busy={flow.scan.isPending} busyLabel={t('common:busy.starting')} onClick={flow.run}>{t('scan.confirmButton')}</Button>
+              </DialogFooter>
+            </DialogContent>
+          ) : flow.confirming ? (
+            <DialogContent title={t('scan.deepConfirmTitle', { value: node.value })} description={scopeLine(t, node)}>
+              <p className="text-sm text-warn">{t('scan.deepLoad')}</p>
+              <DialogFooter>
+                <Button disabled={flow.scan.isPending} onClick={() => flow.setConfirming(false)}>{t('common:cancel')}</Button>
+                <Button variant="primary" busy={flow.scan.isPending} busyLabel={t('common:busy.starting')} onClick={flow.run}>{t('scan.deepConfirmButton')}</Button>
               </DialogFooter>
             </DialogContent>
           ) : null}

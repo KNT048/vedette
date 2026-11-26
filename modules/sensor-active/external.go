@@ -148,6 +148,9 @@ type External struct {
 	DiscoveryCut      bool
 	AnswersEverywhere bool
 	Unfinished        []int
+	// Refused: nmap got a closed reply (a TCP reset) on at least one port (the full run, or the External shape's discovery), so the
+	// address answered this run even if no port was open. Ports that gave no reply (filtered) are not an answer.
+	Refused bool
 }
 
 // externalRun bounds an external run whose context has no deadline (exposure gives it ServicesTimeout there, 8 minutes); fullRun
@@ -392,7 +395,7 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 	last := s.lastRun(ctx, ip) // read before this run writes its own rows
 	var scanned, open []int
 	var found []portInfo // the discovery's open ports, as nmap's port table named them
-	everywhere := false
+	everywhere, refused := false, false
 	err := s.externalJob(ctx, jobID, ip, nmapargv.External, batchSpec{}, probeNote{}, nil, proof, externalRun, func(hosts []host) (string, error) {
 		var err error
 		scanned, open, err = discoveryOf(hosts, ip)
@@ -403,7 +406,7 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 		if err != nil {
 			return "", err
 		}
-		found = slices.Clone(hosts[0].ports)
+		found, refused = slices.Clone(hosts[0].ports), hosts[0].closed > 0
 		return fmt.Sprintf("ok: %d of %d ports open", len(open), len(scanned)), nil
 	})
 	cut := false
@@ -471,6 +474,7 @@ func (s *Service) probeDefault(ctx context.Context, jobID string, ip netip.Addr,
 	ext.Ports = len(ext.Probed)
 	ext.DiscoveryCut = cut
 	ext.Unfinished = unfinished
+	ext.Refused = refused
 	return ext, nil
 }
 
@@ -1018,7 +1022,7 @@ func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind) (External, erro
 	if err != nil {
 		return External{}, err
 	}
-	ext := External{Services: externalServicesOf(h), Ports: 65535, Scripts: []ExternalScript{}}
+	ext := External{Services: externalServicesOf(h), Ports: 65535, Scripts: []ExternalScript{}, Refused: h.closed > 0}
 	if len(ext.Services) > commonports.MaxBelievableOpen { // A router or SYN proxy answering for every port
 		return External{}, ErrAnswersEverywhere
 	}

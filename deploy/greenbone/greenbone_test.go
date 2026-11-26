@@ -1,8 +1,8 @@
 // Package greenbone checks the two compose files of OpenVAS (Greenbone Community Edition) that the vedette-host
 // package ships: Greenbone's official file is unmodified apart from its digest pins, the pins are those of pins.env, and Vedette's
 // override hands gvmd's socket to the host directory core mounts, gives gvmd Vedette's GMP login at the creation of its admin user,
-// publishes no port and runs only what Vedette's GMP path uses (no web interface, no SCAP or CERT data). It starts no
-// container: a run on a test box checks the effect.
+// publishes no port, runs only what Vedette's GMP path uses (no web interface, no SCAP or CERT data) and limits the memory of each
+// service. It starts no container: a run on a test box checks the effect.
 package greenbone
 
 import (
@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -156,7 +157,80 @@ type override struct {
 			Driver  string            `yaml:"driver"`
 			Options map[string]string `yaml:"options"`
 		} `yaml:"logging"`
+		MemLimit string `yaml:"mem_limit"`
 	} `yaml:"services"`
+}
+
+// memLimits is the memory limit of every service Vedette runs (compose's mem_limit, a cgroup limit podman applies): enough for its
+// own peak (gvmd and PostgreSQL load the feed, ospd-openvas runs the scanner's processes), small for the feed data services that only
+// copy files, and all of them together far below what the box needs for core and the sensors. A service over its limit is killed
+// by the kernel and Greenbone's restart policy starts it again.
+var memLimits = map[string]string{
+	"gvmd": "2g", "pg-gvm": "1536m", "ospd-openvas": "2g", "redis-server": "1g", "openvasd": "512m",
+	"pg-gvm-migrator": "512m", "configure-openvas": "128m", "gpg-data": "128m",
+	"vulnerability-tests": "512m", "notus-data": "512m", "data-objects": "512m", "report-formats": "512m",
+}
+
+// memBudget is the most the limits of the services that run may add up to: about half of a 16 GB box. The preflight asks for 6 GB
+// of memory before OpenVAS may be enabled, and the trial measured about 4 GB used at the peak of the first feed load.
+const memBudget = 10 << 30
+
+func memBytes(t *testing.T, v string) int64 {
+	t.Helper()
+	unit := map[byte]int64{'m': 1 << 20, 'g': 1 << 30}[v[len(v)-1]]
+	n, err := strconv.ParseInt(v[:len(v)-1], 10, 64)
+	if unit == 0 || err != nil || n <= 0 {
+		t.Fatalf("mem_limit %q is not a number of m or g", v)
+	}
+	return n * unit
+}
+
+// Every service Vedette runs has its memory limit (memLimits), so a runaway feed load or scan never takes the memory core and the
+// sensors need; the disabled ones have none (they never start). The limits together stay within memBudget, and each service that
+// stays up keeps Greenbone's restart policy, which starts it again after the kernel killed it over its limit.
+func TestOverrideLimitsTheMemoryOfEveryServiceThatRuns(t *testing.T) {
+	t.Parallel()
+	dec := yaml.NewDecoder(strings.NewReader(string(read(t, "compose.vedette.yaml"))))
+	dec.KnownFields(true)
+	var ov override
+	if err := dec.Decode(&ov); err != nil {
+		t.Fatal(err)
+	}
+	var total int64
+	for name, s := range ov.Services {
+		if len(s.Profiles) > 0 {
+			if s.MemLimit != "" {
+				t.Errorf("%s is disabled and carries mem_limit %q", name, s.MemLimit)
+			}
+			continue
+		}
+		want, ok := memLimits[name]
+		if !ok || s.MemLimit != want {
+			t.Errorf("%s: mem_limit %q, want %q", name, s.MemLimit, want)
+			continue
+		}
+		total += memBytes(t, s.MemLimit)
+	}
+	if total > memBudget {
+		t.Errorf("the memory limits add up to %d MiB, more than %d MiB", total>>20, memBudget>>20)
+	}
+	var off struct {
+		Services map[string]struct {
+			Deploy struct {
+				RestartPolicy struct {
+					Condition string `yaml:"condition"`
+				} `yaml:"restart_policy"`
+			} `yaml:"deploy"`
+		} `yaml:"services"`
+	}
+	if err := yaml.Unmarshal(read(t, "compose.yaml"), &off); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"gvmd", "pg-gvm", "ospd-openvas", "redis-server", "openvasd"} {
+		if c := off.Services[name].Deploy.RestartPolicy.Condition; c != "any" {
+			t.Errorf("%s: Greenbone's restart policy is %q, want any (it starts again after an out-of-memory kill)", name, c)
+		}
+	}
 }
 
 // bindMount is the long form of one volume entry.
@@ -178,7 +252,7 @@ func TestOverrideOnlyHandsOverTheSocketAndRunsWhatVedetteUses(t *testing.T) {
 	dec.KnownFields(true)
 	var ov override
 	if err := dec.Decode(&ov); err != nil {
-		t.Fatalf("compose.vedette.yaml: %v (only profiles, labels, logging and gvmd's socket volume belong in it)", err)
+		t.Fatalf("compose.vedette.yaml: %v (only profiles, labels, logging, memory limits and gvmd's socket volume belong in it)", err)
 	}
 	off := loadOfficial(t)
 	var gotOff []string

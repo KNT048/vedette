@@ -34,7 +34,8 @@ import (
 //
 // The project is not Vedette's: its name, its volumes and its images are Greenbone's own, and install.sh --uninstall never names them.
 // The two compose files ship in the vedette-host package (deploy/greenbone): Greenbone's file, unmodified apart from the digest pins, and
-// Vedette's override (the gvmd socket on a host directory, the web interface and its helpers off, the SCAP and CERT data off, labels, a 10 MB log file per service).
+// Vedette's override (the gvmd socket on a host directory, the web interface and its helpers off, the SCAP and CERT data off, labels, a 10 MB log file and a
+// memory limit per service).
 // The one exception to "never removes anything of the project" is gbLean: at each up, what is left of the SCAP and CERT data an OpenVAS
 // started by an older release (or by an older build after a rollback): three containers, two volumes, two schemas in gvmd's database, and the
 // three images when Vedette's label was on their container.

@@ -49,7 +49,9 @@ func (l exposureLiveness) Alive(ctx context.Context, ip netip.Addr, ports []int)
 }
 
 // Probe is exposure's PortProber: the same connects as Alive, telling a port that refused them (a TCP reset: closed) from one that
-// gave no answer at all (a timeout, or an ICMP refusal from a filter on the way: silent).
+// gave no answer at all (a timeout, or an ICMP host or network unreachable from a filter on the way: silent). Linux reports an ICMP
+// port unreachable to connect as a refusal too, so a firewall that rejects the box that way (iptables REJECT's default) reads as
+// closed here, as it does to the runner's connect.
 func (l exposureLiveness) Probe(ctx context.Context, ip netip.Addr, ports []int) (map[int]string, error) {
 	public := l.public
 	if public == nil {

@@ -5,6 +5,8 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { sessionStore, usersStore } from '@/mocks/stores'
+import { exposureTreeRowsStore, exposureTreeStore } from './mocks'
+import { TERMS_VERSION } from './contract'
 
 const tree = () => screen.findByRole('table', { name: 'Targets' })
 const rowOf = async (table: HTMLElement, text: string) => (await within(table).findByRole('link', { name: text })).closest('tr')!
@@ -138,6 +140,23 @@ describe('exposure screens: a target page', () => {
     expect(await screen.findByRole('tab', { name: 'Scanning' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryAllByText(/heavy load on the router or firewall/)).toHaveLength(0) // shown at that moment only, not on the page
+  })
+
+  it('a deep scan of a domain says which addresses get the disruptive checks: only the box\'s own; a domain on hosting gets no "included" claim', async () => {
+    exposureTreeStore.update((l) => l.map((n) => (n.id === 'xt-11' ? { ...n, terms: { ...n.terms!, version: TERMS_VERSION, disruptive: true } } : n)))
+    const { unmount } = renderApp('/exposure/xt-11', { role: 'operator' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Deep scan now' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Deep scan example.com' })
+    await waitFor(() => expect(dialog).toHaveAccessibleDescription('Deep scan: the testing terms of this domain are accepted. Disruptive checks run only on 198.51.100.2 (this box\'s own address); the other addresses get the deep scan without them.'))
+    unmount()
+    // the same domain on a hosting provider: none of its addresses is the box's own
+    exposureTreeRowsStore.update((r) => ({ ...r, addresses: { ...r.addresses, 'xt-11': (r.addresses['xt-11'] ?? []).filter((a) => a.class !== 'box') } }))
+    renderApp('/exposure/xt-11', { role: 'operator' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Deep scan now' }))
+    const hosted = await screen.findByRole('dialog', { name: 'Deep scan example.com' })
+    await waitFor(() => expect(hosted).toHaveAccessibleDescription(/Disruptive checks are not included: none of this domain's addresses is this box's own public IP/))
+    expect(hosted).not.toHaveAccessibleDescription(/included\./)
+    expect(screen.queryByText(/Disruptive checks are included/)).toBeNull()
   })
 })
 

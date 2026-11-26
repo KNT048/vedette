@@ -106,6 +106,9 @@ func exposureService(d deps) *exposure.Service {
 	// INV-25: OpenVAS (Greenbone CE) through vedette-host's greenbone.* commands, off until an administrator enables it.
 	// DataDir is the disk preflight's filesystem. privacyFacts.GreenboneEnabled (flow 16) reads this same service (review r2).
 	cfg.Greenbone, cfg.DataDir = exposureGreenboneFor(d), d.DataDir
+	// INV-44: before a port a scan found open counts as the target's, plain TCP connects to never-routed addresses (RFC 5737) say
+	// whether the box's own network answers it for any destination. PRIVACY flow 9 says what they are.
+	cfg.Path = newExposurePath()
 	if exposureTestConfig != nil {
 		exposureTestConfig(&cfg)
 	}

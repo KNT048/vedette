@@ -42,9 +42,11 @@ type scanWrite struct {
 	// third scan in a row that found nothing open came, at least 24 hours after the first (coverage).
 	listed  map[string]bool
 	settled map[string]bool
-	ran     engineSet // the engines that ran in this scan, besides the surface (the surface always ran when there is a write)
-	vulns   []VulnRow // the exploited CVEs matched on its services (withVulns)
-	first   bool      // the target had no rows before this scan
+	// path are the ports the box's own network answered this run (INV-44): this scan did not check them on any address.
+	path  []int
+	ran   engineSet // the engines that ran in this scan, besides the surface (the surface always ran when there is a write)
+	vulns []VulnRow // the exploited CVEs matched on its services (withVulns)
+	first bool      // the target had no rows before this scan
 }
 
 // written is what a write changed.
@@ -63,6 +65,7 @@ type written struct {
 	openedAt []OpenedService
 	newAt    []NewIssue
 	first    bool              // the target's first scan: the baseline
+	path     []int             // the ports the box's own network answered this run: run items of kind itemPathPort
 	again    map[string]string // the new issues a scan opened again after a person marked them patched or mitigated: how
 	probed   map[string]string // the names the scan probed (its hosts), with the ids of their rows: items of its run
 }
@@ -449,7 +452,7 @@ func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, re
 	var closed []string
 	for _, x := range open {
 		k := ipKey(x.IP)
-		if reported[portKey(x.IP, x.Port)] {
+		if reported[portKey(x.IP, x.Port)] || slices.Contains(w.path, x.Port) { // INV-44: a port the network answered was not checked
 			continue
 		}
 		shut := w.gone[k]
@@ -490,13 +493,14 @@ func previousCheck(ctx context.Context, q querier, target, run, ip string, port 
 		marks[i] = "?"
 		args = append(args, o)
 	}
-	args = append(args, itemPort, portKey(ip, port), coverTop)
+	args = append(args, itemPort, portKey(ip, port), coverTop, itemPathPort, strconv.Itoa(port))
 	var at sql.NullString
 	err := q.QueryRowContext(ctx, `SELECT max(r.started_at) FROM core_run_item i JOIN core_run r ON r.id = i.run_id
 		WHERE r.module = ? AND r.kind = ? AND r.subject_kind = 'target' AND r.subject_id = ? AND r.id <> ?
 		AND r.started_at < (SELECT started_at FROM core_run WHERE id = ?)
 		AND ((i.subject_kind = 'address' AND i.subject_id = ? AND i.outcome IN (`+strings.Join(marks, ", ")+`))
-			OR (i.subject_kind = ? AND i.subject_id = ? AND i.outcome = ?))`, args...).Scan(&at)
+			OR (i.subject_kind = ? AND i.subject_id = ? AND i.outcome = ?))
+		AND NOT EXISTS (SELECT 1 FROM core_run_item n WHERE n.run_id = r.id AND n.subject_kind = ? AND n.subject_id = ?)`, args...).Scan(&at)
 	if err != nil {
 		return "", false, fmt.Errorf("the scan before of %s:%d: %w", ip, port, err)
 	}
@@ -522,7 +526,7 @@ func topChecked(ctx context.Context, tx *sql.Tx, w scanWrite) ([]string, error) 
 	var out []string
 	for _, x := range open {
 		k := ipKey(x.IP)
-		if w.checked[k] != coverTop || slices.Contains(commonports.Numbers(), x.Port) {
+		if w.checked[k] != coverTop || slices.Contains(commonports.Numbers(), x.Port) || slices.Contains(w.path, x.Port) {
 			continue
 		}
 		if _, ok := slices.BinarySearch(w.c.Probed[k], x.Port); ok {

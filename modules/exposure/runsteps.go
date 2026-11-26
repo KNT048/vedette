@@ -667,9 +667,14 @@ func leftText(d time.Duration) string {
 	return fmt.Sprintf("about %d hours left", int(math.Round(d.Hours())))
 }
 
-// modeNote is the note of the check step: how deep the scan goes, by the terms as they are now.
-func modeNote(m ScanMode) string {
+// modeNote is the note of the check step of t: how deep the scan goes, by the terms as they are now. The disruptive checks go only to
+// the box's own public IP (deepGate): a domain's run says so instead of claiming them, and a typed IP never gets them.
+func modeNote(t Target, m ScanMode) string {
 	switch {
+	case m.Full && m.Disruptive && t.Kind == KindDomain:
+		return "Deep scan: the testing terms are accepted. The disruptive checks run only on an address of this domain that is this box's own public IP; the other addresses get the deep scan without them."
+	case m.Full && m.Disruptive && t.Typed:
+		return "Deep scan: the testing terms are accepted. The disruptive checks run only on this box's own public IP, so this typed-in address gets the deep scan without them."
 	case m.Full && m.Disruptive:
 		return "Deep scan with the disruptive checks: the testing terms are accepted."
 	case m.Full:

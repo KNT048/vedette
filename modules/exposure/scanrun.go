@@ -477,6 +477,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}()
 	// RunIDOf: the probe log names the run. What the engines report of their progress is the note of the step it belongs to.
 	ctx = withSteps(withRunSteps(WithRunID(ctx, x.ID()), rs), steps)
+	ctx = s.withPathRun(ctx, x) // INV-44: the ports the box's own network answers, checked once a run
 	if progress.SinkFrom(ctx) == nil {
 		ctx = progress.WithSink(ctx, rs)
 	}
@@ -523,7 +524,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}); err != nil {
 		return corerun.Result{}, fmt.Errorf("recording the mode of the scan: %w", err)
 	}
-	rs.end(ctx, stepKeyCheck, corerun.Done, modeNote(ex.mode))
+	rs.end(ctx, stepKeyCheck, corerun.Done, modeNote(t, ex.mode))
 	head, tail := scanPlan(t.Kind, ex.mode)
 	rs.plan(ctx, head, tail, t.Kind != KindDomain) // a domain's addresses come before the rest
 	content, deep, err := s.engines(ctx, t, user, ex.mode, steps)
@@ -538,6 +539,9 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}
 	if line != "" {
 		content.NotChecked = append(content.NotChecked, NotCheckedRow{Kind: "greenbone", Text: line})
+	}
+	if _, path := s.pathPortsOf(ctx); path != "" { // INV-44: the ports left out because the box's own network answers them
+		content.NotChecked = append(content.NotChecked, NotCheckedRow{Kind: "network_path", Text: path})
 	}
 	if err := s.reached(ctx, t, content); err != nil { // nothing answered and the box could not reach the Internet: incomplete
 		s.auditFailedScan(ctx, user, t, err)
@@ -560,6 +564,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		plural(wr.counts.Services, "open service"), wr.counts.NewServices, wr.counts.ClosedServices, plural(wr.counts.Issues, "open issue"), wr.counts.NewIssues))
 	rs.record(ctx, "", runOn, "")
 	s.recordCoverage(ctx, x, wr.checked, wr.topPorts)
+	s.recordPathPorts(ctx, x, wr.path)
 	s.recordNames(ctx, x, wr.probed)
 	for _, h := range content.Hosts { // what the deep scan did with each address: the rotation of the next scans reads it
 		for _, a := range h.IPs {
@@ -583,6 +588,9 @@ func (s *Service) engines(ctx context.Context, t Target, user string, mode ScanM
 	rs.start(ctx, stepKeySurface)
 	content, err := s.scanRunner().Scan(ctx, st)
 	content.Hosts = clearDeep(content.Hosts) // The deep state of a run is exposure's own, never the runner's
+	if err == nil {
+		content = s.dropPathPorts(ctx, content) // INV-44: a port the box's own network answers for any address is not the target's
+	}
 	if err == nil {
 		rs.end(ctx, stepKeySurface, corerun.Done, surfaceNote(st.Kind, content))
 	}
@@ -703,7 +711,8 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 	}
 	cov := s.coverage(wctx, user, t, runID, c, prevPorts, prevHosts)
 	checked := cov.checked
-	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID),
+	path, _ := s.pathPortsOf(ctx)
+	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID), path: path,
 		checked: checked, gone: cov.gone, listed: cov.listed, settled: cov.settled, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP) || steps.ran(StepZAPActive), EngineMatch: ranMatch}}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
@@ -711,7 +720,7 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 		if out, err = s.writeScan(wctx, tx, w); err != nil {
 			return err
 		}
-		out.final, out.checked, out.first = m, checked, w.first
+		out.final, out.checked, out.first, out.path = m, checked, w.first, path
 		emit(EventScanWritten, ScanWrittenEvent{TargetID: t.ID, RunID: runID, At: store.FormatTS(at), First: w.first, Counts: out.counts, Opened: nz(out.openedAt), NewIssues: nz(out.newAt)})
 		return nil
 	})

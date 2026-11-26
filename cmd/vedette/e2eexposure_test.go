@@ -75,7 +75,7 @@ func e2eExposureFakes() func() {
 	e2eExpMu.Lock()
 	defer e2eExpMu.Unlock()
 	if e2eExpN++; e2eExpN == 1 {
-		exposureTestConfig = func(c *exposure.Config) { c.Prober, c.Resolver, c.Runner = e2eExp, e2eExp, e2eExp }
+		exposureTestConfig = func(c *exposure.Config) { c.Prober, c.Resolver, c.Runner, c.Path = e2eExp, e2eExp, e2eExp, nil }
 	}
 	return func() {
 		e2eExpMu.Lock()

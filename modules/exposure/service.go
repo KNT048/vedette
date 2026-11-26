@@ -39,6 +39,9 @@ type Config struct {
 	Templates  TemplateScanner // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
 	Web        WebScanner      // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
 	Greenbone  GreenboneHost   // nil: the setting and every scan of an IP say NotAvailableGreenbone, "OpenVAS is not available on this box." (INV-25)
+	// Path checks which of the ports a scan found open the box's own network answers for an address that is never routed (INV-44);
+	// nil: no check, every open port is taken as the target's.
+	Path PathChecker
 	// DomainFence nil: a domain's deep scan reaches only the box's own verified IP; every other public address of its names
 	// gets a "needs the domain fence" line and nothing more than the by-name checks.
 	DomainFence DomainFence

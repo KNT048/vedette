@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import type { TFunction } from 'i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { ScanNowButton } from '@/features/scanning/ScanNow'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { isLive, useScanNode } from './api'
+import { isLive, useRows, useScanNode } from './api'
 import { InfoLine } from '@/components/common/InfoLine'
-import { runHref } from './node'
+import { boxIp, runHref } from './node'
 import { RunState, useTabHref } from './NodeParts'
 import type { TargetNode } from './types'
 
@@ -49,6 +48,7 @@ type Flow = ReturnType<typeof useScanFlow>
 /** The header's Scan now: "Deep scan now" once the testing terms are accepted; locked with the reason while it cannot run. */
 export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
   const { t } = useTranslation('exposure')
+  const { scope } = useScope(node)
   return (
     <>
       <ScanNowButton label={node.deep ? t('scan.deepButton') : t('scan.button')} onStart={flow.start} running={flow.live} pending={flow.scan.isPending && !flow.confirming} runningLabel={t('scan.running')}
@@ -56,7 +56,7 @@ export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
       {flow.notice || node.deep ? (
         <Dialog open={flow.confirming} onOpenChange={(o) => { if (!o && !flow.scan.isPending) flow.setConfirming(false) }}>
           {flow.confirming && flow.notice ? (
-            <DialogContent title={t('scan.confirmTitle', { value: node.value })} description={scopeLine(t, node)} info={<><p>{t('scan.noticeWho')}</p>{node.commitment ? <p>{t('scan.noticeChangedInfo')}</p> : null}</>}>
+            <DialogContent title={t('scan.confirmTitle', { value: node.value })} description={scope} info={<><p>{t('scan.noticeWho')}</p>{node.commitment ? <p>{t('scan.noticeChangedInfo')}</p> : null}</>}>
               {node.commitment ? <p className="text-meta text-muted">{t('scan.noticeChanged')}</p> : null}
               <p className="rounded-md border border-rule p-3 text-sm">{flow.notice.text}</p>
               {node.deep ? <p className="text-sm text-warn">{t('scan.deepLoad')}</p> : null}
@@ -66,7 +66,7 @@ export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
               </DialogFooter>
             </DialogContent>
           ) : flow.confirming ? (
-            <DialogContent title={t('scan.deepConfirmTitle', { value: node.value })} description={scopeLine(t, node)}>
+            <DialogContent title={t('scan.deepConfirmTitle', { value: node.value })} description={scope}>
               <p className="text-sm text-warn">{t('scan.deepLoad')}</p>
               <DialogFooter>
                 <Button disabled={flow.scan.isPending} onClick={() => flow.setConfirming(false)}>{t('common:cancel')}</Button>
@@ -80,10 +80,32 @@ export function ScanButton({ node, flow }: { node: TargetNode; flow: Flow }) {
   )
 }
 
-/** What Scan now does on this node, in one line: the deep scan the accepted terms allow, or the safe scan. */
-function scopeLine(t: TFunction<'exposure'>, node: TargetNode): string {
+/** Where the disruptive checks of a deep scan of node go, as the key of its sentence and the addresses it names. They run only on the
+ *  box's own public IP (the backend's deepGate): never on a typed-in IP, nor on the box's IP behind carrier-grade NAT; a domain gets
+ *  them only on its addresses that are the box's own (as its last scans saw them), the others get the deep scan without them. */
+function disruptiveLine(node: TargetNode, addresses: { ip: string; class: string; family: string }[] | undefined): { key: string; ips?: string[] } {
+  if (!node.terms?.disruptive) return { key: 'scan.deepNotDisruptive' }
+  if (node.kind === 'domain') {
+    if (!addresses) return { key: 'scan.deepDomainDisruptiveRule' }
+    const own = [...new Set(addresses.filter((a) => a.class === 'box' && a.family === 'ipv4').map((a) => a.ip))]
+    if (own.length > 0) return { key: 'scan.deepDomainDisruptiveOn', ips: own }
+    return { key: addresses.length > 0 ? 'scan.deepDomainDisruptiveNone' : 'scan.deepDomainDisruptiveRule' }
+  }
+  if (!boxIp(node)) return { key: 'scan.deepTypedNotDisruptive' }
+  if (node.terms_warning) return { key: 'scan.deepSharedNotDisruptive' }
+  return { key: 'scan.deepDisruptive' }
+}
+
+/** What Scan now does on this node, in one line: the deep scan the accepted terms allow (and where its disruptive checks go), or the
+ *  safe scan; disruptive says whether any address of it gets them. */
+function useScope(node: TargetNode): { scope: string; disruptive: boolean } {
+  const { t } = useTranslation('exposure')
+  const rows = useRows(node.id, 'addresses', { enabled: node.kind === 'domain' && node.deep && !!node.terms?.disruptive })
+  if (!node.deep) return { scope: t('scan.safe'), disruptive: false }
   const deepKey = `scan.deep${node.kind === 'domain' ? 'Domain' : 'Ip'}`
-  return node.deep ? `${t(deepKey)} ${t(node.terms?.disruptive ? 'scan.deepDisruptive' : 'scan.deepNotDisruptive')}` : t('scan.safe')
+  const d = disruptiveLine(node, rows.data?.items)
+  const line = d.ips ? t(d.key, { ips: d.ips.join(', '), count: d.ips.length }) : t(d.key)
+  return { scope: `${t(deepKey)} ${line}`, disruptive: ['scan.deepDisruptive', 'scan.deepDomainDisruptiveOn', 'scan.deepDomainDisruptiveRule'].includes(d.key) }
 }
 
 /** Under the header: why Scan now is refused or what it does, the confirmation it records, and the live or last scan with its run. */
@@ -92,12 +114,12 @@ export function ScanBar({ node, flow }: { node: TargetNode; flow: Flow }) {
   const admin = useCan('admin')
   const tabHref = useTabHref()
   const deepKey = `scan.deep${node.kind === 'domain' ? 'Domain' : 'Ip'}`
-  const scope = scopeLine(t, node)
+  const { scope, disruptive } = useScope(node)
   return (
     <div className="-mt-3 mb-6 grid max-w-3xl gap-3">
       {flow.needTwoStep ? <p role="alert" className="text-sm text-warn">{t('scan.needTwoStep', { value: node.value })} <Link to="/settings/account?tab=sign-in#two-step" className="underline">{t('scan.needTwoStepLink')}</Link></p> : null}
       {flow.blocked ? <p id="scan-reason" className="text-sm text-warn">{flow.blocked}</p>
-        : node.deep ? <InfoLine className="text-meta text-muted" topic={t('scan.scopeTopic')} info={<><p>{t(`${deepKey}Info`)}</p>{node.terms?.disruptive ? <p>{t('scan.deepDisruptiveInfo')}</p> : null}</>}>{scope}</InfoLine>
+        : node.deep ? <InfoLine className="text-meta text-muted" topic={t('scan.scopeTopic')} info={<><p>{t(`${deepKey}Info`)}</p>{disruptive ? <p>{t('scan.deepDisruptiveInfo')}</p> : null}</>}>{scope}</InfoLine>
         : <p className="text-meta text-muted">{scope}{admin ? <> <Link to={tabHref('ownership', '#step-terms')} className={link}>{t('scan.acceptTerms')}</Link></> : null}</p>}
       {flow.notice ? <p className="text-meta text-muted">{t('scan.noticeFirst')}</p> : null}
       <LastScan node={node} />

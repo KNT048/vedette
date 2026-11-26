@@ -79,7 +79,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   warning and can be accepted. A request from an older page that sends `disruptive: false` is 409 `notice_changed`. On a domain's
   run the disruptive checks go only to an address that is a proven public IP of this box (the box's own IP inside its proof, its
   name's CNAME inside the domain, its gateway not in 100.64.0.0/10); every other address (hosting, a CDN, a proxy, a typed IP, a name
-  pointing outside) gets the deep scan without them and a line that says so (`deepGate`). An acceptance of a version in
+  pointing outside) gets the deep scan without them and a line that says so (`deepGate`). The run's check step (`modeNote`) and the
+  Deep scan dialog never claim them for a domain or a typed IP: a domain's says they run only on its addresses that are this box's
+  own public IP (the dialog names the ones its last scans saw, or says none is), a typed IP's says they are not included
+  (`TestModeNote_ADomainsDeepScanSaysWhichAddressesGetTheDisruptiveChecks`). An acceptance of a version in
   `keptTermsVersions` (2026-11-18b) stays valid after the update with its own text and disruptive flag: with the flag the disruptive
   checks keep running, without it the deep scan only until the current terms are accepted. Every refused acceptance is logged at
   WARN with its code and the target id.
@@ -116,6 +119,18 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   `TestCoverage_AnUntrustworthyFullPortScanNeverClosesAPort`, `TestCoverage_AListPortTheRunnerDidNotProbeNeedsTwoSweeps`,
   `TestCoverage_AScanThatReachedNothingIsNotAMiss`, `TestCoverage_AnEmptyScanOfAnAddressThatAnsweredIsAMiss`,
   `TestCoverage_EmptyScansWithNoReplyCloseOnlyAfterThreeOverADay`.
+- **INV-44** A port answered by the box's own network is not the target's. Some networks answer a TCP connect on a few ports for any
+  destination (a firewall's SIP or SCCP helper on 5060 or 2000, a transparent or SYN proxy), so every target would show them open.
+  Each port a scan step finds open (the runner's connect, nmap's discovery and service scan of an IP or of a domain's address) is
+  checked once a run (`Config.Path`, `PathChecker`; cmd/vedette: a plain TCP connect, closed at once, to 192.0.2.1, 198.51.100.1 and
+  203.0.113.1, the never-routed RFC 5737 ranges; two of the three answering means the network answers). Such a port is left out of
+  the results before any engine step: no service, admin page, certificate or script result, no template, ZAP or OpenVAS job; it is
+  neither seen nor missed for INV-22 (`closeVanished` skips it, its run item `path_port` / `answered_by_network` makes
+  `previousCheck` skip the run for it). The run's log says which ports, once each, and the target's "Not checked" lines get one line
+  of kind `network_path` ("Ports 2000 and 5060 are answered by your own network …, so they were left out of the results."). No
+  check wired, or a check that fails: the ports stay as found. `TestNetworkPath_APortAnsweredForANeverRoutedAddressIsLeftOut`,
+  `TestNetworkPath_APortTheNetworkAnswersIsNeitherSeenNorMissed`, `TestNetworkPath_NoCheckKeepsTheOpenPorts`; cmd/vedette
+  `TestExposurePathConnectsOnlyToNeverRoutedAddresses`.
 - **INV-41** A scan to which nothing of the target answered while the box could not reach the public IP services either (INV-2,
   one round asked only then) is incomplete: it ends failed with 502 `unreachable` saying the box could not reach the target, and
   nothing is written, so the target keeps the rows of its last complete scan. When the services answer, "nothing open" is a result.

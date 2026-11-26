@@ -30676,8 +30676,8 @@
                     "description": "terms_notice.version as the page showed it"
                   },
                   "disruptive": {
-                    "type": "boolean",
-                    "description": "Ignored (sent by older pages): every acceptance includes the disruptive checks"
+                    "description": "Ignored (sent by older pages): every acceptance includes the disruptive checks",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -37083,8 +37083,8 @@
                     "type": "string"
                   },
                   "disruptive": {
-                    "type": "boolean",
-                    "description": "Ignored (sent by older pages): every acceptance includes the disruptive checks"
+                    "description": "Ignored (sent by older pages): every acceptance includes the disruptive checks",
+                    "type": "boolean"
                   }
                 },
                 "required": [

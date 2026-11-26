@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,13 @@ func TestExposureWeb_TheBoxsOwnIPGoesWithItsProof(t *testing.T) {
 	}
 	if h.got.ProvenAt != "2026-10-27T03:53:00Z" || h.got.Kind != api.ZapKindIP {
 		t.Fatalf("args %+v", h.got)
+	}
+	h = ok() // the proof is about the target's own address: a page on another address never carries it
+	w = exposureWebScan{host: h}
+	other := webIPPage
+	other.IP = netip.MustParseAddr("93.184.216.35")
+	if _, err := w.Baseline(t.Context(), own, other); err != nil || h.got.ProvenAt != "" {
+		t.Fatalf("a page on another address: args %+v, %v", h.got, err)
 	}
 	h = ok()
 	w = exposureWebScan{host: h}

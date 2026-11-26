@@ -1863,7 +1863,8 @@ func TestContract_INV25_OpenVASNeverScansATypedIPWithoutItsScope(t *testing.T) {
 	w.acceptTerms(v.ID, false)
 	w.enable()
 	o, err := w.svc.greenboneStep(w.ctx(), ScanTarget{ID: v.ID, Kind: KindIP, Value: ipC, User: "admin@acme.example", Mode: ScanMode{Full: true}, Typed: true}, []int{443})
-	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") || h.gvm.seen("create_task") {
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") || h.gvm.seen("create_task") ||
+		!strings.Contains(o.not[0].Text, "not the box's own proven address") || !strings.Contains(o.audit, "not the box's own proven IP") {
 		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
 }

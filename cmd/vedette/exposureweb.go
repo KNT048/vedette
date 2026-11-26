@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/netip"
 	"regexp"
 	"time"
 
@@ -72,7 +73,7 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 			s := t.Domain.Typed
 			args.TXTToken = t.Domain.Token
 			args.Typed = &api.ExposureTyped{Method: s.Method, PTRName: s.PTRName, CoverDomain: s.CoverDomain, CoverToken: s.CoverToken, CoverProofAt: s.CoverProofAt}
-		case !t.ProvenAt.IsZero(): // the box's own IP: the sighting its proof rests on, which the host takes while it holds (90 days)
+		case !t.ProvenAt.IsZero() && provenPage(t, page): // the box's own IP: the sighting its proof rests on, which the host takes while it holds (90 days)
 			args.ProvenAt = t.ProvenAt.UTC().Format(time.RFC3339)
 		}
 	case exposure.KindDomain:
@@ -140,6 +141,13 @@ func (w exposureWebScan) Baseline(ctx context.Context, t exposure.ScanTarget, pa
 		return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the report: %w", err)
 	}
 	return exposure.WebScan{Report: b}, nil
+}
+
+// provenPage says whether the target's proof is about the page's address: the proof is a sighting of the target's own IP, so it goes
+// to the host only with a page on exactly that address, never with a page on another one.
+func provenPage(t exposure.ScanTarget, page exposure.WebPage) bool {
+	ip, err := netip.ParseAddr(t.Value)
+	return err == nil && ip.Unmap() == page.IP.Unmap()
 }
 
 // webReason is the sentence of a run that ended without a report for a reason that holds for the other pages too; "" for a failure

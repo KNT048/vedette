@@ -171,7 +171,7 @@ const (
 	notGBGate     = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
 	// notGBNotOwn: the address is not the box's own proven IP (no sighting inside its days, or a typed IP without its scope), so
 	// OpenVAS, which has no fence of its own on the host, gets nothing (INV-13).
-	notGBNotOwn = "OpenVAS did not scan: the box does not go out through this IP now (or could not check it), so nothing was sent."
+	notGBNotOwn = "OpenVAS did not scan: this IP is not the box's own proven address (the box has not seen it as its address within the last 90 days, or it is a typed IP without its proof), so nothing was sent."
 	notGBNoLog  = "OpenVAS did not scan: the probe log is not available, and nothing is sent without it."
 	notGBSlow   = "OpenVAS did not finish within 90 minutes, and what it had found by then could not be read, so its results are not shown."
 	// notGBPartial and notGBPartialNone: the cap stopped the task and its report was read: the rows found by then are shown.
@@ -981,7 +981,7 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 			s.cfg.Log.ErrorContext(ctx, "exposure: checking the box's own address before Greenbone failed", "target", st.Value, "ip", ip, "error", err)
 		}
 		if !own {
-			return line(notGBNotOwn, "not done: the box does not go out through this IP now")
+			return line(notGBNotOwn, "not done: not the box's own proven IP (no sighting within its 90 days, or a typed IP without its scope)")
 		}
 	}
 	// Never above the run's snapshot: a tick taken back stops the run, a tick added while it runs waits for the next one

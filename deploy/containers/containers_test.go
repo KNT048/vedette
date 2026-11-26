@@ -74,6 +74,12 @@ func TestPinsAreExact(t *testing.T) {
 	if !regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`).MatchString(p["OPENCANARY_VERSION"]) {
 		t.Errorf("OPENCANARY_VERSION=%q must be MAJOR.MINOR.PATCH", p["OPENCANARY_VERSION"])
 	}
+	if !regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`).MatchString(p["OPENVAS_VERSION"]) {
+		t.Errorf("OPENVAS_VERSION=%q must be MAJOR.MINOR.PATCH (the gvmd release shown under Packages managed)", p["OPENVAS_VERSION"])
+	}
+	if !regexp.MustCompile(`^[^@:]+/[^@:/]+:[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64}$`).MatchString(p["ZAP_IMAGE"]) {
+		t.Errorf("ZAP_IMAGE=%q must be repo:MAJOR.MINOR.PATCH@sha256:<digest> (the tag is the version shown under Packages managed)", p["ZAP_IMAGE"])
+	}
 	if !regexp.MustCompile(`^[0-9]+:[0-9]+\.[0-9]+$`).MatchString(p["SAMBA_MIN_VERSION"]) {
 		t.Errorf("SAMBA_MIN_VERSION=%q is the Debian floor, epoch:major.minor, of the Samba the build takes from the repository", p["SAMBA_MIN_VERSION"])
 	}

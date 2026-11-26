@@ -672,8 +672,10 @@ function managedOf(components: UpdateComponent[], available: UpdateAvailable[]):
   const pending = available.some((a) => a.component === 'pack-nuclei')
   return [
     { id: 'nuclei', name: 'nuclei', version: '3.4.10', status: 'ok' },
-    { id: 'nuclei-templates', name: 'nuclei templates', version: nuclei, status: pending ? 'update_pending' : 'ok' },
-    { id: 'opencanary', name: 'OpenCanary', version: '0.9.4', status: 'ok' },
+    { id: 'nuclei-templates', name: 'nuclei-templates-pack', version: nuclei, status: pending ? 'update_pending' : 'ok' },
+    { id: 'opencanary', name: 'opencanary', version: '0.9.4', status: 'ok' },
+    { id: 'zap', name: 'zap', version: '2.17.0', status: 'ok' },
+    { id: 'openvas', name: 'openvas', version: '26.43.0', status: 'ok' },
   ]
 }
 

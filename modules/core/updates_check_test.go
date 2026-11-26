@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -139,6 +140,35 @@ func (s *releaseServer) standard(t *testing.T, seq uint64) {
 		d["bundled"] = []any{opstest.Doc{"service": "honeypot", "name": "opencanary", "version": "0.9.5"}}
 	})
 	s.index(t, seq, m, 100, nil)
+}
+
+// The Managed packages list shows every entry of bundled[] (the pinned tools of scan, honeypot and greenbone), and marks only the ones the
+// offered release pins at another version.
+func TestManagedListsEveryPinnedPackage(t *testing.T) {
+	t.Parallel()
+	e := newUpdEnv(t, osOpts{noHost: true})
+	pkg := func(svc, name, ver string) opstest.Doc {
+		return opstest.Doc{"service": svc, "name": name, "version": ver, "license": "MIT"}
+	}
+	e.srv.manifest(t, runningVersion, func(d opstest.Doc) {
+		d["rollback"] = opstest.Doc{"safe": false, "min_version": ""}
+		d["bundled"] = []any{pkg("scan", "nuclei", "3.11.1"), pkg("honeypot", "opencanary", "0.9.10"), pkg("scan", "zap", "2.17.0"), pkg("greenbone", "openvas", "26.43.0")}
+	})
+	m := e.srv.manifest(t, "1.4.0", func(d opstest.Doc) {
+		d["bundled"] = []any{pkg("scan", "nuclei", "3.11.1"), pkg("honeypot", "opencanary", "0.9.10"), pkg("scan", "zap", "2.18.0"), pkg("greenbone", "openvas", "26.43.0")}
+	})
+	e.srv.index(t, 5, m, 100, nil)
+	r := e.oper.post("/core/updates/check", nil)
+	wantOK(t, r, 200)
+	got := map[string]string{}
+	for _, x := range getArr(r, "managed") {
+		mp := x.(map[string]any)
+		got[fmt.Sprint(mp["name"])] = fmt.Sprint(mp["version"], " ", mp["status"])
+	}
+	want := map[string]string{"nuclei": "3.11.1 ok", "opencanary": "0.9.10 ok", "zap": "2.17.0 update_pending", "openvas": "26.43.0 ok"}
+	if !maps.Equal(got, want) {
+		t.Errorf("managed = %v, want %v", got, want)
+	}
 }
 
 type updEnv struct {

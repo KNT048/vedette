@@ -460,7 +460,7 @@ func (w *zapWorld) exec(ctx context.Context, name string, stdin io.Reader, args 
 			w.runStarted <- struct{}{}
 		}
 		wrk, _ := strings.CutSuffix(args[slices.Index(args, "--volume")+1], ":/zap/wrk:rw,nosuid,nodev,noexec")
-		plan, _ := os.ReadFile(filepath.Join(wrk, zapPlanName))
+		plan, _ := os.ReadFile(filepath.Join(wrk, zapPlanName)) //nolint:gosec // the test's own work folder
 		w.mu.Lock()
 		w.plan, w.runArgv = string(plan), slices.Clone(args)
 		if w.leaveCtr { // the container runs while podman run does

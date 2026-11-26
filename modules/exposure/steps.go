@@ -175,10 +175,10 @@ func stepText(engine, outcome string, t *stepTally) string {
 			rules = "with the disruptive rules"
 		}
 		total := t.ok + t.empty + t.failed
-		switch {
-		case outcome == StepFailed:
+		switch outcome {
+		case StepFailed:
 			return "ZAP's active scan could not attack " + plural(t.failed, "page")
-		case outcome == StepPartial:
+		case StepPartial:
 			return fmt.Sprintf("ZAP's active scan attacked %d of %d pages %s, %s", t.ok, total, rules, plural(t.found, "alert"))
 		}
 		return fmt.Sprintf("ZAP's active scan attacked %s %s, %s", plural(t.ok, "page"), rules, plural(t.found, "alert"))

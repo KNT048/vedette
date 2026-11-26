@@ -177,7 +177,8 @@ describe('exposure screens: issues', () => {
 
 describe('exposure screens: the web checks of a scheduled scan', () => {
   it('a scheduled run says that the active web checks run on Scan now, so it does not look incomplete', async () => {
-    renderApp('/exposure/xt-11?tab=scans')
+    renderApp('/exposure/xt-11')
+    await userEvent.click(await screen.findByRole('tab', { name: 'Scans' }))
     expect(await screen.findByText('Active web checks run when a person presses Scan now; scheduled scans read the pages without attacking them.')).toBeInTheDocument()
   })
 })

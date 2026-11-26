@@ -119,7 +119,7 @@ func TestExposurePathComparesTheTargetsAnswerWithTheNetworks(t *testing.T) {
 		t.Cleanup(s.Close)
 		return s
 	}
-	proxy, real := page("Blocked by the proxy"), page("Acme portal")
+	proxy, own := page("Blocked by the proxy"), page("Acme portal")
 	target := netip.MustParseAddr("8.8.8.8")
 	through := func(targetServer *httptest.Server) exposurePath {
 		return exposurePath{public: func(netip.Addr) bool { return true }, dial: func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -131,7 +131,7 @@ func TestExposurePathComparesTheTargetsAnswerWithTheNetworks(t *testing.T) {
 			return (&net.Dialer{}).DialContext(ctx, network, to)
 		}}
 	}
-	if same, err := through(real).SameAsPath(t.Context(), target, 80); err != nil || same {
+	if same, err := through(own).SameAsPath(t.Context(), target, 80); err != nil || same {
 		t.Fatalf("the target's own page through the proxy: same %v, err %v", same, err)
 	}
 	if same, err := through(proxy).SameAsPath(t.Context(), target, 80); err != nil || !same {

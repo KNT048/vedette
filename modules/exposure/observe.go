@@ -663,9 +663,7 @@ func (s *Service) observation(ctx context.Context, st ScanTarget, c Content, cov
 	var scoped []int
 	for ip, a := range o.addrs {
 		a.loopback = s.loopback(ctx, st, ip)
-		for _, p := range a.storedOpen {
-			scoped = append(scoped, p)
-		}
+		scoped = append(scoped, a.storedOpen...)
 		for p := range a.open {
 			scoped = append(scoped, p)
 		}

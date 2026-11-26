@@ -130,12 +130,12 @@ func (p exposurePath) SameAsPath(ctx context.Context, ip netip.Addr, port int) (
 	if !ok {
 		return true, nil
 	}
-	target := p.answerOf(ctx, netip.AddrPortFrom(ip.Unmap(), uint16(port)), use) //nolint:gosec // checked to be 1..65535 above
+	target := p.answerOf(ctx, netip.AddrPortFrom(ip.Unmap(), uint16(port)), use)
 	for _, a := range neverRouted {
 		if ctx.Err() != nil {
 			return false, ctx.Err()
 		}
-		if p.answerOf(ctx, netip.AddrPortFrom(a, uint16(port)), use) == target { //nolint:gosec // checked to be 1..65535 above
+		if p.answerOf(ctx, netip.AddrPortFrom(a, uint16(port)), use) == target {
 			return true, nil
 		}
 	}

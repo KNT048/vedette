@@ -16,9 +16,9 @@ func topThousand() []int {
 	return out
 }
 
-// verdictOf is the verdict a written scan gave a port ("" when none: the scan did not probe it).
-func verdictOf(w written, ip string, port int) string {
-	v, _ := w.verdicts.of(ip, port)
+// verdictOf is the verdict a written scan of the replay's IP gave a port ("" when none: the scan did not probe it).
+func verdictOf(w written, port int) string {
+	v, _ := w.verdicts.of("198.51.100.2", port)
 	return v.v
 }
 
@@ -42,16 +42,16 @@ func TestCoverage_TopPortNeedsTwoScansThatProbedIt(t *testing.T) {
 	partial := []NotCheckedRow{{Kind: "ports", Text: notOtherPortsIP}}
 
 	deep := e.replay("xt-ip", "2026-11-18T02:00:00.000Z", Content{Ports: []PortRow{port(80), port(666)}})
-	if v := verdictOf(deep, ip, 666); v != verdictOpen {
+	if v := verdictOf(deep, 666); v != verdictOpen {
 		t.Fatalf("the deep scan's verdict of 666: %q", v)
 	}
 	a := e.replay("xt-ip", "2026-11-19T02:00:00.000Z", Content{Ports: []PortRow{port(80)}, NotChecked: partial})
-	if v := verdictOf(a, ip, 666); v != "" || state(666) != ServiceOpen {
+	if v := verdictOf(a, 666); v != "" || state(666) != ServiceOpen {
 		t.Fatalf("scan A (nmap failed): verdict of 666 %q, 666 %s", v, state(666))
 	}
 	probed := map[string][]int{ip: topThousand()}
 	b := e.replay("xt-ip", "2026-11-20T02:00:00.000Z", Content{Ports: []PortRow{port(80)}, NotChecked: partial, Probed: probed})
-	if v := verdictOf(b, ip, 666); v != verdictClosed || b.counts.ClosedServices != 0 || state(666) != ServiceOpen {
+	if v := verdictOf(b, 666); v != verdictClosed || b.counts.ClosedServices != 0 || state(666) != ServiceOpen {
 		t.Fatalf("scan B (first scan that probed 666): verdict %q, counts %+v, 666 %s", v, b.counts, state(666))
 	}
 	c := e.replay("xt-ip", "2026-11-21T02:00:00.000Z", Content{Ports: []PortRow{port(80)}, NotChecked: partial, Probed: probed})
@@ -73,7 +73,7 @@ func TestCoverage_ScanThatDidNotProbeThePortIsNotAMiss(t *testing.T) {
 	other := map[string][]int{ip: topThousand()}                                                    // 18443 is not among them
 	for i, at := range []string{"2026-11-19T02:00:00.000Z", "2026-11-20T02:00:00.000Z", "2026-11-21T02:00:00.000Z"} {
 		out := e.replay("xt-ip", at, Content{Ports: []PortRow{port(80)}, NotChecked: partial, Probed: other})
-		if v := verdictOf(out, ip, 18443); out.counts.ClosedServices != 0 || v != "" {
+		if v := verdictOf(out, 18443); out.counts.ClosedServices != 0 || v != "" {
 			t.Fatalf("scan %d that did not probe 18443: counts %+v, verdict %q", i+1, out.counts, v)
 		}
 	}

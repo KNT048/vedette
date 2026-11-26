@@ -238,7 +238,8 @@ export const SHOTS = [
       await mark(page.getByRole('button', { name: 'Edit Email' }), 2)
       await mark(page.getByRole('button', { name: 'Send test Email' }), 3)
       await mark(main(page).getByText(/^Tested 18 Nov/), 4)
-      await mark(page.locator('#quiet-hours legend'), 5, { tight: true })
+      await mark(page.getByRole('tab', { name: 'Settings' }), 5, { tight: true })
+      await mark(main(page).getByRole('link', { name: 'History' }), 6, { tight: true })
       await shoot()
     },
   },
@@ -283,13 +284,13 @@ export const SHOTS = [
   {
     name: '04-history', height: 1000,
     async run({ page, mark, shoot }) {
-      await page.goto('/settings/channels')
-      const sec = page.getByRole('heading', { name: 'History' }).locator('xpath=ancestor::section[1]')
-      await sec.scrollIntoViewIfNeeded()
-      await mark(sec.getByRole('heading', { name: 'Not sent' }), 1, { tight: true })
-      await mark(sec.getByText('Failed', { exact: true }).first(), 2)
-      await mark(sec.getByRole('button', { name: /^Send again/ }).first(), 3)
-      await shoot({ area: sec, maxHeight: 620 })
+      await page.goto('/settings/channels/history')
+      const m = main(page)
+      await mark(m.getByRole('heading', { name: 'Not sent' }), 1, { tight: true })
+      await mark(m.getByRole('combobox', { name: 'Result' }), 2)
+      await mark(m.getByText('Failed', { exact: true }).first(), 3)
+      await mark(m.getByRole('button', { name: /^Send again/ }).first(), 4)
+      await shoot({ area: m, maxHeight: 900 })
     },
   },
 

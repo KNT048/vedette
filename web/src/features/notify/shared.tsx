@@ -25,10 +25,10 @@ export const waitingReason = (n: NotSent | null) => !!n && (n.reason === 'queued
 export const needsFix = (n: NotSent | null) => !!n && ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed'].includes(n.reason)
 
 /** Need → place (docs/UI.md §0): the exact spot of Settings › Alert channels that fixes a reason: the channel named (its Set up or
- *  Edit button), the quiet hours, else the list of channels. The ids are in ChannelsSettings. */
+ *  Edit button), the quiet hours or grouping (on its Settings tab), else the list of channels. The ids are in ChannelsSettings. */
 export function fixAt(n: NotSent): string {
-  if (n.reason === 'quiet_hours') return '/settings/channels#quiet-hours'
-  if (n.reason === 'grouped') return '/settings/channels#grouping'
+  if (n.reason === 'quiet_hours') return '/settings/channels?tab=settings#quiet-hours'
+  if (n.reason === 'grouped') return '/settings/channels?tab=settings#grouping'
   if (n.channel && ['channel_off', 'channel_removed', 'below_min_severity', 'failed'].includes(n.reason)) return `/settings/channels#channel-${n.channel}`
   return '/settings/channels#channels'
 }

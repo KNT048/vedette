@@ -85,7 +85,7 @@ function Tiles({ o, noClaim }: { o: Overview; noClaim: boolean }) {
           </>
         )} />
       {o.alerts ? (
-        <KpiTile to={admin ? '/settings/channels#history' : undefined} value={o.alerts.sent} label={t('dash.alerts', { count: o.alerts.sent, days: o.alerts.days })}
+        <KpiTile to={admin ? '/settings/channels/history' : undefined} value={o.alerts.sent} label={t('dash.alerts', { count: o.alerts.sent, days: o.alerts.days })}
           sub={o.alerts.failed ? <span className="font-medium text-danger">{t('dash.alertsFailed', { count: o.alerts.failed })}</span> : <span>{t('dash.alertsNoneFailed')}</span>} />
       ) : null}
       {o.incidents ? (

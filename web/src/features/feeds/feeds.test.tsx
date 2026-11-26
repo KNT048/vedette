@@ -37,7 +37,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     expect(within(tiles[0]!).getAllByRole('link').some((l) => l.getAttribute('href') === '/findings?tab=device&status=exploited')).toBe(true)
     expect(within(tiles[0]!).getByRole('img', { name: /^Open findings over 30 days: \d+ then, \d+ now$/ })).toBeInTheDocument()
     expect(within(tiles[1]!).getByRole('link', { name: /devices? watched$/ })).toHaveAttribute('href', '/devices')
-    expect(within(tiles[2]!).getByRole('link', { name: /alerts? sent, last 7 days$/ })).toHaveAttribute('href', '/settings/channels#history')
+    expect(within(tiles[2]!).getByRole('link', { name: /alerts? sent, last 7 days$/ })).toHaveAttribute('href', '/settings/channels/history')
     expect(within(tiles[3]!).getByRole('link', { name: /open incidents?$/ })).toHaveAttribute('href', '/incidents?tab=open')
     const fix = await screen.findByRole('region', { name: 'Fix first' })
     const rows = within(fix).getAllByRole('listitem').filter((li) => li.parentElement?.getAttribute('aria-label') === 'Fix first')

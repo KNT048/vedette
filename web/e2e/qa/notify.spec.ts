@@ -108,6 +108,8 @@ test.describe('notify: incidents (S-ALERT-3)', () => {
   test('History: every message of every kind, and Send again on a failed email adds a row', async ({ page }) => {
     await startWithSample(page)
     await page.goto('/settings/channels')
+    await page.getByRole('link', { name: 'History' }).click()
+    await expect(page).toHaveURL(/\/settings\/channels\/history$/)
     // under 768 px the history is a list of cards, not a table (DataTable mobileRow)
     const narrow = (page.viewportSize()?.width ?? 1366) < 768
     const table = page.getByRole(narrow ? 'list' : 'table', { name: 'Sent messages' })
@@ -116,7 +118,7 @@ test.describe('notify: incidents (S-ALERT-3)', () => {
     await expect(table.getByText('Incident').first()).toBeVisible()
     await expect(table.getByText('Vulnerability').first()).toBeVisible()
     await expect(table.getByText('Approval request').first()).toBeVisible()
-    await expect(page.getByRole('button', { name: 'About History' })).toHaveAccessibleDescription(/Vedette only alerts for products you own/) // #824: the rule is behind the section's ⓘ
+    await expect(page.getByRole('button', { name: 'About Alert history' })).toHaveAccessibleDescription(/Vedette only alerts for products you own/) // #824: the rule is behind the page's ⓘ
     const rows = await rowsOf().count()
     await table.getByRole('button', { name: /^Send again via Email: / }).first().click()
     await expect(page.getByText('Sent again via Email.').first()).toBeVisible()
@@ -266,7 +268,7 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
   test('quiet hours across midnight: summary is right, equal times are refused, saved values survive reload', async ({ page }) => {
     const errors = collectErrors(page)
     await startWithSample(page)
-    await page.goto('/settings/channels')
+    await page.goto('/settings/channels?tab=settings')
     await expect(page.getByText('Quiet from 22:00 this evening until 06:30 the next morning.')).toBeVisible()
     await page.getByLabel('From', { exact: true }).fill('08:00')
     await page.getByLabel('Until', { exact: true }).fill('17:30')
@@ -394,7 +396,6 @@ test.describe('notify: clean install', () => {
     await page.goto('/settings/channels')
     await expect(page.getByRole('button', { name: /^Set up (Telegram|Slack|Zalo OA|Zalo personal|Email|Webhook)$/ })).toHaveCount(6)
     await expect(page.locator('main')).not.toContainText(/acme\.example|-1002145678901/)
-    await expect(page.getByText('Nothing sent yet')).toBeVisible()
     await shot(page, 'notify', 'clean-channels')
     await expectAccessible(page, 'channels clean')
     await page.getByRole('button', { name: 'Set up Telegram' }).click()

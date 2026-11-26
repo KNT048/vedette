@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Download, RefreshCw, Upload } from 'lucide-react'
 import { Link } from 'react-router'
+import { useKeepListParams } from '@/components/common/listParams'
 import { PageTabs } from '@/components/common/PageFrame'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
@@ -112,6 +113,7 @@ const Body = memo(function Body({ s, part, setAfter }: { s: UpdatesState; part: 
   const { t } = useTranslation('core')
   const admin = useGate('admin')
   const operator = useGate('operator')
+  const keep = useKeepListParams() // the Updates and History lists keep their pages when the link changes tab
   const m = useUpdateMutations()
   const [rollback, setRollback] = useState<UpdateComponent | null>(null)
   const [dataLossOk, setDataLossOk] = useState(false)
@@ -306,7 +308,7 @@ const Body = memo(function Body({ s, part, setAfter }: { s: UpdatesState; part: 
         ) : (
           <div className="flex flex-wrap items-center gap-x-1">
             <p className="text-sm text-muted">{t(emptyKey)}</p>
-            {emptyKey === 'updates.managed.noneError' ? <Link className="text-sm text-accent underline-offset-4 hover:underline" to="?tab=vedette">{t('updates.managed.noneErrorLink')}</Link> : null}
+            {emptyKey === 'updates.managed.noneError' ? <Link className="text-sm text-accent underline-offset-4 hover:underline" to={keep('?tab=vedette')}>{t('updates.managed.noneErrorLink')}</Link> : null}
             {emptyKey === 'updates.managed.none' ? <InfoTip topic={t('updates.managed.none')}>{t('updates.managed.noneInfo')}</InfoTip> : null}
           </div>
         )}

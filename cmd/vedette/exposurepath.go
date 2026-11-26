@@ -48,7 +48,8 @@ const (
 //     fixed list (commonports): its TLS certificate, else the status, Server header and title of one GET of /, as the scan's own
 //     check of a web port reads. On any other port: what a server that speaks first sends by itself (its banner: at most 512 bytes
 //     within 2 seconds, nothing sent). A target that sends nothing of its own (a client-speaks-first service) cannot be told
-//     apart: the network's answer stands.
+//     apart from a network that sends nothing either: the network's answer stands; it is the target's when the network sends a
+//     banner of its own.
 type exposurePath struct {
 	dial   func(ctx context.Context, network, address string) (net.Conn, error)
 	public func(netip.Addr) bool // nil: egressip.IsPublicIPv4
@@ -132,10 +133,7 @@ func (p exposurePath) SameAsPath(ctx context.Context, ip netip.Addr, port int) (
 	if use, ok := webUse(port); ok {
 		read = func(ctx context.Context, addr netip.AddrPort) string { return p.answerOf(ctx, addr, use) }
 	}
-	target := read(ctx, netip.AddrPortFrom(ip.Unmap(), uint16(port)))
-	if target == bannerNone { // the target sends nothing of its own (a client-speaks-first service): the network's answer stands
-		return true, ctx.Err()
-	}
+	target := read(ctx, netip.AddrPortFrom(ip.Unmap(), uint16(port))) // nothing of its own (bannerNone) is the network's only when a never-routed address gets nothing too
 	for _, a := range neverRouted {
 		if ctx.Err() != nil {
 			return false, ctx.Err()

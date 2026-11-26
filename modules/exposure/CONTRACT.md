@@ -143,7 +143,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   only when the target's own answer differs from what a never-routed address gets through the same network (`SameAsPath`: for a web
   or TLS port of the fixed list, the TLS certificate, else the status, Server header and title of GET /; for any other port, the
   banner a server that speaks first sends by itself, at most 512 bytes within 2 seconds, nothing sent, its digits folded; a target
-  that sends nothing of its own, a client-speaks-first service such as SIP, cannot be told apart and stays the network's): a real
+  that sends nothing of its own, a client-speaks-first service such as SIP, cannot be told apart from a network that sends nothing
+  either and stays the network's; when the network sends a banner of its own there, the target's silence is its own): a real
   web, SSH or SMTP service behind a transparent proxy is still found, and its row stored before the check is kept. Otherwise the port is left out of the results before any
   engine step (no service, admin page, certificate or script result, no template, ZAP or OpenVAS job) and its verdict is `network`.
   A reset the network gives for every address is not the target's either: the port's verdict is `network`, and the runner's and the

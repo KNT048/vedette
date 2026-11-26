@@ -394,16 +394,14 @@ func (f *deepFence) ShapeNow(_ context.Context, asked nmapargv.Kind) (nmapargv.K
 }
 
 // The deep scan of an accepted target through the real worker: both fences asked right before the job, the probe row with
-// the full shape and its flags (migration 0006), every TCP port and the scripts read. The disruptive tick taken back meanwhile runs
-// the full shape without the disruptive scripts; a gate that allows more than asked never widens the run.
+// the full shape and its flags (migration 0006), every TCP port and the scripts read. A gate that allows more than asked never
+// widens the run.
 func TestScanExternalFullThroughTheWorker(t *testing.T) {
 	t.Parallel()
 	for name, c := range map[string]struct {
 		asked, now, want nmapargv.Kind
 	}{
 		"full":                  {nmapargv.ExternalFull, nmapargv.ExternalFull, nmapargv.ExternalFull},
-		"disruptive":            {nmapargv.ExternalDisruptive, nmapargv.ExternalDisruptive, nmapargv.ExternalDisruptive},
-		"the tick taken back":   {nmapargv.ExternalDisruptive, nmapargv.ExternalFull, nmapargv.ExternalFull},
 		"never more than asked": {nmapargv.ExternalFull, nmapargv.ExternalDisruptive, nmapargv.ExternalFull},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -429,6 +427,58 @@ func TestScanExternalFullThroughTheWorker(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The disruptive scripts are the deep scan's last step, on the open ports its full run found: both fences asked right before the
+// job, the probe row with the disruptive shape and its port list, never -p-. The disruptive tick taken back meanwhile (the gate says
+// the full shape) sends nothing and says so; the disruptive shape is never asked without its ports, nor through a domain_ip job.
+func TestScanDisruptiveRunsOnTheOpenPortsOnly(t *testing.T) {
+	t.Parallel()
+	ports := []int{21, 22, 443, 49152}
+	t.Run("allowed", func(t *testing.T) {
+		t.Parallel()
+		e := externalEnvWith(t, boxIP, "external_full.xml")
+		own := &deepFence{ownFence: ownFence{ok: []netip.Addr{boxIP}}, now: nmapargv.ExternalDisruptive}
+		got, err := e.svc.ScanDisruptive(e.ctx(), boxIP, ports, own)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Ports != len(ports) || !slices.Equal(got.Probed, ports) || len(got.Scripts) != 5 || own.asked[0] != nmapargv.ExternalDisruptive {
+			t.Fatalf("got %d ports %v probed, %d scripts, gate asked %v", got.Ports, got.Probed, len(got.Scripts), own.asked)
+		}
+		want, _ := nmapargv.BuildFor(nmapargv.ExternalDisruptive, nmapargv.FullRate, ports, []netip.Addr{boxIP})
+		if calls := e.nm.calls(t); len(calls) != 1 || !slices.Equal(calls[0], want) {
+			t.Fatalf("nmap argv = %q, want %q", calls, want)
+		}
+		if f := e.str(`SELECT shape || '|' || flags FROM sa_probe`); !strings.HasPrefix(f, "external_disruptive|") || !strings.Contains(f, " -p 21,22,443,49152 --script ") || strings.Contains(f, "-p-") {
+			t.Fatalf("probe row = %s", f)
+		}
+	})
+	t.Run("the tick taken back", func(t *testing.T) {
+		t.Parallel()
+		e := externalEnvWith(t, boxIP, "external_full.xml")
+		own := &deepFence{ownFence: ownFence{ok: []netip.Addr{boxIP}}, now: nmapargv.ExternalFull}
+		if _, err := e.svc.ScanDisruptive(e.ctx(), boxIP, ports, own); !errors.Is(err, sa.ErrNotDisruptive) {
+			t.Fatalf("err = %v", err)
+		}
+		if calls := e.nm.calls(t); len(calls) != 0 {
+			t.Fatalf("nmap ran: %q", calls)
+		}
+	})
+	t.Run("never without its ports", func(t *testing.T) {
+		t.Parallel()
+		e := externalEnvWith(t, boxIP, "external_full.xml")
+		own := &deepFence{ownFence: ownFence{ok: []netip.Addr{boxIP}}, now: nmapargv.ExternalDisruptive}
+		if _, err := e.svc.ScanExternal(e.ctx(), boxIP, nmapargv.ExternalDisruptive, own); err == nil {
+			t.Fatal("the disruptive shape ran without its ports")
+		}
+		if _, err := e.svc.ScanDisruptive(e.ctx(), boxIP, nil, own); err == nil {
+			t.Fatal("the disruptive shape ran on no port")
+		}
+		if calls := e.nm.calls(t); len(calls) != 0 {
+			t.Fatalf("nmap ran: %q", calls)
+		}
+	})
 }
 
 // The terms withdrawn or of an older version right before the job (the gate says External), a gate that fails, or a fence

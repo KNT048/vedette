@@ -405,7 +405,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(), o.cmdDecoySetPorts(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
-		o.cmdHostSelfUpdate(), o.cmdZapBaseline(), o.cmdZapActive(), o.cmdZapStop(), o.cmdExposureToken(), o.cmdExposureFenceCheck(), o.cmdExposureTokenForget(),
+		o.cmdHostSelfUpdate(), o.cmdZapBaseline(), o.cmdZapActive(), o.cmdZapStop(), o.cmdZapPrepare(), o.cmdExposureToken(), o.cmdExposureFenceCheck(), o.cmdExposureTokenForget(),
 		o.cmdBoxAgentCheck(),
 		o.cmdGreenboneUp(), o.cmdGreenboneDown(), o.cmdGreenboneSyncFeed(),
 	}

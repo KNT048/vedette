@@ -92,7 +92,7 @@ function greenboneFor(ip: string, fullScan: boolean): Pick<Content, 'greenbone' 
   if (v.state !== 'off' && !fullScan) return { greenboneNote: GREENBONE_NO_TERMS }
   if (v.state === 'ready') return { greenbone: ip === BOX_EGRESS_IP ? boxGreenbone() : [] }
   if (v.state === 'off') return {}
-  return { greenboneNote: v.state === 'loading' ? 'OpenVAS did not scan: it is loading its feed (the first time takes 1 to 3 hours).' : 'OpenVAS did not scan: it is still starting.' }
+  return { greenboneNote: v.state === 'loading' ? 'OpenVAS did not scan: it is loading its feed (the first time takes 1 to 3 hours); it will run in the next scan once it is ready.' : 'OpenVAS did not scan: it is still starting (its images may still be downloading); it will run in the next scan.' }
 }
 
 /** Shodan's answer beside the open ports of our own newest scan of that IP (null when never scanned). */

@@ -116,11 +116,15 @@ func TestDomainNmapJobRefusals(t *testing.T) {
 		zone func(*fakeZone)
 		want string
 	}{
-		"another box's token":       {domainNmapJob(nmapargv.ExternalFull, otherKey), func(z *fakeZone) { z.txt = []string{"vedette-verify=" + domainfence.Token(otherKey, "acme.example")} }, domainfence.TokenForeign},
-		"TXT record gone":           {domainNmapJob(nmapargv.ExternalFull, fenceKey), func(z *fakeZone) { z.txt = nil }, domainfence.NotOwned},
-		"name moved":                {domainNmapJob(nmapargv.ExternalFull, fenceKey), func(z *fakeZone) { z.a = []netip.Addr{netip.MustParseAddr("1.1.1.1")} }, domainfence.NameMoved},
-		"DNS fails":                 {domainNmapJob(nmapargv.ExternalFull, fenceKey), func(z *fakeZone) { z.failing = true }, domainfence.Unchecked},
-		"disruptive, CNAME outside": {domainNmapJob(nmapargv.ExternalDisruptive, fenceKey), func(z *fakeZone) { z.cname = "acme.cdn.example.net" }, domainfence.CNAMEOutside},
+		"another box's token": {domainNmapJob(nmapargv.ExternalFull, otherKey), func(z *fakeZone) { z.txt = []string{"vedette-verify=" + domainfence.Token(otherKey, "acme.example")} }, domainfence.TokenForeign},
+		"TXT record gone":     {domainNmapJob(nmapargv.ExternalFull, fenceKey), func(z *fakeZone) { z.txt = nil }, domainfence.NotOwned},
+		"name moved":          {domainNmapJob(nmapargv.ExternalFull, fenceKey), func(z *fakeZone) { z.a = []netip.Addr{netip.MustParseAddr("1.1.1.1")} }, domainfence.NameMoved},
+		"DNS fails":           {domainNmapJob(nmapargv.ExternalFull, fenceKey), func(z *fakeZone) { z.failing = true }, domainfence.Unchecked},
+		"disruptive, CNAME outside": {func() sensorlink.Job {
+			j := domainNmapJob(nmapargv.ExternalDisruptive, fenceKey)
+			j.Ports = []int{22, 443}
+			return j
+		}(), func(z *fakeZone) { z.cname = "acme.cdn.example.net" }, domainfence.CNAMEOutside},
 		"a domain scope on External": {func() sensorlink.Job {
 			j := domainNmapJob(nmapargv.ExternalFull, fenceKey)
 			j.Shape, j.Rate = "external", nmapargv.ExternalRate

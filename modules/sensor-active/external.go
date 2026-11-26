@@ -27,8 +27,10 @@ import (
 // (a verified, committed, current IP target), not the LAN scope's: the LAN settings, window and scope do not apply, and nothing
 // is written to the inventory. What holds: one nmap at a time on the box (runMu), the own-IP fence right before the job is handed
 // out (and again in the worker), the probe row before the job (INV-9, LEGAL §3), the XML limits (INV-7) and a tighter port bound.
-// A target whose testing terms are accepted gets the deep scan instead (sensor-active INV-19): nmapargv.ExternalFull or
-// ExternalDisruptive, every TCP port with nmap's scripts, sent only after core's DeepGate said the terms still allow it.
+// A target whose testing terms are accepted gets the deep scan instead (sensor-active INV-19): nmapargv.ExternalFull, every TCP
+// port with nmap's reviewed scripts, sent only after core's DeepGate said the terms still allow it; when the run allows the
+// disruptive checks, nmapargv.ExternalDisruptive is its last step (ScanDisruptive): the disruptive scripts on the open ports the full
+// run found, sent only after DeepGate said the terms still allow them.
 
 // KindExternal is the kind of the scan events of a service scan for exposure.
 const KindExternal = "external"
@@ -61,6 +63,9 @@ var (
 	// (also ErrNotOwnIP) or could not check it (also ErrEgressUnverified), killed nmap and discarded its output. Unlike a refusal
 	// at the start, nmap had already probed the address.
 	ErrStoppedMidRun = errors.New("sensoractive: the scan worker stopped the deep scan while it ran and discarded its output")
+	// ErrNotDisruptive: the disruptive scripts were asked (ScanDisruptive), and right before the job is handed out the target's
+	// testing terms no longer allow the disruptive checks. Nothing was sent.
+	ErrNotDisruptive = errors.New("sensoractive: the target's testing terms no longer allow the disruptive checks")
 )
 
 // OwnEgress says whether ip is the box's own verified public egress now: exposure's gate (verified, committed, seen by the
@@ -87,8 +92,8 @@ type ProvenProber interface {
 // DeepGate is the second half of core's fence of a full run, asked right after OwnEgress, right before the job is
 // handed out: which external shape the target's testing terms allow now, given the one asked. A full run is sent only through an
 // OwnEgress that implements it (fail closed). An answer that is not a full shape is ErrNotDeep; ExternalFull for an asked
-// ExternalDisruptive (the disruptive tick taken back) runs the full shape without the disruptive scripts; the run never gets more
-// than it asked for.
+// ExternalDisruptive (the disruptive tick taken back, or a scan the box runs by itself) is ErrNotDisruptive: nothing is sent; the
+// run never gets more than it asked for.
 type DeepGate interface {
 	ShapeNow(ctx context.Context, asked nmapargv.Kind) (nmapargv.Kind, error)
 }
@@ -156,8 +161,9 @@ type External struct {
 // externalRun bounds an external run whose context has no deadline (exposure gives it ServicesTimeout there, 8 minutes); fullRun
 // that of a full run (exposure gives it FullServicesTimeout, the host timeout plus 10 minutes).
 const (
-	externalRun = 8 * time.Minute
-	fullRun     = nmapargv.FullHostTimeout + 10*time.Minute
+	externalRun   = 8 * time.Minute
+	fullRun       = nmapargv.FullHostTimeout + 10*time.Minute
+	disruptiveRun = nmapargv.DisruptiveHostTimeout + 10*time.Minute
 )
 
 // externalStep is what one nmap job of an external shape needs on top of nmap's own --host-timeout once it has the nmap slot and
@@ -186,6 +192,9 @@ func batchTimeout(left time.Duration) (time.Duration, bool) {
 
 // boundsOf is the time a run of kind needs and its bound without a deadline.
 func boundsOf(kind nmapargv.Kind) (need, run time.Duration) {
+	if kind == nmapargv.ExternalDisruptive {
+		return externalStep + nmapargv.DisruptiveHostTimeout, disruptiveRun
+	}
 	if kind.IsFull() {
 		return fullNeed, fullRun
 	}
@@ -209,7 +218,19 @@ func left(ctx context.Context, def time.Duration) time.Duration {
 // than the need left → ErrNoTime; the probe row; then the job. A nil own refuses (fail closed). The stop of the module (Stop) or
 // of ctx ends it with ErrStopped.
 func (s *Service) ScanExternal(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own OwnEgress) (External, error) {
-	return s.scanExternal(ctx, ip, kind, own, nil)
+	if kind == nmapargv.ExternalDisruptive {
+		return External{}, errors.New("sensoractive: the disruptive scripts run on the open ports of a full run (ScanDisruptive)")
+	}
+	return s.scanExternal(ctx, ip, kind, nil, own, nil)
+}
+
+// ScanDisruptive is the last step of a deep scan of ip, the box's own verified public IP, whose run allows the disruptive checks:
+// nmapargv.ExternalDisruptive on ports, the open TCP ports the scan's full run found (1..commonports.MaxBelievableOpen). The same
+// fences as ScanExternal of a full shape: own's own-IP check and its DeepGate right before the job is handed out (the terms must
+// still allow the disruptive checks, else ErrNotDisruptive and nothing is sent), the probe row, the worker's own fence. Its result
+// holds the script results and the services -sV read on those ports (Probed: ports).
+func (s *Service) ScanDisruptive(ctx context.Context, ip netip.Addr, ports []int, own OwnEgress) (External, error) {
+	return s.scanExternal(ctx, ip, nmapargv.ExternalDisruptive, ports, own, nil)
 }
 
 // DomainIP is a domain_ip run of ScanDomainIP: the fence fields the worker checks and the CNAME chain core saw for the name
@@ -237,7 +258,10 @@ func (s *Service) ScanDomainIP(ctx context.Context, ip netip.Addr, kind nmapargv
 	if gate == nil {
 		return External{}, ErrNotDeep
 	}
-	return s.scanExternal(ctx, ip, kind, domainGate{gate}, &d)
+	if kind == nmapargv.ExternalDisruptive {
+		return External{}, fmt.Errorf("sensoractive: a domain_ip run is %s, never the disruptive scripts", nmapargv.ExternalFull.Name())
+	}
+	return s.scanExternal(ctx, ip, kind, nil, domainGate{gate}, &d)
 }
 
 // domainGate is the OwnEgress of a domain_ip run: never asked (probeExternal skips it), its DeepGate is the caller's.
@@ -245,12 +269,12 @@ type domainGate struct{ DeepGate }
 
 func (domainGate) OwnEgress(context.Context, netip.Addr) (bool, error) { return false, nil }
 
-func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own OwnEgress, dom *DomainIP) (External, error) {
+func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, own OwnEgress, dom *DomainIP) (External, error) {
 	if !kind.IsExternal() {
 		return External{}, fmt.Errorf("sensoractive: %s is not an external shape", kind.Name())
 	}
 	targets := []netip.Addr{ip}
-	if _, err := nmapargv.Build(kind, nmapargv.ExternalRateOf(kind), targets); err != nil {
+	if _, err := nmapargv.BuildFor(kind, nmapargv.ExternalRateOf(kind), ports, targets); err != nil {
 		return External{}, fmt.Errorf("sensoractive: %w", err)
 	}
 	if own == nil {
@@ -265,10 +289,14 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 		return External{}, ErrStopped
 	}
 	got := make(chan External, 1) // the work hands its result over: the caller may stop waiting before the work ends
-	err := s.doWork(ctx, run.Spec{Kind: RunService, Title: "Service scan of " + ip.String() + " for External exposure", Trigger: run.Event,
+	title := "Service scan of " + ip.String() + " for External exposure"
+	if kind == nmapargv.ExternalDisruptive {
+		title = "Disruptive nmap scripts on " + ip.String() + " for External exposure"
+	}
+	err := s.doWork(ctx, run.Spec{Kind: RunService, Title: title, Trigger: run.Event,
 		TriggerNote: "an exposure scan", Subject: &run.Subject{Kind: "address", ID: ip.String(), Label: ip.String()}},
 		func(ctx context.Context) error {
-			res, err := s.serviceScan(ctx, ip, kind, own, dom)
+			res, err := s.serviceScan(ctx, ip, kind, ports, own, dom)
 			got <- res
 			return err
 		}, func(ctx context.Context, err error) run.Result {
@@ -295,7 +323,7 @@ func (s *Service) scanExternal(ctx context.Context, ip netip.Addr, kind nmapargv
 }
 
 // serviceScan is the work of a service_scan run: nmap on the public address, under the run lock.
-func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own OwnEgress, dom *DomainIP) (External, error) {
+func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, ports []int, own OwnEgress, dom *DomainIP) (External, error) {
 	stops := s.stops.Load()
 	s.lockRun(ctx)
 	defer s.runMu.Unlock()
@@ -314,7 +342,7 @@ func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.
 	if err != nil {
 		return External{}, err
 	}
-	res, err := s.probeExternal(jctx, id, ip, kind, own, dom)
+	res, err := s.probeExternal(jctx, id, ip, kind, ports, own, dom)
 	switch {
 	case err == nil:
 		s.finishJob(ctx, id, StatusDone, 1, 0, "")
@@ -326,7 +354,7 @@ func (s *Service) serviceScan(ctx context.Context, ip netip.Addr, kind nmapargv.
 	return res, err
 }
 
-func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, own OwnEgress, dom *DomainIP) (External, error) {
+func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr, kind nmapargv.Kind, ports []int, own OwnEgress, dom *DomainIP) (External, error) {
 	var note probeNote
 	var proof time.Time
 	if dom == nil {
@@ -354,9 +382,9 @@ func (s *Service) probeExternal(ctx context.Context, jobID string, ip netip.Addr
 		return s.probeDefault(ctx, jobID, ip, own, proof)
 	}
 	var ext External
-	err := s.externalJob(ctx, jobID, ip, kind, batchSpec{}, note, dom, proof, run, func(hosts []host) (string, error) {
+	err := s.externalJob(ctx, jobID, ip, kind, batchSpec{ports: ports}, note, dom, proof, run, func(hosts []host) (string, error) {
 		var err error
-		if ext, err = externalOf(hosts, ip, kind); err != nil {
+		if ext, err = externalOf(hosts, ip, kind, ports); err != nil {
 			return "", err
 		}
 		return fmt.Sprintf("ok: %d open ports, %d script results", len(ext.Services), len(ext.Scripts)), nil
@@ -815,7 +843,11 @@ func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, 
 	rate := nmapargv.ExternalRateOf(kind)
 	args, err := nmapargv.Build(kind, rate, targets)
 	flags, ferr := nmapargv.Flags(kind, rate)
-	if b.ports != nil {
+	switch {
+	case kind == nmapargv.ExternalDisruptive: // the disruptive scripts on the full run's open ports
+		args, err = nmapargv.BuildFor(kind, rate, b.ports, targets)
+		flags, ferr = nmapargv.FlagsFor(kind, rate, b.ports)
+	case b.ports != nil:
 		args, err = nmapargv.BuildBatch(rate, b.ports, b.host, targets)
 		flags, ferr = nmapargv.BatchFlags(rate, b.ports, b.host)
 	}
@@ -856,7 +888,7 @@ func (s *Service) externalJob(ctx context.Context, jobID string, ip netip.Addr, 
 		return runErr
 	}
 	hosts, result, err := runOutcome(ctx, rctx, out, runErr)
-	if b.ports != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) { // an -sV batch cut at its own bound, not a stop
+	if b.ports != nil && kind == nmapargv.External && errors.Is(ctx.Err(), context.DeadlineExceeded) { // an -sV batch cut at its own bound, not a stop
 		result = "failed: the batch ran past its time bound; the next scan starts with these ports"
 	}
 	if err == nil {
@@ -1011,18 +1043,25 @@ func externalServicesOf(h host) []ExternalService {
 	return out
 }
 
-// externalOf reads the result of a full run (every TCP port, -p-): the services of its open ports (more than
-// commonports.MaxBelievableOpen is ErrAnswersEverywhere) and its script results (of an open port, or of the host). The External
-// shape's two runs are read by discoveryOf and versionsOf.
-func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind) (External, error) {
+// externalOf reads the result of a full run (every TCP port, -p-; the disruptive scripts' run: ports only): the services of its open
+// ports (more than commonports.MaxBelievableOpen is ErrAnswersEverywhere) and its script results (of an open port, or of the host).
+// The External shape's two runs are read by discoveryOf and versionsOf.
+func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind, ports []int) (External, error) {
 	if !kind.IsFull() {
 		return External{}, fmt.Errorf("sensoractive: %s is not a full shape", kind.Name())
 	}
-	h, err := externalHost(hosts, ip, func(p int) bool { return p >= 1 && p <= 65535 })
+	asked := func(p int) bool { return p >= 1 && p <= 65535 }
+	if kind == nmapargv.ExternalDisruptive {
+		asked = func(p int) bool { return slices.Contains(ports, p) }
+	}
+	h, err := externalHost(hosts, ip, asked)
 	if err != nil {
 		return External{}, err
 	}
 	ext := External{Services: externalServicesOf(h), Ports: 65535, Scripts: []ExternalScript{}, Refused: h.closed > 0}
+	if kind == nmapargv.ExternalDisruptive {
+		ext.Ports, ext.Probed = len(ports), slices.Clone(ports)
+	}
 	if len(ext.Services) > commonports.MaxBelievableOpen { // A router or SYN proxy answering for every port
 		return External{}, ErrAnswersEverywhere
 	}
@@ -1060,8 +1099,8 @@ func (s *Service) deepNow(ctx context.Context, ip netip.Addr, asked nmapargv.Kin
 		s.log.WarnContext(ctx, "sensoractive: deep scan refused, the target's testing terms no longer allow it; no packet sent", "ip", ip.String())
 		return 0, ErrNotDeep
 	case asked == nmapargv.ExternalDisruptive && now == nmapargv.ExternalFull:
-		s.log.InfoContext(ctx, "sensoractive: the disruptive checks were taken out of the target's testing terms; the deep scan runs without them", "ip", ip.String())
-		return now, nil
+		s.log.InfoContext(ctx, "sensoractive: the disruptive checks are no longer allowed for this target; the disruptive scripts were not sent", "ip", ip.String())
+		return 0, ErrNotDisruptive
 	}
 	return asked, nil // never more than asked
 }

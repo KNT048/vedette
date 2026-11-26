@@ -111,7 +111,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   nmap step checks only the fixed list. (2) An address with nothing open: "nothing open" is a result when the address answered this
   scan (a TCP reset to the runner's connect or to nmap, `Content.Answered`), and the scan counts as usual. When it answered nothing
   at all (a lost NAT loopback, a firewall dropping the probes) the scan is not a miss (run item `checked_empty`), until the third
-  such scan in a row at least 24 hours after the first, which closes the ports they all probed (`emptyStreak`).
+  such scan in a row at least 24 hours after the first, which closes the ports they all probed (`emptyStreak`). (3) An address
+  that stopped answering during the scan (INV-42: a port seen open earlier in the run no longer accepted a TCP connection before
+  the results were written) is not a miss of any port: its run item is `stopped_answering`, which checks no port and does not count
+  in `emptyStreak` (a router that lost its NAT loopback may answer with resets on its unforwarded ports, which (1) and (2) would
+  take as an answer). `TestLiveness_ATargetThatStopsAnsweringIsSaidAndIsNotAMiss`,
   `TestCoverage_AFullPortScanThatDidNotSeeAPortClosesIt`, `TestCoverage_AnEmptySweepWithClosedRepliesCounts`,
   `TestCoverage_AnUntrustworthyFullPortScanNeverClosesAPort`, `TestCoverage_AListPortTheRunnerDidNotProbeNeedsTwoSweeps`,
   `TestCoverage_AScanThatReachedNothingIsNotAMiss`, `TestCoverage_AnEmptyScanOfAnAddressThatAnsweredIsAMiss`,
@@ -119,10 +123,39 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-41** A scan to which nothing of the target answered while the box could not reach the public IP services either (INV-2,
   one round asked only then) is incomplete: it ends failed with 502 `unreachable` saying the box could not reach the target, and
   nothing is written, so the target keeps the rows of its last complete scan. When the services answer, "nothing open" is a result.
+- **INV-42** A target can stop answering in the middle of a scan (the router in front of the box's own IP loses its NAT loopback, a
+  firewall or ban list drops the box, a link goes down). Before each engine step (templates, ZAP passive, ZAP active, OpenVAS, nmap's
+  disruptive scripts) and before the results are written, the scan checks that the ports seen open earlier in the run still accept
+  a TCP connection (`Config.Liveness`: a connect, closed at once, nothing sent; at most 4 addresses and 16 ports each; every check
+  is a line of the run's log). A port that no longer answers is lost for the rest of the run: the later engines skip it and the
+  step that lost it ends partly done with "Results incomplete: <ip>:<port> stopped answering during the scan."; when it is the
+  box's own public IP the note adds the likely cause (the box could not reach its own public address from inside the network: the
+  router may not support NAT loopback, or something blocked it), never an IPS without evidence. When no port of the target answers
+  any more, the later engine steps are skipped with that note. nuclei's own sign counts too: a port where at least half of 20 or
+  more templates got no answer (only connection errors, skipped after nuclei gave the address up, or lines about another address)
+  makes the template step partly done. Such a run, and a run whose engine image
+  is not on the box yet (INV-24, INV-25), ends partly done (`core/run` `Partial`, its first problem as the reason), never done.
+  `TestLiveness_ATargetThatStopsAnsweringIsSaidAndIsNotAMiss`, `TestLiveness_APortThatStopsAnsweringMakesTheStepIncomplete`, `TestLiveness_NucleiErrorsOnAPortThatStoppedAnsweringMakeItIncomplete`,
+  `cmd/vedette` `TestExposureLivenessConnectsAndSendsNothing`.
+- **INV-43** The deep scan runs its light checks before its heavy ones, so a ban or an overloaded firewall costs only the last
+  steps (`scanPlan`, the one source of the order the run page shows): the runner, nmap's sweep of every TCP port with service
+  identification and the reviewed safe scripts (`external_full`; the later steps need the ports and the services), the templates,
+  ZAP passive, ZAP active, the comparison and the save, OpenVAS, and last nmap's disruptive scripts (`nmap_disruptive`: the dos,
+  brute and the login and crash checks, `external_disruptive`) on the open ports the scan found, only when the run allows the
+  disruptive checks (a person's scan, the terms include them, the box's own IP not behind carrier-grade NAT, `runMode`), the gate
+  or the domain's deep gate re-checked right before, then the liveness check; skipped with why otherwise. What they confirm is an
+  issue of the surface engine in its own key space (`nse-disruptive:`), closed only by a later run of these scripts that finished on
+  the address, never by the first nmap run. `TestScanPlan_TheDisruptiveScriptsRunLast`,
+  `TestDisruptive_TheScriptsRunLastOnTheOpenPorts`, `TestDisruptive_SkippedWhenTheRunMayNotRunThem`, `cmd/vedette`
+  `TestExposureDisruptiveScriptsRunOnTheOpenPorts`, sensor-active `TestScanDisruptiveRunsOnTheOpenPortsOnly`.
 - **INV-19** Service identification runs before results are stored.
 - **INV-20** Exploited CVEs of a service are matched at scan time through findings' matcher (`Config.Matcher`).
 - **INV-23** nuclei templates run only for exploited CVEs matched on a service identified in this run.
-- **INV-24** ZAP runs passive (baseline, GET only) on services that answered HTTP on a target that passed this run's gate.
+- **INV-24** ZAP runs passive (baseline, GET only) on services that answered HTTP on a target that passed this run's gate. Its
+  image is fetched when the module is switched on and at the box's start with the module on (`PrepareEngines`, the host's
+  `zap.prepare`), so the first scan does not find it missing; a scan whose ZAP image is still downloading (`Unavailable.Pending`)
+  skips its web steps with "the ZAP image (about 1.2 GB) is still downloading to this box; it will run in the next scan." and ends
+  partly done. `TestEngineImage_AStepWhoseImageIsDownloadingIsSkippedAndTheRunSaysSo`, `TestEngineImage_TheModuleOnFetchesTheImages`.
 - **INV-24a** ZAP's **active** scan (`ActiveWebScanner`, host `zap.active`) runs after the passive baseline, only on the pages that
   baseline read in this run, and only in a scan a person started (Scan now, Run once now) of a target whose testing terms are
   accepted, read again right before each page (`ModeNow`). A scheduled scan keeps the passive baseline only and says so in one line
@@ -154,13 +187,15 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   description is Greenbone's own text of the result: the test's summary, the detection result on the host, insight, affected
   software and impact, plain text with its lines kept, at most 1,500 characters (`TestOpenVASDescriptionKeepsItsLines`); a result with none names the test
   (`TestContract_INV25_IssueDetailHasGreenbonesDescription`). Each Greenbone service has a memory limit (`deploy/greenbone`).
+  OpenVAS enabled but still starting (its images pull when it is turned on) or loading its feed: the step is skipped with why and
+  that it will run in the next scan, and the run ends partly done (INV-42).
 - **INV-27** A proved domain's surface: names from the CT log, the domain itself, its MX and NS hosts under it, and a short common
   wordlist.
 - **INV-28** Deep scanning of addresses of names under a domain happens only in a full scan with the domain's terms accepted.
 - **INV-29**, **INV-30**, **INV-34** A running scan shows its step's progress; each engine step keeps its outcome and one sentence;
   a scan is named by its start and shows its end. Its run lists every step of its plan (`runsteps.go` `scanPlan`: the check, the
-  surface step, nmap's port discovery and service step for an IP, a step per deep-scanned address of a domain, nuclei, ZAP, the
-  comparison and save, OpenVAS) from the moment the plan is known, each one queued, running, ended or skipped with why; a step counts
+  surface step, nmap's port discovery and service step for an IP, a step per deep-scanned address of a domain, nuclei, ZAP passive,
+  ZAP active (deep), the comparison and save, OpenVAS, nmap's disruptive scripts (deep, last: INV-43)) from the moment the plan is known, each one queued, running, ended or skipped with why; a step counts
   as one ("3 of 8 steps"), a running step's note is where it is (the engines' progress reports, at most every 3 s), each start and end
   is a log line, and the steps the run ends before are skipped as not reached. Every probe of the scan names its run
   (`RunIDOf` of the scan's context, set with `WithRunID`; `scan_probe.run_id`), the safe templates' rows too.

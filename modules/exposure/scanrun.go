@@ -548,6 +548,13 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		s.auditFailedScan(ctx, user, t, err)
 		return corerun.Result{}, err
 	}
+	lt := liveTarget(t, user)
+	s.checkAlive(ctx, lt, &content, "writing the results") // an address that stopped answering is not a miss of its ports (coverage)
+	lost := s.lostText(ctx, lt, content.Lost)
+	if lost != "" { // the save step stays done (its rows are written: RecentScans and the outside view read it), the run says it
+		rs.problem(lost)
+		lost = " " + lost + " This scan does not count as a miss of any port there."
+	}
 	rs.start(ctx, stepKeySave)
 	wr, err := s.save(ctx, x.ID(), user, t, content, steps)
 	if err != nil {
@@ -557,7 +564,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	ex.content, ex.vulns, ex.gaps, ex.written, ex.first = wr.final.Content, wr.final.Vulns, wr.final.VersionGaps, true, wr.first
 	s.alertNews(ctx, t, x.ID(), "", wr.first, wr.openedAt, wr.newAt)
 	rs.end(ctx, stepKeySave, corerun.Done, fmt.Sprintf("%s (%d new, %d closed), %s (%d new).",
-		plural(wr.counts.Services, "open service"), wr.counts.NewServices, wr.counts.ClosedServices, plural(wr.counts.Issues, "open issue"), wr.counts.NewIssues))
+		plural(wr.counts.Services, "open service"), wr.counts.NewServices, wr.counts.ClosedServices, plural(wr.counts.Issues, "open issue"), wr.counts.NewIssues)+lost)
 	rs.record(ctx, "", runOn, "")
 	s.recordCoverage(ctx, x, wr.checked, wr.topPorts)
 	s.recordNames(ctx, x, wr.probed)
@@ -569,11 +576,47 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		}
 	}
 	ex.gbRun = GreenboneRun{State: GBRunNotRun}
+	if gb { // the ports seen open earlier must still answer (liveness.go): OpenVAS gets the ones that do
+		gb, gbIP, deep = s.openVASAlive(ctx, lt, &content, gbIP, deep)
+	}
+	res = corerun.Result{}
 	if !gb {
 		rs.skip(ctx, stepKeyOpenVAS, cmp.Or(line, "OpenVAS does not run in this scan."))
-		return corerun.Result{}, nil
+		if line == notGBStarting || line == notGBLoading { // OpenVAS is on but not ready yet: the run did not do what it should have
+			rs.problem(line)
+		}
+	} else if res, err = s.openVASStep(ctx, x, ex, user, t, content, deep, gbIP); err != nil {
+		return res, err
 	}
-	return s.openVASStep(ctx, x, ex, user, t, content, deep, gbIP)
+	if ctx.Err() == nil { // last: nmap's disruptive scripts (a stop ends the run here; the step is then not reached)
+		s.disruptiveStep(ctx, x, ex, user, t, content, deep)
+	}
+	return rs.result(res), nil
+}
+
+// liveTarget is what the liveness checks need of t: its kind, its address, whether it was typed in, and who started the scan.
+func liveTarget(t Target, user string) ScanTarget {
+	return ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Typed: t.Typed}
+}
+
+// openVASAlive is the liveness check before OpenVAS: whether it still runs, on the ports of an IP that still answer, or on the
+// addresses of a domain that still do.
+func (s *Service) openVASAlive(ctx context.Context, lt ScanTarget, c *Content, ports []int, deep []deepAddr) (bool, []int, []deepAddr) {
+	if !s.beforeEngine(ctx, lt, c, stepKeyOpenVAS, stepNameOpenVAS, "greenbone") {
+		return false, nil, nil
+	}
+	if lt.Kind == KindIP {
+		if ports = slices.DeleteFunc(ports, func(p int) bool { return c.lostPort(lt.Value, p) }); len(ports) == 0 {
+			runStepsOf(ctx).skip(ctx, stepKeyOpenVAS, "Not run. "+s.lostText(ctx, lt, c.Lost))
+			return false, nil, nil
+		}
+		return true, ports, deep
+	}
+	if deep = slices.DeleteFunc(deep, func(a deepAddr) bool { return c.gone(a.ip.String()) }); len(deep) == 0 {
+		runStepsOf(ctx).skip(ctx, stepKeyOpenVAS, "Not run. "+s.lostText(ctx, lt, c.Lost))
+		return false, nil, nil
+	}
+	return true, ports, deep
 }
 
 // engines runs the runner and the engine steps of a scan and returns what they found.
@@ -680,9 +723,9 @@ func (s *Service) planOpenVAS(ctx context.Context, t Target, mode ScanMode, user
 // save writes the rows of a scan (writeScan) and publishes what changed.
 func (s *Service) save(ctx context.Context, runID, user string, t Target, c Content, steps *stepLog) (written, error) {
 	at := s.clock()
-	swept, answered := c.Swept, c.Answered // this run's own coverage facts (identifyIP, the runner), not text from a target: kept as they are
+	swept, answered, lost := c.Swept, c.Answered, c.Lost // this run's own coverage facts (identifyIP, the runner, liveness), not text from a target: kept as they are
 	c = unresolvedLine(sanitize(c))
-	c.Swept, c.Answered = swept, answered
+	c.Swept, c.Answered, c.Lost = swept, answered, lost
 	c.AdminPanels = applianceAdmins(c.AdminPanels, c.Ports, c.Services) // an appliance's admin page on any port
 	m := vulnSet{Content: c, ID: runID}
 	ranMatch := s.withVulns(ctx, &m)
@@ -749,8 +792,8 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 	st := s.scanTarget(ctx, t, user, mode)
 	var o gbOutcome
 	var err error
-	if st.Kind == KindDomain {
-		o, err = s.greenboneDomain(ctx, st, deep, c.Ports)
+	if st.Kind == KindDomain { // not on a port that stopped answering earlier in the run (liveness.go)
+		o, err = s.greenboneDomain(ctx, st, deep, slices.DeleteFunc(slices.Clone(c.Ports), func(p PortRow) bool { return c.lostPort(p.IP, p.Port) }))
 	} else {
 		o, err = s.greenboneStep(ctx, st, ports)
 	}
@@ -1047,6 +1090,7 @@ func (s *Service) ModuleSwitched(enabled bool) {
 		return
 	}
 	s.GreenboneAtStart(s.bg)
+	go s.PrepareEngines(s.bg) // the engines' images, so the first scan does not find them missing
 }
 
 // Close ends the shutdown of the box: no new scan is queued, and OpenVAS's start and feed update end. The run manager ends the scan

@@ -304,7 +304,9 @@ func TestExposureServiceScanReasons(t *testing.T) {
 	}
 }
 
-// The shape and the step's bound follow the target's mode: the K-4 scope keeps the External shape (with its 8 minutes); accepted terms are the deep scan, the disruptive tick its disruptive shape, both bounded by FullServicesTimeout.
+// The shape and the step's bound follow the target's mode: the K-4 scope keeps the External shape (with its 8 minutes); accepted terms
+// are the deep scan bounded by FullServicesTimeout, with or without the disruptive tick: the disruptive scripts are the scan's last
+// step (ScanDisruptive), never part of this first run.
 func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 	t.Parallel()
 	for name, c := range map[string]struct {
@@ -314,7 +316,7 @@ func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 	}{
 		"terms not accepted":  {exposure.ScanMode{}, nmapargv.External, exposure.ServicesTimeout},
 		"deep":                {exposure.ScanMode{Full: true}, nmapargv.ExternalFull, exposure.FullServicesTimeout},
-		"deep and disruptive": {exposure.ScanMode{Full: true, Disruptive: true}, nmapargv.ExternalDisruptive, exposure.FullServicesTimeout},
+		"deep and disruptive": {exposure.ScanMode{Full: true, Disruptive: true}, nmapargv.ExternalFull, exposure.FullServicesTimeout},
 	} {
 		var kind nmapargv.Kind
 		var given time.Duration
@@ -340,6 +342,53 @@ func TestExposureServiceShapeFollowsTheMode(t *testing.T) {
 		exposure.ServicesTimeout != 8*time.Minute || nmapargv.ExternalDiscoveryTimeout != 2*time.Minute || nmapargv.BatchMaxTimeout != 2*time.Minute ||
 		nmapargv.ExternalTopPorts != 1000 {
 		t.Fatalf("exposure %s against nmap's %s + %s", exposure.ServicesTimeout, nmapargv.ExternalDiscoveryTimeout, nmapargv.BatchMinTimeout)
+	}
+}
+
+// The disruptive scripts, the deep scan's last step: the adapter hands sensor-active the open ports exposure found, with exposure's
+// gate and ModeNow as the fence and DisruptiveTimeout as its bound; the terms no longer allowing them right before the job is a reason
+// the page shows; a typed IP, a domain's address or a run without the disruptive checks never gets them.
+func TestExposureDisruptiveScriptsRunOnTheOpenPorts(t *testing.T) {
+	t.Parallel()
+	var ports []int
+	var given time.Duration
+	var fence sensoractive.OwnEgress
+	sc := exposureServiceScan{scanDisruptive: func(ctx context.Context, _ netip.Addr, p []int, own sensoractive.OwnEgress) (sensoractive.External, error) {
+		d, _ := ctx.Deadline()
+		ports, given, fence = p, time.Until(d), own
+		return sensoractive.External{Ports: len(p), Probed: p, Scripts: []sensoractive.ExternalScript{{Port: 22, ID: "ssh-brute", Output: "Output not stored: it can hold credentials."}}}, nil
+	}}
+	st := exposure.ScanTarget{ID: "t1", User: "admin@acme.example", Mode: exposure.ScanMode{Full: true, Disruptive: true}}
+	got, err := sc.ScanDisruptive(t.Context(), st, ownPublicIP, []int{22, 443})
+	if err != nil || !slices.Equal(ports, []int{22, 443}) || len(got.Scripts) != 1 || got.Scripts[0].IP != ownPublicIP.String() {
+		t.Fatalf("got %+v %v, ports %v", got, err, ports)
+	}
+	if given > exposure.DisruptiveTimeout || given < exposure.DisruptiveTimeout-time.Minute {
+		t.Fatalf("bound %s", given)
+	}
+	if g, ok := fence.(ownGate); !ok || g.actor != st.User || g.id != st.ID {
+		t.Fatalf("fence %+v", fence)
+	}
+	// The step's bound has room for nmap's own host timeout and the waits around it (the nmap slot, both fences, the pickup).
+	if exposure.DisruptiveTimeout < nmapargv.DisruptiveHostTimeout+2*time.Minute+70*time.Second {
+		t.Fatalf("exposure %s against nmap's %s", exposure.DisruptiveTimeout, nmapargv.DisruptiveHostTimeout)
+	}
+	sc.scanDisruptive = func(context.Context, netip.Addr, []int, sensoractive.OwnEgress) (sensoractive.External, error) {
+		return sensoractive.External{}, sensoractive.ErrNotDisruptive
+	}
+	var un *exposure.Unavailable
+	if _, err := sc.ScanDisruptive(t.Context(), st, ownPublicIP, []int{22}); !errors.As(err, &un) || !strings.Contains(un.Reason, "no longer allow the disruptive checks") {
+		t.Fatalf("terms taken back: %v", err)
+	}
+	for name, bad := range map[string]exposure.ScanTarget{
+		"a typed IP":             {Typed: true, Mode: st.Mode},
+		"a domain's address":     {Domain: &exposure.DomainScope{}, Mode: st.Mode},
+		"no disruptive checks":   {Mode: exposure.ScanMode{Full: true}},
+		"not even the deep scan": {},
+	} {
+		if _, err := sc.ScanDisruptive(t.Context(), bad, ownPublicIP, []int{22}); !errors.As(err, &un) {
+			t.Errorf("%s: err = %v", name, err)
+		}
 	}
 }
 

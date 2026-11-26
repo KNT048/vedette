@@ -41,6 +41,33 @@ type WebScanner interface {
 	Baseline(ctx context.Context, t ScanTarget, page WebPage) (WebScan, error)
 }
 
+// ImagePreparer is implemented by a WebScanner whose engine runs from an image the box downloads (ZAP's, about 1.2 GB): PrepareImage
+// starts that download when the image is not on the box and returns without waiting for it. The module asks it when it is switched on
+// and at the box's start with the module on (after an install or an update), so the first scan does not find the image missing.
+type ImagePreparer interface {
+	PrepareImage(ctx context.Context) error
+}
+
+// prepareTimeout bounds one PrepareImage: the host answers at once, the download runs on its side.
+const prepareTimeout = 2 * time.Minute
+
+// PrepareEngines fetches the images of the scan engines while the module is on (ImagePreparer). A failure is logged: a scan whose engine
+// image is still missing then skips that step and says so.
+func (s *Service) PrepareEngines(ctx context.Context) {
+	s.runMu.Lock()
+	off := s.off || s.closed
+	s.runMu.Unlock()
+	p, ok := s.cfg.Web.(ImagePreparer)
+	if off || !ok {
+		return
+	}
+	pctx, cancel := context.WithTimeout(ctx, prepareTimeout)
+	defer cancel()
+	if err := p.PrepareImage(pctx); err != nil {
+		s.cfg.Log.WarnContext(ctx, "exposure: fetching the ZAP image failed; a scan skips the web step until it is on the box", "error", err)
+	}
+}
+
 // PageSkipped is a page the WebScanner did not scan for a reason of this page alone (its name no longer points at the address
 // exposure approved); the scan says why on that page's line and goes on with the next page.
 type PageSkipped struct{ Reason string }
@@ -624,6 +651,16 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		kept = append(kept, p)
 	}
 	pages = kept
+	if len(pages) > 0 { // the ports seen open earlier must still answer (liveness.go): a page on a port that stopped answering is not read
+		if !s.beforeEngine(ctx, st, &c, stepKeyZAP, stepNameZAP, "web") {
+			return c, nil
+		}
+		pages = slices.DeleteFunc(pages, func(p WebPage) bool { return c.lostPort(p.IP.String(), p.Port) })
+		if len(pages) == 0 {
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText("Passive web scan (ZAP) did not run. "+s.lostText(ctx, st, c.Lost), maxLineText)})
+			return c, nil
+		}
+	}
 	if len(pages) == 0 {
 		text := fmt.Sprintf(notWebNone, checkedWebPorts(st, c))
 		if gap, why := identificationIncomplete(c); gap && st.Kind == KindIP {
@@ -693,6 +730,9 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		switch {
 		case errors.As(err, &un):
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText("Passive web scan (ZAP) did not run: "+un.Reason, maxLineText)})
+			if un.Pending { // the engine's image is not on the box yet: the run did not do what it should have, and says so
+				rs.problem("Passive web scan (ZAP) did not run: " + un.Reason)
+			}
 			skipped = append(skipped, pages[i+1:]...) // the same reason holds for the pages not tried: one line, and the pages already scanned stay recorded
 		case errors.As(err, &skip): // this page only: the next pages still run
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": passive web scan (ZAP) did not run: "+skip.Reason, maxLineText)})

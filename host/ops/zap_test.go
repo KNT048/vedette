@@ -767,6 +767,46 @@ func TestZapBaseline_ADiskTooSmallIsNotPulledInto(t *testing.T) {
 	})
 }
 
+// zap.prepare fetches the image before the first scan needs it: a missing image's download starts at once (once, however often it
+// is asked while it runs), the command answers without waiting for it, a failed download is said and tried again, and an image on the
+// box is just "ready". It never runs ZAP.
+func TestZapPrepare_FetchesTheImageBeforeTheFirstScan(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		w := newZapWorld(t, Deps{})
+		w.image, w.pullCode = false, 1
+		pulls := func() int {
+			n := 0
+			for _, c := range w.Calls() {
+				if c == "podman "+strings.Join(zapPullArgv(), " ") {
+					n++
+				}
+			}
+			return n
+		}
+		r, err := w.o.zapPrepare(context.Background(), nolog)
+		if err != nil || r.State != api.ZapImagePulling || r.LastError != "" {
+			t.Fatalf("first: %+v %v", r, err)
+		}
+		synctest.Wait() // the download failed
+		w.mu.Lock()
+		w.pullCode = 0
+		w.mu.Unlock()
+		r, err = w.o.zapPrepare(context.Background(), nolog)
+		if err != nil || r.State != api.ZapImagePulling || !strings.Contains(r.LastError, "podman pull failed") {
+			t.Fatalf("after a failed download: %+v %v", r, err)
+		}
+		synctest.Wait() // the second try worked
+		r, err = w.o.zapPrepare(context.Background(), nolog)
+		if err != nil || r.State != api.ZapImageReady {
+			t.Fatalf("after the download: %+v %v", r, err)
+		}
+		if pulls() != 2 || slices.Contains(w.Calls(), "podman run") {
+			t.Fatalf("calls %q", w.Calls())
+		}
+	})
+}
+
 func TestZapAtStart_ARunTheLastHostLeftIsCleanedUp(t *testing.T) {
 	t.Parallel()
 	w := newZapWorld(t, Deps{})

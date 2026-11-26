@@ -286,7 +286,7 @@ export function overview(): Overview {
   return {
     open: { findings: open.length, by_status: statusCounts(open) },
     devices: { total: assets.length, not_added: assets.filter((a) => !a.approved).length, by_status: byStatus, affected },
-    input: inputItems().length,
+    input: inputItems().filter((i) => i.kind !== 'devices_not_added').length,
     first, trend, trend_start: dayOf(new Date(Date.now() - (TREND_DAYS - 1) * 864e5).toISOString()),
     alerts: notifyOn ? { ...sentSince(new Date(Date.now() - 7 * 864e5).toISOString()), days: 7 } : null,
     incidents: notifyOn ? openIncidents() : null,

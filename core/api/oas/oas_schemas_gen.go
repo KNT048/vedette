@@ -110449,7 +110449,8 @@ type FindingsGetFindingsOverviewOK struct {
 	GeneratedAt     time.Time                                       `json:"generated_at"`
 	// Null when Notifications is off.
 	Incidents NilFindingsGetFindingsOverviewOKIncidents `json:"incidents"`
-	// The Needs your input queue length.
+	// Devices that wait for an answer in Needs your input: one per device card or device not added that
+	// has findings; the one card of devices not added with no finding is a review and is not counted.
 	Input int                               `json:"input"`
 	Open  FindingsGetFindingsOverviewOKOpen `json:"open"`
 	// Open findings at the end of each of the last 30 days of the organization time zone, oldest first;

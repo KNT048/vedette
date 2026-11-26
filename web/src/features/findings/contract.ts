@@ -497,7 +497,7 @@ export const Overview = z.object({
     }).describe('Devices by their badge (DeviceStatus.code)'),
     affected: StatusCounts.describe('Devices with an open finding by their most urgent status, the Vedette box included (it carries no badge, but its findings count like any device\'s): "3 open findings on 1 device"'),
   }),
-  input: z.number().int().min(0).describe('The Needs your input queue length'),
+  input: z.number().int().min(0).describe('Devices that wait for an answer in Needs your input: one per device card or device not added that has findings; the one card of devices not added with no finding is a review and is not counted'),
   first: z.array(FirstItem).max(FIRST_TOP).describe('Fix first: the most urgent fix blocks across devices, then the most findings'),
   trend: z.array(z.number().int().min(0)).length(TREND_DAYS).describe('Open findings at the end of each of the last 30 days of the organization time zone, oldest first; the last is now'),
   trend_start: z.iso.date().describe('The first day of the trend that holds data, in the organization time zone: the first of the 30 days, or the day this box began keeping findings when that is later. The days before it are not drawn or compared'),

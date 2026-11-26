@@ -22,20 +22,23 @@ export function placeOf(n: NavItem): 'pinned' | ShellGroup {
 }
 
 /** The part of GET /findings/overview the nav reads. Optional fields: an older box, or one whose overview lacks a count, shows no badge. */
-export type NavSummary = { open?: { by_status?: Partial<Record<'under_attack' | 'exploited' | 'public_exploit' | 'critical_edge', number>> }; incidents?: { open?: number; urgent?: number } | null }
+type Layers = Partial<Record<'under_attack' | 'exploited' | 'public_exploit' | 'critical_edge' | 'update_recommended', number>>
+export type NavSummary = { open?: { by_status?: Layers }; devices?: { affected?: Layers }; incidents?: { open?: number; urgent?: number } | null }
 
 /** The badge of one entry: count and the words read after it. `urgent`: work waits for the user (red, and summed on a closed group). */
 export type NavBadge = { count: number; key: string; urgent: boolean }
 
-/** Open findings of the first four urgency layers (under attack, exploited, public exploit, critical on an edge device): a part of the
- *  Findings screen's open count, filtered by the same statuses. "Update recommended" can wait and gives no badge. */
-const urgentOpen = (s: NavSummary) => {
-  const b = s.open?.by_status
-  return b ? (b.under_attack ?? 0) + (b.exploited ?? 0) + (b.public_exploit ?? 0) + (b.critical_edge ?? 0) : 0
+/** The devices with an open finding, the "on N devices" of the Findings screen's By device tab: one count a person can act on, instead
+ *  of a sum of findings. Red when one of them is in the first four urgency layers (under attack, exploited, public exploit, critical on
+ *  an edge device); "Update recommended" alone can wait. */
+const urgentLayers = (b: Layers) => (b.under_attack ?? 0) + (b.exploited ?? 0) + (b.public_exploit ?? 0) + (b.critical_edge ?? 0)
+const devicesToHandle = (s: NavSummary) => {
+  const b = s.devices?.affected
+  return b ? { count: urgentLayers(b) + (b.update_recommended ?? 0), urgent: urgentLayers(b) > 0 } : { count: 0, urgent: false }
 }
 
 const BADGES: Record<string, (s: NavSummary) => NavBadge | null> = {
-  '/findings': (s) => (urgentOpen(s) ? { count: urgentOpen(s), key: 'layout.badge.findings', urgent: true } : null),
+  '/findings': (s) => { const d = devicesToHandle(s); return d.count ? { count: d.count, key: 'layout.badge.findings', urgent: d.urgent } : null },
   // The open high and critical incidents.
   '/incidents': (s) => (s.incidents?.urgent ? { count: s.incidents.urgent, key: 'layout.badge.incidents', urgent: true } : null),
 }

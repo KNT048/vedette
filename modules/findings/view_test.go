@@ -488,8 +488,8 @@ func TestModelAPI_NotAddedWithoutFindingsIsOneGroupCard(t *testing.T) {
 	}
 	e.inv.mu.Unlock()
 	items, total, overview := read("/findings/input?limit=200", true)
-	if total != before+1 || overview != total {
-		t.Fatalf("%d devices not added with no finding: queue length %d (before %d), Home's count %d; want one more item, the same count", n, total, before, overview)
+	if total != before+1 || overview != before {
+		t.Fatalf("%d devices not added with no finding: queue length %d (before %d), the count on the tab and Home %d; want one more item (the grouped card) and the count unchanged: it counts the devices that wait for an answer, and the grouped card is a review, not an answer", n, total, before, overview)
 	}
 	var cards, groups []item
 	for _, it := range items {

@@ -131,6 +131,8 @@ Code: `host/api` (wire types), `host/config` (`/etc/vedette/host.conf`), `host/p
 
 Defects found during security hardening have their own tests in `host/server/review_test.go`, `host/peer/peer_test.go`, `host/client/client_test.go`.
 
+Rate limits seen from `core` (host-api §10): a `429 rate_limited` is answered before any handler runs, so `host/client` waits the host's Retry-After (at most 30 s of it, jittered, never past the caller's deadline, at most 20 s without one, the case of the page handlers) and sends the same request again; no other code is retried there. A run the typed helpers follow is read again less often as it goes on (at most every 10 s for ZAP and OpenVAS), and a read still refused is "not known yet", never a failed run. Tests: `host/client/ratelimit_test.go` (`TestRateLimitedReadWaitsRetryAfter`, `TestRateLimitWaitIsCapped`, `TestRateLimitStopsAtContextDeadline`, `TestRateLimitBudgetWithoutDeadline`, `TestRateLimitDefaultBudgetWithoutDeadline`, `TestNoRetryForOtherCodes`, `TestRateLimitedStartIsSentAgain`, `TestRateLimitedWriteCommandIsSentAgain`, `TestZapBaselineThroughRateLimits`, `TestFollowPollRefusedIsNotKnownYet`, `TestFollowPacesLongRuns`).
+
 Not verifiable on the development machine (macOS): real effects on Linux (socket permissions set by root, `SO_PEERCRED`, the cgroup of a real unit, systemd units).
 
 ## Installed system commands

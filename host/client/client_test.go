@@ -94,10 +94,14 @@ func TestTypedErrors(t *testing.T) {
 	if _, err := h.Client.GetRun(ctx, "rn_0000000000000000"); !client.IsCode(err, api.CodeRunNotFound) {
 		t.Fatalf("err = %v", err)
 	}
+	// The host's Retry-After (a minute: its clock does not move) is past this deadline, so the client returns the refusal
+	// instead of waiting for the window.
+	short, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	for range 60 {
-		_, _ = h.Client.Info(ctx)
+		_, _ = h.Client.Info(short)
 	}
-	_, err = h.Client.Info(ctx)
+	_, err = h.Client.Info(short)
 	if !errors.As(err, &e) || e.Code != api.CodeRateLimited || e.RetryAfterS < 1 {
 		t.Fatalf("err = %v", err)
 	}

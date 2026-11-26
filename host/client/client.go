@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/url"
@@ -43,7 +44,7 @@ type Error struct {
 	Message     string
 	Details     []api.Detail
 	RunID       string // busy: the run in progress; pending_confirm: the run waiting for confirmation
-	RetryAfterS int    // rate_limited
+	RetryAfterS int    // rate_limited (and some refusals: a hint in seconds)
 }
 
 func (e *Error) Error() string { return fmt.Sprintf("host: %s (%d): %s", e.Code, e.Status, e.Message) }
@@ -55,15 +56,53 @@ func IsCode(err error, code string) bool {
 }
 
 // Client calls the host. It is safe for concurrent use.
+//
+// A request the host's rate limiter refuses (429 rate_limited) is sent again after the host's Retry-After, capped at
+// Options.MaxRateWait, plus up to a quarter more (so that callers refused together do not come back together), for
+// as long as the caller's context allows: a wait that would end after ctx's deadline is not started, and without a deadline
+// the waits of one request stop after Options.RateBudget. The host's limiters answer before any handler runs (no run, no
+// idempotency key taken), so a command is sent again with the same request id safely. No other answer is retried here.
 type Client struct {
 	socket string
 	http   *http.Client
 	// stream has no overall timeout: SSE connections live as long as the run.
 	stream *http.Client
+	o      Options
 }
 
+// Options tune a Client. The zero value of each field is its default.
+type Options struct {
+	// MaxRateWait caps the host's Retry-After that one wait follows (default 30 s); the jitter adds up to a quarter.
+	MaxRateWait time.Duration
+	// RateBudget bounds the waits of one request when its context has no deadline (default 20 s). Core's page handlers
+	// call the host with the request's context, which has no deadline, and nothing between the browser and the handler
+	// cuts a slow answer off: a refusal whose slot frees within the budget is waited out, a later one is returned at once
+	// for the handler to answer. A caller that can wait longer sets a deadline.
+	RateBudget time.Duration
+	// Sleep waits d or until ctx ends (default: a timer). It is used for the rate-limit waits and between the reads
+	// of a run the typed helpers follow; tests set it to drive a fake clock.
+	Sleep func(ctx context.Context, d time.Duration) error
+}
+
+const (
+	defaultMaxRateWait = 30 * time.Second
+	defaultRateBudget  = 20 * time.Second
+)
+
 // New returns a Client for the socket path.
-func New(socket string) *Client {
+func New(socket string) *Client { return NewWithOptions(socket, Options{}) }
+
+// NewWithOptions returns a Client for the socket path with o.
+func NewWithOptions(socket string, o Options) *Client {
+	if o.MaxRateWait <= 0 {
+		o.MaxRateWait = defaultMaxRateWait
+	}
+	if o.RateBudget <= 0 {
+		o.RateBudget = defaultRateBudget
+	}
+	if o.Sleep == nil {
+		o.Sleep = sleep
+	}
 	tr := &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			var d net.Dialer
@@ -78,7 +117,19 @@ func New(socket string) *Client {
 		DisableCompression:  true,
 		TLSHandshakeTimeout: time.Second,
 	}
-	return &Client{socket: socket, http: &http.Client{Transport: tr, Timeout: 60 * time.Second}, stream: &http.Client{Transport: tr}}
+	return &Client{socket: socket, http: &http.Client{Transport: tr, Timeout: 60 * time.Second}, stream: &http.Client{Transport: tr}, o: o}
+}
+
+// sleep waits d or until ctx ends.
+func sleep(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // Close drops idle connections.
@@ -93,7 +144,58 @@ func (c *Client) newRequest(ctx context.Context, method, path string, body io.Re
 	return req, nil
 }
 
+// do sends req, and sends it again while the host's rate limiter refuses it and the caller's context leaves time to wait
+// (see Client). The last refusal is returned when it does not.
 func (c *Client) do(hc *http.Client, req *http.Request) (*http.Response, error) {
+	ctx := req.Context()
+	var waited time.Duration
+	for {
+		resp, err := c.send(hc, req)
+		var he *Error
+		if err == nil || !errors.As(err, &he) || he.Status != http.StatusTooManyRequests || he.Code != api.CodeRateLimited {
+			return resp, err
+		}
+		d := c.rateWait(he.RetryAfterS)
+		replayable := req.Body == nil || req.Body == http.NoBody || req.GetBody != nil
+		if !replayable || !c.mayWait(ctx, d, waited) {
+			return nil, err
+		}
+		if serr := c.o.Sleep(ctx, d); serr != nil {
+			return nil, fmt.Errorf("%w (%w)", err, serr)
+		}
+		waited += d
+		next := req.Clone(ctx)
+		if req.GetBody != nil {
+			body, berr := req.GetBody()
+			if berr != nil {
+				return nil, err
+			}
+			next.Body = body
+		}
+		req = next
+	}
+}
+
+// rateWait is the wait before a request the limiter refused is sent again: the host's Retry-After (at least a second, at
+// most MaxRateWait), plus up to a quarter more.
+func (c *Client) rateWait(retryAfterS int) time.Duration {
+	d := min(time.Duration(max(retryAfterS, 1))*time.Second, c.o.MaxRateWait)
+	return d + rand.N(d/4+1) //nolint:gosec // jitter, not a secret
+}
+
+// mayWait says whether a wait of d may start: it ends before ctx's deadline, or, without one, within RateBudget.
+func (c *Client) mayWait(ctx context.Context, d, waited time.Duration) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	if dl, ok := ctx.Deadline(); ok {
+		return time.Until(dl) > d
+	}
+	return waited+d <= c.o.RateBudget
+}
+
+// send is one round trip: the response of a 2xx/3xx, or the error of anything else.
+func (c *Client) send(hc *http.Client, req *http.Request) (*http.Response, error) {
 	resp, err := hc.Do(req)
 	if err != nil {
 		var ne *net.OpError

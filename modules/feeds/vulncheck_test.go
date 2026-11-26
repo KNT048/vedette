@@ -287,6 +287,9 @@ func TestVulnCheckPull_FailsClosedWhenTheListIsNotComplete(t *testing.T) {
 			}
 			return vcPage(300, fmt.Sprintf("c%d", n+1), entry(n))
 		}, "a page was empty"},
+		// a cursor the parser takes but whose next address would be longer than the fetcher sends: the reason names the cursor,
+		// not the feed address the customer set
+		"cursor too long to send": {func(int) string { return vcPage(300, strings.Repeat("a", 2100), entry(1)) }, "cursor"},
 		"stopped short": {func(n int) string {
 			if n == 2 {
 				return `{"_meta":{"total_documents":300,"truncated":true,"warnings":["Results limited by plan."]},"data":[` + entry(2) + `]}`

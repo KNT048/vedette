@@ -22,7 +22,7 @@ const (
 	vulnCheckWindow   = 180 * 24 * time.Hour
 	vulnCheckPage     = 100
 	vulnCheckMaxPage  = 500  // 50,000 entries, many times today's list: a list that goes on past it fails the pull (the box keeps its rows)
-	vulnCheckMaxCur   = 4096 // the longest cursor Vedette sends back
+	vulnCheckMaxCur   = 4096 // the longest cursor an answer may carry; the next address must also fit fetchURLMaxLen
 	vulnCheckDeadline = 20 * time.Minute
 	vulnCheckAction   = "Reported as exploited in the wild by VulnCheck KEV (not on the CISA list yet)."
 )
@@ -315,6 +315,9 @@ func (s *Service) buildVulnCheck(ctx context.Context, src sourceRow, p pullPlan)
 		u, err := VulnCheckPageURL(src.URL, cursor)
 		if err != nil {
 			return p, err
+		}
+		if len(u) > fetchURLMaxLen { // the fetcher would refuse it as a bad feed address, which the customer cannot fix
+			return p, incomplete("the cursor of its next page is too long to send back")
 		}
 		resp, err := s.vulnCheckGet(ctx, u, auth)
 		if err != nil {

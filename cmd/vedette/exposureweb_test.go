@@ -286,6 +286,7 @@ func TestExposureWeb_ActiveSendsTheDisruptiveRulesOnlyForTheBoxsOwnIP(t *testing
 	deep := exposure.ScanMode{Full: true, Disruptive: true}
 	ipT, domT := webIPTarget, webDomTarget
 	ipT.Mode, domT.Mode = deep, deep
+	ipT.Grant = "0123456789abcdef0123456789abcdef" // the host's grant of the press: without one the page asks for no disruptive rules
 	h := ok()
 	w := exposureWebScan{host: h, token: func(context.Context, string) (string, error) { return "0123456789abcdef", nil }}
 	got, err := w.Active(t.Context(), ipT, webIPPage)

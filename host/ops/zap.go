@@ -495,6 +495,8 @@ type zapPass struct {
 	active     bool
 	disruptive bool
 	req        string // the request id of the run (RunContext.RequestID): zap.stop names it
+	actor      string // the run's actor label (RunContext.Actor): a grant holds only for runs of the actor it was minted for
+	grant      string // the grant of zap.authorize that came with a run asking for the disruptive rules
 }
 
 func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (any, error) {
@@ -563,6 +565,13 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 		return nil, fail(api.CodeZapFailed, "The host could not prepare the work folder of the web scan.")
 	}
 	argv := p.runArgv(wrk)
+	refused := ""
+	if pass.active && pass.disruptive { // the host's own checks, right before the run (zapgrant.go): a refusal runs the page without them
+		if refused = o.zapDisruptiveRefusal(p, pass); refused != "" {
+			pass.disruptive = false
+			logf("the disruptive rules do not run on " + p.url + ": " + zapRefusalText(refused))
+		}
+	}
 	if pass.active {
 		// The plan is the host's own text, readable by the container's zap user (the folder is its; the file is root's, 0644).
 		if err := os.WriteFile(filepath.Join(wrk, zapPlanName), []byte(zapActivePlan(p, pass.disruptive)), 0o644); err != nil { //nolint:gosec // ZAP's user reads it in the container
@@ -614,7 +623,15 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 		if cut {
 			logf(fmt.Sprintf("the active scan reached its limit of %d minutes: the report holds what it found until then", zapActiveMinutes))
 		}
-		return api.ZapActiveResult{ReportID: id, Size: size, ExitCode: code, CutShort: cut, DisruptiveRules: zapDisruptiveRuleIDs()}, nil
+		if refused == api.ZapRefusedGrantMissing {
+			// A request for the disruptive rules without a grant is how a core older than the grant asks (the host is updated first). Such
+			// a core reads only cut_short to know that a page did not run every rule it asked for, and then closes no issue with it: so
+			// the page is answered as one that did not, and that core can neither close an issue of a rule that never ran nor count the
+			// page as attacked with the disruptive rules. A core that knows the grant never sends this request (it asks without
+			// disruptive when it has no grant).
+			cut = true
+		}
+		return api.ZapActiveResult{ReportID: id, Size: size, ExitCode: code, CutShort: cut, DisruptiveRules: zapDisruptiveRuleIDs(), DisruptiveRefused: refused}, nil
 	}
 	return api.ZapBaselineResult{ReportID: id, Size: size, ExitCode: code}, nil
 }

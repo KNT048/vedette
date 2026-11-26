@@ -63,6 +63,9 @@ const (
 	notActiveCut       = "Active web scan (ZAP) reached its limit of 12 minutes on this page: the alerts it found until then are kept, and some rules did not run."
 	notActiveRunLimit  = "Active web scan (ZAP): %s not attacked: the active pass of one scan takes at most 60 minutes. Scan again to check %s."
 	notActiveDisrupt   = "Active web scan (ZAP) ran without its disruptive rules (denial of service, checks that may change data) on %s: they run only on this box's own public IP, in a scan a person starts."
+	// notActiveHostRefused is a page the step asked the disruptive rules for and the host ran without them: its own check of the
+	// person's press or of the box's gateway (zapgrant.go), with the host's reason.
+	notActiveHostRefused = "Active web scan (ZAP) ran without its disruptive rules on %s: %s"
 )
 
 // activeTally is what the active pass did, for its run step's note.
@@ -70,7 +73,24 @@ type activeTally struct {
 	pages, alerts int
 	disruptive    bool
 	cut           []string
-	note          string // why it ended early (a reason that held for the rest)
+	note          string   // why it ended early (a reason that held for the rest)
+	refused       []string // the host ran pages without the disruptive rules: how many, and its reason
+}
+
+// hostRefusal is the pages the host ran without the disruptive rules for one reason.
+type hostRefusal struct {
+	why   string
+	pages []string
+}
+
+func addRefused(rs []hostRefusal, why, page string) []hostRefusal {
+	for i := range rs {
+		if rs[i].why == why {
+			rs[i].pages = append(rs[i].pages, page)
+			return rs
+		}
+	}
+	return append(rs, hostRefusal{why: why, pages: []string{page}})
 }
 
 // activeEnd is how the active pass's run step ends, and its note: the pages attacked of those it takes, with or without the
@@ -96,6 +116,9 @@ func activeEnd(ok, failed, left int, t activeTally) (corerun.Status, string) {
 	}
 	if left > 0 {
 		note += " " + plural(left, "page") + " not attacked."
+	}
+	for _, r := range t.refused { // the pass ran, with less than asked: said, not a partial step
+		note += " " + r
 	}
 	if t.note != "" {
 		note += " " + t.note
@@ -157,6 +180,7 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 	steps := stepsOf(ctx)
 	start := s.clock()
 	var scanned, gentle []string
+	var refused []hostRefusal // pages the host ran without the disruptive rules, by its reason
 	ok, failed, left := 0, 0, 0
 	for i, page := range pages {
 		if s.clock().Sub(start)+ActiveScanTimeout > ActiveRunLimit {
@@ -185,6 +209,7 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 		tool := webActiveTool
 		if pst.Mode.Disruptive {
 			tool = webActiveToolDisruptive
+			pst.Grant = s.grantOf(ctx, RunIDOf(ctx)) // the host's grant of the press that started this scan: it checks it itself
 		} else {
 			gentle = append(gentle, page.URL)
 		}
@@ -204,24 +229,28 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 		slow := wctx.Err() != nil
 		cancel()
 		if err == nil {
+			rough := pst.Mode.Disruptive && res.DisruptiveRefused == "" // asked for and not refused by the host; a refused page counts as one without them
+			if pst.Mode.Disruptive && !rough {
+				refused = addRefused(refused, res.DisruptiveRefused, page.URL)
+			}
 			rows, perr := parseZAPWithRules(res.Report, page.URL)
 			switch {
 			case perr == nil || errors.Is(perr, ErrNoPage):
 				for i := range rows {
 					rows[i].Pass = passActive
-					rows[i].Disruptive = pst.Mode.Disruptive && (len(res.DisruptiveRules) == 0 || slices.Contains(res.DisruptiveRules, rows[i].PluginID))
+					rows[i].Disruptive = rough && (len(res.DisruptiveRules) == 0 || slices.Contains(res.DisruptiveRules, rows[i].PluginID))
 				}
 				c.WebFindings = mergeWebRows(c.WebFindings, rows)
 				if !res.CutShort { // a page cut short did not run every rule: an active alert it no longer reports is not "gone"
 					c.WebActivePages = append(c.WebActivePages, page.URL)
-					if pst.Mode.Disruptive {
+					if rough {
 						c.WebDisruptivePages = append(c.WebDisruptivePages, page.URL)
 					}
 				}
 				scanned = append(scanned, page.URL)
 				ok++
 				step.alerts += len(rows)
-				step.disruptive = step.disruptive || pst.Mode.Disruptive
+				step.disruptive = step.disruptive || rough
 				if res.CutShort {
 					step.cut = append(step.cut, page.URL)
 					c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notActiveCut, maxLineText)})
@@ -265,6 +294,11 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 	}
 	if len(gentle) > 0 && st.Mode.Disruptive {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(fmt.Sprintf(notActiveDisrupt, strings.Join(gentle, ", ")), maxLineText)})
+	}
+	for _, r := range refused {
+		line := fmt.Sprintf(notActiveHostRefused, strings.Join(r.pages, ", "), r.why)
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(line, maxLineText)})
+		step.refused = append(step.refused, fmt.Sprintf("Without the disruptive rules on %s: %s", plural(len(r.pages), "page"), r.why))
 	}
 	if len(scanned) > 0 {
 		text := fmt.Sprintf("Active web scan (ZAP: spider and active rules, attack requests to the page's own address only) of %s: %s. %s.",

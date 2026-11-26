@@ -239,6 +239,8 @@ type Ops struct {
 	zapDone    chan struct{}
 	zapReq     string               // the request id of the run that runs now
 	zapStopped map[string]time.Time // zap.stop of a run that had not started: its request id, until when it is kept
+	zapGrants  map[string]*zapGrant // zap.authorize: the grants of the disruptive rules by their value (zapgrant.go)
+	zapSpent   map[string]time.Time // grants whose pass is over, until their lifetime ends: only to refuse them as spent
 	zapPulling bool
 	zapPullErr string
 	zapExec    zapExecFn
@@ -405,7 +407,7 @@ func (o *Ops) Commands() []server.Command {
 		o.cmdNetApply(), o.cmdNetConfirm(), o.cmdNetRevert(),
 		o.cmdDecoyAdd(), o.cmdDecoyRemove(), o.cmdDecoySetPorts(),
 		o.cmdContainerStart(), o.cmdContainerStop(), o.cmdContainerPull(), o.cmdContainerRollback(),
-		o.cmdHostSelfUpdate(), o.cmdZapBaseline(), o.cmdZapActive(), o.cmdZapStop(), o.cmdZapPrepare(), o.cmdExposureToken(), o.cmdExposureFenceCheck(), o.cmdExposureTokenForget(),
+		o.cmdHostSelfUpdate(), o.cmdZapBaseline(), o.cmdZapActive(), o.cmdZapStop(), o.cmdZapAuthorize(), o.cmdZapPrepare(), o.cmdExposureToken(), o.cmdExposureFenceCheck(), o.cmdExposureTokenForget(),
 		o.cmdBoxAgentCheck(),
 		o.cmdGreenboneUp(), o.cmdGreenboneDown(), o.cmdGreenboneSyncFeed(),
 	}

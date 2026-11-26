@@ -280,6 +280,21 @@ func (c *Client) ZapActive(ctx context.Context, args api.ZapActiveArgs, requestI
 	return run, err
 }
 
+// ZapAuthorize runs zap.authorize and follows it to its end (it answers from the host's memory): succeeded with an
+// api.ZapAuthorizeResult, or refused with its code.
+func (c *Client) ZapAuthorize(ctx context.Context, args api.ZapAuthorizeArgs, requestID, actor string) (api.Run, error) {
+	run, err := c.Run(ctx, api.CmdZapAuthorize, args, requestID, actor)
+	for err == nil && !run.Status.Terminal() {
+		select {
+		case <-ctx.Done():
+			return run, ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
+		run, err = c.GetRun(ctx, run.RunID)
+	}
+	return run, err
+}
+
 // ZapPrepare runs zap.prepare and follows it to its end (seconds: the download runs beside it on the host).
 func (c *Client) ZapPrepare(ctx context.Context, requestID, actor string) (api.Run, error) {
 	run, err := c.Run(ctx, api.CmdZapPrepare, nil, requestID, actor)

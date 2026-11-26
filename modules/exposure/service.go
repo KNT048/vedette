@@ -81,14 +81,15 @@ type Service struct {
 	mu     sync.RWMutex
 	runner Runner
 
-	runMu       sync.Mutex           // guards execs, lastOutside, off, closed, feedSync, feedSyncAt and syncDone
-	feedSync    bool                 // OpenVAS's weekly feed update holds the box's one scan slot: a scan that starts waits for it
-	feedSyncAt  time.Time            // when that feed update started
-	syncDone    chan struct{}        // closed when the feed update that runs ends
-	off         bool                 // the module is switched off (ModuleSwitched): no scan is queued
-	closed      bool                 // the box is shutting down (Close)
-	execs       map[string]*scanExec // the scans this process executes now (and the ones ScanNow waits for), by run id
-	lastOutside time.Time            // when the box last asked Shodan (OutsideEvery; kept in memory, a restart forgets it)
+	runMu       sync.Mutex             // guards execs, grants, lastOutside, off, closed, feedSync, feedSyncAt and syncDone
+	feedSync    bool                   // OpenVAS's weekly feed update holds the box's one scan slot: a scan that starts waits for it
+	feedSyncAt  time.Time              // when that feed update started
+	syncDone    chan struct{}          // closed when the feed update that runs ends
+	off         bool                   // the module is switched off (ModuleSwitched): no scan is queued
+	closed      bool                   // the box is shutting down (Close)
+	execs       map[string]*scanExec   // the scans this process executes now (and the ones ScanNow waits for), by run id
+	grants      map[string]*pressGrant // the host's grants of the disruptive rules asked for at a person's press, by run id (zapgrant.go)
+	lastOutside time.Time              // when the box last asked Shodan (OutsideEvery; kept in memory, a restart forgets it)
 
 	checkMu    sync.Mutex           // guards lastCheck
 	lastCheck  map[string]time.Time // when each domain target's ownership was last checked by a person (DomainCheckEvery; in memory, a restart forgets it)

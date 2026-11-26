@@ -85,6 +85,9 @@ type ScanTarget struct {
 	// themselves), read when the scan starts. The runner lists the other names it finds without probing them (Content.Listed); nil on an
 	// IP target.
 	Names *NamePlan
+	// Grant is, on a page of the active web scan that asks for the disruptive rules, the host's grant of the person's press that
+	// started the scan (DisruptiveGranter); "" when none came. The host runs the disruptive rules only with one that holds.
+	Grant string
 	// dropped says why deepGate took the disruptive checks out of a step the run allowed them on (dropNotOwn, dropCNAME, dropNAT);
 	// "" when it did not. Only the lines of the deep scan read it.
 	dropped string

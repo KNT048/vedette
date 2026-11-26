@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -35,6 +37,56 @@ type zapHost interface {
 	ZapActive(ctx context.Context, args api.ZapActiveArgs, requestID, actor string) (api.Run, error)
 	ZapStop(ctx context.Context, args api.ZapStopArgs, requestID, actor string) (api.Run, error)
 	DownloadZapReport(ctx context.Context, reportID string) (io.ReadCloser, int64, error)
+}
+
+// zapAuthorizer is the host client's zap.authorize: the host's grant of the disruptive rules for a person's press.
+type zapAuthorizer interface {
+	ZapAuthorize(ctx context.Context, args api.ZapAuthorizeArgs, requestID, actor string) (api.Run, error)
+}
+
+var _ exposure.DisruptiveGranter = exposureWebScan{}
+
+// GrantDisruptive is exposure's DisruptiveGranter: zap.authorize with the person's actor label (the label of the zap.active runs of
+// that scan, which the host holds the grant to) and the box's IP.
+func (w exposureWebScan) GrantDisruptive(ctx context.Context, user string, ip netip.Addr) (string, error) {
+	a, ok := w.host.(zapAuthorizer)
+	if !ok {
+		return "", errors.New("exposure: this host helper cannot grant the disruptive rules")
+	}
+	id, err := newUUID()
+	if err != nil {
+		return "", err
+	}
+	run, err := a.ZapAuthorize(ctx, api.ZapAuthorizeArgs{IP: ip.String()}, id, zapActor(user))
+	if err != nil {
+		return "", fmt.Errorf("exposure: zap.authorize: %w", err)
+	}
+	if run.Status != api.StatusSucceeded {
+		code := "command_failed"
+		if run.Error != nil {
+			code = run.Error.Code
+		}
+		return "", fmt.Errorf("exposure: zap.authorize %s: %s", run.Status, code)
+	}
+	res, err := hostclient.ResultOf[api.ZapAuthorizeResult](run)
+	if err != nil {
+		return "", err
+	}
+	return res.Grant, nil
+}
+
+// zapActor is the host's actor label of the ZAP runs of a scan user started, and of the grant of that user's press (zap.authorize):
+// exposure:<e-mail> when the e-mail is in the host's actor alphabet, else exposure:u-<16 hex of its SHA-256>, so a person whose
+// address has a "+" tag or is long is still labelled as one person (the host grants the disruptive rules only to exposure:<person>).
+func zapActor(user string) string {
+	if hostActorRE.MatchString(user) {
+		return "exposure:" + user
+	}
+	if user == "" {
+		return "exposure"
+	}
+	sum := sha256.Sum256([]byte(user))
+	return "exposure:u-" + hex.EncodeToString(sum[:8])
 }
 
 // zapPreparer is the host client's zap.prepare: the ZAP image fetched ahead of the first scan.
@@ -154,14 +206,22 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	if err != nil {
 		return exposure.WebScan{}, err
 	}
-	actor := "exposure"
-	if hostActorRE.MatchString(t.User) {
-		actor += ":" + t.User
-	}
+	actor := zapActor(t.User)
 	var run api.Run
+	noGrant := false // the page asked for the disruptive rules without the host's grant: it runs without them
 	if active {
-		// The disruptive rules only for the box's own IP: the host refuses them on any other page as well.
-		run, err = w.host.ZapActive(ctx, api.ZapActiveArgs{ZapBaselineArgs: args, Disruptive: t.Mode.Disruptive && args.Kind == api.ZapKindIP && args.Typed == nil}, id, actor)
+		// The disruptive rules only for the box's own IP: the host refuses them on any other page as well, and runs them only with the
+		// grant of the person's press (t.Grant) and its own read of the gateway.
+		aa := api.ZapActiveArgs{ZapBaselineArgs: args, Disruptive: t.Mode.Disruptive && args.Kind == api.ZapKindIP && args.Typed == nil}
+		if aa.Disruptive && t.Grant == "" {
+			// No grant of the press: never asked for, so the host never sees the request of a core older than the grant (disruptive
+			// without grant), which it answers as a page that did not run every rule.
+			aa.Disruptive, noGrant = false, true
+		}
+		if aa.Disruptive {
+			aa.Grant = t.Grant
+		}
+		run, err = w.host.ZapActive(ctx, aa, id, actor)
 	} else {
 		run, err = w.host.ZapBaseline(ctx, args, id, actor)
 	}
@@ -172,7 +232,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 			w.stop(ctx, id, actor)
 			return exposure.WebScan{}, ctx.Err()
 		case errors.As(err, &he) && (he.Code == api.CodeUnknownCommand ||
-			he.Code == api.CodeInvalidArgs && (t.Proof != nil && t.Proof.ProofAt != "" || t.Typed || args.ProvenAt != "")): // an older host refuses a proof it does not know
+			he.Code == api.CodeInvalidArgs && (t.Proof != nil && t.Proof.ProofAt != "" || t.Typed || args.ProvenAt != "" || active && t.Grant != "")): // an older host refuses a proof it does not know
 
 			return exposure.WebScan{}, &exposure.Unavailable{Reason: webOldHost}
 		}
@@ -194,7 +254,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 		}
 		return exposure.WebScan{}, fmt.Errorf("exposure web scan: %s %s: %s", run.Command, run.Status, code)
 	}
-	var reportID string
+	var reportID, refused string
 	cut := false
 	var disruptiveRules []string
 	if active {
@@ -203,6 +263,12 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 			return exposure.WebScan{}, err
 		}
 		reportID, cut = res.ReportID, res.CutShort
+		switch {
+		case res.DisruptiveRefused != "":
+			refused = webRefusedWhy(res.DisruptiveRefused)
+		case noGrant:
+			refused = webRefusedWhy(api.ZapRefusedGrantMissing)
+		}
 		for _, r := range res.DisruptiveRules {
 			disruptiveRules = append(disruptiveRules, strconv.Itoa(r))
 		}
@@ -223,7 +289,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	if err != nil {
 		return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the report: %w", err)
 	}
-	return exposure.WebScan{Report: b, CutShort: cut, DisruptiveRules: disruptiveRules}, nil
+	return exposure.WebScan{Report: b, CutShort: cut, DisruptiveRules: disruptiveRules, DisruptiveRefused: refused}, nil
 }
 
 // stop stops the ZAP run of request runID on the host when exposure gave up on it (the scan was stopped, or the page's time ran
@@ -238,6 +304,36 @@ func (w exposureWebScan) stop(ctx context.Context, runID, actor string) {
 	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), zapStopWait)
 	defer cancel()
 	_, _ = w.host.ZapStop(sctx, api.ZapStopArgs{RequestID: runID}, id, actor)
+}
+
+// webRefusedWhy is the sentence of the host's refusal of the disruptive rules on a page (api.ZapRefused*), after "ran without its
+// disruptive rules on <pages>: ".
+func webRefusedWhy(code string) string {
+	switch code {
+	case api.ZapRefusedGrantMissing:
+		return "the Scan now press that started this scan could not be recorded by the box's host helper. Press Scan now again to run them."
+	case api.ZapRefusedGrantUnknown:
+		return "the box's host helper no longer holds the Scan now press that started this scan (it restarted since). Press Scan now again to run them."
+	case api.ZapRefusedGrantExpired:
+		return "more than 6 hours passed between the press of Scan now and the active web scan. Press Scan now again to run them."
+	case api.ZapRefusedGrantSpent:
+		return "the Scan now press that started this scan was already used for one active pass. Press Scan now again to run them."
+	case api.ZapRefusedGrantMismatch:
+		return "the Scan now press the box's host helper holds is for another address or another person."
+	case api.ZapRefusedGatewayShared:
+		return "the box's host helper read the box's default gateway in 100.64.0.0/10 (carrier-grade NAT), so the address is probably shared with the provider's other customers."
+	case api.ZapRefusedGatewayUnreadable:
+		return "the box's host helper could not read the box's default gateway, so it could not rule out carrier-grade NAT."
+	}
+	return "the box's host helper refused them (" + clipCode(code) + "). The box log has the reason."
+}
+
+// clipCode keeps an unknown code of the host short and printable.
+func clipCode(code string) string {
+	if len(code) > 40 || !hostActorRE.MatchString(code) {
+		return "an unknown reason"
+	}
+	return code
 }
 
 // provenPage says whether the target's proof is about the page's address: the proof is a sighting of the target's own IP, so it goes

@@ -297,6 +297,9 @@ func zapActiveArgs(a api.ZapActiveArgs) (zapPage, error) {
 	if a.Disruptive && (a.Kind != api.ZapKindIP || a.Typed != nil) {
 		return zapPage{}, server.Invalid("disruptive", "is for the box's own IP only (kind ip, not a typed IP)")
 	}
+	if a.Grant != "" && (!a.Disruptive || !zapGrantRE.MatchString(a.Grant)) {
+		return zapPage{}, server.Invalid("grant", "must be the grant of zap.authorize (32 hex characters), with disruptive")
+	}
 	return p, nil
 }
 
@@ -310,7 +313,7 @@ func (o *Ops) cmdZapActive() server.Command {
 			if err != nil {
 				return nil, err
 			}
-			return o.zapRun(ctx, rc.Log, p, zapPass{active: true, disruptive: a.Disruptive, req: rc.RequestID})
+			return o.zapRun(ctx, rc.Log, p, zapPass{active: true, disruptive: a.Disruptive, req: rc.RequestID, actor: rc.Actor, grant: a.Grant})
 		},
 	})
 }

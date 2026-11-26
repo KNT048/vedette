@@ -109,6 +109,10 @@ type WebScan struct {
 	// them (its rule split): an alert of one of them in a pass with the disruptive rules is closed only by another such pass. Empty
 	// (an older host): every alert of a pass with the disruptive rules counts as one of them.
 	DisruptiveRules []string
+	// DisruptiveRefused (active scan only) is set when the step asked for the disruptive rules and the host ran the page without them
+	// (its own checks: no grant of a person's press that holds, or the box's gateway behind carrier-grade NAT or unreadable): the
+	// plain reason. The page then counts as a page of a pass without them.
+	DisruptiveRefused string
 }
 
 // Limits of the passive web scan (INV-24).

@@ -178,6 +178,7 @@ func distroRows(a Asset) (d *distroData, release string, rows []distroPkgRow) {
 			continue
 		}
 		in := newSWInfo(s, osName)
+		in.install = installOf(s, a)
 		in.pkgVer, in.pkgSrc = ver, src
 		rows = append(rows, distroPkgRow{s: s, in: in, ver: ver, pkg: d.source(src)})
 	}
@@ -240,7 +241,7 @@ func installedKernel(a Asset, k Software) (string, bool) {
 	if !isKernelRow(k) || k.PkgVersion == "" || k.PkgSource == "" {
 		return "", false
 	}
-	in := newSWInfo(k, a.OS)
+	in := swInfoOn(k, a)
 	d, _ := distroOf(in)
 	if d == "" {
 		return "", false

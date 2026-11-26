@@ -104345,6 +104345,14 @@ func (s *FindingsGetFindingsInput1SoftwareGroup) SetSoftware(val NilFindingsGetF
 // What Vedette cannot decide without a person.
 type FindingsGetFindingsInput1SoftwareGroupQuestionsItem struct {
 	AskedAt time.Time `json:"asked_at"`
+	// Not_comparable: the build attribute NVD pins that decides the CVE and Vedette could not derive from
+	// what it knows (edition: ESR or the normal release; architecture: the 64-bit or 32-bit build;
+	// platform: the system the build is for), or unlisted_line: the build is a Mozilla ESR of an
+	// end-of-life line the CVE's ESR rows do not list, so whether that line is affected is unknown. The
+	// question asks for it, not for the version, and is answered per CVE (POST
+	// /findings/questions/{id}/answer). null when the version is what cannot be compared, and for the
+	// other kinds.
+	Attribute NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute `json:"attribute"`
 	// Platform, package_release: the answers, each an inventory correction; empty for the other kinds
 	// (version_needed, not_comparable: type the version on the software line; no_range_data, older_line:
 	// POST /findings/questions/{id}/answer).
@@ -104386,6 +104394,11 @@ type FindingsGetFindingsInput1SoftwareGroupQuestionsItem struct {
 // GetAskedAt returns the value of AskedAt.
 func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) GetAskedAt() time.Time {
 	return s.AskedAt
+}
+
+// GetAttribute returns the value of Attribute.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) GetAttribute() NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute {
+	return s.Attribute
 }
 
 // GetChoices returns the value of Choices.
@@ -104463,6 +104476,11 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) SetAskedAt(val tim
 	s.AskedAt = val
 }
 
+// SetAttribute sets the value of Attribute.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) SetAttribute(val NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) {
+	s.Attribute = val
+}
+
 // SetChoices sets the value of Choices.
 func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) SetChoices(val []FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem) {
 	s.Choices = val
@@ -104531,6 +104549,61 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) SetURL(val NilURI)
 // SetVersionsListed sets the value of VersionsListed.
 func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) SetVersionsListed(val bool) {
 	s.VersionsListed = val
+}
+
+type FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute string
+
+const (
+	FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeEdition      FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute = "edition"
+	FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute = "architecture"
+	FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform     FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute = "platform"
+	FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute = "unlisted_line"
+)
+
+// AllValues returns all FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute values.
+func (FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) AllValues() []FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute {
+	return []FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute{
+		FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeEdition,
+		FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture,
+		FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform,
+		FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeEdition:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform:
+		return []byte(s), nil
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute(data) {
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeEdition:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeEdition
+		return nil
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture
+		return nil
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform
+		return nil
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeUnlistedLine
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem struct {
@@ -183876,6 +183949,51 @@ func (o NilFindingsGetFindingsIDViewOKSoftware) Get() (v FindingsGetFindingsIDVi
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsIDViewOKSoftware) Or(d FindingsGetFindingsIDViewOKSoftware) FindingsGetFindingsIDViewOKSoftware {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute returns new NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute with value set to v.
+func NewNilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute(v FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute {
+	return NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute is nullable FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute.
+type NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute struct {
+	Value FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) SetTo(v FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) Get() (v FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) Or(d FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute {
 	if v, ok := o.Get(); ok {
 		return v
 	}

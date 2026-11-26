@@ -87,11 +87,13 @@ func TestMatch_EnteredVersionWithoutAPersonStaysSuspected(t *testing.T) {
 	}
 }
 
-// NVD's NA ("-") in an edition is the plain edition, one of the alternatives (CVE-2026-4718's real rows): a version inside the range of
-// every edition NVD lists is affected whichever edition the device runs; inside some only, it stays a question; inside none, nothing.
-// #906 holds: a row that states its edition is judged by it, NA never covers an edition left unstated by itself, and a plain edition
-// NVD lists alone proves nothing about the others.
-func TestMatchAsset_PlainEditionIsOneOfTheAlternatives(t *testing.T) {
+// NVD's NA ("-") in an edition is the plain edition, one of the alternatives (CVE-2026-4718's real rows). Mozilla's version shape says
+// which edition a Firefox or Thunderbird build is (installOf): 115.9.0 is an ESR build, 145.0 a normal release, so the rows of that
+// edition decide and the others do not apply; a plain edition NVD lists alone then says the ESR is not affected. An M.0.x build of an
+// ESR major (153.0.1) can be either: inside every edition's range it is affected whichever it is, inside some only it is a question
+// that asks for the edition. A row that states its edition is judged by it, and for a product with no such rule (Jenkins) NA never
+// covers an edition the row leaves unstated (#906).
+func TestMatchAsset_EditionOfTheBuildDecides(t *testing.T) {
 	t.Parallel()
 	tb := func(edition, end string) Affected {
 		return Affected{CPE: "cpe:2.3:a:mozilla:thunderbird:*:*:*:*:" + edition + ":*:*:*", Range: VersionRange{EndExcl: end}}
@@ -111,12 +113,16 @@ func TestMatchAsset_PlainEditionIsOneOfTheAlternatives(t *testing.T) {
 		want string // "finding", "question", "none"
 	}{
 		{"115.9.0, inside the ESR and the plain range", row("115.9.0", ""), cve, "finding"},
-		{"145.0, inside the plain range only", row("145.0", ""), cve, "question"},
+		{"145.0, a normal release inside the plain range", row("145.0", ""), cve, "finding"},
 		{"150.0, inside none", row("150.0", ""), cve, "none"},
 		{"145.0 stating ESR", row("145.0", "cpe:2.3:a:mozilla:thunderbird:145.0:*:*:*:esr:*:*:*"), cve, "none"},
 		{"115.9.0 stating ESR", row("115.9.0", "cpe:2.3:a:mozilla:thunderbird:115.9.0:*:*:*:esr:*:*:*"), cve, "finding"},
-		{"plain edition listed alone", row("115.9.0", ""), Vuln{CVE: "CVE-2099-0201", NVDAnswered: true, Published: uncNew,
-			Affected: []Affected{tb("-", "149.0")}}, "question"},
+		{"plain edition listed alone, on an ESR build", row("115.9.0", ""), Vuln{CVE: "CVE-2099-0201", NVDAnswered: true, Published: uncNew,
+			Affected: []Affected{tb("-", "149.0")}}, "none"},
+		{"153.0.1 inside the plain range and the 153 ESR range", row("153.0.1", ""), Vuln{CVE: "CVE-2099-0202", NVDAnswered: true, Published: uncNew,
+			Affected: []Affected{tb("-", "157.0"), {CPE: "cpe:2.3:a:mozilla:thunderbird:*:*:*:*:esr:*:*:*", Range: VersionRange{StartIncl: "153.0", EndExcl: "153.4.0"}}}}, "finding"},
+		{"153.0.1 inside the plain range only", row("153.0.1", ""), Vuln{CVE: "CVE-2099-0203", NVDAnswered: true, Published: uncNew,
+			Affected: []Affected{tb("-", "157.0"), {CPE: "cpe:2.3:a:mozilla:thunderbird:*:*:*:*:esr:*:*:*", Range: VersionRange{StartIncl: "140.0", EndExcl: "140.17.0"}}}}, "question"},
 	} {
 		r := MatchAsset(tc.a, []Vuln{tc.v}, nil, t0)
 		got := "none"
@@ -131,8 +137,13 @@ func TestMatchAsset_PlainEditionIsOneOfTheAlternatives(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("%s: %s, want %s (%+v)", tc.name, got, tc.want, r)
 		}
-		if got == "finding" && tc.a.Software[0].CPE == "" && !strings.Contains(r.New[0].Evidence.Summary, "for esr or plain only") {
-			t.Errorf("%s: evidence %q does not name the editions", tc.name, r.New[0].Evidence.Summary)
+		ver := tc.a.Software[0].Version
+		says := map[string]string{"115.9.0": "this is the ESR edition", "145.0": "this is the normal release, not ESR", "153.0.1": "for plain or esr only"}[ver]
+		if got == "finding" && tc.a.Software[0].CPE == "" && !strings.Contains(r.New[0].Evidence.Summary, says) {
+			t.Errorf("%s: evidence %q does not say %q", tc.name, r.New[0].Evidence.Summary, says)
+		}
+		if got == "question" && r.Unchecked[0].Attribute != AttrEdition {
+			t.Errorf("%s: the question asks for %q, want the edition", tc.name, r.Unchecked[0].Attribute)
 		}
 	}
 	// Jenkins: NVD's "-" (weekly) before 2.442 and LTS before 2.426.3; 2.430 is past the LTS fix, so the edition decides
@@ -145,6 +156,62 @@ func TestMatchAsset_PlainEditionIsOneOfTheAlternatives(t *testing.T) {
 		if r := MatchAsset(a, []Vuln{jenkins}, nil, t0); len(r.New) != want || want == 0 && len(r.Unchecked)+len(r.NameOnly) == 0 {
 			t.Errorf("Jenkins %s: %+v, want %d version finding(s), else a question", ver, r, want)
 		}
+	}
+}
+
+// A Mozilla ESR build of a line no ESR row of the CVE spans is not "not affected": Mozilla lists only supported ESR lines, so an
+// end-of-life one (Thunderbird 115 once 128 and 140 shipped; Firefox ESR 140 between the listed 115 and 153) is absent whether or not
+// its code has the flaw. Its plain row is then no proof either way and the CVE stays asked, as an older release line does for an exact list. An ESR
+// line the rows reach, or a CVE with plain rows only (no supported ESR is affected, so the code is newer than every ESR), is decided.
+func TestMatchAsset_UnlistedESRLineStaysAsked(t *testing.T) {
+	t.Parallel()
+	tb := func(edition string, r VersionRange) Affected {
+		return Affected{CPE: "cpe:2.3:a:mozilla:thunderbird:*:*:*:*:" + edition + ":*:*:*", Range: r}
+	}
+	row := Asset{ID: "pc", Name: "pc", Software: []Software{{ID: "s", Display: "Mozilla Thunderbird (x64 en-US)", Vendor: "Mozilla", Product: "Thunderbird",
+		Version: "115.9.0", Source: "agent"}}}
+	for _, tc := range []struct {
+		name string
+		rows []Affected
+		want string // "finding", "question", "none"
+	}{
+		{"ESR rows from 140 only", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.12.0"})}, "question"},
+		{"ESR rows from 140 and 153", []Affected{tb("-", VersionRange{EndExcl: "157.0"}), tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.17.0"}),
+			tb("esr", VersionRange{StartIncl: "153.0", EndExcl: "153.4.0"})}, "question"},
+		{"an ESR row reaching 115", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{StartIncl: "115.1.0", EndExcl: "115.42.0"}),
+			tb("esr", VersionRange{StartIncl: "140.0", EndExcl: "140.12.0"})}, "finding"},
+		{"an ESR row fixed on 115 before this build", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}), tb("esr", VersionRange{EndExcl: "115.5.0"})}, "none"},
+		{"plain rows only", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"})}, "none"},
+		// NVD also writes an ESR row as one exact build (CVE-2026-5731: thunderbird 140.9.0 esr): it lists line 140 only
+		{"an exact ESR build of 140", []Affected{tb("-", VersionRange{EndExcl: "152.0.0"}),
+			{CPE: "cpe:2.3:a:mozilla:thunderbird:140.9.0:*:*:*:esr:*:*:*"}}, "question"},
+	} {
+		r := MatchAsset(row, []Vuln{{CVE: "CVE-2099-0211", NVDAnswered: true, Published: uncNew, Affected: tc.rows}}, nil, t0)
+		got := "none"
+		switch {
+		case len(r.New) == 1:
+			got = "finding"
+		case len(r.Unchecked) == 1:
+			got = "question"
+		}
+		if got != tc.want {
+			t.Errorf("%s: %s, want %s (%+v)", tc.name, got, tc.want, r)
+		}
+		// the box knows the build is ESR: the question is whether the unlisted line is affected, not which edition it is
+		if got == "question" && r.Unchecked[0].Attribute != AttrUnlistedLine {
+			t.Errorf("%s: the question asks for %q, want %q", tc.name, r.Unchecked[0].Attribute, AttrUnlistedLine)
+		}
+	}
+	// an end-of-life ESR line between the listed ones (Firefox ESR 140 once only 115, kept for older systems, and 153 are listed)
+	ff := func(edition string, r VersionRange) Affected {
+		return Affected{CPE: "cpe:2.3:a:mozilla:firefox:*:*:*:*:" + edition + ":*:*:*", Range: r}
+	}
+	esr140 := Asset{ID: "pc", Name: "pc", Software: []Software{{ID: "s", Display: "Mozilla Firefox ESR", Vendor: "Mozilla", Product: "Firefox",
+		Version: "140.5.0", Source: "agent"}}}
+	r := MatchAsset(esr140, []Vuln{{CVE: "CVE-2099-0212", NVDAnswered: true, Published: uncNew, Affected: []Affected{ff("-", VersionRange{EndExcl: "157.0"}),
+		ff("esr", VersionRange{StartIncl: "115.1.0", EndExcl: "115.42.0"}), ff("esr", VersionRange{StartIncl: "153.0", EndExcl: "153.4.0"})}}}, nil, t0)
+	if len(r.New) != 0 || len(r.Unchecked) != 1 || r.Unchecked[0].Attribute != AttrUnlistedLine {
+		t.Errorf("Firefox ESR 140.5.0 between the listed ESR lines: %+v, want it asked whether the unlisted line is affected", r)
 	}
 }
 

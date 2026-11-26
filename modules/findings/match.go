@@ -642,7 +642,7 @@ func newDevMatch(a Asset, vulns []Vuln, now time.Time) *devMatch {
 	infos := make([]swInfo, len(sws))
 	keys := make([][]string, len(sws))
 	for i, s := range sws {
-		infos[i] = newSWInfo(s, a.OS)
+		infos[i] = swInfoOn(s, a)
 		infos[i].platformOS = platformOS(s, a)
 		if d, ok := winDevice(infos[i]); ok {
 			infos[i].winNamed = winNamed(winList, d.rel.Product) // the whole list, so both Reconcile writes agree
@@ -1374,6 +1374,9 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		if hn, ok := winHotpatchNote(in, v.CVE); ok && isWin && proof != proofOS { // the build read at its month's update, not as written
 			note = hn
 		}
+		if b := in.installClause(v, key, nil); b != "" && proof == proofRange && !isWin {
+			note = strings.Replace(note, ". Vedette closed this", fmt.Sprintf(" (NVD's rows for other builds do not apply: %s). Vedette closed this", b), 1)
+		}
 		m := Match{CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Evidence: Evidence{Summary: note, CheckedAt: now}}
 		if proof != proofOS { // the operating system's release, not the row's version, ruled it out
 			m.provedOn = strings.TrimSpace(in.ver)
@@ -1424,6 +1427,9 @@ func judge(a Asset, s Software, in swInfo, v Vuln, key []identity, now time.Time
 		}
 		if s.Source == SourceSNMP && pinned == "" && w.via == "" && endBound(within) {
 			snmpStated = true
+		}
+		if pinned == "" && !schemed && !isWin {
+			m.Evidence.Summary = withInstall(m.Evidence.Summary, in.installClause(v, key, &within))
 		}
 	case every && (!in.given || !versionKnown(in.ver)): // the version does not matter (#939: also one Vedette cannot read)
 		m.every = true
@@ -1584,6 +1590,8 @@ type swInfo struct {
 	// personPkg: the package release a person gave on the row (a manual row's Software.PkgVersion: inventory's correction), "" otherwise;
 	// evidence of its platform.
 	personPkg string
+	// install: the build attributes the box derives for the row (installOf: edition, platform, architecture); zero when not derived.
+	install installAttrs
 }
 
 // pkgBuilt says the row is a distribution's package: an agent read it from the package database (packaged), or a person gave a
@@ -1723,6 +1731,7 @@ func pinnedInside(in swInfo, v Vuln, key []identity) (r VersionRange, editions s
 	}
 	byProduct := map[string]*state{}
 	var order []string
+	sib := siblingsOf(&v)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
@@ -1734,6 +1743,10 @@ func pinnedInside(in swInfo, v Vuln, key []identity) (r VersionRange, editions s
 		}
 		if !own {
 			continue
+		}
+		c, applies := in.install.judge(c, in.cpe, in.hasCPE, sib)
+		if !applies {
+			continue // a row about another build than the line's (install attributes)
 		}
 		vn, _ := c.Vendor.Literal()
 		p, _ := c.Product.Literal()
@@ -1875,6 +1888,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 	// every entry of the OS (beyond, dottedAfter) is a proof, as with Junos (junosListed)
 	trainOnly, beyond := false, true
 	var jl junosList
+	sib := siblingsOf(&v)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
@@ -1900,7 +1914,7 @@ func decide(in swInfo, v Vuln, key []identity) (t Tri, within VersionRange, ever
 				jl.rels = append(jl.rels, e) // "12.1r": a row of another release, in a form junosRow does not read
 			}
 		}
-		t, r := evalAffected(c, af.Range, in.ver, in.cpe, in.hasCPE)
+		t, r := in.eval(c, af.Range, in.ver, sib)
 		if t != No && af.Range.IsZero() && everyVersion(c) {
 			every = true
 		}
@@ -2183,7 +2197,9 @@ func evalUpdate(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) Tri {
 // attribute lowers Yes to Unknown, because NVD's "-" often means "the plain edition"
 // beside one inventory cannot tell apart (Firefox "-" vs ESR, Jenkins "-" vs LTS;
 // #906). Only the Windows release rows (winUnpinned) and the
-// update rule (evalUpdate) let NA cover an unstated attribute (naCovers, #901).
+// update rule (evalUpdate) let NA cover an unstated attribute (naCovers, #901). What the
+// box can derive about the build (installOf: Mozilla's edition, the system, the
+// architecture) is applied before this, by swInfo.eval (judge).
 func pinnedAttrs(c, sw CPE, hasSW bool, t Tri) Tri {
 	cfa := c.fields()
 	cf := cfa[5:]

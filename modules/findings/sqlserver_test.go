@@ -28,12 +28,13 @@ func TestSQLServerRelease(t *testing.T) {
 		{"cpe:2.3:a:microsoft:sql_server:15.0.2000.5:*:*:*:*:*:*:*", "16.0.1000.6", Unknown, false}, // a build, not a release name
 		{"cpe:2.3:a:microsoft:office:2016:*:*:*:*:*:*:*", "16.0.1000.6", Unknown, false},
 		{"cpe:2.3:a:oracle:sql_server:2014:*:*:*:*:*:*:*", "16.0.1000.6", Unknown, false},
-		// a release's own product (alias of Microsoft|SQL Server): typed releases, a service pack's minor; builds go to the ranges
+		// a release's own product (alias of Microsoft|SQL Server): typed releases, a service pack's minor, another major; builds of its major
+		// go to the ranges
 		{"cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "2022", No, true},
 		{"cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "2016", Unknown, true},
 		{"cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "13.2.5026.0", Unknown, true},
 		{"cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "13.0.5026.0", Unknown, false},
-		{"cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "16.0.1000.6", Unknown, false},
+		{"cpe:2.3:a:microsoft:sql_server_2016:*:*:*:*:*:*:*:*", "16.0.1000.6", No, true},            // another major: a range with no start must not reach it
 		{"cpe:2.3:a:microsoft:sql_server_2008:r2:sp1:*:*:*:*:*:*", "10.50.6000.34", Unknown, false}, // NVD's release-in-version scheme
 		{"cpe:2.3:a:microsoft:sql_server_reporting_services:2016:*:*:*:*:*:*:*", "2016", Unknown, false},
 	} {

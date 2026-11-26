@@ -135,7 +135,7 @@ function inputItems(): InputItem[] {
   const asked = questions.get().filter((x) => !x.answered && assets.has(x.asset_id) && visible(x.asset_id)).sort((a, b) => b.cves - a.cves || a.asked_at.localeCompare(b.asked_at))
     .map((x): InputQuestionItem => ({ kind: 'question', id: x.id, question: x.kind, device: deviceRef(assets.get(x.asset_id)!), software: x.software, cve: x.cve, cves: x.cves,
       asked_at: x.asked_at, url: x.url, command: x.command, choices: x.choices, cve_list: x.cve_list ?? [], fixes: x.fixes ?? [], line: x.line ?? null,
-      versions_listed: x.versions_listed ?? false }))
+      versions_listed: x.versions_listed ?? false, attribute: x.attribute ?? null }))
   // a device a person added that Vedette knows nothing to check by: no installed software line and no OS beyond a scan's fingerprint guess
   const unchecked = assetsStore.get().filter((a) => a.approved && a.id !== BOX_ID && visible(a.id) && !(a.origin === 'manual' && !a.hostname && !a.ip) &&
     !a.software.some((s) => !s.not_installed) && (!a.os || (a.os.source === 'nmap' && !a.os.value.includes('(build '))))

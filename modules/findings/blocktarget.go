@@ -252,7 +252,7 @@ func (s *Service) releaseJudge(ctx context.Context, gs []lineGroup, rows string,
 // outside every one of them), or the vendor's rows in its notation when FixOf reads the fix from those (schemeParts); nil when it
 // reads it otherwise (Microsoft's release data, the distribution's package) or reads none.
 func rangeParts(a Asset, s Software, v Vuln) *fixedParts {
-	in := newSWInfo(s, a.OS)
+	in := swInfoOn(s, a)
 	if _, ok := schemeFix(a, s, v); ok {
 		return schemeParts(a, s, in, v)
 	}

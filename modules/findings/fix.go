@@ -29,7 +29,7 @@ func FixOf(a Asset, s Software, v Vuln) Fix {
 	if f, ok := schemeFix(a, s, v); ok {
 		return f
 	}
-	in := newSWInfo(s, a.OS)
+	in := swInfoOn(s, a)
 	if f, ok := windowsFixedIn(in, v); ok {
 		return winFixOf(in, f)
 	}
@@ -111,7 +111,7 @@ func noEnd(in swInfo, v Vuln, key []identity) bool {
 // as the matcher reads them (schemeJudge). ok is false when none names the product, the device's version does not place it in a train
 // of a line the rows name, or the vendor states no fix for it.
 func schemeFix(a Asset, s Software, v Vuln) (Fix, bool) {
-	r, ok := schemeJudge(a, s, newSWInfo(s, a.OS), v)
+	r, ok := schemeJudge(a, s, swInfoOn(s, a), v)
 	if !ok || r.verdict.State != versionscheme.Affected || r.verdict.Fix == nil {
 		return Fix{}, false
 	}

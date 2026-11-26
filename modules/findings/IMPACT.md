@@ -22,6 +22,7 @@ What else to check when you change part of this module. Signatures and behaviour
 | `EventKind` values or `historyEntry` (`legacy.go`) | the finding page's history labels (`web/src/locales/en/findings.json` `history`): `TestFindingPage_EveryHistoryActionHasALabel` reads them. |
 | `View.fix` or `Detail.FixedIn` | the finding page's step 1 (`web/src/features/findings/WhatToDo.tsx` `FixLine`): it names `fixed_in` when it names the stored fix's release or the stored fix has none, else the stored fix. |
 | `PinnedCVEs` | feeds' catalogue retention (`cmd/vedette/feeds.go`). |
+| The install-attribute table (`installattrs.go`: `installRules`, `mozillaESRMajors`, `installOf`, `judge`) | every match, fix and question of a line whose NVD rows pin an edition, system or architecture: `TestQueue_Count_InstallAttributes`, `TestQueue_Count_OfficeLines`, `TestMatchAsset_EditionOfTheBuildDecides`; add a new Mozilla ESR major to `mozillaESRMajors` when Mozilla names it. |
 | `content/catalog/platform-limits.json`, `network-os.json`, `content/catalog/products` | the matcher's platform, network OS and alias rules; their data tests (`TestPlatformLimits_DataIsValid`, `TestNetworkOS_*`). |
 | A table or column (`migrations/sqlite/0001_findings.sql`) | `make schema` (`docs/SCHEMA.sql`), the export policy (`modules/core/export_policy.go`), the schema allow-lists (`cmd/vedette/schema_rules_test.go`), mitigation's foreign keys to `fnd_finding(id)`. |
 

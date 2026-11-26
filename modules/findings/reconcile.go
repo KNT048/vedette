@@ -161,7 +161,7 @@ func deviceLines(a Asset) map[string]line {
 		if _, ok := out[s.ID]; ok || s.ID == "" {
 			continue
 		}
-		out[s.ID] = line{sw: s, reading: readingOf(s, newSWInfo(s, a.OS))}
+		out[s.ID] = line{sw: s, reading: readingOf(s, swInfoOn(s, a))}
 	}
 	if os, _, ok := deviceOS(a); ok {
 		out[""] = line{sw: os, reading: readingOf(os, newSWInfo(os, ""))}
@@ -227,7 +227,7 @@ func resolve(d *Detection, a Asset, lines map[string]line, v Vuln) {
 	}
 	d.Fix = FixOf(a, l.sw, v)
 	if d.Basis != DetectScan && d.Basis != DetectPackage {
-		if r, ok := schemeJudge(a, l.sw, newSWInfo(l.sw, a.OS), v); ok && r.origin != "" { // the vendor's rows decided it
+		if r, ok := schemeJudge(a, l.sw, swInfoOn(l.sw, a), v); ok && r.origin != "" { // the vendor's rows decided it
 			d.RangeOrigin = r.origin
 		}
 	}
@@ -381,7 +381,7 @@ func questionsOfMatch(m MatchResult) []Question {
 		}
 		out = append(out, Question{SoftwareID: storedLine(u.SoftwareID), CVE: u.CVE, Kind: kind, Cves: 1,
 			Detail: QuestionDetail{Software: u.Software, Version: u.Version, Source: u.Source, Reason: string(u.Reason), NVDPending: u.NVDPending, Choice: u.Answer,
-				Listed: u.Listed}})
+				Listed: u.Listed, Attribute: u.Attribute}})
 	}
 	for _, i := range older {
 		slices.Sort(out[i].Detail.CVEList)

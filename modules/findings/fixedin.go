@@ -71,7 +71,7 @@ func FixedInFor(a Asset, v Vuln) *FixedIn { return newDevRows(a).fixedInFor(v) }
 // carries it): a finding on no exploited list has no key that FixedInFor could find its line by, so its line is named. nil when the ranges
 // do not say.
 func FixedInOn(a Asset, s Software, v Vuln) *FixedIn {
-	in := newSWInfo(s, a.OS)
+	in := swInfoOn(s, a)
 	if f, ok := windowsFixedIn(in, v); ok {
 		return f
 	}
@@ -96,7 +96,7 @@ func newDevRows(a Asset) *devRows {
 	sws := deviceSoftware(a)
 	infos, keys := make([]swInfo, len(sws)), make([][]string, len(sws))
 	for i, s := range sws {
-		infos[i], keys[i] = newSWInfo(s, a.OS), rowKeys(s)
+		infos[i], keys[i] = swInfoOn(s, a), rowKeys(s)
 	}
 	return &devRows{a: a, sws: sws, infos: infos, keys: keys}
 }
@@ -230,6 +230,7 @@ type fixedParts struct {
 
 func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 	var ents []fixedEntry // every entry that applies to the software, whatever its range
+	sib := siblingsOf(&v)
 	for _, af := range v.Affected {
 		c, err := af.cpe()
 		if err != nil || c.Part.Kind == NA {
@@ -239,6 +240,10 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 		byKey, _ := appliesTo(c, CPE{}, false, key)
 		if !own && !byKey || !byKey && distroRelease(c) {
 			continue
+		}
+		c, ok := in.install.judge(c, in.cpe, in.hasCPE, sib)
+		if !ok {
+			continue // a row about another build than the line's (install attributes): it neither lists nor fixes the line
 		}
 		ents = append(ents, fixedEntry{c, af.Range})
 	}

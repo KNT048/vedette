@@ -156,7 +156,8 @@ type PathChecker interface {
 	// SameAsPath says whether what ip answers on port (on a web or TLS port the TLS certificate, else the status, Server header and
 	// page title of GET /; on any other port the banner a server that speaks first sends, nothing sent) is what a never-routed
 	// address gets through the same network on that port: true when it is the network's own answer (a proxy's error page,
-	// certificate or banner, or nothing sent by either), false when the target's own service answered.
+	// certificate or banner, or nothing sent by either), false when the target's own service answered. An error when nothing was
+	// compared, a web or TLS read of the target that got no answer among them: the port stays the network's, its row is not retired.
 	SameAsPath(ctx context.Context, ip netip.Addr, port int) (bool, error)
 }
 

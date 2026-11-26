@@ -187,7 +187,7 @@ func (c *endlessHeaders) SetReadDeadline(time.Time) error  { return nil }
 func (c *endlessHeaders) SetWriteDeadline(time.Time) error { return nil }
 
 // Reading what answers on a web port is bounded in bytes, headers included: an answer that never ends its headers is cut at
-// pathReadLimit, not read for the whole read time.
+// pathReadLimit, not read for the whole read time. Cut there, it is no answer of the target: nothing is compared.
 func TestExposurePathReadsABoundedAnswer(t *testing.T) {
 	t.Parallel()
 	var mu sync.Mutex
@@ -201,11 +201,14 @@ func TestExposurePathReadsABoundedAnswer(t *testing.T) {
 		reads[conns] = n
 		return &endlessHeaders{mu: &mu, read: n}, nil
 	}}
-	if _, err := p.SameAsPath(t.Context(), netip.MustParseAddr("8.8.8.8"), 80); err != nil {
-		t.Fatal(err)
+	if same, err := p.SameAsPath(t.Context(), netip.MustParseAddr("8.8.8.8"), 80); err == nil {
+		t.Fatalf("the target's answer was cut at the limit, yet compared: same %v", same)
 	}
 	mu.Lock()
 	defer mu.Unlock()
+	if len(reads) == 0 {
+		t.Fatal("nothing was read")
+	}
 	for i, n := range reads {
 		if *n > pathReadLimit {
 			t.Fatalf("connection %d: read %d bytes, want at most %d", i, *n, pathReadLimit)

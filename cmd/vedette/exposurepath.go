@@ -46,7 +46,9 @@ const (
 //   - SameAsPath: for a port the network accepts for every address, what the target answers there against what a never-routed
 //     address answers through the same network (the proxy's own certificate, error page or banner). On a web or TLS port of the
 //     fixed list (commonports): its TLS certificate, else the status, Server header and title of one GET of /, as the scan's own
-//     check of a web port reads. On any other port: what a server that speaks first sends by itself (its banner: at most 512 bytes
+//     check of a web port reads; when that read of the target fails (a slow page, a TLS handshake or a GET that ends without an
+//     answer), nothing of the target was compared and SameAsPath returns an error, however the never-routed addresses ended. On any
+//     other port: what a server that speaks first sends by itself (its banner: at most 512 bytes
 //     within 2 seconds, nothing sent). A target that sends nothing of its own (a client-speaks-first service) cannot be told
 //     apart from a network that sends nothing either: the network's answer stands; it is the target's when the network sends a
 //     banner of its own.
@@ -129,16 +131,22 @@ func (p exposurePath) SameAsPath(ctx context.Context, ip netip.Addr, port int) (
 	if !public(ip.Unmap()) || port < 1 || port > 65535 {
 		return false, fmt.Errorf("exposure path: %s:%d is not a public IPv4 address and port", ip, port)
 	}
-	read := p.bannerOf // any other port: what a server that speaks first sends by itself
+	read := func(ctx context.Context, addr netip.AddrPort) (string, bool) { return p.bannerOf(ctx, addr), true } // what a server that speaks first sends by itself
 	if use, ok := webUse(port); ok {
-		read = func(ctx context.Context, addr netip.AddrPort) string { return p.answerOf(ctx, addr, use) }
+		read = func(ctx context.Context, addr netip.AddrPort) (string, bool) { return p.answerOf(ctx, addr, use) }
 	}
-	target := read(ctx, netip.AddrPortFrom(ip.Unmap(), uint16(port))) // nothing of its own (bannerNone) is the network's only when a never-routed address gets nothing too
+	target, ok := read(ctx, netip.AddrPortFrom(ip.Unmap(), uint16(port))) // nothing of its own (bannerNone) is the network's only when a never-routed address gets nothing too
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if !ok { // the target's web answer could not be read: an error that matches the network's says nothing of the target
+		return false, fmt.Errorf("exposure path: no answer of %s:%d to compare (%s)", ip, port, target)
+	}
 	for _, a := range neverRouted {
 		if ctx.Err() != nil {
 			return false, ctx.Err()
 		}
-		if read(ctx, netip.AddrPortFrom(a, uint16(port))) == target {
+		if got, _ := read(ctx, netip.AddrPortFrom(a, uint16(port))); got == target {
 			return true, nil
 		}
 	}
@@ -189,28 +197,28 @@ var titleRE = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 // answerOf is what answers on addr, in one line: on a TLS port the certificate it presents (fingerprint, subject and issuer), on a
 // web port (or a TLS port whose handshake failed) the status, Server header and page title of one GET of /, else how the
-// connection ended.
-func (p exposurePath) answerOf(ctx context.Context, addr netip.AddrPort, use commonports.Use) string {
+// connection ended; false when it read no certificate and no HTTP answer.
+func (p exposurePath) answerOf(ctx context.Context, addr netip.AddrPort, use commonports.Use) (string, bool) {
 	rctx, cancel := context.WithTimeout(ctx, pathReadTimeout)
 	defer cancel()
 	if use == commonports.WebTLS || use == commonports.TLSOnly {
 		if line, ok := p.certOf(rctx, addr); ok || use == commonports.TLSOnly {
-			return line
+			return line, ok
 		}
 	}
 	c, err := p.dial(rctx, "tcp", addr.String())
 	if err != nil {
-		return "connect " + errClass(err)
+		return "connect " + errClass(err), false
 	}
 	defer func() { _ = c.Close() }()
 	dl, _ := rctx.Deadline()
 	_ = c.SetDeadline(dl)
 	if _, err := fmt.Fprintf(c, "GET / HTTP/1.1\r\nHost: %s\r\nUser-Agent: Vedette\r\nAccept: */*\r\nConnection: close\r\n\r\n", addr.Addr()); err != nil {
-		return "write " + errClass(err)
+		return "write " + errClass(err), false
 	}
 	res, err := http.ReadResponse(bufio.NewReader(io.LimitReader(c, pathReadLimit)), nil) // headers and page together: an endless header is cut
 	if err != nil {
-		return "http " + errClass(err)
+		return "http " + errClass(err), false
 	}
 	defer func() { _ = res.Body.Close() }()
 	body, _ := io.ReadAll(res.Body)
@@ -218,7 +226,7 @@ func (p exposurePath) answerOf(ctx context.Context, addr netip.AddrPort, use com
 	if m := titleRE.FindSubmatch(body); m != nil {
 		title = strings.Join(strings.Fields(html.UnescapeString(string(m[1]))), " ")
 	}
-	return fmt.Sprintf("http %d %s %s", res.StatusCode, res.Header.Get("Server"), title)
+	return fmt.Sprintf("http %d %s %s", res.StatusCode, res.Header.Get("Server"), title), true
 }
 
 // certOf is the TLS certificate addr presents, in one line ("tls" and how the handshake ended when none); false when the handshake failed.

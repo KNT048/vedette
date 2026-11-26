@@ -125,8 +125,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   the probe log before ZAP attacks it. A page that reached the 12 minutes keeps what it found and says it was cut short. A
   stopped scan stops ZAP on the host (`zap.stop`: the container removed and proven gone before it answers). Active alerts are
   issues of the `zap` engine apart from the exploited CVEs, one per alert and site (an alert both passes report is one issue), with
-  ZAP's risk, confidence and pass in `detail.zap`; an active alert goes "gone" only when the active scan looked at its page again,
-  never because a scheduled scan read the page. The run's web steps (`zap_passive`, `zap_active`: state, pages done and total,
+  ZAP's risk, confidence and pass in `detail.zap`; an active alert goes "gone" only when the active scan finished on its page again
+  (a page cut short does not close one), never because a scheduled scan read the page. The run's web steps (`zap_passive`, `zap_active`: state, pages done and total,
   alerts, cut short, disruptive, note) are written into the scan's summary as they go (`Scan.web_steps`). Tests:
   `zapactive_test.go` (`TestZapActive_*`), `cmd/vedette/exposureweb_test.go` (`TestExposureWeb_Active*`,
   `TestExposureWeb_AStoppedScanStopsZAPOnTheHost`).

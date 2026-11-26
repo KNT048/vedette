@@ -276,3 +276,35 @@ func TestZapActive_CutShortAndTheRunLimit(t *testing.T) {
 		t.Fatalf("active step: %+v", a)
 	}
 }
+
+// A page whose active scan was cut short at its time limit did not run every rule, so an active alert it no longer reports is not
+// "gone": only an active scan that finished on the page closes it.
+func TestZapActive_ACutShortPageClosesNoActiveIssue(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	w := e.wireActive(xssReport)
+	id := e.committedIP(ipA).ID
+	e.acceptTerms(id, true)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM exp_issue WHERE key LIKE '40012@%' AND state = 'open'`); n != 3 {
+		t.Fatalf("%d open active issues, want 3", n)
+	}
+	w.active, w.cut = emptyReport, true
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM exp_issue WHERE key LIKE '40012@%' AND state = 'open'`); n != 3 {
+		t.Fatalf("a cut-short active scan closed %d active issues", 3-n)
+	}
+	w.cut = false
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM exp_issue WHERE key LIKE '40012@%' AND state = 'gone'`); n != 3 {
+		t.Fatalf("%d active issues gone after a finished active scan no longer found them, want 3", n)
+	}
+}

@@ -233,7 +233,9 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 					rows[i].Pass = passActive
 				}
 				c.WebFindings = mergeWebRows(c.WebFindings, rows)
-				c.WebActivePages = append(c.WebActivePages, page.URL)
+				if !res.CutShort { // a page cut short did not run every rule: an active alert it no longer reports is not "gone"
+					c.WebActivePages = append(c.WebActivePages, page.URL)
+				}
 				scanned = append(scanned, page.URL)
 				ok++
 				step.Alerts += len(rows)

@@ -169,7 +169,7 @@ func TestRateLimits(t *testing.T) {
 				t.Fatalf("request %d: %v", i, err)
 			}
 		}
-		_, err := h.Client.Info(context.Background())
+		_, err := h.Client.Info(refuseNow(t))
 		var e *client.Error
 		if !errors.As(err, &e) || e.Status != http.StatusTooManyRequests || e.Code != api.CodeRateLimited || e.RetryAfterS < 1 || e.RetryAfterS > 60 {
 			t.Fatalf("err = %v (%+v)", err, e)
@@ -194,7 +194,7 @@ func TestRateLimits(t *testing.T) {
 			r := run(t, h.Client, "test.echo", echoArgs{Name: "x"}, uuid(i))
 			finish(t, h.Client, r.RunID)
 		}
-		_, err := h.Client.Run(context.Background(), "test.echo", echoArgs{Name: "x"}, uuid(99), "admin")
+		_, err := h.Client.Run(refuseNow(t), "test.echo", echoArgs{Name: "x"}, uuid(99), "admin")
 		var e *client.Error
 		if !errors.As(err, &e) || e.Code != api.CodeRateLimited || e.RetryAfterS < 1 {
 			t.Fatalf("err = %v", err)
@@ -209,6 +209,16 @@ func TestRateLimits(t *testing.T) {
 	})
 }
 
+// refuseNow is a context whose deadline comes before the client's wait for the host's Retry-After (the host's clock stands
+// still here, so that is about a minute, and the client waits at least 30 s of it at once), so the client returns the
+// limiter's refusal at once instead of waiting it out.
+func refuseNow(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	return ctx
+}
+
 func TestRateLimitAuditIsThrottled(t *testing.T) {
 	t.Parallel()
 	h, _ := start(t, func(o *server.Options) { o.RequestsPerMinute = 1 })
@@ -216,7 +226,7 @@ func TestRateLimitAuditIsThrottled(t *testing.T) {
 		t.Fatal(err)
 	}
 	for range 50 {
-		_, _ = h.Client.Info(context.Background())
+		_, _ = h.Client.Info(refuseNow(t))
 	}
 	var n int
 	h.Clock.Advance(2 * time.Minute)

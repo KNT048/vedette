@@ -11,7 +11,7 @@ Vedette is free, open-source software for a small or mid-size office. It runs on
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/KNT048/vedette/actions/workflows/ci.yml/badge.svg)](https://github.com/KNT048/vedette/actions/workflows/ci.yml)
-[![Releases](https://img.shields.io/badge/releases-0.1.x%20beta-orange.svg)](https://github.com/KNT048/vedette/releases)
+[![Releases](https://img.shields.io/badge/release-0.9%20public%20beta-orange.svg)](https://github.com/KNT048/vedette/releases)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-home-dark.png">
@@ -26,7 +26,7 @@ Vedette is free, open-source software for a small or mid-size office. It runs on
 - **Knows what you have.** Devices are found by listening on the network and by scanning it, or added by hand and by import, with vendor, model, version and open services. Nothing is installed on staff computers.
 - **Matches the two, and shows how sure it is.** A finding says whether the version is confirmed (the device reports it) or only suspected (read from a service banner), and whether the device is reachable from the Internet.
 - **Tells you what to do.** Each finding starts with the update that fixes it. For a growing set of exploited CVEs it adds a checked workaround, a ready firewall rule to cut off access (FortiGate, MikroTik or generic) and how to tell whether you have already been hit.
-- **Tells the right people.** Alerts by email, Slack, Telegram, Zalo or webhook, only for devices you have.
+- **Tells the right people.** Alerts by email (Microsoft 365 / Graph, Gmail or any SMTP server), Slack, Telegram or webhook, only for devices you have.
 - **Sees your outside.** Your public IP and the domains you verify are scanned the way an attacker would see them (subdomains, open ports and services, known flaws; with nmap, nuclei, ZAP and, if you turn it on, OpenVAS).
 - **In preview** (off by default, turn on under Settings › Modules): vulnerability scans of your internal devices; internal traps (a honeypot that raises an alert when touched); a log receiver that flags connections to known-bad addresses and your firewall's intrusion alerts; an AI assistant with your own provider and key; reports.
 
@@ -39,7 +39,7 @@ What it does **not** do: it does not sit in the network path, block traffic or r
 **1. Install.** Take `install.sh` from the newest [release](https://github.com/KNT048/vedette/releases) and run it as root:
 
 ```sh
-VERSION=0.1.5    # the newest release on the Releases page
+VERSION=0.9.0    # the newest release on the Releases page
 curl -fsSLO https://github.com/KNT048/vedette/releases/download/v$VERSION/install.sh
 sudo sh install.sh
 ```
@@ -79,7 +79,7 @@ Small machine, or you would rather set it up yourself on Docker or Podman? [Inst
 
 ## Status
 
-Vedette is in **beta**. The 0.1.x releases are test releases for a lab or a spare machine, published on the beta channel; version 1.0 is on its way. A machine installed from a 0.1.x release updates in place from **Settings › Updates**: every release is signed, and you can roll back to the previous version with one click.
+Vedette is in **public beta**. 0.9 is the first release for everyday use in a real office; it is published on the beta channel while we collect feedback before 1.0, so please [open an issue](https://github.com/KNT048/vedette/issues) for anything that looks wrong. A machine installed from 0.9 (or an earlier 0.1.x test release) updates in place from **Settings › Updates**: every release is signed, and you can roll back to the previous version with one click.
 
 ## What leaves your machine
 

@@ -63,6 +63,11 @@ type ZapBaselineArgs struct {
 	// Typed, with Kind ip, says the IP is one a person typed in: TXTToken is the box-bound token of the IP and the host checks the IP's
 	// own proof (the token file, or reverse DNS) itself before ZAP starts.
 	Typed *ExposureTyped `json:"typed,omitempty"`
+	// ProvenAt, with Kind ip and no Typed (the box's own public IP), is the latest sighting of IP as the box's egress, RFC 3339, that
+	// core's gate took the address on: the address stays the box's own for 90 days from it (egressip.ProofHolds), also while the box
+	// goes out through another line, and the host then takes the page on it instead of its own sighting. Empty: the host's sighting
+	// right before the run decides, as before.
+	ProvenAt string `json:"proven_at,omitempty"`
 }
 
 // ZapBaselineResult is the result of a zap.baseline that produced a report: zap-baseline.py's exit code (0 no rule matched, 1 a FAIL

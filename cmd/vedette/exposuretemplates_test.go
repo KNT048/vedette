@@ -29,24 +29,25 @@ import (
 // but not marked.
 
 type templatesFake struct {
-	events  []string // in order: gate, log <ids>, run <ids>, done <id=result...>
-	gateOK  bool
-	logErr  error
-	runErr  error
-	runErrs map[int]error // by call number, after runErr
-	block   int           // this call (1-based) waits for its context to end
-	answer  func(r sensoractive.NucleiRequest) nucleiout.Outcome
-	reqs    []sensoractive.NucleiRequest
-	actor   string
-	done    []scan.ExternalProbe // the rows of the last completing write
+	events   []string // in order: gate, log <ids>, run <ids>, done <id=result...>
+	gateOK   bool
+	provenAt time.Time // the sighting the gate's yes rests on
+	logErr   error
+	runErr   error
+	runErrs  map[int]error // by call number, after runErr
+	block    int           // this call (1-based) waits for its context to end
+	answer   func(r sensoractive.NucleiRequest) nucleiout.Outcome
+	reqs     []sensoractive.NucleiRequest
+	actor    string
+	done     []scan.ExternalProbe // the rows of the last completing write
 }
 
 func (f *templatesFake) scanner() exposureTemplateScan {
 	return exposureTemplateScan{
 		pack: nucleipack.Index,
-		gate: func(_ context.Context, actor string, _ netip.Addr) (bool, error) {
+		gate: func(_ context.Context, actor string, _ netip.Addr) (time.Time, bool, error) {
 			f.events, f.actor = append(f.events, "gate"), actor
-			return f.gateOK, nil
+			return f.provenAt, f.gateOK, nil
 		},
 		probes: func(_ context.Context, ps []scan.ExternalProbe) error {
 			if f.logErr != nil {

@@ -21,10 +21,11 @@ import (
 // tick (nmapargv.ExternalDisruptive); its step is bounded by exposure.FullServicesTimeout.
 //
 // The fence (exposure INV-13): right before the job is handed out, sensor-active asks gate, which is exposure's own
-// ScannableIP (verified, committed, seen by the public-IP check within 5 minutes, else a fresh full check, with the person who
+// OwnIPProof (verified, committed, inside its proof's 90 days; a sighting by the public-IP check renews it, with the person who
 // pressed Scan now as the actor), and for a deep scan modeNow, exposure's ModeNow (the terms as stored now: withdrawn or of an
-// older version → nothing is sent; the tick taken back → the deep scan without the disruptive scripts); the worker checks the
-// address again by itself before nmap. Every reason the step did not run that the page may show is an *exposure.Unavailable; a
+// older version → nothing is sent; the tick taken back → the deep scan without the disruptive scripts). The job carries the time
+// of the sighting the yes rests on, and the worker takes the address as the box's own on that proof while it holds, or on its own
+// sighting right before nmap. Every reason the step did not run that the page may show is an *exposure.Unavailable; a
 // stop by the caller's context (exposure's bound included) stays a context error, so exposure says "did not finish within …" or
 // drops the run.
 type exposureServiceScan struct {
@@ -33,9 +34,13 @@ type exposureServiceScan struct {
 	// scanDomain is sensor-active's ScanDomainIP: the deep scan of an address a verified domain's name resolves to, as a
 	// domain_ip job the worker's own fence checks. nil: such a step is refused (nothing sent).
 	scanDomain func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, d sensoractive.DomainIP, gate sensoractive.DeepGate) (sensoractive.External, error)
-	gate       func(ctx context.Context, actor string, ip netip.Addr) (bool, error)
+	gate       ownIPGate
 	modeNow    func(ctx context.Context, actor, id string) (exposure.ScanMode, error)
 }
+
+// ownIPGate is exposure's OwnIPProof as the executors' adapters ask it, with the person who started the scan as actor: whether ip is
+// the box's own verified, committed IP inside its proof's days, and the latest sighting that proof rests on (zero for none).
+type ownIPGate func(ctx context.Context, actor string, ip netip.Addr) (provenAt time.Time, ok bool, err error)
 
 // The reasons exposure shows after "Service identification (nmap -sV) did not run: ".
 const (
@@ -55,15 +60,21 @@ const (
 	servicesNoCheckMid = "the scan container could no longer check that %s is still this box's address (the public IP services did not answer), so the deep scan was stopped and its results discarded."
 )
 
-// ownGate is the core half of the fence as sensor-active asks it: exposure's gate, with the person who started the scan as actor,
-// and for a deep scan exposure's ModeNow of the target (sensoractive.DeepGate).
+// ownGate is the core half of the fence as sensor-active asks it: exposure's gate with the proof it rests on (sensoractive.OwnProver),
+// with the person who started the scan as actor, and for a deep scan exposure's ModeNow of the target (sensoractive.DeepGate).
 type ownGate struct {
 	actor, id string
-	gate      func(ctx context.Context, actor string, ip netip.Addr) (bool, error)
+	gate      ownIPGate
 	modeNow   func(ctx context.Context, actor, id string) (exposure.ScanMode, error)
 }
 
 func (g ownGate) OwnEgress(ctx context.Context, ip netip.Addr) (bool, error) {
+	_, ok, err := g.gate(ctx, g.actor, ip)
+	return ok, err
+}
+
+// OwnProof is OwnEgress with the latest sighting the yes rests on: sensor-active sends it with the job.
+func (g ownGate) OwnProof(ctx context.Context, ip netip.Addr) (time.Time, bool, error) {
 	return g.gate(ctx, g.actor, ip)
 }
 
@@ -167,7 +178,7 @@ func (a exposureServiceScan) ScanServices(ctx context.Context, t exposure.ScanTa
 }
 
 // exposureServicesFor builds the scanner for exposureService.
-func exposureServicesFor(d deps, gate func(ctx context.Context, actor string, ip netip.Addr) (bool, error), modeNow func(ctx context.Context, actor, id string) (exposure.ScanMode, error)) exposureServiceScan {
+func exposureServicesFor(d deps, gate ownIPGate, modeNow func(ctx context.Context, actor, id string) (exposure.ScanMode, error)) exposureServiceScan {
 	return exposureServiceScan{
 		on: func() bool { return d.Reg == nil || d.Reg.Enabled("sensor-active") },
 		scan: func(ctx context.Context, ip netip.Addr, kind nmapargv.Kind, own sensoractive.OwnEgress) (sensoractive.External, error) {

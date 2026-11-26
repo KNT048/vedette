@@ -34,8 +34,9 @@ import (
 //     Everything of one page up to the end of the run fits in zapPageLimit, inside exposure's 8 minutes.
 //  2. One run at a time (busy otherwise), and the image is on the box: when it is not, the host starts its download by digest in the
 //     background and refuses (zap_image_pulling): the ~1.2 GB download happens only for a box whose owner pressed Scan now.
-//  3. The host's own re-check of ownership, right before the run: kind ip, the box leaves the Internet through IP now (core/egressip,
-//     two of three services agree); kind domain, the domain still has its TXT record vedette-verify=<token> AND the page's name
+//  3. The host's own re-check of ownership, right before the run: kind ip, core's proof of the box's own IP holds (proven_at, the
+//     latest sighting of IP as the box's egress, inside 90 days: egressip.ProofHolds; the box may go out through another line now),
+//     else the box leaves the Internet through IP now (core/egressip, two of three services agree); kind domain, the domain still has its TXT record vedette-verify=<token> AND the page's name
 //     resolves (A records, system resolver) to the IP ZAP is pinned to. Core asked the same moments before (exposure INV-13); the
 //     host does not take core's word for the IP it opens the fence to.
 //  4. The fence: the podman network vedette-zap (made by the host with zapLabel; bridge vedette-zap0, no DNS, no options, one IPv4
@@ -127,6 +128,8 @@ type zapPage struct {
 	proofAt string // The parent name where the domain's own record sits; "" = on the domain
 	// typed is the proof of an IP page's typed IP (kind ip); token is then its box-bound token. nil for the box's own IP.
 	typed *api.ExposureTyped
+	// provenAt is, for the box's own IP, the latest sighting of it as the box's egress that core's gate took it on (zero: none sent).
+	provenAt time.Time
 }
 
 // zapURL checks that raw is exactly http(s)://host[:port]/ as exposure writes it (the port only when it is not the scheme's own) and
@@ -170,6 +173,9 @@ func zapArgs(a api.ZapBaselineArgs) (zapPage, error) {
 		return zapPage{}, server.Invalid("url", "must be http(s)://<host>[:<port>]/ with the host and port of the request")
 	}
 	p := zapPage{url: a.URL, host: a.Host, ip: ip, port: a.Port, kind: a.Kind}
+	if a.ProvenAt != "" && (a.Kind != api.ZapKindIP || a.Typed != nil) {
+		return zapPage{}, server.Invalid("proven_at", "is for the box's own IP only (kind ip, not a typed IP)")
+	}
 	switch a.Kind {
 	case api.ZapKindIP:
 		if a.Host != ip.String() {
@@ -187,6 +193,13 @@ func zapArgs(a api.ZapBaselineArgs) (zapPage, error) {
 		}
 		if a.Domain != "" || a.TXTToken != "" {
 			return zapPage{}, server.Invalid("domain", "is for a domain target only")
+		}
+		if a.ProvenAt != "" {
+			at, err := time.Parse(time.RFC3339, a.ProvenAt)
+			if err != nil {
+				return zapPage{}, server.Invalid("proven_at", "must be an RFC 3339 time")
+			}
+			p.provenAt = at
 		}
 	case api.ZapKindDomain:
 		if len(a.Domain) > 253 || !zapHostRE.MatchString(a.Domain) {
@@ -624,6 +637,10 @@ func (o *Ops) zapOwned(ctx context.Context, logf func(string), p zapPage) error 
 	defer cancel()
 	if p.kind == api.ZapKindIP && p.typed != nil {
 		return o.zapTypedOwned(cctx, logf, p)
+	}
+	if p.kind == api.ZapKindIP && !p.provenAt.IsZero() && egressip.ProofHolds(p.provenAt, o.d.Now()) {
+		logf("own IP " + p.ip.String() + " proven by the box's sighting at " + p.provenAt.UTC().Format(time.RFC3339) + ", inside 90 days; the public IP services were not asked")
+		return nil
 	}
 	if p.kind == api.ZapKindIP {
 		got, err := o.zapEgress(cctx)

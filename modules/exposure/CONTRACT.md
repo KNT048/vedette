@@ -36,11 +36,14 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   file or name found, the box seeing its IP. The box checks a domain's record and a typed IP's proof again by itself from 7 days
   before they run out (every 6 hours while not found; an expired domain too, since a record found is a new proof).
 - **INV-13** Before scanning an IP the box found, it checks whether it still egresses through it (a probe within the last 5 minutes,
-  else one full probe): a sighting renews it (INV-4). An IP it does not go out through now stays scannable until its 90 days run
-  out, and the node says so (`not_current`); the steps that check the box's own address right before they run still send nothing to
-  it while it is not current: service identification and templates (the scan container), the web scan (vedette-host), and OpenVAS
-  (the core's OpenVAS step, which asks the same egress check right before it starts, since the host has no fence of its own for it).
-  The Shodan check needs it current (INV-21).
+  else one full probe): a sighting renews it (INV-4). An IP it does not go out through now (a second Internet line, a router that
+  balances two lines, a failover) stays scannable by every step until its 90 days run out, and the node says so (`not_current`).
+  The executors' own-IP fences take it on the same proof: `OwnIPProof` gives the latest sighting the gate's yes rests on
+  (`Target.ownProof`, only for an IP the box found, `box_egress`; never for a typed IP), sensor-active sends it with each nmap and
+  nuclei job (`proven_at`), the web step with each ZAP page (`ScanTarget.ProvenAt`), and the scan container and vedette-host accept
+  the address while it holds (`egressip.ProofHolds`, the same 90 days and 5 minutes of clock slack: `TestOwnProofWindowIsValidDays`),
+  else they ask for a sighting of their own as before. OpenVAS's own-IP check (`gbOwnNow`) is the same gate
+  (`TestContract_INV25_OpenVASScansAProvenIPTheBoxDoesNotGoOutThroughNow`). The Shodan check needs it current (INV-21).
 - **INV-32** A domain is proved by its own TXT token (`vedette-verify=<token>`) on the name, on `_vedette-verify.<name>`, on a
   parent name up to the registered domain, or by a verified ancestor target (`core/domainfence`). Proof is checked with
   `proof.go` only. The executors' fence (scan container, vedette-host) still needs the record now for every deep step to an address

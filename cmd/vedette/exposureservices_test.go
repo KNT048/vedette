@@ -58,7 +58,7 @@ func startFakeScanWorkerFull(t *testing.T, s *stack, full bool, answer func(sens
 				}
 				return true
 			}
-			if _, err := c.ActiveHeartbeat(ctx, &sensorlink.ActiveHeartbeat{Version: "1.0.0", Nmap: sensorlink.HeartbeatNmap{Present: true, Version: "7.94", Full: full}}); err != nil {
+			if _, err := c.ActiveHeartbeat(ctx, &sensorlink.ActiveHeartbeat{Version: "1.0.0", Nmap: sensorlink.HeartbeatNmap{Present: true, Version: "7.94", Full: full}, OwnProof: true}); err != nil {
 				if limited(err) {
 					continue
 				}
@@ -126,14 +126,18 @@ func onlyPorts(b []byte, ports []int) []byte {
 type gateFor struct {
 	mu     sync.Mutex
 	ok     bool
+	at     time.Time // the sighting the yes rests on (zero: none)
 	actors []string
 }
 
-func (g *gateFor) gate(_ context.Context, actor string, ip netip.Addr) (bool, error) {
+func (g *gateFor) gate(_ context.Context, actor string, ip netip.Addr) (time.Time, bool, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.actors = append(g.actors, actor)
-	return g.ok && ip == ownPublicIP, nil
+	if !g.ok || ip != ownPublicIP {
+		return time.Time{}, false, nil
+	}
+	return g.at, true, nil
 }
 
 // End to end through the production builder (exposureServicesFor: the module switch, sensorActiveService, the Dispatcher)
@@ -164,7 +168,8 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 		}
 		return answer(j)
 	})
-	g := &gateFor{ok: true}
+	proven := time.Date(2026, 10, 27, 3, 53, 0, 0, time.UTC) // the sighting exposure's gate rests on: every job carries it
+	g := &gateFor{ok: true, at: proven}
 	sc := exposureServicesFor(*s.d, g.gate, nil) // the K-4 scope: ModeNow is never asked
 	for deadline := time.Now().Add(20 * time.Second); strings.Contains(s.d.SensorDispatcher.NmapHealth(), "has not reported"); waitTick(t) {
 		if time.Now().After(deadline) {
@@ -195,7 +200,7 @@ func TestExposureServiceScanEndToEndWithAFakeWorker(t *testing.T) {
 		}
 	}
 	for _, j := range jobs {
-		if j.Shape != "external" || j.Rate != 100 || len(j.Targets) != 1 || j.Targets[0] != "8.8.8.8" {
+		if j.Shape != "external" || j.Rate != 100 || len(j.Targets) != 1 || j.Targets[0] != "8.8.8.8" || j.ProvenAt == nil || !j.ProvenAt.Equal(proven) {
 			t.Fatalf("jobs = %+v", jobs)
 		}
 	}
@@ -255,7 +260,7 @@ func TestExposureServiceScanReasons(t *testing.T) {
 			return sensoractive.External{}, err
 		}
 	}
-	yes := func(context.Context, string, netip.Addr) (bool, error) { return true, nil }
+	yes := func(context.Context, string, netip.Addr) (time.Time, bool, error) { return time.Time{}, true, nil }
 	for name, c := range map[string]struct {
 		sc   exposureServiceScan
 		want string

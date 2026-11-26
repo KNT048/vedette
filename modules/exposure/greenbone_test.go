@@ -1807,10 +1807,10 @@ func TestGMPFeedsNVTVersion(t *testing.T) {
 // personStop is the stop of a person who pressed Stop.
 func personStop(by string) *GreenboneStop { return &GreenboneStop{Reason: StopPerson, By: &by} }
 
-// An IP of the box proved within its days that the box no longer goes out through stays scannable (INV-13), but OpenVAS has no fence
-// of its own on the host: it runs only while the box goes out through the IP now, so an address the provider gave to someone else gets
-// the surface scan at most, never a vulnerability scan.
-func TestContract_INV25_OpenVASNeverScansAnIPTheBoxNoLongerGoesOutThrough(t *testing.T) {
+// An IP of the box proved within its days that the box no longer goes out through (a second Internet line, a router that balances
+// two lines) stays scannable for its whole proof window (INV-13), OpenVAS included: its step rests on the same proof as the other
+// steps, not on a sighting right before it. Past its days the gate refuses it, and OpenVAS never starts.
+func TestContract_INV25_OpenVASScansAProvenIPTheBoxDoesNotGoOutThroughNow(t *testing.T) {
 	t.Parallel()
 	e, h := gbEnv(t)
 	e.enable()
@@ -1826,20 +1826,17 @@ func TestContract_INV25_OpenVASNeverScansAnIPTheBoxNoLongerGoesOutThrough(t *tes
 	if err != nil {
 		t.Fatalf("the surface scan of an IP inside its days: %v", err)
 	}
-	if h.gvm.seen("create_target") || h.gvm.seen("create_task") || !slices.Contains(notChecked(s), notGBNotOwn) {
+	if !h.gvm.seen("create_target") || !h.gvm.seen("create_task") || slices.Contains(notChecked(s), notGBNotOwn) {
 		t.Fatalf("cmds %q, not checked %q", h.gvm.cmds, notChecked(s))
 	}
-	// the step itself, asked directly (a domain's deep part on the box's own address takes the same path)
+	// past its days, the step asked directly: the gate refuses and nothing is sent
+	h.gvm.mu.Lock()
+	h.gvm.cmds = nil
+	h.gvm.mu.Unlock()
+	e.advance(ValidDays * 24 * time.Hour)
 	o, err := e.svc.greenboneStep(e.ctx(), ScanTarget{ID: ips[0].ID, Kind: KindIP, Value: ipA, User: "admin@acme.example", Mode: ScanMode{Full: true}}, []int{443})
-	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBNotOwn || h.gvm.seen("create_target") {
-		t.Fatalf("step = %+v, %v", o, err)
-	}
-	// back on A: OpenVAS runs again
-	e.advance(ScanEvery)
-	e.fullAs(ipA)
-	s, err = e.svc.Scan(e.ctx(), "admin@acme.example", ips[0].ID)
-	if err != nil || slices.Contains(notChecked(s), notGBNotOwn) || !h.gvm.seen("create_target") {
-		t.Fatalf("%v: cmds %q, not checked %q", err, h.gvm.cmds, notChecked(s))
+	if err != nil || len(o.not) != 1 || o.not[0].Text != notGBGate || h.gvm.seen("create_target") {
+		t.Fatalf("step = %+v, %v, cmds %q", o, err, h.gvm.cmds)
 	}
 }
 

@@ -113,6 +113,9 @@ func (w *Worker) nucleiArgv(j sensorlink.Job) ([]string, *sensorlink.JobResult, 
 	default:
 		return nil, refusal("invalid_job"), fmt.Errorf("scope %.20q with depth %.20q is not a shape of a job", nj.Scope, nj.Depth)
 	}
+	if nj.ProvenAt != nil && nj.Scope != nucleiargv.ScopeOwnIP { // core's proof is of the box's own IP: an own_ip job only
+		return nil, refusal("invalid_job"), fmt.Errorf("a job of scope %.20q carries no ownership proof", nj.Scope)
+	}
 	job := func(paths []string) nucleiargv.Job {
 		return nucleiargv.Job{Templates: paths, Targets: targets, Rate: nj.Rate, MaxHostErrors: nj.MaxHostErrors, Scope: scope, Depth: nj.Depth, Disruptive: nj.Disruptive}
 	}
@@ -274,7 +277,7 @@ func (w *Worker) executeNuclei(ctx, jctx context.Context, cur *activeJob) *senso
 		}
 	}
 	if cur.job.Nuclei.Scope == nucleiargv.ScopeOwnIP { // nucleiArgv proved it has one public target: the own-IP fence
-		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Nuclei.Targets[0].Host)); !ok {
+		if ok, reason := w.ownIP(rctx, netip.MustParseAddr(cur.job.Nuclei.Targets[0].Host), cur.job.Nuclei.ProvenAt); !ok {
 			if context.Cause(jctx) != nil {
 				return stopped()
 			}

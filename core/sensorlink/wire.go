@@ -161,6 +161,10 @@ type ActiveHeartbeat struct {
 	// TypedIP says the worker also checks the proof of a typed public IP in a domain_ip job (a job with DomainScope.Typed). A worker
 	// with DomainIP and without TypedIP never gets one.
 	TypedIP bool `json:"typed_ip,omitempty"`
+	// OwnProof says the worker takes core's ownership proof of the box's own public IP (Job.ProvenAt, NucleiJob.ProvenAt): an
+	// external nmap job or an own_ip nuclei job whose proof holds (egressip.ProofHolds) runs without a fresh sighting of the
+	// address. A worker that leaves it out gets no proof: core then sends the job as before and the worker's own sighting decides.
+	OwnProof bool `json:"own_proof,omitempty"`
 }
 
 // ScopeDomainIP is the scope of a domain_ip job: one public IPv4 target that is not the box's own egress, reached because a
@@ -269,6 +273,10 @@ type Job struct {
 	// this field decodes jobs strictly and fails its whole poll on it, so the batch job expires unread (ErrWorkerLost) and the
 	// service step keeps the batches that finished; only while the box updates.
 	HostTimeoutS int
+	// ProvenAt is, on an nmap job of an external shape (external, external_full, external_disruptive; never domain_ip), the latest
+	// sighting of its one target as the box's own public IP, from which the address stays proven for egressip.ProofValid. Core
+	// sends it only to a worker whose heartbeat says own_proof; nil on every other job, which keeps the shape an older worker knows.
+	ProvenAt *time.Time
 
 	Nuclei *NucleiJob // nuclei, nil for the others
 	SNMP   *SNMPJob   // snmp, nil for the others
@@ -452,6 +460,9 @@ type NucleiJob struct {
 	Disruptive bool   `json:"disruptive,omitempty"`
 	// Domain: the fence fields of a job of scope domain_ip (depth full only); nil on every other job.
 	Domain *DomainScope `json:"domain,omitempty"`
+	// ProvenAt: on a job of scope own_ip, the latest sighting of its one target as the box's own public IP (Job.ProvenAt); sent only
+	// to a worker whose heartbeat says own_proof, nil on every other job.
+	ProvenAt *time.Time `json:"proven_at,omitempty"`
 }
 
 // JobPack names the pack a job was planned against.
@@ -478,6 +489,7 @@ type nmapWire struct {
 	Domain   *DomainScope `json:"domain,omitempty"`
 	Ports    []int        `json:"ports,omitempty"`
 	HostS    int          `json:"host_timeout_s,omitempty"`
+	ProvenAt *time.Time   `json:"proven_at,omitempty"`
 }
 
 type nucleiWire struct {
@@ -498,7 +510,7 @@ type snmpWire struct {
 func (j Job) MarshalJSON() ([]byte, error) {
 	switch j.Kind {
 	case "", KindNmap:
-		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS, Scope: j.Scope, Domain: j.Domain, Ports: j.Ports, HostS: j.HostTimeoutS})
+		return json.Marshal(nmapWire{ID: j.ID, Kind: j.Kind, Shape: j.Shape, Rate: j.Rate, Targets: j.Targets, TimeoutS: j.TimeoutS, Scope: j.Scope, Domain: j.Domain, Ports: j.Ports, HostS: j.HostTimeoutS, ProvenAt: j.ProvenAt})
 	case KindNuclei:
 		if j.Nuclei == nil {
 			return nil, errors.New("sensorlink: a nuclei job without its fields")
@@ -537,7 +549,7 @@ func (j *Job) UnmarshalJSON(raw []byte) error {
 		if err := strict(&w); err != nil {
 			return err
 		}
-		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS, Scope: w.Scope, Domain: w.Domain, Ports: w.Ports, HostTimeoutS: w.HostS}
+		*j = Job{ID: w.ID, Kind: w.Kind, Shape: w.Shape, Rate: w.Rate, Targets: w.Targets, TimeoutS: w.TimeoutS, Scope: w.Scope, Domain: w.Domain, Ports: w.Ports, HostTimeoutS: w.HostS, ProvenAt: w.ProvenAt}
 	case KindNuclei:
 		var w nucleiWire
 		if err := strict(&w); err != nil {

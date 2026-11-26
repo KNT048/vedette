@@ -76,8 +76,8 @@ func exposureService(d deps) *exposure.Service {
 	// the scan container's nmap -sV on the box's own verified public IP (sensor-active ScanExternal). The commitment sentence of
 	// NoticeVersion 2026-11-14 (K-4) already names service identification, so wiring it leaves NoticeVersion alone (a second bump
 	// would ask every customer again); PRIVACY flow 9, Settings -> Privacy and the nmap row of THIRD_PARTY_NOTICES say what is sent.
-	gate := func(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
-		return exposureService(d).ScannableIP(ctx, actor, ip) // called at scan time, after this function returned
+	gate := func(ctx context.Context, actor string, ip netip.Addr) (time.Time, bool, error) {
+		return exposureService(d).OwnIPProof(ctx, actor, ip) // called at scan time, after this function returned
 	}
 	// A deep scan asks exposure's ModeNow right before its job leaves core, beside the gate.
 	modeNow := func(ctx context.Context, actor, id string) (exposure.ScanMode, error) {

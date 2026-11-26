@@ -97,7 +97,7 @@ function Content() {
                 { label: t('detail.lastSeen'), value: fmtDateTime(a.last_seen) },
                 { label: t('detail.count'), value: t('incidents.times', { count: a.count }) },
                 { label: t('detail.origin'), value: <Link to={a.link} className={link}>{t(`detail.open.${knownKind(a.kind)}`)}</Link> },
-                { label: t('detail.what'), value: a.what },
+                { label: t('detail.what'), value: <span className="whitespace-pre-line">{a.what}</span> },
                 { label: t('detail.action'), value: a.action },
               ]} />
               </Card>

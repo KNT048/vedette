@@ -253,6 +253,10 @@ type IncidentInput struct {
 	// repeat of an open incident of the same source and target, attempt or not; a connection is never a repeat of an attempt, so
 	// a blocked attempt never hides the connection that follows it.
 	Attempt bool
+	// Session (trap only) is the quiet that ends a session: a repeat joins the open incident only when it comes within Session
+	// of its last hit and raises it when it is more serious; after a longer quiet the open incident keeps what it had and the
+	// repeat opens a new one. Zero = every repeat joins the open incident, as before.
+	Session time.Duration
 }
 
 // ---- what notify needs from the rest of the box (small interfaces, faked in tests) ----
@@ -304,6 +308,20 @@ type HitRef struct {
 // know are left out. ponytail: read at render, not kept; switch to the honeypot.hit.updated event {id, conn_count} when honeypot sends it.
 type HitConnections interface {
 	HitConnections(ctx context.Context, hits []HitRef) (map[string]int, error)
+}
+
+// SessionHit is one hit of a source as a trap session tells it.
+type SessionHit struct {
+	ID      string
+	At      time.Time
+	Kind    string // service | token | scan
+	Service string
+	Label   string // the trap or token as the honeypot names it: "SSH", "File token Payroll", ...
+}
+
+// HitSessions reads the honeypot hits of one source address between two times, oldest first, without test hits.
+type HitSessions interface {
+	SourceHits(ctx context.Context, src string, from, to time.Time) ([]SessionHit, error)
 }
 
 // ModuleGate says whether a module is on (modreg.Registry satisfies it).

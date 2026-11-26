@@ -44,7 +44,10 @@ type Config struct {
 	// an error from it skips the approver too (fail closed). nil = no link check, as before.
 	ApproverLinks ApproverLinks
 	Hits          HitConnections // trap incidents show the connections the trap saw; nil = notify's own count
-	Decisions     Decisions      // module response: takes decisions made in chat (13b-8); nil = chat decisions are not taken
+	// Sessions reads the hits of one source so a trap incident that groups a session says everything the source did (title and
+	// timeline); nil or an error = the incident keeps the words of the hit that opened it.
+	Sessions  HitSessions
+	Decisions Decisions // module response: takes decisions made in chat (13b-8); nil = chat decisions are not taken
 	// LinkCodes makes the code a Zalo personal approver replies with to prove their Zalo account; nil = no code is sent and the
 	// approver stays not linked.
 	LinkCodes LinkCodes

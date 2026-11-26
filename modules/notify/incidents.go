@@ -84,12 +84,27 @@ func mergeKeys(in IncidentInput) (first, key string) {
 // low or medium bad-connection or log incident is not queued: the hourly first-run summary tells it (INV-23). It returns the
 // incident id and whether it was created.
 func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string, created bool, err error) {
+	r, err := s.openIncident(ctx, in)
+	return r.id, r.created, err
+}
+
+// opened is what openIncident did: the incident, whether it was created, when it was first seen, and the severity a session
+// repeat raised it from (empty when it was not raised; its notice is the caller's, who tells the whole session).
+type opened struct {
+	id, firstSeen string
+	created       bool
+	raisedFrom    Severity
+}
+
+func (s *Service) openIncident(ctx context.Context, in IncidentInput) (r opened, err error) {
 	if !s.on() {
-		return "", false, ErrModuleOff // nothing is recorded or queued while the module is off
+		return r, ErrModuleOff // nothing is recorded or queued while the module is off
 	}
 	if err := in.validate(); err != nil {
-		return "", false, err
+		return r, err
 	}
+	var id string
+	var created bool
 	now := s.now()
 	at := in.At
 	if at.IsZero() {
@@ -100,16 +115,28 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 	held := false // INV-23: a low or medium bad-connection or log incident of the first-run window waits for the hourly summary
 	if heldKind(in.Kind) && in.Severity.rank() <= Medium.rank() {
 		if held, err = s.firstDiscovery(ctx); err != nil {
-			return "", false, err
+			return r, err
 		}
 	}
 	ob := &events.Outbox{}
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		ob = &events.Outbox{}
 		var wasHeld bool
-		var cur string
-		switch err := tx.QueryRowContext(ctx, `SELECT id, first_run, severity FROM notify_incident WHERE dedupe_key IN (?, ?) AND status <> 'resolved' ORDER BY dedupe_key = ? DESC LIMIT 1`,
-			first, key, first).Scan(&id, &wasHeld, &cur); {
+		var cur, lastSeen string
+		r = opened{}
+		err := tx.QueryRowContext(ctx, `SELECT id, first_run, severity, first_seen, last_seen FROM notify_incident WHERE dedupe_key IN (?, ?) AND status <> 'resolved' ORDER BY dedupe_key = ? DESC LIMIT 1`,
+			first, key, first).Scan(&id, &wasHeld, &cur, &r.firstSeen, &lastSeen)
+		if err == nil && in.Session > 0 {
+			if last, perr := time.Parse(time.RFC3339Nano, lastSeen); perr == nil && at.Sub(last) > in.Session {
+				// A new session: the open incident keeps its hits and leaves the key to the incident this hit opens (the key is
+				// unique among open incidents; the old one, made unique by its id, is matched by nothing again).
+				if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET dedupe_key = ? WHERE id = ?`, endedSessionKey(key, id), id); err != nil {
+					return fmt.Errorf("notify: end a trap session: %w", err)
+				}
+				err = sql.ErrNoRows
+			}
+		}
+		switch {
 		case err == nil:
 			created = false
 			_, err = tx.ExecContext(ctx, `UPDATE notify_incident SET count = count + 1, last_seen = CASE WHEN ? > last_seen THEN ? ELSE last_seen END, active_at = ? WHERE id = ?`,
@@ -123,11 +150,17 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 			if in.Kind == IncidentIntrusion && in.Severity.rank() > Severity(cur).rank() {
 				return s.raiseIntrusion(ctx, tx, id, in, at) // INV-26: an attack at an affected device raises the incident and says so
 			}
+			if in.Session > 0 && in.Severity.rank() > Severity(cur).rank() { // a touch after a scan: the caller tells the session once
+				if _, err := tx.ExecContext(ctx, `UPDATE notify_incident SET severity = ? WHERE id = ?`, string(in.Severity), id); err != nil {
+					return fmt.Errorf("notify: raise a trap session: %w", err)
+				}
+				r.raisedFrom = Severity(cur)
+			}
 			return nil
 		case !errors.Is(err, sql.ErrNoRows):
 			return fmt.Errorf("notify: find incident: %w", err)
 		}
-		created, id = true, store.NewID("in")
+		created, id, r.firstSeen = true, store.NewID("in"), ts
 		if _, err := tx.ExecContext(ctx, `INSERT INTO notify_incident (id, kind, attempt, title, link, severity, what, action, first_seen, last_seen, dedupe_key, first_run, active_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, string(in.Kind), in.Attempt, strings.TrimSpace(in.Title), in.Link, string(in.Severity), in.What, in.Action, ts, ts, key, boolInt(held), store.FormatTS(now)); err != nil {
 			return fmt.Errorf("notify: save incident: %w", err)
@@ -152,10 +185,17 @@ func (s *Service) OpenIncident(ctx context.Context, in IncidentInput) (id string
 		return nil
 	})
 	if err != nil {
-		return "", false, err
+		return opened{}, err
 	}
 	s.flush(ctx, ob)
-	return id, created, nil
+	r.id, r.created = id, created
+	return r, nil
+}
+
+// endedSessionKey is the merge key an open trap incident keeps once its session ended: its own, so no hit joins it again.
+func endedSessionKey(key, id string) string {
+	h := sha256.Sum256([]byte(key + "\x00ended\x00" + id))
+	return hex.EncodeToString(h[:])
 }
 
 func notFound(what string) *apierr.Error {

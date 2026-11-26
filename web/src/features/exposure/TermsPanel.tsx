@@ -28,6 +28,8 @@ export function TermsPanel({ node: target }: { node: TargetNode }) {
   const lines = n.text.split('\n')
   const verified = termsAcceptable(target)
   const changed = !target.deep || a?.disruptive !== disruptive
+  // the box's own IP it does not go out through now: the deep scan can be accepted, the disruptive tick only on the line in use
+  const otherLine = target.proof.state === 'not_current'
   const locked = !can ? t('common:needRole', { role: t('common:role.admin') }) : !verified ? t('terms.needVerified') : undefined
   const onError = (e: unknown) => toast.error(e instanceof Error ? e.message : String(e))
   const text = (
@@ -48,9 +50,10 @@ export function TermsPanel({ node: target }: { node: TargetNode }) {
       {target.terms_warning ? <Notice tone="warn" role="alert" className="mb-0" title={target.terms_warning} />
         : target.kind === 'ip' ? <InfoLine className="text-meta text-muted" topic={t('terms.cgnatTopic')} info={t('terms.cgnatLimitInfo')}>{t('terms.cgnatLimit')}</InfoLine> : null}
       <div className="flex items-start gap-2">
-        <Checkbox id={`terms-disruptive-${target.id}`} className="mt-0.5" checked={disruptive} disabled={!!locked || !!target.terms_warning} onCheckedChange={(v) => setDisruptive(v === true)} />
+        <Checkbox id={`terms-disruptive-${target.id}`} className="mt-0.5" checked={disruptive} disabled={!!locked || !!target.terms_warning || (otherLine && !(target.deep && a?.disruptive))} onCheckedChange={(v) => setDisruptive(v === true)} />
         <Label htmlFor={`terms-disruptive-${target.id}`} className="font-normal">{n.disruptive}</Label>
       </div>
+      {otherLine ? <p className="text-meta text-muted">{t('terms.otherLine', { ip: target.value })}</p> : null}
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="primary" disabled={!!locked || !changed || revoke.isPending} busy={accept.isPending} busyLabel={t('common:busy.saving')} title={locked}
           onClick={() => accept.mutate({ version: n.version, disruptive }, { onSuccess: () => toast.success(t('terms.toastAccepted')), onError })}>

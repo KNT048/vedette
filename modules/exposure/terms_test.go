@@ -285,6 +285,25 @@ func TestTerms_NotCurrentIPInsideItsProofCanAccept(t *testing.T) {
 	}
 }
 
+// The disruptive tick needs the line in use: the carrier-grade NAT check reads the box's current gateway, which belongs to another line
+// while the box does not go out through this IP, so the tick is refused then (fail closed) and the deep scan without it is not.
+func TestTerms_NotCurrentIPRefusesTheDisruptiveTick(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.committedIP(ipA).ID
+	e.advance(time.Minute)
+	e.fullAs(ipB)
+	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
+	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, true)
+	wantAPI(t, err, 409, "ip_not_current")
+	if v := e.target(id); v.FullScan {
+		t.Fatalf("a refused tick accepted the terms: %+v", v)
+	}
+	if v := e.acceptTerms(id, false); !v.FullScan {
+		t.Fatalf("deep scan without the tick refused: %+v", v)
+	}
+}
+
 // Once the 90 days of the last sighting have passed, the IP is expired and its terms cannot be accepted.
 func TestTerms_NotCurrentIPPastItsProofCannotAccept(t *testing.T) {
 	t.Parallel()

@@ -211,7 +211,17 @@ func (s *Service) AcceptTerms(ctx context.Context, who Actor, id, version string
 			return apiErr(409, "expired", "Verification of %s has expired. Verify it again first.", t.Value)
 		}
 		// The box's own IP it does not go out through now keeps its proof for ValidDays from its last sighting (INV-4) and is scanned in
-		// that time, so its terms can be accepted in that time too; past it the IP is expired (above).
+		// that time, so its terms can be accepted in that time too; past it the IP is expired (above). The disruptive tick is refused
+		// then: the carrier-grade NAT check (sharedAddress) reads the gateway of the line in use, not of this one (fail closed).
+		if disruptive && t.Kind == KindIP && !t.Typed {
+			c, err := s.loadChecks(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if c.paused(t) {
+				return apiErr(409, "ip_not_current", "This box does not reach the Internet through %s now (last seen %s). The deep scan can be accepted now; the disruptive checks only once the box uses %s again, so that its provider's address sharing can be checked on that line.", t.Value, s.momentText(t.VerifiedAt), t.Value)
+			}
+		}
 		if t.Terms.current() && t.Terms.Disruptive == disruptive {
 			return nil
 		}

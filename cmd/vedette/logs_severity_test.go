@@ -156,7 +156,7 @@ func TestWiringSpamhausDROPNetworkHitIsHighAndCredited(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	shownAs := "Spamhaus DROP (list fetched 2026-11-26 07:00 UTC)"
+	shownAs := "Spamhaus DROP (list fetched 26 Nov 2026, 14:00 +07)" // in the organization's zone of the test box (+07), with the zone named
 	lsvc := logsService(*s.d)
 	src, err := lsvc.AddSource(ctx, "admin@acme.example", logs.Input{Kind: "fortigate", Name: "FW-HQ", SenderIP: "10.0.10.254", Proto: "udp", Port: 514})
 	if err != nil {

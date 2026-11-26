@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/knt048/vedette/core/orgtime"
 	coreschedule "github.com/knt048/vedette/core/schedule"
 	"github.com/knt048/vedette/core/store"
 )
@@ -45,7 +46,8 @@ const defaultConfidence = 0.5
 // DB.Write. A pull is one transaction, except an indicator list: that goes in chunks (applyIOCs).
 type Store struct {
 	db     *store.DB
-	kevIdx kevIndexCache // KevIndex under its stamp
+	kevIdx kevIndexCache  // KevIndex under its stamp
+	zone   orgtime.Source // the organization's zone of the times the store writes for people (CreditName); nil: UTC
 }
 
 // NewStore wraps a migrated database.
@@ -636,7 +638,7 @@ func (s *Store) IOCCredits(ctx context.Context) (map[string]string, error) {
 			return nil, fmt.Errorf("feeds: stored time of a pull: %w", err)
 		}
 		g.SourceID, g.Builtin = b.ID, true
-		out[g.SourceName] = CreditName(g)
+		out[g.SourceName] = s.CreditName(ctx, g)
 	}
 	return out, nil
 }

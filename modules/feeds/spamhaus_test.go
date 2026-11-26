@@ -50,7 +50,7 @@ func TestSpamhausDROPIsOffByDefaultAndMatchesTheAddressesInsideItsNetworks(t *te
 	if c, b := e.fetch(dropFeedID); c != 200 || at(b, "status") != "ok" || at(b, "records") != 2.0 {
 		t.Fatalf("pull: %d %v", c, b)
 	}
-	fetched := "Spamhaus DROP (list fetched " + e.clock().UTC().Format("2006-01-02 15:04") + " UTC)"
+	fetched := "Spamhaus DROP (list fetched 5 Nov 2026, 12:00 UTC)" // the box's clock; no organization zone in this test: UTC, named
 	// logs stores the plain name on a hit and shows this credit, from the feed's last good pull
 	if c, err := e.svc.st.IOCCredits(t.Context()); err != nil || len(c) != 1 || c["Spamhaus DROP"] != fetched {
 		t.Errorf("credits: %v %v", c, err)
@@ -78,7 +78,7 @@ func TestSpamhausDROPIsOffByDefaultAndMatchesTheAddressesInsideItsNetworks(t *te
 		if conf, c2 := IOCConfidence(rec.Sightings); conf != 0.9 || c2 {
 			t.Errorf("%s: confidence %v c2 %v, want 0.9", ip, conf, c2)
 		}
-		if got := CreditName(rec.Sightings[0]); got != fetched {
+		if got := e.svc.st.CreditName(t.Context(), rec.Sightings[0]); got != fetched {
 			t.Errorf("%s: credited as %q, want %q", ip, got, fetched)
 		}
 	}

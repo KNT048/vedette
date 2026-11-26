@@ -521,7 +521,7 @@ var iocCategories = map[string]string{
 // iocHit turns a stored indicator into the answer of a lookup; nil when no switched-on feed lists it now, or when it has no
 // verdict (a whitelisted domain, a value that cannot be an IOC). A switched-off feed is not named: it is not pulled, so its
 // listings are stale (as logs ignores them).
-func iocHit(rec IOCRecord) map[string]any {
+func iocHit(rec IOCRecord, credit func(IOCSighting) string) map[string]any {
 	rec.Sightings = slices.DeleteFunc(slices.Clone(rec.Sightings), func(g IOCSighting) bool { return !g.Enabled })
 	order := map[string]int{}
 	for i, b := range BuiltinSources() {
@@ -548,7 +548,7 @@ func iocHit(rec IOCRecord) map[string]any {
 		} else {
 			sights = append(sights, Sighting{Source: g.SourceID})
 		}
-		names = append(names, CreditName(g))
+		names = append(names, credit(g))
 		c, ok := iocCategories[g.SourceID]
 		if !ok {
 			c = "Custom feed"
@@ -597,7 +597,7 @@ func (h *FeedHandlers) FeedsGetFeedsSearch(ctx context.Context, params oas.Feeds
 			if err != nil {
 				return zero, err
 			}
-			if m := iocHit(rec); found && m != nil {
+			if m := iocHit(rec, func(g IOCSighting) string { return h.s.st.CreditName(ctx, g) }); found && m != nil {
 				hit = m
 			}
 			value = key

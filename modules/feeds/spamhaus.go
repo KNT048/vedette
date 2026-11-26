@@ -1,9 +1,13 @@
 package feeds
 
 import (
+	"context"
 	"net/netip"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // Spamhaus DROP ("Don't Route Or Peer") lists netblocks that are hijacked or leased by professional spam or cyber-crime operations
@@ -203,12 +207,18 @@ func networksAround(value string) []any {
 	return out
 }
 
-// CreditName is how a listing is named wherever it is shown (Feeds → Look up, the AI, and through IOCCredits the logs hit and
+// creditName is how a listing is named wherever it is shown (Feeds → Look up, the AI, and through IOCCredits the logs hit and
 // incident): the feed's name, and for a list whose terms ask for the list to be credited with its time (Source.CreditFetch: Spamhaus
-// DROP) the time of the feed's last good pull, in UTC. It is never stored: a stored name stays the plain one.
-func CreditName(g IOCSighting) string {
+// DROP) the time of the feed's last good pull, in the organization's zone with the zone named (orgtime.StampZone: the incident text is
+// read away from the box). It is never stored: a stored name stays the plain one.
+func creditName(g IOCSighting, loc *time.Location) string {
 	if b, ok := BuiltinByID(g.SourceID); ok && g.Builtin && b.CreditFetch && !g.FetchedAt.IsZero() {
-		return g.SourceName + " (list fetched " + g.FetchedAt.UTC().Format("2006-01-02 15:04") + " UTC)"
+		return g.SourceName + " (list fetched " + orgtime.StampZone(g.FetchedAt, loc) + ")"
 	}
 	return g.SourceName
+}
+
+// CreditName is creditName in the organization's zone as it is now.
+func (s *Store) CreditName(ctx context.Context, g IOCSighting) string {
+	return creditName(g, orgtime.At(ctx, s.zone))
 }

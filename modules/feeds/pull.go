@@ -20,6 +20,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/winrel"
 )
 
@@ -494,7 +495,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		return sourceRow{}, 0, nil, ErrFeedDisabled
 	}
 	if at, floor := src.fetchFloor(); floor && s.now().Before(at) {
-		return src, 0, nil, &TooSoonError{Name: src.Name, Hours: builtinMinHours(src.ID), At: at}
+		return src, 0, nil, &TooSoonError{Name: src.Name, Hours: builtinMinHours(src.ID), At: at, Zone: orgtime.At(ctx, s.Zone)}
 	}
 	started := s.now()
 	bctx, cancel := context.WithTimeout(ctx, pullBudget)

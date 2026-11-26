@@ -3,6 +3,8 @@ package feeds
 import (
 	"fmt"
 	"time"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // The back-off after a failed pull and the staleness rule, as pure functions of an injected clock (INV-8, INV-9). When a feed is
@@ -133,9 +135,10 @@ type TooSoonError struct {
 	Name  string
 	Hours int
 	At    time.Time
+	Zone  *time.Location // the organization's zone the time is written in (orgtime); nil: UTC
 }
 
 func (e *TooSoonError) Error() string {
 	return fmt.Sprintf("%s can be fetched once every %d hours, and the list on the box is still in use. Fetch it again after %s.",
-		e.Name, e.Hours, e.At.UTC().Format("2 Jan 2006 15:04 UTC"))
+		e.Name, e.Hours, orgtime.StampZone(e.At, e.Zone))
 }

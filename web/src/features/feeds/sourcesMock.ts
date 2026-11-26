@@ -201,7 +201,7 @@ export const sourceHandlers = [
       const s = c.builtin[id]
       const at = Math.max(s?.last_success ? Date.parse(s.last_success) + 24 * 36e5 : 0, s?.last_fetch ? Date.parse(s.last_fetch) + 36e5 : 0)
       if (Date.now() < at) {
-        const when = new Date(at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }).replace(',', '')
+        const when = new Date(at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })
         return fail(409, 'fetch_too_soon', `Spamhaus DROP can be fetched once every 24 hours, and the list on the box is still in use. Fetch it again after ${when} UTC.`)
       }
     }

@@ -44,7 +44,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   and automated downloads at least an hour apart (`Source.MinHours` = 24): the feed's schedule cannot be set below 24 hours
   (`sourceLimits`, the schedule's `LimitsOf`: the editor says "Spamhaus DROP asks for at most one download every 24 hours."), and
   neither the pull job nor Fetch now asks it sooner than 24 hours after its last good pull or an hour after any attempt, a failed one
-  included (`fetchFloor`); Fetch now then answers 409 `fetch_too_soon` with the time it becomes possible.
+  included (`fetchFloor`); Fetch now then answers 409 `fetch_too_soon` with the time it becomes possible (orgtime, zone named).
   `TestSpamhausDROPIsOffByDefaultAndMatchesTheAddressesInsideItsNetworks`, `TestSpamhausDROPIsFetchedAtMostOnceADay`.
 
 **Parsing**
@@ -155,7 +155,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   `TestIOCConfidenceRatesEachFeedAndRisesWithIndependentFeeds`, `TestIOCConfidenceOfIPsumFollowsTheLevelOfItsAddress`,
   `TestIOCConfidenceOfHageziTIFAloneStaysBelowHigh`, `TestIOCEveryBuiltinListIsRated`, `TestSpamhausDROPAndAnAddressListAddUp`.
 - **INV-12c** A listing by a list whose terms ask for credit with a time (`Source.CreditFetch`: Spamhaus DROP) is named, wherever it
-  is shown (logs' hit and incident, Feeds → Look up, the AI), by `CreditName`: "Spamhaus DROP (list fetched YYYY-MM-DD HH:MM UTC)",
+  is shown (logs' hit and incident, Feeds → Look up, the AI), by `CreditName`: "Spamhaus DROP (list fetched 26 Nov 2026, 14:00 +07)", written by `orgtime.StampZone` in the organization's zone with the zone named,
   the time of the feed's last good pull (`feeds_source.last_success`, `IOCSighting.FetchedAt`). The credit is never stored: logs
   stores the plain name on a hit and shows the credit from `IOCCredits` when it reads or announces the hit, so one feed is one name
   across the days of a row. Every other listing is named by its feed's name.

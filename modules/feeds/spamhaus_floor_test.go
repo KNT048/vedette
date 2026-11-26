@@ -43,7 +43,7 @@ func TestSpamhausDROPIsFetchedAtMostOnceADay(t *testing.T) {
 	}
 	e.setNow(start.Add(time.Hour))
 	c, b := e.fetch(dropFeedID)
-	if c != http.StatusConflict || code(b) != "fetch_too_soon" || !strings.Contains(fmt.Sprint(at(b, "error", "message")), "Fetch it again after 6 Nov 2026 12:00 UTC.") {
+	if c != http.StatusConflict || code(b) != "fetch_too_soon" || !strings.Contains(fmt.Sprint(at(b, "error", "message")), "Fetch it again after 6 Nov 2026, 12:00 UTC.") {
 		t.Errorf("Fetch now after an hour: %d %v", c, b)
 	}
 	if n := o.count("/drop_v4.json"); n != 1 {

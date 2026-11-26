@@ -62949,10 +62949,15 @@ type ExposureGetExposureTreeIDServicesOKItemsItem struct {
 	IsWeb    bool      `json:"is_web"`
 	LastSeen time.Time `json:"last_seen"`
 	// The service name: http, ssh, sip; "" when not identified.
-	Name    string                                            `json:"name"`
-	Port    int                                               `json:"port"`
-	Product string                                            `json:"product"`
-	Proto   ExposureGetExposureTreeIDServicesOKItemsItemProto `json:"proto"`
+	Name string `json:"name"`
+	// On an open service whose newest scans could not reach the port from the box (no answer from the
+	// address, it stopped answering, or the probe step did not finish): when the first of those scans
+	// started. The service is kept until a scan reaches the port again, and is no longer listed 30 days
+	// after it was last seen. null when the newest scan that checked the port reached it, or none did.
+	NotReachedSince NilDateTime                                       `json:"not_reached_since"`
+	Port            int                                               `json:"port"`
+	Product         string                                            `json:"product"`
+	Proto           ExposureGetExposureTreeIDServicesOKItemsItemProto `json:"proto"`
 	// Closed: a later scan of the address no longer found it open.
 	State ExposureGetExposureTreeIDServicesOKItemsItemState `json:"state"`
 	// The page title of a web service; "" when none.
@@ -63003,6 +63008,11 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetLastSeen() time.Time {
 // GetName returns the value of Name.
 func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetName() string {
 	return s.Name
+}
+
+// GetNotReachedSince returns the value of NotReachedSince.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) GetNotReachedSince() NilDateTime {
+	return s.NotReachedSince
 }
 
 // GetPort returns the value of Port.
@@ -63078,6 +63088,11 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetLastSeen(val time.Time
 // SetName sets the value of Name.
 func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetNotReachedSince sets the value of NotReachedSince.
+func (s *ExposureGetExposureTreeIDServicesOKItemsItem) SetNotReachedSince(val NilDateTime) {
+	s.NotReachedSince = val
 }
 
 // SetPort sets the value of Port.

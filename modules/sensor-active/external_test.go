@@ -554,7 +554,7 @@ func TestExternalSaysTheAddressAnsweredWithClosedPorts(t *testing.T) {
 		t.Fatal(err)
 	}
 	closed := filepath.Join(t.TempDir(), "closed.xml")
-	if err := os.WriteFile(closed, bytes.Replace(b, []byte(`<extraports state="filtered" count="997">`), []byte(`<extraports state="closed" count="997">`), 1), 0o600); err != nil {
+	if err := os.WriteFile(closed, bytes.Replace(b, []byte(`<extraports state="filtered" count="997">`), []byte(`<extraports state="closed" count="997">`), 1), 0o600); err != nil { //nolint:gosec // a file of the test's own temp directory
 		t.Fatal(err)
 	}
 	for name, discovery := range map[string]string{"closed replies": closed, "no reply": discoveryFixture(t, boxIP)} {

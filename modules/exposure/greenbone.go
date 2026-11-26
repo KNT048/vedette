@@ -1481,7 +1481,7 @@ func (s *Service) gbCleanup(ctx context.Context, task, target, ports string, run
 
 // cleanGreenboneRow is the one check a Greenbone row passes before it is stored (INV-10, INV-25); ok is false for a row that is not one.
 func cleanGreenboneRow(r GreenboneRow) (GreenboneRow, bool) {
-	r.Name, r.Solution, r.Description = plainText(r.Name, gmpMaxName), plainText(r.Solution, gmpMaxText), plainLines(r.Description, gmpMaxDescription)
+	r.Name, r.Solution, r.Description = plainText(r.Name, gmpMaxName), plainText(r.Solution, gmpMaxText), plainLines(r.Description)
 	if !gmpPort.MatchString(r.Port) {
 		r.Port = ""
 	}

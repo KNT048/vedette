@@ -891,9 +891,10 @@ type gmpResult struct {
 // are left out: the issue has its own severity and solution.
 var gmpTagParts = []struct{ tag, head string }{{"insight", "Insight"}, {"affected", "Affected"}, {"impact", "Impact"}}
 
-// plainLines is plainText line by line: each line of s cleaned, the empty ones dropped, joined with "\n", at most n runes. A detection
-// result is often a list (ciphers, algorithms, files), which one line would run together.
-func plainLines(s string, n int) string {
+// plainLines is plainText line by line: each line of s cleaned, the empty ones dropped, joined with "\n", at most gmpMaxDescription
+// runes. A detection result is often a list (ciphers, algorithms, files), which one line would run together.
+func plainLines(s string) string {
+	n := gmpMaxDescription
 	var out []string
 	for _, l := range strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n") {
 		if v := plainText(l, n); v != "" {
@@ -915,14 +916,14 @@ func gmpDescription(name, tags, detection string) string {
 	kv := map[string]string{}
 	for _, part := range strings.Split(tags, "|") {
 		if k, v, ok := strings.Cut(part, "="); ok {
-			kv[strings.TrimSpace(k)] = plainLines(v, gmpMaxDescription)
+			kv[strings.TrimSpace(k)] = plainLines(v)
 		}
 	}
 	var parts []string
 	if v := kv["summary"]; v != "" {
 		parts = append(parts, v)
 	}
-	if v := plainLines(detection, gmpMaxDescription); v != "" {
+	if v := plainLines(detection); v != "" {
 		parts = append(parts, "Detection result: "+v)
 	}
 	for _, p := range gmpTagParts {
@@ -933,7 +934,7 @@ func gmpDescription(name, tags, detection string) string {
 	if len(parts) == 0 {
 		return plainText(fmt.Sprintf("OpenVAS's test %q reported this result.", name), gmpMaxDescription)
 	}
-	return plainLines(strings.Join(parts, "\n"), gmpMaxDescription)
+	return plainLines(strings.Join(parts, "\n"))
 }
 
 var (

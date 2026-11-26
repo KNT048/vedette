@@ -247,11 +247,23 @@ func (s *Service) dropPathServices(ctx context.Context, ip string, res ServiceSc
 
 // ---- the liveness checks ----
 
+// stepsHere is the run's steps and, inside the step of one of a domain's addresses (withinAddress), the key of that step ("" outside
+// one); nil outside a scan's run.
+func stepsHere(ctx context.Context) (*runSteps, string) {
+	if rs := runStepsOf(ctx); rs != nil {
+		return rs, ""
+	}
+	if a, ok := ctx.Value(addressStepKey{}).(addressSink); ok {
+		return a.rs, a.key
+	}
+	return nil, ""
+}
+
 // checkAlive asks Liveness about the ports seen open this run that have not stopped answering yet, at most maxAliveAddrs addresses
 // and maxAlivePorts ports each, and records the answers. It writes one line of the run's log. Without a Liveness, outside a scan's
-// run (the step of one of a domain's addresses) or once the run is stopped it does nothing.
+// run or once the run is stopped it does nothing.
 func (s *Service) checkAlive(ctx context.Context, st ScanTarget, c *Content, before string) {
-	rs := runStepsOf(ctx)
+	rs, _ := stepsHere(ctx)
 	if s.cfg.Liveness == nil || rs == nil || ctx.Err() != nil {
 		return
 	}
@@ -301,26 +313,42 @@ func (s *Service) checkAlive(ctx context.Context, st ScanTarget, c *Content, bef
 
 // beforeEngine is the liveness check before the engine step key (kind: its "Not checked" lines): false when every address of the
 // target stopped answering, and the step is then skipped with why. Otherwise the step runs on the ports that still answer, and when
-// some stopped answering its results are incomplete and the step says so. The run's outcome comes from the verdicts.
+// some stopped answering its results are incomplete and the step says so. Inside the step of one of a domain's addresses, where the
+// engine is part of that step and c holds that address only, it is that step whose results are incomplete. The run's outcome comes
+// from the verdicts.
 func (s *Service) beforeEngine(ctx context.Context, st ScanTarget, c *Content, key, name, kind string) bool {
-	rs := runStepsOf(ctx)
+	rs, addrKey := stepsHere(ctx)
 	if rs == nil {
 		return true
 	}
 	o := s.observerOf(ctx)
-	if !o.allGone(openPorts(*c)) {
+	open := openPorts(*c)
+	if !o.allGone(open) {
 		s.checkAlive(ctx, st, c, name)
 	}
-	text := s.lostText(ctx, st, o.lostOf())
+	lost := o.lostOf()
+	if addrKey != "" { // only the address of this step
+		maps.DeleteFunc(lost, func(ip string, _ []int) bool { _, here := open[ip]; return !here })
+	}
+	text := s.lostText(ctx, st, lost)
 	if text == "" {
 		return true
 	}
-	if o.allGone(openPorts(*c)) {
+	gone := o.allGone(open)
+	switch {
+	case gone && addrKey != "":
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: kind, Text: clipText(name+" did not run. "+text, maxLineText)})
+		rs.incompleteOn(addrKey, name+" did not run. "+text)
+		return false
+	case gone:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: kind, Text: clipText(name+" did not run. "+text, maxLineText)})
 		rs.skip(ctx, key, "Not run. "+text)
 		return false
+	case addrKey != "":
+		rs.incompleteOn(addrKey, text)
+	default:
+		rs.incompleteOn(key, text)
 	}
-	rs.incompleteOn(key, text)
 	return true
 }
 

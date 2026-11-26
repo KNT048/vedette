@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { KeyValue, Panel, Section } from '@/components/common/PageHeader'
+import { KeyValue, Notice, Panel, Section } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -57,6 +57,13 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
         <Chip tone={STATE_TONE[g.state]}>{t(`greenbone.state.${g.state}`)}</Chip>
         {g.state === 'loading' ? g.reason ?? t('greenbone.loading') : g.state === 'error' || g.state === 'unavailable' ? g.reason : t(`greenbone.stateText.${g.state}`)}
       </p>
+      {/* a first start downloads the images and loads the feed: hours on a small box, so it says so while it starts or loads */}
+      {g.state === 'starting' || g.state === 'loading' ? (
+        <Notice tone="accent" role="note" className="mb-0" title={t('greenbone.waitTitle')}>
+          <p>{t('greenbone.waitText')}</p>
+          {g.changed_at ? <p className="text-meta text-muted">{t('greenbone.waitSince', { time: fmtDateTime(g.changed_at) })}</p> : null}
+        </Notice>
+      ) : null}
       {heldOn ? (embedded ? null : (
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => change(false)} disabled={!can} busy={set.isPending} busyLabel={t('common:busy.turningOff')} title={locked}>{t('greenbone.disable')}</Button>

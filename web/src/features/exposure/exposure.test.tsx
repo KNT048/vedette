@@ -670,7 +670,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
     renderApp('/exposure?tab=settings')
     const s = await section()
     expect(await within(s).findByText('Off')).toBeInTheDocument()
-    expect(within(s).getByText('Needs about 50 GB of disk and about 2 hours to load the OpenVAS feed the first time.')).toBeInTheDocument()
+    expect(within(s).getByText('Needs about 50 GB of disk. Turning it on the first time takes 1 to 3 hours.')).toBeInTheDocument()
     expect(within(s).getByRole('button', { name: 'About What OpenVAS needs' })).toHaveAccessibleDescription('The box must have at least 6 GB of memory (under 8 GB, also 2 GB of swap) and 60 GB free.')
     expect(within(s).queryByText(/uses swap/)).toBeNull()
     expect(within(s).getByText('16.0 GB')).toBeInTheDocument()
@@ -678,6 +678,11 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25)', () => 
     await expectNoA11yViolations()
     await userEvent.click(within(s).getByRole('button', { name: 'Enable OpenVAS' }))
     expect(await within(s).findByText('Starting')).toBeInTheDocument()
+    // a first start can take hours: the panel says so for as long as it starts or loads, with when it was turned on
+    const wait = within(s).getByRole('note')
+    expect(wait).toHaveTextContent('OpenVAS takes 1 to 3 hours to start the first time')
+    expect(wait).toHaveTextContent('It downloads about 9 GB and loads tens of thousands of vulnerability tests. Please be patient: you can leave this page, and it shows Ready when it is done.')
+    expect(wait).toHaveTextContent(/Turned on .+\./)
     expect(within(s).getByRole('button', { name: 'Turn off OpenVAS' })).toBeInTheDocument()
     expect(auditStore.get().some((a) => a.action === 'exposure.greenbone' && a.detail === 'enabled (memory 16.0 GB, free disk 180.0 GB)')).toBe(true)
     // The weekly feed update shows when the next one is due; T10: the tests' line shows once OpenVAS was read

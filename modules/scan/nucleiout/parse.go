@@ -79,6 +79,7 @@ type line struct {
 // MaxSkippedTemplates distinct templates of the skipped lines and MoreTemplates how many more there were; Template, Host and Port
 // are the first line's (Host is "(unreadable)" when its target could not be read; each checked and clipped, safe to log and store).
 type Skipped struct {
+	GaveUp           []string // job targets a cluster's skip line says nuclei gave up as unresponsive (see GaveUp)
 	Lines, Matched   int
 	MatchedTemplates []string
 	Templates        []string
@@ -130,6 +131,10 @@ func AppendNote(request, note string, limit int) string {
 	return request + note
 }
 
+// UnresponsiveError is the error nuclei 3.11.1 writes on the line of a target it gave up as unresponsive (-mhe): it sends no more
+// requests there in this run.
+const UnresponsiveError = "host was skipped as it was found unresponsive"
+
 // clusterID is the id nuclei 3.11.1 gives a cluster of templates that send the same request: "cluster-" and a SHA-256 in hex.
 var clusterID = regexp.MustCompile(`^cluster-[0-9a-f]{64}$`)
 
@@ -173,6 +178,9 @@ func Read(out []byte, templates, targets []string) ([]Result, Skipped, error) {
 				}
 			}
 			skip.Lines++
+			if r.Template == "" && slices.Contains(targets, r.Target) && !slices.Contains(skip.GaveUp, r.Target) { // a cluster's skip line
+				skip.GaveUp = append(skip.GaveUp, r.Target)
+			}
 			if r.Matched {
 				skip.Matched++
 				if !slices.Contains(skip.MatchedTemplates, r.Template) {
@@ -215,10 +223,10 @@ func parseLine(raw []byte, templates, targets []string) (Result, error) {
 		// nuclei merges the job's templates that send the same request into a cluster; when it gives a host up as unresponsive it
 		// prints one skip line per cluster under the cluster's id. Not a result of any template: skipped and counted, never named
 		// as a template. A cluster line that is anything else (a match, no error) cannot be read without doubt.
-		if l.MatcherStatus == nil || *l.MatcherStatus || l.Error == "" {
+		if l.MatcherStatus == nil || *l.MatcherStatus || l.Error != UnresponsiveError {
 			return Result{}, errors.New("a cluster line that is not a skipped host")
 		}
-		return Result{Target: targetOf(l.Host, l.Port)}, errSkip
+		return Result{Target: targetOf(l.Host, l.Port), Error: UnresponsiveError}, errSkip
 	}
 	if !slices.Contains(templates, l.TemplateID) {
 		return Result{}, errors.New("a template the job did not ask for")
@@ -342,4 +350,23 @@ func Clean(s string, limit int) string {
 		cut--
 	}
 	return s[:cut] + cutMark
+}
+
+// GaveUp lists the job's targets nuclei gave up as unresponsive in this run, sorted: from a template's
+// own skip line (a result whose error is UnresponsiveError) or a cluster's (Skipped.GaveUp). The templates without a line of their
+// own on such a target were not sent there: callers read them as unreachable, never as "no match reported".
+func GaveUp(res []Result, sk Skipped) []string {
+	var out []string
+	for _, r := range res {
+		if r.Error == UnresponsiveError && !slices.Contains(out, r.Target) {
+			out = append(out, r.Target)
+		}
+	}
+	for _, t := range sk.GaveUp {
+		if !slices.Contains(out, t) {
+			out = append(out, t)
+		}
+	}
+	slices.Sort(out)
+	return out
 }

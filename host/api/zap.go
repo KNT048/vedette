@@ -12,8 +12,9 @@ const CmdZapBaseline = "zap.baseline"
 // form posting; the host takes it only for the box's own IP (kind ip, not a typed IP).
 const CmdZapActive = "zap.active"
 
-// CmdZapStop stops the ZAP run (zap.baseline or zap.active) that runs now: its context is cancelled, the container removed and
-// proven gone, and the fence deleted, before the command answers.
+// CmdZapStop stops one ZAP run (zap.baseline or zap.active), named by the request id it was sent with (ZapStopArgs): when it runs,
+// its context is cancelled, the container removed and proven gone, and the fence deleted, before the command answers; when it has
+// not started yet, the host remembers the stop and that run refuses to start. A run of another request id is left alone.
 const CmdZapStop = "zap.stop"
 
 // Kinds of the target a page belongs to (exposure's target kinds).
@@ -108,7 +109,13 @@ type ZapActiveResult struct {
 	CutShort bool   `json:"cut_short"`
 }
 
-// ZapStopResult says whether zap.stop found a run and stopped it.
+// ZapStopArgs are the args of zap.stop: the X-Request-Id (a UUID v4) of the zap.baseline or zap.active run to stop.
+type ZapStopArgs struct {
+	RequestID string `json:"request_id"`
+}
+
+// ZapStopResult says whether zap.stop found the run running and stopped it (false: the run had not started, and will refuse to, or
+// had already ended).
 type ZapStopResult struct {
 	Stopped bool `json:"stopped"`
 }

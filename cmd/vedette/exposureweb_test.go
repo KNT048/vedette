@@ -28,11 +28,12 @@ type fakeZapHost struct {
 	reportID string
 	active   []api.ZapActiveArgs // the zap.active calls
 	block    bool                // zap.active waits until its context ends
-	stops    int                 // zap.stop calls
+	stops    []string            // the request ids zap.stop named
+	reqs     []string            // the request ids of the zap.active calls
 }
 
-func (f *fakeZapHost) ZapActive(ctx context.Context, args api.ZapActiveArgs, _, actor string) (api.Run, error) {
-	f.active, f.actor = append(f.active, args), actor
+func (f *fakeZapHost) ZapActive(ctx context.Context, args api.ZapActiveArgs, req, actor string) (api.Run, error) {
+	f.active, f.actor, f.reqs = append(f.active, args), actor, append(f.reqs, req)
 	if f.block {
 		<-ctx.Done()
 		return api.Run{}, ctx.Err()
@@ -40,11 +41,11 @@ func (f *fakeZapHost) ZapActive(ctx context.Context, args api.ZapActiveArgs, _, 
 	return f.run, f.err
 }
 
-func (f *fakeZapHost) ZapStop(ctx context.Context, _, _ string) (api.Run, error) {
+func (f *fakeZapHost) ZapStop(ctx context.Context, args api.ZapStopArgs, _, _ string) (api.Run, error) {
 	if ctx.Err() != nil {
 		return api.Run{}, ctx.Err() // a stop sent on the scan's own ended context would never reach the host
 	}
-	f.stops++
+	f.stops = append(f.stops, args.RequestID)
 	return api.Run{Status: api.StatusSucceeded}, nil
 }
 
@@ -305,7 +306,7 @@ func TestExposureWeb_ActiveSendsTheDisruptiveRulesOnlyForTheBoxsOwnIP(t *testing
 }
 
 // A scan stopped while ZAP runs stops ZAP on the host: exposure's context ends, the adapter sends zap.stop (on a context of its own,
-// since the scan's has ended) before it returns.
+// since the scan's has ended) naming the request of its own zap.active, before it returns.
 func TestExposureWeb_AStoppedScanStopsZAPOnTheHost(t *testing.T) {
 	t.Parallel()
 	h := &fakeZapHost{block: true}
@@ -317,7 +318,7 @@ func TestExposureWeb_AStoppedScanStopsZAPOnTheHost(t *testing.T) {
 		done <- err
 	}()
 	cancel()
-	if err := <-done; !errors.Is(err, context.Canceled) || h.stops != 1 {
-		t.Fatalf("%v, %d stops", err, h.stops)
+	if err := <-done; !errors.Is(err, context.Canceled) || len(h.stops) != 1 || len(h.reqs) != 1 || h.stops[0] != h.reqs[0] || h.stops[0] == "" {
+		t.Fatalf("%v, stops %q of runs %q", err, h.stops, h.reqs)
 	}
 }

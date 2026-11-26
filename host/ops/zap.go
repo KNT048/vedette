@@ -453,7 +453,7 @@ func (o *Ops) cmdZapBaseline() server.Command {
 			if err != nil {
 				return nil, err
 			}
-			return o.zapBaseline(ctx, rc.Log, p)
+			return o.zapRun(ctx, rc.Log, p, zapPass{req: rc.RequestID})
 		},
 	})
 }
@@ -494,6 +494,7 @@ func (o *Ops) zapDir() string { return o.stateFile("zap") }
 type zapPass struct {
 	active     bool
 	disruptive bool
+	req        string // the request id of the run (RunContext.RequestID): zap.stop names it
 }
 
 func (o *Ops) zapBaseline(ctx context.Context, logf func(string), p zapPage) (any, error) {
@@ -507,18 +508,23 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 		limit, what = zapActivePageLimit, "active web scan"
 	}
 	o.zapMu.Lock()
+	if _, ok := o.zapStopped[pass.req]; ok && pass.req != "" { // zap.stop came before this run: it never starts
+		delete(o.zapStopped, pass.req)
+		o.zapMu.Unlock()
+		return nil, refuse409(api.CodeZapStopped, "The "+what+" was stopped before it started; ZAP was not started.")
+	}
 	if o.zapBusy {
 		o.zapMu.Unlock()
 		return nil, refuse409(api.CodeBusy, "A web scan (ZAP) is already running on this box.")
 	}
 	ctx, stop := context.WithCancelCause(ctx)
 	done := make(chan struct{})
-	o.zapBusy, o.zapStop, o.zapDone = true, func() { stop(errZapStopped) }, done
+	o.zapBusy, o.zapStop, o.zapDone, o.zapReq = true, func() { stop(errZapStopped) }, done, pass.req
 	o.zapMu.Unlock()
 	// Last: once the cleanup below is over, the run is no longer busy and zap.stop's wait ends.
 	defer func() {
 		o.zapMu.Lock()
-		o.zapBusy, o.zapStop, o.zapDone = false, nil, nil
+		o.zapBusy, o.zapStop, o.zapDone, o.zapReq = false, nil, nil, ""
 		o.zapMu.Unlock()
 		stop(nil)
 		close(done)

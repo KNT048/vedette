@@ -250,22 +250,31 @@ func TestZapActive_Bounds(t *testing.T) {
 	})
 }
 
-// A stopped run stops ZAP: zap.stop cancels the run that runs, waits until its container is removed and proven gone and its fence
-// deleted, and the run ends zap_stopped. With no run, zap.stop says nothing was stopped.
+// A stopped run stops ZAP: zap.stop names the run it stops (the request id of its zap.baseline or zap.active), cancels it, waits
+// until its container is removed and proven gone and its fence deleted, and the run ends zap_stopped. A stop that names another run
+// leaves the one that runs alone.
 func TestZapActive_StopKillsZAP(t *testing.T) {
 	t.Parallel()
 	w := newZapWorld(t, Deps{})
-	if res, err := w.o.zapStopRun(t.Context(), nolog); err != nil || res.(api.ZapStopResult).Stopped {
+	if res, err := w.o.zapStopRun(t.Context(), nolog, zapReqA); err != nil || res.(api.ZapStopResult).Stopped {
 		t.Fatalf("no run: %+v %v", res, err)
 	}
 	w.runGate, w.runStarted, w.leaveCtr = make(chan struct{}), make(chan struct{}, 1), true
 	done := make(chan error, 1)
 	go func() {
-		_, err := w.o.zapRun(context.Background(), nolog, zapActivePage(t, api.ZapKindIP), zapPass{active: true})
+		_, err := w.o.zapRun(context.Background(), nolog, zapActivePage(t, api.ZapKindIP), zapPass{active: true, req: zapReqB})
 		done <- err
 	}()
 	<-w.runStarted
-	res, err := w.o.zapStopRun(t.Context(), nolog)
+	if res, err := w.o.zapStopRun(t.Context(), nolog, zapReqC); err != nil || res.(api.ZapStopResult).Stopped {
+		t.Fatalf("a stop of another run: %+v %v", res, err)
+	}
+	select {
+	case err := <-done:
+		t.Fatalf("a stop of another run ended this one: %v", err)
+	default:
+	}
+	res, err := w.o.zapStopRun(t.Context(), nolog, zapReqB)
 	if err != nil || !res.(api.ZapStopResult).Stopped {
 		t.Fatalf("stop: %+v %v", res, err)
 	}
@@ -276,6 +285,44 @@ func TestZapActive_StopKillsZAP(t *testing.T) {
 		t.Fatalf("the stopped run: %v", err)
 	}
 }
+
+// A stop that arrives before its run started (the scan gave up while its zap.active was on its way) is remembered: that run then
+// refuses to start, and ZAP never runs. Another run starts as usual.
+func TestZapActive_AStopBeforeItsRunRefusesTheRun(t *testing.T) {
+	t.Parallel()
+	w := newZapWorld(t, Deps{})
+	if res, err := w.o.zapStopRun(t.Context(), nolog, zapReqA); err != nil || res.(api.ZapStopResult).Stopped {
+		t.Fatalf("a stop before its run: %+v %v", res, err)
+	}
+	_, err := w.o.zapRun(t.Context(), nolog, zapActivePage(t, api.ZapKindIP), zapPass{active: true, req: zapReqA})
+	var r *server.Refusal
+	if !errors.As(err, &r) || r.Code != api.CodeZapStopped {
+		t.Fatalf("the run its stop came before: %v", err)
+	}
+	if slices.Contains(w.Calls(), "podman run") || w.o.zapBusy {
+		t.Fatalf("ZAP ran after its stop: %q", w.Calls())
+	}
+	w.report = cleanZapReport()
+	if _, err := w.o.zapRun(t.Context(), nolog, zapActivePage(t, api.ZapKindIP), zapPass{active: true, req: zapReqB}); err != nil {
+		t.Fatalf("another run: %v", err)
+	}
+	// zap.stop takes the request id of a run, nothing else.
+	for _, bad := range []string{"", "abc", "../../etc/passwd", "11111111-1111-1111-8111-111111111111"} {
+		if zapStopArgs(&api.ZapStopArgs{RequestID: bad}) == nil {
+			t.Errorf("zap.stop takes %q", bad)
+		}
+	}
+	if err := zapStopArgs(&api.ZapStopArgs{RequestID: strings.ToUpper(zapReqA)}); err != nil {
+		t.Errorf("zap.stop refuses an upper-case request id: %v", err)
+	}
+}
+
+// Request ids of runs (UUID v4, as core sends them).
+const (
+	zapReqA = "0b7c1f6e-2d4a-4c8e-9f1a-3b5d7e9f1a2c"
+	zapReqB = "1c8d2a7f-3e5b-4d9f-8a2b-4c6e8f0a2b3d"
+	zapReqC = "2d9e3b8a-4f6c-4eaf-9b3c-5d7f9a1b3c4e"
+)
 
 // A run that reached the active scan's own time cap keeps its report and says it was cut short; one that ended in time does not
 // (ZAP's own output, recorded from the pinned image).

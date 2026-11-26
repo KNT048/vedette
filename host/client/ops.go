@@ -280,10 +280,10 @@ func (c *Client) ZapActive(ctx context.Context, args api.ZapActiveArgs, requestI
 	return run, err
 }
 
-// ZapStop runs zap.stop and follows it to its end: the ZAP run that runs now (baseline or active) is stopped and its container
-// removed and proven gone before it answers.
-func (c *Client) ZapStop(ctx context.Context, requestID, actor string) (api.Run, error) {
-	run, err := c.Run(ctx, api.CmdZapStop, nil, requestID, actor)
+// ZapStop runs zap.stop and follows it to its end: the ZAP run of args.RequestID (baseline or active) is stopped and its container
+// removed and proven gone before it answers; a run that has not started yet will refuse to.
+func (c *Client) ZapStop(ctx context.Context, args api.ZapStopArgs, requestID, actor string) (api.Run, error) {
+	run, err := c.Run(ctx, api.CmdZapStop, args, requestID, actor)
 	for err == nil && !run.Status.Terminal() {
 		select {
 		case <-ctx.Done():

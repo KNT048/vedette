@@ -295,33 +295,70 @@ func (o *Ops) cmdZapActive() server.Command {
 			if err != nil {
 				return nil, err
 			}
-			return o.zapRun(ctx, rc.Log, p, zapPass{active: true, disruptive: a.Disruptive})
+			return o.zapRun(ctx, rc.Log, p, zapPass{active: true, disruptive: a.Disruptive, req: rc.RequestID})
 		},
 	})
 }
 
 func (o *Ops) cmdZapStop() server.Command {
-	return server.Define(server.Spec[struct{}]{
+	return server.Define(server.Spec[api.ZapStopArgs]{
 		Name: api.CmdZapStop, Write: false, Timeout: zapStopTimeout,
-		Run: func(ctx context.Context, rc *server.RunContext, _ struct{}) (any, error) {
-			return o.zapStopRun(ctx, rc.Log)
+		Validate: zapStopArgs,
+		Run: func(ctx context.Context, rc *server.RunContext, a api.ZapStopArgs) (any, error) {
+			if err := zapStopArgs(&a); err != nil {
+				return nil, err
+			}
+			return o.zapStopRun(ctx, rc.Log, a.RequestID)
 		},
 	})
+}
+
+// zapReqRE is a request id as the host takes it (the X-Request-Id header, lower case): a UUID v4.
+var zapReqRE = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+
+// zapStopArgs validates the args of zap.stop (and writes the request id in lower case, as the host keeps it).
+func zapStopArgs(a *api.ZapStopArgs) error {
+	a.RequestID = strings.ToLower(a.RequestID)
+	if !zapReqRE.MatchString(a.RequestID) {
+		return server.Invalid("request_id", "must be the request id (a UUID v4) of a zap.baseline or zap.active run")
+	}
+	return nil
 }
 
 // errZapStopped is the cause of a run's context that zap.stop cancelled.
 var errZapStopped = errors.New("zap: stopped")
 
-// zapStopRun cancels the ZAP run that runs now and waits until its cleanup is over (the container proven gone, then the fence
-// deleted); without one it answers that nothing ran.
-func (o *Ops) zapStopRun(ctx context.Context, logf func(string)) (any, error) {
+// zapStopsKept bounds the stops kept for runs that had not started: a run starts within seconds of its request, so a stop older
+// than one run's command timeout names a run that never came; at most zapStopsMax are kept.
+const (
+	zapStopsKept = zapActiveTimeout
+	zapStopsMax  = 64
+)
+
+// zapStopRun stops the run of request id req. When it runs, it is cancelled and zapStopRun waits until its cleanup is over (the
+// container proven gone, then the fence deleted). Otherwise the stop is kept, so the run refuses to start if its request arrives
+// after the stop (the scan gave up while its zap.baseline or zap.active was on its way); a run of another request is left alone.
+func (o *Ops) zapStopRun(ctx context.Context, logf func(string), req string) (any, error) {
 	o.zapMu.Lock()
-	stop, done := o.zapStop, o.zapDone
-	o.zapMu.Unlock()
-	if stop == nil {
-		logf("no web scan (ZAP) was running")
+	if !o.zapBusy || o.zapReq != req {
+		now := o.d.Now()
+		if o.zapStopped == nil {
+			o.zapStopped = map[string]time.Time{}
+		}
+		for k, until := range o.zapStopped {
+			if now.After(until) {
+				delete(o.zapStopped, k)
+			}
+		}
+		if len(o.zapStopped) < zapStopsMax {
+			o.zapStopped[req] = now.Add(zapStopsKept)
+		}
+		o.zapMu.Unlock()
+		logf("the web scan (ZAP) of request " + req + " is not running: it will not start")
 		return api.ZapStopResult{}, nil
 	}
+	stop, done := o.zapStop, o.zapDone
+	o.zapMu.Unlock()
 	stop()
 	select {
 	case <-done:

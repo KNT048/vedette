@@ -32,7 +32,7 @@ type exposureWebScan struct {
 type zapHost interface {
 	ZapBaseline(ctx context.Context, args api.ZapBaselineArgs, requestID, actor string) (api.Run, error)
 	ZapActive(ctx context.Context, args api.ZapActiveArgs, requestID, actor string) (api.Run, error)
-	ZapStop(ctx context.Context, requestID, actor string) (api.Run, error)
+	ZapStop(ctx context.Context, args api.ZapStopArgs, requestID, actor string) (api.Run, error)
 	DownloadZapReport(ctx context.Context, reportID string) (io.ReadCloser, int64, error)
 }
 
@@ -136,7 +136,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 		var he *hostclient.Error
 		switch {
 		case ctx.Err() != nil: // exposure's limit of the page, or the run was stopped: ZAP is stopped on the host, and exposure tells the two apart
-			w.stop(ctx, actor)
+			w.stop(ctx, id, actor)
 			return exposure.WebScan{}, ctx.Err()
 		case errors.As(err, &he) && (he.Code == api.CodeUnknownCommand ||
 			he.Code == api.CodeInvalidArgs && (t.Proof != nil && t.Proof.ProofAt != "" || t.Typed || args.ProvenAt != "")): // an older host refuses a proof it does not know
@@ -189,17 +189,18 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	return exposure.WebScan{Report: b, CutShort: cut}, nil
 }
 
-// stop stops the ZAP run of this scan on the host when exposure gave up on it (the scan was stopped, or the page's time ran out): the
-// host cancels the run and removes its container and fence before it answers. A failure is logged by the host and cleaned up by its
-// next run; it never holds the scan.
-func (w exposureWebScan) stop(ctx context.Context, actor string) {
+// stop stops the ZAP run of request runID on the host when exposure gave up on it (the scan was stopped, or the page's time ran
+// out): the host cancels that run and removes its container and fence before it answers, or, when the run has not started yet,
+// keeps the stop so it never starts. A run of another scan is left alone. A failure is logged by the host and cleaned up by its next
+// run; it never holds the scan.
+func (w exposureWebScan) stop(ctx context.Context, runID, actor string) {
 	id, err := newUUID()
 	if err != nil {
 		return
 	}
 	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), zapStopWait)
 	defer cancel()
-	_, _ = w.host.ZapStop(sctx, id, actor)
+	_, _ = w.host.ZapStop(sctx, api.ZapStopArgs{RequestID: runID}, id, actor)
 }
 
 // provenPage says whether the target's proof is about the page's address: the proof is a sighting of the target's own IP, so it goes

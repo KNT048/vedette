@@ -144,6 +144,9 @@ type ServiceView struct {
 	State     string    `json:"state"`
 	FirstSeen string    `json:"first_seen"`
 	LastSeen  string    `json:"last_seen"`
+	// NotReachedSince is, on an open row whose newest verdicts are unreached, lost or unknown, the start of the first scan of that
+	// streak (notReachedSince): the row is kept until a scan reaches the port again or notReachedFor after it was last seen. Nil otherwise.
+	NotReachedSince *string `json:"not_reached_since"`
 }
 
 // IssueDetail is what the page shows of an issue (exp_issue.detail): for display only, never read by logic.
@@ -353,6 +356,12 @@ func (s *Service) Services(ctx context.Context, id string) ([]ServiceView, error
 	for i := range out { // names a script read without the certificate's expiry are not a certificate the page can show
 		if c := out[i].Cert; c != nil && c.ExpiresAt == "" {
 			out[i].Cert = nil
+		}
+		if out[i].State != ServiceOpen {
+			continue
+		}
+		if out[i].NotReachedSince, err = notReachedSince(ctx, db, id, portKey(out[i].IP, out[i].Port)); err != nil {
+			return nil, fmt.Errorf("exposure: listing services: %w", err)
 		}
 	}
 	return out, nil

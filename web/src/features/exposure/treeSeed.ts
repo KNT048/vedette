@@ -70,7 +70,7 @@ const addr = (host_id: string | null, ip: string, first: number, last: number, c
   ({ host_id, ip, family: ip.includes(':') ? 'ipv6' : 'ipv4', class: cls, first_seen: daysAgo(first), last_seen: daysAgo(last) })
 const svc = (id: string, ip: string, port: number, s: Partial<Service> & { first: number; last: number }): Service => {
   const { first, last, ...rest } = s
-  return { id, ip, port, proto: 'tcp', name: '', product: '', version: '', cpe: '', title: '', cert: null, is_web: false, ident: 'none', state: 'open', first_seen: daysAgo(first), last_seen: daysAgo(last), ...rest }
+  return { id, ip, port, proto: 'tcp', name: '', product: '', version: '', cpe: '', title: '', cert: null, is_web: false, ident: 'none', state: 'open', first_seen: daysAgo(first), last_seen: daysAgo(last), not_reached_since: null, ...rest }
 }
 const issue = (id: string, target_id: string, service_id: string | null, i: Pick<Issue, 'engine' | 'key' | 'title' | 'severity'> & Partial<Issue> & { first: number; last: number }): Issue => {
   const { first, last, ...rest } = i
@@ -114,7 +114,7 @@ export function seedTreeRows(): TreeRows {
       'xt-11': [
         svc('xs-11-1', '198.51.100.20', 80, { name: 'http', product: 'nginx', cpe: 'cpe:/a:igor_sysoev:nginx', title: '301 Moved Permanently', is_web: true, ident: 'probed', first: 40, last: 1 }),
         svc('xs-11-2', '198.51.100.20', 443, { name: 'https', product: 'nginx', cpe: 'cpe:/a:igor_sysoev:nginx', title: 'Example Corp', cert: cert(['example.com', 'www.example.com'], "Let's Encrypt R11", 63), is_web: true, ident: 'probed', first: 40, last: 1 }),
-        svc('xs-11-3', '198.51.100.21', 25, { name: 'smtp', product: 'Postfix smtpd', cpe: 'cpe:/a:postfix:postfix', cert: cert(['mail.example.com'], "Let's Encrypt R10", 12), ident: 'probed', first: 40, last: 1 }),
+        svc('xs-11-3', '198.51.100.21', 25, { name: 'smtp', product: 'Postfix smtpd', cpe: 'cpe:/a:postfix:postfix', cert: cert(['mail.example.com'], "Let's Encrypt R10", 12), ident: 'probed', first: 40, last: 8, not_reached_since: daysAgo(7) }),
         svc('xs-11-4', '198.51.100.22', 443, { name: 'ssl/unknown', cert: cert(['FortiGate'], 'FortiGate', 300), ident: 'none', state: 'closed', first: 40, last: 12 }),
       ],
       'xt-12': [gitlab, gitSsh],

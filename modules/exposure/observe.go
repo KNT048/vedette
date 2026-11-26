@@ -807,28 +807,58 @@ func priorVerdicts(ctx context.Context, q querier, target, run, port string) ([]
 		WHERE r.module = ? AND r.kind = ? AND r.subject_kind = 'target' AND r.subject_id = ? AND r.id <> ? AND r.started_at IS NOT NULL
 			AND r.started_at < (SELECT started_at FROM core_run WHERE id = ?) AND i.subject_kind = ? AND i.subject_id = ?`
 	args := []any{ModuleID, RunKind, target, run, run, itemVerdict, port}
-	read := func(query string, args ...any) ([]priorVerdict, error) {
-		rows, err := q.QueryContext(ctx, query, args...)
-		if err != nil {
-			return nil, fmt.Errorf("the verdicts before of %s: %w", port, err)
-		}
-		defer func() { _ = rows.Close() }()
-		var out []priorVerdict
-		for rows.Next() {
-			var p priorVerdict
-			if err := rows.Scan(&p.at, &p.outcome, &p.note); err != nil {
-				return nil, fmt.Errorf("the verdicts before of %s: %w", port, err)
-			}
-			out = append(out, p)
-		}
-		return out, rows.Err()
-	}
-	out, err := read(`SELECT r.started_at, i.outcome, coalesce(i.note, '')`+from+` ORDER BY r.started_at DESC, i.seq DESC LIMIT ?`, append(args, priorVerdictsMax)...)
+	out, err := readVerdicts(ctx, q, port, `SELECT r.started_at, i.outcome, coalesce(i.note, '')`+from+` ORDER BY r.started_at DESC, i.seq DESC LIMIT ?`,
+		append(args, priorVerdictsMax)...)
 	if err != nil || len(out) < priorVerdictsMax || seenClean(out) {
 		return out, err
 	}
-	clean, err := read(`SELECT r.started_at, i.outcome, coalesce(i.note, '')`+from+` AND i.outcome = ? ORDER BY r.started_at DESC LIMIT 1`, append(args, verdictOpen)...)
+	clean, err := readVerdicts(ctx, q, port, `SELECT r.started_at, i.outcome, coalesce(i.note, '')`+from+` AND i.outcome = ? ORDER BY r.started_at DESC LIMIT 1`,
+		append(args, verdictOpen)...)
 	return append(out, clean...), err
+}
+
+// readVerdicts runs query, which selects the start of the run, the outcome and the note of verdict items of port (portKey).
+func readVerdicts(ctx context.Context, q querier, port, query string, args ...any) ([]priorVerdict, error) {
+	rows, err := q.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("the verdicts of %s: %w", port, err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []priorVerdict
+	for rows.Next() {
+		var p priorVerdict
+		if err := rows.Scan(&p.at, &p.outcome, &p.note); err != nil {
+			return nil, fmt.Errorf("the verdicts of %s: %w", port, err)
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// notReached says a verdict is one of a port the scan did not reach (it says nothing of the target): the row is kept as it was.
+func notReached(outcome string) bool {
+	return outcome == verdictUnreached || outcome == verdictLost || outcome == verdictUnknown
+}
+
+// notReachedSince is since when the scans of target have not reached port (portKey): the start of the run of the oldest verdict of
+// the newest unbroken streak of unreached, lost and unknown verdicts. Nil when the newest verdict is any other (the target answered,
+// or the network did) or the port has none. It reads at most priorVerdictsMax verdicts: a longer streak gives the oldest of those.
+func notReachedSince(ctx context.Context, q querier, target, port string) (*string, error) {
+	out, err := readVerdicts(ctx, q, port, `SELECT r.started_at, i.outcome, coalesce(i.note, '') FROM core_run_item i JOIN core_run r ON r.id = i.run_id
+		WHERE r.module = ? AND r.kind = ? AND r.subject_kind = 'target' AND r.subject_id = ? AND r.started_at IS NOT NULL
+			AND i.subject_kind = ? AND i.subject_id = ? ORDER BY r.started_at DESC, i.seq DESC LIMIT ?`,
+		ModuleID, RunKind, target, itemVerdict, port, priorVerdictsMax)
+	if err != nil {
+		return nil, err
+	}
+	var since *string
+	for _, p := range out {
+		if !notReached(p.outcome) {
+			break
+		}
+		since = &p.at
+	}
+	return since, nil
 }
 
 // runStart is when run started ("" when not known).

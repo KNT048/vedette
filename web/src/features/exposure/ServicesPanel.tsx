@@ -46,7 +46,7 @@ function ServicesTable({ node, services, issues, gateway }: { node: TargetNode; 
       // to the issues of this service only: each row's link has its own target and its own label
       return n > 0 ? <Link className="font-medium text-accent underline-offset-4 hover:underline" to={issuesOf(s.id)} aria-label={t('services.issuesOn', { count: n, where: `${s.ip}:${s.port}/${s.proto}` })}>{t('services.issues', { count: n })}</Link> : <span className="text-muted">0</span>
     } },
-    { id: 'seen', header: t('services.col.seen'), accessorFn: (s) => s.last_seen, cell: ({ row }) => <Seen i={row.original} /> },
+    { id: 'seen', header: t('services.col.seen'), accessorFn: (s) => s.last_seen, cell: ({ row }) => <ServiceSeen s={row.original} /> },
   ]
   return (
     <div className="grid gap-3">
@@ -60,7 +60,7 @@ function ServicesTable({ node, services, issues, gateway }: { node: TargetNode; 
             <span className="font-mono text-meta">{s.ip}:{s.port}/{s.proto}</span>
             <ServiceCell s={s} />
             <WebCell s={s} />
-            <Seen i={s} />
+            <ServiceSeen s={s} />
           </div>
         )}
         empty={<EmptyState title={t(`services.empty.${view}`)}>{view === 'open' && !node.last_scan ? t('services.emptyNever') : null}</EmptyState>} />
@@ -99,6 +99,20 @@ function WebCell({ s }: { s: Service }) {
       ) : null}
       {!s.is_web && !s.cert ? <span className="text-muted">—</span> : null}
     </span>
+  )
+}
+
+/** When the service was first and last seen; on an open one the last scans could not reach, since when, and what happens to it. */
+function ServiceSeen({ s }: { s: Service }) {
+  const { t } = useTranslation('exposure')
+  if (s.state !== 'open' || !s.not_reached_since) return <Seen i={s} />
+  return (
+    <div className="grid gap-0.5">
+      <Seen i={s} />
+      <InfoLine className="text-caption text-warn" topic={t('services.notReached', { date: fmtDate(s.not_reached_since) })} info={t('services.notReachedInfo')}>
+        {t('services.notReached', { date: fmtDate(s.not_reached_since) })}
+      </InfoLine>
+    </div>
   )
 }
 

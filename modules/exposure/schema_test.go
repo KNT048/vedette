@@ -109,7 +109,7 @@ func sampleOf(name string) string {
 	switch {
 	case name == "accepted_until":
 		return "2026-11-14"
-	case name == "at" || strings.HasSuffix(name, "_at") || name == "last_deep" || name == "last_tried":
+	case name == "at" || strings.HasSuffix(name, "_at") || strings.HasSuffix(name, "_since") || name == "last_deep" || name == "last_tried":
 		return "2026-11-14T10:00:00.000Z"
 	case name == "date" || name == "date_added" || name == "last_seen" || name == "from" || name == "to":
 		return "2026-11-14"

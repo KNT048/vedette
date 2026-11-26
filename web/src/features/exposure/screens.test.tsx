@@ -79,6 +79,20 @@ describe('exposure screens: a target page', () => {
     expect(within(names).getByText('vpn.example.com').closest('tr')).toHaveTextContent(/\d{1,2} \w{3,4} 2026 – \d{1,2} \w{3,4} 2026/)
   })
 
+  it('an open service the last scans could not reach says since when, with what happens to it; one they reached does not', async () => {
+    exposureTreeRowsStore.update((r) => ({ ...r, services: { ...r.services, 'xt-11': (r.services['xt-11'] ?? []).map((s) =>
+      s.id === 'xs-11-3' ? { ...s, not_reached_since: '2026-11-03T08:00:00.000Z' } : { ...s, not_reached_since: null }) } }))
+    renderApp('/exposure/xt-11?tab=services')
+    const services = await screen.findByRole('table', { name: 'Services of example.com' })
+    const smtp = within(services).getByText('198.51.100.21:25/tcp').closest('tr')!
+    expect(smtp).toHaveTextContent('Not reached since 3 Nov 2026')
+    await userEvent.click(within(smtp).getByRole('button', { name: /Not reached since 3 Nov 2026/ }))
+    expect(await screen.findByText(/The last scans could not reach this port from the box\./)).toBeInTheDocument()
+    const https = within(services).getByText('198.51.100.20:443/tcp').closest('tr')!
+    expect(https).not.toHaveTextContent('Not reached')
+    expect(within(services).getAllByText(/^Not reached since/)).toHaveLength(1)
+  })
+
   it('with the scope "names I choose", picked names are added to the choice', async () => {
     renderApp('/exposure/xt-13?tab=names')
     const names = await screen.findByRole('table', { name: 'Names under shop.example.net' })

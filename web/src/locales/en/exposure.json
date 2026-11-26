@@ -706,6 +706,8 @@
     "webChip": "Web",
     "cert": "Certificate for {{names}}, until {{date}}",
     "certExpired": "Certificate for {{names}} expired on {{date}}",
+    "notReached": "Not reached since {{date}}",
+    "notReachedInfo": "The last scans could not reach this port from the box. It is kept until a scan reaches it again; 30 days after it was last seen, it is marked no longer seen.",
     "noWeb": "No open service answered HTTP, so the passive web scan had no page to read. Ports checked: {{ports}}.",
     "empty": {
       "open": "No open service",

@@ -115,7 +115,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   at all to the re-check while the address answered on other ports: a firewall or WAF dropping the box) closes it only as the third
   filtered scan in a row since it was last seen, at least 24 hours after the first. `unreached`, `lost` and `unknown` never close
   it: it stays as it was, and once it was last seen more than 30 days ago it is no longer listed ("not reached for 30 days": not
-  counted as closed by the target, no alert, said in the save step and in a line of its address). `network` with a syn-ack (the network accepts the port for
+  counted as closed by the target, no alert, said in the save step and in a line of its address). Until then the services list
+  gives it `not_reached_since`: the start of the first scan of the newest unbroken streak of those verdicts of the port (at most
+  the bounded read of INV-45's verdict items), null when its newest verdict is any other or it has none (`TestServices_NotReachedSince`). `network` with a syn-ack (the network accepts the port for
   every address) retires it (no longer listed, its issues gone, not counted as closed) only when this scan read the target's own
   answer on that port and found it the network's (INV-44), and no scan ever saw it open over a path the network-path check found
   clean; otherwise it is kept (a port this scan did not probe, or whose comparison failed, says nothing about the target). A row

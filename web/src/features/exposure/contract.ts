@@ -443,6 +443,7 @@ export const Service = z.object({
   ident: ServiceIdent.describe('probed: a probe\'s answer named it; table: only the usual service of the port number; none: not identified'),
   state: z.enum(['open', 'closed']).describe('closed: a later scan of the address no longer found it open'),
   first_seen: z.iso.datetime(), last_seen: z.iso.datetime(),
+  not_reached_since: z.iso.datetime().nullable().describe('On an open service whose newest scans could not reach the port from the box (no answer from the address, it stopped answering, or the probe step did not finish): when the first of those scans started. The service is kept until a scan reaches the port again, and is no longer listed 30 days after it was last seen. null when the newest scan that checked the port reached it, or none did'),
 })
 
 export const IssueEngine = z.enum(['surface', 'nuclei', 'zap', 'openvas', 'match'])

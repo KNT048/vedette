@@ -122913,6 +122913,10 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) encodeFields(e *jx.Encode
 		e.Str(s.Name)
 	}
 	{
+		e.FieldStart("not_reached_since")
+		s.NotReachedSince.Encode(e, json.EncodeDateTime)
+	}
+	{
 		e.FieldStart("port")
 		e.Int(s.Port)
 	}
@@ -122938,7 +122942,7 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) encodeFields(e *jx.Encode
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTreeIDServicesOKItemsItem = [15]string{
+var jsonFieldsNameOfExposureGetExposureTreeIDServicesOKItemsItem = [16]string{
 	0:  "cert",
 	1:  "cpe",
 	2:  "first_seen",
@@ -122948,12 +122952,13 @@ var jsonFieldsNameOfExposureGetExposureTreeIDServicesOKItemsItem = [15]string{
 	6:  "is_web",
 	7:  "last_seen",
 	8:  "name",
-	9:  "port",
-	10: "product",
-	11: "proto",
-	12: "state",
-	13: "title",
-	14: "version",
+	9:  "not_reached_since",
+	10: "port",
+	11: "product",
+	12: "proto",
+	13: "state",
+	14: "title",
+	15: "version",
 }
 
 // Decode decodes ExposureGetExposureTreeIDServicesOKItemsItem from json.
@@ -123069,8 +123074,18 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) Decode(d *jx.Decoder) err
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
-		case "port":
+		case "not_reached_since":
 			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.NotReachedSince.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"not_reached_since\"")
+			}
+		case "port":
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int()
 				s.Port = int(v)
@@ -123082,7 +123097,7 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"port\"")
 			}
 		case "product":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Product = string(v)
@@ -123094,7 +123109,7 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"product\"")
 			}
 		case "proto":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Proto.Decode(d); err != nil {
 					return err
@@ -123104,7 +123119,7 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"proto\"")
 			}
 		case "state":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.State.Decode(d); err != nil {
 					return err
@@ -123114,7 +123129,7 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"state\"")
 			}
 		case "title":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -123126,7 +123141,7 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) Decode(d *jx.Decoder) err
 				return errors.Wrap(err, "decode field \"title\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -123148,7 +123163,7 @@ func (s *ExposureGetExposureTreeIDServicesOKItemsItem) Decode(d *jx.Decoder) err
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

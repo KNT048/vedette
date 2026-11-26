@@ -227,13 +227,11 @@ func ResultOf[T any](run api.Run) (T, error) {
 func (c *Client) BackupPurge(ctx context.Context, requestID, actor string) (deleted int, runID string, err error) {
 	run, err := c.Run(ctx, api.CmdBackupPurge, nil, requestID, actor)
 	runID = run.RunID
-	for err == nil && !run.Status.Terminal() {
-		select {
-		case <-ctx.Done():
-			return 0, runID, ctx.Err()
-		case <-time.After(100 * time.Millisecond):
-		}
-		run, err = c.GetRun(ctx, runID)
+	if err == nil {
+		run, err = c.follow(ctx, run, paceQuick)
+	}
+	if err != nil && ctx.Err() != nil {
+		return 0, runID, ctx.Err()
 	}
 	if err != nil {
 		return 0, runID, err
@@ -249,33 +247,23 @@ func (c *Client) BackupPurge(ctx context.Context, requestID, actor string) (dele
 	return res.Deleted, runID, err
 }
 
-// ZapBaseline runs zap.baseline and follows the run until it ends (a scan takes minutes: the run is read again every two
-// seconds), then returns it as it ended: succeeded with an api.ZapBaselineResult, or refused or failed with its code. ctx bounds the
+// ZapBaseline runs zap.baseline and follows the run until it ends (a scan takes minutes: the run is read again after 2 s,
+// then less often, at most every 10 s), then returns it as it ended: succeeded with an api.ZapBaselineResult, or refused or failed with its code. ctx bounds the
 // wait; the run itself stops at the host's own limit.
 func (c *Client) ZapBaseline(ctx context.Context, args api.ZapBaselineArgs, requestID, actor string) (api.Run, error) {
 	run, err := c.Run(ctx, api.CmdZapBaseline, args, requestID, actor)
-	for err == nil && !run.Status.Terminal() {
-		select {
-		case <-ctx.Done():
-			return run, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
-		run, err = c.GetRun(ctx, run.RunID)
+	if err == nil {
+		run, err = c.follow(ctx, run, paceLong)
 	}
 	return run, err
 }
 
-// ZapActive runs zap.active and follows the run until it ends, read again every two seconds like ZapBaseline: succeeded with an
+// ZapActive runs zap.active and follows the run until it ends, read again like ZapBaseline: succeeded with an
 // api.ZapActiveResult, or refused or failed with its code. ctx bounds the wait only: a caller that gives up stops the run with ZapStop.
 func (c *Client) ZapActive(ctx context.Context, args api.ZapActiveArgs, requestID, actor string) (api.Run, error) {
 	run, err := c.Run(ctx, api.CmdZapActive, args, requestID, actor)
-	for err == nil && !run.Status.Terminal() {
-		select {
-		case <-ctx.Done():
-			return run, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
-		run, err = c.GetRun(ctx, run.RunID)
+	if err == nil {
+		run, err = c.follow(ctx, run, paceLong)
 	}
 	return run, err
 }
@@ -284,13 +272,8 @@ func (c *Client) ZapActive(ctx context.Context, args api.ZapActiveArgs, requestI
 // api.ZapAuthorizeResult, or refused with its code.
 func (c *Client) ZapAuthorize(ctx context.Context, args api.ZapAuthorizeArgs, requestID, actor string) (api.Run, error) {
 	run, err := c.Run(ctx, api.CmdZapAuthorize, args, requestID, actor)
-	for err == nil && !run.Status.Terminal() {
-		select {
-		case <-ctx.Done():
-			return run, ctx.Err()
-		case <-time.After(50 * time.Millisecond):
-		}
-		run, err = c.GetRun(ctx, run.RunID)
+	if err == nil {
+		run, err = c.follow(ctx, run, paceMemory)
 	}
 	return run, err
 }
@@ -298,13 +281,8 @@ func (c *Client) ZapAuthorize(ctx context.Context, args api.ZapAuthorizeArgs, re
 // ZapPrepare runs zap.prepare and follows it to its end (seconds: the download runs beside it on the host).
 func (c *Client) ZapPrepare(ctx context.Context, requestID, actor string) (api.Run, error) {
 	run, err := c.Run(ctx, api.CmdZapPrepare, nil, requestID, actor)
-	for err == nil && !run.Status.Terminal() {
-		select {
-		case <-ctx.Done():
-			return run, ctx.Err()
-		case <-time.After(500 * time.Millisecond):
-		}
-		run, err = c.GetRun(ctx, run.RunID)
+	if err == nil {
+		run, err = c.follow(ctx, run, paceShort)
 	}
 	return run, err
 }
@@ -313,19 +291,14 @@ func (c *Client) ZapPrepare(ctx context.Context, requestID, actor string) (api.R
 // removed and proven gone before it answers; a run that has not started yet will refuse to.
 func (c *Client) ZapStop(ctx context.Context, args api.ZapStopArgs, requestID, actor string) (api.Run, error) {
 	run, err := c.Run(ctx, api.CmdZapStop, args, requestID, actor)
-	for err == nil && !run.Status.Terminal() {
-		select {
-		case <-ctx.Done():
-			return run, ctx.Err()
-		case <-time.After(500 * time.Millisecond):
-		}
-		run, err = c.GetRun(ctx, run.RunID)
+	if err == nil {
+		run, err = c.follow(ctx, run, paceShort)
 	}
 	return run, err
 }
 
 // Greenbone runs one of the OpenVAS commands (api.CmdGreenboneUp with api.GreenboneUpArgs, api.CmdGreenboneDown or
-// api.CmdGreenboneSyncFeed with nil) and follows the run until it ends, read again every two seconds like ZapBaseline. ctx bounds
+// api.CmdGreenboneSyncFeed with nil) and follows the run until it ends, read again like ZapBaseline. ctx bounds
 // the wait only: the run goes on at the host until its own limit, or until greenbone.down stops it.
 func (c *Client) Greenbone(ctx context.Context, command string, args any, requestID, actor string) (api.Run, error) {
 	switch command {
@@ -334,13 +307,8 @@ func (c *Client) Greenbone(ctx context.Context, command string, args any, reques
 		return api.Run{}, fmt.Errorf("host: %q is not an OpenVAS command", command)
 	}
 	run, err := c.Run(ctx, command, args, requestID, actor)
-	for err == nil && !run.Status.Terminal() {
-		select {
-		case <-ctx.Done():
-			return run, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
-		run, err = c.GetRun(ctx, run.RunID)
+	if err == nil {
+		run, err = c.follow(ctx, run, paceLong)
 	}
 	return run, err
 }
@@ -361,17 +329,15 @@ type FenceError struct {
 
 func (e *FenceError) Error() string { return "host: " + e.Code + ": " + e.Message }
 
-// runQuick runs a short read-only command and follows it to its end (every 200 ms), returning its result or a *FenceError.
+// runQuick runs a short read-only command and follows it to its end (read again from 100 ms on, see follow), returning its result or a *FenceError.
 func runQuick[T any](ctx context.Context, c *Client, command string, args any, requestID, actor string) (T, error) {
 	var zero T
 	run, err := c.Run(ctx, command, args, requestID, actor)
-	for err == nil && !run.Status.Terminal() {
-		select {
-		case <-ctx.Done():
-			return zero, ctx.Err()
-		case <-time.After(200 * time.Millisecond):
-		}
-		run, err = c.GetRun(ctx, run.RunID)
+	if err == nil {
+		run, err = c.follow(ctx, run, paceQuick)
+	}
+	if err != nil && ctx.Err() != nil {
+		return zero, ctx.Err()
 	}
 	var he *Error
 	switch {
@@ -412,4 +378,38 @@ func (c *Client) ExposureFenceCheck(ctx context.Context, args api.ExposureFenceC
 func (c *Client) ExposureTokenForget(ctx context.Context, domain, requestID, actor string) error {
 	_, err := runQuick[api.ExposureTokenForgetResult](ctx, c, api.CmdExposureTokenForget, api.ExposureTokenArgs{Domain: domain}, requestID, actor)
 	return err
+}
+
+// pace is how often follow reads a run again: first after the first read, then twice as long each time, at most most.
+type pace struct{ first, most time.Duration }
+
+var (
+	paceMemory = pace{50 * time.Millisecond, time.Second}      // answered from the host's memory
+	paceQuick  = pace{100 * time.Millisecond, 2 * time.Second} // a few files or a DNS lookup
+	paceShort  = pace{500 * time.Millisecond, 5 * time.Second} // seconds: a container stopped, a download started
+	paceLong   = pace{2 * time.Second, 10 * time.Second}       // minutes: a ZAP scan, OpenVAS starting or its feed
+)
+
+// follow reads the run again until it ends, waiting longer between reads as it goes on (a long run costs the host's
+// one-minute request budget about six reads a minute, not thirty). A read the rate limiter still refuses after the
+// client's own waits is "not known yet": the run is read again at the next turn, and only ctx ending stops the follow
+// (the run as last read, ctx.Err()). Any other error of a read ends it.
+func (c *Client) follow(ctx context.Context, run api.Run, p pace) (api.Run, error) {
+	wait := p.first
+	for !run.Status.Terminal() {
+		if err := c.o.Sleep(ctx, wait); err != nil {
+			return run, err
+		}
+		wait = min(wait*2, p.most)
+		next, err := c.GetRun(ctx, run.RunID)
+		switch {
+		case err == nil:
+			run = next
+		case ctx.Err() != nil:
+			return run, ctx.Err()
+		case !IsCode(err, api.CodeRateLimited):
+			return run, err
+		}
+	}
+	return run, nil
 }

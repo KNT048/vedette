@@ -55,7 +55,7 @@ func exposureService(d deps) *exposure.Service {
 	if d.Inventory != nil && d.Findings != nil { // a nil service would only fail at the first read
 		g := exposureGateway{inv: d.Inventory, fnd: d.Findings}
 		if d.HostSocket != "" {
-			g.state = hostclient.New(d.HostSocket)
+			g.state = &cachedNetState{r: hostclient.New(d.HostSocket), ttl: exposureNetTTL, now: d.Clock}
 		}
 		cfg.Gateway, cfg.Appliances = g, g
 	}

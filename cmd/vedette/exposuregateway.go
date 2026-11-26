@@ -5,8 +5,10 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/findings"
 	"github.com/knt048/vedette/modules/inventory"
@@ -19,6 +21,41 @@ type exposureGateway struct {
 	state netStateReader // nil: no host
 	inv   *inventory.Service
 	fnd   *findings.Service
+}
+
+// exposureNetTTL is how long exposure uses one answer of the host's state/net. The exposure pages read the gateway at every
+// refresh (every 5 s per open page while a scan runs) and a scan reads it at its start; the default route rarely changes, and
+// each uncached read would spend the host's one-minute request budget that the scan's own calls need.
+const exposureNetTTL = 30 * time.Second
+
+// cachedNetState is a netStateReader that keeps a good answer for ttl. Concurrent callers wait for the one read in flight
+// (bounded by the caller's own timeout); a failed read is not kept, so the next caller asks again.
+type cachedNetState struct {
+	r   netStateReader
+	ttl time.Duration
+	now func() time.Time
+
+	mu sync.Mutex
+	at time.Time
+	st api.NetState
+}
+
+func (c *cachedNetState) StateNet(ctx context.Context) (api.NetState, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := time.Now
+	if c.now != nil {
+		now = c.now
+	}
+	if !c.at.IsZero() && now().Sub(c.at) < c.ttl {
+		return c.st, nil
+	}
+	st, err := c.r.StateNet(ctx)
+	if err != nil {
+		return st, err
+	}
+	c.st, c.at = st, now()
+	return st, nil
 }
 
 func (g exposureGateway) Gateway(ctx context.Context) (exposure.GatewayDevice, error) {

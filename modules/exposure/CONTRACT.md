@@ -81,7 +81,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   name's CNAME inside the domain, its gateway not in 100.64.0.0/10); every other address (hosting, a CDN, a proxy, a typed IP, a name
   pointing outside) gets the deep scan without them and a line that says so (`deepGate`). The run's check step (`modeNote`) and the
   Deep scan dialog never claim them for a domain or a typed IP: a domain's says they run only on its addresses that are this box's
-  own public IP (the dialog names the ones its last scans saw, or says none is), a typed IP's says they are not included
+  own public IP (the dialog names the ones its last scans saw that the tree has as an IP the box found, never a typed-in IP of kind
+  `box`, or says none is), a typed IP's says they are not included
   (`TestModeNote_ADomainsDeepScanSaysWhichAddressesGetTheDisruptiveChecks`). An acceptance of a version in
   `keptTermsVersions` (2026-11-18b) stays valid after the update with its own text and disruptive flag: with the flag the disruptive
   checks keep running, without it the deep scan only until the current terms are accepted. Every refused acceptance is logged at
@@ -123,10 +124,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   (`Content.Silent`, run item `silent_port`) until the third such scan in a row at least 24 hours after the first (`silentStreak`),
   which closes it. A port that accepted the re-check (run item `answered_port` / `still_open`) starts that count again, and neither
   such a scan nor a silent one is the scan before that missed the port for the two-miss rule (`previousCheck`). The run's log and a
-  "Not checked" line of kind `silent_ports` say so. No prober, a failed check or a port past the bounds: the rules above.
+  "Not checked" line of kind `silent_ports` say so (it also says a port the owner closed is marked closed after three scans over a
+  day; past 6 ports it counts the rest, so it stays within a line's 300 characters). No prober, a failed check or a port past the bounds: the rules above.
   `TestSilentPorts_AWAFThatBlocksTheBoxClosesNothing`, `TestSilentPorts_ThreeSilentScansWithinADayCloseNothing`,
   `TestSilentPorts_AResetClosesAndAnAnswerKeeps`, `TestSilentPorts_AnAnswerInBetweenStartsTheSilentCountAgain`,
-  `TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore`. (3) An address
+  `TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore`, `TestSilentPorts_ManySilentPortsKeepTheirLine`. (3) An address
   that stopped answering during the scan (INV-42: a port seen open earlier in the run no longer accepted a TCP connection before
   the results were written) is not a miss of any port: its run item is `stopped_answering`, which checks no port and does not count
   in `emptyStreak` (a router that lost its NAT loopback may answer with resets on its unforwarded ports, which (1) and (2) would
@@ -145,7 +147,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   `previousCheck` skip the run for it). The run's log says which ports, once each, and the target's "Not checked" lines get one line
   of kind `network_path` ("Ports 2000 and 5060 are answered by your own network …, so they were left out of the results."). No
   check wired, or a check that fails: the ports stay as found. `TestNetworkPath_APortAnsweredForANeverRoutedAddressIsLeftOut`,
-  `TestNetworkPath_APortTheNetworkAnswersIsNeitherSeenNorMissed`, `TestNetworkPath_NoCheckKeepsTheOpenPorts`; cmd/vedette
+  `TestNetworkPath_APortTheNetworkAnswersIsNeitherSeenNorMissed`, `TestNetworkPath_NoCheckKeepsTheOpenPorts`,
+  `TestNetworkPath_ManyPortsKeepTheirLine` (past 6 ports and 3 addresses the line counts the rest); cmd/vedette
   `TestExposurePathConnectsOnlyToNeverRoutedAddresses`.
 - **INV-41** A scan to which nothing of the target answered while the box could not reach the public IP services either (INV-2,
   one round asked only then) is incomplete: it ends failed with 502 `unreachable` saying the box could not reach the target, and

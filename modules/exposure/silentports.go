@@ -140,16 +140,17 @@ func (s *Service) recheckMissed(ctx context.Context, t Target, c *Content) {
 	if len(silent) > 0 {
 		line += " " + joinAnd(silent, 6) + " gave no answer at all (no reset): a firewall or WAF that blocks this box looks like this, so they are kept open until three scans in a row over at least a day find them silent."
 		for _, ip := range slices.Sorted(maps.Keys(c.Silent)) {
-			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "silent_ports", Text: fmt.Sprintf(
-				"%s of %s were open before and gave no answer at all in this scan (no reset): a firewall or WAF may be blocking this box. %s kept as %s until three scans in a row over at least a day find %s silent. If you closed %s yourself, %s marked closed after three scans over a day.",
-				upperFirst(portsOnly(c.Silent[ip])), ip, upperFirst(itThey(len(c.Silent[ip]))+" "+isAre(len(c.Silent[ip]))), itThem(len(c.Silent[ip]), "it was", "they were"), itThem(len(c.Silent[ip]), "it", "them"),
-				itThem(len(c.Silent[ip]), "it", "them"), itThey(len(c.Silent[ip]))+" "+isAre(len(c.Silent[ip])))})
+			n := len(c.Silent[ip])
+			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "silent_ports", Text: clipText(fmt.Sprintf( // longer than maxLineText: dropped
+				"%s of %s %s open before and gave no answer at all in this scan (no reset): a firewall or WAF may be blocking this box, so %s kept as %s. If you closed %s yourself, %s marked closed after three scans over a day.",
+				upperFirst(portsOnly(c.Silent[ip])), ip, itThem(n, "was", "were"), itThey(n)+" "+isAre(n), itThem(n, "it was", "they were"),
+				itThem(n, "it", "them"), itThey(n)+" "+isAre(n)), maxLineText)})
 		}
 	}
 	runStepsOf(ctx).logLine(ctx, corerun.Info, line)
 }
 
-// portsOnly is "port 80" or "ports 80 and 443".
+// portsOnly is "port 80", "ports 80 and 443", or past maxLinePorts "ports 80, …, 8443 and 3 more".
 func portsOnly(ports []int) string {
 	list := make([]string, len(ports))
 	for i, p := range ports {
@@ -158,7 +159,7 @@ func portsOnly(ports []int) string {
 	if len(list) == 1 {
 		return "port " + list[0]
 	}
-	return "ports " + joinAnd(list, len(list))
+	return "ports " + joinAnd(list, maxLinePorts)
 }
 
 func itThey(n int) string { return itThem(n, "it", "they") }

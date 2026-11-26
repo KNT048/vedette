@@ -146,22 +146,28 @@ func (s *Service) pathPortsOf(ctx context.Context) ([]int, string) {
 	ports := slices.Sorted(maps.Keys(p.ports))
 	addrs := slices.Clone(p.order)
 	who := strings.Join(addrs, ", ")
-	if len(addrs) > 1 {
+	switch {
+	case len(addrs) > maxLineAddrs:
+		who = strings.Join(addrs[:maxLineAddrs], ", ") + " or " + strconv.Itoa(len(addrs)-maxLineAddrs) + " more"
+	case len(addrs) > 1:
 		who = strings.Join(addrs[:len(addrs)-1], ", ") + " or " + addrs[len(addrs)-1]
 	}
-	return ports, upperFirst(fmt.Sprintf(notPathPorts, portsWords(ports), who, itWas(len(ports))))
+	// a "Not checked" line longer than maxLineText is dropped when the results are written: a few ports and addresses, then counts
+	return ports, clipText(upperFirst(fmt.Sprintf(notPathPorts, portsWords(ports), who, itWas(len(ports)))), maxLineText)
 }
 
-// portsWords is "port 5060 is" or "ports 2000 and 5060 are".
+// How many ports and addresses a line names before it counts the rest ("and 3 more"): "Not checked" lines hold maxLineText.
+const (
+	maxLinePorts = 6
+	maxLineAddrs = 3
+)
+
+// portsWords is "port 5060 is", "ports 2000 and 5060 are", or past maxLinePorts "ports 2000, …, 5060 and 3 more are".
 func portsWords(ports []int) string {
-	list := make([]string, len(ports))
-	for i, p := range ports {
-		list[i] = strconv.Itoa(p)
+	if len(ports) == 1 {
+		return "port " + strconv.Itoa(ports[0]) + " is"
 	}
-	if len(list) == 1 {
-		return "port " + list[0] + " is"
-	}
-	return "ports " + strings.Join(list[:len(list)-1], ", ") + " and " + list[len(list)-1] + " are"
+	return portsOnly(ports) + " are"
 }
 
 // itWas is "it was" or "they were".

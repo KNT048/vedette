@@ -529,7 +529,8 @@ export const SHOTS = [
     name: '08-restore', height: 900,
     async run({ page, mark, shoot }) {
       await page.goto('/settings/data')
-      await page.getByRole('button', { name: /^Restore/ }).first().click()
+      // a backup row's own Restore, not "Restore from a file" above the list
+      await page.getByRole('button', { name: 'Restore', exact: true }).first().click()
       const d = dialog(page)
       await mark(d.getByText(/^Before it restores/), 1)
       await mark(d.getByLabel('Your current password'), 2)

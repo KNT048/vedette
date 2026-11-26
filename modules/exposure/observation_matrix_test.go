@@ -499,6 +499,16 @@ var omRows = []omRow{
 		before: []omNet{omHost(omSilence, 22, 8443)}, beforeAll: true, now: omHost(omSilence, 80, 443),
 		want: omWant{open: []int{22, 8443}, run: corerun.Done, noLine: []string{"no answer at all"}},
 	},
+	{
+		// A row an earlier deep scan stored on 22 of the hosting address, before the vantage was checked. Now the box sits behind a
+		// network that accepts 22 for every address, and the light scan checks the address by name on 80 and 443 only: nothing of
+		// this scan reached 22 there, and its answer was never compared with the network's, so the network's syn-ack says nothing
+		// about the row. It stays.
+		name: "middlebox_proxy/stored_before_the_check/row_on_a_port_this_scan_did_not_probe_is_kept", kind: omDomain,
+		before: []omNet{omHost(omSilence, 22, 80, 443)}, beforeAll: true, beforeNoPath: true,
+		now: omPath(omHost(omSilence, 22, 80, 443), omSynAck, 22), distinct: []int{22},
+		want: omWant{open: []int{22, 80, 443}, run: corerun.Done},
+	},
 }
 
 // omFence is the Vedette host's fence for a typed IP: it gives the target's own token.

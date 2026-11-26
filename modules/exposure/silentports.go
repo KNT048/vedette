@@ -71,7 +71,7 @@ func (s *Service) recheckMissed(ctx context.Context, t Target, c *Content) {
 	}
 	seen := openPorts(*c)
 	path, _ := s.pathPortsOf(ctx)
-	scanned := s.portScanned(ctx, t, *c)
+	scanned := portScanned(t, *c)
 	missed := map[string][]int{}
 	for _, x := range prev {
 		k := ipKey(x.IP)
@@ -166,7 +166,7 @@ func itThem(n int, one, many string) string {
 // portScanned is the addresses this scan port-scanned (by their canonical spelling): an IP target's own address, a domain's addresses
 // its deep scan swept, and the box's own addresses among a domain's (the runner connects to its fixed list there). Only these are
 // re-checked: the scan already reached them.
-func (s *Service) portScanned(ctx context.Context, t Target, c Content) map[string]bool {
+func portScanned(t Target, c Content) map[string]bool {
 	out := map[string]bool{}
 	if t.Kind == KindIP {
 		out[ipKey(t.Value)] = true

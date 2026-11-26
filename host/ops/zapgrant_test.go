@@ -230,3 +230,42 @@ func TestZapActive_AGrantIsForOnePressOneAddressOnePass(t *testing.T) {
 		}
 	}
 }
+
+// A grant whose pass is over gives up its place at once, and a host that holds as many grants as it keeps drops the oldest press
+// instead of refusing the newest one: a person who presses Scan now again always gets the disruptive rules for that press. A spent
+// grant is still refused as spent, and the dropped one as one the host no longer holds.
+func TestZapAuthorize_ASpentGrantFreesItsPlaceAndAFullHostDropsTheOldest(t *testing.T) {
+	t.Parallel()
+	a := newZapAuthz(t, routeLAN)
+	spent := a.mustGrant(zapTestIP)
+	for range 4 {
+		if why, rough := a.active(spent, zapPerson); !rough || why != "" {
+			t.Fatalf("a page of the pass: disruptive rules %v, refused %q", rough, why)
+		}
+	}
+	held := make([]string, 0, 32)
+	for i := range 32 {
+		a.clk.Advance(time.Second)
+		g, err := a.grant(zapTestIP, zapPerson)
+		if err != nil {
+			t.Fatalf("press %d after a spent grant: %v", i+1, err)
+		}
+		held = append(held, g)
+	}
+	if why, rough := a.active(spent, zapPerson); rough || why != "zap_grant_spent" {
+		t.Errorf("the spent grant: disruptive rules %v, refused %q", rough, why)
+	}
+	a.clk.Advance(time.Second)
+	newest, err := a.grant(zapTestIP, zapPerson)
+	if err != nil {
+		t.Fatalf("a press while the host holds as many grants as it keeps: %v", err)
+	}
+	if why, rough := a.active(held[0], zapPerson); rough || why != "zap_grant_unknown" {
+		t.Errorf("the oldest press, dropped for the newest: disruptive rules %v, refused %q", rough, why)
+	}
+	for _, g := range []string{newest, held[1], held[31]} {
+		if why, rough := a.active(g, zapPerson); !rough || why != "" {
+			t.Errorf("a press the host still holds: disruptive rules %v, refused %q", rough, why)
+		}
+	}
+}

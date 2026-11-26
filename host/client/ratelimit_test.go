@@ -86,7 +86,7 @@ func TestRateLimitWaitIsCapped(t *testing.T) {
 	t.Parallel()
 	h := servertest.Start(t, nil, func(o *server.Options) { o.RequestsPerMinute = 1 })
 	fs := &fakeSleep{clock: h.Clock}
-	c := client.NewWithOptions(h.Socket, client.Options{MaxRateWait: 20 * time.Second, Sleep: fs.Sleep})
+	c := client.NewWithOptions(h.Socket, client.Options{MaxRateWait: 20 * time.Second, RateBudget: 5 * time.Minute, Sleep: fs.Sleep})
 	defer c.Close()
 	ctx := context.Background()
 	if _, err := c.Info(ctx); err != nil {
@@ -146,6 +146,38 @@ func TestRateLimitBudgetWithoutDeadline(t *testing.T) {
 	}
 	if n := len(fs.got()); n != 2 || sum > 25*time.Second {
 		t.Fatalf("waits = %v, want two waits of 10 s (and jitter) within the 25 s budget", fs.got())
+	}
+}
+
+// Core's page handlers call the host with the request's context, which has no deadline, and neither core's HTTP server
+// nor the web app cut a slow answer off. With the default budget a refusal whose slot frees soon is still waited out,
+// but one whose slot frees only late in the host's minute is returned within seconds, not after a minute of a spinner.
+func TestRateLimitDefaultBudgetWithoutDeadline(t *testing.T) {
+	t.Parallel()
+	h := servertest.Start(t, nil, func(o *server.Options) { o.RequestsPerMinute = 1 })
+	fs := &fakeSleep{clock: h.Clock}
+	c := client.NewWithOptions(h.Socket, client.Options{Sleep: fs.Sleep})
+	defer c.Close()
+	ctx := context.Background()
+	if _, err := c.Info(ctx); err != nil {
+		t.Fatal(err)
+	}
+	h.Clock.Advance(55 * time.Second) // the slot frees in 5 s
+	if _, err := c.Info(ctx); err != nil {
+		t.Fatalf("a refusal whose slot frees in 5 s: %v, want it waited out", err)
+	}
+	fs.mu.Lock()
+	fs.waits, fs.clock = nil, nil // from here the host's clock stands still: its next slot is a minute away
+	fs.mu.Unlock()
+	if _, err := c.Info(ctx); !client.IsCode(err, api.CodeRateLimited) {
+		t.Fatalf("err = %v, want rate_limited", err)
+	}
+	var sum time.Duration
+	for _, d := range fs.got() {
+		sum += d
+	}
+	if sum > 20*time.Second {
+		t.Fatalf("waits = %v (%v), want at most 20 s before the refusal is returned to a caller without a deadline", fs.got(), sum)
 	}
 }
 

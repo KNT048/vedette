@@ -74,8 +74,10 @@ type Client struct {
 type Options struct {
 	// MaxRateWait caps the host's Retry-After that one wait follows (default 30 s); the jitter adds up to a quarter.
 	MaxRateWait time.Duration
-	// RateBudget bounds the waits of one request when its context has no deadline (default 65 s: a slot of the host's
-	// one-minute window is free by then unless core keeps filling it).
+	// RateBudget bounds the waits of one request when its context has no deadline (default 20 s). Core's page handlers
+	// call the host with the request's context, which has no deadline, and nothing between the browser and the handler
+	// cuts a slow answer off: a refusal whose slot frees within the budget is waited out, a later one is returned at once
+	// for the handler to answer. A caller that can wait longer sets a deadline.
 	RateBudget time.Duration
 	// Sleep waits d or until ctx ends (default: a timer). It is used for the rate-limit waits and between the reads
 	// of a run the typed helpers follow; tests set it to drive a fake clock.
@@ -84,7 +86,7 @@ type Options struct {
 
 const (
 	defaultMaxRateWait = 30 * time.Second
-	defaultRateBudget  = 65 * time.Second
+	defaultRateBudget  = 20 * time.Second
 )
 
 // New returns a Client for the socket path.

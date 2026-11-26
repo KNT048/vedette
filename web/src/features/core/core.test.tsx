@@ -63,7 +63,7 @@ describe('core: initial setup', () => {
     expect(text).toHaveTextContent(/provided as-is, without warranty/)
     expect(text).toHaveTextContent(/It tests your systems the way an attacker would/)
     expect(text).toHaveTextContent(/every port, service version detection, vulnerability checks, including checks that confirm a flaw by sending the exploit request itself in a harmless form/)
-    expect(text).toHaveTextContent(/Disruptive checks are off by default and run only when you tick them for a target: denial of service, password guessing, sign-in attempts with default or well-known passwords/)
+    expect(text).toHaveTextContent(/The testing terms of a target also cover the disruptive checks, and they run only in a scan a person starts \(Scan now\), never in a scheduled scan: denial of service, password guessing, sign-in attempts with default or well-known passwords/)
     expect(text).toHaveTextContent(/A verified name is scanned at full depth on every IP address it resolves to/)
     expect(text).toHaveTextContent(`By ticking "${AGREE}"`) // the text quotes the box it asks you to tick
     expect(text).toHaveTextContent(`Version ${TERMS_VERSION}.`)

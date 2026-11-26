@@ -444,7 +444,8 @@ type vanished struct {
 //	| closed                      | closed at once when two probes of this run missed it, else when the newest scan before with a verdict of it missed it too |
 //	| filtered                    | closed by the third filtered scan in a row since it was last seen, at least a day after the first |
 //	| unreached, lost, unknown    | kept; no longer listed once it was last seen more than 30 days ago (not counted as closed, no alert) |
-//	| network                     | no longer listed when no scan ever saw it open over a clean path (it was the network's), else kept |
+//	| network (accepted)          | no longer listed when no scan ever saw it open over a clean path (it was the network's), else kept |
+//	| network (refused)           | kept: a network that refuses the port for every address says nothing about the target          |
 //
 // A service on an address that left the domain is closed at once. A row no longer listed has its issues gone like a closed one.
 func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, reported map[string]bool) (vanished, error) {
@@ -493,8 +494,8 @@ func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, re
 						return out, err
 					}
 				}
-			case verdictNetwork:
-				if !seenClean(prior) {
+			case verdictNetwork: // only a network that accepts the port for every address can have made the row; one that refuses it cannot
+				if v.reason == reasonSynAck && !seenClean(prior) {
 					if err := retire(x, &out.network); err != nil {
 						return out, err
 					}

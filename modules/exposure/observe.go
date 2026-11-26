@@ -39,7 +39,7 @@ import (
 //	| filtered   | no answer at all (no reset) to the re-check while the address answered elsewhere            | closed by the third such scan over a day |
 //	| unreached  | nothing of the address answered, or every port flipped to resets through NAT loopback      | kept ("not reached since"); 30 days: no longer listed |
 //	| lost       | answered earlier in the run, then stopped                                                  | kept, as unreached                     |
-//	| network    | the network answers the port for every address (syn-ack or reset), same answer as there     | kept; retired when no run saw it over a checked clean path |
+//	| network    | the network answers the port for every address (syn-ack or reset), same answer as there     | kept; a syn-ack one retired when no run saw it over a checked clean path |
 //	| unknown    | the calibration failed, or a probe step failed or was cut                                  | kept, as unreached                     |
 
 // The verdicts.

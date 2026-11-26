@@ -115,9 +115,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   at all to the re-check while the address answered on other ports: a firewall or WAF dropping the box) closes it only as the third
   filtered scan in a row since it was last seen, at least 24 hours after the first. `unreached`, `lost` and `unknown` never close
   it: it stays as it was, and once it was last seen more than 30 days ago it is no longer listed ("not reached for 30 days": not
-  counted as closed by the target, no alert, said in the save step). `network` retires it (no longer listed, its issues gone, not
-  counted as closed) only when no scan ever saw it open over a path the network-path check found clean (INV-44); otherwise it is
-  kept. Right before the results are written, the ports open before that this scan did not see, on the addresses it probed (an IP
+  counted as closed by the target, no alert, said in the save step). `network` with a syn-ack (the network accepts the port for
+  every address) retires it (no longer listed, its issues gone, not counted as closed) only when no scan ever saw it open over a
+  path the network-path check found clean (INV-44); otherwise it is kept. `network` with a reset (the network refuses the port for
+  every address) never closes or retires it: such a network cannot have made the row. Right before the results are written, the ports open before that this scan did not see, on the addresses it probed (an IP
   target, a domain's swept, own-box or by-name addresses; not an address that stopped answering, nor a name whose lookup got no
   answer), get one more TCP connect (`recheckMissed`, `PortProber`: cmd/vedette's liveness check, at most 8 addresses and 32 ports
   each): what each got is a probe of the run. The scans before are read from the run items of kind `verdict` only; items of runs
@@ -145,8 +146,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   lines get one line per address of kind `network_path` ("Ports 2000 and 5060 are answered by your own network …, so they were left
   out of the results."; "Port 25 is refused by your own network for every address …"). No check wired: the ports stay as found, seen
   over a path that was not checked (`open_unchecked`). A check that fails: the ports stay as found, their verdict is `unknown`, the
-  run is partly done and a `network_path` line says the box could not tell. A row stored open for a `network` port is retired only
-  when no scan saw it open over a checked clean path (a row stored before the check existed, or the network's own port); a row a
+  run is partly done and a `network_path` line says the box could not tell. A row stored open for a port the network accepts is retired
+  only when no scan saw it open over a checked clean path (a row stored before the check existed, or the network's own port); a row a
   clean scan saw is kept, so a proxy or a SIP helper added later never makes real services and their issues disappear. The save step
   and the run's log say "Ports 2000 and 5060 of <ip> are no longer listed: they are answered by your own network, not by <ip>."
   `TestNetworkPath_APortAnsweredForANeverRoutedAddressIsLeftOut`, `TestNetworkPath_EarlierRowsOfAPortTheNetworkAnswersAreRetired`,

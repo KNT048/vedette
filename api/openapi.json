@@ -35989,6 +35989,7 @@
                                 "description": "Where it was seen: URLs or lines of the engine's output"
                               },
                               "zap": {
+                                "description": "engine zap: ZAP's own rating of the alert and the pass that raised it; missing on other engines and on alerts stored before it was kept",
                                 "type": "object",
                                 "properties": {
                                   "risk": {
@@ -36025,8 +36026,7 @@
                                   "confidence",
                                   "pass"
                                 ],
-                                "additionalProperties": false,
-                                "description": "engine zap: ZAP's own rating of the alert and the pass that raised it; missing on other engines and on alerts stored before it was kept"
+                                "additionalProperties": false
                               }
                             },
                             "required": [

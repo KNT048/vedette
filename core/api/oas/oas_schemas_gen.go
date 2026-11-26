@@ -269104,19 +269104,22 @@ func (s *ScanningGetRunsIDOKStatus) UnmarshalText(data []byte) error {
 }
 
 type ScanningGetRunsIDOKStepsItem struct {
-	Done    int         `json:"done"`
+	Done int `json:"done"`
+	// When it ended, or when it was skipped.
 	EndedAt NilDateTime `json:"ended_at"`
-	// A phase or a range: "192.0.2.0/24", "identify services", "ZAP passive scan".
-	Name      string      `json:"name"`
+	// A phase or a range: "192.0.2.0/24", "identify services", "Find open ports (every TCP port)",
+	// "OpenVAS".
+	Name string `json:"name"`
+	// While it runs, where it is ("finding open ports: 41%, about 9 minutes left", "1,240 of 3,600
+	// template checks"); once it ended or was skipped, what it found or why.
 	Note      NilString   `json:"note"`
 	Seq       int         `json:"seq"`
 	StartedAt NilDateTime `json:"started_at"`
-	// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
-	// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
-	// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
-	// or by a restart (stop_reason says which).
+	// The run states, and skipped: the step did not run (its note says why: an engine turned off, nothing
+	// for it to check, or the run ended before it). A queued step waits for its turn.
 	Status ScanningGetRunsIDOKStepsItemStatus `json:"status"`
-	Total  int                                `json:"total"`
+	// Units of work; an exposure scan counts each step as 1, so its run reads "3 of 8 steps".
+	Total int `json:"total"`
 }
 
 // GetDone returns the value of Done.
@@ -269199,10 +269202,8 @@ func (s *ScanningGetRunsIDOKStepsItem) SetTotal(val int) {
 	s.Total = val
 }
 
-// Queued: waits for its lane (another run of the same engine runs); waiting: paused with work left
-// until what waiting_for names; running; stopping: a stop was asked and the work is ending; done;
-// partial: ended with part of the work done; failed; stopped: by a person, by its module turned off,
-// or by a restart (stop_reason says which).
+// The run states, and skipped: the step did not run (its note says why: an engine turned off, nothing
+// for it to check, or the run ended before it). A queued step waits for its turn.
 type ScanningGetRunsIDOKStepsItemStatus string
 
 const (
@@ -269214,6 +269215,7 @@ const (
 	ScanningGetRunsIDOKStepsItemStatusPartial  ScanningGetRunsIDOKStepsItemStatus = "partial"
 	ScanningGetRunsIDOKStepsItemStatusFailed   ScanningGetRunsIDOKStepsItemStatus = "failed"
 	ScanningGetRunsIDOKStepsItemStatusStopped  ScanningGetRunsIDOKStepsItemStatus = "stopped"
+	ScanningGetRunsIDOKStepsItemStatusSkipped  ScanningGetRunsIDOKStepsItemStatus = "skipped"
 )
 
 // AllValues returns all ScanningGetRunsIDOKStepsItemStatus values.
@@ -269227,6 +269229,7 @@ func (ScanningGetRunsIDOKStepsItemStatus) AllValues() []ScanningGetRunsIDOKSteps
 		ScanningGetRunsIDOKStepsItemStatusPartial,
 		ScanningGetRunsIDOKStepsItemStatusFailed,
 		ScanningGetRunsIDOKStepsItemStatusStopped,
+		ScanningGetRunsIDOKStepsItemStatusSkipped,
 	}
 }
 
@@ -269248,6 +269251,8 @@ func (s ScanningGetRunsIDOKStepsItemStatus) MarshalText() ([]byte, error) {
 	case ScanningGetRunsIDOKStepsItemStatusFailed:
 		return []byte(s), nil
 	case ScanningGetRunsIDOKStepsItemStatusStopped:
+		return []byte(s), nil
+	case ScanningGetRunsIDOKStepsItemStatusSkipped:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -269280,6 +269285,9 @@ func (s *ScanningGetRunsIDOKStepsItemStatus) UnmarshalText(data []byte) error {
 		return nil
 	case ScanningGetRunsIDOKStepsItemStatusStopped:
 		*s = ScanningGetRunsIDOKStepsItemStatusStopped
+		return nil
+	case ScanningGetRunsIDOKStepsItemStatusSkipped:
+		*s = ScanningGetRunsIDOKStepsItemStatusSkipped
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

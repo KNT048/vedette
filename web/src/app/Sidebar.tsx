@@ -11,6 +11,7 @@ import { useUpdatesBanner } from '@/features/core/api'
 import { navItems, type NavItem } from './feature'
 import { GROUPS, badgeOf, navItemOf, placeOf, useNavSummary, type NavBadge, type NavState, type NavSummary, type ShellGroup } from './nav'
 import { useModules } from '@/lib/modules'
+import { useCurrentNavPlace } from '@/lib/navPlace'
 import { scopeOf, type Scope } from '@/lib/v1'
 import { ScopeBadge } from '@/components/common/V1Scope'
 import { Counter } from '@/components/common/Counter'
@@ -45,13 +46,16 @@ const itemClass = (rail: boolean, drawer: boolean) => ({ isActive }: { isActive:
   isActive && 'nav-current bg-accent-soft font-medium text-ink [&_svg]:text-accent',
 )
 
+/** The class of an entry that is current by its path, or because the page shown belongs to it (`here`, useNavPlace: a run's page). */
+const entryClass = (rail: boolean, drawer: boolean, here: boolean) => ({ isActive }: { isActive: boolean }) => itemClass(rail, drawer)({ isActive: isActive || here })
+
 /** A rail link under a Tooltip trigger. Radix's Slot joins a child's className as a string, and NavLink's className is a function, so
  *  the trigger wraps this component (string-free props) and the function stays inside. */
-function RailLink({ to, end, children, ...rest }: Omit<ComponentProps<typeof NavLink>, 'className' | 'children'> & { children: ReactNode }) {
-  return <NavLink to={to} end={end} {...rest} className={itemClass(true, false)}>{children}</NavLink>
+function RailLink({ to, end, here = false, children, ...rest }: Omit<ComponentProps<typeof NavLink>, 'className' | 'children'> & { here?: boolean; children: ReactNode }) {
+  return <NavLink to={to} end={end} {...rest} className={entryClass(true, false, here)}>{children}</NavLink>
 }
 
-function EntryLink({ e, rail, drawer, onNavigate }: { e: Entry; rail: boolean; drawer: boolean; onNavigate?: () => void }) {
+function EntryLink({ e, rail, drawer, onNavigate, here = false }: { e: Entry; rail: boolean; drawer: boolean; onNavigate?: () => void; here?: boolean }) {
   const { t } = useTranslation()
   const label = t(e.item.label)
   const words = e.badge ? t(e.badge.key) : null
@@ -60,14 +64,14 @@ function EntryLink({ e, rail, drawer, onNavigate }: { e: Entry; rail: boolean; d
   if (rail) {
     return (
       <Tooltip describe={false} content={[label, e.badge ? `${e.badge.count} ${words}` : null, preview].filter(Boolean).join(', ')}>
-        <RailLink to={e.item.to} end={e.item.end} onClick={onNavigate}>
+        <RailLink to={e.item.to} end={e.item.end} here={here} onClick={onNavigate}>
           <e.item.icon aria-hidden /><span className="sr-only">{label}{preview ? ` ${preview}` : ''}</span>{counter ? <>{' '}{counter}</> : null}
         </RailLink>
       </Tooltip>
     )
   }
   return (
-    <NavLink to={e.item.to} end={e.item.end} onClick={onNavigate} className={itemClass(false, drawer)}>
+    <NavLink to={e.item.to} end={e.item.end} onClick={onNavigate} className={entryClass(false, drawer, here)}>
       <e.item.icon aria-hidden /><span className="min-w-0">{label}</span>{' '}
       {counter ?? <ScopeBadge scope={e.scope === 'preview' ? 'v1' : e.scope} className="-mr-1 ml-auto h-5 shrink-0 px-1.5 text-caption" />}
       {counter && preview ? <ScopeBadge scope={e.scope === 'preview' ? 'v1' : e.scope} className="-mr-1 h-5 shrink-0 px-1.5 text-caption" /> : null}
@@ -75,7 +79,7 @@ function EntryLink({ e, rail, drawer, onNavigate }: { e: Entry; rail: boolean; d
   )
 }
 
-function Group({ id, entries, nav, current, drawer, onNavigate }: { id: ShellGroup; entries: Entry[]; nav: NavState; current: boolean; drawer: boolean; onNavigate?: () => void }) {
+function Group({ id, entries, nav, current, drawer, onNavigate, here }: { id: ShellGroup; entries: Entry[]; nav: NavState; current: boolean; drawer: boolean; onNavigate?: () => void; here?: string }) {
   const { t } = useTranslation()
   const name = t(`layout.group.${id}`)
   const open = current || nav.isOpen(id)
@@ -111,7 +115,7 @@ function Group({ id, entries, nav, current, drawer, onNavigate }: { id: ShellGro
       >
         {/* div, not ul: many page tests query the one list or listitem of their page (getByRole('list')). */}
         <div role="group" aria-label={name} className="grid min-h-0 grid-cols-[minmax(0,1fr)] gap-0.5 overflow-hidden">
-          {entries.map((e) => <EntryLink key={e.item.to} e={e} rail={false} drawer={drawer} onNavigate={onNavigate} />)}
+          {entries.map((e) => <EntryLink key={e.item.to} e={e} rail={false} drawer={drawer} onNavigate={onNavigate} here={here === e.item.to} />)}
         </div>
       </div>
     </div>
@@ -123,11 +127,14 @@ export function NavList({ nav, rail = false, drawer = false, onNavigate }: { nav
   const { t } = useTranslation()
   const { pathname } = useLocation()
   const { pinned, groups, ready } = useEntries()
-  const here = navItemOf(pathname)
+  const place = useCurrentNavPlace() // a page whose path is not under its entry (a run's page) says where it belongs
+  const here = navItemOf(place ?? pathname)
   const hereGroup = here ? placeOf(here) : null
+  const placed = place ? here?.to : undefined
+  const inSettings = !!place?.startsWith('/settings')
   const list = (entries: Entry[], label?: string) => (
     <div role={label ? 'group' : undefined} aria-label={label} className={cn('grid gap-0.5', rail ? 'justify-items-center' : 'grid-cols-[minmax(0,1fr)]')}>
-      {entries.map((e) => <EntryLink key={e.item.to} e={e} rail={rail} drawer={drawer} onNavigate={onNavigate} />)}
+      {entries.map((e) => <EntryLink key={e.item.to} e={e} rail={rail} drawer={drawer} onNavigate={onNavigate} here={placed === e.item.to} />)}
     </div>
   )
   return (
@@ -138,14 +145,14 @@ export function NavList({ nav, rail = false, drawer = false, onNavigate }: { nav
         <div key={g.id} className={cn(rail && 'border-t border-rule pt-3')}>
           {rail || g.entries.length === 1
             ? list(g.entries, rail ? t(`layout.group.${g.id}`) : undefined)
-            : <Group id={g.id} entries={g.entries} nav={nav} current={hereGroup === g.id} drawer={drawer} onNavigate={onNavigate} />}
+            : <Group id={g.id} entries={g.entries} nav={nav} current={hereGroup === g.id} drawer={drawer} onNavigate={onNavigate} here={placed} />}
         </div>
       ))}
       <div className={cn('grid gap-0.5 border-t border-rule pt-3', rail && 'justify-items-center')}>
         {rail ? (
           <>
             <Tooltip describe={false} content={t('layout.settings')}>
-              <RailLink to="/settings" onClick={onNavigate}><Settings aria-hidden /><span className="sr-only">{t('layout.settings')}</span></RailLink>
+              <RailLink to="/settings" here={inSettings} onClick={onNavigate}><Settings aria-hidden /><span className="sr-only">{t('layout.settings')}</span></RailLink>
             </Tooltip>
             {/* Help: the user cookbook (docs/cookbook), bundled in the build so it works offline. */}
             <Tooltip describe={false} content={t('layout.help')}>
@@ -154,7 +161,7 @@ export function NavList({ nav, rail = false, drawer = false, onNavigate }: { nav
           </>
         ) : (
           <>
-            <NavLink to="/settings" onClick={onNavigate} className={itemClass(false, drawer)}><Settings aria-hidden />{t('layout.settings')}</NavLink>
+            <NavLink to="/settings" onClick={onNavigate} className={entryClass(false, drawer, inSettings)}><Settings aria-hidden />{t('layout.settings')}</NavLink>
             <NavLink to="/help" onClick={onNavigate} className={itemClass(false, drawer)}><CircleHelp aria-hidden />{t('layout.help')}</NavLink>
           </>
         )}

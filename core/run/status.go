@@ -26,6 +26,13 @@ const (
 // Statuses lists every status.
 var Statuses = []Status{Queued, Waiting, Running, Stopping, Done, Partial, Failed, Stopped}
 
+// Skipped is a ninth state for a step only (web/src/lib/statusCodes.ts STEP_STATUSES): the step did not run, and its note says why
+// (an engine turned off, nothing for it to check, or the run ended before it). A run is never skipped.
+const Skipped Status = "skipped"
+
+// StepStatuses lists every state a step can be in: the run states and Skipped.
+var StepStatuses = append(slices.Clone(Statuses), Skipped)
+
 // Valid reports whether s is one of Statuses.
 func (s Status) Valid() bool { return slices.Contains(Statuses, s) }
 

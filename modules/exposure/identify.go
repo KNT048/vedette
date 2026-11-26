@@ -12,6 +12,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
@@ -320,9 +321,12 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		limit, slow, gaveUp, everywhere = FullServicesTimeout, fmt.Sprintf(notDeepSlow, int(FullServicesTimeout/time.Minute)), fmt.Sprintf(notDeepGaveUp, int(FullHostLimit/time.Minute)), notAnswersEverywhereDeep
 		notDeep = func() { c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "ports", Text: notOtherPortsDeep}) }
 	}
+	rs := runStepsOf(ctx) // nil inside the step of one of a domain's addresses, which covers all of this
 	if s.cfg.Services == nil {
 		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: NotSetUpServices})
+		rs.skip(ctx, stepKeyPorts, NotSetUpServices, true)
+		rs.skip(ctx, stepKeyServices, NotSetUpServices, true)
 		return s.runTemplates(ctx, st, netip.Addr{}, c) // no services, so it only says why it did not run
 	}
 	// The surface scan already saw the address answer on almost every port. A deep scan is not sent (-sV on every port of a SYN
@@ -331,10 +335,13 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 	if surfaceEverywhere && st.Mode.Full {
 		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notAnswersEverywhere})
+		rs.skip(ctx, stepKeyPorts, notAnswersEverywhere, true)
+		rs.skip(ctx, stepKeyServices, notAnswersEverywhere, true)
 		return c, nil
 	}
 	sctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
+	rs.start(ctx, stepKeyPorts)
 	res, err := s.cfg.Services.ScanServices(sctx, st, ip)
 	var un *Unavailable
 	switch {
@@ -396,26 +403,44 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			text += fmt.Sprintf(" nmap's scripts: %s, %d saying VULNERABLE.", plural(len(c.Scripts), "result"), vuln)
 		}
 		c.Checks = append(c.Checks, CheckRow{Kind: "services", Text: text, At: store.FormatTS(s.clock())})
+		rs.end(ctx, stepKeyPorts, corerun.Done, portsNote(st.Mode.Full, len(got), len(probed)))
+		rs.end(ctx, stepKeyServices, corerun.Done, text)
 	case ctx.Err() != nil: // the run was stopped: nothing is stored
 		return c, err
 	case errors.Is(err, ErrAnswersEverywhere): // nmap saw it although the surface scan did not: no rows, no templates
 		notDeep()
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: everywhere})
+		rs.end(ctx, stepKeyPorts, corerun.Done, everywhere)
+		rs.skip(ctx, stepKeyServices, everywhere, true)
 		return c, nil
 	case errors.Is(err, ErrServicesTimedOut):
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: gaveUp})
+		rs.endFirstOpen(ctx, corerun.Failed, gaveUp, stepKeyPorts, stepKeyServices)
 	case errors.As(err, &un):
-		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: "Service identification (nmap -sV) did not run: " + clipText(un.Reason, 200)})
+		why := "Service identification (nmap -sV) did not run: " + clipText(un.Reason, 200)
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: why})
+		rs.skip(ctx, stepKeyPorts, why, true) // not a failure of the scan: the box cannot run it now, and says why
+		rs.skip(ctx, stepKeyServices, why, true)
 	case sctx.Err() != nil:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: slow})
+		rs.endFirstOpen(ctx, corerun.Failed, slow, stepKeyPorts, stepKeyServices)
 	default:
 		s.cfg.Log.ErrorContext(ctx, "exposure: service identification failed", "target", st.Value, "ip", ip, "error", err)
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "services", Text: notServicesFail})
+		rs.endFirstOpen(ctx, corerun.Failed, notServicesFail, stepKeyPorts, stepKeyServices)
 	}
 	if err != nil {
 		notDeep()
 	}
 	return s.runTemplates(ctx, st, ip, c) // INV-23: safe templates for the exploited CVEs the services match
+}
+
+// portsNote is what the port discovery found: open the open ports -sV read, of the probed ports the default scan probed.
+func portsNote(full bool, open, probed int) string {
+	if full || probed == 0 {
+		return plural(open, "open TCP port") + " found."
+	}
+	return fmt.Sprintf("%s found among the %s probed.", plural(open, "open TCP port"), plural(probed, "port"))
 }
 
 // answeredPorts is what of probed counts as checked for INV-22. Normally all of it. When the address answers on almost every port, the

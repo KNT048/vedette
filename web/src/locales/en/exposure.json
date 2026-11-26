@@ -766,7 +766,10 @@
       "manual": "A person"
     },
     "emptyTitle": "No scan yet",
-    "emptyBody": "Scan now runs the first one."
+    "emptyBody": "Scan now runs the first one.",
+    "stepsNow": "Scan running now (started {{when}})",
+    "stepsLatest": "Latest scan ({{when}})",
+    "stepsOf": "Steps of the scan of {{when}}"
   },
   "schedule": {
     "name": "Scans of {{value}}",

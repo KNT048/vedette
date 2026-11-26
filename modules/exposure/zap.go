@@ -629,7 +629,9 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 	var scanned []string
 	alerts := 0
 	steps := stepsOf(ctx) // INV-30: each page ZAP is asked for is a call of the ZAP step
+	rs := runStepsOf(ctx)
 	for i, page := range pages {
+		rs.say(stepKeyZAP, fmt.Sprintf("page %d of %d: %s", i+1, len(pages), page.URL))
 		if err := plog.RecordWebProbe(ctx, WebProbe{ID: store.NewID("pb"), IP: page.IP.String(), Port: page.Port, URL: page.URL, Tool: webTool}); err != nil { // LEGAL §3: logged before ZAP starts
 			if ctx.Err() != nil {
 				return c, err

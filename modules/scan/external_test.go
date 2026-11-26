@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 
@@ -30,6 +31,32 @@ func TestExternalProbesAreInTheProbeLog(t *testing.T) {
 	l, err = e.svc.Probes(e.ctx())
 	if err != nil || len(l) != 1 || l[0].Result != "banner" || l[0].Request != p.Request || l[0].TS != store.FormatTS(t0) { // the time of the first write
 		t.Fatalf("after: %+v %v", l, err)
+	}
+}
+
+// The probes of an exposure scan name its run, so the run's checks can be listed; the row that completes a probe keeps it.
+func TestExternalProbesNameTheirRun(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	at := store.FormatTS(t0)
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `INSERT INTO core_run (id, module, kind, lane, title, trigger, requested_by, status, queued_at, updated_at)
+			VALUES ('run-x1', 'exposure', 'exposure_scan', 'exposure', 'Scan of 203.0.113.7', 'manual', 'admin@acme.example', 'running', ?, ?)`, at, at)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	p := ExternalProbe{ID: "xp-2", IP: "203.0.113.7", Label: "203.0.113.7:443", Template: "CVE-2021-41773", Request: "GET / (nuclei)", RunID: "run-x1"}
+	if err := e.svc.RecordExternalProbes(e.ctx(), []ExternalProbe{p}); err != nil {
+		t.Fatal(err)
+	}
+	p.RunID, p.Result = "", "matched" // the adapter completes the row
+	if err := e.svc.RecordExternalProbes(e.ctx(), []ExternalProbe{p}); err != nil {
+		t.Fatal(err)
+	}
+	l, err := e.svc.Probes(e.ctx())
+	if err != nil || len(l) != 1 || l[0].RunID == nil || *l[0].RunID != "run-x1" || l[0].Result != "matched" {
+		t.Fatalf("probes %+v %v", l, err)
 	}
 }
 

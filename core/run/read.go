@@ -113,7 +113,7 @@ const runCols = `r.id, r.module, r.kind, r.lane, r.title, r.trigger, r.trigger_n
 	(SELECT h.id FROM core_run h WHERE r.status = 'queued' AND h.lane = r.lane AND h.status IN ('running', 'stopping') AND h.id <> r.id LIMIT 1),
 	(SELECT h.title FROM core_run h WHERE r.status = 'queued' AND h.lane = r.lane AND h.status IN ('running', 'stopping') AND h.id <> r.id LIMIT 1),
 	(NOT EXISTS (SELECT 1 FROM core_run_step s WHERE s.run_id = r.id)
-	 OR EXISTS (SELECT 1 FROM core_run_step s WHERE s.run_id = r.id AND s.status <> 'done')),
+	 OR EXISTS (SELECT 1 FROM core_run_step s WHERE s.run_id = r.id AND s.status NOT IN ('done', 'skipped'))),
 	CASE WHEN r.status IN ('running', 'stopping') THEN (SELECT l.ts FROM core_run_log l WHERE l.run_id = r.id
 		AND l.text IN ('` + LineStarted + `', '` + LineResumed + `') ORDER BY l.id DESC LIMIT 1) END`
 

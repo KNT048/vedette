@@ -86,7 +86,8 @@ func (failingPath) SameAsPath(context.Context, netip.Addr, int) (bool, error) {
 
 // INV-44 with INV-22: rows that earlier scans stored for ports the network answers (scans from before the check, or with a check
 // that failed) are retired by the first scan in which the check ran and flagged that port on that address: no longer listed as
-// open, not counted as closed by the target, their issues gone, and the save step says why. A check that fails retires nothing.
+// open, not counted as closed by the target, their issues gone, and the save step says why. A row with open issues needs a second
+// scan that agrees. A check that fails retires nothing.
 func TestNetworkPath_EarlierRowsOfAPortTheNetworkAnswersAreRetired(t *testing.T) {
 	t.Parallel()
 	e, scan, state := deepScans(t)
@@ -108,10 +109,24 @@ func TestNetworkPath_EarlierRowsOfAPortTheNetworkAnswersAreRetired(t *testing.T)
 		t.Fatal("a failed check made the issue of 5060 gone")
 	}
 
+	// The first scan whose check flags them retires 2000; 5060 holds an open issue, so it waits for a second scan that agrees.
 	e.svc.cfg.Path = &fakePath{ports: []int{2000, 5060}}
 	r := scan([]int{80, 5060}, swept(80, 2000, 5060), nil)
+	if state(2000) != ServiceClosed || state(5060) != ServiceOpen || state(80) != ServiceOpen {
+		t.Fatalf("after the first scan whose check flagged 2000 and 5060: 2000 %s, 5060 %s, 80 %s", state(2000), state(5060), state(80))
+	}
+	if n := e.count(`SELECT count(*) FROM exp_issue WHERE id = 'i5060' AND state = 'open'`); n != 1 {
+		t.Fatal("one scan made the issue of 5060 gone")
+	}
+	save := stepOf(t, e.runDetail(e.ctx(), r.RunID), stepNameSave)
+	if note := noteOf(save); !strings.Contains(note, "Port 2000 of "+ipA+" is no longer listed: it is answered by your own network, not by "+ipA+".") ||
+		!strings.Contains(note, "Port 5060 of "+ipA+" is answered by your own network in this scan, but its row has open issues: it is kept until the next scan finds the same.") {
+		t.Fatalf("the save step of the first scan: %q", note)
+	}
+
+	r = scan([]int{80, 5060}, swept(80, 2000, 5060), nil)
 	if state(2000) != ServiceClosed || state(5060) != ServiceClosed || state(80) != ServiceOpen {
-		t.Fatalf("after a scan whose check flagged 2000 and 5060: 2000 %s, 5060 %s, 80 %s", state(2000), state(5060), state(80))
+		t.Fatalf("after a second scan whose check flagged 2000 and 5060: 2000 %s, 5060 %s, 80 %s", state(2000), state(5060), state(80))
 	}
 	if n := closedByNewest(e); n != 0 {
 		t.Fatalf("the scan counts %d services closed by the target; the retired rows were the network's", n)
@@ -119,13 +134,13 @@ func TestNetworkPath_EarlierRowsOfAPortTheNetworkAnswersAreRetired(t *testing.T)
 	if n := e.count(`SELECT count(*) FROM exp_issue WHERE id = 'i5060' AND state = 'gone'`); n != 1 {
 		t.Fatal("the issue of a retired row is still open")
 	}
-	save := stepOf(t, e.runDetail(e.ctx(), r.RunID), stepNameSave)
+	save = stepOf(t, e.runDetail(e.ctx(), r.RunID), stepNameSave)
 	if note := noteOf(save); !strings.HasPrefix(note, "1 open service (0 new, 0 closed)") ||
-		!strings.Contains(note, "Ports 2000 and 5060 of "+ipA+" are no longer listed: they are answered by your own network, not by "+ipA+".") {
+		!strings.Contains(note, "Port 5060 of "+ipA+" is no longer listed: it is answered by your own network, not by "+ipA+".") {
 		t.Fatalf("the save step: %q", note)
 	}
-	if n := e.count(`SELECT count(*) FROM core_run_log WHERE run_id = ? AND text LIKE '%are no longer listed: they are answered by your own network%'`, r.RunID); n < 1 {
-		t.Fatal("the run's log does not say why the rows are no longer listed")
+	if n := e.count(`SELECT count(*) FROM core_run_log WHERE run_id = ? AND text LIKE '%is no longer listed: it is answered by your own network%'`, r.RunID); n < 1 {
+		t.Fatal("the run's log does not say why the row is no longer listed")
 	}
 
 	// From a clean network the target's real 5060 is seen again: a new open service, as for any port that comes back.

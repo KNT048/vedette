@@ -45,16 +45,17 @@ type scanWrite struct {
 // written is what a write changed.
 type written struct {
 	closed []string // the services this scan closed
-	// retired are the ports, by address, whose rows earlier scans stored open and that this scan no longer lists without the target
-	// having closed them: the box's own network answers them (INV-44), or they were not reached for 30 days. Their issues are gone;
-	// they are not counted as closed by the target.
-	retired, unreached map[string][]int
-	verdicts           verdictSet    // the run's verdicts: its run items
-	lines              []vantageLine // what they say: the target's lines, the run's log and its reason
-	final              vulnSet       // the content as written, with the exploited CVEs matched on it
-	counts             ScanCounts
-	opened             []PortRow
-	newIssues          []string
+	// retireLines name, for each address, the rows this scan no longer lists without the target having closed them (the box's own
+	// network answers them (INV-44), or they were not reached for 30 days: their issues are gone, they are not counted as closed)
+	// and the network's ports it kept for their open issues until a second scan agrees (closeVanished). They are the first of the
+	// target's lines, so a wrong retire is never silent.
+	retireLines []vantageLine
+	verdicts    verdictSet    // the run's verdicts: its run items
+	lines       []vantageLine // what they say: the target's lines, the run's log and its reason
+	final       vulnSet       // the content as written, with the exploited CVEs matched on it
+	counts      ScanCounts
+	opened      []PortRow
+	newIssues   []string
 	// openedAt and newAt are opened and newIssues with the target that holds each row once the tree settled: the target the alert and
 	// the event name.
 	openedAt []OpenedService
@@ -94,10 +95,12 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	if err := writeAddresses(ctx, tx, w.target, at, w.c.Hosts, hostIDs); err != nil {
 		return written{}, err
 	}
-	var retiredIDs []string
-	if out.opened, out.closed, retiredIDs, out.retired, out.unreached, err = s.writeServices(ctx, tx, w, at); err != nil {
+	var gone vanished
+	if out.opened, gone, err = s.writeServices(ctx, tx, w, at); err != nil {
 		return written{}, err
 	}
+	out.closed, out.retireLines = gone.closed, retireLines(gone.network, gone.unreached, gone.held)
+	retiredIDs := gone.retired
 	out.counts.ClosedServices = len(out.closed)
 	issues := surfaceIssues(w.c, w.at)
 	ran := engineSet{EngineSurface: true}
@@ -149,7 +152,7 @@ func (s *Service) writeScan(ctx context.Context, tx *sql.Tx, w scanWrite) (writt
 	found := countsOf(w.c, ipOf(w.target), w.at)
 	if err := updateSummary(ctx, tx, w.runID, func(sum *scanSummary) {
 		sum.Counts, sum.Found = &out.counts, &found
-		sum.Checks, sum.NotChecked = append(sum.Checks, w.c.Checks...), append(sum.NotChecked, w.c.NotChecked...)
+		sum.Checks, sum.NotChecked = append(sum.Checks, w.c.Checks...), append(lineRows(out.retireLines), append(sum.NotChecked, w.c.NotChecked...)...)
 	}); err != nil {
 		return written{}, err
 	}
@@ -372,7 +375,7 @@ func storedHosts(ctx context.Context, q querier, target string) ([]HostRow, erro
 
 // writeServices upserts the services a scan reported open and closes the open ones it no longer finds on an address it checked. It
 // returns the services open now that were not before, the ones it closed, and the ones it no longer lists (closeVanished).
-func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at string) ([]PortRow, []string, []string, map[string][]int, map[string][]int, error) {
+func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at string) ([]PortRow, vanished, error) {
 	svc := map[string]ServiceRow{}
 	for _, r := range w.c.Services {
 		svc[portKey(r.IP, r.Port)] = r
@@ -399,13 +402,13 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 				store.NewID("xs"), w.target.ID, row.IP, row.Port, row.Name, row.Product, row.Version, row.CPE, row.Title, certDoc(row.Cert), boolInt(row.IsWeb), row.Ident,
 				at, at, w.runID)
 			if err != nil {
-				return nil, nil, nil, nil, nil, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
+				return nil, vanished{}, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
 			}
 			opened = append(opened, p)
 			continue
 		}
 		if err != nil {
-			return nil, nil, nil, nil, nil, fmt.Errorf("reading the service %s:%d: %w", row.IP, row.Port, err)
+			return nil, vanished{}, fmt.Errorf("reading the service %s:%d: %w", row.IP, row.Port, err)
 		}
 		// What this scan read wins; what it did not read (a lighter scan, a probe that got no answer) keeps the earlier reading.
 		ident := row.Ident
@@ -419,21 +422,22 @@ func (s *Service) writeServices(ctx context.Context, tx *sql.Tx, w scanWrite, at
 			firstOf(row.Name, prevName), firstOf(row.Product, prevProduct), firstOf(row.Version, prevVersion), firstOf(row.CPE, prevCPE), firstOf(row.Title, prevTitle),
 			cert, boolInt(web), ident, at, w.runID, id)
 		if err != nil {
-			return nil, nil, nil, nil, nil, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
+			return nil, vanished{}, fmt.Errorf("writing the service %s:%d: %w", row.IP, row.Port, err)
 		}
 		if state == ServiceClosed {
 			opened = append(opened, p)
 		}
 	}
 	v, err := s.closeVanished(ctx, tx, w, seen)
-	return opened, v.closed, v.retired, v.network, v.unreached, err
+	return opened, v, err
 }
 
 // vanished is what closeVanished did: the services it closed, the ones it no longer lists without the target having closed them
-// (retired), and those by address: the network's ports, and the ports not reached for 30 days.
+// (retired), and those by address: the network's ports, and the ports not reached for 30 days; and held, by address, the network's
+// ports whose rows it kept for their open issues until a second scan agrees.
 type vanished struct {
-	closed, retired    []string
-	network, unreached map[string][]int
+	closed, retired          []string
+	network, unreached, held map[string][]int
 }
 
 // closeVanished decides each open service of the target that this scan did not report from this run's verdict of its port (INV-22):
@@ -444,7 +448,7 @@ type vanished struct {
 //	| closed                      | closed at once when two probes of this run missed it, else when the newest scan before with a verdict of it missed it too |
 //	| filtered                    | closed by the third filtered scan in a row since it was last seen, at least a day after the first |
 //	| unreached, lost, unknown    | kept; no longer listed once it was last seen more than 30 days ago (not counted as closed, no alert) |
-//	| network (accepted)          | no longer listed when this scan read its answer and it was the network's, and no scan ever saw it open over a clean path; else kept |
+//	| network (accepted)          | no longer listed when this scan read its answer and it was the network's, and no scan ever saw it open over a clean path; a row with open issues only when the scan before judged it the network's (accepted) too; else kept |
 //	| network (refused)           | kept: a network that refuses the port for every address says nothing about the target          |
 //
 // A service on an address that left the domain is closed at once. A row no longer listed has its issues gone like a closed one.
@@ -498,6 +502,20 @@ func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, re
 				// And only when this scan read the target's own answer there and found it the network's: a port it did not probe, or whose
 				// comparison failed, says nothing about the target.
 				if v.reason == reasonSynAck && v.same && !seenClean(prior) {
+					// A row with open issues needs a second scan that agrees: the newest verdict before this one accepted by the network too.
+					if len(prior) == 0 || !networkAccepted(prior[0]) {
+						held, err := hasOpenIssues(ctx, tx, x.ID)
+						if err != nil {
+							return out, err
+						}
+						if held {
+							if out.held == nil {
+								out.held = map[string][]int{}
+							}
+							out.held[k] = append(out.held[k], x.Port)
+							continue
+						}
+					}
 					if err := retire(x, &out.network); err != nil {
 						return out, err
 					}
@@ -513,6 +531,15 @@ func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, re
 		out.closed = append(out.closed, x.ID)
 	}
 	return out, nil
+}
+
+// hasOpenIssues says service id holds an open issue.
+func hasOpenIssues(ctx context.Context, q querier, id string) (bool, error) {
+	var n int
+	if err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM exp_issue WHERE service_id = ? AND state = 'open')`, id).Scan(&n); err != nil {
+		return false, fmt.Errorf("the open issues of the service %s: %w", id, err)
+	}
+	return n == 1, nil
 }
 
 // goneWithService marks gone the open issues of the services a scan closed: what was found on a port that is closed is no longer

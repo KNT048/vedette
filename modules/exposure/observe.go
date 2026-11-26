@@ -39,7 +39,7 @@ import (
 //	| filtered   | no answer at all (no reset) to the re-check while the address answered elsewhere            | closed by the third such scan over a day |
 //	| unreached  | nothing of the address answered, or every port flipped to resets through NAT loopback      | kept ("not reached since"); 30 days: no longer listed |
 //	| lost       | answered earlier in the run, then stopped                                                  | kept, as unreached                     |
-//	| network    | the network answers the port for every address (syn-ack or reset), same answer as there     | kept; a syn-ack one retired when this run read its answer as the network's and no run saw it over a clean path |
+//	| network    | the network answers the port for every address (syn-ack or reset), same answer as there     | kept; a syn-ack one retired when this run read its answer as the network's and no run saw it over a clean path (with open issues: the scan before too) |
 //	| unknown    | the calibration failed, or a probe step failed or was cut                                  | kept, as unreached                     |
 
 // The verdicts.
@@ -513,6 +513,46 @@ func vantageLines(o observation, vs verdictSet, boxIP string) []vantageLine {
 	return out
 }
 
+// retireLines are the lines of what the write of a scan did on the network's evidence or for want of an answer, one for each
+// address: the rows it no longer lists (network: the network's ports; unreached: not reached for 30 days) and the network's ports it
+// kept for their open issues (held). They come first among the target's lines, so a wrong retire is never silent; the save step
+// says the same (retiredText).
+func retireLines(network, unreached, held map[string][]int) []vantageLine {
+	addrs := map[string]bool{}
+	for _, m := range []map[string][]int{network, unreached, held} {
+		for ip := range m {
+			addrs[ip] = true
+		}
+	}
+	var out []vantageLine
+	for _, ip := range slices.SortedFunc(maps.Keys(addrs), cmpAddr) {
+		var parts []string
+		if ports := slices.Sorted(slices.Values(network[ip])); len(ports) > 0 {
+			parts = append(parts, fmt.Sprintf("%s of %s %s no longer listed: %s answered by your own network, not by %s.",
+				upperFirst(portsOnly(ports)), ip, isAre(len(ports)), itThey(len(ports))+" "+isAre(len(ports)), ip))
+		}
+		if ports := slices.Sorted(slices.Values(unreached[ip])); len(ports) > 0 {
+			parts = append(parts, fmt.Sprintf("%s of %s %s no longer listed: not reached for 30 days.", upperFirst(portsOnly(ports)), ip, isAre(len(ports))))
+		}
+		if ports := slices.Sorted(slices.Values(held[ip])); len(ports) > 0 {
+			n := len(ports)
+			parts = append(parts, fmt.Sprintf("%s of %s %s answered by your own network in this scan, but %s open issues: %s kept until the next scan finds the same.",
+				upperFirst(portsOnly(ports)), ip, isAre(n), itThem(n, "its row has", "their rows have"), itThem(n, "it is", "they are")))
+		}
+		out = append(out, vantageLine{NotCheckedRow{Kind: "network_path", Text: clipText(strings.Join(parts, " "), maxLineText)}, false})
+	}
+	return out
+}
+
+// lineRows are the rows of lines.
+func lineRows(lines []vantageLine) []NotCheckedRow {
+	out := make([]NotCheckedRow, 0, len(lines))
+	for _, l := range lines {
+		out = append(out, l.row)
+	}
+	return out
+}
+
 // natHint is said of the box's own public IP reached from inside: the likely cause, without claiming a firewall or an IPS.
 const natHint = "The box could not reach its own public address from inside your network: the router may not support NAT loopback (hairpin NAT), or something blocked it. The ports may still be open from the Internet."
 
@@ -748,6 +788,12 @@ func (s *Service) recordVerdicts(ctx context.Context, x *corerun.Exec, vs verdic
 type priorVerdict struct {
 	at      string
 	outcome string
+	note    string // reasonWords of the verdict
+}
+
+// networkAccepted says an earlier verdict was the network's accepting the port for every address (a syn-ack, not a refusal).
+func networkAccepted(p priorVerdict) bool {
+	return p.outcome == verdictNetwork && p.note == reasonWords(portVerdict{v: verdictNetwork, reason: reasonSynAck})
 }
 
 // priorVerdictsMax bounds how many verdicts of the runs before are read for one port: far more than the rules need (the scan
@@ -770,18 +816,18 @@ func priorVerdicts(ctx context.Context, q querier, target, run, port string) ([]
 		var out []priorVerdict
 		for rows.Next() {
 			var p priorVerdict
-			if err := rows.Scan(&p.at, &p.outcome); err != nil {
+			if err := rows.Scan(&p.at, &p.outcome, &p.note); err != nil {
 				return nil, fmt.Errorf("the verdicts before of %s: %w", port, err)
 			}
 			out = append(out, p)
 		}
 		return out, rows.Err()
 	}
-	out, err := read(`SELECT r.started_at, i.outcome`+from+` ORDER BY r.started_at DESC, i.seq DESC LIMIT ?`, append(args, priorVerdictsMax)...)
+	out, err := read(`SELECT r.started_at, i.outcome, coalesce(i.note, '')`+from+` ORDER BY r.started_at DESC, i.seq DESC LIMIT ?`, append(args, priorVerdictsMax)...)
 	if err != nil || len(out) < priorVerdictsMax || seenClean(out) {
 		return out, err
 	}
-	clean, err := read(`SELECT r.started_at, i.outcome`+from+` AND i.outcome = ? ORDER BY r.started_at DESC LIMIT 1`, append(args, verdictOpen)...)
+	clean, err := read(`SELECT r.started_at, i.outcome, coalesce(i.note, '')`+from+` AND i.outcome = ? ORDER BY r.started_at DESC LIMIT 1`, append(args, verdictOpen)...)
 	return append(out, clean...), err
 }
 

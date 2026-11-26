@@ -115,10 +115,14 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   at all to the re-check while the address answered on other ports: a firewall or WAF dropping the box) closes it only as the third
   filtered scan in a row since it was last seen, at least 24 hours after the first. `unreached`, `lost` and `unknown` never close
   it: it stays as it was, and once it was last seen more than 30 days ago it is no longer listed ("not reached for 30 days": not
-  counted as closed by the target, no alert, said in the save step). `network` with a syn-ack (the network accepts the port for
+  counted as closed by the target, no alert, said in the save step and in a line of its address). `network` with a syn-ack (the network accepts the port for
   every address) retires it (no longer listed, its issues gone, not counted as closed) only when this scan read the target's own
   answer on that port and found it the network's (INV-44), and no scan ever saw it open over a path the network-path check found
-  clean; otherwise it is kept (a port this scan did not probe, or whose comparison failed, says nothing about the target). `network` with a reset (the network refuses the port for
+  clean; otherwise it is kept (a port this scan did not probe, or whose comparison failed, says nothing about the target). A row
+  with open issues needs a second scan that agrees: it is retired only when the newest verdict before this scan was `network` with a
+  syn-ack too; until then it is kept and a line of its address says so. Every row a scan no longer lists without the target having
+  closed it (the network's, not reached for 30 days) is named in a `network_path` line of its address, the first of the target's
+  lines, so a wrong retire is never silent. `network` with a reset (the network refuses the port for
   every address) never closes or retires it: such a network cannot have made the row. Right before the results are written, the
   ports open before that this scan did not see, on the addresses it probed (an IP target, a domain's swept, own-box or by-name
   addresses; not an address that stopped answering, nor a name whose lookup got no answer) and among the ports it may probe there
@@ -144,7 +148,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   or TLS port of the fixed list, the TLS certificate, else the status, Server header and title of GET /; for any other port, the
   banner a server that speaks first sends by itself, at most 512 bytes within 2 seconds, nothing sent, its digits folded; a target
   that sends nothing of its own, a client-speaks-first service such as SIP, cannot be told apart from a network that sends nothing
-  either and stays the network's; when the network sends a banner of its own there, the target's silence is its own): a real
+  either and stays the network's; when the network sends a banner of its own there, the target's silence is its own; on a web or
+  TLS port, a read of the target that got no certificate and no HTTP answer, a slow page or a failed handshake, compares nothing and
+  the check returns an error, however the never-routed addresses ended): a real
   web, SSH or SMTP service behind a transparent proxy is still found, and its row stored before the check is kept. Otherwise the port is left out of the results before any
   engine step (no service, admin page, certificate or script result, no template, ZAP or OpenVAS job) and its verdict is `network`.
   A reset the network gives for every address is not the target's either: the port's verdict is `network`, and the runner's and the
@@ -154,12 +160,15 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   over a path that was not checked (`open_unchecked`). A check that fails: the ports stay as found, their verdict is `unknown`, the
   run is partly done and a `network_path` line says the box could not tell. A row stored open for a port the network accepts is retired
   only when this scan compared the target's answer there with the network's and found them the same, and no scan saw it open over a
-  checked clean path (a row stored before the check existed, or the network's own port); a row a
+  checked clean path (a row stored before the check existed, or the network's own port), and, when it holds open issues, the scan
+  before found it the network's too; a row a
   clean scan saw is kept, so a proxy or a SIP helper added later never makes real services and their issues disappear. The save step
-  and the run's log say "Ports 2000 and 5060 of <ip> are no longer listed: they are answered by your own network, not by <ip>."
+  and the run's log say "Ports 2000 and 5060 of <ip> are no longer listed: they are answered by your own network, not by <ip>.", and
+  so does the first `network_path` line of that address.
   `TestNetworkPath_APortAnsweredForANeverRoutedAddressIsLeftOut`, `TestNetworkPath_EarlierRowsOfAPortTheNetworkAnswersAreRetired`,
   `TestNetworkPath_NoCheckKeepsTheOpenPorts`, `TestNetworkPath_ManyPortsKeepTheirLine`, `TestVerdicts_ATargetsOwnAnswerThroughAProxyIsOpen`;
-  cmd/vedette `TestExposurePathConnectsOnlyToNeverRoutedAddresses`, `TestExposurePathComparesTheTargetsAnswerWithTheNetworks`.
+  `TestObservationMatrix_EveryRetireIsNamed`; cmd/vedette `TestExposurePathConnectsOnlyToNeverRoutedAddresses`,
+  `TestExposurePathComparesTheTargetsAnswerWithTheNetworks`, `TestExposurePathDoesNotCompareATargetsWebAnswerThatFailed`.
 - **INV-45** One observation model for an external scan (`observe.go`): every probe source records what it got in the run's probe
   log (the runner, nmap's sweep, the liveness checks of INV-42, the re-check of INV-22, the calibration of INV-44), and one pure
   function, `verdicts`, gives each address and port of the run (a port open before, or open now) one verdict: `open`, `closed`,

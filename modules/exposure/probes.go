@@ -547,18 +547,12 @@ func joinAnd(items []string, most int) string {
 	return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
 }
 
-// retiredText is the sentence of the save step about the rows this scan no longer lists without the target having closed them, with
-// a space in front ("" when none): the network's ports, and the ports not reached for 30 days.
-func retiredText(network, unreached map[string][]int) string {
+// retiredText is the sentences of the save step about the rows this scan no longer lists without the target having closed them and
+// the ones it kept for their open issues, with a space in front ("" when none): the words of retireLines.
+func retiredText(lines []vantageLine) string {
 	var parts []string
-	for _, ip := range slices.SortedFunc(maps.Keys(network), cmpAddr) {
-		ports := slices.Sorted(slices.Values(network[ip]))
-		parts = append(parts, fmt.Sprintf("%s of %s %s no longer listed: %s answered by your own network, not by %s.",
-			upperFirst(portsOnly(ports)), ip, isAre(len(ports)), itThey(len(ports))+" "+isAre(len(ports)), ip))
-	}
-	for _, ip := range slices.SortedFunc(maps.Keys(unreached), cmpAddr) {
-		ports := slices.Sorted(slices.Values(unreached[ip]))
-		parts = append(parts, fmt.Sprintf("%s of %s %s no longer listed: not reached for 30 days.", upperFirst(portsOnly(ports)), ip, isAre(len(ports))))
+	for _, l := range lines {
+		parts = append(parts, l.row.Text)
 	}
 	if len(parts) == 0 {
 		return ""

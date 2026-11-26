@@ -575,7 +575,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	s.alertNews(ctx, t, x.ID(), "", wr.first, wr.openedAt, wr.newAt)
 	rs.end(ctx, stepKeySave, corerun.Done, fmt.Sprintf("%s (%d new, %d closed), %s (%d new).",
 		plural(wr.counts.Services, "open service"), wr.counts.NewServices, wr.counts.ClosedServices, plural(wr.counts.Issues, "open issue"), wr.counts.NewIssues)+
-		retiredText(wr.retired, wr.unreached)+lost)
+		retiredText(wr.retireLines)+lost)
 	rs.record(ctx, "", runOn, "")
 	s.recordVerdicts(ctx, x, wr.verdicts)
 	s.recordNames(ctx, x, wr.probed)
@@ -796,7 +796,8 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 		if out, err = s.writeScan(wctx, tx, w); err != nil {
 			return err
 		}
-		out.final, out.first, out.verdicts, out.lines = m, w.first, vs, lines
+		m.Content.NotChecked = append(lineRows(out.retireLines), m.Content.NotChecked...) // first, as in the summary
+		out.final, out.first, out.verdicts, out.lines = m, w.first, vs, append(slices.Clone(out.retireLines), lines...)
 		emit(EventScanWritten, ScanWrittenEvent{TargetID: t.ID, RunID: runID, At: store.FormatTS(at), First: w.first, Counts: out.counts, Opened: nz(out.openedAt), NewIssues: nz(out.newAt)})
 		return nil
 	})

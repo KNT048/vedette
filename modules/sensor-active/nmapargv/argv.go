@@ -50,8 +50,11 @@ const (
 	// "dos", "brute", "external" and "broadcast" ones (FullScripts), at FullRate, bounded by FullHostTimeout. Same target rule
 	// and the same two own-IP fences as External.
 	ExternalFull
-	// ExternalDisruptive is ExternalFull with the "dos" and "brute" scripts too (DisruptiveScripts): only with the terms' extra
-	// tick, off by default.
+	// ExternalDisruptive is the last step of a deep scan whose run allows the disruptive checks (the terms' extra tick, a person's
+	// scan): the "dos" and "brute" scripts and the login and crash checks (DisruptiveScripts) on the open ports the scan's ExternalFull
+	// run found (-p, 1..commonports.MaxBelievableOpen ascending ports), with -sV so the scripts' port rules know the services, at
+	// FullRate, bounded by DisruptiveHostTimeout. It runs after every other step of the scan, so a ban or an overloaded firewall
+	// costs only this step. Like PortVersions its -p list varies (FlagsFor): the job carries the ports.
 	ExternalDisruptive
 	// AllPorts is the weekly scan of every TCP port of one LAN device that is not fragile: port discovery only
 	// (-sS -p-, no -sV, no script, no -O), at most AllPortsMaxRate packets a second, --max-retries 1, bounded by AllPortsHostTimeout.
@@ -68,7 +71,7 @@ const (
 )
 
 // kinds is every Kind, in the order Validate and KindOf try them.
-var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External, ExternalFull, ExternalDisruptive, AllPorts, Extra}
+var kinds = []Kind{Sweep, Normal, Gentle, Versions, GentleTitles, External, ExternalFull, AllPorts, Extra}
 
 // MaxPortVersions is the most ports one PortVersions run reads: -sV and the scripts time themselves (--max-rate does not
 // bound them), so the weekly follow-up stays as small as a normal scan of a device with a few services.
@@ -173,6 +176,10 @@ const (
 	// that hangs on a service cannot eat the host's hour, and a brute-force script of the disruptive shape stops after 5 minutes
 	// (unpwdb's own time limit is 10 minutes at the default timing).
 	fullScriptTimeout = "5m"
+	// DisruptiveHostTimeout bounds the disruptive scripts' run on the open ports: -sV on at most commonports.MaxBelievableOpen ports
+	// (the default intensity), then the scripts in parallel, each capped by fullScriptTimeout.
+	DisruptiveHostTimeout = 30 * time.Minute
+	disruptiveHostTimeout = "30m"
 )
 
 // FullScripts is the --script value of ExternalFull: an explicit list (scripts.go, review r1 M2/M3), never a category expression,
@@ -181,10 +188,10 @@ const (
 // and none of excludedScripts. No --script-args.
 var FullScripts = strings.Join(fullScripts, ",")
 
-// DisruptiveScripts is the --script value of ExternalDisruptive: FullScripts plus disruptiveExtra (denial of service, brute force
-// and the login and crash checks of disruptiveMoved), sorted.
+// DisruptiveScripts is the --script value of ExternalDisruptive: disruptiveExtra (denial of service, brute force and the login
+// and crash checks of disruptiveMoved), sorted. The scripts of FullScripts ran in the scan's ExternalFull run before.
 var DisruptiveScripts = func() string {
-	all := slices.Concat(fullScripts, disruptiveExtra)
+	all := slices.Clone(disruptiveExtra)
 	slices.Sort(all)
 	return strings.Join(all, ",")
 }()
@@ -345,17 +352,15 @@ func Flags(kind Kind, rate int) ([]string, error) {
 		// (routers drop it); it is up by definition.
 		return []string{flagPrivileged, "-sS", "-Pn", flagNoDNS, flagMaxRate, r, flagMaxRetries, "2", flagHostTimeout, externalDiscoveryTimeout,
 			flagTopPorts, strconv.Itoa(ExternalTopPorts)}, nil
-	case ExternalFull, ExternalDisruptive:
+	case ExternalFull:
 		if rate != FullRate {
 			return nil, fmt.Errorf("nmapargv: the %s shape runs at %d packets/s, not %d", kind.Name(), FullRate, rate)
 		}
-		scripts := FullScripts
-		if kind == ExternalDisruptive {
-			scripts = DisruptiveScripts
-		}
-		// The reviewed explicit script lists of scripts.go, never a category expression (FORBID-3); one argv element, never through a shell.
-		return []string{flagPrivileged, "-sS", "-sV", flagVersionAll, "-Pn", flagNoDNS, "-p-", flagScript, scripts, flagScriptTimeout, fullScriptTimeout,
+		// The reviewed explicit script list of scripts.go, never a category expression (FORBID-3); one argv element, never through a shell.
+		return []string{flagPrivileged, "-sS", "-sV", flagVersionAll, "-Pn", flagNoDNS, "-p-", flagScript, FullScripts, flagScriptTimeout, fullScriptTimeout,
 			flagMaxRate, r, flagMaxRetries, fullRetries, flagHostTimeout, fullHostTimeout}, nil
+	case ExternalDisruptive:
+		return nil, errors.New("nmapargv: the external_disruptive shape needs its ports (FlagsFor)")
 	}
 	return nil, errors.New("nmapargv: unknown scan kind")
 }
@@ -397,9 +402,13 @@ func targetRule(kind Kind, n int) (ok func(netip.Addr) bool, err error) {
 	return validTarget, nil
 }
 
-// FlagsFor is Flags with the ports of a PortVersions run (1..MaxPortVersions distinct ports, ascending); every other kind takes
-// none, and External without ports is its discovery run (its -sV batches are BatchFlags', with their host timeout).
+// FlagsFor is Flags with the ports of a PortVersions run (1..MaxPortVersions distinct ports, ascending) or of an ExternalDisruptive
+// run (1..commonports.MaxBelievableOpen); every other kind takes none, and External without ports is its discovery run (its -sV
+// batches are BatchFlags', with their host timeout).
 func FlagsFor(kind Kind, rate int, ports []int) ([]string, error) {
+	if kind == ExternalDisruptive {
+		return disruptiveFlags(rate, ports)
+	}
 	if kind != PortVersions {
 		if len(ports) != 0 {
 			return nil, fmt.Errorf("nmapargv: the %s shape takes no port list here (an external -sV batch is BatchFlags')", kind.Name())
@@ -418,6 +427,23 @@ func FlagsFor(kind Kind, rate int, ports []int) ([]string, error) {
 	}
 	return []string{flagPrivileged, "-sS", "-sV", flagScript, Scripts, flagNoDNS, flagMaxRate, strconv.Itoa(rate), flagMaxRetries, lanMaxRetries,
 		"-p", list, flagHostTimeout, normalHostTimeout}, nil
+}
+
+// disruptiveFlags is the flag part of an ExternalDisruptive run: the disruptive scripts on 1..commonports.MaxBelievableOpen ascending,
+// distinct open ports, -sV first (the scripts' port rules read the service names), at FullRate.
+func disruptiveFlags(rate int, ports []int) ([]string, error) {
+	if rate != FullRate {
+		return nil, fmt.Errorf("nmapargv: the %s shape runs at %d packets/s, not %d", ExternalDisruptive.Name(), FullRate, rate)
+	}
+	if len(ports) == 0 || len(ports) > commonports.MaxBelievableOpen {
+		return nil, fmt.Errorf("nmapargv: an external_disruptive run reads 1 to %d ports, got %d", commonports.MaxBelievableOpen, len(ports))
+	}
+	list, err := portList(ports)
+	if err != nil {
+		return nil, err
+	}
+	return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, "-p", list, flagScript, DisruptiveScripts, flagScriptTimeout, fullScriptTimeout,
+		flagMaxRate, strconv.Itoa(rate), flagMaxRetries, fullRetries, flagHostTimeout, disruptiveHostTimeout}, nil
 }
 
 // portList writes ascending, distinct ports 1..65535 as a plain comma-separated -p value.
@@ -548,7 +574,7 @@ func HostTimeoutOf(args []string) time.Duration {
 	return hostTimeoutOf(args[:i-2])
 }
 
-// BuildFor is Build with the ports of a PortVersions run (one target).
+// BuildFor is Build with the ports of a PortVersions or an ExternalDisruptive run (one target).
 func BuildFor(kind Kind, rate int, ports []int, targets []netip.Addr) ([]string, error) {
 	if kind == PortVersions && len(targets) != 1 {
 		return nil, fmt.Errorf("nmapargv: a port_versions run takes exactly one target, got %d", len(targets))
@@ -575,7 +601,7 @@ func BuildFor(kind Kind, rate int, ports []int, targets []netip.Addr) ([]string,
 // commas; nil otherwise.
 func portsOf(flags []string) []int {
 	i := slices.Index(flags, "-p")
-	if i < 0 || i+1 >= len(flags) || len(flags[i+1]) > 6*max(MaxBatchPorts, MaxPortVersions) {
+	if i < 0 || i+1 >= len(flags) || len(flags[i+1]) > 6*max(MaxBatchPorts, MaxPortVersions, commonports.MaxBelievableOpen) {
 		return nil
 	}
 	var out []int
@@ -622,6 +648,9 @@ func shapeOf(flags []string) (Kind, int, []int, bool) {
 		if want, err := FlagsFor(PortVersions, rate, ports); err == nil && slices.Equal(flags, want) {
 			return PortVersions, rate, ports, true
 		}
+		if want, err := FlagsFor(ExternalDisruptive, rate, ports); err == nil && slices.Equal(flags, want) {
+			return ExternalDisruptive, rate, ports, true
+		}
 		if want, err := BatchFlags(rate, ports, hostTimeoutOf(flags)); err == nil && slices.Equal(flags, want) {
 			return External, rate, ports, true
 		}
@@ -654,8 +683,9 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 // starts, independently of how Build made it (SYS-2). It accepts exactly the eleven shapes of FlagsFor
 // (sweep, normal, gentle, versions, gentle_titles, external, external_full, external_disruptive, all_ports, extra_ports,
 // port_versions), where only the rate of sweep, normal, versions, all_ports (at most AllPortsMaxRate), extra_ports and
-// port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports) and of an external -sV batch
-// (1..MaxBatchPorts ascending ports, with its host timeout, BatchFlags), then "--stats-every 5s -oX -", then 1 to MaxBatch
+// port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports), of external_disruptive
+// (1..commonports.MaxBelievableOpen ascending ports) and of an external -sV batch (1..MaxBatchPorts ascending ports, with its host
+// timeout, BatchFlags), then "--stats-every 5s -oX -", then 1 to MaxBatch
 // canonical, unique, private IPv4 addresses (port_versions: exactly one; the three external shapes: exactly one canonical public
 // IPv4 address).
 // Everything else is rejected.
@@ -690,8 +720,11 @@ func Validate(args []string) error {
 
 // KindOf is the Kind whose Name is shape: the shape field of a job on the sensor link.
 func KindOf(shape string) (Kind, bool) {
-	if shape == PortVersions.Name() {
+	switch shape {
+	case PortVersions.Name():
 		return PortVersions, true
+	case ExternalDisruptive.Name():
+		return ExternalDisruptive, true
 	}
 	for _, k := range kinds {
 		if k.Name() == shape {
@@ -709,7 +742,7 @@ func Parse(args []string) (Kind, int, []netip.Addr, error) {
 	return k, rate, targets, err
 }
 
-// ParseFor is Parse with the ports of a PortVersions line or of an external -sV batch (nil for every other line; a batch's host
+// ParseFor is Parse with the ports of a PortVersions or ExternalDisruptive line or of an external -sV batch (nil for every other line; a batch's host
 // timeout is HostTimeoutOf's).
 func ParseFor(args []string) (Kind, int, []int, []netip.Addr, error) {
 	if err := Validate(args); err != nil {

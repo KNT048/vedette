@@ -116,7 +116,10 @@ func ownProvenPage(st ScanTarget, page WebPage) bool {
 // webActive is the active pass of the web step, after webPassive, on the pages it scanned (c.webOK). See the comment at the top.
 func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Content, error) {
 	pages := c.webOK
-	rs := runStepsOf(ctx) // its run step (stepKeyZAPActive), in the plan of a deep scan
+	rs := runStepsOf(ctx)                                           // its run step (stepKeyZAPActive), in the plan of a deep scan
+	if st.Mode.Full && s.skipIfGone(ctx, st, c, stepKeyZAPActive) { // the target stopped answering earlier in the run
+		return c, nil
+	}
 	switch {
 	case !st.Mode.Full: // a surface scan has no active pass (a typed IP without its live proof runs at that depth)
 		rs.skip(ctx, stepKeyZAPActive, "The active web scan runs only in a deep scan.")
@@ -139,6 +142,14 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 	if plog == nil {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notActiveNoLog})
 		rs.skip(ctx, stepKeyZAPActive, notActiveNoLog)
+		return c, nil
+	}
+	// The ports seen open earlier must still answer (liveness.go): a page on a port that stopped answering is not attacked
+	if !s.beforeEngine(ctx, st, &c, stepKeyZAPActive, stepNameZAPAct, "web") {
+		return c, nil
+	}
+	if pages = slices.DeleteFunc(slices.Clone(pages), func(p WebPage) bool { return c.lostPort(p.IP.String(), p.Port) }); len(pages) == 0 {
+		rs.skip(ctx, stepKeyZAPActive, "Not run. "+s.lostText(ctx, st, c.Lost))
 		return c, nil
 	}
 	rs.start(ctx, stepKeyZAPActive)

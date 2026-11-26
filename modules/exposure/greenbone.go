@@ -173,8 +173,8 @@ const (
 	notGBDomain           = "OpenVAS runs on the box's own verified public IP only, never on the names of a domain."
 	// notGBNoDeep: a domain with accepted terms whose deep scan reached no address this run.
 	notGBNoDeep   = "OpenVAS did not scan: no address of this domain's names got the deep scan this run."
-	notGBStarting = "OpenVAS did not scan: it is still starting."
-	notGBLoading  = "OpenVAS did not scan: it is loading its feed (the first time takes 1 to 3 hours)."
+	notGBStarting = "OpenVAS did not scan: it is still starting (its images may still be downloading); it will run in the next scan."
+	notGBLoading  = "OpenVAS did not scan: it is loading its feed (the first time takes 1 to 3 hours); it will run in the next scan once it is ready."
 	notGBGate     = "OpenVAS did not scan: this IP can no longer be scanned (it was removed, paused, no longer verified or needs the scan confirmed again), so nothing was sent."
 	// notGBNotOwn: the address is not the box's own proven IP (no sighting inside its days, or a typed IP without its scope), so
 	// OpenVAS, which has no fence of its own on the host, gets nothing (INV-13).

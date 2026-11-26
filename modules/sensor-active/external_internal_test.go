@@ -137,7 +137,7 @@ func readFull(data []byte) (External, error) {
 	if err != nil {
 		return External{}, err
 	}
-	return externalOf(all, ownIP, nmapargv.ExternalFull)
+	return externalOf(all, ownIP, nmapargv.ExternalFull, nil)
 }
 
 // A full run read from a fixture written by hand after nmap's documented XML (nmap.dtd; the vulns library's output of
@@ -495,7 +495,7 @@ func TestExternalServiceMethodAndConf(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := externalOf(all, ownIP, nmapargv.ExternalFull)
+	got, err := externalOf(all, ownIP, nmapargv.ExternalFull, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -917,11 +917,11 @@ func TestRunBatchesKeepsFinishedOnes(t *testing.T) {
 func TestFullRunSaysTheAddressAnsweredWithClosedPorts(t *testing.T) {
 	t.Parallel()
 	ip := netip.MustParseAddr("198.51.100.7")
-	got, err := externalOf([]host{{addr: ip, closed: 65535}}, ip, nmapargv.ExternalFull)
+	got, err := externalOf([]host{{addr: ip, closed: 65535}}, ip, nmapargv.ExternalFull, nil)
 	if err != nil || !got.Refused || len(got.Services) != 0 {
 		t.Fatalf("a full run with closed ports only: %+v, %v", got, err)
 	}
-	got, err = externalOf([]host{{addr: ip, filtered: 65535}}, ip, nmapargv.ExternalFull)
+	got, err = externalOf([]host{{addr: ip, filtered: 65535}}, ip, nmapargv.ExternalFull, nil)
 	if err != nil || got.Refused {
 		t.Fatalf("a full run with filtered ports only: %+v, %v", got, err)
 	}

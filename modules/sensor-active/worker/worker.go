@@ -595,7 +595,7 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(j.Ports) > 0 && kind != nmapargv.PortVersions && kind != nmapargv.External {
+	if len(j.Ports) > 0 && kind != nmapargv.PortVersions && kind != nmapargv.External && kind != nmapargv.ExternalDisruptive {
 		return nil, fmt.Errorf("a %s job carries no ports", j.Shape)
 	}
 	batch := kind == nmapargv.External && len(j.Ports) > 0 // an external -sV batch: its ports and its host timeout
@@ -609,7 +609,7 @@ func argvOf(j sensorlink.Job) ([]string, error) {
 	if batch {
 		argv, err = nmapargv.BuildBatch(j.Rate, j.Ports, time.Duration(j.HostTimeoutS)*time.Second, targets)
 	} else {
-		argv, err = nmapargv.BuildFor(kind, j.Rate, j.Ports, targets) // port_versions: its 1..20 ports
+		argv, err = nmapargv.BuildFor(kind, j.Rate, j.Ports, targets) // port_versions: its 1..20 ports; external_disruptive: its 1..40
 	}
 	if err != nil {
 		return nil, err

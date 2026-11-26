@@ -9,6 +9,9 @@ All notable changes to Vedette are recorded here. Format: [Keep a Changelog](htt
 - A backup downloaded with a password carries the box's decryption key inside its encryption, so restoring it on a new box keeps every saved secret and two-step sign-in, with no separate key file. A backup downloaded without a password still never holds the key.
 
 ### Changed
+- External targets: a deep scan runs its light checks first and nmap's password-guessing and crash scripts last, after OpenVAS, on the ports it found open, so a firewall that blocks the box during them costs only that step.
+- External targets: before each step a scan checks that the ports it saw open still answer; when the target stops answering (for example a router that loses its NAT loopback), the later steps say so, the run ends partly done instead of done, and the scan does not count as a miss of any port.
+- External targets: the ZAP image is downloaded when the External exposure module is turned on and when the box starts with it on, so the first scan does not skip the web checks; a scan that finds an engine image still downloading says so and ends partly done.
 - External targets: one button accepts the testing terms, disruptive checks included (they run only in a scan a person starts, never on the schedule). The box's own IP it does not go out through now can be accepted while its proof holds. Acceptances made before the update stay valid; one made without the disruptive checks keeps the deep scan only until the terms are accepted again. A refused acceptance is logged with its reason.
 
 ### Fixed

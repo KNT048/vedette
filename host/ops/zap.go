@@ -627,6 +627,43 @@ func (o *Ops) zapOwner() int {
 	return zapUID
 }
 
+// cmdZapPrepare is zap.prepare: the image's state, its download started when it is not on the box and none runs. Not a write command:
+// it touches only the image, like the download zap.baseline starts.
+func (o *Ops) cmdZapPrepare() server.Command {
+	return server.Define(server.Spec[struct{}]{
+		Name: api.CmdZapPrepare, Write: false, Timeout: zapPrepareTimeout,
+		Run: func(ctx context.Context, rc *server.RunContext, _ struct{}) (any, error) {
+			return o.zapPrepare(ctx, rc.Log)
+		},
+	})
+}
+
+// zapPrepareTimeout bounds zap.prepare: one podman image exists; the download itself runs beside it.
+const zapPrepareTimeout = 2 * time.Minute
+
+// zapPrepare answers the image's state and starts its download when it is missing and none runs.
+func (o *Ops) zapPrepare(ctx context.Context, logf func(string)) (api.ZapPrepareResult, error) {
+	_, code, err := o.zapStep(ctx, binPodman, nil, zapImageExistsArgv()...)
+	if err == nil && code == 0 {
+		logf("the ZAP image is on this box")
+		return api.ZapPrepareResult{State: api.ZapImageReady}, nil
+	}
+	if err != nil || code != 1 {
+		return api.ZapPrepareResult{}, fail(api.CodeZapFailed, "The host could not ask podman whether the ZAP image is on this box.")
+	}
+	o.zapMu.Lock()
+	defer o.zapMu.Unlock()
+	if o.zapPulling {
+		logf("the ZAP image is being downloaded")
+		return api.ZapPrepareResult{State: api.ZapImagePulling}, nil
+	}
+	last := o.zapPullErr
+	o.zapPulling, o.zapPullErr = true, ""
+	go o.zapPull() //nolint:gosec,contextcheck // the download outlives this command on purpose: it runs on the process's own context (loopCtx), bounded to 45 minutes
+	logf("the ZAP image is not on this box: its download started")
+	return api.ZapPrepareResult{State: api.ZapImagePulling, LastError: last}, nil
+}
+
 // zapImageReady refuses while the image is not on the box, and starts its download when none runs (pulled when first needed).
 func (o *Ops) zapImageReady(ctx context.Context) error {
 	_, code, err := o.zapStep(ctx, binPodman, nil, zapImageExistsArgv()...)

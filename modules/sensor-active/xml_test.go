@@ -119,7 +119,7 @@ func TestParseAcceptsTheLongArgvOfTheFullShapes(t *testing.T) {
 	for i := range ports {
 		ports[i] = strconv.Itoa(i + 1)
 	}
-	for _, kind := range []nmapargv.Kind{nmapargv.ExternalFull, nmapargv.ExternalDisruptive} {
+	for _, kind := range []nmapargv.Kind{nmapargv.ExternalFull} {
 		argv, err := nmapargv.Build(kind, nmapargv.FullRate, []netip.Addr{boxIP})
 		if err != nil {
 			t.Fatal(err)

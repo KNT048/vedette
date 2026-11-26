@@ -366,6 +366,10 @@ type Content struct {
 	// Answered is each address that replied to this scan's probes even where no port was open: the runner's TCP connect or nmap got
 	// a reset (a closed port) there. An address with no open port counts as missed by the scan only when it answered (coverage).
 	Answered map[string]bool `json:"-"`
+	// Lost are the ports of each address, by its canonical spelling, that answered earlier in this scan and no longer accepted a TCP
+	// connection at a later liveness check (liveness.go), ascending: the engines after it skip them, and the scan is not a miss of any
+	// port of such an address (coverage: coverLost).
+	Lost map[string][]int `json:"-"`
 }
 
 // MaxIgnored is the most IPs the Ignored list holds; a full list refuses to take one more (400 too_many).

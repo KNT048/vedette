@@ -168,10 +168,14 @@ func TestExternalJobWithOtherPortsIsInvalid(t *testing.T) {
 func TestFullJobsRunOnlyOnTheBoxsOwnIP(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []nmapargv.Kind{nmapargv.ExternalFull, nmapargv.ExternalDisruptive} {
-		job := func(target string, rate int) sensorlink.Job {
-			return sensorlink.Job{ID: id1, Kind: sensorlink.KindNmap, Shape: kind.Name(), Rate: rate, Targets: []string{target}, TimeoutS: 60}
+		var ports []int
+		if kind == nmapargv.ExternalDisruptive { // the deep scan's last step: the open ports of its full run
+			ports = []int{22, 443}
 		}
-		want, err := nmapargv.Build(kind, nmapargv.FullRate, []netip.Addr{netip.MustParseAddr("8.8.8.8")})
+		job := func(target string, rate int) sensorlink.Job {
+			return sensorlink.Job{ID: id1, Kind: sensorlink.KindNmap, Shape: kind.Name(), Rate: rate, Targets: []string{target}, TimeoutS: 60, Ports: ports}
+		}
+		want, err := nmapargv.BuildFor(kind, nmapargv.FullRate, ports, []netip.Addr{netip.MustParseAddr("8.8.8.8")})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -238,6 +242,9 @@ func TestFullJobStopsWhenTheAddressChangesMidRun(t *testing.T) {
 			ticks := make(chan time.Time)
 			r := start(t, nm, func(cfg *worker.Config) { cfg.Egress, cfg.EgressTicks = eg, ticks })
 			job := sensorlink.Job{ID: id1, Kind: sensorlink.KindNmap, Shape: c.shape, Rate: nmapargv.FullRate, Targets: []string{"8.8.8.8"}, TimeoutS: 60}
+			if c.shape == nmapargv.ExternalDisruptive.Name() { // the deep scan's last step: the open ports of its full run
+				job.Ports = []int{22, 443}
+			}
 			r.core.push(job)
 			waitFor(t, "nmap to start", func() bool { return nm.argvLog() != "" })
 			ticks <- time.Time{} // received by the watcher of this job: the re-check runs now

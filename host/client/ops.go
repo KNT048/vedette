@@ -280,6 +280,20 @@ func (c *Client) ZapActive(ctx context.Context, args api.ZapActiveArgs, requestI
 	return run, err
 }
 
+// ZapPrepare runs zap.prepare and follows it to its end (seconds: the download runs beside it on the host).
+func (c *Client) ZapPrepare(ctx context.Context, requestID, actor string) (api.Run, error) {
+	run, err := c.Run(ctx, api.CmdZapPrepare, nil, requestID, actor)
+	for err == nil && !run.Status.Terminal() {
+		select {
+		case <-ctx.Done():
+			return run, ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+		run, err = c.GetRun(ctx, run.RunID)
+	}
+	return run, err
+}
+
 // ZapStop runs zap.stop and follows it to its end: the ZAP run of args.RequestID (baseline or active) is stopped and its container
 // removed and proven gone before it answers; a run that has not started yet will refuse to.
 func (c *Client) ZapStop(ctx context.Context, args api.ZapStopArgs, requestID, actor string) (api.Run, error) {

@@ -17,6 +17,18 @@ const CmdZapActive = "zap.active"
 // not started yet, the host remembers the stop and that run refuses to start. A run of another request id is left alone.
 const CmdZapStop = "zap.stop"
 
+// CmdZapPrepare (no args) makes sure the ZAP image is on the box: when it is not and no download runs, the host starts its download
+// by digest in the background (as zap.baseline does on first need) and answers at once (ZapPrepareResult). Core sends it when the
+// External exposure module is switched on and at its own start with the module on (after an install or an update), so the first
+// scan does not find the image missing.
+const CmdZapPrepare = "zap.prepare"
+
+// The states of the ZAP image in ZapPrepareResult.
+const (
+	ZapImageReady   = "ready"   // the image is on the box
+	ZapImagePulling = "pulling" // its download runs (started now, or earlier)
+)
+
 // Kinds of the target a page belongs to (exposure's target kinds).
 const (
 	ZapKindIP     = "ip"
@@ -122,4 +134,11 @@ type ZapStopArgs struct {
 // had already ended).
 type ZapStopResult struct {
 	Stopped bool `json:"stopped"`
+}
+
+// ZapPrepareResult is the state of the ZAP image after zap.prepare: ZapImageReady or ZapImagePulling, and LastError the reason the
+// previous download failed ("" when none; a new download has started).
+type ZapPrepareResult struct {
+	State     string `json:"state"`
+	LastError string `json:"last_error,omitempty"`
 }

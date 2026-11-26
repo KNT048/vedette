@@ -712,13 +712,20 @@ func surfaceIssues(c Content, at time.Time) []issueIn {
 		}
 		out = append(out, in)
 	}
-	for _, r := range c.Scripts {
+	return append(out, scriptIssues(c.Scripts, keyScript)...)
+}
+
+// scriptIssues are the findings nmap's scripts confirmed, in the key space prefix (keyScript: the deep scan's first nmap run;
+// keyScriptDisruptive: its disruptive scripts, the last step).
+func scriptIssues(rows []ScriptRow, prefix string) []issueIn {
+	var out []issueIn
+	for _, r := range rows {
 		for _, f := range r.Findings {
 			if f.State != "vulnerable" {
 				continue
 			}
 			title := firstOf(f.Title, r.ID)
-			out = append(out, issueIn{engine: EngineSurface, key: keyScript + ipKey(r.IP) + " " + r.ID + ":" + clipText(title, 200), ip: r.IP, port: r.Port, severity: "high",
+			out = append(out, issueIn{engine: EngineSurface, key: prefix + ipKey(r.IP) + " " + r.ID + ":" + clipText(title, 200), ip: r.IP, port: r.Port, severity: "high",
 				title: clipText(title, 300), cves: f.CVEs,
 				detail: IssueDetail{Description: "The nmap script " + r.ID + " confirmed this finding.", Evidence: []string{clipText(r.Output, 500)}}})
 		}
@@ -970,6 +977,9 @@ func keyAddr(e IssueEngine, key string) string {
 	case e == EngineSurface && strings.HasPrefix(key, keyScript):
 		ip, _, _ := strings.Cut(strings.TrimPrefix(key, keyScript), " ")
 		return ip
+	case e == EngineSurface && strings.HasPrefix(key, keyScriptDisruptive):
+		ip, _, _ := strings.Cut(strings.TrimPrefix(key, keyScriptDisruptive), " ")
+		return ip
 	}
 	return ""
 }
@@ -1010,6 +1020,8 @@ func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
 			switch {
 			case strings.HasPrefix(x.key, keyScript):
 				return scripted[ipKey(x.ip)] && (!x.service || x.seen)
+			case strings.HasPrefix(x.key, keyScriptDisruptive): // only a later run of the disruptive scripts closes one (writeDisruptive)
+				return false
 			case strings.HasPrefix(x.key, keyCertExpiry): // the certificate was read again: its name resolved, and its service answered
 				host := strings.TrimPrefix(x.key, keyCertExpiry)
 				if _, _, err := net.SplitHostPort(host); err == nil {

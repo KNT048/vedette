@@ -102,7 +102,8 @@ func exposureService(d deps) *exposure.Service {
 		m.catalog = d.Inventory.KevKeysByCPE
 	}
 	cfg.Matcher = m
-	cfg.Web = exposureWebFor(d) // INV-24: ZAP's passive baseline through vedette-host's zap.baseline
+	cfg.Web = exposureWebFor(d)          // INV-24: ZAP's passive baseline through vedette-host's zap.baseline
+	cfg.Liveness = exposureLivenessFor() // a TCP connect to the ports seen open, before each engine step of a scan
 	// INV-25: OpenVAS (Greenbone CE) through vedette-host's greenbone.* commands, off until an administrator enables it.
 	// DataDir is the disk preflight's filesystem. privacyFacts.GreenboneEnabled (flow 16) reads this same service (review r2).
 	cfg.Greenbone, cfg.DataDir = exposureGreenboneFor(d), d.DataDir
@@ -135,6 +136,7 @@ func exposureAtStart(ctx context.Context, d deps) {
 	}
 	if d.Reg == nil || d.Reg.Enabled(exposure.ModuleID) {
 		svc.GreenboneAtStart(ctx)
+		go svc.PrepareEngines(ctx) // ZAP's image after an install or an update, so the first scan does not find it missing
 	}
 }
 

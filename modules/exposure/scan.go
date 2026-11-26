@@ -548,6 +548,14 @@ func (s *Service) coverage(ctx context.Context, user string, t Target, runID str
 			out.checked[k] = coverEmpty
 		}
 	}
+	defer func() { // an address that stopped answering during the scan: the scan says nothing about its ports (INV-22)
+		for k, ports := range c.Lost {
+			if len(ports) > 0 {
+				out.checked[ipKey(k)] = coverLost
+				delete(out.settled, ipKey(k))
+			}
+		}
+	}()
 	if t.Kind == KindIP {
 		k := ipKey(t.Value)
 		out.listed[k] = true // the runner connects to the whole fixed list of an IP target

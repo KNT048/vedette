@@ -323,3 +323,41 @@ func TestExposureWeb_AStoppedScanStopsZAPOnTheHost(t *testing.T) {
 		t.Fatalf("%v, stops %q of runs %q", err, h.stops, h.reqs)
 	}
 }
+
+// preparingZapHost is a fake host that also answers zap.prepare.
+type preparingZapHost struct {
+	*fakeZapHost
+	prepared int
+	status   api.Status
+}
+
+func (p *preparingZapHost) ZapPrepare(context.Context, string, string) (api.Run, error) {
+	p.prepared++
+	return api.Run{Command: api.CmdZapPrepare, Status: p.status}, nil
+}
+
+// The ZAP image is fetched ahead of the first scan through zap.prepare; a run that finds it still downloading is "not ready yet"
+// (Pending), which exposure turns into a skipped step and a run that ends partly done.
+func TestExposureWeb_TheImageIsFetchedAheadAndAPendingOneIsSaid(t *testing.T) {
+	t.Parallel()
+	h := &preparingZapHost{fakeZapHost: &fakeZapHost{}, status: api.StatusSucceeded}
+	w := exposureWebScan{host: h}
+	if err := w.PrepareImage(t.Context()); err != nil || h.prepared != 1 {
+		t.Fatalf("prepare: %v, %d calls", err, h.prepared)
+	}
+	h.status = api.StatusFailed
+	if err := w.PrepareImage(t.Context()); err == nil {
+		t.Fatal("a failed zap.prepare was not said")
+	}
+	if err := (exposureWebScan{}).PrepareImage(t.Context()); err != nil {
+		t.Fatalf("no host: %v", err)
+	}
+	for _, code := range []string{api.CodeZapPulling, api.CodeZapPullFailed} {
+		w := exposureWebScan{host: &fakeZapHost{run: zapRun(t, api.StatusRefused, code, nil)}}
+		_, err := w.Baseline(t.Context(), webIPTarget, webIPPage)
+		var un *exposure.Unavailable
+		if !errors.As(err, &un) || !un.Pending || !strings.Contains(un.Reason, "will run in the next scan") {
+			t.Fatalf("%s: %v", code, err)
+		}
+	}
+}

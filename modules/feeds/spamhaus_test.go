@@ -40,6 +40,9 @@ func TestSpamhausDROPIsOffByDefaultAndMatchesTheAddressesInsideItsNetworks(t *te
 	if n := len(o.all()); n != 0 {
 		t.Fatalf("%d requests to Spamhaus while the feed is off", n)
 	}
+	if c, err := e.svc.st.IOCCredits(t.Context()); err != nil || len(c) != 0 {
+		t.Errorf("credits of a feed that is off: %v %v", c, err)
+	}
 
 	if c, body := e.put(dropFeedID, `{"enabled":true}`); c != 200 {
 		t.Fatalf("%d %v", c, body)
@@ -48,6 +51,10 @@ func TestSpamhausDROPIsOffByDefaultAndMatchesTheAddressesInsideItsNetworks(t *te
 		t.Fatalf("pull: %d %v", c, b)
 	}
 	fetched := "Spamhaus DROP (list fetched " + e.clock().UTC().Format("2006-01-02 15:04") + " UTC)"
+	// logs stores the plain name on a hit and shows this credit, from the feed's last good pull
+	if c, err := e.svc.st.IOCCredits(t.Context()); err != nil || len(c) != 1 || c["Spamhaus DROP"] != fetched {
+		t.Errorf("credits: %v %v", c, err)
+	}
 	for ip, want := range map[string]bool{
 		"80.0.2.0": true, "80.0.2.77": true, "80.0.2.255": true, // inside the /24
 		"80.0.8.1": true, "80.0.11.254": true, // inside the /22

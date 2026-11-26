@@ -139,8 +139,8 @@ func TestWiringBadAddressIncidentIsSentByTheDefaultTriggers(t *testing.T) {
 }
 
 // Spamhaus DROP lists networks, not addresses. Through the real logs -> notify path with the default alert triggers: a device that reaches
-// an address inside a listed network opens a high incident (0.9) that is sent, and the incident and the stored hit credit Spamhaus DROP
-// with the time the box fetched the list; an address just outside the network is no hit at all.
+// an address inside a listed network opens a high incident (0.9) that is sent; the incident and the hit as read credit Spamhaus DROP
+// with the time of the feed's last fetch, while the stored hit keeps the plain name; an address just outside the network is no hit.
 func TestWiringSpamhausDROPNetworkHitIsHighAndCredited(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
@@ -150,15 +150,13 @@ func TestWiringSpamhausDROPNetworkHitIsHighAndCredited(t *testing.T) {
 	s.setModule("feeds", true)
 	s.setModule("logs", true)
 	seedListings(ctx, t, s, "ip", map[string][]string{"80.0.2.0/24": {"spamhaus-drop"}})
-	var fetched string
-	if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT last_seen FROM feeds_ioc_source WHERE source_id = 'spamhaus-drop'`).Scan(&fetched); err != nil {
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { // the feed's last good pull
+		_, err := tx.ExecContext(ctx, `UPDATE feeds_source SET last_success = '2026-11-26T07:00:00.000Z' WHERE id = 'spamhaus-drop'`)
+		return err
+	}); err != nil {
 		t.Fatal(err)
 	}
-	at, err := time.Parse("2006-01-02T15:04:05.000Z", fetched)
-	if err != nil {
-		t.Fatal(err)
-	}
-	credit := "Spamhaus DROP (list fetched " + at.Format("2006-01-02 15:04") + " UTC)"
+	shownAs := "Spamhaus DROP (list fetched 2026-11-26 07:00 UTC)"
 	lsvc := logsService(*s.d)
 	src, err := lsvc.AddSource(ctx, "admin@acme.example", logs.Input{Kind: "fortigate", Name: "FW-HQ", SenderIP: "10.0.10.254", Proto: "udp", Port: 514})
 	if err != nil {
@@ -175,8 +173,8 @@ func TestWiringSpamhausDROPNetworkHitIsHighAndCredited(t *testing.T) {
 	if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT severity, ifnull(unsent, ''), what FROM notify_incident WHERE kind = 'bad_address' AND title LIKE '%80.0.2.77%'`).Scan(&sev, &unsent, &what); err != nil {
 		t.Fatal(err)
 	}
-	if sev != "high" || unsent != "queued" || !strings.Contains(what, "Confidence 90%") || !strings.Contains(what, credit) {
-		t.Errorf("incident: severity %s unsent %q what %q, want high, queued, 90%%, %q", sev, unsent, what, credit)
+	if sev != "high" || unsent != "queued" || !strings.Contains(what, "Confidence 90%") || !strings.Contains(what, shownAs) {
+		t.Errorf("incident: severity %s unsent %q what %q, want high, queued, 90%%, %q", sev, unsent, what, shownAs)
 	}
 	var n int
 	if err := s.d.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM notify_incident WHERE kind = 'bad_address' AND title LIKE '%80.0.3.1%'`).Scan(&n); err != nil || n != 0 {
@@ -186,8 +184,12 @@ func TestWiringSpamhausDROPNetworkHitIsHighAndCredited(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(hits) != 1 || hits[0].Dest != "80.0.2.77" || len(hits[0].Feeds) != 1 || hits[0].Feeds[0] != credit {
+	if len(hits) != 1 || hits[0].Dest != "80.0.2.77" || len(hits[0].Feeds) != 1 || hits[0].Feeds[0] != shownAs {
 		t.Errorf("hits: %+v", hits)
+	}
+	var stored string
+	if err := s.d.LogsDB.Reader().QueryRowContext(ctx, `SELECT feeds FROM logs_ioc_hits WHERE dest = '80.0.2.77'`).Scan(&stored); err != nil || stored != `["Spamhaus DROP"]` {
+		t.Errorf("stored feeds %s (%v), want the plain name", stored, err)
 	}
 	if k := len(s.queuedNotices()) - notices; k != 1 {
 		t.Errorf("%d notices queued, want the high one", k)

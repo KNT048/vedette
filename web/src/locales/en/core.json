@@ -1446,8 +1446,8 @@
     },
     "export": {
       "title": "Export data",
-      "desc": "Every table of the box as JSON; secrets are never included.",
-      "info": "To take to another tool: devices, findings, logs, settings and users with their names and email addresses. Passwords, keys, tokens and webhook addresses are never included (a webhook shows only its host).",
+      "desc": "The box's own data as JSON; secrets are never included.",
+      "info": "To take to another tool: devices, findings, logs, settings and users with their names and email addresses. Passwords, keys, tokens and webhook addresses are never included (a webhook shows only its host). Public data the box downloads again by itself (CVE records, scores and threat lists) is left out.",
       "button": "Export JSON"
     },
     "purge": {

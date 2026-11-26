@@ -570,9 +570,9 @@ type IOCSighting struct {
 	// Builtin is whether the feed is a built-in one; C2 is whether it lists confirmed botnet command-and-control servers (Source.C2).
 	Builtin bool
 	C2      bool
-	// ListedAt is when the box last fetched the list that holds this listing (the pull that stored it; a 304 Not Modified pull keeps
-	// the list it had). CreditName shows it for a list whose terms ask for it.
-	ListedAt time.Time
+	// FetchedAt is the feed's last good pull (feeds_source.last_success; a 304 Not Modified pull confirms the list it holds), zero
+	// before the first. CreditName shows it for a list whose terms ask for it.
+	FetchedAt time.Time
 }
 
 // IOCRecord is an indicator with the feeds that list it now.
@@ -612,6 +612,33 @@ func (s *Store) IOCSubdomainsOn(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("feeds: read sources: %w", err)
 	}
 	return ok, nil
+}
+
+// IOCCredits is the name each switched-on built-in feed whose terms ask for credit with a time (Source.CreditFetch: Spamhaus DROP) is
+// shown by, by its plain name: CreditName with the feed's last good pull. A feed never pulled is not in it (shown by its plain name).
+// Logs stores the plain name on a hit and shows this one.
+func (s *Store) IOCCredits(ctx context.Context) (map[string]string, error) {
+	out := map[string]string{}
+	for _, b := range BuiltinSources() {
+		if !b.CreditFetch {
+			continue
+		}
+		var g IOCSighting
+		var fetched string
+		err := s.db.Reader().QueryRowContext(ctx, `SELECT name, ifnull(last_success, '') FROM feeds_source WHERE id = ? AND builtin = 1 AND enabled = 1`, b.ID).Scan(&g.SourceName, &fetched)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && fetched == "") {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("feeds: read sources: %w", err)
+		}
+		if g.FetchedAt, err = parseTS(fetched); err != nil {
+			return nil, fmt.Errorf("feeds: stored time of a pull: %w", err)
+		}
+		g.SourceID, g.Builtin = b.ID, true
+		out[g.SourceName] = CreditName(g)
+	}
+	return out, nil
 }
 
 // IOCLookup returns an indicator by type ("ip", "domain", "url", "hash") and canonical value (see IOCKey).
@@ -677,9 +704,9 @@ func (s *Store) IOCLookup(ctx context.Context, kind, value string) (IOCRecord, b
 }
 
 // sightings adds the listings of one stored indicator to rec: one sighting per feed (bySource; the listing of the value itself comes
-// first, as it is read first), with the highest weight and the newest fetch time of that feed's listings.
+// first, as it is read first), with the highest weight of that feed's listings.
 func (s *Store) sightings(ctx context.Context, id string, rec *IOCRecord, bySource map[string]int) error {
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT s.source_id, f.name, s.confidence, f.enabled, f.builtin, f.url, s.last_seen FROM feeds_ioc_source s
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT s.source_id, f.name, s.confidence, f.enabled, f.builtin, f.url, ifnull(f.last_success, '') FROM feeds_ioc_source s
 JOIN feeds_source f ON f.id = s.source_id WHERE s.ioc_id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("feeds: read listings: %w", err)
@@ -687,12 +714,14 @@ JOIN feeds_source f ON f.id = s.source_id WHERE s.ioc_id = ?`, id)
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var g IOCSighting
-		var addr, listed string
-		if err := rows.Scan(&g.SourceID, &g.SourceName, &g.Confidence, &g.Enabled, &g.Builtin, &addr, &listed); err != nil {
+		var addr, fetched string
+		if err := rows.Scan(&g.SourceID, &g.SourceName, &g.Confidence, &g.Enabled, &g.Builtin, &addr, &fetched); err != nil {
 			return fmt.Errorf("feeds: read listings: %w", err)
 		}
-		if g.ListedAt, err = parseTS(listed); err != nil {
-			return fmt.Errorf("feeds: stored time of a listing: %w", err)
+		if fetched != "" {
+			if g.FetchedAt, err = parseTS(fetched); err != nil {
+				return fmt.Errorf("feeds: stored time of a pull: %w", err)
+			}
 		}
 		b, ok := BuiltinByID(g.SourceID)
 		g.Builtin = ok && g.Builtin
@@ -705,9 +734,6 @@ JOIN feeds_source f ON f.id = s.source_id WHERE s.ioc_id = ?`, id)
 		if i, dup := bySource[g.SourceID]; dup {
 			cur := &rec.Sightings[i]
 			cur.Confidence = max(cur.Confidence, g.Confidence)
-			if g.ListedAt.After(cur.ListedAt) {
-				cur.ListedAt = g.ListedAt
-			}
 			continue
 		}
 		bySource[g.SourceID] = len(rec.Sightings)

@@ -39,8 +39,8 @@ func (f logsFeeds) Lookup(ctx context.Context, kind, value string) (logs.Listing
 	return l, len(l.Feeds) > 0, nil // an indicator that no enabled feed lists is not a hit
 }
 
-// listingOf is what the switched-on feeds say about an indicator: their names (feeds.CreditName: Spamhaus DROP with the time the box
-// fetched its list), and how sure they are together (feeds.IOCConfidence:
+// listingOf is what the switched-on feeds say about an indicator: their plain names (stored on the hit; logs adds a list's credit where
+// it shows the hit, Credits), and how sure they are together (feeds.IOCConfidence:
 // each feed's rating, rising with independent feeds) with whether one lists it as a command-and-control server. The same for the
 // feeds that list a domain with all of its subdomains (hagezi TIF). A feed that was switched off is not pulled and not pruned: its
 // listings are stale and not counted.
@@ -52,10 +52,10 @@ func listingOf(rec feeds.IOCRecord, kind string) logs.Listing {
 			continue
 		}
 		on = append(on, s)
-		l.Feeds = append(l.Feeds, feeds.CreditName(s))
+		l.Feeds = append(l.Feeds, s.SourceName)
 		if s.Subdomains && kind == "domain" {
 			sub = append(sub, s)
-			l.SubFeeds = append(l.SubFeeds, feeds.CreditName(s))
+			l.SubFeeds = append(l.SubFeeds, s.SourceName)
 		}
 	}
 	l.Confidence, l.C2 = feeds.IOCConfidence(on)
@@ -71,6 +71,19 @@ func (f logsFeeds) Listed(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return svc.Store().IOCListed(ctx)
+}
+
+// Credits is the name each feed whose terms ask for credit with a time is shown by (feeds.Store.IOCCredits: Spamhaus DROP with its last
+// good pull); none while the feeds module is off.
+func (f logsFeeds) Credits(ctx context.Context) (map[string]string, error) {
+	if !f.On() {
+		return nil, nil
+	}
+	svc, err := feedsService(*f.d)
+	if err != nil {
+		return nil, err
+	}
+	return svc.Store().IOCCredits(ctx)
 }
 
 // Subdomains says whether a switched-on feed lists names with all of their subdomains; logs skips the parent walk without one.

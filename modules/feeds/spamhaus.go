@@ -203,12 +203,12 @@ func networksAround(value string) []any {
 	return out
 }
 
-// CreditName is how a listing is named wherever it is shown (the logs hit and incident, Feeds → Look up, the AI): the feed's name, and
-// for a list whose terms ask for the list to be credited with its time (Source.CreditFetch: Spamhaus DROP) the time the box fetched
-// the list that holds the listing, in UTC.
+// CreditName is how a listing is named wherever it is shown (Feeds → Look up, the AI, and through IOCCredits the logs hit and
+// incident): the feed's name, and for a list whose terms ask for the list to be credited with its time (Source.CreditFetch: Spamhaus
+// DROP) the time of the feed's last good pull, in UTC. It is never stored: a stored name stays the plain one.
 func CreditName(g IOCSighting) string {
-	if b, ok := BuiltinByID(g.SourceID); ok && g.Builtin && b.CreditFetch && !g.ListedAt.IsZero() {
-		return g.SourceName + " (list fetched " + g.ListedAt.UTC().Format("2006-01-02 15:04") + " UTC)"
+	if b, ok := BuiltinByID(g.SourceID); ok && g.Builtin && b.CreditFetch && !g.FetchedAt.IsZero() {
+		return g.SourceName + " (list fetched " + g.FetchedAt.UTC().Format("2006-01-02 15:04") + " UTC)"
 	}
 	return g.SourceName
 }

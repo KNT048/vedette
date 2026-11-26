@@ -152,7 +152,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   `TestIOCConfidenceOfHageziTIFAloneStaysBelowHigh`, `TestIOCEveryBuiltinListIsRated`, `TestSpamhausDROPAndAnAddressListAddUp`.
 - **INV-12c** A listing by a list whose terms ask for credit with a time (`Source.CreditFetch`: Spamhaus DROP) is named, wherever it
   is shown (logs' hit and incident, Feeds → Look up, the AI), by `CreditName`: "Spamhaus DROP (list fetched YYYY-MM-DD HH:MM UTC)",
-  the time of the pull that stored the listing (`IOCSighting.ListedAt`). Every other listing is named by its feed's name.
+  the time of the feed's last good pull (`feeds_source.last_success`, `IOCSighting.FetchedAt`). The credit is never stored: logs
+  stores the plain name on a hit and shows the credit from `IOCCredits` when it reads or announces the hit, so one feed is one name
+  across the days of a row. Every other listing is named by its feed's name.
 
 **Other modules**
 - **INV-10** Feeds works without inventory: `you_have` is `null`, `matched_assets` empty, nothing fails.

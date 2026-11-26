@@ -180,7 +180,9 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 			}
 		}
 	}
-	// The whole-skipped tables are the ones that only hold secrets or sign-in state; this list changes only on purpose.
+	// The whole-skipped tables are the ones that only hold secrets or sign-in state, and public data the box pulls again (feeds' CVE
+	// records, scores and indicator lists: the export never carries a third party's list, such as Spamhaus DROP); this list changes only
+	// on purpose.
 	var skipAll []string
 	for tbl := range schema {
 		cols := schema[tbl]
@@ -195,7 +197,7 @@ func TestExport_PolicyClassifiesEveryColumn(t *testing.T) {
 		}
 	}
 	slices.Sort(skipAll)
-	want := []string{"ai_memory_rejected", "core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "feeds_cve", "feeds_cve_metric", "feeds_cve_range", "feeds_cve_ref", "feeds_epss", "feeds_epss_baseline", "feeds_epss_hist", "feeds_nvd_cursor",
+	want := []string{"ai_memory_rejected", "core_email_code", "core_email_code_send", "core_secret", "core_sensor_cert", "core_session", "core_user_totp", "feeds_cve", "feeds_cve_metric", "feeds_cve_range", "feeds_cve_ref", "feeds_epss", "feeds_epss_baseline", "feeds_epss_hist", "feeds_ioc", "feeds_ioc_source", "feeds_nvd_cursor",
 		// logs.db: the data export reads vedette.db only (received lines leave through GET /core/logs/export)
 		"logs_anomaly_sent", "logs_events", "logs_ioc_hits", "logs_signature_addrs", "logs_signature_buckets", "logs_signature_daily", "logs_source_buckets", "logs_source_seen", "logs_volume",
 		"notify_slack_button", "notify_slack_final", "notify_slack_team", "notify_tg_button", "oidc_flow", "resp_link_codes", "resp_tokens"}
@@ -619,6 +621,9 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 				[]any{"https://hooks.slack.com/services/PLANT-TO-PATH", ts, `{"text":"hello","webhook":"PLANT-MSG-WEBHOOK","nested":[{"token":"PLANT-MSG-TOKEN"}]}`}},
 			{`INSERT INTO resp_actions (id, source, proposal_id, asset_name, title, risk, status, requested_at, expires_at, requires_approvals, items, approvals) VALUES ('ra1', 'rule', 'p1', 'fw', 'Block', 'low', 'pending', ?, ?, 1, ?, ?)`,
 				[]any{ts, ts, `[{"tool":"block","secret":"PLANT-ITEMS-SECRET","args":{"password":"PLANT-ITEMS-PW"}}]`, `[{"user":"u1","session":"PLANT-APPROVAL-SESSION"}]`}},
+			// a network of a third party's list (Spamhaus DROP): the box pulls it again, and the export never carries it
+			{`INSERT INTO feeds_ioc (id, type, value, first_seen, last_seen) VALUES ('ioc-plant', 'ip', '80.0.2.0/24', ?, ?)`, []any{ts, ts}},
+			{`INSERT INTO feeds_ioc_source (ioc_id, source_id, last_seen, confidence) VALUES ('ioc-plant', 'spamhaus-drop', ?, 0.5)`, []any{ts}},
 		} {
 			if _, err := tx.ExecContext(ctx, st.q, st.args...); err != nil {
 				return fmt.Errorf("%.60s: %w", st.q, err)
@@ -680,10 +685,13 @@ func TestExport_PlantedSecretsNeverLeave(t *testing.T) {
 			t.Errorf("the export lacks %s", want)
 		}
 	}
-	for _, name := range []string{"core_secret", "core_session", "notify_tg_button", "resp_link_codes", "resp_tokens", "core_email_code"} {
+	for _, name := range []string{"core_secret", "core_session", "notify_tg_button", "resp_link_codes", "resp_tokens", "core_email_code", "feeds_ioc", "feeds_ioc_source"} {
 		if _, has := doc.Tables[name]; has {
 			t.Errorf("table %s is in the export", name)
 		}
+	}
+	if strings.Contains(body, "80.0.2.0/24") {
+		t.Error("the export holds a network of the Spamhaus DROP list")
 	}
 }
 

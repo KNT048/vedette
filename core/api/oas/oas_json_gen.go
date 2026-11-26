@@ -192224,6 +192224,10 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) encodeFields(e *jx
 		json.EncodeDateTime(e, s.AskedAt)
 	}
 	{
+		e.FieldStart("attribute")
+		s.Attribute.Encode(e)
+	}
+	{
 		e.FieldStart("choices")
 		e.ArrStart()
 		for _, elem := range s.Choices {
@@ -192293,22 +192297,23 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) encodeFields(e *jx
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItem = [15]string{
+var jsonFieldsNameOfFindingsGetFindingsInput1SoftwareGroupQuestionsItem = [16]string{
 	0:  "asked_at",
-	1:  "choices",
-	2:  "command",
-	3:  "cve",
-	4:  "cve_list",
-	5:  "cves",
-	6:  "device",
-	7:  "fixes",
-	8:  "id",
-	9:  "kind",
-	10: "line",
-	11: "question",
-	12: "software",
-	13: "url",
-	14: "versions_listed",
+	1:  "attribute",
+	2:  "choices",
+	3:  "command",
+	4:  "cve",
+	5:  "cve_list",
+	6:  "cves",
+	7:  "device",
+	8:  "fixes",
+	9:  "id",
+	10: "kind",
+	11: "line",
+	12: "question",
+	13: "software",
+	14: "url",
+	15: "versions_listed",
 }
 
 // Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItem from json.
@@ -192332,8 +192337,18 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"asked_at\"")
 			}
-		case "choices":
+		case "attribute":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Attribute.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"attribute\"")
+			}
+		case "choices":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				s.Choices = make([]FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -192351,7 +192366,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"choices\"")
 			}
 		case "command":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Command.Decode(d); err != nil {
 					return err
@@ -192361,7 +192376,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"command\"")
 			}
 		case "cve":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Cve.Decode(d); err != nil {
 					return err
@@ -192371,7 +192386,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"cve\"")
 			}
 		case "cve_list":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.CveList = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -192391,7 +192406,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"cve_list\"")
 			}
 		case "cves":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.Cves = int(v)
@@ -192403,7 +192418,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"cves\"")
 			}
 		case "device":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Device.Decode(d); err != nil {
 					return err
@@ -192413,7 +192428,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"device\"")
 			}
 		case "fixes":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Fixes = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -192433,7 +192448,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"fixes\"")
 			}
 		case "id":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.ID = string(v)
@@ -192445,7 +192460,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"id\"")
 			}
 		case "kind":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Kind = string(v)
@@ -192457,7 +192472,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "line":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Line.Decode(d); err != nil {
 					return err
@@ -192467,7 +192482,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"line\"")
 			}
 		case "question":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Question.Decode(d); err != nil {
 					return err
@@ -192477,7 +192492,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"question\"")
 			}
 		case "software":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Software.Decode(d); err != nil {
 					return err
@@ -192487,7 +192502,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "url":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				if err := s.URL.Decode(d); err != nil {
 					return err
@@ -192497,7 +192512,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"url\"")
 			}
 		case "versions_listed":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.VersionsListed = bool(v)
@@ -192519,7 +192534,7 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Decode(d *jx.Decod
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -192561,6 +192576,48 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) MarshalJSON() ([]b
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute as json.
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute from json.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute(v) {
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeEdition:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeEdition
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributeArchitecture
+	case FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttributePlatform
+	default:
+		*s = FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -296109,6 +296166,50 @@ func (s NilFindingsGetFindingsIDViewOKSoftware) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilFindingsGetFindingsIDViewOKSoftware) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute as json.
+func (o NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute from json.
+func (o *NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilFindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

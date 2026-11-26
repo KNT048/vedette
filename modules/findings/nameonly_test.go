@@ -212,7 +212,7 @@ func TestMatchAsset_PinnedEditionStillDecides(t *testing.T) {
 		{"GitLab 14.3.6 (fixed)", row("GitLab", "GitLab", "GitLab", "14.3.6", "nmap", gitlab), gitlab, ""},
 		{"Acrobat Reader DC 24.002.20759 (agent)", row("Adobe Acrobat Reader DC", "Adobe", "Acrobat and Reader", "24.002.20759", "agent", acrobat), acrobat,
 			"lone:NVD lists CVE-2026-34621 for the continuous edition of Adobe Acrobat Reader DC only"},
-		{"AnyConnect 4.8.01090 on macOS", mac, anyconnect, "lone:"},
+		{"AnyConnect 4.8.01090 on macOS (a Windows-only row: another build)", mac, anyconnect, ""},
 		{"Splunk Enterprise 9.0.5", row("Splunk", "Splunk", "Splunk", "9.0.5", "agent", splunk), splunk, "lone:for the enterprise edition of Splunk only"},
 		{"Jira Service Management 5.4.0", row("Jira Service Management", "Atlassian", "Jira Service Management", "5.4.0", "manual", jira), jira, "lone:for the data_center edition"},
 	} {

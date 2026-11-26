@@ -50,7 +50,7 @@ func NewMatchScope(assets []Asset, pinned []string) MatchScope {
 			}
 		}
 		for _, s := range deviceSoftware(a) {
-			in := newSWInfo(s, a.OS)
+			in := swInfoOn(s, a)
 			if _, win := winDevice(in); win {
 				sc.windows = true
 			}

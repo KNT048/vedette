@@ -54,4 +54,20 @@ describe('Needs your input: what each item really asks', () => {
     expect(item).toHaveTextContent('CVE-2026-118204 lists some affected versions of Synology NAS (DSM), but none that tells whether 7.2 is affected.')
     expect(item).not.toHaveTextContent('gives no affected versions')
   })
+
+  it('a build attribute NVD pins is asked for by name, never as a version to retype', async () => {
+    questions.update((l) => [...l, { id: 'fq-nas01-tb', kind: 'not_comparable', attribute: 'edition', asset_id: 'a-nas01',
+      software: { id: 's-nas01-tb', name: 'Mozilla Thunderbird', version: '153.0.1' }, cve: 'CVE-2099-0203', cves: 1, asked_at: new Date().toISOString(),
+      url: null, command: null, choices: [] }])
+    renderApp('/findings?tab=input', { role: 'admin' })
+    await openNeeds()
+    const sentence = await screen.findByText('Mozilla Thunderbird 153.0.1: is this the ESR edition or the normal release? 1 CVE depends on it.', {}, T)
+    const line = sentence.closest('li')!
+    expect(within(line).queryByRole('button', { name: 'Add the version…' })).toBeNull()
+    const row = itemOf(await within(line).findByRole('link', { name: 'CVE-2099-0203' }, T))
+    expect(row).toHaveTextContent('Which edition of Mozilla Thunderbird is this: ESR or the normal release?')
+    expect(row).not.toHaveTextContent('Type it as the vendor writes it')
+    expect(within(row).getByRole('button', { name: 'Affected' })).toBeEnabled()
+    expect(within(row).getByRole('button', { name: 'Not affected' })).toBeEnabled()
+  })
 })

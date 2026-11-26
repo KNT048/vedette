@@ -159,9 +159,19 @@ IDs are stable (code and tests cite them); a retired ID is not reused.
   listed ones is left out: a line older than every listed one stays asked (end-of-life lines are often not evaluated: Junos 15.1R7.9,
   Java 7 Update 401), and so does an older update of a listed line (Oracle's "8u77 and earlier").
   `TestUnchecked_OtherReleaseLinesAreNotListed`, `TestUnchecked_OlderLineThanEveryListedStaysAsked`. NVD's NA in an edition ("-") is the plain
-  edition, one of the alternatives: a version inside the range of every edition NVD lists for the product (Thunderbird 115.9.0 inside
-  "esr before 140.9.0" and "- before 149.0") is a version finding whichever it runs; inside some only, a question; a row that states
-  its edition is judged by it (`pinnedInside`, `TestMatchAsset_PlainEditionIsOneOfTheAlternatives`). A version inside a range with an end
+  edition, one of the alternatives. The build attributes NVD pins after the version (sw_edition, target_sw, target_hw) are derived
+  for a line from evidence the box holds, in one table (`installattrs.go`, `installRules`, `installOf`): the architecture its name states
+  ("(64-bit)", "x64", "(x86)"), or a product that ships one only (SQL Server 2016 and later: x64), or a 32-bit system; the system family
+  its own agent reports (`platformOS`); Mozilla's version shape for Firefox and Thunderbird (an ESR build is M.N.x with N of 1 or more on
+  an ESR major, a normal release M.0 or M.0.x on another major); Node.js's "-" and "lts" are release phases of one line, so its version
+  alone decides. A row the derived attribute satisfies is read without that pin; a row about another build does not apply (`judge`): for
+  Mozilla, NVD lists the ESR rows whenever an ESR is affected, so an ESR build inside only the plain rows is not affected. A platform's
+  "-" alone is every build (Visual Studio Code); beside named systems (Office's "-" and "macos") it is the build for none of them. A
+  derived attribute is the device's evidence (the finding is verified `device`) and the evidence names it. What is not derivable stays
+  pinned (#906): a version inside the range of every edition NVD lists is a version finding whichever it runs (`pinnedInside`); inside
+  some only, a `not_comparable` question whose `detail.attribute` names what decides it (`edition`, `architecture`, `platform`,
+  `blockingAttribute`), so the queue asks for it and never to retype the version; a row that states its edition is judged by it
+  (`TestMatchAsset_EditionOfTheBuildDecides`, count test `TestQueue_Count_InstallAttributes`). A version inside a range with an end
   and an open-ended one is read with the range that has an end. A release the device states is stored as `device_version`. An ESXi
   update is never read as later than NVD's exact GA entry (`esxi:8.0:-`): NVD lists only 8.0 GA for flaws VMware fixed in 8.0 Update
   3d, so the question stays (`TestLaterThan_ESXiUpdateIsNotLaterThanTheGAEntry`). A `no_range_data` question says whether the CVE lists

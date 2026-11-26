@@ -57,6 +57,7 @@ type InputItemJS struct {
 	Fixes    []string          `json:"fixes,omitempty"`
 	Line     *string           `json:"line,omitempty"`
 	Listed   *bool             `json:"versions_listed,omitempty"`
+	Attr     *string           `json:"attribute,omitempty"`
 	// device_needs: what Vedette needs to know about one device, its entries; software_group: the questions of one software line
 	Entries   []InputItemJS `json:"entries,omitempty"`
 	Questions []InputItemJS `json:"questions,omitempty"`
@@ -271,7 +272,11 @@ func (s *Service) inputItems(ctx context.Context, device string, search bool) ([
 		listed := x.Detail.Listed
 		it := InputItemJS{Kind: "question", ID: x.ID, Question: string(x.Kind), Device: deviceRef(ref.device(x.AssetID)), CVEs: max(x.Cves, 1),
 			AskedAt: store.FormatTS(x.AskedAt), Choices: []UncheckedAnswer{}, CVEList: x.Detail.CVEList, Fixes: x.Detail.Fixes, Listed: &listed,
-			nullables: []string{"software", "cve", "url", "command", "line"}, rank: [3]int{2, -x.Cves, i}}
+			nullables: []string{"software", "cve", "url", "command", "line", "attribute"}, rank: [3]int{2, -x.Cves, i}}
+		if x.Detail.Attribute != "" && x.Kind == QuestionNotComparable {
+			attr := x.Detail.Attribute
+			it.Attr = &attr
+		}
 		if x.Detail.Line != "" {
 			line := x.Detail.Line
 			it.Line = &line

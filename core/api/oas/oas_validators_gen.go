@@ -57240,6 +57240,24 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if value, ok := s.Attribute.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "attribute",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if s.Choices == nil {
 			return errors.New("nil is invalid value")
 		}
@@ -57395,6 +57413,19 @@ func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItem) Validate() error {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s FindingsGetFindingsInput1SoftwareGroupQuestionsItemAttribute) Validate() error {
+	switch s {
+	case "edition":
+		return nil
+	case "architecture":
+		return nil
+	case "platform":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *FindingsGetFindingsInput1SoftwareGroupQuestionsItemChoicesItem) Validate() error {

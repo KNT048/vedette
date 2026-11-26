@@ -49,11 +49,15 @@ type Unchecked struct {
 	// state (olderLine). Such rows of one line are one question (QuestionOlderLine). "" otherwise.
 	Line  string
 	fixes []versionscheme.Version
+	// Attribute: not_comparable only, the build attribute NVD pins that decides it and the box could not derive (blockingAttribute):
+	// AttrEdition, AttrArchitecture or AttrPlatform. The question then asks for it, not for the version. "" otherwise.
+	Attribute string
 }
 
 // explainUnchecked adds to each unchecked row with no version data its question needs (no_nvd_data, no_nvd_versions) what the reason
 // alone does not say: whether the entries naming the row list versions of it at all (Listed), and whether the vendor's own rows name
-// fixes only on later release lines than the row's (Line, olderLine). Only the device's rows are read (the network OS a device states
+// fixes only on later release lines than the row's (Line, olderLine); and to a not_comparable row the build attribute that decides it
+// when that, not the version, is what is missing (Attribute). Only the device's rows are read (the network OS a device states
 // without a row is not: its versions do not order).
 func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 	if len(us) == 0 {
@@ -73,7 +77,7 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 	}
 	for k := range us {
 		u := &us[k]
-		if u.Reason != UncheckedNoNVDData && u.Reason != UncheckedNoNVDVersions {
+		if u.Reason != UncheckedNoNVDData && u.Reason != UncheckedNoNVDVersions && u.Reason != UncheckedNotComparable {
 			continue
 		}
 		i, okR := row[u.SoftwareID]
@@ -82,6 +86,10 @@ func (d *devMatch) explainUnchecked(us []Unchecked, vulns []Vuln) {
 			continue
 		}
 		s, in := d.sws[i], d.infos[i]
+		if u.Reason == UncheckedNotComparable {
+			u.Attribute = blockingAttribute(in, v, keyIDs(v))
+			continue
+		}
 		if u.Reason == UncheckedNoNVDVersions {
 			u.Listed = slices.ContainsFunc(rowEntries(s, in, v), versionEvidence)
 		}

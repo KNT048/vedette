@@ -183,11 +183,10 @@ func officeCounts(t *testing.T) (items, findings map[string]int) {
 // asked because NVD pins x64 (1); and the two exploited findings on the versions a person typed (Junos, FortiOS) asking that same
 // person to confirm them (2, basis statement). Open findings: 2, both unconfirmed.
 //
-// After: 1 item. The Thunderbird CVEs are version findings (inside the range of every edition NVD lists; suspected, on no exploited
-// list, so not queued); Java 8u491 is of a line newer than NVD's exact list names for its train, so it is not asked; Junos 15.1R7.9 is
+// After: 0 items. The Thunderbird CVEs are version findings on the device's word (115.9.0 is an ESR build, and inside the ESR range;
+// on no exploited list, so not queued); SQL Server 2022 RTM is the x64 build its name says ("64-bit"), a version finding; Java 8u491 is of a line newer than NVD's exact list names for its train, so it is not asked; Junos 15.1R7.9 is
 // older than every line NVD lists (so NVD's list alone would still ask), and Juniper's own record decides it: "unaffected" from 0
-// before 24.4R1, whatever the model; the findings on a version a person typed are confirmed by that person's word. Left: SQL Server's
-// x64 pin (a platform the line does not state).
+// before 24.4R1, whatever the model; the findings on a version a person typed are confirmed by that person's word.
 func TestQueue_Count_OfficeLines(t *testing.T) {
 	t.Parallel()
 	items, findings := officeCounts(t)
@@ -199,14 +198,13 @@ func TestQueue_Count_OfficeLines(t *testing.T) {
 		junos = "Junos 15.1R7.9: before 20.4 (exploited)"
 		forti = "FortiOS 7.2.13: 6.4.0 to before 7.4.10 (exploited)"
 	)
-	wantItems := map[string]int{
-		"question not_comparable / " + sql: 1,
-	}
+	wantItems := map[string]int{}
 	if !maps.Equal(items, wantItems) {
 		t.Errorf("queue %v, want %v", items, wantItems)
 	}
 	wantFindings := map[string]int{
-		"no / " + tb:        2,
+		"device / " + tb:    2,
+		"device / " + sql:   1,
 		"person / " + junos: 1,
 		"person / " + forti: 1,
 	}

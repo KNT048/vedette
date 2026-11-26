@@ -195,11 +195,13 @@ function QuestionItem({ i, mode }: { i: InputQuestionItem; mode: 'action' | 'row
   const sw = i.software
   const words = { software: sw?.name ?? t('queue.theSoftware'), version: sw?.version ?? '', device: i.device.name, count: i.cves, cve: i.cve ?? '',
     line: i.line ?? sw?.version ?? '', fixes: i.fixes.join(', ') }
-  const typed = i.question === 'version_needed' || i.question === 'not_comparable'
+  // a build attribute NVD pins (edition, architecture, platform) is asked for by name: retyping the version would change nothing
+  const attr = i.question === 'not_comparable' ? i.attribute : null
+  const typed = i.question === 'version_needed' || i.question === 'not_comparable' && !attr
   // what the question says: the CVE lists versions, just none that decides this one; the vendor names fixes only on newer lines
-  const text = i.question === 'no_range_data' && i.versions_listed ? 'queue.q.no_range_data_listed'
+  const text = attr ? `queue.q.attribute_${attr}` : i.question === 'no_range_data' && i.versions_listed ? 'queue.q.no_range_data_listed'
     : i.question === 'older_line' && !i.fixes.length ? 'queue.q.older_line_none' : `queue.q.${i.question}`
-  const perCve = i.question === 'no_range_data' || i.question === 'older_line'
+  const perCve = i.question === 'no_range_data' || i.question === 'older_line' || !!attr
   if (mode === 'row') {
     return (
       <div className="grid gap-1.5">
@@ -212,7 +214,7 @@ function QuestionItem({ i, mode }: { i: InputQuestionItem; mode: 'action' | 'row
         {perCve ? <p className="text-meta text-muted">{t(text, words)}</p> : null}
         {perCve ? (
           <div className="flex flex-wrap items-center gap-2">
-            {i.question === 'no_range_data' && i.cve ? (
+            {(i.question === 'no_range_data' || attr) && i.cve ? (
               <Button size="sm" disabled={!r.admin} title={r.needAdmin} onClick={() => setAsking({ kind: 'answer', answer: 'affected' })}>{t('queue.affected')}</Button>
             ) : null}
             <Button size="sm" disabled={!r.operator} title={r.needOperator} onClick={() => setAsking({ kind: 'answer', answer: 'not_affected' })}>{t('queue.not_affected')}</Button>
@@ -264,8 +266,10 @@ function SoftwareEntry({ g, device }: { g: InputGroupItem; device: Item<'device_
   const [accepting, setAccepting] = useState(false)
   const primary = g.questions[0]!
   const name = lineName(g, t('queue.theSoftware'))
-  const typed = primary.question === 'version_needed' || primary.question === 'not_comparable'
-  const sentence = typed ? t(`queue.group.${primary.question}`, { software: name, count: g.cves })
+  const attr = primary.question === 'not_comparable' ? primary.attribute : null
+  const typed = primary.question === 'version_needed' || primary.question === 'not_comparable' && !attr
+  const sentence = attr ? t(`queue.group.attribute_${attr}`, { software: name, count: g.cves })
+    : typed ? t(`queue.group.${primary.question}`, { software: name, count: g.cves })
     : primary.question === 'platform' || primary.question === 'package_release' ? t(`queue.group.${primary.question}`, { software: name, count: g.cves })
     : t('queue.group.waiting', { software: name, count: g.cves })
   const panel = `needs-${g.id.replace(/[^\w-]/g, '_')}`

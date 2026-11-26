@@ -395,6 +395,8 @@ type QuestionDetail struct {
 	Listed bool     `json:"listed,omitempty"`
 	Line   string   `json:"line,omitempty"`  // older_line: the device's release line ("7.2.1")
 	Fixes  []string `json:"fixes,omitempty"` // older_line: the newest fixed release the vendor names on each later line
+	// Attribute: not_comparable, the build attribute NVD pins that decides the CVE and the box could not derive (Unchecked.Attribute)
+	Attribute string `json:"attribute,omitempty"`
 }
 
 // key is the question's identity on its device (the unique index).

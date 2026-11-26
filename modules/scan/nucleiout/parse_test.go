@@ -492,3 +492,18 @@ func TestRead_ClusterSkipLineOfAnUnresponsiveHost(t *testing.T) {
 		}
 	}
 }
+
+// A run whose first skipped line is a cluster's skip line still names something in the note and the log: the cluster, never an
+// empty template ("first:  on 192.0.2.10:9443").
+func TestRead_ClusterSkipLineFirstNamesTheCluster(t *testing.T) {
+	t.Parallel()
+	cluster := `{"template-id":"cluster-49941d3cbc6e510ee8b2606610b8f809ecebf7d0c5a21bb373704f46592eb5eb","host":"https://192.0.2.10:9443","matcher-status":false,"error":"host was skipped as it was found unresponsive"}`
+	foreign := `{"template-id":"gitlab-detect","host":"198.51.100.7","port":"443","matcher-status":false}`
+	_, sk, err := Read([]byte(cluster+"\n"+foreign+"\n"), []string{"gitlab-detect"}, []string{"192.0.2.10:9443"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sk.Lines != 2 || sk.Template == "" || slices.Contains(sk.Templates, sk.Template) || strings.Contains(sk.Note(), "first:  on") {
+		t.Fatalf("skipped %+v, note %q", sk, sk.Note())
+	}
+}

@@ -102,6 +102,9 @@ const (
 // unreadable is the Host of a skipped line whose target could not be read: never the raw text.
 const unreadable = "(unreadable)"
 
+// clusterName is the Template of Skipped when its first line was a cluster's skip line (it names no template of the job).
+const clusterName = "(a cluster of templates)"
+
 // Note is the text the probe log and the core log carry for the skipped lines; "" when nothing was skipped. It goes after the
 // request text of a probe row (AppendNote), so it never hides what was sent.
 func (s Skipped) Note() string {
@@ -162,6 +165,9 @@ func Read(out []byte, templates, targets []string) ([]Result, Skipped, error) {
 		if errors.Is(err, errSkip) {
 			if skip.Lines == 0 {
 				skip.Template, skip.Host, skip.Port = r.Template, unreadable, ""
+				if r.Template == "" { // a cluster's skip line: name the cluster in the note and the log, never an empty template
+					skip.Template = clusterName
+				}
 				if h, p, ok := strings.Cut(r.Target, ":"); ok {
 					skip.Host, skip.Port = h, p
 				}

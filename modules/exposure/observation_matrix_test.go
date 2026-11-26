@@ -466,6 +466,22 @@ var omRows = []omRow{
 		before: []omNet{omHost(omReset, 22, 25)}, now: omPath(omHost(omReset, 22, 25), omReset, 25),
 		want: omWant{open: []int{22, 25}, run: corerun.Done, line: []string{"25"}},
 	},
+	{
+		// The same egress filter in front of a mail server whose row was stored by scans that could not tell a clean path (stored
+		// before the vantage was checked, or with the check not wired). A network that refuses 25 for every address cannot have made
+		// that row: it says nothing about the target, so the row and its issues stay.
+		name: "middlebox_reset/stored_before_the_check/egress_filter_refuses_a_real_mail_port", kind: omTyped,
+		before: []omNet{omHost(omReset, 22, 25)}, beforeNoPath: true, now: omPath(omHost(omReset, 22, 25), omReset, 25),
+		want: omWant{open: []int{22, 25}, run: corerun.Done, line: []string{"25"}},
+	},
+	{
+		// Real web rows stored before the vantage was checked, now behind a transparent proxy on 80 and 443: the target's own
+		// certificate and pages differ from what the never-routed address gets, so the rows stay without a clean history.
+		name: "middlebox_proxy/stored_before_the_check/real_web_rows_told_apart_from_the_proxy", kind: omTyped,
+		before: []omNet{omHost(omReset, 22, 80, 443)}, beforeNoPath: true, now: omPath(omHost(omReset, 22, 80, 443), omSynAck, 80, 443),
+		distinct: []int{80, 443},
+		want:     omWant{open: []int{22, 80, 443}},
+	},
 }
 
 // omFence is the Vedette host's fence for a typed IP: it gives the target's own token.

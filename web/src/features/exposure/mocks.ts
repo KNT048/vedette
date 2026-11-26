@@ -62,7 +62,7 @@ const outside = collection<Record<string, Omit<OutsideView, 'scan_ports' | 'scan
 let outsideAskedMs = 0
 /** The optional deep scan with Greenbone, off by default. The mock box has 16 GB of memory and 180 GB free; localStorage keys
  * "vedette-mock-box-memory", "vedette-mock-box-swap" (default 4 GB) and "vedette-mock-box-disk" (bytes) play a smaller box. After Enable it is "starting" for 3 seconds, then "loading"
- * its feed until 15 seconds (about 2 hours on a real box), then ready. It scans only a target whose testing terms are accepted. */
+ * its feed until 15 seconds (1 to 3 hours on a real box), then ready. It scans only a target whose testing terms are accepted. */
 const greenbone = collection<{ enabled: boolean; changed_by: string | null; changed_at: string | null }>('exp_greenbone', () => ({ enabled: false, changed_by: null, changed_at: null }), () => ({ enabled: false, changed_by: null, changed_at: null }))
 const measured = (key: string, fallback: number) => { const v = Number(localStorage.getItem(key)); return Number.isFinite(v) && v > 0 ? v : fallback }
 const gbText = (n: number) => `${(Math.floor(n / 1e8) / 10).toFixed(1)} GB`
@@ -78,7 +78,7 @@ function greenboneView(): Greenbone {
   const state = !g.enabled ? 'off' : since < 3000 ? 'starting' : since < 15000 ? 'loading' : 'ready'
   // The first weekly feed update is due a week after Enable (the mock never runs it)
   const next = g.enabled && g.changed_at ? new Date(Date.parse(g.changed_at) + WEEK_MS).toISOString() : null
-  return { state, reason: state === 'loading' ? 'OpenVAS is loading its feed (first time takes about 2 hours)' : null, changed_by: g.changed_by, changed_at: g.changed_at,
+  return { state, reason: state === 'loading' ? 'OpenVAS is loading its feed (first time takes 1 to 3 hours)' : null, changed_by: g.changed_by, changed_at: g.changed_at,
     preflight: { memory_bytes: mem, disk_free_bytes: disk, ok: reason === null, reason }, feed_sync: { last_at: null, ok: null, note: null, next_at: next },
     // T10: the feed OpenVAS reports, read once it answers (the mock's feed of 14 Nov 2026, 12:00 UTC; midday so every time zone shows 14 Nov)
     feed: state === 'loading' || state === 'ready' ? { nvt_version: '202611141200', nvt_date: '2026-11-14T12:00:00.000Z', checked_at: new Date().toISOString() } : null, enabled: g.enabled }
@@ -89,7 +89,7 @@ function greenboneFor(ip: string, fullScan: boolean): Pick<Content, 'greenbone' 
   if (v.state !== 'off' && !fullScan) return { greenboneNote: GREENBONE_NO_TERMS }
   if (v.state === 'ready') return { greenbone: ip === BOX_EGRESS_IP ? boxGreenbone() : [] }
   if (v.state === 'off') return {}
-  return { greenboneNote: v.state === 'loading' ? 'OpenVAS did not scan: it is loading its feed (the first time takes about 2 hours).' : 'OpenVAS did not scan: it is still starting.' }
+  return { greenboneNote: v.state === 'loading' ? 'OpenVAS did not scan: it is loading its feed (the first time takes 1 to 3 hours).' : 'OpenVAS did not scan: it is still starting.' }
 }
 
 /** Shodan's answer beside the open ports of our own newest scan of that IP (null when never scanned). */

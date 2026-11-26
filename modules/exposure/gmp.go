@@ -340,7 +340,7 @@ type gmpConfigs struct {
 }
 
 // readiness says whether Greenbone can scan: its feeds are not syncing and the "Full and fast" config is there (the feed's data
-// objects are loaded). loading is true while the first feed load (about 2 hours) or a feed update runs. feeds is gvmd's get_feeds
+// objects are loaded). loading is true while the first feed load (1 to 3 hours) or a feed update runs. feeds is gvmd's get_feeds
 // answer (its NVT feed version is what the setting shows), also when loading.
 func (g *gmpConn) readiness(ctx context.Context) (loading bool, feeds gmpFeeds, err error) {
 	var f gmpFeeds

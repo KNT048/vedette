@@ -732,7 +732,7 @@ func TestContract_INV25_StateMachine(t *testing.T) {
 	close(gate)
 	e.svc.gb().upWG.Wait()
 	h.gvm.with(func(g *fakeGVM) { g.syncing = true })
-	if v := e.gbState(); v.State != GBLoading || str(v.Reason) != "OpenVAS is loading its feed (first time takes about 2 hours)" {
+	if v := e.gbState(); v.State != GBLoading || str(v.Reason) != "OpenVAS is loading its feed (first time takes 1 to 3 hours)" {
 		t.Fatalf("syncing = %+v", v)
 	}
 	h.gvm.with(func(g *fakeGVM) { g.syncing, g.noFAF = false, true })

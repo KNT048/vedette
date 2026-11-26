@@ -118,9 +118,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   counted as closed by the target, no alert, said in the save step). `network` with a syn-ack (the network accepts the port for
   every address) retires it (no longer listed, its issues gone, not counted as closed) only when no scan ever saw it open over a
   path the network-path check found clean (INV-44); otherwise it is kept. `network` with a reset (the network refuses the port for
-  every address) never closes or retires it: such a network cannot have made the row. Right before the results are written, the ports open before that this scan did not see, on the addresses it probed (an IP
-  target, a domain's swept, own-box or by-name addresses; not an address that stopped answering, nor a name whose lookup got no
-  answer), get one more TCP connect (`recheckMissed`, `PortProber`: cmd/vedette's liveness check, at most 8 addresses and 32 ports
+  every address) never closes or retires it: such a network cannot have made the row. Right before the results are written, the
+  ports open before that this scan did not see, on the addresses it probed (an IP target, a domain's swept, own-box or by-name
+  addresses; not an address that stopped answering, nor a name whose lookup got no answer) and among the ports it may probe there
+  (on an address checked by name only, 80 and 443: never more than PRIVACY flow 9 allows without the deep scan of that address),
+  get one more TCP connect (`recheckMissed`, `PortProber`: cmd/vedette's liveness check, at most 8 addresses and 32 ports
   each): what each got is a probe of the run. The scans before are read from the run items of kind `verdict` only; items of runs
   older than the model are ignored, which only delays a close. `TestSilentPorts_AWAFThatBlocksTheBoxClosesNothing`,
   `TestSilentPorts_ThreeSilentScansWithinADayCloseNothing`, `TestSilentPorts_AResetClosesAndAnAnswerKeeps`,

@@ -553,8 +553,8 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}
 	lt := liveTarget(t, user)
 	lt.Mode = ex.mode
-	s.checkAlive(ctx, lt, &content, "writing the results")           // a port that stopped answering is lost (observe.go)
-	s.recheckMissed(ctx, t, content, s.askedAddrs(ctx, lt, content)) // the ports open before that this scan missed
+	s.checkAlive(ctx, lt, &content, "writing the results")             // a port that stopped answering is lost (observe.go)
+	s.recheckMissed(ctx, t, content, s.recheckScope(ctx, lt, content)) // the ports open before that this scan missed
 	rs.start(ctx, stepKeySave)
 	wr, err := s.save(ctx, x.ID(), user, t, content, steps)
 	if err != nil {

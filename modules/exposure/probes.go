@@ -381,9 +381,9 @@ const unansweredMin = 20
 
 // ---- the re-check of the ports open before ----
 
-// recheckMissed connects once more to the ports open before that this scan did not see, on the addresses it probed (asked), and
-// records what each got. It writes one line of the run's log with what it saw; what that means is the verdicts'.
-func (s *Service) recheckMissed(ctx context.Context, t Target, c Content, asked map[string]bool) {
+// recheckMissed connects once more to the ports open before that this scan did not see, on the addresses it probed and within the
+// ports it may probe there (scope, recheckScope), and records what each got. It writes one line of the run's log with what it saw; what that means is the verdicts'.
+func (s *Service) recheckMissed(ctx context.Context, t Target, c Content, scope map[string][]int) {
 	pp, ok := s.cfg.Liveness.(PortProber)
 	if !ok || ctx.Err() != nil {
 		return
@@ -398,7 +398,8 @@ func (s *Service) recheckMissed(ctx context.Context, t Target, c Content, asked 
 	missed := map[string][]int{}
 	for _, x := range prev {
 		k := ipKey(x.IP)
-		if !asked[k] || len(lost[k]) > 0 || slices.Contains(seen[k], x.Port) || slices.Contains(missed[k], x.Port) {
+		allowed, asked := scope[k]
+		if !asked || (allowed != nil && !slices.Contains(allowed, x.Port)) || len(lost[k]) > 0 || slices.Contains(seen[k], x.Port) || slices.Contains(missed[k], x.Port) {
 			continue
 		}
 		missed[k] = append(missed[k], x.Port)
@@ -444,13 +445,18 @@ func (s *Service) recheckMissed(ctx context.Context, t Target, c Content, asked 
 	}
 }
 
-// askedAddrs are the addresses (canonical spelling) this scan sent packets to: an IP target's own, a domain's addresses its deep
-// scan swept, the box's own addresses among a domain's (the runner connects to its fixed list there), and those checked by name. The
-// address of a name whose lookup got no answer this time was not asked, whatever its carried row says.
-func (s *Service) askedAddrs(ctx context.Context, st ScanTarget, c Content) map[string]bool {
-	out := map[string]bool{}
+// byNamePorts are the ports a scan probes on an address it checks by name only.
+var byNamePorts = []int{80, 443}
+
+// recheckScope is, for each address (canonical spelling) this scan sent packets to, the ports the re-check may connect to there: nil
+// for every port on an address the scan may port-scan (an IP target's own, a domain's addresses its deep scan swept, the box's own
+// addresses among a domain's), byNamePorts on one it checked by name only (PRIVACY flow 9: without the deep scan of that address,
+// nothing beyond the check by name on 80 and 443). The address of a name whose lookup got no answer this time was not asked,
+// whatever its carried row says.
+func (s *Service) recheckScope(ctx context.Context, st ScanTarget, c Content) map[string][]int {
+	out := map[string][]int{}
 	if st.Kind == KindIP {
-		out[ipKey(st.Value)] = true
+		out[ipKey(st.Value)] = nil
 		return out
 	}
 	o := s.observerOf(ctx)
@@ -459,8 +465,14 @@ func (s *Service) askedAddrs(ctx context.Context, st ScanTarget, c Content) map[
 			continue
 		}
 		for _, a := range h.IPs {
-			if a.Class == ClassBox || a.Contacted || o.swept(a.IP) {
-				out[ipKey(a.IP)] = true
+			k := ipKey(a.IP)
+			switch {
+			case a.Class == ClassBox || o.swept(a.IP):
+				out[k] = nil
+			case a.Contacted:
+				if ports, seen := out[k]; !seen || ports != nil {
+					out[k] = byNamePorts
+				}
 			}
 		}
 	}

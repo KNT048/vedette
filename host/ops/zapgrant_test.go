@@ -66,7 +66,11 @@ func (a *zapAuthz) call(cmd string, args any, actor string) (api.Run, error) {
 	a.t.Helper()
 	run, err := a.h.Client.Run(a.t.Context(), cmd, args, zapReqID(a.t), actor)
 	for err == nil && !run.Status.Terminal() {
-		time.Sleep(2 * time.Millisecond)
+		select {
+		case <-a.t.Context().Done():
+			return run, a.t.Context().Err()
+		case <-time.After(2 * time.Millisecond):
+		}
 		run, err = a.h.Client.GetRun(a.t.Context(), run.RunID)
 	}
 	return run, err
@@ -87,15 +91,15 @@ func (a *zapAuthz) grant(ip, actor string) (string, error) {
 		ExpiresAt string `json:"expires_at"`
 	}
 	if err := json.Unmarshal(run.Result, &r); err != nil || len(r.Grant) != 32 || r.ExpiresAt == "" {
-		return "", fmt.Errorf("result %s: %v", run.Result, err)
+		return "", fmt.Errorf("result %s: %w", run.Result, err)
 	}
 	return r.Grant, nil
 }
 
 // mustGrant is grant for a case whose point is a later refusal: a host that cannot mint one still gets the run, without a grant.
-func (a *zapAuthz) mustGrant(ip, actor string) string {
+func (a *zapAuthz) mustGrant(ip string) string {
 	a.t.Helper()
-	g, err := a.grant(ip, actor)
+	g, err := a.grant(ip, zapPerson)
 	if err != nil {
 		a.t.Errorf("a person's grant for %s: %v", ip, err)
 	}
@@ -148,7 +152,7 @@ func TestZapActive_DisruptiveNeedsAPersonsGrant(t *testing.T) {
 	if why, rough := a.active("0123456789abcdef0123456789abcdef", zapPerson); rough || why != "zap_grant_unknown" {
 		t.Fatalf("a grant the host never minted: the host ran the disruptive rules %v (refused %q)", rough, why)
 	}
-	g := a.mustGrant(zapTestIP, zapPerson)
+	g := a.mustGrant(zapTestIP)
 	if why, rough := a.active(g, zapPerson); !rough || why != "" {
 		t.Fatalf("a person's grant: disruptive rules %v, refused %q", rough, why)
 	}
@@ -164,7 +168,7 @@ func TestZapActive_TheHostChecksTheGatewayItself(t *testing.T) {
 		{"no default route", routeNoDflt, "zap_gateway_unreadable"},
 	} {
 		a := newZapAuthz(t, tc.route)
-		g := a.mustGrant(zapTestIP, zapPerson)
+		g := a.mustGrant(zapTestIP)
 		if why, rough := a.active(g, zapPerson); rough || why != tc.want {
 			t.Errorf("%s: the host ran the disruptive rules %v (refused %q, want %s)", tc.name, rough, why, tc.want)
 		}
@@ -182,13 +186,13 @@ func TestZapActive_AGrantIsForOnePressOneAddressOnePass(t *testing.T) {
 	t.Parallel()
 	a := newZapAuthz(t, routeLAN)
 	// Expired: the active pass came too long after the press.
-	g := a.mustGrant(zapTestIP, zapPerson)
+	g := a.mustGrant(zapTestIP)
 	a.clk.Advance(6*time.Hour + time.Second)
 	if why, rough := a.active(g, zapPerson); rough || why != "zap_grant_expired" {
 		t.Errorf("an expired grant: disruptive rules %v, refused %q", rough, why)
 	}
 	// Replayed: one active pass has at most four pages.
-	g = a.mustGrant(zapTestIP, zapPerson)
+	g = a.mustGrant(zapTestIP)
 	for i := range 4 {
 		if why, rough := a.active(g, zapPerson); !rough || why != "" {
 			t.Errorf("page %d of the pass: disruptive rules %v, refused %q", i+1, rough, why)
@@ -198,7 +202,7 @@ func TestZapActive_AGrantIsForOnePressOneAddressOnePass(t *testing.T) {
 		t.Errorf("a fifth page on one grant: disruptive rules %v, refused %q", rough, why)
 	}
 	// Replayed: a later scan reuses the grant of an earlier pass.
-	g = a.mustGrant(zapTestIP, zapPerson)
+	g = a.mustGrant(zapTestIP)
 	if why, rough := a.active(g, zapPerson); !rough || why != "" {
 		t.Errorf("the pass: disruptive rules %v, refused %q", rough, why)
 	}
@@ -207,10 +211,10 @@ func TestZapActive_AGrantIsForOnePressOneAddressOnePass(t *testing.T) {
 		t.Errorf("a grant used again after its pass: disruptive rules %v, refused %q", rough, why)
 	}
 	// Another address, another person.
-	if why, rough := a.active(a.mustGrant(zapOtherIP, zapPerson), zapPerson); rough || why != "zap_grant_mismatch" {
+	if why, rough := a.active(a.mustGrant(zapOtherIP), zapPerson); rough || why != "zap_grant_mismatch" {
 		t.Errorf("a grant for another address: disruptive rules %v, refused %q", rough, why)
 	}
-	if why, rough := a.active(a.mustGrant(zapTestIP, zapPerson), zapOther); rough || why != "zap_grant_mismatch" {
+	if why, rough := a.active(a.mustGrant(zapTestIP), zapOther); rough || why != "zap_grant_mismatch" {
 		t.Errorf("a grant used by a run of another actor: disruptive rules %v, refused %q", rough, why)
 	}
 	// Only a person's press mints one.

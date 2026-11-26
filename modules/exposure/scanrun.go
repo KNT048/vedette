@@ -337,7 +337,7 @@ func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion st
 		s.auditFailedScan(ctx, who.Email, t, err)
 		return "", nil, t, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 	}
-	s.askGrant(runID, who.Email, t) // the press: the host's own witness of it, for the disruptive rules of the active web scan
+	s.askGrant(ctx, runID, who.Email, t) // the press: the host's own witness of it, for the disruptive rules of the active web scan
 	return runID, x, t, nil
 }
 

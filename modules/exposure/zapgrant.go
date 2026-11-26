@@ -34,7 +34,7 @@ type pressGrant struct {
 // own IP (not a typed one) whose testing terms include them. It does not wait: the host answers while the scan waits in the queue or
 // runs its first steps, and the active pass waits for the answer (grantOf). A failure is logged; the pass then runs without the
 // disruptive rules, and says why.
-func (s *Service) askGrant(runID, user string, t Target) {
+func (s *Service) askGrant(ctx context.Context, runID, user string, t Target) {
 	g, ok := s.cfg.Web.(DisruptiveGranter)
 	if !ok || user == SystemUser || t.Kind != KindIP || t.Typed || !t.mode().Disruptive {
 		return
@@ -58,7 +58,7 @@ func (s *Service) askGrant(runID, user string, t Target) {
 	s.runMu.Unlock()
 	go func() {
 		defer close(p.done)
-		ctx, cancel := context.WithTimeout(context.Background(), grantWait)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), grantWait) // the press's request ends before the host answers
 		defer cancel()
 		grant, err := g.GrantDisruptive(ctx, user, ip.Unmap())
 		if err != nil {

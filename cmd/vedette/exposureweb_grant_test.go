@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/netip"
 	"strings"
 	"testing"
@@ -17,11 +18,12 @@ type authorizingZapHost struct {
 	args   []api.ZapAuthorizeArgs
 	actors []string
 	auth   api.Run
+	err    error
 }
 
 func (h *authorizingZapHost) ZapAuthorize(_ context.Context, args api.ZapAuthorizeArgs, _, actor string) (api.Run, error) {
 	h.args, h.actors = append(h.args, args), append(h.actors, actor)
-	return h.auth, nil
+	return h.auth, h.err
 }
 
 // A person's press asks the host for its grant with the person's actor label and the box's IP; the grant goes back to the host with
@@ -44,6 +46,11 @@ func TestExposureWeb_APersonsPressGetsTheHostsGrantAndSendsIt(t *testing.T) {
 	if g, err := w.GrantDisruptive(t.Context(), "admin@example.com", netip.MustParseAddr("93.184.216.34")); err == nil || g != "" {
 		t.Fatalf("a refused grant: %q %v", g, err)
 	}
+	h.err = errors.New("the host socket is gone")
+	if g, err := w.GrantDisruptive(t.Context(), "admin@example.com", netip.MustParseAddr("93.184.216.34")); err == nil || g != "" {
+		t.Fatalf("an unreachable host: %q %v", g, err)
+	}
+	h.err = nil
 	if _, err := (exposureWebScan{host: &fakeZapHost{}}).GrantDisruptive(t.Context(), "admin@example.com", netip.MustParseAddr("93.184.216.34")); err == nil {
 		t.Fatal("a host without zap.authorize gave a grant")
 	}

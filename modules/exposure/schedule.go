@@ -140,7 +140,7 @@ func (s *Service) startScheduled(ctx context.Context, tx *sql.Tx, f schedule.Fir
 	}
 	runID, err := s.createScanRun(ctx, tx, t, f.Trigger, by, f.ScheduleID)
 	if err == nil && f.Trigger == corerun.Manual {
-		s.askGrant(runID, by, t) // Run once now is a person's press: the host's own witness of it (askGrant does not wait)
+		s.askGrant(ctx, runID, by, t) // Run once now is a person's press: the host's own witness of it (askGrant does not wait)
 	}
 	return runID, err
 }

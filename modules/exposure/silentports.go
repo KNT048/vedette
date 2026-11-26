@@ -51,6 +51,14 @@ const (
 // silentStreak counts them.
 const itemSilentPort = "silent_port"
 
+// itemAnsweredPort is the kind of a run item that says a port open before, that this scan did not see, accepted the re-check's
+// connection (its subject is portKey, its outcome outcomeStillOpen): the port answered in that run, so silentStreak counts the
+// silent scans after it only, and neither it nor a silent run is a scan that missed the port for previousCheck.
+const (
+	itemAnsweredPort = "answered_port"
+	outcomeStillOpen = "still_open"
+)
+
 // The silent streak that closes a port: the silentStreakScans-th silent scan in a row, at least silentStreakSpan after the first.
 const (
 	silentStreakScans = 3
@@ -186,14 +194,26 @@ func portScanned(t Target, c Content) map[string]bool {
 }
 
 // silentStreak says this scan (run runID) of target is the silentStreakScans-th or later scan in a row to which port (portKey) gave no
-// answer at all since it was last seen open (lastSeen), at least silentStreakSpan after the first of them.
+// answer at all since it last answered (it was last seen open, lastSeen, or it accepted a later re-check: itemAnsweredPort), at least
+// silentStreakSpan after the first of them.
 func silentStreak(ctx context.Context, q querier, target, runID, port, lastSeen string) (bool, error) {
+	var answered sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT max(r.started_at) FROM core_run_item i JOIN core_run r ON r.id = i.run_id
+		WHERE r.module = ? AND r.kind = ? AND r.subject_kind = 'target' AND r.subject_id = ? AND r.id <> ?
+			AND r.started_at < (SELECT started_at FROM core_run WHERE id = ?) AND i.subject_kind = ? AND i.subject_id = ?`,
+		ModuleID, RunKind, target, runID, runID, itemAnsweredPort, port).Scan(&answered); err != nil {
+		return false, fmt.Errorf("the last answer of %s: %w", port, err)
+	}
+	since := lastSeen
+	if answered.Valid && answered.String > since {
+		since = answered.String
+	}
 	var n int
 	var first, now sql.NullString
 	err := q.QueryRowContext(ctx, `SELECT count(*), min(r.started_at), (SELECT started_at FROM core_run WHERE id = ?) FROM core_run_item i JOIN core_run r ON r.id = i.run_id
 		WHERE r.module = ? AND r.kind = ? AND r.subject_kind = 'target' AND r.subject_id = ? AND r.id <> ? AND r.started_at IS NOT NULL
 			AND r.started_at > ? AND r.started_at < (SELECT started_at FROM core_run WHERE id = ?) AND i.subject_kind = ? AND i.subject_id = ?`,
-		runID, ModuleID, RunKind, target, runID, lastSeen, runID, itemSilentPort, port).Scan(&n, &first, &now)
+		runID, ModuleID, RunKind, target, runID, since, runID, itemSilentPort, port).Scan(&n, &first, &now)
 	if err != nil {
 		return false, fmt.Errorf("the silent scans of %s: %w", port, err)
 	}
@@ -205,13 +225,20 @@ func silentStreak(ctx context.Context, q querier, target, runID, port, lastSeen 
 	return err1 == nil && err2 == nil && b.Sub(a) >= silentStreakSpan, nil
 }
 
-// recordSilent writes, as items of the run, the ports that gave no answer at all to this scan (silentStreak reads them).
-func (s *Service) recordSilent(ctx context.Context, x *corerun.Exec, silent map[string][]int) {
+// recordSilent writes, as items of the run, the ports that gave no answer at all to this scan and the ones that accepted the re-check
+// (silentStreak and previousCheck read them).
+func (s *Service) recordSilent(ctx context.Context, x *corerun.Exec, silent, answering map[string][]int) {
 	var items []corerun.Item
 	for _, ip := range slices.Sorted(maps.Keys(silent)) {
 		for _, p := range silent[ip] {
 			k := portKey(ip, p)
 			items = append(items, corerun.Item{SubjectKind: itemSilentPort, SubjectID: k, Label: k, Outcome: PortSilent})
+		}
+	}
+	for _, ip := range slices.Sorted(maps.Keys(answering)) {
+		for _, p := range answering[ip] {
+			k := portKey(ip, p)
+			items = append(items, corerun.Item{SubjectKind: itemAnsweredPort, SubjectID: k, Label: k, Outcome: outcomeStillOpen})
 		}
 	}
 	if len(items) == 0 {

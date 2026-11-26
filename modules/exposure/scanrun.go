@@ -573,7 +573,7 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	rs.record(ctx, "", runOn, "")
 	s.recordCoverage(ctx, x, wr.checked, wr.topPorts)
 	s.recordPathPorts(ctx, x, wr.path)
-	s.recordSilent(ctx, x, content.Silent)
+	s.recordSilent(ctx, x, content.Silent, content.Answering)
 	s.recordNames(ctx, x, wr.probed)
 	for _, h := range content.Hosts { // what the deep scan did with each address: the rotation of the next scans reads it
 		for _, a := range h.IPs {

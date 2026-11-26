@@ -174,3 +174,54 @@ func TestDisruptive_ADomainWhoseOwnAddressStoppedAnsweringSaysSo(t *testing.T) {
 		t.Fatalf("disruptive step = %s %q", st.Status, note)
 	}
 }
+
+// "Three silent scans in a row": a scan to which the port accepted the re-check in between starts the count again. Silent, open,
+// silent, silent over more than a day is two silent scans in a row, not three, so the port stays open.
+func TestSilentPorts_AnAnswerInBetweenStartsTheSilentCountAgain(t *testing.T) {
+	t.Parallel()
+	e, scan, state := deepScans(t)
+	scan([]int{22, 80}, swept(22, 80), nil)
+	probe := &fakeProbe{answer: map[int]string{80: PortSilent}}
+	e.svc.cfg.Liveness = probe
+	scan([]int{22}, swept(22), nil) // silent
+	probe.answer = map[int]string{80: PortOpen}
+	scan([]int{22}, swept(22), nil) // the scan missed it, the re-check got an answer: open
+	probe.answer = map[int]string{80: PortSilent}
+	e.advance(13 * time.Hour)
+	scan([]int{22}, swept(22), nil) // silent
+	e.advance(13 * time.Hour)
+	scan([]int{22}, swept(22), nil) // silent, more than a day after the first silent scan
+	if state(80) != ServiceOpen {
+		t.Fatalf("80 after silent, open, silent, silent: %s, want open (two silent scans in a row since it answered)", state(80))
+	}
+	e.advance(13 * time.Hour)
+	scan([]int{22}, swept(22), nil) // the third silent scan in a row, more than a day after the first of them
+	if state(80) != ServiceClosed {
+		t.Fatalf("80 after three silent scans in a row over more than a day: %s", state(80))
+	}
+}
+
+// A scan in which the port accepted the re-check, or gave no answer at all, is not a miss of it, so it is never "the scan before
+// that missed it too" of the two-miss rule: a port outside the fixed list needs two scans that really missed it (resets) to close.
+func TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore(t *testing.T) {
+	t.Parallel()
+	for _, before := range []string{PortOpen, PortSilent} {
+		t.Run(before, func(t *testing.T) {
+			t.Parallel()
+			e, scan, state := deepScans(t)
+			scan([]int{22}, swept(22, 32400), nil)
+			probe := &fakeProbe{answer: map[int]string{32400: before}}
+			e.svc.cfg.Liveness = probe
+			scan([]int{22}, swept(22), nil)
+			probe.answer = map[int]string{32400: PortClosed}
+			scan([]int{22}, swept(22), nil) // the first scan that really missed it
+			if state(32400) != ServiceOpen {
+				t.Fatalf("32400 after a scan to which it was %s, then one reset: %s, want open (one miss)", before, state(32400))
+			}
+			scan([]int{22}, swept(22), nil) // the second
+			if state(32400) != ServiceClosed {
+				t.Fatalf("32400 after two scans that missed it with a reset: %s", state(32400))
+			}
+		})
+	}
+}

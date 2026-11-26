@@ -121,9 +121,12 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   not a miss (`Content.Answering`); a reset leaves the rules above as they are; no answer at all (a firewall or WAF that blocks the
   box drops its packets while other ports still answer, so the runner and a trusted sweep both miss the port) is not a miss
   (`Content.Silent`, run item `silent_port`) until the third such scan in a row at least 24 hours after the first (`silentStreak`),
-  which closes it. The run's log and a "Not checked" line of kind `silent_ports` say so. No prober, a failed check or a port past
-  the bounds: the rules above. `TestSilentPorts_AWAFThatBlocksTheBoxClosesNothing`,
-  `TestSilentPorts_ThreeSilentScansWithinADayCloseNothing`, `TestSilentPorts_AResetClosesAndAnAnswerKeeps`. (3) An address
+  which closes it. A port that accepted the re-check (run item `answered_port` / `still_open`) starts that count again, and neither
+  such a scan nor a silent one is the scan before that missed the port for the two-miss rule (`previousCheck`). The run's log and a
+  "Not checked" line of kind `silent_ports` say so. No prober, a failed check or a port past the bounds: the rules above.
+  `TestSilentPorts_AWAFThatBlocksTheBoxClosesNothing`, `TestSilentPorts_ThreeSilentScansWithinADayCloseNothing`,
+  `TestSilentPorts_AResetClosesAndAnAnswerKeeps`, `TestSilentPorts_AnAnswerInBetweenStartsTheSilentCountAgain`,
+  `TestSilentPorts_AnAnsweredOrSilentScanIsNotTheMissBefore`. (3) An address
   that stopped answering during the scan (INV-42: a port seen open earlier in the run no longer accepted a TCP connection before
   the results were written) is not a miss of any port: its run item is `stopped_answering`, which checks no port and does not count
   in `emptyStreak` (a router that lost its NAT loopback may answer with resets on its unforwarded ports, which (1) and (2) would

@@ -498,6 +498,7 @@
       "checked_empty": "nothing open and no reply: ports kept as they were",
       "answered_by_network": "answered by the box's own network for any address: left out",
       "silent": "open before, no answer at all now (no reset): kept open",
+      "still_open": "open before, missed by the scan, accepted a connection right after: kept open",
       "stopped_answering": "stopped answering during the scan: ports kept as they were",
       "deep_scanned": "deep-scanned",
       "deep_waiting": "next in line for the deep scan",

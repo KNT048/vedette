@@ -493,7 +493,9 @@ func (s *Service) closeVanished(ctx context.Context, tx *sql.Tx, w scanWrite, re
 // previousCheck is the start of the newest scan of target before run that probed port on ip: its run item of the address says it
 // probed the port (coverOutcomes), or, for a port outside the fixed list, its run item of that port says its service step probed it
 // (itemPort, coverTop). A scan whose service step did not reach the port (it failed, its batch did not finish, it ran before the
-// step said which ports it probed) has neither, so it never counts as a miss.
+// step said which ports it probed) has neither, so it never counts as a miss. Nor does a scan in which the port was answered by the
+// box's own network (itemPathPort), or gave no answer at all to the re-check or accepted it (itemSilentPort, itemAnsweredPort): that
+// scan did not miss it.
 func previousCheck(ctx context.Context, q querier, target, run, ip string, port int) (string, bool, error) {
 	outcomes := coverOutcomes(port)
 	args := []any{ModuleID, RunKind, target, run, run, ip}
@@ -502,14 +504,15 @@ func previousCheck(ctx context.Context, q querier, target, run, ip string, port 
 		marks[i] = "?"
 		args = append(args, o)
 	}
-	args = append(args, itemPort, portKey(ip, port), coverTop, itemPathPort, strconv.Itoa(port))
+	args = append(args, itemPort, portKey(ip, port), coverTop, itemPathPort, strconv.Itoa(port), itemSilentPort, itemAnsweredPort, portKey(ip, port))
 	var at sql.NullString
 	err := q.QueryRowContext(ctx, `SELECT max(r.started_at) FROM core_run_item i JOIN core_run r ON r.id = i.run_id
 		WHERE r.module = ? AND r.kind = ? AND r.subject_kind = 'target' AND r.subject_id = ? AND r.id <> ?
 		AND r.started_at < (SELECT started_at FROM core_run WHERE id = ?)
 		AND ((i.subject_kind = 'address' AND i.subject_id = ? AND i.outcome IN (`+strings.Join(marks, ", ")+`))
 			OR (i.subject_kind = ? AND i.subject_id = ? AND i.outcome = ?))
-		AND NOT EXISTS (SELECT 1 FROM core_run_item n WHERE n.run_id = r.id AND n.subject_kind = ? AND n.subject_id = ?)`, args...).Scan(&at)
+		AND NOT EXISTS (SELECT 1 FROM core_run_item n WHERE n.run_id = r.id
+			AND ((n.subject_kind = ? AND n.subject_id = ?) OR (n.subject_kind IN (?, ?) AND n.subject_id = ?)))`, args...).Scan(&at)
 	if err != nil {
 		return "", false, fmt.Errorf("the scan before of %s:%d: %w", ip, port, err)
 	}

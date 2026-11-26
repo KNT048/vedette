@@ -1,5 +1,7 @@
 package api
 
+import "time"
+
 // zap.baseline (docs/specs/host-api.md §6.15): ZAP's passive baseline scan of one page of a verified exposure target, in a
 // one-shot container on the network vedette-zap whose only way out is the one address and port of the page.
 
@@ -16,6 +18,13 @@ const CmdZapActive = "zap.active"
 // its context is cancelled, the container removed and proven gone, and the fence deleted, before the command answers; when it has
 // not started yet, the host remembers the stop and that run refuses to start. A run of another request id is left alone.
 const CmdZapStop = "zap.stop"
+
+// CmdZapAuthorize mints the host's grant of the disruptive rules for one person's press of Scan now (ZapAuthorizeArgs): core sends it
+// when a person starts the scan of the box's own IP, with that person's actor label, and passes the grant back in the zap.active runs
+// of that scan (ZapActiveArgs.Grant). The host keeps the grant in memory: it is good for one active pass (at most four pages within
+// 90 minutes of its first page), on that IP, for runs of that actor, until 6 hours after the press. A run of zap.active that asks for
+// the disruptive rules without a grant that holds runs without them (ZapActiveResult.DisruptiveRefused).
+const CmdZapAuthorize = "zap.authorize"
 
 // CmdZapPrepare (no args) makes sure the ZAP image is on the box: when it is not and no download runs, the host starts its download
 // by digest in the background (as zap.baseline does on first need) and answers at once (ZapPrepareResult). Core sends it when the
@@ -64,6 +73,39 @@ const (
 	CodeZapReportUnknown = "zap_report_unknown"
 	// CodeZapStopped: zap.stop stopped this run; the container was removed.
 	CodeZapStopped = "zap_stopped"
+	// CodeZapGrantNotPerson: zap.authorize was sent with an actor label that does not name a person (exposure:<person>): a scan
+	// the box runs by itself (exposure:system) never gets a grant of the disruptive rules.
+	CodeZapGrantNotPerson = "zap_grant_not_person"
+	// CodeZapGrantsFull: zap.authorize while the host keeps as many grants as it keeps at most (ZapGrantsMax), none of them expired.
+	CodeZapGrantsFull = "zap_grants_full"
+)
+
+// Why the host ran a page of zap.active without the disruptive rules core asked for (ZapActiveResult.DisruptiveRefused). The run
+// itself goes on: the active scan proper runs, with the disruptive rules and form posting off.
+const (
+	// ZapRefusedGrantMissing: no grant came with the run.
+	ZapRefusedGrantMissing = "zap_grant_missing"
+	// ZapRefusedGrantUnknown: the host does not hold the grant (it never minted it, or it restarted since the press).
+	ZapRefusedGrantUnknown = "zap_grant_unknown"
+	// ZapRefusedGrantExpired: the run came more than ZapGrantTTL after the press.
+	ZapRefusedGrantExpired = "zap_grant_expired"
+	// ZapRefusedGrantSpent: the grant's one active pass is over (more than ZapGrantPass after its first page, or ZapGrantPages used).
+	ZapRefusedGrantSpent = "zap_grant_spent"
+	// ZapRefusedGrantMismatch: the grant was minted for another IP, or for a person other than the run's actor.
+	ZapRefusedGrantMismatch = "zap_grant_mismatch"
+	// ZapRefusedGatewayShared: the box's default gateway, read by the host right before the run, is in 100.64.0.0/10 (carrier-grade
+	// NAT): the public IP is then the provider's, shared with its other customers.
+	ZapRefusedGatewayShared = "zap_gateway_shared"
+	// ZapRefusedGatewayUnreadable: the host could not read a default IPv4 gateway right before the run (fail closed).
+	ZapRefusedGatewayUnreadable = "zap_gateway_unreadable"
+)
+
+// The bounds of a grant of zap.authorize.
+const (
+	ZapGrantTTL   = 6 * time.Hour    // from the press: the scan may wait in the queue and run its deep steps first
+	ZapGrantPass  = 90 * time.Minute // from the grant's first page: one active pass (core's 60 minutes, and its last page)
+	ZapGrantPages = 4                // pages of one active pass (exposure.MaxWebScans)
+	ZapGrantsMax  = 32               // grants kept at once
 )
 
 // MaxZapReport is the largest report the host keeps and serves (exposure.MaxWebReport).
@@ -108,7 +150,22 @@ type ZapActiveArgs struct {
 	ZapBaselineArgs
 	// Disruptive runs the disruptive rules of the rule split (denial of service, and checks that may change data heavily) and lets the
 	// spider post forms. Only for kind ip without Typed: the box's own public IP, proven by the host's own check right before the run.
+	// The host runs them only when Grant holds and its own read of the default gateway allows them; otherwise the page runs without
+	// them and ZapActiveResult.DisruptiveRefused says why.
 	Disruptive bool `json:"disruptive,omitempty"`
+	// Grant is the result of zap.authorize at the press of the person who started the scan (32 hex characters); only with Disruptive.
+	Grant string `json:"grant,omitempty"`
+}
+
+// ZapAuthorizeArgs are the args of zap.authorize: the box's own public IPv4 address the person's scan is of.
+type ZapAuthorizeArgs struct {
+	IP string `json:"ip"`
+}
+
+// ZapAuthorizeResult is the grant (32 hex characters) and when it expires.
+type ZapAuthorizeResult struct {
+	Grant     string    `json:"grant"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 // ZapActiveResult is the result of a zap.active that produced a report: the Automation Framework's exit code (0 no error or
@@ -123,6 +180,9 @@ type ZapActiveResult struct {
 	// does (the disruptive rules, and SQL Injection, whose stronger payloads need Disruptive): an alert of one of them found with
 	// Disruptive is closed by core only after another run with Disruptive. The same list for every run of a host version.
 	DisruptiveRules []int `json:"disruptive_rules"`
+	// DisruptiveRefused is set when the run asked for the disruptive rules and the host ran the page without them: one of the
+	// ZapRefused* codes. "" when they ran, or were not asked for.
+	DisruptiveRefused string `json:"disruptive_refused,omitempty"`
 }
 
 // ZapStopArgs are the args of zap.stop: the X-Request-Id (a UUID v4) of the zap.baseline or zap.active run to stop.

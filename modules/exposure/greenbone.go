@@ -850,8 +850,9 @@ type gbOutcome struct {
 	state  string          // GreenboneRun.State after the step
 	addrs  []GreenboneAddr // a domain's: the state of each address
 	stop   *GreenboneStop  // why a stopped step was stopped (GreenboneRun.Stop)
-	// missed are the lines of an OpenVAS scan that was due and did not get going (queued for 90 minutes, ended before it scanned, a
-	// refusal, no probe log…): the run ends partly done with them. A scan with nothing to scan (gbPortsLine) is not one.
+	// missed are the lines of an OpenVAS scan that was due and did not get going (queued for 90 minutes, ended before it scanned, the
+	// engine not available, no probe log): the run ends partly done with them. Nothing to scan (gbPortsLine) and a refusal of the
+	// gate, the terms, the own IP or the domain fence are decisions, not misses: a plain skip.
 	missed []string
 }
 
@@ -960,14 +961,13 @@ func domainNote(st ScanTarget) string {
 // then carries the domain (and, for an address that is not the box's, its scope, which the host checks through GreenboneFence). ports
 // are the TCP ports this run found open there (gbPorts): OpenVAS checks those only.
 func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr, ports []int) (gbOutcome, error) {
+	// line is a step that did not scan by decision (nothing to scan, or a refusal of the gate, the terms, the own IP or the domain
+	// fence): a plain skip with the reason, not a miss of the run.
 	line := func(text, audit string) (gbOutcome, error) {
-		text = clipText(text, maxLineText)
-		return gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: text}}, audit: audit, state: GBRunNotRun, missed: []string{text}}, nil
+		return gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: clipText(text, maxLineText)}}, audit: audit, state: GBRunNotRun}, nil
 	}
 	if l := gbPortsLine(ports); l != "" { // nothing is sent: no open port to check, or an address that answers on every port
-		o, err := line(l, "not done: "+strings.TrimPrefix(l, "OpenVAS did not scan: "))
-		o.missed = nil // nothing to scan: a plain skip, not a miss of the run
-		return o, err
+		return line(l, "not done: "+strings.TrimPrefix(l, "OpenVAS did not scan: "))
 	}
 	// The gate of the run is many minutes old by now: the target must still be verified, committed, not paused and the box's own IP.
 	t, reason, gerr := s.gate(ctx, st.User, st.ID)
@@ -1014,7 +1014,9 @@ func (s *Service) greenboneAt(ctx context.Context, st ScanTarget, ip netip.Addr,
 	}
 	plog, _ := s.cfg.Probes.(GreenboneProbeLog)
 	if plog == nil {
-		return line(notGBNoLog, "not done: no probe log")
+		o, err := line(notGBNoLog, "not done: no probe log")
+		o.missed = []string{notGBNoLog} // due and could not start: a miss of the run
+		return o, err
 	}
 	g := s.gb()
 	g.mu.Lock()

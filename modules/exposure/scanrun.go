@@ -875,13 +875,13 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 	if s, ok := stepStatus[outcome]; ok {
 		st2 = s
 	}
-	for _, m := range o.missed { // due and never got going (queued, ended before it scanned, refused…): the run did not do what it should have
+	for _, m := range o.missed { // due and never got going (queued, ended before it scanned, not available, no probe log): the run did not do what it should have
 		rs.problem(m)
 	}
 	switch {
 	case o.state == GBRunNotRun && len(o.missed) > 0: // it scanned nothing and should have: failed, with its lines as why
 		rs.end(wctx, stepKeyOpenVAS, corerun.Failed, notRunWhy(o.not))
-	case o.state == GBRunNotRun: // nothing to scan (no open port on any address): skipped, with its lines as why
+	case o.state == GBRunNotRun: // nothing to scan, or a refusal (gate, terms, own IP, domain fence): skipped, with its lines as why
 		rs.skip(wctx, stepKeyOpenVAS, notRunWhy(o.not))
 	default:
 		rs.end(wctx, stepKeyOpenVAS, st2, text)

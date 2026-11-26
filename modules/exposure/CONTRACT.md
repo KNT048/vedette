@@ -239,10 +239,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   that it will run in the next scan, and the run ends partly done (INV-42). OpenVAS that had nothing to scan in a run (no open port
   on any address, or an address that answers on every port: state `not_run`) has its step skipped with its "Not checked" lines as
   the reason, never done with an empty note (`TestContract_INV28_Deep_OpenVASWithNoOpenPortIsSkippedWithWhy`). OpenVAS that was due
-  and never got going (the task stayed queued for 90 minutes, OpenVAS ended it before it scanned, a refusal of the gate, the terms or
-  the fence, no probe log) has its step failed with those lines, and the run ends partly done with them; on a domain, one address
-  that never got going does so too, whatever the others did
-  (`TestContract_INV25_OpenVASThatNeverStartedEndsTheRunPartlyDone`).
+  and never got going (the task stayed queued for 90 minutes, OpenVAS ended it before it scanned, OpenVAS not available, no probe
+  log) has its step failed with those lines, and the run ends partly done with them; on a domain, one address that never got going
+  does so too, whatever the others did (`TestContract_INV25_OpenVASThatNeverStartedEndsTheRunPartlyDone`). A refusal (the gate, the
+  terms, the own IP, the domain fence or its re-check) is an expected decision: a plain skip with the reason, the run not partly done
+  for it (`TestContract_INV28_Deep_OpenVASOnTheDeepAddresses`, `TestContract_INV25_OpenVASNeverScansAReplacedAddress`).
 - **INV-27** A proved domain's surface: names from the CT log, the domain itself, its MX and NS hosts under it, and a short common
   wordlist.
 - **INV-28** Deep scanning of addresses of names under a domain happens only in a full scan with the domain's terms accepted.

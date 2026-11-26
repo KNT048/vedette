@@ -31,6 +31,11 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   machine's address), to link-local or to cloud metadata addresses. The guard runs on the resolved address right before connect
   and on every redirect. A literal address it would refuse is already refused when the feed is saved (`blocked_host`).
 - **INV-21** VulnCheck KEV needs the customer's own key: it cannot be turned on without one and sends nothing until then.
+  It reads the whole list by VulnCheck's cursor paging (`start_cursor`, then each page's `_meta.next_cursor`, 100 entries a page,
+  at most 500 pages), whatever the number of pages. A read that is not provably complete (no `total_documents`, a repeated or
+  ignored cursor, an empty page, fewer entries than `total_documents`, more than 500 pages) fails the pull and keeps the rows
+  loaded before. A refused key (401, 403), a rate limit (429, with VulnCheck's `Retry-After`) and a plan without the list (402)
+  each say so in the feed's error.
 - **INV-22** After its first fill, a distribution feed is pulled only while a device runs that distribution (Alpine: only with an
   Alpine device at all).
 

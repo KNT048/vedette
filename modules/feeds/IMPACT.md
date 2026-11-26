@@ -16,6 +16,7 @@ What else to check when you change part of this module. Signatures and behaviour
 | Event names or payloads (`service.go`) | the subscribers in `cmd/vedette/wiring.go` (inventory re-match, scan re-scan, baseline handling in notify). A renamed event silently stops re-matching. |
 | The custom-feed parser (`ParseFeed`, limits, reject reasons) | `parse-test` and the parser editor: `web/src/features/feeds/parsers.ts` applies the same rules in the browser, and `parse_test.go` (`TestCross_*`) runs the cases of `parsers.test.ts`; golden files in `testdata/golden`. |
 | Indicator normalisation or verdict (`IOCKey`, `Judge`, whitelist) | logs indicator hits (`cmd/vedette/logsioc.go`), the AI and MCP `lookup_ioc`. |
+| How VulnCheck KEV is read (`VulnCheckPageURL`, `buildVulnCheck`, `vulnCheckMaxPage`) | `PRIVACY.md` flow 1 and `THIRD_PARTY_NOTICES.md` (both name the request); `TestVulnCheckPull_ReadsAListOfMoreThanSixtyPages`, `TestVulnCheckPull_FailsClosedWhenTheListIsNotComplete`. |
 | `KevVulns`, `IsStale`, `DisplayOf` | the weekly report (`cmd/vedette/reports.go`). |
 | `feeds.Inventory`, `DistroLister`, `PlatformChecker`, `TxSettler` | the adapter `feedsInventory` in `cmd/vedette/wiring.go`. |
 | Windows release data (`winrel.go`, `LearnWindowsReleases`) | `core/winrel`, which decides Windows patch levels for findings. |

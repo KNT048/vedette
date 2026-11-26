@@ -746,25 +746,39 @@ type priorVerdict struct {
 	outcome string
 }
 
-// priorVerdicts are the verdicts the runs of target before run gave port (portKey), newest first.
+// priorVerdictsMax bounds how many verdicts of the runs before are read for one port: far more than the rules need (the scan
+// before, a filtered streak of filteredScans over filteredSpan), so the cost of a scan does not grow with the target's history.
+const priorVerdictsMax = 100
+
+// priorVerdicts are the verdicts the runs of target before run gave port (portKey), newest first: at most priorVerdictsMax, and
+// then the newest clean sighting (verdictOpen) when it is older than those (seenClean must know of one however old it is).
 func priorVerdicts(ctx context.Context, q querier, target, run, port string) ([]priorVerdict, error) {
-	rows, err := q.QueryContext(ctx, `SELECT r.started_at, i.outcome FROM core_run_item i JOIN core_run r ON r.id = i.run_id
+	const from = ` FROM core_run_item i JOIN core_run r ON r.id = i.run_id
 		WHERE r.module = ? AND r.kind = ? AND r.subject_kind = 'target' AND r.subject_id = ? AND r.id <> ? AND r.started_at IS NOT NULL
-			AND r.started_at < (SELECT started_at FROM core_run WHERE id = ?) AND i.subject_kind = ? AND i.subject_id = ?
-		ORDER BY r.started_at DESC, i.seq DESC`, ModuleID, RunKind, target, run, run, itemVerdict, port)
-	if err != nil {
-		return nil, fmt.Errorf("the verdicts before of %s: %w", port, err)
-	}
-	defer func() { _ = rows.Close() }()
-	var out []priorVerdict
-	for rows.Next() {
-		var p priorVerdict
-		if err := rows.Scan(&p.at, &p.outcome); err != nil {
+			AND r.started_at < (SELECT started_at FROM core_run WHERE id = ?) AND i.subject_kind = ? AND i.subject_id = ?`
+	args := []any{ModuleID, RunKind, target, run, run, itemVerdict, port}
+	read := func(query string, args ...any) ([]priorVerdict, error) {
+		rows, err := q.QueryContext(ctx, query, args...)
+		if err != nil {
 			return nil, fmt.Errorf("the verdicts before of %s: %w", port, err)
 		}
-		out = append(out, p)
+		defer func() { _ = rows.Close() }()
+		var out []priorVerdict
+		for rows.Next() {
+			var p priorVerdict
+			if err := rows.Scan(&p.at, &p.outcome); err != nil {
+				return nil, fmt.Errorf("the verdicts before of %s: %w", port, err)
+			}
+			out = append(out, p)
+		}
+		return out, rows.Err()
 	}
-	return out, rows.Err()
+	out, err := read(`SELECT r.started_at, i.outcome`+from+` ORDER BY r.started_at DESC, i.seq DESC LIMIT ?`, append(args, priorVerdictsMax)...)
+	if err != nil || len(out) < priorVerdictsMax || seenClean(out) {
+		return out, err
+	}
+	clean, err := read(`SELECT r.started_at, i.outcome`+from+` AND i.outcome = ? ORDER BY r.started_at DESC LIMIT 1`, append(args, verdictOpen)...)
+	return append(out, clean...), err
 }
 
 // runStart is when run started ("" when not known).

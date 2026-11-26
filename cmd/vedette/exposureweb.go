@@ -37,6 +37,38 @@ type zapHost interface {
 	DownloadZapReport(ctx context.Context, reportID string) (io.ReadCloser, int64, error)
 }
 
+// zapPreparer is the host client's zap.prepare: the ZAP image fetched ahead of the first scan.
+type zapPreparer interface {
+	ZapPrepare(ctx context.Context, requestID, actor string) (api.Run, error)
+}
+
+var _ exposure.ImagePreparer = exposureWebScan{}
+
+// PrepareImage is exposure's ImagePreparer: zap.prepare, which starts the download of the ZAP image on the host when it is not on the
+// box (and answers at once). Without vedette-host there is nothing to fetch.
+func (w exposureWebScan) PrepareImage(ctx context.Context) error {
+	p, ok := w.host.(zapPreparer)
+	if w.host == nil || !ok {
+		return nil
+	}
+	id, err := newUUID()
+	if err != nil {
+		return err
+	}
+	run, err := p.ZapPrepare(ctx, id, "exposure")
+	switch {
+	case err != nil:
+		return fmt.Errorf("exposure: zap.prepare: %w", err)
+	case run.Status != api.StatusSucceeded:
+		code := "command_failed"
+		if run.Error != nil {
+			code = run.Error.Code
+		}
+		return fmt.Errorf("exposure: zap.prepare %s: %s", run.Status, code)
+	}
+	return nil
+}
+
 // zapStopWait bounds zap.stop after a run exposure gave up on: the host cancels it and removes its container before it answers.
 const zapStopWait = 3 * time.Minute
 
@@ -47,8 +79,8 @@ const (
 	webNoHost         = "this install has no host helper (vedette-host), which runs ZAP's container: the passive web scan needs the appliance install."
 	webBusy           = "a passive web scan was still running on this box (possibly this scan's previous page). Scan again later."
 	webCleaningUp     = "the box is still cleaning up an earlier passive web scan (its container could not be removed yet; the box log has the reason). Scan again later."
-	webPulling        = "the ZAP image (about 1.2 GB) is being downloaded to this box. Scan again in a few minutes."
-	webPullFailed     = "the download of the ZAP image from ghcr.io failed (the box may not reach ghcr.io, or its disk is full). Scan again to try once more; the box log has the reason."
+	webPulling        = "the ZAP image (about 1.2 GB) is still downloading to this box; it will run in the next scan."
+	webPullFailed     = "the download of the ZAP image from ghcr.io failed (the box may not reach ghcr.io, or its disk is full); the box is trying again, and the web scan will run in the next scan once it is there. The box log has the reason."
 	webNotOwnIP       = "this box no longer reaches the Internet through %s, so its pages were not scanned."
 	webNotOwnDom      = "%s no longer has its vedette-verify TXT record, so its pages were not scanned."
 	webNotOwnAt       = "%s no longer has the vedette-verify TXT record of %s, so its pages were not scanned."
@@ -154,8 +186,8 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 		if code == api.CodeZapNameMoved { // this page only: exposure goes on with the next page
 			return exposure.WebScan{}, &exposure.PageSkipped{Reason: fmt.Sprintf(webNameMoved, page.Host, page.IP)}
 		}
-		if why := webReason(code, t, page); why != "" {
-			return exposure.WebScan{}, &exposure.Unavailable{Reason: why}
+		if why := webReason(code, t, page); why != "" { // the image still downloading: on, not ready yet (the run says so)
+			return exposure.WebScan{}, &exposure.Unavailable{Reason: why, Pending: code == api.CodeZapPulling || code == api.CodeZapPullFailed}
 		}
 		if msg != "" {
 			code += ": " + msg

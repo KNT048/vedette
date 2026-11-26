@@ -1,10 +1,12 @@
 package exposure
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log/slog"
 	"math"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -32,7 +34,10 @@ const (
 	stepKeyZAPActive = StepZAPActive
 	stepKeySave      = "save" // the comparison with the exploited CVEs, then the rows written
 	stepKeyOpenVAS   = StepOpenVAS
-	stepKeyWaiting   = "waiting" // a domain's addresses left for the next scans (the deep scan's cap)
+	// stepKeyDisruptive is nmap's disruptive scripts (password guessing, denial of service and crash checks), the last step of a deep
+	// scan's plan: only when the run allows the disruptive checks, on the open ports the scan found; skipped with why otherwise.
+	stepKeyDisruptive = "nmap_disruptive"
+	stepKeyWaiting    = "waiting" // a domain's addresses left for the next scans (the deep scan's cap)
 )
 
 // The names of the steps that are not engine steps. The engine steps keep their names (stepNames), which Settings › Scanning reads.
@@ -42,10 +47,11 @@ const (
 	stepNameSurfaceDom  = "Find names and check their web pages"
 	stepNamePortsDeep   = "Find open ports (every TCP port)"
 	stepNamePorts       = "Find open ports (nmap's 1,000 most common)"
-	stepNameServiceDeep = "Identify services and run nmap's scripts"
+	stepNameServiceDeep = "Identify services and run nmap's safe scripts"
 	stepNameServices    = "Identify services (nmap -sV)"
 	stepNameSave        = "Compare with exploited CVEs and save the results"
 	stepNameWaiting     = "Addresses left for the next scans"
+	stepNameDisruptive  = "nmap's disruptive scripts (password guessing, crash checks)"
 )
 
 // liveEvery is how often where a running step is gets written to its note.
@@ -62,6 +68,11 @@ type stepDef struct{ key, name string }
 // scanPlan is the steps of a scan of a target of kind k at mode m, in the order they run. The steps of a domain's addresses (deep
 // scan) are added between its surface step and the rest as they come (runSteps.addAddress), so the rest is added after them.
 // A step added later (an engine of its own) goes here, in the place it runs.
+//
+// The order of a deep scan puts the light checks before the heavy ones: nmap's sweep of every port with service identification and
+// its safe scripts (the later steps need the ports and the services), the templates, ZAP's passive then active scan, the results
+// written, OpenVAS, and nmap's disruptive scripts last, so a ban or an overloaded firewall in front of the target costs only the
+// last steps. Before each engine step the scan checks that the ports seen open earlier still answer (liveness.go).
 func scanPlan(k Kind, m ScanMode) (head, tail []stepDef) {
 	if k == KindDomain {
 		head = []stepDef{{stepKeySurface, stepNameSurfaceDom}}
@@ -77,6 +88,9 @@ func scanPlan(k Kind, m ScanMode) (head, tail []stepDef) {
 		tail = append(tail, stepDef{stepKeyZAPActive, stepNameZAPAct})
 	}
 	tail = append(tail, stepDef{stepKeySave, stepNameSave}, stepDef{stepKeyOpenVAS, stepNameOpenVAS})
+	if m.Full {
+		tail = append(tail, stepDef{stepKeyDisruptive, stepNameDisruptive})
+	}
 	return head, tail
 }
 
@@ -104,15 +118,77 @@ type runSteps struct {
 	byKey map[string]*runStep
 	tail  []stepDef // the steps of the plan not added yet
 
+	// incomplete is, for a step, why its results are incomplete (a port that stopped answering before or while it ran): a step that
+	// ends done with one ends partly done, the reason after its note. problems are what the run did not do that it should have (a
+	// target that stopped answering, an engine image not on the box yet): a run with one ends partly done, never done. Both under mu.
+	incomplete map[string]string
+	problems   []string
+
 	pmu      sync.Mutex
 	pending  map[string]string // the newest note of each running step, not written yet
 	services bool              // nmap reported its service phase: the port discovery is over
+	only     string            // while set, every progress report is the note of this step (nmap's disruptive scripts)
 	stop     chan struct{}
 	stopped  chan struct{}
 }
 
 func (s *Service) newRunSteps(x *corerun.Exec, l *stepLog) *runSteps {
-	return &runSteps{x: x, log: s.cfg.Log, clock: s.clock, l: l, byKey: map[string]*runStep{}, pending: map[string]string{}}
+	return &runSteps{x: x, log: s.cfg.Log, clock: s.clock, l: l, byKey: map[string]*runStep{}, pending: map[string]string{}, incomplete: map[string]string{}}
+}
+
+// incompleteOn says the results of step key are incomplete, and why (each reason once, in the order given).
+func (rs *runSteps) incompleteOn(key, why string) {
+	if rs == nil || why == "" {
+		return
+	}
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	if !strings.Contains(rs.incomplete[key], why) {
+		rs.incomplete[key] = strings.TrimSpace(rs.incomplete[key] + " " + why)
+	}
+}
+
+// problem records something the run did not do that it should have; the run then ends partly done with the first one as its reason.
+func (rs *runSteps) problem(why string) {
+	if rs == nil || why == "" {
+		return
+	}
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	if !slices.Contains(rs.problems, why) {
+		rs.problems = append(rs.problems, why)
+	}
+}
+
+// result is res with the run's problems: a run that would end done with one ends partly done, its first problem (and how many more)
+// as its reason; a run that already ends partly done adds them to its own reason.
+func (rs *runSteps) result(res corerun.Result) corerun.Result {
+	if rs == nil {
+		return res
+	}
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	if len(rs.problems) == 0 || (res.Status != "" && res.Status != corerun.Done && res.Status != corerun.Partial) {
+		return res
+	}
+	why := rs.problems[0]
+	if n := len(rs.problems) - 1; n > 0 {
+		why = fmt.Sprintf("%s (and %s)", strings.TrimSuffix(why, "."), plural(n, "more problem"))
+	}
+	if res.Error != "" {
+		why = res.Error + "; " + why
+	}
+	return corerun.Result{Status: corerun.Partial, Error: clipText(why, 1000)}
+}
+
+// logLine writes a line of the run's log.
+func (rs *runSteps) logLine(ctx context.Context, level corerun.Level, text string) {
+	if rs == nil {
+		return
+	}
+	c, cancel := wctx(ctx)
+	defer cancel()
+	rs.warn(ctx, "log", rs.x.Log(c, level, clipText(text, 1000)))
 }
 
 type runStepsKey struct{}
@@ -257,6 +333,10 @@ func (rs *runSteps) endLocked(ctx context.Context, key string, how corerun.Statu
 	rs.startLocked(ctx, key)
 	if st.state != corerun.Running {
 		return
+	}
+	if why := rs.incomplete[key]; why != "" && (how == corerun.Done || how == corerun.Partial) { // a port stopped answering: never "done"
+		how = corerun.Partial
+		note = strings.TrimSpace(note + " " + why)
 	}
 	c, cancel := wctx(ctx)
 	defer cancel()
@@ -498,14 +578,17 @@ var phaseStep = map[string]string{progress.PhaseDiscovery: stepKeyPorts, progres
 // Report implements progress.Sink for an IP scan: each report becomes the note of the step its phase belongs to. Quick and never
 // blocking: it is called from the reader of an engine's output, and the note is written by the live loop.
 func (rs *runSteps) Report(u progress.Update) {
-	key := phaseStep[u.Phase]
+	rs.pmu.Lock()
+	only := rs.only
+	rs.pmu.Unlock()
+	key := cmp.Or(only, phaseStep[u.Phase])
 	if key == "" {
 		return
 	}
-	note := liveNote(u, key == stepKeyServices)
+	note := liveNote(u, key == stepKeyServices || key == only)
 	rs.pmu.Lock()
 	defer rs.pmu.Unlock()
-	if key == stepKeyServices {
+	if key == stepKeyServices && only == "" {
 		rs.services = true
 	}
 	if note != "" {
@@ -567,6 +650,17 @@ func liveNote(u progress.Update, named bool) string {
 		return phaseWords[u.Phase]
 	}
 	return phaseWords[u.Phase] + ": " + head
+}
+
+// reportTo makes every progress report the note of step key until reportTo(""): the disruptive scripts' nmap run reports the phases
+// of a port scan, which are not the earlier steps'.
+func (rs *runSteps) reportTo(key string) {
+	if rs == nil {
+		return
+	}
+	rs.pmu.Lock()
+	defer rs.pmu.Unlock()
+	rs.only = key
 }
 
 // startLive starts the loop that writes where the running steps are, until stopLive.

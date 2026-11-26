@@ -497,6 +497,7 @@
       "checked_web": "ports 80 and 443 checked by name",
       "checked_empty": "nothing open and no reply: ports kept as they were",
       "answered_by_network": "answered by the box's own network for any address: left out",
+      "stopped_answering": "stopped answering during the scan: ports kept as they were",
       "deep_scanned": "deep-scanned",
       "deep_waiting": "next in line for the deep scan",
       "deep_fence": "checked by name only",

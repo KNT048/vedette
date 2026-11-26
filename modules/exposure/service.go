@@ -35,10 +35,13 @@ type Config struct {
 	Gateway   Gateway      // nil: the page makes no claim about which device answers the open ports
 	// Appliances nil: an appliance a port names (appliance.go) is not tied to inventory devices; its Devices stay null.
 	Appliances Appliances
-	Services   ServiceScanner  // nil: every scan of an IP says service identification is not set up (INV-19)
-	Templates  TemplateScanner // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
-	Web        WebScanner      // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
-	Greenbone  GreenboneHost   // nil: the setting and every scan of an IP say NotAvailableGreenbone, "OpenVAS is not available on this box." (INV-25)
+	Services   ServiceScanner // nil: every scan of an IP says service identification is not set up (INV-19)
+	// Liveness checks, before each engine step and before the results are written, that the ports seen open earlier in the scan still
+	// accept a TCP connection (liveness.go); nil: no check.
+	Liveness  Liveness
+	Templates TemplateScanner // nil: every scan of an IP says the safe exploited-vulnerability templates are not set up (INV-23)
+	Web       WebScanner      // nil: every scan says the passive web scan (ZAP) is not set up (INV-24)
+	Greenbone GreenboneHost   // nil: the setting and every scan of an IP say NotAvailableGreenbone, "OpenVAS is not available on this box." (INV-25)
 	// Path checks which of the ports a scan found open the box's own network answers for an address that is never routed (INV-44);
 	// nil: no check, every open port is taken as the target's.
 	Path PathChecker

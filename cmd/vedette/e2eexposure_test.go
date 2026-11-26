@@ -1,7 +1,7 @@
 package main
 
 // The exposure fakes of the box of the real-backend end-to-end run: the box never calls the three public "what is my IP"
-// services, the real DNS or a real scan. Exposure gets a fake EgressProber, a fake Resolver and a fake scan Runner through the
+// services, the real DNS, a real scan or its liveness connects. Exposure gets a fake EgressProber, a fake Resolver and a fake scan Runner through the
 // exposureTestConfig seam of exposure.go; the specs steer them through the control server (e2ebox_test.go). Defaults: the prober says "the
 // services are down" (the first-start detection of INV-11 fires during the setup wizard and must find no address), no domain has a TXT
 // record, and the runner returns an empty scan. The fakes are shared by every box of the process (the bare box too).
@@ -75,7 +75,9 @@ func e2eExposureFakes() func() {
 	e2eExpMu.Lock()
 	defer e2eExpMu.Unlock()
 	if e2eExpN++; e2eExpN == 1 {
-		exposureTestConfig = func(c *exposure.Config) { c.Prober, c.Resolver, c.Runner, c.Path = e2eExp, e2eExp, e2eExp, nil }
+		exposureTestConfig = func(c *exposure.Config) { // no TCP connect from the box either
+			c.Prober, c.Resolver, c.Runner, c.Liveness, c.Path = e2eExp, e2eExp, e2eExp, nil, nil
+		}
 	}
 	return func() {
 		e2eExpMu.Lock()

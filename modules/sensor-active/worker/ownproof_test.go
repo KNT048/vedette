@@ -38,6 +38,9 @@ func TestAProvenIPRunsWhileTheBoxGoesOutThroughAnotherLine(t *testing.T) {
 			r := start(t, nm, func(c *worker.Config) { c.Egress = eg })
 			j := sensorlink.Job{ID: id1, Kind: sensorlink.KindNmap, Shape: kind.Name(), Rate: nmapargv.ExternalRateOf(kind), Targets: []string{"8.8.8.8"},
 				TimeoutS: 60, ProvenAt: provenAt(30 * 24 * time.Hour)}
+			if kind == nmapargv.ExternalDisruptive { // the deep scan's last step: the open ports of its full run
+				j.Ports = []int{22, 443}
+			}
 			r.core.push(j)
 			if got := r.core.next(t); got.res.Status != "done" || got.res.XMLB64 == "" || eg.count() != 0 {
 				t.Fatalf("result = %+v after %d rounds", got.res, eg.count())

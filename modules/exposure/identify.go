@@ -170,8 +170,12 @@ type RuledOutRow struct {
 }
 
 // Unavailable is the error of a ServiceScanner or a Matcher whose step did not run, with a reason the page shows as is. Any other
-// error is logged and shown as a failure without its text.
-type Unavailable struct{ Reason string }
+// error is logged and shown as a failure without its text. Pending says the engine is on but not ready yet (its image is still
+// downloading): the step is skipped with the reason, and the run ends partly done, never done.
+type Unavailable struct {
+	Reason  string
+	Pending bool
+}
 
 func (e *Unavailable) Error() string { return e.Reason }
 

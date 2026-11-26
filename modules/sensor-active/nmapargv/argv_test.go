@@ -115,11 +115,11 @@ var (
 	// The -sV follow-up of the weekly scan on the open ports the normal scan does not cover.
 	shapePortVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert,http-hp-ilo-info,vmware-version", "-n", "--max-rate", "50",
 		"--max-retries", "3", "-p", "22222,40000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
-	// The two full shapes of a target whose testing terms are accepted.
+	// The deep scan of a target whose testing terms are accepted, and its last step: the disruptive scripts on the open ports it found.
 	shapeFull = []string{"--privileged", "-sS", "-sV", "--version-all", "-Pn", "-n", "-p-", "--script", FullScripts,
 		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
-	shapeDisruptive = []string{"--privileged", "-sS", "-sV", "--version-all", "-Pn", "-n", "-p-", "--script", DisruptiveScripts,
-		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
+	shapeDisruptive = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p", "22,443,9443", "--script", DisruptiveScripts,
+		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
 )
 
 // INV-4, SYS-2: the validator accepts exactly three command shapes, with only the rate (of sweep and normal)
@@ -427,7 +427,7 @@ func TestParseInvertsBuild(t *testing.T) {
 		kind Kind
 		rate int
 		want int
-	}{{Sweep, 50, 50}, {Normal, 1000, 1000}, {Gentle, 500, 1}, {GentleTitles, 500, 1}, {External, ExternalRate, ExternalRate}, {ExternalFull, FullRate, FullRate}, {ExternalDisruptive, FullRate, FullRate}} {
+	}{{Sweep, 50, 50}, {Normal, 1000, 1000}, {Gentle, 500, 1}, {GentleTitles, 500, 1}, {External, ExternalRate, ExternalRate}, {ExternalFull, FullRate, FullRate}} {
 		ts := ts
 		if c.kind.IsExternal() {
 			ts = addrs(t, "8.8.8.8")
@@ -663,59 +663,112 @@ func TestExternalBatches(t *testing.T) {
 	}
 }
 
-// The two full shapes are built, validated and parsed back exactly as written above, with one public target at FullRate;
-// anything else in their place is refused: a LAN target, two targets, another rate, the other shape's script expression or a
-// mix of the two, a script argument, a port list instead of -p-.
+// The full shape is built, validated and parsed back exactly as written above, with one public target at FullRate; anything else
+// in its place is refused: a LAN target, two targets, another rate, another script expression, a script argument, a port list
+// instead of -p-.
 func TestFullShapes(t *testing.T) {
 	t.Parallel()
-	for _, c := range []struct {
-		kind  Kind
-		shape []string
-	}{{ExternalFull, shapeFull}, {ExternalDisruptive, shapeDisruptive}} {
-		got, err := Build(c.kind, FullRate, addrs(t, "8.8.8.8"))
-		if err != nil || !slices.Equal(got, c.shape) {
-			t.Fatalf("%s: argv = %q %v\nwant   %q", c.kind.Name(), got, err, c.shape)
-		}
-		if k, r, ts, err := Parse(got); err != nil || k != c.kind || r != FullRate || len(ts) != 1 || ts[0].String() != "8.8.8.8" {
-			t.Fatalf("%s: Parse = %v %d %v %v", c.kind.Name(), k, r, ts, err)
-		}
-		if k, ok := KindOf(c.kind.Name()); !ok || k != c.kind || !k.IsFull() || !k.IsExternal() || ExternalRateOf(k) != FullRate {
-			t.Fatalf("KindOf(%q) = %v %v", c.kind.Name(), k, ok)
-		}
-		for name, b := range map[string]struct {
-			rate    int
-			targets []netip.Addr
-		}{"a LAN target": {FullRate, addrs(t, "192.168.1.1")}, "two targets": {FullRate, addrs(t, "8.8.8.8", "1.1.1.1")}, "another rate": {ExternalRate, addrs(t, "8.8.8.8")}} {
-			if _, err := Build(c.kind, b.rate, b.targets); err == nil {
-				t.Errorf("%s: Build accepted %s", c.kind.Name(), name)
-			}
-		}
-		set := func(i int, v string) []string { a := slices.Clone(c.shape); a[i] = v; return a }
-		at := func(flag string) int { return slices.Index(c.shape, flag) + 1 }
-		for name, argv := range map[string][]string{
-			"a LAN target":       set(len(c.shape)-1, "192.168.10.1"),
-			"two targets":        append(slices.Clone(c.shape), "1.1.1.1"),
-			"another rate":       set(at("--max-rate"), "1000"),
-			"a mixed expression": set(at("--script"), "(default or safe or vuln or dos) and not (brute or external or broadcast)"),
-			"external scripts":   set(at("--script"), "(default or safe or vuln or external) and not (dos or brute or broadcast)"),
-			"a script name":      set(at("--script"), "vulners"),
-			"with --script-args": append(append(slices.Clone(c.shape[:at("--script")+1]), "--script-args", "vulns.showall"), c.shape[at("--script")+1:]...),
-			"a port list":        set(slices.Index(c.shape, "-p-"), "-p1-1024"),
-			"a longer timeout":   set(at("--host-timeout"), "120m"),
-		} {
-			if err := Validate(argv); err == nil {
-				t.Errorf("%s: Validate accepted %s: %q", c.kind.Name(), name, argv)
-			}
+	got, err := Build(ExternalFull, FullRate, addrs(t, "8.8.8.8"))
+	if err != nil || !slices.Equal(got, shapeFull) {
+		t.Fatalf("argv = %q %v\nwant   %q", got, err, shapeFull)
+	}
+	if k, r, ts, err := Parse(got); err != nil || k != ExternalFull || r != FullRate || len(ts) != 1 || ts[0].String() != "8.8.8.8" {
+		t.Fatalf("Parse = %v %d %v %v", k, r, ts, err)
+	}
+	for _, k := range []Kind{ExternalFull, ExternalDisruptive} {
+		if got, ok := KindOf(k.Name()); !ok || got != k || !k.IsFull() || !k.IsExternal() || ExternalRateOf(k) != FullRate {
+			t.Fatalf("KindOf(%q) = %v %v", k.Name(), got, ok)
 		}
 	}
-	// Each shape's expression in the other's flags is the other shape, never a third one: swapping them changes the kind.
-	swapped := slices.Clone(shapeFull)
-	swapped[slices.Index(swapped, "--script")+1] = DisruptiveScripts
-	if k, _, _, err := Parse(swapped); err != nil || k != ExternalDisruptive {
-		t.Fatalf("swapped expression = %v %v", k, err)
+	for name, b := range map[string]struct {
+		rate    int
+		targets []netip.Addr
+	}{"a LAN target": {FullRate, addrs(t, "192.168.1.1")}, "two targets": {FullRate, addrs(t, "8.8.8.8", "1.1.1.1")}, "another rate": {ExternalRate, addrs(t, "8.8.8.8")}} {
+		if _, err := Build(ExternalFull, b.rate, b.targets); err == nil {
+			t.Errorf("Build accepted %s", name)
+		}
+	}
+	set := func(i int, v string) []string { a := slices.Clone(shapeFull); a[i] = v; return a }
+	at := func(flag string) int { return slices.Index(shapeFull, flag) + 1 }
+	for name, argv := range map[string][]string{
+		"a LAN target":           set(len(shapeFull)-1, "192.168.10.1"),
+		"two targets":            append(slices.Clone(shapeFull), "1.1.1.1"),
+		"another rate":           set(at("--max-rate"), "1000"),
+		"a mixed expression":     set(at("--script"), "(default or safe or vuln or dos) and not (brute or external or broadcast)"),
+		"external scripts":       set(at("--script"), "(default or safe or vuln or external) and not (dos or brute or broadcast)"),
+		"a script name":          set(at("--script"), "vulners"),
+		"the disruptive scripts": set(at("--script"), DisruptiveScripts),
+		"with --script-args":     append(append(slices.Clone(shapeFull[:at("--script")+1]), "--script-args", "vulns.showall"), shapeFull[at("--script")+1:]...),
+		"a port list":            set(slices.Index(shapeFull, "-p-"), "-p1-1024"),
+		"a longer timeout":       set(at("--host-timeout"), "120m"),
+	} {
+		if err := Validate(argv); err == nil {
+			t.Errorf("Validate accepted %s: %q", name, argv)
+		}
 	}
 	if External.IsFull() || !External.IsExternal() || Normal.IsExternal() || ExternalRateOf(External) != ExternalRate {
 		t.Fatal("IsFull/IsExternal")
+	}
+}
+
+// The disruptive scripts run as the deep scan's last step, on the open ports its full run found: the shape carries those ports
+// (1..40, ascending), runs only the disruptive script list (never the full run's, never -p-), at FullRate on one public address,
+// and parses back to its ports. Anything else is refused.
+func TestDisruptiveShapeRunsOnTheOpenPortsOnly(t *testing.T) {
+	t.Parallel()
+	ports := []int{22, 443, 9443}
+	got, err := BuildFor(ExternalDisruptive, FullRate, ports, addrs(t, "8.8.8.8"))
+	if err != nil || !slices.Equal(got, shapeDisruptive) {
+		t.Fatalf("argv = %q %v\nwant   %q", got, err, shapeDisruptive)
+	}
+	if k, r, ps, ts, err := ParseFor(got); err != nil || k != ExternalDisruptive || r != FullRate || !slices.Equal(ps, ports) || len(ts) != 1 {
+		t.Fatalf("ParseFor = %v %d %v %v %v", k, r, ps, ts, err)
+	}
+	if _, err := Build(ExternalDisruptive, FullRate, addrs(t, "8.8.8.8")); err == nil {
+		t.Error("the disruptive shape was built without its ports")
+	}
+	forty := make([]int, 41)
+	for i := range forty {
+		forty[i] = 1000 + i
+	}
+	for name, c := range map[string]struct {
+		rate    int
+		ports   []int
+		targets []netip.Addr
+	}{
+		"no port":         {FullRate, nil, addrs(t, "8.8.8.8")},
+		"41 ports":        {FullRate, forty, addrs(t, "8.8.8.8")},
+		"unsorted ports":  {FullRate, []int{443, 22}, addrs(t, "8.8.8.8")},
+		"another rate":    {ExternalRate, ports, addrs(t, "8.8.8.8")},
+		"a LAN target":    {FullRate, ports, addrs(t, "192.168.1.1")},
+		"two targets":     {FullRate, ports, addrs(t, "8.8.8.8", "1.1.1.1")},
+		"port 0":          {FullRate, []int{0, 22}, addrs(t, "8.8.8.8")},
+		"a port too high": {FullRate, []int{22, 65536}, addrs(t, "8.8.8.8")},
+	} {
+		if _, err := BuildFor(ExternalDisruptive, c.rate, c.ports, c.targets); err == nil {
+			t.Errorf("BuildFor accepted %s", name)
+		}
+	}
+	set := func(i int, v string) []string { a := slices.Clone(shapeDisruptive); a[i] = v; return a }
+	at := func(flag string) int { return slices.Index(shapeDisruptive, flag) + 1 }
+	for name, argv := range map[string][]string{
+		"every port":        set(at("-p"), "1-65535"),
+		"-p-":               append(append(slices.Clone(shapeDisruptive[:at("-p")-1]), "-p-"), shapeDisruptive[at("-p")+1:]...),
+		"the full scripts":  set(at("--script"), FullScripts),
+		"both script lists": set(at("--script"), FullScripts+","+DisruptiveScripts),
+		"--version-all":     append(append(slices.Clone(shapeDisruptive[:3]), "--version-all"), shapeDisruptive[3:]...),
+		"another rate":      set(at("--max-rate"), "1000"),
+		"a longer timeout":  set(at("--host-timeout"), "60m"),
+		"a LAN target":      set(len(shapeDisruptive)-1, "192.168.10.1"),
+	} {
+		if err := Validate(argv); err == nil {
+			t.Errorf("Validate accepted %s: %q", name, argv)
+		}
+	}
+	for _, s := range fullScripts {
+		if strings.Contains(","+DisruptiveScripts+",", ","+s+",") {
+			t.Errorf("the disruptive run repeats %s of the full run", s)
+		}
 	}
 }
 
@@ -752,12 +805,15 @@ func TestNoShapeWidensScripts(t *testing.T) {
 		ExternalFull:       FullScripts,
 		ExternalDisruptive: DisruptiveScripts,
 	}
-	for _, k := range kinds {
+	for _, k := range append(slices.Clone(kinds), ExternalDisruptive) {
 		rate := 50
 		if k.IsExternal() {
 			rate = ExternalRateOf(k)
 		}
-		f, err := Flags(k, rate)
+		f, err := FlagsFor(k, rate, nil)
+		if k == ExternalDisruptive {
+			f, err = FlagsFor(k, rate, []int{22, 443})
+		}
 		if err != nil {
 			t.Fatal(err)
 		}

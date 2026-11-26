@@ -85,8 +85,9 @@ func TestRunSteps_ADeepIPScanListsEveryStepInOrder(t *testing.T) {
 		{stepNameZAPAct, corerun.Skipped, notActiveNoScanner},
 		{stepNameSave, corerun.Done, "open service"},
 		{stepNameOpenVAS, corerun.Done, "OpenVAS found 4 results"},
+		{stepNameDisruptive, corerun.Skipped, notDisruptiveOff},
 	})
-	if d.Done != 9 || d.Total != 9 || d.Summary != "Done: 9 of 9 steps" {
+	if d.Done != 10 || d.Total != 10 || d.Summary != "Done: 10 of 10 steps" {
 		t.Errorf("run = %d of %d, %q", d.Done, d.Total, d.Summary)
 	}
 	log := logOf(d)
@@ -119,8 +120,9 @@ func TestRunSteps_ASkippedStepSaysWhy(t *testing.T) {
 		{stepNameZAPAct, corerun.Skipped, "nothing to attack"},
 		{stepNameSave, corerun.Done, ""},
 		{stepNameOpenVAS, corerun.Skipped, notGBOff},
+		{stepNameDisruptive, corerun.Skipped, notDisruptiveOff},
 	})
-	if d.Done != 9 {
+	if d.Done != 10 {
 		t.Errorf("a step skipped for a reason counts as done: %d of %d", d.Done, d.Total)
 	}
 	if !strings.Contains(logOf(d), "Skipped: "+stepNameOpenVAS+". "+notGBOff) {
@@ -152,8 +154,9 @@ func TestRunSteps_AFailedStepAndTheStepsNotReached(t *testing.T) {
 		{stepNameZAPAct, corerun.Skipped, notReachedFailed},
 		{stepNameSave, corerun.Skipped, notReachedFailed},
 		{stepNameOpenVAS, corerun.Skipped, notReachedFailed},
+		{stepNameDisruptive, corerun.Skipped, notReachedFailed},
 	})
-	if d.Done != 2 || d.Total != 9 || d.Status != corerun.Failed {
+	if d.Done != 2 || d.Total != 10 || d.Status != corerun.Failed {
 		t.Errorf("run = %s, %d of %d", d.Status, d.Done, d.Total)
 	}
 	if strings.Contains(*d.Steps[1].Note, "probe socket") {
@@ -201,7 +204,7 @@ func TestRunSteps_ProgressIsTheNoteOfTheRunningStep(t *testing.T) {
 	if mid.Steps[2].Status != corerun.Done || mid.Steps[3].Status != corerun.Running || mid.Steps[3].Note == nil || *mid.Steps[3].Note != "reading service versions: 50%" {
 		t.Errorf("after the service phase: ports %s, services %s %v", mid.Steps[2].Status, mid.Steps[3].Status, mid.Steps[3].Note)
 	}
-	if mid.Summary != "3 of 9 steps" {
+	if mid.Summary != "3 of 10 steps" {
 		t.Errorf("summary while it runs = %q", mid.Summary)
 	}
 	if d := e.runDetail(e.ctx(), midRun); d.Steps[3].Note == nil || !strings.HasPrefix(*d.Steps[3].Note, "Service identification") {
@@ -255,9 +258,9 @@ func TestRunSteps_ADomainDeepScanListsItsAddresses(t *testing.T) {
 	}
 	want = append(want, wantStep{stepNameWaiting, corerun.Skipped, "2 addresses wait for the next scans"},
 		wantStep{stepNameNuclei, corerun.Done, ""}, wantStep{stepNameZAP, "", ""}, wantStep{stepNameZAPAct, corerun.Skipped, ""}, wantStep{stepNameSave, corerun.Done, ""},
-		wantStep{stepNameOpenVAS, corerun.Skipped, ""})
+		wantStep{stepNameOpenVAS, corerun.Skipped, ""}, wantStep{stepNameDisruptive, corerun.Skipped, ""})
 	if len(run.Steps) == len(want) {
-		want[len(want)-4].st = run.Steps[len(want)-4].Status // ZAP: whatever the pages gave, it ended
+		want[len(want)-5].st = run.Steps[len(want)-5].Status // ZAP: whatever the pages gave, it ended
 	}
 	checkSteps(t, run, want)
 	if run.Done != run.Total {

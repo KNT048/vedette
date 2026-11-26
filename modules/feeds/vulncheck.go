@@ -21,7 +21,8 @@ const (
 	vulnCheckFeedID   = "vulncheck-kev"
 	vulnCheckWindow   = 180 * 24 * time.Hour
 	vulnCheckPage     = 100
-	vulnCheckMaxPage  = 60 // 6,000 entries; the list has about 4,500; a list that says it has more fails the pull (the box keeps its rows)
+	vulnCheckMaxPage  = 500  // 50,000 entries, many times today's list: a list that goes on past it fails the pull (the box keeps its rows)
+	vulnCheckMaxCur   = 4096 // the longest cursor Vedette sends back
 	vulnCheckDeadline = 20 * time.Minute
 	vulnCheckAction   = "Reported as exploited in the wild by VulnCheck KEV (not on the CISA list yet)."
 )
@@ -33,22 +34,35 @@ var (
 	vulnCheckRetryWaits = []time.Duration{6 * time.Second, 30 * time.Second}
 )
 
-// VulnCheckPageURL is the address of page n of the list under base (the built-in address or a mirror's).
-func VulnCheckPageURL(base string, page int) (string, error) {
+// VulnCheckPageURL is the address of one page of the list under base (the built-in address or a mirror's). The list is read
+// with VulnCheck's cursor paging: the first page opens a session (start_cursor), every next one sends back the cursor the page
+// before gave (_meta.next_cursor) until a page has none. Page numbers are not used: the number of pages grows with the list
+// (62 at 6,136 entries in November 2026), and the cursor is VulnCheck's documented way to read a whole index.
+func VulnCheckPageURL(base, cursor string) (string, error) {
 	if err := CheckURL(base); err != nil {
 		return "", err
 	}
 	if strings.ContainsAny(base, "?#") {
 		return "", fail(ErrInvalidURL, "The VulnCheck address must not carry a query string.")
 	}
-	return strings.TrimSpace(base) + "?" + url.Values{"limit": {strconv.Itoa(vulnCheckPage)}, "page": {strconv.Itoa(page)}}.Encode(), nil
+	q := url.Values{"limit": {strconv.Itoa(vulnCheckPage)}}
+	if cursor == "" {
+		q.Set("start_cursor", "true")
+	} else {
+		q.Set("cursor", cursor)
+	}
+	return strings.TrimSpace(base) + "?" + q.Encode(), nil
 }
 
 // VulnCheckPageResult is one parsed page of the list.
 type VulnCheckPageResult struct {
 	Vulns      []Vuln // entries CISA does not list and VulnCheck added inside the window
-	TotalPages int
-	FirstCVE   string // the first entry's CVE (a server that ignores "page" repeats it)
+	Entries    int    // entries on the page, valid or not
+	Total      int    // _meta.total_documents: the entries of the whole list (0 when not said)
+	NextCursor string // _meta.next_cursor: "" on the last page
+	Short      bool   // _meta.truncated: VulnCheck cut the page short
+	Warning    string // _meta.warnings, as plain text (why VulnCheck cut the page short)
+	FirstCVE   string // the first entry's CVE (a server that ignores the cursor repeats it)
 	Stats
 }
 
@@ -110,14 +124,21 @@ func ParseVulnCheckPage(data []byte, now time.Time, held map[string]bool) (VulnC
 	}
 	var env struct {
 		Meta struct {
-			TotalPages int `json:"total_pages"`
+			Total      int             `json:"total_documents"`
+			NextCursor string          `json:"next_cursor"`
+			Truncated  bool            `json:"truncated"`
+			Warnings   json.RawMessage `json:"warnings"`
 		} `json:"_meta"`
 		Data []json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(cleanText(data)), &env); err != nil || env.Data == nil {
 		return res, fail(ErrBadSample, "The answer is not a VulnCheck KEV page.")
 	}
-	res.TotalPages = env.Meta.TotalPages
+	if c := env.Meta.NextCursor; len(c) > vulnCheckMaxCur || strings.ContainsFunc(c, func(r rune) bool { return r <= ' ' || r >= 0x7f }) {
+		return res, fail(ErrBadSample, "The answer is not a VulnCheck KEV page (its cursor is not usable).")
+	}
+	res.Entries, res.Total, res.NextCursor, res.Short = len(env.Data), max(env.Meta.Total, 0), env.Meta.NextCursor, env.Meta.Truncated
+	res.Warning = vcWarning(env.Meta.Warnings)
 	tl := newTally()
 	cutoff := now.UTC().AddDate(0, 0, -int(vulnCheckWindow/(24*time.Hour))).Format(time.DateOnly)
 	today := now.UTC().Format(time.DateOnly)
@@ -219,6 +240,25 @@ func mergeReasons(all, more []Reason) []Reason {
 	return all
 }
 
+// vcWarning is VulnCheck's _meta.warnings (a list of texts or one text) as one plain sentence of at most 200 characters, ""
+// when there is none or it is not plain text: it is shown to the customer as VulnCheck's own words.
+func vcWarning(raw json.RawMessage) string {
+	var many []string
+	if one := ""; json.Unmarshal(raw, &one) == nil {
+		many = []string{one}
+	} else if json.Unmarshal(raw, &many) != nil {
+		return ""
+	}
+	var parts []string
+	for _, w := range many {
+		if t, ok := freeText(w, 200); ok && t != "" {
+			parts = append(parts, strings.TrimRight(t, "."))
+		}
+	}
+	w, _ := freeText(strings.Join(parts, "; "), 200)
+	return w
+}
+
 func containsStr(l []string, s string) bool {
 	for _, x := range l {
 		if x == s {
@@ -249,24 +289,30 @@ func (s *Service) buildVulnCheck(ctx context.Context, src sourceRow, p pullPlan)
 	var (
 		vulns       []Vuln
 		firstOfPrev string
+		cursor      string
 		bytes       int
 		total       int
+		read        int
 		tl          = newTally()
 		seen        = map[string]bool{}
+		cursors     = map[string]bool{}
 		reasons     []Reason
 	)
-	// Fail closed (review M1): the pull replaces the rows of this feed with what it read, so anything short of every page the
+	// Fail closed (review M1): the pull replaces the rows of this feed with what it read, so anything short of every entry the
 	// source says it has fails the pull and keeps the rows loaded before.
 	incomplete := func(why string) error {
 		return fail(ErrBadSample, "VulnCheck's list could not be read completely (%s). Vedette keeps the list it had and tries again later.", why)
 	}
 	for page := 1; ; page++ {
+		if page > vulnCheckMaxPage {
+			return p, incomplete(fmt.Sprintf("it goes on past %s entries, more than Vedette reads", grouped(vulnCheckMaxPage*vulnCheckPage)))
+		}
 		if page > 1 {
 			if err := s.sleep(ctx, vulnCheckPause); err != nil {
 				return p, err
 			}
 		}
-		u, err := VulnCheckPageURL(src.URL, page)
+		u, err := VulnCheckPageURL(src.URL, cursor)
 		if err != nil {
 			return p, err
 		}
@@ -280,18 +326,21 @@ func (s *Service) buildVulnCheck(ctx context.Context, src sourceRow, p pullPlan)
 			return p, err
 		}
 		switch {
-		case page == 1 && (res.TotalPages < 1 || res.TotalPages > vulnCheckMaxPage):
-			return p, incomplete("it did not say a usable number of pages")
+		case page == 1 && res.Total < 1:
+			return p, incomplete("it did not say how many entries it has")
 		case res.Truncated:
 			return p, incomplete("a page held more entries than a page can")
-		case res.Accepted+res.Rejected == 0:
+		case res.Entries == 0 && res.NextCursor != "" && !res.Short:
 			return p, incomplete("a page was empty")
-		case page > 1 && res.FirstCVE == firstOfPrev: // "page" ignored: the same page again
+		case page > 1 && res.Entries > 0 && res.FirstCVE == firstOfPrev: // the cursor ignored: the same page again
+			return p, incomplete("the same page came back twice")
+		case res.NextCursor != "" && cursors[res.NextCursor]:
 			return p, incomplete("the same page came back twice")
 		}
 		if page == 1 {
-			total = res.TotalPages
+			total = res.Total
 		}
+		read += res.Entries
 		firstOfPrev = res.FirstCVE
 		tl.Accepted += res.Accepted
 		tl.Rejected += res.Rejected
@@ -303,9 +352,18 @@ func (s *Service) buildVulnCheck(ctx context.Context, src sourceRow, p pullPlan)
 				vulns = append(vulns, v)
 			}
 		}
-		if page >= total {
+		if res.NextCursor == "" {
+			if read < total { // the last page came before the list's end: VulnCheck stopped the read (a limit of the key's plan)
+				why := fmt.Sprintf("VulnCheck stopped after %s of its %s entries", grouped(read), grouped(total))
+				if res.Warning != "" {
+					why += "; it said: " + res.Warning
+				}
+				return p, incomplete(why)
+			}
 			break
 		}
+		cursors[res.NextCursor] = true
+		cursor = res.NextCursor
 	}
 	st := tl.stats()
 	st.Reasons = reasons
@@ -341,14 +399,38 @@ func (s *Service) vulnCheckGet(ctx context.Context, u string, auth Auth) (*Respo
 	}
 }
 
-// vulnCheckError words a failed page for Settings -> Feeds: a refused key is the customer's to fix; the key itself and the
-// address (which may carry nothing secret, but need not be shown) are never in the text.
+// vulnCheckError words a failed page for Settings -> Feeds: a refused key is the customer's to fix, a rate limit passes by
+// itself (the pull is tried again later, after the source's Retry-After when it gave one), a plan that does not include the
+// list says so. The key itself and the address are never in the text.
 func vulnCheckError(err error) error {
 	var se *StatusError
-	if errors.As(err, &se) && (se.Code == http.StatusUnauthorized || se.Code == http.StatusForbidden) {
+	if !errors.As(err, &se) {
+		return err
+	}
+	switch se.Code {
+	case http.StatusUnauthorized, http.StatusForbidden:
 		return &Error{Err: err, Detail: "VulnCheck did not accept the API key. Check the key in Settings, Feeds, VulnCheck KEV and save it again."}
+	case http.StatusPaymentRequired:
+		return &Error{Err: err, Detail: "VulnCheck says the plan of this API key does not include the VulnCheck KEV list (HTTP 402). Vedette keeps the list it had."}
+	case http.StatusTooManyRequests:
+		d := "VulnCheck is limiting the requests of this API key (HTTP 429, too many requests). Vedette keeps the list it had and tries again later"
+		if se.RetryAfter >= time.Minute {
+			d += fmt.Sprintf("; VulnCheck asked to wait %s", vcWait(se.RetryAfter))
+		}
+		return &Error{Err: err, Detail: d + "."}
 	}
 	return err
+}
+
+// vcWait writes a Retry-After for people: "1 minute", "25 minutes", "1 hour".
+func vcWait(d time.Duration) string {
+	if d >= time.Hour {
+		return "1 hour"
+	}
+	if m := int(d.Round(time.Minute) / time.Minute); m != 1 {
+		return fmt.Sprintf("%d minutes", m)
+	}
+	return "1 minute"
 }
 
 // vulnCheckHeld is the CVEs of the vulncheck-kev rows the box holds: they stay while VulnCheck lists them and CISA does not,

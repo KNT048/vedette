@@ -2,9 +2,11 @@ package feeds
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,14 +24,23 @@ func vcEntryJSON(cve, vendor, product, added, cisa string) string {
 		vendor, product, product, cve, cve, added+"T00:00:00.000Z", c)
 }
 
-func vcPage(totalPages int, entries ...string) string {
-	return fmt.Sprintf(`{"_benchmark":0.01,"_meta":{"timestamp":"2026-11-05T12:00:00Z","index":"vulncheck-kev","limit":100,"total_pages":%d,"page":1},"data":[%s]}`, totalPages, strings.Join(entries, ","))
+// vcPage is one page of the list in the shape of VulnCheck's cursor paging (fake data): total is the entries of the whole list
+// (_meta.total_documents, 0 leaves it out), next the cursor of the next page ("" on the last page).
+func vcPage(total int, next string, entries ...string) string {
+	meta := `"timestamp":"2026-11-05T12:00:00Z","index":"vulncheck-kev","limit":100,"sort":"_timestamp","order":"desc"`
+	if total > 0 {
+		meta += fmt.Sprintf(`,"total_documents":%d,"total_pages":%d,"max_pages":6`, total, (total+99)/100)
+	}
+	if next != "" {
+		meta += fmt.Sprintf(`,"next_cursor":%q`, next)
+	}
+	return fmt.Sprintf(`{"_benchmark":0.01,"_meta":{%s},"data":[%s]}`, meta, strings.Join(entries, ","))
 }
 
 // Only recent entries CISA does not list become vulncheck-kev entries; a bad entry is rejected and counted.
 func TestParseVulnCheckPage(t *testing.T) {
 	t.Parallel()
-	res, err := ParseVulnCheckPage([]byte(vcPage(3,
+	res, err := ParseVulnCheckPage([]byte(vcPage(250, "c2",
 		vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""),
 		vcEntryJSON("CVE-2026-1002", "Acme", "Router", "2026-10-30", "2026-11-01"), // CISA lists it
 		vcEntryJSON("CVE-2024-1003", "Acme", "Old", "2024-01-30", ""),              // older than the window
@@ -38,7 +49,7 @@ func TestParseVulnCheckPage(t *testing.T) {
 		`{"cve":["CVE-2026-1005"],"vendorProject":7,"product":"P"}`,
 		`{"cve":["CVE-2026-1006"],"vendorProject":"Acme\u0000x","product":"P","date_added":"2026-10-30T00:00:00Z"}`,
 	)), vcNow, nil)
-	if err != nil || res.TotalPages != 3 || res.FirstCVE != "CVE-2026-1001" || len(res.Vulns) != 1 || res.Accepted != 3 || res.Rejected != 4 {
+	if err != nil || res.Total != 250 || res.NextCursor != "c2" || res.Entries != 7 || res.FirstCVE != "CVE-2026-1001" || len(res.Vulns) != 1 || res.Accepted != 3 || res.Rejected != 4 {
 		t.Fatalf("%+v %v", res, err)
 	}
 	v := res.Vulns[0]
@@ -48,7 +59,9 @@ func TestParseVulnCheckPage(t *testing.T) {
 	}
 	for name, body := range map[string]string{
 		"html": `<html>sign in</html>`, "no data": `{"_meta":{}}`, "data not a list": `{"data":{"x":1}}`,
-		"too large": `{"data":[` + strings.Repeat(" ", MaxBodyBytes) + `]}`,
+		"too large":           `{"data":[` + strings.Repeat(" ", MaxBodyBytes) + `]}`,
+		"cursor with a space": `{"_meta":{"next_cursor":"a b"},"data":[]}`,
+		"cursor too long":     `{"_meta":{"next_cursor":"` + strings.Repeat("a", vulnCheckMaxCur+1) + `"},"data":[]}`,
 	} {
 		if _, err := ParseVulnCheckPage([]byte(body), vcNow, nil); err == nil {
 			t.Errorf("%s: accepted", name)
@@ -59,20 +72,41 @@ func TestParseVulnCheckPage(t *testing.T) {
 	for i := range many {
 		many[i] = vcEntryJSON(fmt.Sprintf("CVE-2026-%05d", 2000+i), "Acme", "P", "2026-10-30", "")
 	}
-	if res, err := ParseVulnCheckPage([]byte(vcPage(1, many...)), vcNow, nil); err != nil || len(res.Vulns) != vulnCheckPage*2 || !res.Truncated {
+	if res, err := ParseVulnCheckPage([]byte(vcPage(len(many), "", many...)), vcNow, nil); err != nil || len(res.Vulns) != vulnCheckPage*2 || !res.Truncated {
 		t.Errorf("oversize: %d %v %v", len(res.Vulns), res.Truncated, err)
 	}
 }
 
 func TestVulnCheckPageURL(t *testing.T) {
 	t.Parallel()
-	u, err := VulnCheckPageURL("https://api.vulncheck.com/v3/index/vulncheck-kev", 2)
-	if err != nil || u != "https://api.vulncheck.com/v3/index/vulncheck-kev?limit=100&page=2" {
-		t.Fatalf("%q %v", u, err)
+	const base = "https://api.vulncheck.com/v3/index/vulncheck-kev"
+	u, err := VulnCheckPageURL(base, "")
+	if err != nil || u != base+"?limit=100&start_cursor=true" {
+		t.Fatalf("first page: %q %v", u, err)
+	}
+	if u, err = VulnCheckPageURL(base, "c2/+="); err != nil || u != base+"?cursor=c2%2F%2B%3D&limit=100" {
+		t.Fatalf("next page: %q %v", u, err)
 	}
 	for _, bad := range []string{"https://api.vulncheck.com/v3?token=abc", "http://example.com/x", "https://u:p@example.com/x"} {
-		if _, err := VulnCheckPageURL(bad, 1); err == nil {
+		if _, err := VulnCheckPageURL(bad, ""); err == nil {
 			t.Errorf("%s accepted", bad)
+		}
+	}
+}
+
+// VulnCheck's warnings reach the customer as plain text: a list or one text, control characters dropped, at most 200 characters.
+func TestVulnCheckPage_Warnings(t *testing.T) {
+	t.Parallel()
+	for raw, want := range map[string]string{
+		`"warnings":["Results limited by plan.","Second."]`: "Results limited by plan; Second",
+		`"warnings":"One text"`:                             "One text",
+		`"warnings":{"x":1}`:                                "",
+		`"warnings":["bad\u0007"]`:                          "",
+		`"warnings":["` + strings.Repeat("w", 300) + `"]`:   strings.Repeat("w", 200),
+	} {
+		res, err := ParseVulnCheckPage([]byte(`{"_meta":{"truncated":true,`+raw+`},"data":[]}`), vcNow, nil)
+		if err != nil || res.Warning != want || !res.Short {
+			t.Errorf("%s: %q %v %v", raw, res.Warning, res.Short, err)
 		}
 	}
 }
@@ -95,11 +129,11 @@ func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		if r.URL.Query().Get("page") == "2" {
-			_, _ = w.Write([]byte(vcPage(2, vcEntryJSON("CVE-2026-1003", "Initech", "Portal", "2026-11-02", ""))))
+		if r.URL.Query().Get("cursor") == "c2" {
+			_, _ = w.Write([]byte(vcPage(3, "", vcEntryJSON("CVE-2026-1003", "Initech", "Portal", "2026-11-02", ""))))
 			return
 		}
-		_, _ = w.Write([]byte(vcPage(2,
+		_, _ = w.Write([]byte(vcPage(3, "c2",
 			vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""),
 			vcEntryJSON("CVE-2026-1002", "Acme", "Router", "2026-10-30", "2026-11-01"))))
 	})
@@ -136,7 +170,7 @@ func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 		t.Fatalf("fetch: %d %v", c, b)
 	}
 	for _, h := range o.all() {
-		if strings.Contains(h.query, "ABCDEF") || strings.Contains(h.query, "token") {
+		if strings.Contains(h.query, "ABCDEF") || strings.Contains(h.query, "token") || strings.Contains(h.query, "page=") {
 			t.Fatalf("the key is in the address: %s", h.query)
 		}
 	}
@@ -166,7 +200,7 @@ func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 	// a new entry later is news, not baseline
 	e.setNow(e.clock().Add(7 * time.Hour))
 	o.serve("/vc", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(vcPage(1, vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""), vcEntryJSON("CVE-2026-1009", "Acme", "Gateway", "2026-11-05", ""))))
+		_, _ = w.Write([]byte(vcPage(2, "", vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""), vcEntryJSON("CVE-2026-1009", "Acme", "Gateway", "2026-11-05", ""))))
 	})
 	if c, _ := e.fetch("vulncheck-kev"); c != 200 {
 		t.Fatal(c)
@@ -213,7 +247,7 @@ func TestContract_VulnCheckKEV_BYOK(t *testing.T) {
 	before := len(e.pub.named(EventNewKEV))
 	e.setNow(e.clock().Add(time.Hour))
 	o.serve("/vc", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(vcPage(1, vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""))))
+		_, _ = w.Write([]byte(vcPage(1, "", vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""))))
 	})
 	if c, _ := e.put("vulncheck-kev", `{"api_key":"`+key+`"}`); c != 200 {
 		t.Fatal(c)
@@ -231,25 +265,34 @@ func (e *env) setURL(id, url string) {
 	})
 }
 
-// Review M1: a list that is not provably complete fails the pull and the rows loaded before stay.
+// Review M1: a list that is not provably complete fails the pull and the rows loaded before stay. Each case is the shape of an
+// answer (fake data) and the reason the customer reads.
 func TestVulnCheckPull_FailsClosedWhenTheListIsNotComplete(t *testing.T) {
 	t.Parallel()
-	for name, serve := range map[string]func(page string) string{
-		"no page count": func(string) string {
-			return `{"data":[` + vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", "") + `]}`
-		},
-		"too many pages": func(string) string {
-			return vcPage(61, vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""))
-		},
-		"page ignored": func(string) string {
-			return vcPage(3, vcEntryJSON("CVE-2026-1001", "Acme", "Gateway", "2026-10-30", ""))
-		},
-		"an empty page": func(p string) string {
-			if p == "2" {
-				return vcPage(3)
+	entry := func(n int) string {
+		return vcEntryJSON(fmt.Sprintf("CVE-2026-%05d", 10000+n), "Acme", "Gateway", "2026-10-30", "")
+	}
+	// n is the page asked for: 1 without a cursor, else the number in the cursor "c<n>"
+	for name, tc := range map[string]struct {
+		serve func(n int) string
+		why   string
+	}{
+		"no entry count": {func(int) string { return `{"data":[` + entry(1) + `]}` }, "did not say how many entries"},
+		"goes on and on": {func(n int) string { return vcPage(999_999, fmt.Sprintf("c%d", n+1), entry(n)) }, "goes on past 50,000 entries"},
+		"same cursor":    {func(int) string { return vcPage(300, "c2", entry(1)) }, "the same page came back twice"},
+		"cursor ignored": {func(n int) string { return vcPage(300, fmt.Sprintf("c%d", n+1), entry(1)) }, "the same page came back twice"},
+		"an empty page": {func(n int) string {
+			if n == 2 {
+				return vcPage(300, "c3")
 			}
-			return vcPage(3, vcEntryJSON("CVE-2026-100"+p, "Acme", "Gateway", "2026-10-30", ""))
-		},
+			return vcPage(300, fmt.Sprintf("c%d", n+1), entry(n))
+		}, "a page was empty"},
+		"stopped short": {func(n int) string {
+			if n == 2 {
+				return `{"_meta":{"total_documents":300,"truncated":true,"warnings":["Results limited by plan."]},"data":[` + entry(2) + `]}`
+			}
+			return vcPage(300, "c2", entry(1))
+		}, "VulnCheck stopped after 2 of its 300 entries; it said: Results limited by plan"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -260,10 +303,120 @@ func TestVulnCheckPull_FailsClosedWhenTheListIsNotComplete(t *testing.T) {
 				t.Fatalf("%d %v", c, b)
 			}
 			applyV(t, e.db, epoch0, "vulncheck-kev", []Vuln{vuln("CVE-2026-1099", "Acme", "Old", "2026-10-01")}, false)
-			o.serve("/vc", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte(serve(r.URL.Query().Get("page")))) })
+			o.serve("/vc", func(w http.ResponseWriter, r *http.Request) {
+				n := 1
+				if c := r.URL.Query().Get("cursor"); c != "" {
+					n, _ = strconv.Atoi(strings.TrimPrefix(c, "c"))
+				}
+				_, _ = w.Write([]byte(tc.serve(n)))
+			})
 			e.fetch("vulncheck-kev")
 			f := e.feed("vulncheck-kev")
-			if f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "could not be read completely") {
+			if f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "could not be read completely") || !strings.Contains(*f.Error, tc.why) {
+				t.Fatalf("feed = %+v", f)
+			}
+			if n := count(t, e.db, `SELECT count(*) FROM feeds_kev WHERE list = 'vulncheck' AND cve = 'CVE-2026-1099'`); n != 1 {
+				t.Fatal("the rows loaded before were deleted")
+			}
+		})
+	}
+}
+
+// The list outgrew the page count Vedette accepted: with 6,136 entries VulnCheck answers "total_pages": 62 (and "max_pages": 6)
+// by page number. The pull reads it by cursor instead, every entry to the last, whatever the page count. The server below
+// answers in the shape VulnCheck uses (fake entries): by page number with total_pages, by cursor with total_documents and an
+// opaque base64 next_cursor (the last entry read), and no next_cursor on the last page.
+func TestVulnCheckPull_ReadsAListOfMoreThanSixtyPages(t *testing.T) {
+	t.Parallel()
+	const total = 6136
+	entries := make([]string, total)
+	for i := range entries {
+		added := "2024-01-30" // older than the window: read, counted, not kept
+		if i%100 == 0 {
+			added = "2026-10-30"
+		}
+		entries[i] = vcEntryJSON(fmt.Sprintf("CVE-2026-%05d", 90000-i), "Acme", "Gateway", added, "")
+	}
+	cur := func(i int) string {
+		return base64.StdEncoding.EncodeToString(fmt.Appendf(nil, "CVE-2026-%05d", 90000-i))
+	}
+	e, o := pullEnv(t)
+	e.only()
+	e.setURL("vulncheck-kev", o.url("/vc"))
+	if c, b := e.put("vulncheck-kev", `{"api_key":"vckey-ABCDEF123456"}`); c != 200 {
+		t.Fatalf("%d %v", c, b)
+	}
+	o.serve("/vc", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if p := q.Get("page"); p != "" { // page numbers: what VulnCheck says the list is by page
+			n, _ := strconv.Atoi(p)
+			from := min((n-1)*100, total)
+			_, _ = fmt.Fprintf(w, `{"_benchmark":0.1,"_meta":{"timestamp":"2026-11-05T12:00:00Z","index":"vulncheck-kev","limit":100,"total_documents":%d,"sort":"_id","order":"desc","page":%d,"total_pages":62,"max_pages":6,"first_item":%d,"last_item":%d},"data":[%s]}`,
+				total, n, from+1, min(from+100, total), strings.Join(entries[from:min(from+100, total)], ","))
+			return
+		}
+		from := 0
+		if c := q.Get("cursor"); c != "" {
+			for from < total && cur(from) != c {
+				from++
+			}
+			from++
+		} else if q.Get("start_cursor") == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		to := min(from+100, total)
+		next := ""
+		if to < total {
+			next = fmt.Sprintf(`,"next_cursor":%q`, cur(to-1))
+		}
+		_, _ = fmt.Fprintf(w, `{"_benchmark":0.1,"_meta":{"timestamp":"2026-11-05T12:00:00Z","index":"vulncheck-kev","limit":100,"total_documents":%d,"sort":"_id","order":"desc"%s},"data":[%s]}`,
+			total, next, strings.Join(entries[from:to], ","))
+	})
+	if c, b := e.fetch("vulncheck-kev"); c != 200 || at(b, "status") != "ok" || at(b, "records") != 62.0 {
+		t.Fatalf("fetch: %d %v", c, b)
+	}
+	if hits := o.all(); len(hits) != 62 {
+		t.Errorf("%d requests, want 62 pages of 100", len(hits))
+	}
+	if n := count(t, e.db, `SELECT count(*) FROM feeds_kev WHERE list = 'vulncheck'`); n != 62 {
+		t.Errorf("%d rows, want every recent entry of all 62 pages", n)
+	}
+}
+
+// A refused key, a rate limit and a plan without the list each say what happened, and none of them changes the rows.
+func TestVulnCheckPull_SaysWhyVulnCheckRefused(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		code       int
+		retryAfter string
+		why        string
+	}{
+		"key refused":       {http.StatusUnauthorized, "", "did not accept the API key"},
+		"key forbidden":     {http.StatusForbidden, "", "did not accept the API key"},
+		"rate limit":        {http.StatusTooManyRequests, "", "limiting the requests of this API key (HTTP 429, too many requests). Vedette keeps the list it had and tries again later."},
+		"rate limit, wait":  {http.StatusTooManyRequests, "1500", "tries again later; VulnCheck asked to wait 25 minutes."},
+		"plan without list": {http.StatusPaymentRequired, "", "plan of this API key does not include the VulnCheck KEV list (HTTP 402)"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			e, o := pullEnv(t)
+			e.only()
+			e.setURL("vulncheck-kev", o.url("/vc"))
+			if c, b := e.put("vulncheck-kev", `{"api_key":"vckey-ABCDEF123456"}`); c != 200 {
+				t.Fatalf("%d %v", c, b)
+			}
+			applyV(t, e.db, epoch0, "vulncheck-kev", []Vuln{vuln("CVE-2026-1099", "Acme", "Old", "2026-10-01")}, false)
+			o.serve("/vc", func(w http.ResponseWriter, _ *http.Request) {
+				if tc.retryAfter != "" {
+					w.Header().Set("Retry-After", tc.retryAfter)
+				}
+				w.WriteHeader(tc.code)
+				_, _ = w.Write([]byte(`{"error":true,"errors":["refused"]}`))
+			})
+			e.fetch("vulncheck-kev")
+			f := e.feed("vulncheck-kev")
+			if f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, tc.why) || strings.Contains(*f.Error, "ABCDEF") {
 				t.Fatalf("feed = %+v", f)
 			}
 			if n := count(t, e.db, `SELECT count(*) FROM feeds_kev WHERE list = 'vulncheck' AND cve = 'CVE-2026-1099'`); n != 1 {
@@ -279,15 +432,15 @@ func TestVulnCheckPull_FailsClosedWhenTheListIsNotComplete(t *testing.T) {
 func TestVulnCheckEntries_OwnershipAndWindow(t *testing.T) {
 	t.Parallel()
 	old := vcEntryJSON("CVE-2025-2001", "Acme", "Gateway", "2025-01-30", "")
-	res, err := ParseVulnCheckPage([]byte(vcPage(1, old)), vcNow, nil)
+	res, err := ParseVulnCheckPage([]byte(vcPage(1, "", old)), vcNow, nil)
 	if err != nil || len(res.Vulns) != 0 {
 		t.Fatalf("old, not held: %v %v", res.Vulns, err)
 	}
-	if res, err = ParseVulnCheckPage([]byte(vcPage(1, old)), vcNow, map[string]bool{"CVE-2025-2001": true}); err != nil || len(res.Vulns) != 1 {
+	if res, err = ParseVulnCheckPage([]byte(vcPage(1, "", old)), vcNow, map[string]bool{"CVE-2025-2001": true}); err != nil || len(res.Vulns) != 1 {
 		t.Fatalf("old, held: %v %v", res.Vulns, err)
 	}
 	multi := strings.Replace(vcEntryJSON("CVE-2026-3001", "Acme", "Gateway", "2026-10-30", ""), `["CVE-2026-3001"]`, `["CVE-2026-3001","cve-2026-3002","junk","CVE-2026-3001"]`, 1)
-	if res, err = ParseVulnCheckPage([]byte(vcPage(1, multi)), vcNow, nil); err != nil || len(res.Vulns) != 2 || res.Vulns[1].CVE != "CVE-2026-3002" || res.Accepted != 1 {
+	if res, err = ParseVulnCheckPage([]byte(vcPage(1, "", multi)), vcNow, nil); err != nil || len(res.Vulns) != 2 || res.Vulns[1].CVE != "CVE-2026-3002" || res.Accepted != 1 {
 		t.Fatalf("several CVEs: %+v %v", res, err)
 	}
 

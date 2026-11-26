@@ -111,6 +111,21 @@ func (x *Exec) StepNote(ctx context.Context, seq int, note string) error {
 	})
 }
 
+// FillNote gives a step that ended without a note its note, once: what it found when that was only known after it ended (the open
+// ports of a port scan, read once the service scan that followed it answers). Its state and times are left as they are; a step that
+// has a note or has not ended is left as it is.
+func (x *Exec) FillNote(ctx context.Context, seq int, note string) error {
+	n := nullable(note, 500)
+	if n == nil {
+		return nil
+	}
+	return x.write(ctx, func(tx *sql.Tx, now string) error {
+		_, err := tx.ExecContext(ctx, `UPDATE core_run_step SET note = ? WHERE run_id = ? AND seq = ? AND note IS NULL AND ended_at IS NOT NULL
+			AND status IN (?, ?, ?, ?, ?)`, n, x.id, seq, string(Done), string(Partial), string(Failed), string(Stopped), string(Skipped))
+		return err
+	})
+}
+
 func (x *Exec) updateStep(ctx context.Context, tx *sql.Tx, seq int, q string, args ...any) error {
 	res, err := tx.ExecContext(ctx, q, args...)
 	if err != nil {

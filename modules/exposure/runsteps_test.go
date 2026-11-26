@@ -260,3 +260,42 @@ func TestRunSteps_ADomainDeepScanListsItsAddresses(t *testing.T) {
 		t.Errorf("run = %d of %d steps", run.Done, run.Total)
 	}
 }
+
+// In nmap's real phase order (the port scan, then the service scan, then its scripts) the port discovery ends when the service scan
+// starts, before the count of open ports is known; it still ends with that count once nmap answers, its status and end time unchanged.
+func TestRunSteps_PortDiscoveryEndsWithItsCountInNmapsPhaseOrder(t *testing.T) {
+	t.Parallel()
+	e := stepsEnv(t)
+	var mid corerun.Detail
+	var midRun string
+	e.svc.cfg.Services = reportingServices{ServiceScanner: e.svc.cfg.Services, during: func(ctx context.Context) {
+		rs := runStepsOf(ctx)
+		midRun = rs.x.ID()
+		for _, u := range []progress.Update{
+			{Phase: progress.PhasePorts, Percent: 12, Remaining: 20 * time.Minute},
+			{Phase: progress.PhasePorts, Percent: 99},
+			{Phase: progress.PhaseServices, Percent: 10},
+			{Phase: progress.PhaseServices, Percent: 80},
+			{Phase: progress.PhaseScripts, Percent: 30},
+		} {
+			progress.Report(ctx, u)
+			rs.flush(ctx)
+		}
+		mid = e.runDetail(midRun)
+	}}
+	e.scanIP(gbOpen())
+	if p := mid.Steps[2]; p.Status != corerun.Done || p.EndedAt == nil {
+		t.Fatalf("port discovery during the service scan = %s ended %v, want done", p.Status, p.EndedAt)
+	}
+	d := e.runDetail(midRun)
+	p := d.Steps[2]
+	if p.Status != corerun.Done || p.Note == nil || !strings.Contains(*p.Note, "open TCP port") {
+		t.Errorf("port discovery at the end = %s %v, want done with the count of open ports", p.Status, p.Note)
+	}
+	if p.EndedAt == nil || *p.EndedAt != *mid.Steps[2].EndedAt {
+		t.Errorf("port discovery ended at %v, then %v: the count must not move its end", mid.Steps[2].EndedAt, p.EndedAt)
+	}
+	if s := d.Steps[3]; s.Status != corerun.Done || s.Note == nil || !strings.HasPrefix(*s.Note, "Service identification") {
+		t.Errorf("service step at the end = %s %v", s.Status, s.Note)
+	}
+}

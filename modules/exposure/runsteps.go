@@ -80,6 +80,7 @@ type runStep struct {
 	state     corerun.Status
 	started   time.Time
 	live      string // the note written while it runs
+	noted     bool   // it ended with a note
 }
 
 // runSteps writes the steps of one scan's run. A nil *runSteps writes nothing (a scan's code called outside a run, or inside the
@@ -248,7 +249,11 @@ func (rs *runSteps) end(ctx context.Context, key string, how corerun.Status, not
 
 func (rs *runSteps) endLocked(ctx context.Context, key string, how corerun.Status, note string) {
 	st := rs.byKey[key]
-	if st == nil || (st.state != corerun.Queued && st.state != corerun.Running) {
+	if st == nil {
+		return
+	}
+	if st.state != corerun.Queued && st.state != corerun.Running {
+		rs.fillLocked(ctx, st, how, note)
 		return
 	}
 	rs.startLocked(ctx, key)
@@ -265,7 +270,7 @@ func (rs *runSteps) endLocked(ctx context.Context, key string, how corerun.Statu
 		rs.warn(ctx, "end "+key, err)
 		return
 	}
-	st.state = how
+	st.state, st.noted = how, note != ""
 	rs.dropPending(key)
 	word := map[corerun.Status]string{corerun.Done: "Done", corerun.Partial: "Partly done", corerun.Failed: "Failed", corerun.Stopped: "Stopped"}[how]
 	level := map[corerun.Status]corerun.Level{corerun.Done: corerun.Info, corerun.Partial: corerun.Warn, corerun.Failed: corerun.Error, corerun.Stopped: corerun.Warn}[how]
@@ -274,6 +279,23 @@ func (rs *runSteps) endLocked(ctx context.Context, key string, how corerun.Statu
 		line += ". " + note
 	}
 	rs.warn(ctx, "log", rs.x.Log(c, level, clipText(line, 1000)))
+}
+
+// fillLocked gives a step that ended as how without a note the note of that same end, once: the port discovery ends when nmap's
+// service scan starts, and how many open ports it found is known only when nmap answers. Its state and end time stay as they are.
+func (rs *runSteps) fillLocked(ctx context.Context, st *runStep, how corerun.Status, note string) {
+	note = clipText(note, 500)
+	if st.state != how || st.noted || note == "" {
+		return
+	}
+	c, cancel := wctx(ctx)
+	defer cancel()
+	if err := rs.x.FillNote(c, st.seq, note); err != nil {
+		rs.warn(ctx, "note of "+st.key, err)
+		return
+	}
+	st.noted = true
+	rs.warn(ctx, "log", rs.x.Log(c, corerun.Info, clipText(st.name+": "+note, 1000)))
 }
 
 // skip records that a step did not run, with why. counts says the scan is complete without it (an engine turned off, nothing for it
@@ -303,7 +325,7 @@ func (rs *runSteps) skipLocked(ctx context.Context, key, note string, counts boo
 		rs.warn(ctx, "skip "+key, err)
 		return
 	}
-	st.state = corerun.Skipped
+	st.state, st.noted = corerun.Skipped, note != ""
 	line := "Skipped: " + st.name
 	if note != "" {
 		line += ". " + note

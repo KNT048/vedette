@@ -896,3 +896,41 @@ func TestARestartSkipsTheStepsANonResumableRunNeverReached(t *testing.T) {
 	}
 	b.invariantsHold()
 }
+
+// FillNote gives a step that ended without a note its note once, and never touches a running step, a step with a note, its state or
+// its end time.
+func TestFillNoteWritesTheNoteOfAnEndedStepOnce(t *testing.T) {
+	t.Parallel()
+	b := newBox(t)
+	g := newGated()
+	p := b.process(nil, g.kind("scan", "multi", "a", false))
+	id := create(t, p, spec("scan", "multi", "Two steps"))
+	p.start(t)
+	x := g.waitStarted(t)
+	ctx := t.Context()
+	ports, _ := x.AddStep(ctx, "find open ports", 1)
+	services, _ := x.AddStep(ctx, "identify services", 1)
+	_ = x.StartStep(ctx, ports)
+	_ = x.EndStep(ctx, ports, run.Done, "")
+	_ = x.StartStep(ctx, services)
+	ended := b.get(p, id).Steps[0].EndedAt
+	b.clock.Advance(time.Minute)
+	for _, n := range []string{"7 open TCP ports found.", "a second note"} {
+		if err := x.FillNote(ctx, ports, n); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := x.FillNote(ctx, services, "not while it runs"); err != nil {
+		t.Fatal(err)
+	}
+	d := b.get(p, id)
+	if s := d.Steps[0]; s.Status != run.Done || s.Note == nil || *s.Note != "7 open TCP ports found." || s.EndedAt == nil || *s.EndedAt != *ended {
+		t.Errorf("ended step = %s %v ended %v (was %v), want done with the first note and the same end", s.Status, s.Note, s.EndedAt, ended)
+	}
+	if s := d.Steps[1]; s.Status != run.Running || s.Note != nil {
+		t.Errorf("running step = %s %v, want running without a note", s.Status, s.Note)
+	}
+	g.release <- run.Result{}
+	p.waitEnded(t, id)
+	b.invariantsHold()
+}

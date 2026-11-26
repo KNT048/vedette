@@ -32,11 +32,11 @@ function Block({ device, block, narrowed, onHandle, fold = false }: { device: De
   const what = title(block.fix, block.software)
   return (
     <li className="grid gap-2 py-3 first:pt-0 last:pb-0" aria-label={what}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
           {fold ? (
             <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="-ml-2 h-auto min-h-8 gap-1.5 whitespace-normal py-1 text-left">
-              <ChevronDown aria-hidden className={open ? 'rotate-180' : ''} /><span className="font-medium [overflow-wrap:anywhere]">{what}</span>
+              <ChevronDown aria-hidden className={open ? '' : '-rotate-90'} /><span className="font-medium [overflow-wrap:anywhere]">{what}</span>
             </Button>
           ) : <span className="font-medium [overflow-wrap:anywhere]">{what}</span>}
           <span className="text-muted">{block.fix.kind === 'none_yet' || block.fix.kind === 'unknown' ? t('byDevice.affects', { count: block.findings.length }) : t('byDevice.fixes', { count: block.findings.length })}</span>
@@ -44,7 +44,7 @@ function Block({ device, block, narrowed, onHandle, fold = false }: { device: De
           {block.findings.length > 1 ? <span className="text-meta text-muted">{t('byDevice.cause', { cve: block.cause })}</span> : null}
           <FixLink fix={block.fix} cve={block.cause} />
         </p>
-        <Button size="sm" disabled={!can} title={need} aria-label={t('byDevice.handleBlockOf', { fix: what, device: device.name })}
+        <Button size="sm" className="shrink-0" disabled={!can} title={need} aria-label={t('byDevice.handleBlockOf', { fix: what, device: device.name })}
           onClick={() => onHandle({ device, rows, fix: block.fix.key, software: block.software?.id ?? null, complete: !narrowed })}>{t('byDevice.handleBlock')}</Button>
       </div>
       {open ? <CveList rows showStatus label={t('byDevice.cvesOf', { fix: what })}
@@ -80,7 +80,7 @@ export function DeviceCardView({ card, narrowed, onHandle, own = false }: { card
             <div className="grid gap-0.5">
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" aria-expanded={open} aria-controls={panel} aria-label={t('byDevice.toggle', { device: card.device.name })} onClick={() => setOpen((o) => !o)} className="size-8 shrink-0">
-                  <ChevronDown aria-hidden className={open ? 'rotate-180' : ''} />
+                  <ChevronDown aria-hidden className={open ? '' : '-rotate-90'} />
                 </Button>
                 <DeviceLine device={card.device} status={card.status} />
               </div>

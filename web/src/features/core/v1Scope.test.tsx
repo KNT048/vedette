@@ -15,14 +15,14 @@ const LEAVING = 'This feature is not part of this release. Its settings are kept
 const BADGE = 'Not in this release'
 
 describe('preview modules (#818)', () => {
-  it('a preview module that is on has a Preview badge on its Settings → Modules row and on its page header, none in the nav; a v1 module has none', async () => {
+  it('a preview module that is on has a Preview badge on its Settings → Modules row only, none in the nav or its page header; a v1 module has none', async () => {
     renderApp('/honeypot')
     const traps = await within(await screen.findByRole('navigation', { name: 'Main navigation' })).findByRole('link', { name: 'Internal traps' })
     expect(within(traps).queryByText('Preview')).toBeNull() // the menus carry no Preview word
     expect(await mainNavLink(/^Devices( \d+ to review)?$/)).toBeInTheDocument() // v1: no Preview badge in its name (a count may follow)
     const header = (await screen.findByRole('heading', { level: 1 })).closest('header')!
-    expect(within(header).getByText('Preview')).toBeInTheDocument()
-    expect(within(header).queryByText(/v1/)).toBeNull() // the badge only: no release-planning words
+    expect(within(header).queryByText('Preview')).toBeNull() // page headers carry no Preview word
+    expect(within(header).queryByText(/v1/)).toBeNull()
   })
 
   it('Settings → Modules: the preview row has the badge, a v1 row has none', async () => {
@@ -183,11 +183,11 @@ describe('more entry points of those modules', () => {
     expect(screen.queryByRole('link', { name: /^Respond/ })).toBeNull()
   })
 
-  it('a Settings section of a preview module carries the Preview badge', async () => {
+  it('a Settings section of a preview module carries no Preview badge in its header', async () => {
     renderApp('/settings/ai')
     const header = (await screen.findByRole('heading', { level: 1 })).closest('header')!
-    expect(within(header).getByText('Preview')).toBeInTheDocument()
-    expect(within(header).queryByText(/v1/)).toBeNull() // the badge only: no release-planning words
+    expect(within(header).queryByText('Preview')).toBeNull()
+    expect(within(header).queryByText(/v1/)).toBeNull()
   })
 
   it('turning off a module this build does not offer says it is hidden once off, and SSO names the people who only sign in through it', async () => {

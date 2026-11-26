@@ -80,11 +80,13 @@ function BulkDialog({ ids, status, onOpenChange, opener, onDone }: { ids: string
 
 function Seen({ i }: { i: Incident }) {
   const { t } = useTranslation('notify')
-  return <span className="whitespace-nowrap text-meta">{i.first_seen === i.last_seen ? t('incidents.seenOnce', { first: fmtDateTime(i.first_seen) }) : t('incidents.seen', { first: fmtDateTime(i.first_seen), last: fmtDateTime(i.last_seen) })}</span>
+  if (i.first_seen === i.last_seen) return <span className="whitespace-nowrap text-meta">{t('incidents.seenOnce', { first: fmtDateTime(i.first_seen) })}</span>
+  // A range takes two short lines (from, then to) so the column stays narrow and the title keeps the width.
+  return <span className="grid whitespace-nowrap text-meta" title={t('incidents.seen', { first: fmtDateTime(i.first_seen), last: fmtDateTime(i.last_seen) })}><span>{t('incidents.seenFrom', { first: fmtDateTime(i.first_seen) })}</span><span className="text-muted">{t('incidents.seenTo', { last: fmtDateTime(i.last_seen) })}</span></span>
 }
 function Handled({ i }: { i: Incident }) {
   const { t } = useTranslation('notify')
-  return <div className="grid gap-0.5"><IncidentStatusChip status={i.status} />{i.resolved_reason ? <span className="text-caption text-muted">{t('incidents.closedBy', { reason: i.resolved_reason, time: fmtDateTime(i.handled_at) })}</span> : i.handled_by ? <span className="text-caption text-muted">{t('incidents.statusBy', { user: i.handled_by, time: fmtDateTime(i.handled_at) })}</span> : null}</div>
+  return <div className="grid max-w-36 justify-items-start gap-0.5"><IncidentStatusChip status={i.status} />{i.resolved_reason ? <span className="text-caption text-muted">{t('incidents.closedBy', { reason: i.resolved_reason, time: fmtDateTime(i.handled_at) })}</span> : i.handled_by ? <span className="text-caption text-muted">{t('incidents.statusBy', { user: i.handled_by, time: fmtDateTime(i.handled_at) })}</span> : null}</div>
 }
 function RespondLink({ i }: { i: Incident }) {
   const { t } = useTranslation('notify')
@@ -161,9 +163,10 @@ function Content() {
     ) },
     { id: 'severity', header: t('incidents.col.severity'), accessorFn: (r) => ['info', 'low', 'medium', 'high', 'critical'].indexOf(r.severity), cell: ({ row }) => <SeverityBadge severity={row.original.severity} /> },
     { id: 'device', header: t('incidents.col.device'), accessorFn: (r) => r.devices.map((d) => d.name).join(', '), cell: ({ row: { original: r } }) => (
-      <span className="flex max-w-56 flex-wrap gap-x-2 [overflow-wrap:anywhere]">
-        {r.devices.slice(0, SHOWN_DEVICES).map((d) => <Link key={d.id} to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className={link}>{d.name}</Link>)}
-        {r.devices.length > SHOWN_DEVICES ? <Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`${link} whitespace-nowrap`}>{t('incidents.moreDevices', { count: r.devices.length - SHOWN_DEVICES })}</Link> : null}
+      // One line, cut with an ellipsis (the full name is the tooltip); the rest of the devices are on the incident page.
+      <span className="flex w-36 max-w-36 items-center gap-x-2">
+        {r.devices.slice(0, r.devices.length > 1 ? 1 : SHOWN_DEVICES).map((d) => <Link key={d.id} to={`/devices/${d.id}`} title={d.name} onClick={(e) => e.stopPropagation()} className={`${link} min-w-0 truncate`}>{d.name}</Link>)}
+        {r.devices.length > 1 ? <Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`${link} shrink-0 whitespace-nowrap`}>{t('incidents.moreDevices', { count: r.devices.length - 1 })}</Link> : null}
       </span>
     ) },
     { id: 'status', header: t('incidents.col.status'), accessorFn: (r) => r.status, cell: ({ row }) => <Handled i={row.original} /> },
@@ -205,7 +208,7 @@ function Content() {
             // docs/UI.md §6: nothing open is good news: the drawing, what shows up here, and the channel when none is set up
             <EmptyState art="no-alerts" title={t('incidents.emptyOpenTitle')} action={noChannel ? newChannel.button(t('incidents.setupChannels')) : undefined} info={t(noTraps ? 'incidents.emptyBodyNoTrapsInfo' : 'incidents.emptyBodyInfo')}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
           ) : (
-            <DataTable urlKey="incidents" caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
+            <DataTable urlKey="incidents" fillColumn="incident" caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
               empty={tab === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyResolvedTitle')} filtered={filtersOn} onClearFilters={clearFilters}
               mobileRow={(r) => (
                 <div className="flex items-start gap-3">

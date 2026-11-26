@@ -33,7 +33,9 @@ export function ScopeLine({ scope, turnOff, module, className }: { scope: Scope;
 /** The badge and line of a module, from its state on this box; PageHeader renders them only under a PageModule, so a page
  *  outside any module (and a test without a query client) does not ask for GET /modules. */
 export function ModuleBadge({ id, className }: { id: ModuleId; className?: string }) {
-  return <ScopeBadge scope={useScope(id)} className={className} />
+  const scope = useScope(id)
+  // The page header never says "Preview" (the sidebar does not either); Settings › Modules still shows it through ScopeBadge.
+  return scope === 'preview' ? null : <ScopeBadge scope={scope} className={className} />
 }
 export function ModuleLine({ id, turnOff }: { id: ModuleId; turnOff?: boolean }) {
   return <ScopeLine scope={useScope(id)} turnOff={turnOff} module={id} /> // the link lands on the module's own switch (UI.md §0.2)

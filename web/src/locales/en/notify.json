@@ -532,6 +532,8 @@
     "closedBy": "{{reason}} {{time}}",
     "times": "{{count}}×",
     "seen": "{{first}} to {{last}}",
+    "seenFrom": "{{first}}",
+    "seenTo": "to {{last}}",
     "seenOnce": "{{first}}",
     "kind": {
       "trap": "Internal trap touched",

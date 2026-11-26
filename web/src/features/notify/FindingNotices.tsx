@@ -20,7 +20,7 @@ export default function FindingNotices({ findingId }: Record<string, unknown>) {
   return (
     <Section id="notified" title={t('finding.title')} description={t('finding.description')} stories={['S-ALERT-1']}
       // Settings › Alert channels is an administrator's page; no link others cannot open
-      actions={admin ? <Link to="/settings/channels#history" className="text-meta text-accent underline-offset-4 hover:underline">{t('finding.history')}</Link> : null}>
+      actions={admin ? <Link to="/settings/channels/history" className="text-meta text-accent underline-offset-4 hover:underline">{t('finding.history')}</Link> : null}>
       {ok ? <p className="text-sm">{t('finding.notified', { list: ok })}</p> : null}
       {failed ? <p className="text-sm">{t('finding.notDelivered', { list: failed })}</p> : null}
     </Section>

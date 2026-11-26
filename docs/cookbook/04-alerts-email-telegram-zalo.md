@@ -19,7 +19,7 @@
 
    ![The Alert channels page](images/04-channels.webp)
 
-   ① Set up a channel ② Edit one already set up ③ Send test ④ the result of the last test ⑤ Quiet hours and Grouping, below the list
+   ① Set up a channel ② Edit one already set up ③ Send test ④ the result of the last test ⑤ the Settings tab: Quiet hours and Grouping ⑥ History of sent messages
 
 2. **Email:** press **Set up** (or **Edit**). Pick the **Provider**: it fills in the server, port and encryption. Enter the username, the Send from address, the recipients (comma-separated) and the password. Choose **What to send**, tick **Turn this channel on**, press **Save and send test**.
 
@@ -43,7 +43,7 @@
 
 5. **Zalo OA** (a business Official Account): the form explains where each value is on Zalo Developers. Fill them in and press **Save and send test**. Vedette renews the access token by itself.
 
-6. **Optional:** set **Quiet hours** (messages are held, then sent together; Critical can still go out at once) and **Grouping** (one message per product within 15 minutes, 1 hour or 4 hours), then **Save quiet hours and grouping**.
+6. **Optional:** on the **Settings** tab, set **Quiet hours** (messages are held, then sent together; Critical can still go out at once) and **Grouping** (one message per product within 15 minutes, 1 hour or 4 hours), then **Save quiet hours and grouping**.
 
 ## Email through Microsoft 365
 
@@ -160,7 +160,7 @@ A changed permission can take a few minutes to reach Microsoft's servers; wait f
 ## Check that it worked
 
 - The channel's row shows "Tested …: success", and the test message arrives.
-- Later, **History** at the bottom of the page lists every message with its result. A failed one says why and offers **Send again**.
+- Later, **History** (top right of Alert channels) lists every message with its result; filter it by channel, result or kind. A failed one says why and offers **Send again**.
 
   ![The History of sent messages](images/04-history.webp)
 

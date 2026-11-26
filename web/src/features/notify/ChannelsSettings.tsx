@@ -1,15 +1,16 @@
 import { useCallback, useState, type FormEvent } from 'react'
+import { Link, Navigate, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Send, X } from 'lucide-react'
+import { History as HistoryIcon, Send, X } from 'lucide-react'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
+import { PageTabs } from '@/components/common/PageFrame'
 import { BusyNote } from '@/components/common/BusyNote'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -19,14 +20,14 @@ import { useCan } from '@/lib/session'
 import { notOffered } from '@/lib/v1'
 import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
-import History from './History'
 import { EMAIL_PROVIDERS, OAUTH_HOST, emailBinding, emailProvider, isMicrosoftSmtp, isOAuth, isUserSignin, savedFor, type EmailProvider } from './emailProviders'
 import { EmailSignin } from './EmailSignin'
-import { useChannels, useRemoveChannel, useSaveChannel, useSaveRules, useTestChannel } from './api'
+import { AlertSettings } from './AlertSettings'
+import { useChannels, useRemoveChannel, useSaveChannel, useTestChannel } from './api'
 import { APPROVAL_CHANNELS, FIELDS, ROUTE_SEVERITIES, forbiddenHost, ownHost } from './types'
 import { TelegramFind } from './TelegramFind'
 import { ApproverLinkState, LinkApproverField, ZaloRecipient, ZaloSignIn, ZaloWarning, type ZaloTarget } from './ZaloPersonal'
-import type { Approver, Channel, Grouping, Quiet, RouteSeverity } from './types'
+import type { Approver, Channel, RouteSeverity } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
 // The box names the wrong field by its code: the message goes under that field, as in the log source form. Per type, because a code
@@ -498,63 +499,47 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   )
 }
 
-function Rules({ init }: { init: { quiet: Quiet; grouping: Grouping } }) {
-  const { t } = useTranslation('notify')
-  const isAdmin = useCan('admin')
-  const save = useSaveRules()
-  const [quiet, setQuiet] = useState(init.quiet)
-  const [grouping, setGrouping] = useState(init.grouping)
-  const [error, setError] = useState<string | null>(null)
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    setError(null)
-    save.mutate({ quiet, grouping }, { onSuccess: () => toast.success(t('rules.saved')), onError: (er) => setError(errMsg(er)) })
-  }
-  return (
-    <form onSubmit={submit} className="grid max-w-2xl gap-8" noValidate>
-      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      {/* /settings/channels#quiet-hours (NotSentFix of a held incident) lands here */}
-      <fieldset id="quiet-hours" disabled={!isAdmin} className="grid gap-3 border-0 p-0">
-        <legend className="mb-1 flex items-center gap-1 text-base font-semibold">{t('rules.quiet.title')}<InfoTip topic={t('rules.quiet.title')}>{t('rules.quiet.descriptionInfo')}</InfoTip></legend>
-        <p className="text-meta text-muted">{t('rules.quiet.description')}</p>
-        <div className="flex items-center gap-3"><Switch id="q-on" checked={quiet.enabled} onCheckedChange={(v) => setQuiet({ ...quiet, enabled: v })} /><Label htmlFor="q-on">{t('rules.quiet.enabled')}</Label></div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={t('rules.quiet.from')} htmlFor="q-from"><Input id="q-from" type="time" value={quiet.from} onChange={(e) => setQuiet({ ...quiet, from: e.target.value })} /></Field>
-          <Field label={t('rules.quiet.to')} htmlFor="q-to"><Input id="q-to" type="time" value={quiet.to} onChange={(e) => setQuiet({ ...quiet, to: e.target.value })} /></Field>
-        </div>
-        {quiet.enabled && quiet.from && quiet.to && quiet.from !== quiet.to ? <p className="text-meta" role="status">{quiet.from > quiet.to ? t('rules.quiet.overnight', { from: quiet.from, to: quiet.to }) : t('rules.quiet.sameDay', { from: quiet.from, to: quiet.to })}</p> : null}
-        <div className="flex items-center gap-2"><Checkbox id="q-crit" checked={quiet.allow_critical} onCheckedChange={(c) => setQuiet({ ...quiet, allow_critical: c === true })} /><Label htmlFor="q-crit" className="font-normal">{t('rules.quiet.allowCritical')}</Label></div>
-      </fieldset>
-      {/* /settings/channels#grouping (NotSentFix of an alert waiting for its grouping window) lands here */}
-      <fieldset id="grouping" disabled={!isAdmin} className="grid gap-3 border-0 p-0">
-        <legend className="mb-1 flex items-center gap-1 text-base font-semibold">{t('rules.grouping.title')}<InfoTip topic={t('rules.grouping.title')}>{t('rules.grouping.descriptionInfo')}</InfoTip></legend>
-        <p className="text-meta text-muted">{t('rules.grouping.description')}</p>
-        <div className="flex items-center gap-3"><Switch id="g-on" checked={grouping.enabled} onCheckedChange={(v) => setGrouping({ ...grouping, enabled: v })} /><Label htmlFor="g-on">{t('rules.grouping.enabled')}</Label></div>
-        <Field label={t('rules.grouping.window')} htmlFor="g-win" className="max-w-xs">
-          <Select id="g-win" value={grouping.window_min} onChange={(e) => setGrouping({ ...grouping, window_min: Number(e.target.value) as Grouping['window_min'] })}>
-            {([15, 60, 240] as const).map((m) => <option key={m} value={m}>{t(`rules.grouping.w${m}`)}</option>)}
-          </Select>
-        </Field>
-      </fieldset>
-      <div><Button type="submit" variant="primary" disabled={!isAdmin} busy={save.isPending} busyLabel={t('common:busy.saving')} title={isAdmin ? undefined : t('channels.needRole')}>{t('rules.save')}</Button></div>
-    </form>
-  )
+/** Where an anchor of this page lives: the quiet hours and grouping are on the Settings tab, the channels on the Channels tab. */
+const tabOfAnchor = (id: string): Tab | null => (id === 'quiet-hours' || id === 'grouping' || id === 'alert-rules' ? 'settings' : id === 'channels' || id.startsWith('channel-') ? 'channels' : null)
+type Tab = 'channels' | 'settings'
+
+/** A link to an anchor of the other tab (an old bookmark, /settings/channels#quiet-hours) opens that tab and keeps the anchor, so the
+ *  field is still found and focused; the send history, once a section of this page, is a page of its own now. */
+function AnchorRedirect() {
+  const { search, hash } = useLocation()
+  const id = decodeURIComponent(hash.slice(1))
+  if (id === 'history') return <Navigate replace to="/settings/channels/history" />
+  const want = tabOfAnchor(id)
+  if (!want) return null
+  const p = new URLSearchParams(search)
+  const shown: Tab = p.get('tab') === 'settings' ? 'settings' : 'channels'
+  if (shown === want) return null
+  if (want === 'channels') p.delete('tab')
+  else p.set('tab', want)
+  const qs = p.toString()
+  return <Navigate replace to={{ search: qs ? `?${qs}` : '', hash }} />
 }
 
 export default function ChannelsSettings() {
   const { t } = useTranslation('notify')
   const q = useChannels()
+  // The send history is a page of its own (filters, pages): the header links to it, next to the page it belongs to
+  const history = (
+    <Button asChild size="sm">
+      <Link to="/settings/channels/history"><HistoryIcon aria-hidden />{t('channels.history')}</Link>
+    </Button>
+  )
   return (
     <RequireModule module="notify">
-      <PageHeader title={t('channels.title')} meta={t('channels.description')} info={t('channels.descriptionInfo')} stories={['S-NOT-1', 'S-NOT-2', 'S-RESP-2']} />
+      <AnchorRedirect />
+      <PageHeader title={t('channels.title')} meta={t('channels.description')} info={t('channels.descriptionInfo')} stories={['S-NOT-1', 'S-NOT-2', 'S-RESP-2']} actions={history} />
         <Notice tone="accent" title={t('channels.privacy')} info={t('channels.privacyInfo')} />
         <QueryState query={q}>
           {(d) => (
-            <div className="grid gap-8">
-              <Channels channels={d.channels} codeUsers={d.email_code_users} />
-              <Rules init={{ quiet: d.quiet, grouping: d.grouping }} />
-              <History />
-            </div>
+            <PageTabs label={t('channels.tabs.label')} tabs={[
+              { id: 'channels', label: t('channels.tabs.channels'), panel: <Channels channels={d.channels} codeUsers={d.email_code_users} /> },
+              { id: 'settings', label: t('channels.tabs.settings'), panel: <AlertSettings quiet={d.quiet} grouping={d.grouping} /> },
+            ]} />
           )}
         </QueryState>
     </RequireModule>

@@ -53,7 +53,7 @@ function StateLine({ f }: { f: FirstRunSummary }) {
       {f.not_sent ?? t('firstRun.notSent')}{' '}
       {admin && fix === 'setUp' ? <Link to="/settings/channels#channels" className={link}>{t('firstRun.setUp')}</Link> : null}
       {admin && fix === 'minimum' ? <Link to="/settings/channels#channels" className={link}>{t('firstRun.minimum')}</Link> : null}
-      {admin && fix === 'history' ? <Link to="/settings/channels#history" className={link}>{t('firstRun.history')}</Link> : null}
+      {admin && fix === 'history' ? <Link to="/settings/channels/history?result=failed" className={link}>{t('firstRun.history')}</Link> : null}
     </p>
   )
 }

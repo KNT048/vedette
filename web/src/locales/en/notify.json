@@ -10,7 +10,7 @@
   "channels": {
     "title": "Alert channels",
     "description": "Choose where Vedette sends alerts.",
-    "descriptionInfo": "With no channel on, alerts only appear in the app. Each channel has its own minimum severity, and quiet hours and grouping below apply to all of them.",
+    "descriptionInfo": "With no channel on, alerts only appear in the app. Each channel has its own minimum severity; quiet hours and grouping, on the Settings tab, apply to all of them.",
     "privacy": "Alert content leaves the box only through channels you turn on.",
     "privacyInfo": "Alert content (device names, CVE IDs) leaves the box only to the channels you turn on here and nowhere else. A channel that is off sends no data.",
     "caption": "Alert channels",
@@ -373,6 +373,12 @@
       "high": "Urgent findings, high and critical incidents",
       "medium": "Urgent findings, incidents from medium",
       "low": "Urgent findings, every incident"
+    },
+    "history": "History",
+    "tabs": {
+      "label": "Alert channel sections",
+      "channels": "Channels",
+      "settings": "Settings"
     }
   },
   "rules": {
@@ -399,6 +405,12 @@
     },
     "save": "Save quiet hours and grouping",
     "saved": "Quiet hours and grouping saved."
+  },
+  "alertSettings": {
+    "rules": {
+      "title": "When alerts go out",
+      "description": "Quiet hours and grouping apply to every channel."
+    }
   },
   "approve": {
     "title": "Approvals",
@@ -690,7 +702,26 @@
       "sendNowOk": "Queued on your alert channels: it goes out within a minute.",
       "sendNowInfo": "Sends it to every channel that is on, whatever their minimum severity, with the finding as it is now."
     },
-    "delayed": "Delayed"
+    "delayed": "Delayed",
+    "pageTitle": "Alert history",
+    "sent": {
+      "title": "Sent messages",
+      "description": "The latest 500 messages, newest first."
+    },
+    "filter": {
+      "search": "Search messages and recipients",
+      "channel": "Channel",
+      "anyChannel": "All channels",
+      "result": "Result",
+      "anyResult": "All results",
+      "results": {
+        "sent": "Sent",
+        "failed": "Failed",
+        "delayed": "Delayed"
+      },
+      "kind": "Kind",
+      "anyKind": "All kinds"
+    }
   },
   "signin": {
     "microsoft": "Microsoft",

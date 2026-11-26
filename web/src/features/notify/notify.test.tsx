@@ -27,6 +27,8 @@ function renderChannels(role: Role = 'admin') {
   sessionStore.set({ userId: USER[role] })
   return render(<MemoryRouter><QueryClientProvider client={makeQueryClient()}><ChannelsSettings /><Toaster /></QueryClientProvider></MemoryRouter>)
 }
+/** Settings › Alert channels › History, its own page, in the whole app (routes, header, menu). */
+const renderHistory = (role: Role = 'admin', query = '') => renderApp(`/settings/channels/history${query}`, { role })
 const getJson = async (path: string) => (await fetch(`${location.origin}/api/v1${path}`)).json() as Promise<Record<string, unknown>>
 /** Button is disabled until the role is known: wait until it is enabled, then press. */
 async function press(name: string | RegExp) {
@@ -291,8 +293,8 @@ describe('notify: vulnerability notices on the finding (S-ALERT-1)', () => {
 })
 
 describe('notify: delivery history (S-NOT-1)', () => {
-  it('Settings, Alert channels lists every message of every kind, with the meta line', async () => {
-    renderChannels()
+  it('Settings, Alert channels, History lists every message of every kind, with the meta line', async () => {
+    renderHistory()
     const table = await screen.findByRole('table', { name: 'Sent messages' })
     expect(within(table).getAllByText('Incident').length).toBeGreaterThan(0)
     expect(within(table).getAllByText('Vulnerability').length).toBeGreaterThan(0)
@@ -302,7 +304,7 @@ describe('notify: delivery history (S-NOT-1)', () => {
   })
 
   it('Send again repeats a failed message and adds a row', async () => {
-    renderChannels()
+    renderHistory()
     const table = await screen.findByRole('table', { name: 'Sent messages' })
     const before = within(table).getAllByRole('row').length
     // each button names its message, so a screen reader tells the rows apart
@@ -319,7 +321,7 @@ describe('notify: delivery history (S-NOT-1)', () => {
   })
 
   it('a message a provider held back (HTTP 429) is Delayed, not Failed, and has no Send again', async () => {
-    renderChannels()
+    renderHistory()
     const table = await screen.findByRole('table', { name: 'Sent messages' })
     const row = within(table).getByText(/^Delayed \(rate limited\): Telegram asked Vedette to wait/).closest('tr')!
     expect(within(row).getByText('Delayed')).toBeInTheDocument()
@@ -329,11 +331,97 @@ describe('notify: delivery history (S-NOT-1)', () => {
 
   it('nothing skipped (a box with no device): the meta line says only what the count proves, and that the first download is not counted', async () => {
     server.use(http.get('*/api/v1/notify/history', () => HttpResponse.json({ items: [], not_sent: [], suppressed: { count: 0, days: 7 } })))
-    renderChannels()
+    renderHistory()
     expect(await screen.findByText('In the last 7 days, no new vulnerability was left out for matching none of your devices.')).toBeInTheDocument()
     expect(screen.getByText('Every vulnerability alert of the last 7 days was delivered.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About History' })).toHaveAccessibleDescription(/^Vedette only alerts for products you own.*The first download of the vulnerability lists is not counted\./)
+    expect(screen.getByRole('button', { name: 'About Alert history' })).toHaveAccessibleDescription(/^Vedette only alerts for products you own.*The first download of the vulnerability lists is not counted\./)
     expect(screen.queryByText(/already has a notice/)).toBeNull()
+  })
+})
+
+describe('notify: Alert channels tabs and the History page', () => {
+  it('Channels is the first tab; Settings holds quiet hours and grouping, in the URL; no history table on the page', async () => {
+    renderApp('/settings/channels')
+    const main = await screen.findByRole('main')
+    expect(await within(main).findByRole('table', { name: 'Alert channels' })).toBeInTheDocument()
+    expect(within(main).getByRole('tab', { name: 'Channels' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(main).queryByRole('button', { name: 'Save quiet hours and grouping' })).toBeNull()
+    expect(within(main).queryByRole('table', { name: 'Sent messages' })).toBeNull()
+    await userEvent.click(within(main).getByRole('tab', { name: 'Settings' }))
+    expect(await within(main).findByRole('button', { name: 'Save quiet hours and grouping' })).toBeInTheDocument()
+    expect(within(main).getByRole('heading', { name: 'When alerts go out' })).toBeInTheDocument()
+    expect(within(main).queryByRole('table', { name: 'Alert channels' })).toBeNull()
+  })
+
+  it('?tab=settings opens the Settings tab; an old #quiet-hours link opens it too', async () => {
+    const view = renderApp('/settings/channels?tab=settings')
+    expect(await screen.findByRole('button', { name: 'Save quiet hours and grouping' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
+    view.unmount()
+    renderApp('/settings/channels#quiet-hours')
+    expect(await screen.findByRole('button', { name: 'Save quiet hours and grouping' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('the History link of the header opens the History page, which links back to Alert channels; an old #history link lands there', async () => {
+    const view = renderApp('/settings/channels')
+    const main = await screen.findByRole('main')
+    await userEvent.click(await within(main).findByRole('link', { name: 'History' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alert history' })).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Sent messages' })).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Alert channels' })).toHaveAttribute('href', '/settings/channels')
+    view.unmount()
+    renderApp('/settings/channels#history')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alert history' })).toBeInTheDocument()
+  })
+
+  it('the filters narrow the sent messages by result, channel and kind, keep them in the URL, and Clear filters shows every row again', async () => {
+    renderHistory()
+    await screen.findByRole('table', { name: 'Sent messages' })
+    const rows = () => within(screen.getByRole('table', { name: 'Sent messages' })).getAllByRole('row').slice(1) // the header row
+    const all = rows().length
+    expect(all).toBeGreaterThan(3)
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Result' }), 'failed')
+    await waitFor(() => expect(rows().length).toBeLessThan(all))
+    for (const r of rows()) expect(within(r).getByText('Failed')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Result' }), '')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Channel' }), 'slack')
+    await waitFor(() => expect(rows().length).toBeLessThan(all))
+    for (const r of rows()) expect(within(r).getByText(/^Slack to /)).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Channel' }), '')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Kind' }), 'approval')
+    await waitFor(() => expect(rows().length).toBeLessThan(all))
+    for (const r of rows()) expect(within(r).getByText('Approval request')).toBeInTheDocument()
+    // two filters that leave nothing: the list says so and clears them
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Result' }), 'delayed')
+    expect(await screen.findByText('No rows match these filters.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+    await waitFor(() => expect(rows()).toHaveLength(all))
+    expect(screen.getByRole('combobox', { name: 'Kind' })).toHaveValue('')
+  })
+
+  it('a link with ?result=failed opens the list already narrowed (Home, a first-run summary that failed)', async () => {
+    renderHistory('admin', '?result=failed')
+    const table = await screen.findByRole('table', { name: 'Sent messages' })
+    expect(screen.getByRole('combobox', { name: 'Result' })).toHaveValue('failed')
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows.length).toBeGreaterThan(0)
+    for (const r of rows) expect(within(r).getByText('Failed')).toBeInTheDocument()
+  })
+
+  it('the search box reads the recipients too', async () => {
+    renderHistory()
+    const all = within(await screen.findByRole('table', { name: 'Sent messages' })).getAllByRole('row').length - 1
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search messages and recipients' }), '#it-alerts')
+    const rows = () => within(screen.getByRole('table', { name: 'Sent messages' })).getAllByRole('row').slice(1)
+    await waitFor(() => expect(rows().length).toBeLessThan(all))
+    for (const r of rows()) expect(within(r).getByText('Slack to #it-alerts')).toBeInTheDocument()
+  })
+
+  it('an operator gets the same answer as for the Alert channels section: an administrator page', async () => {
+    renderHistory('operator')
+    expect(await screen.findByText('Alert history needs a higher role')).toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Sent messages' })).toBeNull()
   })
 })
 
@@ -346,12 +434,12 @@ describe('notify: History names every vulnerability alert that was not sent', ()
         not_sent: { reason: 'below_min_severity', text: 'Not sent: it is rated high for alerts, and your channels only send critical and above.', channel: 'email' } },
     ]
     server.use(http.get('*/api/v1/notify/history', () => HttpResponse.json({ items: [], not_sent: notSent, suppressed: { count: 0, days: 7 } })))
-    renderChannels()
+    renderHistory()
     const table = await screen.findByRole('table', { name: 'Vulnerability alerts not sent' })
     const waiting = within(table).getByText(/CVE-2025-22224/).closest('tr')!
     expect(within(waiting).getByText('Waiting')).toBeInTheDocument()
     expect(within(waiting).getByText(/Waiting to go out at 17:47/)).toBeInTheDocument()
-    expect(within(waiting).getByRole('link', { name: 'Grouping settings' })).toHaveAttribute('href', '/settings/channels#grouping')
+    expect(within(waiting).getByRole('link', { name: 'Grouping settings' })).toHaveAttribute('href', '/settings/channels?tab=settings#grouping')
     expect(within(waiting).getByRole('link', { name: /CVE-2025-22224/ })).toHaveAttribute('href', '/findings/f-1')
     const skipped = within(table).getByText(/CVE-2026-41709/).closest('tr')!
     expect(within(skipped).getByText('Not sent')).toBeInTheDocument()
@@ -374,7 +462,7 @@ describe('notify: retention is published', () => {
     const inc = renderApp('/incidents')
     expect(await screen.findByText(/History and resolved incidents are kept for 1 year\./)).toBeInTheDocument()
     inc.unmount()
-    renderChannels() // the History screen is a section of Settings, Alert channels
+    renderHistory() // the History page of Settings, Alert channels
     expect(await screen.findByText(/History and resolved incidents are kept for 1 year\./)).toBeInTheDocument()
   })
 })
@@ -865,6 +953,7 @@ describe('notify: alert channels (S-NOT-1)', () => {
   it('save quiet hours and grouping; identical times are refused', async () => {
     renderChannels()
     await screen.findByRole('table', { name: 'Alert channels' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Settings' }))
     await waitFor(() => expect(screen.getByLabelText('Until')).toBeEnabled())
     const to = screen.getByLabelText('Until')
     await userEvent.clear(to)

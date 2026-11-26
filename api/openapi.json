@@ -73368,7 +73368,6 @@
                       "additionalProperties": false
                     },
                     "triggers": {
-                      "description": "Which kinds of event send an alert, and from which severity",
                       "type": "array",
                       "items": {
                         "type": "object",
@@ -73385,18 +73384,18 @@
                             ]
                           },
                           "on": {
-                            "description": "Off: the event is still recorded (Incidents, the finding), but no message is sent",
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Off: the event is still recorded (Incidents, the finding), but no message is sent"
                           },
                           "min": {
-                            "description": "The lowest severity of this kind that sends a message",
                             "type": "string",
                             "enum": [
                               "critical",
                               "high",
                               "medium",
                               "low"
-                            ]
+                            ],
+                            "description": "The lowest severity of this kind that sends a message"
                           },
                           "default_on": {
                             "type": "boolean"
@@ -73419,7 +73418,8 @@
                           "default_min"
                         ],
                         "additionalProperties": false
-                      }
+                      },
+                      "description": "Which kinds of event send an alert, and from which severity"
                     },
                     "email_code_users": {
                       "type": "integer",
@@ -76279,18 +76279,18 @@
                           ]
                         },
                         "on": {
-                          "description": "Off: the event is still recorded (Incidents, the finding), but no message is sent",
-                          "type": "boolean"
+                          "type": "boolean",
+                          "description": "Off: the event is still recorded (Incidents, the finding), but no message is sent"
                         },
                         "min": {
-                          "description": "The lowest severity of this kind that sends a message",
                           "type": "string",
                           "enum": [
                             "critical",
                             "high",
                             "medium",
                             "low"
-                          ]
+                          ],
+                          "description": "The lowest severity of this kind that sends a message"
                         }
                       },
                       "required": [
@@ -76335,18 +76335,18 @@
                             ]
                           },
                           "on": {
-                            "description": "Off: the event is still recorded (Incidents, the finding), but no message is sent",
-                            "type": "boolean"
+                            "type": "boolean",
+                            "description": "Off: the event is still recorded (Incidents, the finding), but no message is sent"
                           },
                           "min": {
-                            "description": "The lowest severity of this kind that sends a message",
                             "type": "string",
                             "enum": [
                               "critical",
                               "high",
                               "medium",
                               "low"
-                            ]
+                            ],
+                            "description": "The lowest severity of this kind that sends a message"
                           },
                           "default_on": {
                             "type": "boolean"

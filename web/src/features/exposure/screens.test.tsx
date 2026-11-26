@@ -158,6 +158,22 @@ describe('exposure screens: a target page', () => {
     expect(hosted).not.toHaveAccessibleDescription(/included\./)
     expect(screen.queryByText(/Disruptive checks are included/)).toBeNull()
   })
+
+  it('a domain pointing at a verified typed-in IP: the dialog never calls that address this box\'s own (the disruptive checks never go there)', async () => {
+    exposureTreeStore.update((l) => l.map((n) => {
+      if (n.id === 'xt-11') return { ...n, terms: { ...n.terms!, version: TERMS_VERSION, disruptive: true } }
+      if (n.id === 'xt-15') return { ...n, method: 'ip_file' as const, verified_at: n.created_at } // a VPS the owner added and proved
+      return n
+    }))
+    // the box may port-scan the typed IP, so the domain's scan lists it as kind "box", but it is not the box's own public IP
+    exposureTreeRowsStore.update((r) => ({ ...r, addresses: { ...r.addresses, 'xt-11': (r.addresses['xt-11'] ?? []).map((a) => (a.class === 'box' ? { ...a, ip: '198.51.100.3' } : a)) } }))
+    renderApp('/exposure/xt-11', { role: 'operator' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Deep scan now' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Deep scan example.com' })
+    await waitFor(() => expect(dialog).toHaveAccessibleDescription(/Disruptive checks are not included: none of this domain's addresses is this box's own public IP/))
+    expect(dialog).not.toHaveAccessibleDescription(/this box's own address/)
+    expect(screen.queryByText(/198\.51\.100\.3 \(this box's own address/)).toBeNull()
+  })
 })
 
 describe('exposure screens: issues', () => {

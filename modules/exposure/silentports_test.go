@@ -62,7 +62,8 @@ func TestSilentPorts_AWAFThatBlocksTheBoxClosesNothing(t *testing.T) {
 		t.Fatalf("the re-check asked about %v, want the ports open before that this scan missed [80 443]", probe.asked)
 	}
 	i := slices.IndexFunc(r.NotChecked, func(n NotCheckedRow) bool { return n.Kind == "silent_ports" })
-	if i < 0 || !strings.Contains(r.NotChecked[i].Text, "Ports 80 and 443 of "+ipA+" were open before and gave no answer at all") {
+	if i < 0 || !strings.Contains(r.NotChecked[i].Text, "Ports 80 and 443 of "+ipA+" were open before and gave no answer at all") ||
+		!strings.Contains(r.NotChecked[i].Text, "If you closed them yourself, they are marked closed after three scans over a day.") {
 		t.Fatalf("the target's line: %+v", r.NotChecked)
 	}
 	if n := e.count(`SELECT count(*) FROM core_run_log WHERE run_id = ? AND text LIKE '%gave no answer at all%'`, r.RunID); n != 1 {

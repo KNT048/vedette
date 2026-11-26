@@ -178,13 +178,28 @@ func (s *Service) SaveTriggers(ctx context.Context, actor string, in []Trigger) 
 			if out[i] == t {
 				continue
 			}
-			changes = append(changes, fmt.Sprintf("%s: %s -> %s", triggerNames[t.ID], triggerWords(out[i]), triggerWords(t)))
+			from, to := triggerWords(out[i]), triggerWords(t)
+			if from == to { // only the minimum of a trigger that is off changed
+				from, to = from+" (from "+string(out[i].Min)+")", to+" (from "+string(t.Min)+")"
+			}
+			changes = append(changes, fmt.Sprintf("%s: %s -> %s", triggerNames[t.ID], from, to))
 			out[i] = t
 		}
 		if len(changes) == 0 {
 			return nil
 		}
-		j, err := json.Marshal(out)
+		// only the rules that differ from their default are stored: a default a later release changes reaches every trigger the
+		// administrator left as it was
+		var stored []Trigger
+		for _, t := range out {
+			if d, _ := Triggers(defaultTriggers).find(t.ID); d != t {
+				stored = append(stored, t)
+			}
+		}
+		if stored == nil {
+			stored = []Trigger{}
+		}
+		j, err := json.Marshal(stored)
 		if err != nil {
 			return fmt.Errorf("notify: encode alert triggers: %w", err)
 		}

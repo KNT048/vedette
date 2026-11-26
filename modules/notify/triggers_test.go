@@ -208,3 +208,47 @@ func TestMigrationKeepsTheStoredRulesAndAllowsTriggers(t *testing.T) {
 		t.Fatal("the table took a key it does not know")
 	}
 }
+
+// With the default triggers, the first-run window does not hold the medium known-bad and log incidents for its summary: their triggers
+// send only from high, so they are not told at all, and no summary of them goes out. A kind whose trigger is on for them is still held.
+func TestFirstRunSummaryLeavesOutWhatTheTriggersKeepOut(t *testing.T) {
+	e := newEnv(t)
+	e.defaultTriggers()
+	e.firstRunAt(e.clock.Now())
+	e.telegram(notify.Low)
+	e.plain()
+	bad := e.openKind(notify.IncidentBadAddress, "as-a", notify.Medium)
+	logs := e.openKind(notify.IncidentLogAnomaly, "as-b", notify.Low)
+	for _, id := range []string{bad, logs} {
+		if i := e.detail(id); i.FirstRunSummary {
+			t.Fatalf("held for the summary although its trigger keeps it out: %+v", i)
+		}
+		wantReason(t, e.notSent(id), notify.UnsentTriggerOff, "the alert settings send this kind only from high")
+	}
+	e.autoClose()
+	e.flush()
+	if n := len(e.net.to("api.telegram.org")); n != 0 {
+		t.Fatalf("%d messages: a first-run summary told what the triggers keep out", n)
+	}
+	if _, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "log_anomaly", On: true, Min: notify.Low}}); err != nil {
+		t.Fatal(err)
+	}
+	if i := e.detail(e.openKind(notify.IncidentLogAnomaly, "as-c", notify.Medium)); !i.FirstRunSummary {
+		t.Fatalf("a kind its trigger sends was not held for the summary: %+v", i)
+	}
+}
+
+// Only the rules that differ from their default are stored, and a change of the minimum of a trigger that is off says both minimums.
+func TestAlertTriggersStoreOnlyChangesAndSayAMinimumChange(t *testing.T) {
+	e := newEnv(t)
+	e.defaultTriggers()
+	if _, err := e.svc.SaveTriggers(e.ctx(), "it@acme.example", []notify.Trigger{{ID: "trap", On: true, Min: notify.Low}, {ID: "unknown_device", On: false, Min: notify.High}}); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT COUNT(*) FROM notify_setting WHERE key = 'triggers' AND value = '[{"id":"unknown_device","on":false,"min":"high"}]'`); n != 1 {
+		t.Fatal("the stored rule is not just the change")
+	}
+	if n := e.count(`SELECT COUNT(*) FROM core_audit WHERE action = 'notify.triggers_save' AND detail = 'new device seen: off (from medium) -> off (from high)'`); n != 1 {
+		t.Fatal("the audit does not say the minimum change of a trigger that is off")
+	}
+}

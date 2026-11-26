@@ -823,7 +823,8 @@ export const handlers = [
     const next = cur.map((c) => {
       const t = list.find((x) => x.id === c.id)
       if (!t || (t.on === c.on && t.min === c.min)) return c
-      changes.push(`${TRIGGER_NAMES[c.id]}: ${triggerWords(c)} -> ${triggerWords(t)}`)
+      const [from, to] = triggerWords(c) === triggerWords(t) ? [`${triggerWords(c)} (from ${c.min})`, `${triggerWords(t)} (from ${t.min})`] : [triggerWords(c), triggerWords(t)]
+      changes.push(`${TRIGGER_NAMES[c.id]}: ${from} -> ${to}`)
       return { ...c, on: t.on === true, min: t.min }
     })
     if (changes.length > 0) {

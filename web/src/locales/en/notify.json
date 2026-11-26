@@ -830,7 +830,7 @@
   "triggers": {
     "title": "Alert triggers",
     "description": "Which kinds of event send a message, and from which severity. What is off still shows on Incidents and on the finding.",
-    "descriptionInfo": "Each channel also has its own lowest severity: a message goes out only when both allow it. Quiet hours and grouping apply as usual. A change holds from the next event; it does not send or take back what already happened. Every change is in the audit log.",
+    "descriptionInfo": "Each channel also has its own lowest severity: a message goes out only when both allow it. Quiet hours and grouping apply as usual. A change holds from the next event: messages already waiting for quiet hours or grouping still go out, and an alert held while its trigger was off is not sent later (History, Not sent can still send a vulnerability alert from the last 7 days). Every change is in the audit log.",
     "send": "Send",
     "dontSend": "Off",
     "fromFor": "Lowest severity that sends for {{what}}",

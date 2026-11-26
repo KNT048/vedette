@@ -297,3 +297,28 @@ func TestExposurePathReadsTheBannerOfAServerThatSpeaksFirst(t *testing.T) {
 		t.Fatalf("an endless banner: read %d bytes over 4 connections, want at most 512 each", endless)
 	}
 }
+
+// A target that sends nothing of its own on a port where the network's answer for a never-routed address is a banner (a proxy that
+// writes an error when it cannot reach the destination, and relays a client-speaks-first service when it can) is told apart: the two
+// answers differ, so the port is the target's. Only nothing on both sides is the network's.
+func TestExposurePathTellsASilentTargetFromTheNetworksBanner(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	wrote := false
+	target := netip.MustParseAddr("8.8.8.8")
+	p := exposurePath{public: func(netip.Addr) bool { return true }, dial: func(_ context.Context, _, address string) (net.Conn, error) {
+		var data []byte
+		if netip.MustParseAddrPort(address).Addr() != target {
+			data = []byte("proxy: the destination cannot be reached\r\n")
+		}
+		return &bannerConn{mu: &mu, data: data, wrote: &wrote}, nil
+	}}
+	if same, err := p.SameAsPath(t.Context(), target, 3389); err != nil || same {
+		t.Fatalf("3389, the target sends nothing and the network sends its own banner: same %v, err %v", same, err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if wrote {
+		t.Fatal("something was sent to read a banner")
+	}
+}

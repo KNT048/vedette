@@ -94,6 +94,14 @@ const incidents = collection<StoredIncident[]>('notify_incidents', () => {
       action: 'Open Logs and look at this connection. If nobody expected this device to talk to that address, take it off the network and ask its user what it was doing.',
       sends: [], handled_by: 'system', handled_at: daysAgo(5), note: null, resolved_reason: 'Closed by Vedette: no new activity for 7 days.', first_run_summary: true,
       not_sent: { reason: 'first_run_summary', text: 'Not sent on its own: it was in the first-run summary sent at 10:00.' } },
+    // Long names and failed email, to check the list at 1280 px: a hostname with a domain, a range of times, an email that failed
+    // Extra rows for the sample UI only (make dev); the tests count the incidents above.
+    ...(import.meta.env.MODE === 'test' ? [] : ['File token Passwords', 'File token Payroll-2026', 'File token VPN-setup', 'SSH trap', 'FTP trap', 'URL token Router admin']).map((what, n): StoredIncident => {
+      const t = daysAgo(0, 3 + n)
+      return { id: `al-long-${n}`, kind: 'trap', attempt: false, link: '/honeypot', title: `192.168.18.118 opened the ${what}`, asset_ids: ['kiens-macbook-air.beyondnet.local'], severity: 'critical', status: 'new', first_seen: n === 5 ? p(t, -1) : t, last_seen: t, count: n + 1,
+        what: 'A machine opened a trap.', action: 'Take the machine off the network.',
+        sends: [s(`sd-long-${n}`, 'email', 'it@acme.example', plus(t, 4), false, 'The SMTP server rejected the login (code 535).')], handled_by: null, handled_at: null, note: null, resolved_reason: null, first_run_summary: false, not_sent: null }
+    }),
   ]
 }, () => [])
 

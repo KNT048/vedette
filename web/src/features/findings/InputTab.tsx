@@ -315,9 +315,9 @@ function DeviceNeeds({ i, link }: { i: Item<'device_needs'>; link: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Button variant="ghost" size="sm" aria-expanded={open} aria-controls={panel} onClick={() => setOpen((o) => !o)} className="-ml-2 h-auto min-h-8 justify-start gap-1.5 whitespace-normal py-1 text-left">
-            <ChevronDown aria-hidden className={open ? 'rotate-180' : ''} />
+            <ChevronDown aria-hidden className={open ? '' : '-rotate-90'} />
             <span className="text-sm font-semibold [overflow-wrap:anywhere]">{i.device.name}</span>
-            <span className="font-normal text-muted">{t('queue.deviceSummary', { lines: lines.length, cves, others })}</span>
+            <span className="font-normal text-muted">{lines.length ? t('queue.deviceSummary', { lines: lines.length, cves }) : i.entries.every((e) => e.kind === 'device_unchecked') ? t('queue.deviceSummaryUnchecked') : t('queue.deviceSummaryOther', { count: others })}</span>
           </Button>
           {link ? <Link to={`/devices/${encodeURIComponent(i.device.id)}`} className="text-meta text-accent underline-offset-4 hover:underline">{t('queue.openDevice')}</Link> : null}
         </div>

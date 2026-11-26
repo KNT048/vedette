@@ -115,7 +115,7 @@ function FixCardView({ card, rank, same, loading, onHandle }: { card: FixCard; r
         {/* empty-guard: a fix card exists only for a fix with open findings (at least one) */}
         <Button variant="ghost" size="sm" aria-expanded={open} aria-controls={panel} onClick={() => setOpen((o) => !o)}
           className="-ml-2 h-auto min-h-8 justify-start gap-1.5 whitespace-normal py-1 text-left">
-          <ChevronDown aria-hidden className={open ? 'rotate-180' : ''} />
+          <ChevronDown aria-hidden className={open ? '' : '-rotate-90'} />
           <span className="text-sm font-semibold [overflow-wrap:anywhere]">{title}</span>
           <span className="font-normal text-muted">{t('byFix.counts', { count: card.findings, devices })}</span>
           {/* devices that may be one machine say so instead of counting it twice without a word */}

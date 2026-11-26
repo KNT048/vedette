@@ -281,7 +281,9 @@ func TestApplyIOCsMergesFeedsAndCountsChanges(t *testing.T) {
 		t.Fatalf("lookup %+v %v %v", rec, found, err)
 	}
 	dom, _, _ := s.IOCLookup(t.Context(), "domain", "bad.example.net")
-	if dom.FirstSeen.Format("2006-01-02") != "2026-10-01" || dom.Sightings[0].Confidence != 0.9 || dom.Sightings[0].SourceName != "IPsum" {
+	// The feed's own confidence is stored; a built-in list is rated by its weight on read (IPsum level 3).
+	if dom.FirstSeen.Format("2006-01-02") != "2026-10-01" || dom.Sightings[0].Confidence != 0.78 || dom.Sightings[0].SourceName != "IPsum" ||
+		count(t, db, `SELECT count(*) FROM feeds_ioc_source WHERE source_id = 'ipsum' AND confidence = 0.9`) != 1 {
 		t.Errorf("domain: %+v", dom)
 	}
 	// ipsum drops the domain and one address, and adds a new one.

@@ -557,12 +557,18 @@ ON CONFLICT(ioc_id, source_id) DO UPDATE SET last_seen = excluded.last_seen, con
 type IOCSighting struct {
 	SourceID   string
 	SourceName string
+	// Confidence is how sure this feed's listing is that the value is bad (0 to 1): for a built-in indicator list its weight
+	// (Source.Weight, IPsum by the level its address names) whatever was stored, as such a list carries no confidence per line;
+	// for a custom feed the stored value (what the feed said, or 0.5).
 	Confidence float64
 	// Enabled is whether the feed is switched on now: a switched-off feed is never pulled and its listings are not pruned, so they go stale (logs ignores them).
 	Enabled bool
 	// Subdomains is whether the feed lists a name for itself and all of its subdomains (a built-in source with Source.Subdomains);
 	// false for a custom feed, which lists names exactly.
 	Subdomains bool
+	// Builtin is whether the feed is a built-in one; C2 is whether it lists confirmed botnet command-and-control servers (Source.C2).
+	Builtin bool
+	C2      bool
 }
 
 // IOCRecord is an indicator with the feeds that list it now.
@@ -625,7 +631,7 @@ func (s *Store) IOCLookup(ctx context.Context, kind, value string) (IOCRecord, b
 	if rec.LastSeen, err = parseTS(last); err != nil {
 		return IOCRecord{}, false, fmt.Errorf("feeds: stored time of an indicator: %w", err)
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT s.source_id, f.name, s.confidence, f.enabled, f.builtin FROM feeds_ioc_source s
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT s.source_id, f.name, s.confidence, f.enabled, f.builtin, f.url FROM feeds_ioc_source s
 JOIN feeds_source f ON f.id = s.source_id WHERE s.ioc_id = ?`, id)
 	if err != nil {
 		return IOCRecord{}, false, fmt.Errorf("feeds: read listings: %w", err)
@@ -633,12 +639,17 @@ JOIN feeds_source f ON f.id = s.source_id WHERE s.ioc_id = ?`, id)
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var g IOCSighting
-		var builtin bool
-		if err := rows.Scan(&g.SourceID, &g.SourceName, &g.Confidence, &g.Enabled, &builtin); err != nil {
+		var addr string
+		if err := rows.Scan(&g.SourceID, &g.SourceName, &g.Confidence, &g.Enabled, &g.Builtin, &addr); err != nil {
 			return IOCRecord{}, false, fmt.Errorf("feeds: read listings: %w", err)
 		}
-		if b, ok := BuiltinByID(g.SourceID); ok && builtin {
-			g.Subdomains = b.Subdomains
+		b, ok := BuiltinByID(g.SourceID)
+		g.Builtin = ok && g.Builtin
+		if g.Builtin {
+			g.Subdomains, g.C2 = b.Subdomains, b.C2
+			if b.Kind == KindIOC { // rated on read, so a listing stored before (or by any pull) needs no rewrite
+				g.Confidence = b.listingWeight(addr)
+			}
 		}
 		rec.Sightings = append(rec.Sightings, g)
 	}

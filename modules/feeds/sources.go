@@ -50,6 +50,17 @@ type Source struct {
 	// Subdomains: every name the list holds stands for itself and all of its subdomains (hagezi TIF, "Domains (without
 	// subdomains)": a listed bad.example also means a.b.bad.example). A source without it lists each name exactly.
 	Subdomains bool
+	// Weight is how sure a listing by this built-in indicator list is that the value is bad, from 0 to 1 (IOCConfidence). The lists
+	// carry no confidence per line, so the weight is what the list is: a confirmed command-and-control list near certain, a curated
+	// compromised-host list high, an aggregate by how many lists agree, a list that only says what an address is (Tor exit relays)
+	// low. Zero for every other kind of feed.
+	Weight float64
+	// LevelInURL: the list's address names its level, the number of blocklists an address is on at least (IPsum's levels/N.txt). A
+	// listing weighs what that level says (levelWeight); an address that names no level keeps Weight.
+	LevelInURL bool
+	// C2: the list is of confirmed botnet command-and-control servers (abuse.ch Feodo Tracker). A device that reaches one runs
+	// malware, so logs rates such an incident critical.
+	C2 bool
 }
 
 func (s Source) rowLimit() int {
@@ -122,11 +133,11 @@ var builtinSources = []Source{
 	{ID: androidFeedID, Name: "Android Security Bulletins", Kind: KindVulnerabilities, Format: FormatLines, URL: "https://source.android.com/docs/security/bulletin/", License: androidNotice, IntervalHours: 6, Decoder: DecoderAndroid},
 	{ID: rapid7FeedID, Name: "Rapid7 blog", Kind: KindVulnerabilities, Format: FormatRSS, URL: "https://www.rapid7.com/rss.xml", License: rapid7Notice, IntervalHours: 6, Decoder: DecoderRapid7},
 	{ID: gtiFeedID, Name: "Google Threat Intelligence blog", Kind: KindVulnerabilities, Format: FormatRSS, URL: "https://cloudblog.withgoogle.com/topics/threat-intelligence/rss/", License: gtiNotice, IntervalHours: 6, Decoder: DecoderGTI},
-	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo"}},
-	{ID: "et-open", Name: "ET Open compromised IPs", Kind: KindIOC, Format: FormatLines, URL: "https://rules.emergingthreats.net/blockrules/compromised-ips.txt", License: "BSD", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},
-	{ID: "abusech-feodo", Name: "abuse.ch Feodo Tracker", Kind: KindIOC, Format: FormatLines, URL: "https://feodotracker.abuse.ch/downloads/ipblocklist.txt", License: "CC0", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser()},
-	{ID: "tor-exit", Name: "Tor exit list", Kind: KindIOC, Format: FormatLines, URL: "https://check.torproject.org/torbulkexitlist", License: "Attribution: torproject", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Informational: true},
-	{ID: "hagezi-tif", Name: "hagezi TIF", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt", License: "GPL-3.0, unmodified", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), MaxRows: 250_000, Aggregate: true, Subdomains: true},
+	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo"}, Weight: 0.78, LevelInURL: true},
+	{ID: "et-open", Name: "ET Open compromised IPs", Kind: KindIOC, Format: FormatLines, URL: "https://rules.emergingthreats.net/blockrules/compromised-ips.txt", License: "BSD", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Weight: 0.85},
+	{ID: "abusech-feodo", Name: "abuse.ch Feodo Tracker", Kind: KindIOC, Format: FormatLines, URL: "https://feodotracker.abuse.ch/downloads/ipblocklist.txt", License: "CC0", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Weight: 0.95, C2: true},
+	{ID: "tor-exit", Name: "Tor exit list", Kind: KindIOC, Format: FormatLines, URL: "https://check.torproject.org/torbulkexitlist", License: "Attribution: torproject", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Informational: true, Weight: 0.2},
+	{ID: "hagezi-tif", Name: "hagezi TIF", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt", License: "GPL-3.0, unmodified", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), MaxRows: 250_000, Aggregate: true, Subdomains: true, Weight: 0.75},
 }
 
 // BuiltinSources returns the built-in feeds in display order. The slice is a

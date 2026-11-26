@@ -52,14 +52,34 @@ const (
 // ErrFeedsOff is what Feeds.Lookup returns while the feeds module is off (PRE-3): no lookup is made and there are no hits.
 var ErrFeedsOff = errors.New("logs: the Feeds module is off")
 
-// Listing is what the feeds say about one destination: the names of the feeds that list it now, and how sure they are (0 to 1).
-// SubFeeds and SubConfidence are the same for the feeds among them that list a name for itself and all of its subdomains (hagezi TIF,
-// feeds' Source.Subdomains): a subdomain of the name is a hit only through these.
+// Listing is what the feeds say about one destination: the names of the feeds that list it now, how sure they are together that it is
+// bad (0 to 1: each feed's own rating, rising when independent feeds list it), and whether one of them lists it as a botnet
+// command-and-control server (C2). SubFeeds, SubConfidence and SubC2 are the same for the feeds among them that list a name for itself
+// and all of its subdomains (hagezi TIF, feeds' Source.Subdomains): a subdomain of the name is a hit only through these.
 type Listing struct {
 	Feeds         []string
 	Confidence    float64
+	C2            bool
 	SubFeeds      []string
 	SubConfidence float64
+	SubC2         bool
+}
+
+// highConfidence is the confidence from which a bad-address incident is high: what the feeds rate at least even odds of being bad
+// (a custom feed that gives no confidence, every built-in list but the Tor exit relays). Below it (a Tor exit relay alone, or with
+// aggregated blocklists only) the incident is medium: recorded, and not sent by the default alert triggers.
+const highConfidence = 0.5
+
+// Severity is the severity of a bad-address incident on this listing: critical for a botnet command-and-control server (the device
+// runs malware, blocked or not, as a decoy touch is critical), high from highConfidence, medium below.
+func (l Listing) Severity() string {
+	switch {
+	case l.C2:
+		return "critical"
+	case clamp01(l.Confidence) >= highConfidence:
+		return "high"
+	}
+	return "medium"
 }
 
 // Feeds is what logs reads from the feeds module (an adapter in cmd/vedette on its indicator store): the listing of an address
@@ -87,7 +107,7 @@ type IocHit struct {
 	DestKind  string    `json:"dest_kind"` // ip | domain
 	SeenVia   string    `json:"seen_via"`  // syslog:<name of the source>
 	Feeds     []string  `json:"feeds"`
-	// Confidence is the highest confidence of the feeds that list the destination, between 0 and 1.
+	// Confidence is how sure the feeds that list the destination were, together, when the hit was made (Listing.Confidence), between 0 and 1.
 	Confidence float64 `json:"confidence"`
 	// Blocked says that the device that logged the line stopped the connection (an attempt: a FortiGate deny, a blocked web-filter
 	// request; the profile's conn_blocked). False when the line does not say so.
@@ -136,13 +156,13 @@ type connObs struct {
 
 // iocRow is a hit before it is stored. listed is the parent name a feed lists when dest is one of its subdomains, else "". after is
 // the time of the newest stored hit of the pair when the incident it counted on was resolved since (the hit is new although that one is
-// less than IocDedupe old), else "".
+// less than IocDedupe old), else "". sev is the severity of its incident (Listing.Severity of the listing that made it).
 type iocRow struct {
-	id, src, dest, kind, via, source, listed, after string
-	at                                              time.Time
-	feeds                                           []string
-	conf                                            float64
-	blocked                                         bool
+	id, src, dest, kind, via, source, listed, after, sev string
+	at                                                   time.Time
+	feeds                                                []string
+	conf                                                 float64
+	blocked                                              bool
 }
 
 type lookupResult struct {
@@ -220,11 +240,11 @@ func (s *Service) matchIOC(ctx context.Context, conns map[connKey]connObs, names
 			via = "syslog:" + names[o.source]
 		}
 		r := iocRow{id: store.NewID("ih"), src: k.src.String(), dest: k.dest, kind: k.kind, via: via, source: o.source, at: o.at,
-			feeds: cleanFeeds(l.Feeds), conf: conf, blocked: o.blocked, listed: listed}
+			feeds: cleanFeeds(l.Feeds), conf: conf, blocked: o.blocked, listed: listed, sev: l.Severity()}
 		if last, ok := s.recentHit(ctx, pair[0], pair[1], o.blocked, conf, cutoff); ok {
 			// A repeat inside the dedupe time is held back while the incident that hit counted on is open; once it was resolved since,
 			// this hit is new and opens a new incident.
-			if !s.resolvedSince(ctx, EventBadAddress, badAddressEvent(r.hit(nil)), last) {
+			if !s.resolvedSince(ctx, EventBadAddress, badAddressEvent(r.hit(nil), r.sev), last) {
 				continue
 			}
 			r.after = store.FormatTS(last)
@@ -248,7 +268,7 @@ func (s *Service) listing(ctx context.Context, cache *lookups, kind, dest string
 			return Listing{}, "", err
 		}
 		if res.found && len(res.l.SubFeeds) > 0 {
-			return Listing{Feeds: res.l.SubFeeds, Confidence: res.l.SubConfidence}, p, nil
+			return Listing{Feeds: res.l.SubFeeds, Confidence: res.l.SubConfidence, C2: res.l.SubC2}, p, nil
 		}
 	}
 	return Listing{}, "", nil
@@ -497,7 +517,7 @@ func (s *Service) announceIOC(ctx context.Context, fresh []iocRow) {
 		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventIocHit, Data: hit}); err != nil {
 			s.cfg.Log.WarnContext(ctx, "logs: announcing a bad connection failed", "err", err)
 		}
-		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventBadAddress, Data: badAddressEvent(hit)}); err != nil {
+		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventBadAddress, Data: badAddressEvent(hit, r.sev)}); err != nil {
 			s.cfg.Log.WarnContext(ctx, "logs: announcing a bad connection failed", "err", err)
 		}
 	}
@@ -520,8 +540,8 @@ func (r iocRow) hit(devices map[string]Device) IocHit {
 // badAddressEvent is the event notify and the SIEM forwarder read. A blocked attempt (h.Blocked) is said as one: "tried to reach … (blocked
 // by <the device that logged it>)", never "connected to". h.ListedAs is the parent name a feed lists when h.Dest is one of its
 // subdomains: the text names it, and the incident is keyed on it, so the many subdomains of one listed name that a device asks
-// for are one incident.
-func badAddressEvent(h IocHit) BadAddressEvent {
+// for are one incident. sev is the severity of the incident (Listing.Severity); one that is not critical, high or medium is medium.
+func badAddressEvent(h IocHit, sev string) BadAddressEvent {
 	listed := ""
 	if h.ListedAs != nil {
 		listed = *h.ListedAs
@@ -532,9 +552,8 @@ func badAddressEvent(h IocHit) BadAddressEvent {
 		who = *h.AssetName + " (" + h.SrcIP + ")"
 		devices = append(devices, DeviceInfo{ID: *h.AssetID, Name: clipRunes(*h.AssetName, MaxDeviceName)})
 	}
-	sev := "medium"
-	if h.Confidence >= 0.7 {
-		sev = "high"
+	if sev != "critical" && sev != "high" {
+		sev = "medium"
 	}
 	via := clipRunes(strings.TrimPrefix(h.SeenVia, "syslog:"), 120)
 	verb, by := "connected to", ""

@@ -48,9 +48,10 @@ type installRule struct {
 	edition func(display, ver string) (string, string)
 	// phases: the product's sw_edition values name release phases, not builds.
 	phases bool
-	// arch is the only architecture the product ships in from release floor on (its first version number), "" for none.
-	arch  string
-	floor uint64
+	// arch is the only architecture the product ships in from release floor on (its first version number), or floorYear on for a
+	// release year a person typed, "" for none.
+	arch             string
+	floor, floorYear uint64
 	// source is where the rule comes from.
 	source string
 }
@@ -66,7 +67,7 @@ var installRules = []installRule{
 		source: "https://nodejs.org/en/about/previous-releases (an even major is Current, then LTS, under one version line)",
 	},
 	{
-		ids: []identity{{vendor: "microsoft", product: "sqlserver"}}, arch: "x64", floor: 13,
+		ids: []identity{{vendor: "microsoft", product: "sqlserver"}}, arch: "x64", floor: 13, floorYear: 2016,
 		source: "https://learn.microsoft.com/en-us/sql/sql-server/install/hardware-and-software-requirements-for-installing-sql-server-2022 (SQL Server 2016, version 13, and later run on x64 processors only)",
 	},
 }
@@ -204,7 +205,7 @@ func installOf(s Software, a Asset) installAttrs {
 			}
 		}
 		at.phases = at.phases || r.phases
-		if r.arch != "" && atLeastMajor(ver, r.floor) {
+		if r.arch != "" && atLeastMajor(ver, r.floor, r.floorYear) {
 			at.arch, at.archWhy = r.arch, "the product ships for "+r.arch+" only from that release on"
 		}
 	}
@@ -223,12 +224,18 @@ func installOf(s Software, a Asset) installAttrs {
 	return at
 }
 
-// atLeastMajor says whether the first number of ver is at least floor: a build (16.0.1000.6) or a release year a person typed (2022,
-// read as later than any build major).
-func atLeastMajor(ver string, floor uint64) bool {
+// atLeastMajor says whether the first number of ver is at least floor for a build (16.0.1000.6), or at least floorYear for a release
+// year a person typed (2022; 2014 is not SQL Server 2016's version 13 or later).
+func atLeastMajor(ver string, floor, floorYear uint64) bool {
 	head, _, _ := strings.Cut(strings.TrimSpace(ver), ".")
 	n, err := strconv.ParseUint(head, 10, 64)
-	return err == nil && n >= floor
+	if err != nil {
+		return false
+	}
+	if n >= 1990 { // a release year
+		return floorYear != 0 && n >= floorYear
+	}
+	return n >= floor
 }
 
 // Indexes of the attributes after the version in CPE.fields.

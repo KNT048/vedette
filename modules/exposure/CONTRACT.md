@@ -197,7 +197,12 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   and UNION payloads, the hosting provider's metadata service, remote file inclusion's third-party URLs) and form posting run only on the box's own proven public IP (an IP
   target that is not typed, the page on exactly that address) when the run's mode allows the disruptive checks (`runMode`: a
   person's scan, the terms include them, the gateway not in 100.64.0.0/10); a domain's page, on hosting or a CDN, gets the active
-  scan without them, and the scan says so. ZAP's context includes the page's origin (anchored to scheme,
+  scan without them, and the scan says so. The host checks two of those itself (host INV-31c): a person's press of Scan now or
+  Run once now on such a target asks the host for its grant (`zap.authorize`, `DisruptiveGranter`, at the press, without waiting;
+  a scan the box runs by itself never asks), each page that asks for the disruptive rules hands it back (`ScanTarget.Grant`), and
+  the host also reads the box's gateway itself; when the host runs a page without them (`WebScan.DisruptiveRefused`), the page
+  counts as a page of a pass without them (its alerts are not disruptive and close no issue of a disruptive rule) and the scan's
+  line and the step's note say why in the host's words. ZAP's context includes the page's origin (anchored to scheme,
   host and port; ZAP adds its own unescaped "<url>.*", which a look-alike name matches); the boundary is the host's network fence
   (that address and port only, no DNS, the one name pinned). Bounds: 21 minutes a page (the host's own 20: spider 2 minutes, depth 5, 20
   children a node; active rules 12 minutes, 2 a rule, 2 threads, 100 ms between requests; a 2 GiB container), 60 minutes for the
@@ -211,8 +216,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   and goes "gone" only after a later active scan that ran them again (a pass without them keeps it open). The active pass is one step of the run (`zap_active` in `scanPlan`, right after the passive
   ZAP step, in a deep scan's plan only): while it runs its note is the page it attacks; it ends with the pages attacked of those it
   takes, with or without the disruptive rules, the alerts and the pages cut short at their limit, or is skipped with why. Tests:
-  `zapactive_test.go` (`TestZapActive_*`), `cmd/vedette/exposureweb_test.go` (`TestExposureWeb_Active*`,
-  `TestExposureWeb_AStoppedScanStopsZAPOnTheHost`).
+  `zapactive_test.go` (`TestZapActive_*`), `zapgrant_test.go`, `cmd/vedette/exposureweb_test.go` (`TestExposureWeb_Active*`,
+  `TestExposureWeb_AStoppedScanStopsZAPOnTheHost`), `cmd/vedette/exposureweb_grant_test.go`.
 - **INV-25** Greenbone (OpenVAS) is optional and off by default; it runs as its own unmodified project beside Vedette and is
   driven over GMP. Each address has a time cap (INV-25a). Its probe log row, written before the task starts, is completed once the
   scan ended: `matched` (results), `not_matched` (it scanned, no result), `not_run` (it never started scanning); a failure, a stop

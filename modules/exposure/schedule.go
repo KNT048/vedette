@@ -138,7 +138,11 @@ func (s *Service) startScheduled(ctx context.Context, tx *sql.Tx, f schedule.Fir
 	if f.Trigger == corerun.Schedule {
 		by = corerun.System
 	}
-	return s.createScanRun(ctx, tx, t, f.Trigger, by, f.ScheduleID)
+	runID, err := s.createScanRun(ctx, tx, t, f.Trigger, by, f.ScheduleID)
+	if err == nil && f.Trigger == corerun.Manual {
+		s.askGrant(runID, by, t) // Run once now is a person's press: the host's own witness of it (askGrant does not wait)
+	}
+	return runID, err
 }
 
 // createScanRun creates, in tx, the run of a scan of t with its exp_scan row; the run starts when the lane is free.

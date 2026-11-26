@@ -31,7 +31,7 @@ import (
 var neverRouted = []netip.Addr{netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("198.51.100.1"), netip.MustParseAddr("203.0.113.1")}
 
 // Bounds of the check: each connect waits at most pathTimeout, pathParallel at once; reading what answers on a port (a TLS
-// handshake, else one GET of /) takes at most pathReadTimeout and pathReadLimit bytes of the page.
+// handshake, else one GET of /) takes at most pathReadTimeout and pathReadLimit bytes of the answer, headers included.
 const (
 	pathTimeout     = 1500 * time.Millisecond
 	pathParallel    = 64
@@ -175,12 +175,12 @@ func (p exposurePath) answerOf(ctx context.Context, addr netip.AddrPort, use com
 	if _, err := fmt.Fprintf(c, "GET / HTTP/1.1\r\nHost: %s\r\nUser-Agent: Vedette\r\nAccept: */*\r\nConnection: close\r\n\r\n", addr.Addr()); err != nil {
 		return "write " + errClass(err)
 	}
-	res, err := http.ReadResponse(bufio.NewReader(c), nil)
+	res, err := http.ReadResponse(bufio.NewReader(io.LimitReader(c, pathReadLimit)), nil) // headers and page together: an endless header is cut
 	if err != nil {
 		return "http " + errClass(err)
 	}
 	defer func() { _ = res.Body.Close() }()
-	body, _ := io.ReadAll(io.LimitReader(res.Body, pathReadLimit))
+	body, _ := io.ReadAll(res.Body)
 	title := ""
 	if m := titleRE.FindSubmatch(body); m != nil {
 		title = strings.Join(strings.Fields(html.UnescapeString(string(m[1]))), " ")

@@ -119,7 +119,7 @@ var excludedScripts = map[string]string{ //nolint:gosec // G101: script names an
 }
 
 // disruptiveMoved are in nmap's default, safe or vuln categories but try logins or can crash a service: only with the
-// disruptive tick (the terms say passwords are not guessed without it).
+// disruptive checks (the terms say passwords are guessed only by them).
 var disruptiveMoved = map[string]string{
 	"ftp-libopie":              "can crash the FTP server",
 	"ftp-vuln-cve2010-4221":    "can crash the FTP server",

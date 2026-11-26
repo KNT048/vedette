@@ -105,7 +105,7 @@ type ServiceScan struct {
 	// run never calls them closed), and the scanner reads them first next time.
 	Unfinished []int
 	// The NSE script results of a deep scan (ScanMode.Full): nmap's "default", "safe" and
-	// "vuln" scripts (and "dos", "brute" with the disruptive tick) on the open ports and the host. Untrusted; sanitizeScripts
+	// "vuln" scripts (and "dos", "brute" with the disruptive checks) on the open ports and the host. Untrusted; sanitizeScripts
 	// limits them before they are stored. nil for a scan that is not deep.
 	Scripts []ScriptRow
 }

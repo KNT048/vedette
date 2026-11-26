@@ -80,6 +80,9 @@ type ScanTarget struct {
 	// themselves), read when the scan starts. The runner lists the other names it finds without probing them (Content.Listed); nil on an
 	// IP target.
 	Names *NamePlan
+	// dropped says why deepGate took the disruptive checks out of a step the run allowed them on (dropNotOwn, dropCNAME, dropNAT);
+	// "" when it did not. Only the lines of the deep scan read it.
+	dropped string
 }
 
 // ProofOwner is the domain whose record proves a scanned domain, and that domain's stored token. ProofAt is set when the

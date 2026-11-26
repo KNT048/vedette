@@ -35,11 +35,11 @@
 
    ① Scan now ② what the scan does ③ the schedule, paused until the testing terms are accepted ④ the tabs: Issues, Services, Names, Scans, Ownership
 
-5. **Optional deep scan:** tab **Ownership → Testing terms (deep scan)**. Read the terms (every port, vulnerability checks, web scanning, sign-in checks) and accept them once for this target. From then on every scan of it, including the scheduled ones, is a deep scan. Leave **Include disruptive checks** off unless you accept that a service may crash or an account may lock.
+5. **Optional deep scan:** tab **Ownership → Testing terms (deep scan)**. Read the terms (every port, vulnerability checks, web scanning, sign-in checks) and accept them once for this target. From then on every scan of it, including the scheduled ones, is a deep scan, and a scan you start with **Scan now** also runs the disruptive checks (denial of service, password guessing, default passwords), which can crash a service or lock an account. Scheduled scans never run them. Accept only if you can accept that.
 
    ![The testing terms of a target](images/05-testing-terms.webp)
 
-   ① the testing terms and who accepted them ② disruptive checks, off unless you accept outages
+   ① the testing terms and who accepted them ② the one button that accepts them, disruptive checks included
 
 ## Check that it worked
 

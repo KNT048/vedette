@@ -2,6 +2,7 @@ package exposure
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"net/netip"
@@ -155,7 +156,7 @@ type env struct {
 	dns    *fakeResolver
 	pub    *fakePub
 	sched  *schedule.Service // the box's schedules on the test clock: target scans and the public IP detection
-	terms  *bool             // scanIP accepts the testing terms when set, with the disruptive tick when true
+	terms  *bool             // scanIP accepts the testing terms when set; false leaves an older acceptance without the disruptive checks
 	runs   *corerun.Manager
 }
 
@@ -306,17 +307,28 @@ func str(p *string) string {
 	return *p
 }
 
-// acceptTerms accepts the testing terms of a target as an administrator with two-step sign-in.
+// acceptTerms accepts the testing terms of a target as an administrator with two-step sign-in. disruptive false leaves the target
+// with what an acceptance of the previous terms without their tick left (keptTermsVersions): the deep scan without the disruptive
+// checks, the one way a target still has that level.
 func (e *env) acceptTerms(id string, disruptive bool) TargetView {
 	e.t.Helper()
 	if e.svc.cfg.TwoStep == nil {
 		e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
 	}
-	v, err := e.svc.AcceptTerms(e.ctx(), Actor{ID: "u-admin", Email: "admin@acme.example", Admin: true}, id, TermsVersion, disruptive)
+	v, err := e.svc.AcceptTerms(e.ctx(), Actor{ID: "u-admin", Email: "admin@acme.example", Admin: true}, id, TermsVersion)
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	return v
+	if disruptive {
+		return v
+	}
+	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_consent SET version = ?, disruptive = 0 WHERE target_id = ? AND kind = 'terms'`, keptTermsVersions[0], id)
+		return err
+	}); err != nil {
+		e.t.Fatal(err)
+	}
+	return e.target(id)
 }
 
 // commit records the commitment the way an administrator's first Scan now does, without a scan.

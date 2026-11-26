@@ -304,7 +304,7 @@ func TestWiringLogsIocHitsFromTheFeedsModule(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if l, ok, err := f.Lookup(ctx, "domain", "tif-listed.net"); err != nil || !ok || len(l.SubFeeds) != 1 || l.SubFeeds[0] != "hagezi TIF" || l.SubConfidence != 0.75 {
+	if l, ok, err := f.Lookup(ctx, "domain", "tif-listed.net"); err != nil || !ok || len(l.SubFeeds) != 1 || l.SubFeeds[0] != "hagezi TIF" || l.SubConfidence != 0.45 {
 		t.Fatalf("%+v %v %v", l, ok, err)
 	}
 	if l, _, _ := f.Lookup(ctx, "domain", "bad-site.net"); len(l.SubFeeds) != 0 {

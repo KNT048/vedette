@@ -81,7 +81,7 @@ func TestSeedBuiltinsMergesAndKeepsAdminChoices(t *testing.T) {
 	}
 	for i, b := range BuiltinSources() {
 		r := rows[i]
-		if r.ID != b.ID || !r.Builtin || r.Enabled == b.BYOK || r.URL != b.URL || r.DefaultURL == nil || *r.DefaultURL != b.URL || r.Status != "never" || r.Parser != nil {
+		if r.ID != b.ID || !r.Builtin || r.Enabled == (b.BYOK || b.DefaultOff) || r.URL != b.URL || r.DefaultURL == nil || *r.DefaultURL != b.URL || r.Status != "never" || r.Parser != nil {
 			t.Errorf("row %d = %+v", i, r)
 		}
 	}
@@ -267,7 +267,7 @@ func TestApplyIOCsMergesFeedsAndCountsChanges(t *testing.T) {
 	t.Parallel()
 	s, db := newStore(t)
 	ip := func(v string) iocInput { return iocInput{Kind: "ip", Value: v} }
-	conf := 0.9
+	conf := 0.3
 	added, removed := applyI(t, db, epoch0, "ipsum", []iocInput{ip("185.220.101.47"), ip("45.148.10.95"), {Kind: "domain", Value: "bad.example.net", Confidence: &conf, FirstSeen: "2026-10-01"}})
 	if added != 3 || removed != 0 {
 		t.Fatalf("first pull +%d -%d", added, removed)
@@ -282,8 +282,8 @@ func TestApplyIOCsMergesFeedsAndCountsChanges(t *testing.T) {
 	}
 	dom, _, _ := s.IOCLookup(t.Context(), "domain", "bad.example.net")
 	// The feed's own confidence is stored; a built-in list is rated by its weight on read (IPsum level 3).
-	if dom.FirstSeen.Format("2006-01-02") != "2026-10-01" || dom.Sightings[0].Confidence != 0.78 || dom.Sightings[0].SourceName != "IPsum" ||
-		count(t, db, `SELECT count(*) FROM feeds_ioc_source WHERE source_id = 'ipsum' AND confidence = 0.9`) != 1 {
+	if dom.FirstSeen.Format("2006-01-02") != "2026-10-01" || dom.Sightings[0].Confidence != 0.9 || dom.Sightings[0].SourceName != "IPsum" ||
+		count(t, db, `SELECT count(*) FROM feeds_ioc_source WHERE source_id = 'ipsum' AND confidence = 0.3`) != 1 {
 		t.Errorf("domain: %+v", dom)
 	}
 	// ipsum drops the domain and one address, and adds a new one.

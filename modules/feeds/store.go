@@ -195,7 +195,8 @@ func sourceTx(ctx context.Context, tx *sql.Tx, id string) (sourceRow, error) {
 	return r, err
 }
 
-// SeedBuiltins merges BuiltinSources() into feeds_source: new feeds are inserted (on); existing rows keep what
+// SeedBuiltins merges BuiltinSources() into feeds_source: new feeds are inserted (on, except a feed that needs the customer's key or
+// is off by default: Source.BYOK, Source.DefaultOff); existing rows keep what
 // the admin chose (enabled, schedule, a mirror address) while name, format, license and the default address
 // follow the code. A feed whose address is still its old default moves to the new default.
 func (s *Store) SeedBuiltins(ctx context.Context, now time.Time) error {
@@ -205,7 +206,7 @@ func (s *Store) SeedBuiltins(ctx context.Context, now time.Time) error {
 VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET name = excluded.name, kind = excluded.kind, format = excluded.format, license = excluded.license,
   url = CASE WHEN url = default_url THEN excluded.url ELSE url END, default_url = excluded.default_url`,
-				b.ID, b.Name, string(b.Kind), string(b.Format), b.URL, b.URL, boolInt(!b.BYOK), b.License, store.FormatTS(now))
+				b.ID, b.Name, string(b.Kind), string(b.Format), b.URL, b.URL, boolInt(!b.BYOK && !b.DefaultOff), b.License, store.FormatTS(now))
 			if err != nil {
 				return fmt.Errorf("feeds: seed %s: %w", b.ID, err)
 			}
@@ -569,6 +570,9 @@ type IOCSighting struct {
 	// Builtin is whether the feed is a built-in one; C2 is whether it lists confirmed botnet command-and-control servers (Source.C2).
 	Builtin bool
 	C2      bool
+	// ListedAt is when the box last fetched the list that holds this listing (the pull that stored it; a 304 Not Modified pull keeps
+	// the list it had). CreditName shows it for a list whose terms ask for it.
+	ListedAt time.Time
 }
 
 // IOCRecord is an indicator with the feeds that list it now.
@@ -611,37 +615,84 @@ func (s *Store) IOCSubdomainsOn(ctx context.Context) (bool, error) {
 }
 
 // IOCLookup returns an indicator by type ("ip", "domain", "url", "hash") and canonical value (see IOCKey).
-// An indicator no feed lists any more is reported with no sightings.
+// An indicator no feed lists any more is reported with no sightings. An address is also listed by every feed that lists a network
+// holding it (Spamhaus DROP: networksAround), and a feed that lists the address and a network around it, or several networks around
+// it, is one sighting. The first and last seen times span every stored row read (the address and its networks).
 func (s *Store) IOCLookup(ctx context.Context, kind, value string) (IOCRecord, bool, error) {
-	var (
-		id, first, last string
-		rec             IOCRecord
-	)
-	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, type, value, first_seen, last_seen FROM feeds_ioc WHERE type = ? AND value = ?`, kind, value).
-		Scan(&id, &rec.Type, &rec.Value, &first, &last)
-	if errors.Is(err, sql.ErrNoRows) {
-		return IOCRecord{}, false, nil
-	}
-	if err != nil {
+	type row struct{ id, first, last string }
+	var rows []row
+	var r row
+	err := s.db.Reader().QueryRowContext(ctx, `SELECT id, first_seen, last_seen FROM feeds_ioc WHERE type = ? AND value = ?`, kind, value).
+		Scan(&r.id, &r.first, &r.last)
+	switch {
+	case err == nil:
+		rows = append(rows, r)
+	case !errors.Is(err, sql.ErrNoRows):
 		return IOCRecord{}, false, fmt.Errorf("feeds: read indicator: %w", err)
 	}
-	if rec.FirstSeen, err = parseTS(first); err != nil {
-		return IOCRecord{}, false, fmt.Errorf("feeds: stored time of an indicator: %w", err)
+	if nets := networksAround(value); kind == "ip" && len(nets) > 0 {
+		q, err := s.db.Reader().QueryContext(ctx, `SELECT id, first_seen, last_seen FROM feeds_ioc WHERE type = 'ip' AND value IN (?`+strings.Repeat(", ?", len(nets)-1)+`)`, nets...)
+		if err != nil {
+			return IOCRecord{}, false, fmt.Errorf("feeds: read networks: %w", err)
+		}
+		for q.Next() {
+			var n row
+			if err := q.Scan(&n.id, &n.first, &n.last); err != nil {
+				_ = q.Close()
+				return IOCRecord{}, false, fmt.Errorf("feeds: read networks: %w", err)
+			}
+			rows = append(rows, n)
+		}
+		if err := errors.Join(q.Err(), q.Close()); err != nil {
+			return IOCRecord{}, false, fmt.Errorf("feeds: read networks: %w", err)
+		}
 	}
-	if rec.LastSeen, err = parseTS(last); err != nil {
-		return IOCRecord{}, false, fmt.Errorf("feeds: stored time of an indicator: %w", err)
+	if len(rows) == 0 {
+		return IOCRecord{}, false, nil
 	}
-	rows, err := s.db.Reader().QueryContext(ctx, `SELECT s.source_id, f.name, s.confidence, f.enabled, f.builtin, f.url FROM feeds_ioc_source s
+	rec := IOCRecord{Type: kind, Value: value}
+	for i, r := range rows {
+		first, err := parseTS(r.first)
+		if err != nil {
+			return IOCRecord{}, false, fmt.Errorf("feeds: stored time of an indicator: %w", err)
+		}
+		last, err := parseTS(r.last)
+		if err != nil {
+			return IOCRecord{}, false, fmt.Errorf("feeds: stored time of an indicator: %w", err)
+		}
+		if i == 0 || first.Before(rec.FirstSeen) {
+			rec.FirstSeen = first
+		}
+		if i == 0 || last.After(rec.LastSeen) {
+			rec.LastSeen = last
+		}
+	}
+	bySource := map[string]int{} // the index of each feed's sighting in rec.Sightings
+	for _, r := range rows {
+		if err := s.sightings(ctx, r.id, &rec, bySource); err != nil {
+			return IOCRecord{}, false, err
+		}
+	}
+	return rec, true, nil
+}
+
+// sightings adds the listings of one stored indicator to rec: one sighting per feed (bySource; the listing of the value itself comes
+// first, as it is read first), with the highest weight and the newest fetch time of that feed's listings.
+func (s *Store) sightings(ctx context.Context, id string, rec *IOCRecord, bySource map[string]int) error {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT s.source_id, f.name, s.confidence, f.enabled, f.builtin, f.url, s.last_seen FROM feeds_ioc_source s
 JOIN feeds_source f ON f.id = s.source_id WHERE s.ioc_id = ?`, id)
 	if err != nil {
-		return IOCRecord{}, false, fmt.Errorf("feeds: read listings: %w", err)
+		return fmt.Errorf("feeds: read listings: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var g IOCSighting
-		var addr string
-		if err := rows.Scan(&g.SourceID, &g.SourceName, &g.Confidence, &g.Enabled, &g.Builtin, &addr); err != nil {
-			return IOCRecord{}, false, fmt.Errorf("feeds: read listings: %w", err)
+		var addr, listed string
+		if err := rows.Scan(&g.SourceID, &g.SourceName, &g.Confidence, &g.Enabled, &g.Builtin, &addr, &listed); err != nil {
+			return fmt.Errorf("feeds: read listings: %w", err)
+		}
+		if g.ListedAt, err = parseTS(listed); err != nil {
+			return fmt.Errorf("feeds: stored time of a listing: %w", err)
 		}
 		b, ok := BuiltinByID(g.SourceID)
 		g.Builtin = ok && g.Builtin
@@ -651,9 +702,18 @@ JOIN feeds_source f ON f.id = s.source_id WHERE s.ioc_id = ?`, id)
 				g.Confidence = b.listingWeight(addr)
 			}
 		}
+		if i, dup := bySource[g.SourceID]; dup {
+			cur := &rec.Sightings[i]
+			cur.Confidence = max(cur.Confidence, g.Confidence)
+			if g.ListedAt.After(cur.ListedAt) {
+				cur.ListedAt = g.ListedAt
+			}
+			continue
+		}
+		bySource[g.SourceID] = len(rec.Sightings)
 		rec.Sightings = append(rec.Sightings, g)
 	}
-	return rec, true, rows.Err()
+	return rows.Err()
 }
 
 // ---------- pull records

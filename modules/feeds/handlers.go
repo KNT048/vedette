@@ -515,6 +515,7 @@ var iocCategories = map[string]string{
 	"abusech-feodo": "Botnet command-and-control server",
 	"tor-exit":      "Tor exit node",
 	"hagezi-tif":    "Threat-intelligence domain list",
+	dropFeedID:      "Hijacked or criminal network",
 }
 
 // iocHit turns a stored indicator into the answer of a lookup; nil when no switched-on feed lists it now, or when it has no
@@ -547,7 +548,7 @@ func iocHit(rec IOCRecord) map[string]any {
 		} else {
 			sights = append(sights, Sighting{Source: g.SourceID})
 		}
-		names = append(names, g.SourceName)
+		names = append(names, CreditName(g))
 		c, ok := iocCategories[g.SourceID]
 		if !ok {
 			c = "Custom feed"

@@ -208,7 +208,7 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 			siemField{Key: "decoy", Val: str(m, "decoy")}, siemField{Key: "src_asset_id", Val: str(m, "src_asset_id")})
 	})
 	on(siemEventBadAddress, "bad_conn", func(m map[string]any) siemRecord {
-		return newSiemRecord("ioc.hit", "high", now(),
+		return newSiemRecord("ioc.hit", hitSeverity(str(m, "severity")), now(),
 			siemField{Key: "id", CEF: "externalId", Val: str(m, "id")}, siemField{Key: "src_ip", CEF: "src", Val: str(m, "src_ip")},
 			siemField{Key: "dest", CEF: "dst", Val: str(m, "dest")}, siemField{Key: "dest_kind", Val: str(m, "dest_kind")},
 			siemField{Key: "seen_via", Val: str(m, "seen_via")}, siemField{Key: "asset_id", Val: str(m, "asset_id")},
@@ -231,6 +231,15 @@ func str(m map[string]any, k string) string {
 		return strconv.FormatFloat(v, 'f', -1, 64)
 	}
 	return ""
+}
+
+// hitSeverity is the severity of a bad_conn record: the hit's own (Listing.Severity, carried on logs.bad_address.detected), normalised
+// as badAddressEvent normalises the incident's, so the SIEM and notify rate one hit the same: critical, high, else medium.
+func hitSeverity(s string) string {
+	if s == "critical" || s == "high" {
+		return s
+	}
+	return "medium"
 }
 
 func sevOr(s, def string) string {

@@ -39,7 +39,8 @@ func (f logsFeeds) Lookup(ctx context.Context, kind, value string) (logs.Listing
 	return l, len(l.Feeds) > 0, nil // an indicator that no enabled feed lists is not a hit
 }
 
-// listingOf is what the switched-on feeds say about an indicator: their names, and how sure they are together (feeds.IOCConfidence:
+// listingOf is what the switched-on feeds say about an indicator: their names (feeds.CreditName: Spamhaus DROP with the time the box
+// fetched its list), and how sure they are together (feeds.IOCConfidence:
 // each feed's rating, rising with independent feeds) with whether one lists it as a command-and-control server. The same for the
 // feeds that list a domain with all of its subdomains (hagezi TIF). A feed that was switched off is not pulled and not pruned: its
 // listings are stale and not counted.
@@ -51,10 +52,10 @@ func listingOf(rec feeds.IOCRecord, kind string) logs.Listing {
 			continue
 		}
 		on = append(on, s)
-		l.Feeds = append(l.Feeds, s.SourceName)
+		l.Feeds = append(l.Feeds, feeds.CreditName(s))
 		if s.Subdomains && kind == "domain" {
 			sub = append(sub, s)
-			l.SubFeeds = append(l.SubFeeds, s.SourceName)
+			l.SubFeeds = append(l.SubFeeds, feeds.CreditName(s))
 		}
 	}
 	l.Confidence, l.C2 = feeds.IOCConfidence(on)

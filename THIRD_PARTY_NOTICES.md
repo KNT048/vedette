@@ -190,7 +190,7 @@ httpx, naabu, subfinder and dnsx (MIT), planned here before, are not used: the e
 | Tor exit list | — | attribution: torproject |
 | Team Cymru bogons | — | attribution |
 | Cisco Umbrella top-1M, Majestic Million | — / CC-BY 3.0 | allow-lists |
-| Spamhaus DROP | not used in v1 | name not used in marketing |
+| Spamhaus DROP | Spamhaus DROP terms of use (https://www.spamhaus.org/drop/terms/): free of charge; copyright and database right stay with The Spamhaus Project | data, user-enabled: the built-in feed "Spamhaus DROP" (`spamhaus-drop`) is off by default; once an administrator turns it on, each box fetches `https://www.spamhaus.org/drop/drop_v4.json` (Spamhaus's IPv4 DROP list, which since April 2024 also holds the former EDROP list) from Spamhaus itself, once a day by default (Spamhaus asks for automated downloads at least an hour apart), and keeps the listed networks on the box only. Credit: the feed is named "Spamhaus DROP" wherever a listing is shown (Logs, the incident text, Feeds → Look up, the AI), with the time the box fetched the list; the feed row shows the copyright line "(c) The Spamhaus Project" and the terms link. Not redistributed: the project ships none of the list (no seed, no fixture, no mirror), and the box sends it to nobody of its own. The Spamhaus name is not used in marketing (terms section 3.2). |
 
 Real data in the current build (`web/src/mocks/fixtures/`, `make fixtures`): CISA KEV (CC0), FIRST EPSS (attribution), the CVE list of nuclei-templates (MIT). Sources are shown on every screen.
 

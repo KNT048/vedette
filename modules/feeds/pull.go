@@ -375,6 +375,17 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		}
 		p.templates, p.hasTemplates = n.Templates, true
 		p.out.fill(n.Stats, len(n.Templates))
+	case DecoderSpamhausDROP: // networks, stored as indicators of type ip ("192.0.2.0/24"); a cut or unreadable list keeps the old one
+		l, err := ParseSpamhausDROP(resp.Body, builtin.rowLimit())
+		if err != nil {
+			return p, err
+		}
+		p.iocs = make([]iocInput, 0, len(l.Prefixes))
+		for _, v := range l.Prefixes {
+			p.iocs = append(p.iocs, iocInput{Kind: "ip", Value: v})
+		}
+		p.hasIOCs = true
+		p.out.fill(l.Stats, l.Accepted)
 	default: // DecoderParser: the built-in IOC lists and every custom feed
 		var res Result
 		if src.Builtin {

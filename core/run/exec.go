@@ -88,6 +88,44 @@ func (x *Exec) EndStep(ctx context.Context, seq int, st Status, note string) err
 	})
 }
 
+// SkipStep records that a step did not run, with why in note (an engine turned off, nothing for it to check, the run ended before
+// it). Its done is left as it is: a step skipped because there was nothing to do can be counted as done first (Progress), one the run
+// never reached is not.
+func (x *Exec) SkipStep(ctx context.Context, seq int, note string) error {
+	return x.write(ctx, func(tx *sql.Tx, now string) error {
+		return x.updateStep(ctx, tx, seq, `UPDATE core_run_step SET status = ?, note = ?, ended_at = ? WHERE run_id = ? AND seq = ?`,
+			string(Skipped), nullable(note, 500), now, x.id, seq)
+	})
+}
+
+// StepNote sets the note of a running step: where it is now ("finding open ports: 41%, about 9 minutes left"). A step that is not
+// running is left as it is, so a late report never overwrites how a step ended.
+func (x *Exec) StepNote(ctx context.Context, seq int, note string) error {
+	return x.write(ctx, func(tx *sql.Tx, now string) error {
+		_, err := tx.ExecContext(ctx, `UPDATE core_run_step SET note = ? WHERE run_id = ? AND seq = ? AND status = ?`, nullable(note, 500), x.id, seq, string(Running))
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE core_run SET updated_at = ? WHERE id = ?`, now, x.id)
+		return err
+	})
+}
+
+// FillNote gives a step that ended without a note its note, once: what it found when that was only known after it ended (the open
+// ports of a port scan, read once the service scan that followed it answers). Its state and times are left as they are; a step that
+// has a note or has not ended is left as it is.
+func (x *Exec) FillNote(ctx context.Context, seq int, note string) error {
+	n := nullable(note, 500)
+	if n == nil {
+		return nil
+	}
+	return x.write(ctx, func(tx *sql.Tx, _ string) error {
+		_, err := tx.ExecContext(ctx, `UPDATE core_run_step SET note = ? WHERE run_id = ? AND seq = ? AND note IS NULL AND ended_at IS NOT NULL
+			AND status IN (?, ?, ?, ?, ?)`, n, x.id, seq, string(Done), string(Partial), string(Failed), string(Stopped), string(Skipped))
+		return err
+	})
+}
+
 func (x *Exec) updateStep(ctx context.Context, tx *sql.Tx, seq int, q string, args ...any) error {
 	res, err := tx.ExecContext(ctx, q, args...)
 	if err != nil {

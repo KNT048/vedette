@@ -20,7 +20,7 @@ describe('Settings › Scanning › Runs', () => {
     renderApp('/settings/scanning?tab=runs')
     const table = await screen.findByRole('table', { name: 'Runs of every engine' }, T)
     const sweep = within(table).getByRole('link', { name: 'LAN sweep of 192.0.2.0/24, 10.20.0.0/16' })
-    expect(sweep).toHaveAttribute('href', '/runs/run-m1')
+    expect(sweep).toHaveAttribute('href', '/runs/run-m1?from=settings')
     // each row reads as the box's own line of words
     expect(within(table).getByText('Waiting for the scan window (opens 23:00); 6,528 of 65,792 addresses')).toBeInTheDocument()
     expect(within(table).getByText('Stopped: Vedette restarted')).toBeInTheDocument()
@@ -31,7 +31,7 @@ describe('Settings › Scanning › Runs', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'State' }), 'queued')
     await waitFor(() => expect(asked.at(-1)).toBe('?status=queued&limit=25'), T)
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Runs of every engine' })).queryByRole('link', { name: /LAN sweep/ })).toBeNull(), T)
-    expect(within(screen.getByRole('table', { name: 'Runs of every engine' })).getByRole('link', { name: 'Check WEB01' })).toHaveAttribute('href', '/runs/run-m3')
+    expect(within(screen.getByRole('table', { name: 'Runs of every engine' })).getByRole('link', { name: 'Check WEB01' })).toHaveAttribute('href', '/runs/run-m3?from=settings')
     server.events.removeAllListeners()
   })
 

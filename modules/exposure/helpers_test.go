@@ -358,5 +358,5 @@ func (e *env) waitScan(id string) {
 // writtenScans counts the scans that wrote their rows.
 func (e *env) writtenScans() int {
 	e.t.Helper()
-	return e.count(`SELECT count(*) FROM core_run_step WHERE name = ? AND status = 'done'`, stepSurface)
+	return e.count(`SELECT count(*) FROM core_run_step WHERE name IN (?, ?) AND status = 'done'`, stepNameSave, stepSurface)
 }

@@ -11,6 +11,7 @@ import { mockDeviceProgress } from '@/lib/progress'
 import { BOX_ID, inventorySettingsStore, SAFETY_CHANGED, safetyVersion, snmpStore } from '@/features/inventory/mocks'
 import { cidrRange, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from '@/features/inventory/validate'
 import { exposureMockRun, greenboneMock } from '@/features/exposure/mocks'
+import { exposureStepRuns } from './runStepsMock'
 import { lastScanRun, liveScanRuns, runs as scanRunStore } from '@/features/scan/mocks'
 import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, ExclusionAdd, HistoryRun, RangeAdd, Run as RunSchema, RunDetail, RunningJob, RunStatus, Scanning, SafetyInput } from './contract'
 
@@ -254,6 +255,7 @@ export const runsStore = collection<RunRow[]>('core_runs', () => [
   runBase({ id: 'run-m7', module: 'sensor-active', kind: 'snmp_read', lane: 'snmp', title: 'SNMP read of 3 devices', trigger: 'schedule', requested_by: 'system',
     status: 'stopped', stop_reason: 'Vedette restarted', queued_at: minAgo(2000), started_at: minAgo(2000), ended_at: minAgo(1990), updated_at: minAgo(1990),
     log: [{ ts: minAgo(2000), level: 'info', text: 'Started' }, { ts: minAgo(1990), level: 'warn', text: 'Stopped: Vedette restarted' }] }),
+  ...exposureStepRuns(),
 ].map(withButtons), () => [])
 /** The buttons, by the one rule of core/run: stop while queued, waiting or running; resume while waiting, or stopped with a step left. */
 function withButtons(r: RunRow): RunRow {
@@ -310,7 +312,7 @@ function allRunRows(): RunRow[] {
 }
 /** What the box adds as it reads a run (core/run summary.go): the line of words, the run a queued one waits for, and the buttons of the
  *  person asking (an operator stops and resumes; a LAN sweep resumes for an administrator only). */
-const UNITS: Record<string, string> = { lan_sweep: 'addresses', device_check: 'devices', snmp_read: 'devices', all_ports: 'devices', vuln_check: 'devices' }
+const UNITS: Record<string, string> = { lan_sweep: 'addresses', device_check: 'devices', snmp_read: 'devices', all_ports: 'devices', vuln_check: 'devices', exposure_scan: 'steps' }
 const n = (x: number) => x.toLocaleString('en-US')
 function present(r: RunRow, all: RunRow[]): RunRow {
   const role = currentUser()?.role

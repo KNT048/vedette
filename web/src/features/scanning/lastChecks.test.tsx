@@ -149,7 +149,7 @@ describe('the device page says what each check does and when each last ran', () 
     // the device's runs: those about it (its checks), never another device's
     renderApp('/settings/scanning?tab=runs&runs.device=a-nas02')
     const table = await screen.findByRole('table', { name: 'Runs of every engine' }, T)
-    expect(within(table).getByRole('link', { name: 'Check NAS-PHOTOS' })).toHaveAttribute('href', '/runs/run-m2')
+    expect(within(table).getByRole('link', { name: 'Check NAS-PHOTOS' })).toHaveAttribute('href', '/runs/run-m2?from=settings')
     expect(within(table).queryByRole('link', { name: 'Check WEB01' })).toBeNull()
     expect(screen.getByRole('combobox', { name: 'Device' })).toHaveValue('a-nas02')
   })

@@ -200,6 +200,7 @@ var (
 // runTemplates is the template step of a scan of an IP, after service identification (INV-23). Only a stop of the run ends the scan
 // here; every other outcome is a line of what was checked or not checked, and the rest of the result is kept.
 func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr, c Content) (Content, error) {
+	runStepsOf(ctx).start(ctx, stepKeyNuclei) // nil inside the step of one of a domain's addresses
 	if s.cfg.Templates == nil {
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: NotSetUpTemplates})
 		return c, nil

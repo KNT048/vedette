@@ -531,8 +531,8 @@ func (s *Service) RecentScans(ctx context.Context, limit int) ([]ScanRecord, err
 	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT r.id, x.target_id, coalesce(r.subject_label, ''), r.started_at, r.ended_at, x.summary,
 		coalesce((SELECT st.status FROM core_run_step st WHERE st.run_id = r.id AND st.name = ? ORDER BY st.seq DESC LIMIT 1), '')
 		FROM exp_scan x JOIN core_run r ON r.id = x.run_id WHERE r.started_at IS NOT NULL
-		AND EXISTS (SELECT 1 FROM core_run_step st WHERE st.run_id = r.id AND st.name = ? AND st.status = 'done')
-		ORDER BY r.started_at DESC LIMIT ?`, stepNameOpenVAS, stepSurface, max(1, min(500, limit)))
+		AND EXISTS (SELECT 1 FROM core_run_step st WHERE st.run_id = r.id AND st.name IN (?, ?) AND st.status = 'done')
+		ORDER BY r.started_at DESC LIMIT ?`, stepNameOpenVAS, stepNameSave, stepSurface, max(1, min(500, limit)))
 	if err != nil {
 		return nil, fmt.Errorf("exposure: recent scans: %w", err)
 	}

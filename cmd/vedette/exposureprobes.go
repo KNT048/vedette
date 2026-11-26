@@ -15,7 +15,7 @@ type exposureProbeLog struct{ d deps }
 func (l exposureProbeLog) RecordTemplateProbes(ctx context.Context, ps []exposure.TemplateProbe) error {
 	rows := make([]scan.ExternalProbe, len(ps))
 	for i, p := range ps {
-		rows[i] = scan.ExternalProbe{ID: p.ID, IP: p.IP, Label: p.Label, Template: p.Template, Request: p.Request}
+		rows[i] = scan.ExternalProbe{ID: p.ID, IP: p.IP, Label: p.Label, Template: p.Template, Request: p.Request, RunID: exposure.RunIDOf(ctx)}
 	}
 	return scanService(l.d).RecordExternalProbes(ctx, rows)
 }

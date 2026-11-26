@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { BEHAVIOUR_KINDS } from '@/lib/deviceTypes'
 import { JobProgress } from '@/lib/progress'
-import { RUN_STATUSES } from '@/lib/statusCodes'
+import { RUN_STATUSES, STEP_STATUSES } from '@/lib/statusCodes'
 
 const iso = z.iso.datetime()
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).describe('HH:MM')
@@ -180,10 +180,12 @@ export const Run = z.object({
   summary: z.string().describe('The state in one line of words, made by the box: "Queued behind “LAN sweep of 10.0.0.0/16”; it starts when that run ends", "Waiting for the scan window (opens 23 Nov 2026, 23:00); 6,272 of 65,792 addresses; about 9 more nights at 50 packets/s", "Stopped: Vedette restarted", "Done: 254 of 254 addresses". Pages show it as it is'),
   blocked_by: z.object({ id: z.string(), title: z.string() }).nullable().describe('With queued: the run that holds the lane it waits for; null otherwise'),
 })
+export const StepStatus = z.enum(STEP_STATUSES).describe('The run states, and skipped: the step did not run (its note says why: an engine turned off, nothing for it to check, or the run ended before it). A queued step waits for its turn')
 export const RunStep = z.object({
-  seq: z.number().int().min(1), name: z.string().describe('A phase or a range: "192.0.2.0/24", "identify services", "ZAP passive scan"'),
-  status: RunStatus, total: z.number().int().min(0), done: z.number().int().min(0),
-  note: z.string().nullable(), started_at: iso.nullable(), ended_at: iso.nullable(),
+  seq: z.number().int().min(1), name: z.string().describe('A phase or a range: "192.0.2.0/24", "identify services", "Find open ports (every TCP port)", "OpenVAS"'),
+  status: StepStatus, total: z.number().int().min(0).describe('Units of work; an exposure scan counts each step as 1, so its run reads "3 of 8 steps"'), done: z.number().int().min(0),
+  note: z.string().nullable().describe('While it runs, where it is ("finding open ports: 41%, about 9 minutes left", "1,240 of 3,600 template checks"); once it ended or was skipped, what it found or why'),
+  started_at: iso.nullable(), ended_at: iso.nullable().describe('When it ended, or when it was skipped'),
 })
 export const RunItem = z.object({
   seq: z.number().int().min(1),

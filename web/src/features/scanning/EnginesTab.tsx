@@ -117,7 +117,7 @@ function Runs({ e, d }: { e: Engine; d: Scanning }) {
         <Card key={j.id} className="grid gap-2">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <span className="font-medium">{j.label}</span>
-            <Link to={runHref(j.id)} className="text-meta text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link>
+            <Link to={runHref(j.id, 'settings')} className="text-meta text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link>
             {/* only a LAN vulnerability check has a Stop here; the others are stopped where they are seen */}
             {e.id === 'nuclei' && can ? <Button size="sm" variant="danger" className="ml-auto" onClick={() => setStopping(j.id)}>{t('run.stop')}</Button> : null}
           </div>

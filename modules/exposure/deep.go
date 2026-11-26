@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	corerun "github.com/knt048/vedette/core/run"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -405,8 +406,10 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 		}
 		s.cfg.Log.ErrorContext(ctx, "exposure: reading the shared safety settings failed", "target", st.Value, "error", err)
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "deep", Text: notSafetyRead})
+		noAddressStep(ctx, notSafetyRead)
 		return c, nil, nil
 	}
+	rs := runStepsOf(ctx)
 	now := store.FormatTS(s.clock())
 	for _, a := range addrs {
 		if sf.excluded(a.ip) {
@@ -442,10 +445,14 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 			}
 			continue
 		}
-		got, err := s.deepIP(ctx, deepMode(st, a), a, &c)
+		key, nc, nn := addressKey(a.ip.String()), len(c.Checks), len(c.NotChecked)
+		rs.add(ctx, stepDef{key, "Deep scan of " + a.label()})
+		rs.start(ctx, key)
+		got, err := s.deepIP(withinAddress(ctx, rs, key), deepMode(st, a), a, &c)
 		if err != nil {
-			return c, scanned, err
+			return c, scanned, err // the run ends the step: stopped, or failed
 		}
+		addressStepEnd(ctx, rs, key, a.label(), got, c.Checks[nc:], c.NotChecked[nn:])
 		switch got {
 		case DeepRefused: // nothing was sent: it does not take a place
 			refused++
@@ -465,6 +472,14 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 	if waiting > maxCapLines {
 		lines = append(lines, NotCheckedRow{Kind: "deep", Text: fmt.Sprintf(notDeepCapMore, plural(waiting-maxCapLines, "more address"), MaxDeepIPs)})
 	}
+	if waiting > 0 {
+		rs.add(ctx, stepDef{stepKeyWaiting, stepNameWaiting})
+		rs.skip(ctx, stepKeyWaiting, fmt.Sprintf("%s wait for the next scans: one scan deep-scans at most %d addresses, those scanned longest ago first.",
+			nouns(waiting, "address", "addresses"), MaxDeepIPs))
+	}
+	if len(queue) == 0 {
+		noAddressStep(ctx, firstNotChecked(Content{NotChecked: lines}, notDeepNone, "deep"))
+	}
 	if private > 0 {
 		lines = append(lines, NotCheckedRow{Kind: "deep", Text: fmt.Sprintf(notDeepPrivate, plural(private, "address"))})
 	}
@@ -483,6 +498,41 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 	}
 	c.NotChecked = append(c.NotChecked, lines...)
 	return c, scanned, nil
+}
+
+// addressStepEnd ends the step of one of a domain's addresses by what its deep scan did, with the line it added (checks, not: the
+// lines of this address), without the address in front that the step's name already says.
+func addressStepEnd(ctx context.Context, rs *runSteps, key, label, got string, checks []CheckRow, not []NotCheckedRow) {
+	own := func(text string) string { return strings.TrimPrefix(text, label+": ") }
+	last := func(or string, kinds ...string) string {
+		for i := len(not) - 1; i >= 0; i-- {
+			if slices.Contains(kinds, not[i].Kind) {
+				return own(not[i].Text)
+			}
+		}
+		return or
+	}
+	switch got {
+	case DeepRefused:
+		rs.skip(ctx, key, last("Not scanned at depth: the re-check right before refused it.", "deep"))
+	case DeepIncomplete:
+		rs.end(ctx, key, corerun.Partial, last(deepNoNmap, "services", "deep"))
+	default:
+		note := "Services identified and templates run."
+		for _, r := range checks {
+			if r.Kind == "services" {
+				note = own(r.Text)
+			}
+		}
+		rs.end(ctx, key, corerun.Done, note)
+	}
+}
+
+// noAddressStep is the one step of a domain's deep scan that reached no address: skipped, with why.
+func noAddressStep(ctx context.Context, why string) {
+	rs := runStepsOf(ctx)
+	rs.add(ctx, stepDef{addressKey("none"), "Deep scan of the names' addresses"})
+	rs.skip(ctx, addressKey("none"), why)
 }
 
 // deepMode is the run's ScanTarget for one address: an address reached only through a name that points (CNAME) outside the domain

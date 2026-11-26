@@ -78,3 +78,22 @@ func TestOwnProofWindowIsValidDays(t *testing.T) {
 		t.Fatalf("egressip %v/%v, exposure %d days/%v", egressip.ProofValid, egressip.ProofSlack, ValidDays, clockSlack)
 	}
 }
+
+// A sighting stored while the box's clock was ahead (a wrong real-time clock that NTP corrected) does not say when the box last went
+// out through the address. The gate keeps such an IP scannable (provedAt clamps the time to now), but the executors get no proof
+// from it: a proof dated "now" would let them skip their own sighting for an address the box may not have seen for months. Without
+// a proof they ask for a sighting of their own, as before.
+func TestOwnIPProofOfASightingDatedInTheFutureIsNone(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.committedIP(ipA)
+	e.advance(-30 * 24 * time.Hour) // NTP set the clock back: the stored sighting lies 30 days ahead
+	e.fullAs(ipB)                   // the box goes out through another address now, so nothing renews ipA
+	at, ok, err := e.svc.OwnIPProof(e.ctx(), "admin@acme.example", netip.MustParseAddr(ipA))
+	if err != nil || !ok {
+		t.Fatalf("gate %v %v: the address stays scannable", ok, err)
+	}
+	if !at.IsZero() {
+		t.Fatalf("proof %v from a sighting dated in the future, want none (the executors' own sighting decides)", at)
+	}
+}

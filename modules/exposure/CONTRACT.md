@@ -39,7 +39,8 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   else one full probe): a sighting renews it (INV-4). An IP it does not go out through now (a second Internet line, a router that
   balances two lines, a failover) stays scannable by every step until its 90 days run out, and the node says so (`not_current`).
   The executors' own-IP fences take it on the same proof: `OwnIPProof` gives the latest sighting the gate's yes rests on
-  (`Target.ownProof`, only for an IP the box found, `box_egress`; never for a typed IP), sensor-active sends it with each nmap and
+  (`Target.ownProof`, only for an IP the box found, `box_egress`; never for a typed IP, nor from a sighting stored ahead of the
+  clock: `TestOwnIPProofOfASightingDatedInTheFutureIsNone`), sensor-active sends it with each nmap and
   nuclei job (`proven_at`), the web step with each ZAP page (`ScanTarget.ProvenAt`), and the scan container and vedette-host accept
   the address while it holds (`egressip.ProofHolds`, the same 90 days and 5 minutes of clock slack: `TestOwnProofWindowIsValidDays`),
   else they ask for a sighting of their own as before. OpenVAS's own-IP check (`gbOwnNow`) is the same gate

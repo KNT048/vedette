@@ -123,6 +123,7 @@ type omWire struct {
 	net     omNet
 	ip      string
 	pathErr bool
+	sameErr bool // the comparison of a target's answer with the network's fails
 	nmapErr error
 	// A domain's scan: class is the kind of the name's address (ClassPublic: hosting; ClassBox: the box's own IP); allPorts makes
 	// the runner report every port of that address (it stands in for an earlier deep scan); dnsFails makes the name's lookup get no
@@ -281,6 +282,7 @@ type omRow struct {
 	dnsFails     bool // the now scans get no answer to the name's lookup
 	carryFlags   bool // with dnsFails: the carried row keeps the scan before's flags
 	distinct     []int
+	sameErr      bool // the comparison of the target's answer with the network's fails (the connect check itself works)
 	want         omWant
 	// decision names the product rule the row's expectation changes; "" when the expectation follows the rules as written.
 	decision string
@@ -509,6 +511,14 @@ var omRows = []omRow{
 		now: omPath(omHost(omSilence, 22, 80, 443), omSynAck, 22), distinct: []int{22},
 		want: omWant{open: []int{22, 80, 443}, run: corerun.Done},
 	},
+	{
+		// A real SSH row stored before the vantage was checked; now the network accepts 22 for every address and the comparison of
+		// the target's banner with the network's fails. A comparison that did not run says nothing about the target: the row stays.
+		name: "middlebox_proxy/stored_before_the_check/row_kept_when_the_comparison_fails", kind: omTyped,
+		before: []omNet{omHost(omReset, 22)}, beforeNoPath: true, now: omPath(omHost(omReset, 22), omSynAck, 22), distinct: []int{22},
+		sameErr: true,
+		want:    omWant{open: []int{22}},
+	},
 }
 
 // omFence is the Vedette host's fence for a typed IP: it gives the target's own token.
@@ -574,16 +584,16 @@ func newOMEnv(t *testing.T, kind omKind) *omEnv {
 
 // omScan is how one scan of a row runs.
 type omScan struct {
-	path, pathErr, allPorts, dnsFails, carryFlags bool
-	nmapErr                                       error
-	distinct                                      []int
+	path, pathErr, sameErr, allPorts, dnsFails, carryFlags bool
+	nmapErr                                                error
+	distinct                                               []int
 }
 
 // scan runs one scan of the target over n (the deep scan for an IP target).
 func (o *omEnv) scan(n omNet, how omScan) ScanResult {
 	o.t.Helper()
 	o.wire.mu.Lock()
-	o.wire.net, o.wire.pathErr, o.wire.nmapErr = n, how.pathErr, how.nmapErr
+	o.wire.net, o.wire.pathErr, o.wire.sameErr, o.wire.nmapErr = n, how.pathErr, how.sameErr, how.nmapErr
 	o.wire.allPorts, o.wire.dnsFails, o.wire.carryFlags, o.wire.distinct = how.allPorts, how.dnsFails, how.carryFlags, how.distinct
 	o.wire.mu.Unlock()
 	o.svc.cfg.Path = nil
@@ -628,7 +638,7 @@ func runRow(t *testing.T, row omRow) ([]string, corerun.Detail) {
 		if i > 0 {
 			o.advance(gap)
 		}
-		r = o.scan(row.now, omScan{path: true, pathErr: row.pathErr, nmapErr: row.nmapErr, dnsFails: row.dnsFails, carryFlags: row.carryFlags, distinct: row.distinct})
+		r = o.scan(row.now, omScan{path: true, pathErr: row.pathErr, sameErr: row.sameErr, nmapErr: row.nmapErr, dnsFails: row.dnsFails, carryFlags: row.carryFlags, distinct: row.distinct})
 	}
 	d := o.runDetail(o.ctx(), r.RunID)
 	var diff []string

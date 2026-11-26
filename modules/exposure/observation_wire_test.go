@@ -22,7 +22,7 @@ func (w *omWire) PathAnswers(_ context.Context, ports []int) (map[int]string, er
 }
 
 func (w *omWire) SameAsPath(_ context.Context, _ netip.Addr, port int) (bool, error) {
-	if w.pathErr {
+	if w.pathErr || w.sameErr {
 		return false, errors.New("the check could not run")
 	}
 	w.mu.Lock()

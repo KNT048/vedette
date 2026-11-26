@@ -179,13 +179,13 @@ func (h *ExposureHandlers) ExposurePostExposureTargetsIDOpenvas(context.Context,
 }
 
 // ExposurePutExposureTargetsIDTerms implements exposure_put_exposure_targets_id_terms (admin with two-step): accept the testing terms
-// of a verified target, with or without the disruptive tick.
+// of a verified target, the disruptive checks included. The request's optional disruptive field (sent by older pages) is ignored.
 func (h *ExposureHandlers) ExposurePutExposureTargetsIDTerms(ctx context.Context, req *oas.ExposurePutExposureTargetsIDTermsReq, params oas.ExposurePutExposureTargetsIDTermsParams) (*oas.ExposurePutExposureTargetsIDTermsOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
 	}
-	v, err := h.svc.AcceptTerms(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID, req.Version, req.Disruptive)
+	v, err := h.svc.AcceptTerms(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID, req.Version)
 	if err != nil {
 		return nil, ToAPIError(err)
 	}
@@ -480,13 +480,14 @@ func (h *ExposureHandlers) ExposurePostExposureTreeIDVerify(ctx context.Context,
 	}{r.Verified, r.Message, n})
 }
 
-// ExposurePutExposureTreeIDTerms implements exposure_put_exposure_tree_id_terms (admin with two-step): accept the testing terms.
+// ExposurePutExposureTreeIDTerms implements exposure_put_exposure_tree_id_terms (admin with two-step): accept the testing terms, the
+// disruptive checks included; the request's optional disruptive field is ignored.
 func (h *ExposureHandlers) ExposurePutExposureTreeIDTerms(ctx context.Context, req *oas.ExposurePutExposureTreeIDTermsReq, params oas.ExposurePutExposureTreeIDTermsParams) (*oas.ExposurePutExposureTreeIDTermsOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
 	}
-	if _, err := h.svc.AcceptTerms(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID, req.Version, req.Disruptive); err != nil {
+	if _, err := h.svc.AcceptTerms(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID, req.Version); err != nil {
 		return nil, ToAPIError(err)
 	}
 	n, err := h.svc.Node(ctx, params.ID)

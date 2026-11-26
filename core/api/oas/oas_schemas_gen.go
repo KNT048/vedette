@@ -48476,13 +48476,14 @@ type ExposureDeleteExposureTargetsIDTermsOK struct {
 	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
 	// file not found since).
 	Status ExposureDeleteExposureTargetsIDTermsOKStatus `json:"status"`
-	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
-	// count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with
+	// its own text and disruptive flag; one of an older version does not count (full_scan is false) until
+	// accepted again.
 	Terms NilExposureDeleteExposureTargetsIDTermsOKTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposureDeleteExposureTargetsIDTermsOKTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
-	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
@@ -49847,10 +49848,13 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKStatus) UnmarshalText(data []byte
 type ExposureDeleteExposureTargetsIDTermsOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// that send more than a harmless read too.
+	// The disruptive checks are included (denial of service, password guessing, default-password sign-ins
+	// and exploit checks that send more than a harmless read): always true for the current terms; false
+	// only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until
+	// the terms are accepted again.
 	Disruptive bool `json:"disruptive"`
-	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	// The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the
+	// tick's sentence as the last line).
 	Text    string `json:"text"`
 	Version string `json:"version"`
 }
@@ -49907,16 +49911,10 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKTerms) SetVersion(val string) {
 
 // The current testing terms for this target, to accept or to read again.
 type ExposureDeleteExposureTargetsIDTermsOKTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -49927,11 +49925,6 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposureDeleteExposureTargetsIDTermsOKTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -50069,7 +50062,8 @@ type ExposureDeleteExposureTreeIDTermsOK struct {
 	Terms NilExposureDeleteExposureTreeIDTermsOKTerms `json:"terms"`
 	// The current testing terms for this node, to accept or read again.
 	TermsNotice ExposureDeleteExposureTreeIDTermsOKTermsNotice `json:"terms_notice"`
-	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	// IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a
+	// typed IP: its own warning (the terms can be accepted).
 	TermsWarning NilString `json:"terms_warning"`
 	Value        string    `json:"value"`
 }
@@ -50315,7 +50309,9 @@ func (s *ExposureDeleteExposureTreeIDTermsOKBlocked) UnmarshalText(data []byte) 
 type ExposureDeleteExposureTreeIDTermsOKCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -51446,7 +51442,9 @@ func (s *ExposureDeleteExposureTreeIDTermsOKScopeMode) UnmarshalText(data []byte
 type ExposureDeleteExposureTreeIDTermsOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -51505,16 +51503,10 @@ func (s *ExposureDeleteExposureTreeIDTermsOKTerms) SetVersion(val string) {
 
 // The current testing terms for this node, to accept or read again.
 type ExposureDeleteExposureTreeIDTermsOKTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -51525,11 +51517,6 @@ func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposureDeleteExposureTreeIDTermsOKTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -53032,13 +53019,14 @@ type ExposureGetExposureTargetsIDOK struct {
 	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
 	// file not found since).
 	Status ExposureGetExposureTargetsIDOKStatus `json:"status"`
-	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
-	// count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with
+	// its own text and disruptive flag; one of an older version does not count (full_scan is false) until
+	// accepted again.
 	Terms NilExposureGetExposureTargetsIDOKTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposureGetExposureTargetsIDOKTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
-	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
@@ -54403,10 +54391,13 @@ func (s *ExposureGetExposureTargetsIDOKStatus) UnmarshalText(data []byte) error 
 type ExposureGetExposureTargetsIDOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// that send more than a harmless read too.
+	// The disruptive checks are included (denial of service, password guessing, default-password sign-ins
+	// and exploit checks that send more than a harmless read): always true for the current terms; false
+	// only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until
+	// the terms are accepted again.
 	Disruptive bool `json:"disruptive"`
-	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	// The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the
+	// tick's sentence as the last line).
 	Text    string `json:"text"`
 	Version string `json:"version"`
 }
@@ -54463,16 +54454,10 @@ func (s *ExposureGetExposureTargetsIDOKTerms) SetVersion(val string) {
 
 // The current testing terms for this target, to accept or to read again.
 type ExposureGetExposureTargetsIDOKTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposureGetExposureTargetsIDOKTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -54483,11 +54468,6 @@ func (s *ExposureGetExposureTargetsIDOKTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposureGetExposureTargetsIDOKTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposureGetExposureTargetsIDOKTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -58166,13 +58146,14 @@ type ExposureGetExposureTargetsOKItemsItem struct {
 	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
 	// file not found since).
 	Status ExposureGetExposureTargetsOKItemsItemStatus `json:"status"`
-	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
-	// count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with
+	// its own text and disruptive flag; one of an older version does not count (full_scan is false) until
+	// accepted again.
 	Terms NilExposureGetExposureTargetsOKItemsItemTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposureGetExposureTargetsOKItemsItemTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
-	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
@@ -59537,10 +59518,13 @@ func (s *ExposureGetExposureTargetsOKItemsItemStatus) UnmarshalText(data []byte)
 type ExposureGetExposureTargetsOKItemsItemTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// that send more than a harmless read too.
+	// The disruptive checks are included (denial of service, password guessing, default-password sign-ins
+	// and exploit checks that send more than a harmless read): always true for the current terms; false
+	// only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until
+	// the terms are accepted again.
 	Disruptive bool `json:"disruptive"`
-	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	// The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the
+	// tick's sentence as the last line).
 	Text    string `json:"text"`
 	Version string `json:"version"`
 }
@@ -59597,16 +59581,10 @@ func (s *ExposureGetExposureTargetsOKItemsItemTerms) SetVersion(val string) {
 
 // The current testing terms for this target, to accept or to read again.
 type ExposureGetExposureTargetsOKItemsItemTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -59617,11 +59595,6 @@ func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposureGetExposureTargetsOKItemsItemTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -60768,7 +60741,8 @@ type ExposureGetExposureTreeIDOK struct {
 	Terms NilExposureGetExposureTreeIDOKTerms `json:"terms"`
 	// The current testing terms for this node, to accept or read again.
 	TermsNotice ExposureGetExposureTreeIDOKTermsNotice `json:"terms_notice"`
-	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	// IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a
+	// typed IP: its own warning (the terms can be accepted).
 	TermsWarning NilString `json:"terms_warning"`
 	Value        string    `json:"value"`
 }
@@ -61014,7 +60988,9 @@ func (s *ExposureGetExposureTreeIDOKBlocked) UnmarshalText(data []byte) error {
 type ExposureGetExposureTreeIDOKCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -62145,7 +62121,9 @@ func (s *ExposureGetExposureTreeIDOKScopeMode) UnmarshalText(data []byte) error 
 type ExposureGetExposureTreeIDOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -62204,16 +62182,10 @@ func (s *ExposureGetExposureTreeIDOKTerms) SetVersion(val string) {
 
 // The current testing terms for this node, to accept or read again.
 type ExposureGetExposureTreeIDOKTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposureGetExposureTreeIDOKTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -62224,11 +62196,6 @@ func (s *ExposureGetExposureTreeIDOKTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposureGetExposureTreeIDOKTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposureGetExposureTreeIDOKTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -63272,7 +63239,8 @@ type ExposureGetExposureTreeOKItemsItem struct {
 	Terms NilExposureGetExposureTreeOKItemsItemTerms `json:"terms"`
 	// The current testing terms for this node, to accept or read again.
 	TermsNotice ExposureGetExposureTreeOKItemsItemTermsNotice `json:"terms_notice"`
-	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	// IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a
+	// typed IP: its own warning (the terms can be accepted).
 	TermsWarning NilString `json:"terms_warning"`
 	Value        string    `json:"value"`
 }
@@ -63518,7 +63486,9 @@ func (s *ExposureGetExposureTreeOKItemsItemBlocked) UnmarshalText(data []byte) e
 type ExposureGetExposureTreeOKItemsItemCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -64649,7 +64619,9 @@ func (s *ExposureGetExposureTreeOKItemsItemScopeMode) UnmarshalText(data []byte)
 type ExposureGetExposureTreeOKItemsItemTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -64708,16 +64680,10 @@ func (s *ExposureGetExposureTreeOKItemsItemTerms) SetVersion(val string) {
 
 // The current testing terms for this node, to accept or read again.
 type ExposureGetExposureTreeOKItemsItemTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -64728,11 +64694,6 @@ func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposureGetExposureTreeOKItemsItemTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -64778,7 +64739,8 @@ type ExposurePatchExposureTreeIDOK struct {
 	Terms NilExposurePatchExposureTreeIDOKTerms `json:"terms"`
 	// The current testing terms for this node, to accept or read again.
 	TermsNotice ExposurePatchExposureTreeIDOKTermsNotice `json:"terms_notice"`
-	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	// IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a
+	// typed IP: its own warning (the terms can be accepted).
 	TermsWarning NilString `json:"terms_warning"`
 	Value        string    `json:"value"`
 }
@@ -65024,7 +64986,9 @@ func (s *ExposurePatchExposureTreeIDOKBlocked) UnmarshalText(data []byte) error 
 type ExposurePatchExposureTreeIDOKCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -66155,7 +66119,9 @@ func (s *ExposurePatchExposureTreeIDOKScopeMode) UnmarshalText(data []byte) erro
 type ExposurePatchExposureTreeIDOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -66214,16 +66180,10 @@ func (s *ExposurePatchExposureTreeIDOKTerms) SetVersion(val string) {
 
 // The current testing terms for this node, to accept or read again.
 type ExposurePatchExposureTreeIDOKTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposurePatchExposureTreeIDOKTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -66234,11 +66194,6 @@ func (s *ExposurePatchExposureTreeIDOKTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposurePatchExposureTreeIDOKTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposurePatchExposureTreeIDOKTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -66418,13 +66373,14 @@ type ExposurePostExposureBoxIPVerifyOKItemsItem struct {
 	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
 	// file not found since).
 	Status ExposurePostExposureBoxIPVerifyOKItemsItemStatus `json:"status"`
-	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
-	// count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with
+	// its own text and disruptive flag; one of an older version does not count (full_scan is false) until
+	// accepted again.
 	Terms NilExposurePostExposureBoxIPVerifyOKItemsItemTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
-	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
@@ -67789,10 +67745,13 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemStatus) UnmarshalText(data []
 type ExposurePostExposureBoxIPVerifyOKItemsItemTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// that send more than a harmless read too.
+	// The disruptive checks are included (denial of service, password guessing, default-password sign-ins
+	// and exploit checks that send more than a harmless read): always true for the current terms; false
+	// only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until
+	// the terms are accepted again.
 	Disruptive bool `json:"disruptive"`
-	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	// The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the
+	// tick's sentence as the last line).
 	Text    string `json:"text"`
 	Version string `json:"version"`
 }
@@ -67849,16 +67808,10 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTerms) SetVersion(val string)
 
 // The current testing terms for this target, to accept or to read again.
 type ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -67869,11 +67822,6 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) GetText() string
 // GetVersion returns the value of Version.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposurePostExposureBoxIPVerifyOKItemsItemTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -68854,13 +68802,14 @@ type ExposurePostExposureTargetsCreated struct {
 	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
 	// file not found since).
 	Status ExposurePostExposureTargetsCreatedStatus `json:"status"`
-	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
-	// count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with
+	// its own text and disruptive flag; one of an older version does not count (full_scan is false) until
+	// accepted again.
 	Terms NilExposurePostExposureTargetsCreatedTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePostExposureTargetsCreatedTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
-	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
@@ -70225,10 +70174,13 @@ func (s *ExposurePostExposureTargetsCreatedStatus) UnmarshalText(data []byte) er
 type ExposurePostExposureTargetsCreatedTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// that send more than a harmless read too.
+	// The disruptive checks are included (denial of service, password guessing, default-password sign-ins
+	// and exploit checks that send more than a harmless read): always true for the current terms; false
+	// only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until
+	// the terms are accepted again.
 	Disruptive bool `json:"disruptive"`
-	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	// The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the
+	// tick's sentence as the last line).
 	Text    string `json:"text"`
 	Version string `json:"version"`
 }
@@ -70285,16 +70237,10 @@ func (s *ExposurePostExposureTargetsCreatedTerms) SetVersion(val string) {
 
 // The current testing terms for this target, to accept or to read again.
 type ExposurePostExposureTargetsCreatedTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposurePostExposureTargetsCreatedTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -70305,11 +70251,6 @@ func (s *ExposurePostExposureTargetsCreatedTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposurePostExposureTargetsCreatedTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposurePostExposureTargetsCreatedTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -71987,13 +71928,14 @@ type ExposurePostExposureTargetsIDVerifyOKTarget struct {
 	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
 	// file not found since).
 	Status ExposurePostExposureTargetsIDVerifyOKTargetStatus `json:"status"`
-	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
-	// count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with
+	// its own text and disruptive flag; one of an older version does not count (full_scan is false) until
+	// accepted again.
 	Terms NilExposurePostExposureTargetsIDVerifyOKTargetTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
-	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
@@ -73358,10 +73300,13 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetStatus) UnmarshalText(data [
 type ExposurePostExposureTargetsIDVerifyOKTargetTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// that send more than a harmless read too.
+	// The disruptive checks are included (denial of service, password guessing, default-password sign-ins
+	// and exploit checks that send more than a harmless read): always true for the current terms; false
+	// only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until
+	// the terms are accepted again.
 	Disruptive bool `json:"disruptive"`
-	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	// The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the
+	// tick's sentence as the last line).
 	Text    string `json:"text"`
 	Version string `json:"version"`
 }
@@ -73418,16 +73363,10 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetTerms) SetVersion(val string
 
 // The current testing terms for this target, to accept or to read again.
 type ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -73438,11 +73377,6 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) GetText() strin
 // GetVersion returns the value of Version.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposurePostExposureTargetsIDVerifyOKTargetTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -73602,7 +73536,8 @@ type ExposurePostExposureTreeCreated struct {
 	Terms NilExposurePostExposureTreeCreatedTerms `json:"terms"`
 	// The current testing terms for this node, to accept or read again.
 	TermsNotice ExposurePostExposureTreeCreatedTermsNotice `json:"terms_notice"`
-	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	// IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a
+	// typed IP: its own warning (the terms can be accepted).
 	TermsWarning NilString `json:"terms_warning"`
 	Value        string    `json:"value"`
 }
@@ -73848,7 +73783,9 @@ func (s *ExposurePostExposureTreeCreatedBlocked) UnmarshalText(data []byte) erro
 type ExposurePostExposureTreeCreatedCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -74979,7 +74916,9 @@ func (s *ExposurePostExposureTreeCreatedScopeMode) UnmarshalText(data []byte) er
 type ExposurePostExposureTreeCreatedTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -75038,16 +74977,10 @@ func (s *ExposurePostExposureTreeCreatedTerms) SetVersion(val string) {
 
 // The current testing terms for this node, to accept or read again.
 type ExposurePostExposureTreeCreatedTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposurePostExposureTreeCreatedTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -75058,11 +74991,6 @@ func (s *ExposurePostExposureTreeCreatedTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposurePostExposureTreeCreatedTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposurePostExposureTreeCreatedTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -75553,7 +75481,8 @@ type ExposurePostExposureTreeIDVerifyOKNode struct {
 	Terms NilExposurePostExposureTreeIDVerifyOKNodeTerms `json:"terms"`
 	// The current testing terms for this node, to accept or read again.
 	TermsNotice ExposurePostExposureTreeIDVerifyOKNodeTermsNotice `json:"terms_notice"`
-	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	// IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a
+	// typed IP: its own warning (the terms can be accepted).
 	TermsWarning NilString `json:"terms_warning"`
 	Value        string    `json:"value"`
 }
@@ -75799,7 +75728,9 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeBlocked) UnmarshalText(data []byt
 type ExposurePostExposureTreeIDVerifyOKNodeCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -76930,7 +76861,9 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeScopeMode) UnmarshalText(data []b
 type ExposurePostExposureTreeIDVerifyOKNodeTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -76989,16 +76922,10 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeTerms) SetVersion(val string) {
 
 // The current testing terms for this node, to accept or read again.
 type ExposurePostExposureTreeIDVerifyOKNodeTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -77009,11 +76936,6 @@ func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposurePostExposureTreeIDVerifyOKNodeTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -77655,13 +77577,14 @@ type ExposurePutExposureTargetsIDTermsOK struct {
 	// Expired: the proof has not passed for more than 90 days (an IP the box has not seen, a record or
 	// file not found since).
 	Status ExposurePutExposureTargetsIDTermsOKStatus `json:"status"`
-	// The acceptance of the testing terms; null when none. An acceptance of an older version does not
-	// count (full_scan is false) until accepted again.
+	// The acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with
+	// its own text and disruptive flag; one of an older version does not count (full_scan is false) until
+	// accepted again.
 	Terms NilExposurePutExposureTargetsIDTermsOKTerms `json:"terms"`
 	// The current testing terms for this target, to accept or to read again.
 	TermsNotice ExposurePutExposureTargetsIDTermsOKTermsNotice `json:"terms_notice"`
 	// GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in
-	// 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409
+	// 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409
 	// shared_address) while it shows.
 	TermsWarning OptNilString `json:"terms_warning"`
 	// Domain: the token in the TXT record vedette-verify= (not secret, it is public in DNS). Typed IP: the
@@ -79026,10 +78949,13 @@ func (s *ExposurePutExposureTargetsIDTermsOKStatus) UnmarshalText(data []byte) e
 type ExposurePutExposureTargetsIDTermsOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks
-	// that send more than a harmless read too.
+	// The disruptive checks are included (denial of service, password guessing, default-password sign-ins
+	// and exploit checks that send more than a harmless read): always true for the current terms; false
+	// only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until
+	// the terms are accepted again.
 	Disruptive bool `json:"disruptive"`
-	// The exact terms the administrator accepted, with the tick's sentence as the last line when ticked.
+	// The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the
+	// tick's sentence as the last line).
 	Text    string `json:"text"`
 	Version string `json:"version"`
 }
@@ -79086,16 +79012,10 @@ func (s *ExposurePutExposureTargetsIDTermsOKTerms) SetVersion(val string) {
 
 // The current testing terms for this target, to accept or to read again.
 type ExposurePutExposureTargetsIDTermsOKTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -79106,11 +79026,6 @@ func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposurePutExposureTargetsIDTermsOKTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -79172,13 +79087,14 @@ func (s *ExposurePutExposureTargetsIDTermsOKValidity) UnmarshalText(data []byte)
 }
 
 type ExposurePutExposureTargetsIDTermsReq struct {
-	Disruptive bool `json:"disruptive"`
+	// Ignored (sent by older pages): every acceptance includes the disruptive checks.
+	Disruptive OptBool `json:"disruptive"`
 	// Terms_notice.version as the page showed it.
 	Version string `json:"version"`
 }
 
 // GetDisruptive returns the value of Disruptive.
-func (s *ExposurePutExposureTargetsIDTermsReq) GetDisruptive() bool {
+func (s *ExposurePutExposureTargetsIDTermsReq) GetDisruptive() OptBool {
 	return s.Disruptive
 }
 
@@ -79188,7 +79104,7 @@ func (s *ExposurePutExposureTargetsIDTermsReq) GetVersion() string {
 }
 
 // SetDisruptive sets the value of Disruptive.
-func (s *ExposurePutExposureTargetsIDTermsReq) SetDisruptive(val bool) {
+func (s *ExposurePutExposureTargetsIDTermsReq) SetDisruptive(val OptBool) {
 	s.Disruptive = val
 }
 
@@ -79230,7 +79146,8 @@ type ExposurePutExposureTreeIDTermsOK struct {
 	Terms NilExposurePutExposureTreeIDTermsOKTerms `json:"terms"`
 	// The current testing terms for this node, to accept or read again.
 	TermsNotice ExposurePutExposureTreeIDTermsOKTermsNotice `json:"terms_notice"`
-	// IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused.
+	// IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a
+	// typed IP: its own warning (the terms can be accepted).
 	TermsWarning NilString `json:"terms_warning"`
 	Value        string    `json:"value"`
 }
@@ -79476,7 +79393,9 @@ func (s *ExposurePutExposureTreeIDTermsOKBlocked) UnmarshalText(data []byte) err
 type ExposurePutExposureTreeIDTermsOKCommitment struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -80607,7 +80526,9 @@ func (s *ExposurePutExposureTreeIDTermsOKScopeMode) UnmarshalText(data []byte) e
 type ExposurePutExposureTreeIDTermsOKTerms struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
-	// Testing terms only: the disruptive checks were ticked too; false for the scan confirmation.
+	// Testing terms only: the disruptive checks are included (always for the current terms; false for an
+	// acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for
+	// the scan confirmation.
 	Disruptive bool `json:"disruptive"`
 	// The exact text accepted, with the target in it.
 	Text    string `json:"text"`
@@ -80666,16 +80587,10 @@ func (s *ExposurePutExposureTreeIDTermsOKTerms) SetVersion(val string) {
 
 // The current testing terms for this node, to accept or read again.
 type ExposurePutExposureTreeIDTermsOKTermsNotice struct {
-	// The sentence of the extra tick, off by default.
-	Disruptive string `json:"disruptive"`
-	// The terms with the target in them, one paragraph per line.
+	// The terms with the target in them, one paragraph per line; the disruptive checks are one of the
+	// paragraphs.
 	Text    string `json:"text"`
 	Version string `json:"version"`
-}
-
-// GetDisruptive returns the value of Disruptive.
-func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) GetDisruptive() string {
-	return s.Disruptive
 }
 
 // GetText returns the value of Text.
@@ -80686,11 +80601,6 @@ func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) GetText() string {
 // GetVersion returns the value of Version.
 func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) GetVersion() string {
 	return s.Version
-}
-
-// SetDisruptive sets the value of Disruptive.
-func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) SetDisruptive(val string) {
-	s.Disruptive = val
 }
 
 // SetText sets the value of Text.
@@ -80704,12 +80614,13 @@ func (s *ExposurePutExposureTreeIDTermsOKTermsNotice) SetVersion(val string) {
 }
 
 type ExposurePutExposureTreeIDTermsReq struct {
-	Disruptive bool   `json:"disruptive"`
-	Version    string `json:"version"`
+	// Ignored (sent by older pages): every acceptance includes the disruptive checks.
+	Disruptive OptBool `json:"disruptive"`
+	Version    string  `json:"version"`
 }
 
 // GetDisruptive returns the value of Disruptive.
-func (s *ExposurePutExposureTreeIDTermsReq) GetDisruptive() bool {
+func (s *ExposurePutExposureTreeIDTermsReq) GetDisruptive() OptBool {
 	return s.Disruptive
 }
 
@@ -80719,7 +80630,7 @@ func (s *ExposurePutExposureTreeIDTermsReq) GetVersion() string {
 }
 
 // SetDisruptive sets the value of Disruptive.
-func (s *ExposurePutExposureTreeIDTermsReq) SetDisruptive(val bool) {
+func (s *ExposurePutExposureTreeIDTermsReq) SetDisruptive(val OptBool) {
 	s.Disruptive = val
 }
 

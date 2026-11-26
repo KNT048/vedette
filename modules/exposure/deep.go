@@ -463,7 +463,7 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 }
 
 // deepMode is the run's ScanTarget for one address: an address reached only through a name that points (CNAME) outside the domain
-// never gets the disruptive checks, whatever the tick: the owner of that other name chooses the address.
+// never gets the disruptive checks, whatever the terms: the owner of that other name chooses the address.
 func deepMode(st ScanTarget, a deepAddr) ScanTarget {
 	if !a.inZone {
 		st.Mode.Disruptive = false

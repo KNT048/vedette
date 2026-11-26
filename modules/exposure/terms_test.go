@@ -28,43 +28,36 @@ func (e *env) auditDetails(action string) []string {
 }
 
 // The testing terms are accepted per verified target by an administrator with two-step sign-in, stored with who, when,
-// the version, the text and the disruptive flag, and audited with the flag; accepting the same again changes nothing, the tick is a
-// new acceptance, withdrawing is always possible, and a new version asks again.
+// the version, the text and the disruptive flag (always on), and audited with the flag; accepting the same again changes nothing,
+// withdrawing is always possible, and a new version asks again.
 func TestTerms_StoredAuditedWithdrawnAndAskedAgain(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.detect(ipA)[0].ID
 	v := e.target(id)
-	if v.Terms != nil || v.FullScan || v.TermsNotice.Version != TermsVersion || !strings.Contains(v.TermsNotice.Text, "owns "+ipA) || v.TermsNotice.Disruptive != termsDisruptive {
+	if v.Terms != nil || v.FullScan || v.TermsNotice.Version != TermsVersion || !strings.Contains(v.TermsNotice.Text, "owns "+ipA) || !strings.Contains(v.TermsNotice.Text, "\n"+termsDisruptive+"\n") {
 		t.Fatalf("before = %+v", v)
 	}
-	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, false)
+	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion)
 	wantAPI(t, err, 403, "twofa_required")
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
-	_, err = e.svc.AcceptTerms(e.ctx(), termsAdmin, id, "2020-01-01", false)
+	_, err = e.svc.AcceptTerms(e.ctx(), termsAdmin, id, "2020-01-01")
 	wantAPI(t, err, 409, "notice_changed")
-	_, err = e.svc.AcceptTerms(e.ctx(), Actor{ID: "u-op", Email: "op@acme.example"}, id, TermsVersion, false)
+	_, err = e.svc.AcceptTerms(e.ctx(), Actor{ID: "u-op", Email: "op@acme.example"}, id, TermsVersion)
 	wantAPI(t, err, 403, "forbidden")
 
-	v = e.acceptTerms(id, false)
-	if v.Terms == nil || !v.FullScan || v.Terms.By != "admin@acme.example" || v.Terms.Disruptive || v.Terms.Text != v.TermsNotice.Text || !v.Terms.current() || !v.Commitment.current() {
+	v = e.acceptTerms(id, true)
+	if v.Terms == nil || !v.FullScan || v.Terms.By != "admin@acme.example" || !v.Terms.Disruptive || v.Terms.Text != v.TermsNotice.Text || !v.Terms.current() || !v.Commitment.current() {
 		t.Fatalf("accepted = %+v", v)
 	}
 	acc := e.auditDetails("exposure.terms_accept")
-	if len(acc) != 1 || !strings.HasPrefix(acc[0], "accepted (disruptive checks: no, user u-admin, two-step: app, terms "+TermsVersion+"): I confirm") ||
+	if len(acc) != 1 || !strings.HasPrefix(acc[0], "accepted (disruptive checks: yes, user u-admin, two-step: app, terms "+TermsVersion+"): I confirm") ||
 		len(e.auditDetails("exposure.commitment")) != 1 {
 		t.Fatalf("audit = %q", acc)
 	}
-	e.acceptTerms(id, false)
+	e.acceptTerms(id, true)
 	if len(e.auditDetails("exposure.terms_accept")) != 1 {
 		t.Fatal("accepting the same again wrote a row")
-	}
-	v = e.acceptTerms(id, true)
-	if !v.Terms.Disruptive || !strings.HasSuffix(v.Terms.Text, "\n"+termsDisruptive) || e.target(id).Terms.Disruptive != true {
-		t.Fatalf("with the tick = %+v", v.Terms)
-	}
-	if acc = e.auditDetails("exposure.terms_accept"); len(acc) != 2 || !strings.Contains(acc[1], "disruptive checks: yes, user") {
-		t.Fatalf("audit = %q", acc)
 	}
 	v, err = e.svc.RevokeTerms(e.ctx(), "admin@acme.example", id)
 	if err != nil || v.Terms != nil || v.FullScan {
@@ -74,7 +67,7 @@ func TestTerms_StoredAuditedWithdrawnAndAskedAgain(t *testing.T) {
 		t.Fatalf("audit = %q", r)
 	}
 	// a new version of the terms: the old acceptance no longer counts until accepted again
-	e.acceptTerms(id, false)
+	e.acceptTerms(id, true)
 	if err := e.db.Write(e.ctx(), func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(e.ctx(), `UPDATE exp_consent SET version = '2020-01-01' WHERE target_id = ? AND kind = 'terms'`, id)
 		return err
@@ -84,7 +77,7 @@ func TestTerms_StoredAuditedWithdrawnAndAskedAgain(t *testing.T) {
 	if v = e.target(id); v.FullScan || v.Terms == nil {
 		t.Fatalf("old version = %+v", v)
 	}
-	e.acceptTerms(id, false)
+	e.acceptTerms(id, true)
 	if acc = e.auditDetails("exposure.terms_accept"); !strings.HasPrefix(acc[len(acc)-1], "accepted again (replaces terms 2020-01-01") || !e.target(id).FullScan {
 		t.Fatalf("audit = %q", acc)
 	}
@@ -99,7 +92,7 @@ func TestTerms_OnlyAVerifiedTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.svc.AcceptTerms(e.ctx(), termsAdmin, d.ID, TermsVersion, false)
+	_, err = e.svc.AcceptTerms(e.ctx(), termsAdmin, d.ID, TermsVersion)
 	wantAPI(t, err, 409, "not_verified")
 }
 
@@ -110,8 +103,8 @@ func (r *modeRunner) Scan(_ context.Context, t ScanTarget) (Content, error) {
 	return Content{}, nil
 }
 
-// The scanner seams receive the accepted level in ScanTarget.Mode: the K-4 scope without terms, Full with them, and
-// Disruptive only with the tick.
+// The scanner seams receive the accepted level in ScanTarget.Mode: the K-4 scope without terms, Full with an older acceptance
+// without the disruptive checks, and Full and Disruptive with the current terms.
 func TestTerms_ModeReachesTheScanners(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -139,7 +132,7 @@ func TestTerms_ModeReachesTheScanners(t *testing.T) {
 	}
 }
 
-// The terms the mock shows are the backend's: contract.ts holds the same version, text and tick.
+// The terms the mock shows are the backend's: contract.ts holds the same version and texts.
 func TestTermsMatchTheContractOfTheGUI(t *testing.T) {
 	t.Parallel()
 	b, err := os.ReadFile("../../web/src/features/exposure/contract.ts")
@@ -154,8 +147,14 @@ func TestTermsMatchTheContractOfTheGUI(t *testing.T) {
 		}
 		return strings.NewReplacer(`\'`, `'`, `\n`, "\n").Replace(m[1])
 	}
-	if str("TERMS_VERSION") != TermsVersion || str("TERMS_TEMPLATE") != termsTemplate || str("TERMS_TEMPLATE_DOMAIN") != termsTemplateDomain || str("TERMS_DISRUPTIVE") != termsDisruptive {
+	if str("TERMS_VERSION") != TermsVersion || str("TERMS_TEMPLATE") != termsTemplate || str("TERMS_TEMPLATE_DOMAIN") != termsTemplateDomain {
 		t.Fatal("contract.ts terms differ from the backend (modules/exposure/terms.go)")
+	}
+	if want := "export const TERMS_KEPT_VERSIONS: readonly [string, ...string[]] = ['" + strings.Join(keptTermsVersions, "', '") + "']"; !strings.Contains(src, want) {
+		t.Fatalf("contract.ts lacks %s", want)
+	}
+	if strings.Contains(src, "TERMS_DISRUPTIVE") {
+		t.Fatal("contract.ts still has a separate sentence for the disruptive checks: they are part of the terms text")
 	}
 }
 
@@ -170,8 +169,10 @@ func TestTermsTextIsPinnedToItsVersion(t *testing.T) {
 		"2026-11-14e": "b105bdea7ef5cca8b936493a9bc1c6528ce62d517a421139f77a0a0d48a6221e", // The web line word for word as TERMS.md says it (ZAP active, not built)
 		"2026-11-18":  "ffec2d4a5e941b0ba409f61cca2e35ea16caa8a82a93ecdf927881a041c93929", // The disclaimer names the Vedette authors
 		"2026-11-18b": "8267255defc8ea3f3874050caf8333b8ccc2531ce5e19bd285c65fbb315e4491", // The box also scans on the schedule, never disruptive
+		// From here the disruptive checks are a paragraph of the templates, not a third text: the hash is of the two templates.
+		"2026-11-26": "8a2de13959eb625030e7289c7360e437211a458207df0358deaef0cccf80f556", // One acceptance: the disruptive checks are part of the terms
 	}
-	sum := sha256.Sum256([]byte(termsTemplate + "\x00" + termsTemplateDomain + "\x00" + termsDisruptive))
+	sum := sha256.Sum256([]byte(termsTemplate + "\x00" + termsTemplateDomain))
 	if got := pinned[TermsVersion]; got != hex.EncodeToString(sum[:]) {
 		t.Fatalf("the terms for version %s have hash %x: change TermsVersion (and contract.ts) when the text changes, then pin the new hash", TermsVersion, sum)
 	}
@@ -217,34 +218,25 @@ func TestTerms_WithdrawStopsTheRunningScan(t *testing.T) {
 	}
 }
 
-// Taking the disruptive tick out stops a disruptive run; raising the level, or another target's change, does not.
-func TestTerms_LoweringStopsOnlyARunAbove(t *testing.T) {
+// Accepting the terms never stops a scan that runs: it only raises the level (an older acceptance without the disruptive checks to the
+// current one); withdrawing them is what stops a run above the new level.
+func TestTerms_AcceptingStopsNoRun(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	id := e.detect(ipA)[0].ID
-	e.acceptTerms(id, true)
-	fake := func(m ScanMode, target string) *scanExec {
-		x := &scanExec{targetID: target, mode: m, done: make(chan struct{})}
-		e.svc.runMu.Lock()
-		e.svc.execs = map[string]*scanExec{"run-1": x}
-		e.svc.runMu.Unlock()
-		return x
-	}
-	if x := fake(ScanMode{Full: true, Disruptive: true}, "other"); func() bool { e.acceptTerms(id, false); return x.cause != nil }() {
-		t.Fatal("stopped a scan of another target")
-	}
-	if x := fake(ScanMode{Full: true}, id); func() bool { e.acceptTerms(id, true); return x.cause != nil }() {
-		t.Fatal("raising the level stopped the scan")
-	}
-	x := fake(ScanMode{Full: true, Disruptive: true}, id)
 	e.acceptTerms(id, false)
-	if x.cause == nil || x.cause.why != "the disruptive checks were taken out of this target's testing terms" || x.cause.reason != StopTerms {
-		t.Fatalf("cause = %+v", x.cause)
+	x := &scanExec{targetID: id, mode: ScanMode{Full: true}, done: make(chan struct{})}
+	e.svc.runMu.Lock()
+	e.svc.execs = map[string]*scanExec{"run-1": x}
+	e.svc.runMu.Unlock()
+	e.acceptTerms(id, true)
+	if x.cause != nil {
+		t.Fatalf("accepting stopped the scan: %+v", x.cause)
 	}
 }
 
-// review r1 M2: behind carrier-grade NAT the terms step warns that the address is probably shared and refuses the disruptive tick;
-// the deep scan can still be accepted. The terms say the address must be the customer's alone.
+// review r1 M2: behind carrier-grade NAT the terms step warns that the address is probably shared and refuses the terms, which include
+// the disruptive checks. The terms say the address must be the customer's alone.
 func TestTerms_CarrierGradeNAT(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -257,10 +249,10 @@ func TestTerms_CarrierGradeNAT(t *testing.T) {
 		t.Fatalf("view = %+v", v)
 	}
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
-	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, true)
+	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion)
 	wantAPI(t, err, 409, "shared_address")
-	if v := e.acceptTerms(id, false); !v.FullScan {
-		t.Fatalf("deep scan refused: %+v", v)
+	if v := e.target(id); v.FullScan || v.Terms != nil {
+		t.Fatalf("refused terms stored: %+v", v)
 	}
 }
 
@@ -276,31 +268,12 @@ func TestTerms_NotCurrentIPInsideItsProofCanAccept(t *testing.T) {
 		t.Fatal("not paused")
 	}
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
-	v, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, false)
+	v, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion)
 	if err != nil {
 		t.Fatalf("terms refused inside the proof: %v", err)
 	}
 	if !v.FullScan {
 		t.Fatalf("view = %+v", v)
-	}
-}
-
-// The disruptive tick needs the line in use: the carrier-grade NAT check reads the box's current gateway, which belongs to another line
-// while the box does not go out through this IP, so the tick is refused then (fail closed) and the deep scan without it is not.
-func TestTerms_NotCurrentIPRefusesTheDisruptiveTick(t *testing.T) {
-	t.Parallel()
-	e := newEnv(t)
-	id := e.committedIP(ipA).ID
-	e.advance(time.Minute)
-	e.fullAs(ipB)
-	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
-	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, true)
-	wantAPI(t, err, 409, "ip_not_current")
-	if v := e.target(id); v.FullScan {
-		t.Fatalf("a refused tick accepted the terms: %+v", v)
-	}
-	if v := e.acceptTerms(id, false); !v.FullScan {
-		t.Fatalf("deep scan without the tick refused: %+v", v)
 	}
 }
 
@@ -313,7 +286,7 @@ func TestTerms_NotCurrentIPPastItsProofCannotAccept(t *testing.T) {
 	e.fullAs(ipB)
 	e.advance(91 * 24 * time.Hour)
 	e.svc.cfg.TwoStep = func(context.Context, string) (string, error) { return "app", nil }
-	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion, false)
+	_, err := e.svc.AcceptTerms(e.ctx(), termsAdmin, id, TermsVersion)
 	wantAPI(t, err, 409, "expired")
 }
 

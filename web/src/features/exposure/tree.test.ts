@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import type { z } from 'zod'
 import { sessionStore, usersStore } from '@/mocks/stores'
-import { Issue, NOTICE_VERSION, Scan, TargetNode, TargetTree, TERMS_VERSION } from './contract'
+import { Issue, NOTICE_VERSION, Scan, TargetNode, TargetTree, TERMS_KEPT_VERSIONS, TERMS_VERSION } from './contract'
 import { termsAcceptable } from './node'
 
 const USER = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' } as const
@@ -94,12 +94,22 @@ describe('exposure tree', () => {
     expect(node).toMatchObject({ blocked: null, commitment_notice: null, last_scan: { status: 'queued' } })
   })
 
-  it('terms make scans deep; withdrawing them makes them surface again', async () => {
+  it('one acceptance makes scans deep with the disruptive checks; withdrawing it makes them surface again', async () => {
     withTwoStep()
-    const n = parsed(TargetNode, (await call('PUT', '/exposure/tree/xt-12/terms', { version: TERMS_VERSION, disruptive: false })).json)
+    const n = parsed(TargetNode, (await call('PUT', '/exposure/tree/xt-12/terms', { version: TERMS_VERSION })).json)
     expect(n.deep).toBe(true)
+    expect(n.terms).toMatchObject({ version: TERMS_VERSION, disruptive: true })
     expect(n.terms?.text).toContain('git.example.com')
+    expect(n.terms?.text).toContain('\nDisruptive checks: ')
     expect(parsed(TargetNode, (await call('DELETE', '/exposure/tree/xt-12/terms')).json).deep).toBe(false)
+  })
+
+  it('an acceptance of the earlier terms without their tick stays valid until accepted again', async () => {
+    withTwoStep()
+    const old = parsed(TargetNode, (await call('GET', '/exposure/tree/xt-11')).json)
+    expect(old).toMatchObject({ deep: true, terms: { version: TERMS_KEPT_VERSIONS[0], disruptive: false } })
+    const again = parsed(TargetNode, (await call('PUT', '/exposure/tree/xt-11/terms', { version: TERMS_VERSION, disruptive: false })).json)
+    expect(again).toMatchObject({ deep: true, terms: { version: TERMS_VERSION, disruptive: true } })
   })
 
   it('handles open issues with the shared resolutions and reopens handled ones', async () => {

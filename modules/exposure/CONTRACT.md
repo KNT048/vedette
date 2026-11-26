@@ -60,7 +60,14 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 - **INV-17** Without a commitment: an operator gets `commitment_required`; an admin without two-step is asked to set it up first;
   nothing is written either way.
 - **INV-26** Deep testing of a target needs its testing terms accepted (`exp_consent`, kind `terms`), fully disclosed and pinned by
-  version.
+  version. One acceptance (an administrator with two-step sign-in, a target verified and not expired, the version the page showed)
+  covers the deep scan and the disruptive checks, which are a paragraph of the terms text; the full text is stored with each
+  acceptance. Only a scan a person starts runs the disruptive checks; a scan the box runs by itself (the schedule) never does. The
+  box's own IP it does not go out through now can be accepted while its proof holds; the box's own IP behind a gateway in
+  100.64.0.0/10 cannot (409 `shared_address`); a typed IP shows its own warning and can be accepted. An acceptance of a version in
+  `keptTermsVersions` (2026-11-18b) stays valid after the update with its own text and disruptive flag: with the flag the disruptive
+  checks keep running, without it the deep scan only until the current terms are accepted. Every refused acceptance is logged at
+  WARN with its code and the target id.
 
 **Rate limits and outbound data**
 - **INV-5** Verification by a person is rate limited (429): a domain check every 30 seconds per target; Detect now and IP checks,

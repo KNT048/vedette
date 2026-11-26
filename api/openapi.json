@@ -23248,11 +23248,11 @@
                                   },
                                   "text": {
                                     "type": "string",
-                                    "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                                    "description": "The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the tick's sentence as the last line)"
                                   },
                                   "disruptive": {
                                     "type": "boolean",
-                                    "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read too"
+                                    "description": "The disruptive checks are included (denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read): always true for the current terms; false only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until the terms are accepted again"
                                   }
                                 },
                                 "required": [
@@ -23268,7 +23268,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                            "description": "the acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with its own text and disruptive flag; one of an older version does not count (full_scan is false) until accepted again"
                           },
                           "terms_notice": {
                             "type": "object",
@@ -23278,23 +23278,18 @@
                               },
                               "text": {
                                 "type": "string",
-                                "description": "The terms with the target in them, one paragraph per line"
-                              },
-                              "disruptive": {
-                                "type": "string",
-                                "description": "The sentence of the extra tick, off by default"
+                                "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                               }
                             },
                             "required": [
                               "version",
-                              "text",
-                              "disruptive"
+                              "text"
                             ],
                             "additionalProperties": false,
                             "description": "The current testing terms for this target, to accept or to read again"
                           },
                           "terms_warning": {
-                            "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows",
+                            "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409 shared_address) while it shows",
                             "type": [
                               "string",
                               "null"
@@ -25321,11 +25316,11 @@
                                   },
                                   "text": {
                                     "type": "string",
-                                    "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                                    "description": "The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the tick's sentence as the last line)"
                                   },
                                   "disruptive": {
                                     "type": "boolean",
-                                    "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read too"
+                                    "description": "The disruptive checks are included (denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read): always true for the current terms; false only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until the terms are accepted again"
                                   }
                                 },
                                 "required": [
@@ -25341,7 +25336,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                            "description": "the acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with its own text and disruptive flag; one of an older version does not count (full_scan is false) until accepted again"
                           },
                           "terms_notice": {
                             "type": "object",
@@ -25351,23 +25346,18 @@
                               },
                               "text": {
                                 "type": "string",
-                                "description": "The terms with the target in them, one paragraph per line"
-                              },
-                              "disruptive": {
-                                "type": "string",
-                                "description": "The sentence of the extra tick, off by default"
+                                "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                               }
                             },
                             "required": [
                               "version",
-                              "text",
-                              "disruptive"
+                              "text"
                             ],
                             "additionalProperties": false,
                             "description": "The current testing terms for this target, to accept or to read again"
                           },
                           "terms_warning": {
-                            "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows",
+                            "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409 shared_address) while it shows",
                             "type": [
                               "string",
                               "null"
@@ -26198,11 +26188,11 @@
                             },
                             "text": {
                               "type": "string",
-                              "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                              "description": "The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the tick's sentence as the last line)"
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read too"
+                              "description": "The disruptive checks are included (denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read): always true for the current terms; false only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until the terms are accepted again"
                             }
                           },
                           "required": [
@@ -26218,7 +26208,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                      "description": "the acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with its own text and disruptive flag; one of an older version does not count (full_scan is false) until accepted again"
                     },
                     "terms_notice": {
                       "type": "object",
@@ -26228,23 +26218,18 @@
                         },
                         "text": {
                           "type": "string",
-                          "description": "The terms with the target in them, one paragraph per line"
-                        },
-                        "disruptive": {
-                          "type": "string",
-                          "description": "The sentence of the extra tick, off by default"
+                          "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                         }
                       },
                       "required": [
                         "version",
-                        "text",
-                        "disruptive"
+                        "text"
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this target, to accept or to read again"
                     },
                     "terms_warning": {
-                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows",
+                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409 shared_address) while it shows",
                       "type": [
                         "string",
                         "null"
@@ -26959,11 +26944,11 @@
                             },
                             "text": {
                               "type": "string",
-                              "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                              "description": "The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the tick's sentence as the last line)"
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read too"
+                              "description": "The disruptive checks are included (denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read): always true for the current terms; false only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until the terms are accepted again"
                             }
                           },
                           "required": [
@@ -26979,7 +26964,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                      "description": "the acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with its own text and disruptive flag; one of an older version does not count (full_scan is false) until accepted again"
                     },
                     "terms_notice": {
                       "type": "object",
@@ -26989,23 +26974,18 @@
                         },
                         "text": {
                           "type": "string",
-                          "description": "The terms with the target in them, one paragraph per line"
-                        },
-                        "disruptive": {
-                          "type": "string",
-                          "description": "The sentence of the extra tick, off by default"
+                          "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                         }
                       },
                       "required": [
                         "version",
-                        "text",
-                        "disruptive"
+                        "text"
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this target, to accept or to read again"
                     },
                     "terms_warning": {
-                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows",
+                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409 shared_address) while it shows",
                       "type": [
                         "string",
                         "null"
@@ -30183,11 +30163,11 @@
                             },
                             "text": {
                               "type": "string",
-                              "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                              "description": "The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the tick's sentence as the last line)"
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read too"
+                              "description": "The disruptive checks are included (denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read): always true for the current terms; false only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until the terms are accepted again"
                             }
                           },
                           "required": [
@@ -30203,7 +30183,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                      "description": "the acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with its own text and disruptive flag; one of an older version does not count (full_scan is false) until accepted again"
                     },
                     "terms_notice": {
                       "type": "object",
@@ -30213,23 +30193,18 @@
                         },
                         "text": {
                           "type": "string",
-                          "description": "The terms with the target in them, one paragraph per line"
-                        },
-                        "disruptive": {
-                          "type": "string",
-                          "description": "The sentence of the extra tick, off by default"
+                          "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                         }
                       },
                       "required": [
                         "version",
-                        "text",
-                        "disruptive"
+                        "text"
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this target, to accept or to read again"
                     },
                     "terms_warning": {
-                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows",
+                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409 shared_address) while it shows",
                       "type": [
                         "string",
                         "null"
@@ -30671,7 +30646,7 @@
       },
       "put": {
         "operationId": "exposure_put_exposure_targets_id_terms",
-        "summary": "Accept the testing terms of a verified target: every scan of it is then a deep scan; disruptive adds denial-of-service, password-guessing, default-password checks and exploit checks that send more than a harmless read (off by default). Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified or expired (the box's own IP it does not go out through now can accept them while its 90-day proof holds; 409 ip_not_current for the disruptive tick on it); 409 shared_address for disruptive on an IP behind carrier-grade NAT (terms_warning). Lowering or withdrawing them stops a scan of this target that runs above the new level (ScanRun.stop_reason). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing. Audited (exposure.terms_accept, with the flag)",
+        "summary": "Accept the testing terms of a verified target, one acceptance: every scan of it is then a deep scan, and a scan a person starts also runs the disruptive checks (denial of service, password guessing, default-password checks and exploit checks that send more than a harmless read); scheduled scans never do. Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not the current terms_notice.version; 409 not_verified or expired (the box's own IP it does not go out through now can accept them while its 90-day proof holds); 409 shared_address for the box's IP behind carrier-grade NAT (terms_warning). Every refusal is logged (WARN, code and target id). Also records the Scan now commitment when the target has none of the current sentence. Accepting what is accepted changes nothing; over an older acceptance it replaces it. Audited (exposure.terms_accept, with the flag)",
         "tags": [
           "exposure"
         ],
@@ -30701,12 +30676,12 @@
                     "description": "terms_notice.version as the page showed it"
                   },
                   "disruptive": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Ignored (sent by older pages): every acceptance includes the disruptive checks"
                   }
                 },
                 "required": [
-                  "version",
-                  "disruptive"
+                  "version"
                 ],
                 "additionalProperties": false
               }
@@ -30918,11 +30893,11 @@
                             },
                             "text": {
                               "type": "string",
-                              "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                              "description": "The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the tick's sentence as the last line)"
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read too"
+                              "description": "The disruptive checks are included (denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read): always true for the current terms; false only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until the terms are accepted again"
                             }
                           },
                           "required": [
@@ -30938,7 +30913,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                      "description": "the acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with its own text and disruptive flag; one of an older version does not count (full_scan is false) until accepted again"
                     },
                     "terms_notice": {
                       "type": "object",
@@ -30948,23 +30923,18 @@
                         },
                         "text": {
                           "type": "string",
-                          "description": "The terms with the target in them, one paragraph per line"
-                        },
-                        "disruptive": {
-                          "type": "string",
-                          "description": "The sentence of the extra tick, off by default"
+                          "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                         }
                       },
                       "required": [
                         "version",
-                        "text",
-                        "disruptive"
+                        "text"
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this target, to accept or to read again"
                     },
                     "terms_warning": {
-                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows",
+                      "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409 shared_address) while it shows",
                       "type": [
                         "string",
                         "null"
@@ -31640,11 +31610,11 @@
                                 },
                                 "text": {
                                   "type": "string",
-                                  "description": "The exact terms the administrator accepted, with the tick's sentence as the last line when ticked"
+                                  "description": "The exact terms the administrator accepted (an acceptance of 2026-11-18b with its tick on has the tick's sentence as the last line)"
                                 },
                                 "disruptive": {
                                   "type": "boolean",
-                                  "description": "The extra tick: denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read too"
+                                  "description": "The disruptive checks are included (denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read): always true for the current terms; false only for an acceptance of 2026-11-18b made without its tick, which keeps the deep scan only until the terms are accepted again"
                                 }
                               },
                               "required": [
@@ -31660,7 +31630,7 @@
                               "type": "null"
                             }
                           ],
-                          "description": "the acceptance of the testing terms; null when none. An acceptance of an older version does not count (full_scan is false) until accepted again"
+                          "description": "the acceptance of the testing terms; null when none. An acceptance of 2026-11-18b stays valid with its own text and disruptive flag; one of an older version does not count (full_scan is false) until accepted again"
                         },
                         "terms_notice": {
                           "type": "object",
@@ -31670,23 +31640,18 @@
                             },
                             "text": {
                               "type": "string",
-                              "description": "The terms with the target in them, one paragraph per line"
-                            },
-                            "disruptive": {
-                              "type": "string",
-                              "description": "The sentence of the extra tick, off by default"
+                              "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                             }
                           },
                           "required": [
                             "version",
-                            "text",
-                            "disruptive"
+                            "text"
                           ],
                           "additionalProperties": false,
                           "description": "The current testing terms for this target, to accept or to read again"
                         },
                         "terms_warning": {
-                          "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the disruptive tick is refused (409 shared_address) while it shows",
+                          "description": "GET of one IP target only: the box reaches the Internet through carrier-grade NAT (its gateway is in 100.64.0.0/10), so the address is probably shared; the testing terms are refused (409 shared_address) while it shows",
                           "type": [
                             "string",
                             "null"
@@ -32451,7 +32416,7 @@
                                   },
                                   "disruptive": {
                                     "type": "boolean",
-                                    "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                                    "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                                   }
                                 },
                                 "required": [
@@ -32491,7 +32456,7 @@
                                   },
                                   "disruptive": {
                                     "type": "boolean",
-                                    "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                                    "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                                   }
                                 },
                                 "required": [
@@ -32541,23 +32506,18 @@
                               },
                               "text": {
                                 "type": "string",
-                                "description": "The terms with the target in them, one paragraph per line"
-                              },
-                              "disruptive": {
-                                "type": "string",
-                                "description": "The sentence of the extra tick, off by default"
+                                "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                               }
                             },
                             "required": [
                               "version",
-                              "text",
-                              "disruptive"
+                              "text"
                             ],
                             "additionalProperties": false,
                             "description": "The current testing terms for this node, to accept or read again"
                           },
                           "terms_warning": {
-                            "description": "IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused",
+                            "description": "IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a typed IP: its own warning (the terms can be accepted)",
                             "type": [
                               "string",
                               "null"
@@ -33343,7 +33303,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                             }
                           },
                           "required": [
@@ -33383,7 +33343,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                             }
                           },
                           "required": [
@@ -33433,23 +33393,18 @@
                         },
                         "text": {
                           "type": "string",
-                          "description": "The terms with the target in them, one paragraph per line"
-                        },
-                        "disruptive": {
-                          "type": "string",
-                          "description": "The sentence of the extra tick, off by default"
+                          "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                         }
                       },
                       "required": [
                         "version",
-                        "text",
-                        "disruptive"
+                        "text"
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this node, to accept or read again"
                     },
                     "terms_warning": {
-                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused",
+                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a typed IP: its own warning (the terms can be accepted)",
                       "type": [
                         "string",
                         "null"
@@ -34110,7 +34065,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                             }
                           },
                           "required": [
@@ -34150,7 +34105,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                             }
                           },
                           "required": [
@@ -34200,23 +34155,18 @@
                         },
                         "text": {
                           "type": "string",
-                          "description": "The terms with the target in them, one paragraph per line"
-                        },
-                        "disruptive": {
-                          "type": "string",
-                          "description": "The sentence of the extra tick, off by default"
+                          "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                         }
                       },
                       "required": [
                         "version",
-                        "text",
-                        "disruptive"
+                        "text"
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this node, to accept or read again"
                     },
                     "terms_warning": {
-                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused",
+                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a typed IP: its own warning (the terms can be accepted)",
                       "type": [
                         "string",
                         "null"
@@ -34859,7 +34809,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                             }
                           },
                           "required": [
@@ -34899,7 +34849,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                             }
                           },
                           "required": [
@@ -34949,23 +34899,18 @@
                         },
                         "text": {
                           "type": "string",
-                          "description": "The terms with the target in them, one paragraph per line"
-                        },
-                        "disruptive": {
-                          "type": "string",
-                          "description": "The sentence of the extra tick, off by default"
+                          "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                         }
                       },
                       "required": [
                         "version",
-                        "text",
-                        "disruptive"
+                        "text"
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this node, to accept or read again"
                     },
                     "terms_warning": {
-                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused",
+                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a typed IP: its own warning (the terms can be accepted)",
                       "type": [
                         "string",
                         "null"
@@ -36715,7 +36660,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                             }
                           },
                           "required": [
@@ -36755,7 +36700,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                             }
                           },
                           "required": [
@@ -36805,23 +36750,18 @@
                         },
                         "text": {
                           "type": "string",
-                          "description": "The terms with the target in them, one paragraph per line"
-                        },
-                        "disruptive": {
-                          "type": "string",
-                          "description": "The sentence of the extra tick, off by default"
+                          "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                         }
                       },
                       "required": [
                         "version",
-                        "text",
-                        "disruptive"
+                        "text"
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this node, to accept or read again"
                     },
                     "terms_warning": {
-                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused",
+                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a typed IP: its own warning (the terms can be accepted)",
                       "type": [
                         "string",
                         "null"
@@ -37114,7 +37054,7 @@
       },
       "put": {
         "operationId": "exposure_put_exposure_tree_id_terms",
-        "summary": "Accept the testing terms of a node whose proof holds (proven, covered, or the box's own IP it does not go out through now): its scans are then deep scans; disruptive adds the disruptive checks. Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not terms_notice.version; 409 not_verified or expired; 409 shared_address for disruptive behind carrier-grade NAT; 409 ip_not_current for disruptive on the box's own IP it does not go out through now. Records the scan confirmation too when the node has none of the current sentence. Audited",
+        "summary": "Accept the testing terms of a node whose proof holds (proven, covered, or the box's own IP it does not go out through now), one acceptance: its scans are then deep scans, and a scan a person starts also runs the disruptive checks; scheduled scans never do. Admin with two-step sign-in (403 twofa_required); 409 notice_changed when version is not terms_notice.version; 409 not_verified or expired; 409 shared_address for the box's IP behind carrier-grade NAT. Every refusal is logged (WARN, code and node id). Records the scan confirmation too when the node has none of the current sentence. Audited",
         "tags": [
           "exposure"
         ],
@@ -37143,12 +37083,12 @@
                     "type": "string"
                   },
                   "disruptive": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Ignored (sent by older pages): every acceptance includes the disruptive checks"
                   }
                 },
                 "required": [
-                  "version",
-                  "disruptive"
+                  "version"
                 ],
                 "additionalProperties": false
               }
@@ -37455,7 +37395,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                             }
                           },
                           "required": [
@@ -37495,7 +37435,7 @@
                             },
                             "disruptive": {
                               "type": "boolean",
-                              "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                              "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                             }
                           },
                           "required": [
@@ -37545,23 +37485,18 @@
                         },
                         "text": {
                           "type": "string",
-                          "description": "The terms with the target in them, one paragraph per line"
-                        },
-                        "disruptive": {
-                          "type": "string",
-                          "description": "The sentence of the extra tick, off by default"
+                          "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                         }
                       },
                       "required": [
                         "version",
-                        "text",
-                        "disruptive"
+                        "text"
                       ],
                       "additionalProperties": false,
                       "description": "The current testing terms for this node, to accept or read again"
                     },
                     "terms_warning": {
-                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused",
+                      "description": "IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a typed IP: its own warning (the terms can be accepted)",
                       "type": [
                         "string",
                         "null"
@@ -38183,7 +38118,7 @@
                                 },
                                 "disruptive": {
                                   "type": "boolean",
-                                  "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                                  "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                                 }
                               },
                               "required": [
@@ -38223,7 +38158,7 @@
                                 },
                                 "disruptive": {
                                   "type": "boolean",
-                                  "description": "Testing terms only: the disruptive checks were ticked too; false for the scan confirmation"
+                                  "description": "Testing terms only: the disruptive checks are included (always for the current terms; false for an acceptance of 2026-11-18b made without its tick: accept the terms again to include them); false for the scan confirmation"
                                 }
                               },
                               "required": [
@@ -38273,23 +38208,18 @@
                             },
                             "text": {
                               "type": "string",
-                              "description": "The terms with the target in them, one paragraph per line"
-                            },
-                            "disruptive": {
-                              "type": "string",
-                              "description": "The sentence of the extra tick, off by default"
+                              "description": "The terms with the target in them, one paragraph per line; the disruptive checks are one of the paragraphs"
                             }
                           },
                           "required": [
                             "version",
-                            "text",
-                            "disruptive"
+                            "text"
                           ],
                           "additionalProperties": false,
                           "description": "The current testing terms for this node, to accept or read again"
                         },
                         "terms_warning": {
-                          "description": "IP behind carrier-grade NAT: the address is probably shared, so the disruptive checks are refused",
+                          "description": "IP behind carrier-grade NAT: the address is probably shared, so the testing terms are refused; a typed IP: its own warning (the terms can be accepted)",
                           "type": [
                             "string",
                             "null"

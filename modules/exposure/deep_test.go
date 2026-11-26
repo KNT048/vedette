@@ -490,11 +490,11 @@ func TestContract_INV28_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
 }
 
 // LEGAL-2, reviews r1 H1 and r2: a domain's terms say the scan reaches third-party hosting, CDN and proxies, name the IP-level
-// tools, the customer's responsibility and the CNAME rule; an IP keeps its "yours alone" sentence; both say what runs without the tick
-// and what the tick adds; the version is 2026-11-18b (it also names the schedule).
+// tools, the customer's responsibility and the CNAME rule; an IP keeps its "yours alone" sentence; both say what the deep scan sends
+// and, in their own paragraph, what the disruptive checks add; the version is 2026-11-26 (one acceptance covers the disruptive checks).
 func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 	t.Parallel()
-	if TermsVersion != "2026-11-18b" {
+	if TermsVersion != "2026-11-26" {
 		t.Fatalf("version %s", TermsVersion)
 	}
 	dom := termsFor(KindDomain, "acme.example").Text
@@ -518,13 +518,14 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 	if !strings.Contains(ip, "Accept only if "+ipA+" is yours alone") || strings.Contains(ip, "Verifying a name") {
 		t.Errorf("IP terms = %q", ip)
 	}
-	// review r1 H1: the texts say what the deep scan sends without the tick (OpenVAS deep config), and what waits for it
+	// review r1 H1: the texts say what the deep scan sends (OpenVAS deep config), and what only the disruptive checks send
 	for _, text := range []string{dom, ip} {
 		for _, want := range []string{
 			"including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command)",
 			"through a known authentication bypass",
 			"Some checks, OpenVAS's in particular, may write a harmless test file or record to confirm a flaw and then try to remove it.",
-			"Checks that can crash a service, guess passwords or sign in with default passwords, and the exploit checks of nuclei and nmap that send more than a harmless read, run only with the disruptive checks below.",
+			"\nDisruptive checks: denial of service, password guessing, sign-in attempts with default or well-known passwords, and exploit checks that send more than a harmless read, such as nuclei's POST exploit requests that may create or change data and nmap's SQL injection probes.",
+			"They run only in a scan a person starts with Scan now, never in the scans Vedette runs by itself on the schedule.",
 			"including the public anonymous login a service may offer (for example anonymous FTP)",
 		} {
 			if !strings.Contains(text, want) {
@@ -535,8 +536,8 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 			t.Errorf("terms say exploit checks run only with the tick: %q", text)
 		}
 	}
-	if d := termsFor(KindDomain, "acme.example").Disruptive; !strings.Contains(d, "exploit checks that send more than a harmless read, such as nuclei's POST exploit requests that may create or change data and nmap's SQL injection probes") {
-		t.Errorf("disruptive tick = %q", d)
+	if !strings.Contains(dom, "accept only if that provider allows the disruptive checks") {
+		t.Errorf("domain terms do not tie the disruptive checks to the provider's policy: %q", dom)
 	}
 	e := newEnv(t)
 	v := e.addVerifiedDomain()
@@ -550,7 +551,7 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 			t.Fatalf("audit detail of %d characters: %q", len([]rune(a.Detail)), a.Detail[len(a.Detail)-120:])
 		}
 	}
-	if acc.Terms == nil || acc.Terms.Text != dom+"\n"+termsDisruptive {
+	if acc.Terms == nil || acc.Terms.Text != dom || !acc.Terms.Disruptive {
 		t.Fatalf("stored terms = %+v", acc.Terms)
 	}
 }

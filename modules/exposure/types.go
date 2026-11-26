@@ -167,8 +167,8 @@ type TargetView struct {
 	Terms       *Terms      `json:"terms"`
 	TermsNotice TermsNotice `json:"terms_notice"`
 	FullScan    bool        `json:"full_scan"`
-	// TermsWarning says, on GET /exposure/targets/{id} of an IP, that the box goes out through carrier-grade NAT (the disruptive
-	// tick is then refused); nil otherwise and in lists.
+	// TermsWarning says, on GET /exposure/targets/{id} of an IP, that the box goes out through carrier-grade NAT (the testing
+	// terms are then refused), or a typed IP's own warning; nil otherwise and in lists.
 	TermsWarning  *string        `json:"terms_warning,omitempty"`
 	Scannable     bool           `json:"scannable"`
 	BlockedReason *BlockedReason `json:"blocked_reason"`

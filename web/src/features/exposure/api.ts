@@ -76,10 +76,10 @@ export function useStopRun() {
   return useMutation({ mutationFn: (runId: string) => api.post<unknown>(`/runs/${enc(runId)}/stop`), onSuccess: inv, onError: inv })
 }
 
-/** Accept the testing terms of a node (admin with two-step), with or without the disruptive tick, or withdraw them. */
+/** Accept the testing terms of a node (admin with two-step), the disruptive checks included, or withdraw them. */
 export function useAcceptTerms(id: string) {
   const inv = useInvalidate()
-  return useMutation({ mutationFn: (b: { version: string; disruptive: boolean }) => api.put<TargetNode>(`/exposure/tree/${enc(id)}/terms`, b), onSuccess: inv })
+  return useMutation({ mutationFn: (b: { version: string }) => api.put<TargetNode>(`/exposure/tree/${enc(id)}/terms`, b), onSuccess: inv })
 }
 export function useRevokeTerms(id: string) {
   const inv = useInvalidate()

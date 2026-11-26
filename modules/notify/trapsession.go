@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/knt048/vedette/core/orgtime"
 )
 
 // A trap session is every hit of one source address, on any trap service or honey token of the box, with no quiet longer than
@@ -126,7 +128,7 @@ func sessionWords(src string, hits []SessionHit, loc *time.Location) (title, wha
 		default:
 			add(&services, label)
 		}
-		lines = append(lines, h.At.In(loc).Format("15:04:05")+" "+hitWords(h.Kind, label))
+		lines = append(lines, orgtime.Clock(h.At, loc)+" "+hitWords(h.Kind, label))
 	}
 	var parts []string
 	some := func(list []string, one, many string) {
@@ -149,12 +151,12 @@ func sessionWords(src string, hits []SessionHit, loc *time.Location) (title, wha
 		parts = append(parts, "scanned the Trap IPs")
 	}
 	title = clip(src+" touched the decoy: "+strings.Join(parts, ", "), 200)
-	first, last := hits[0].At.In(loc), hits[len(hits)-1].At.In(loc)
+	first, last := orgtime.Clock(hits[0].At, loc), orgtime.Clock(hits[len(hits)-1].At, loc)
 	head := fmt.Sprintf("%s touched the decoy %s between %s and %s (box time). Nobody has a reason to touch it, so a machine there is infected or someone is exploring the network.",
-		src, plural(len(hits), "time", "times"), first.Format("15:04:05"), last.Format("15:04:05"))
+		src, plural(len(hits), "time", "times"), first, last)
 	if len(hits) == maxSessionHits {
 		head = fmt.Sprintf("%s touched the decoy at least %d times from %s (box time). Nobody has a reason to touch it, so a machine there is infected or someone is exploring the network.",
-			src, len(hits), first.Format("15:04:05"))
+			src, len(hits), first)
 	}
 	what = head + "\n"
 	budget := maxIncidentText - utf8.RuneCountInString("\n… and 500 more")

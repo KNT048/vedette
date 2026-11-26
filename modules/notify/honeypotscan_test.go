@@ -120,8 +120,8 @@ func TestTrapSessionIsOneIncidentToldAtMostTwice(t *testing.T) {
 	if i.Title != want || i.Severity != notify.Critical || i.Count != 7 || i.Link != "/honeypot/hits/"+first {
 		t.Fatalf("incident %q %s count %d link %s, want %q critical 7", i.Title, i.Severity, i.Count, i.Link, want)
 	}
-	for _, line := range []string{"touched the decoy 7 times between 10:00:00 and 10:03:25 (box time)", "\n10:00:00 scanned the Trap IPs",
-		"\n10:00:05 touched the SSH trap", "\n10:00:15 used the Credential token Old admin", "\n10:00:25 opened the File token Passwords", "\n10:03:25 touched the SMB trap"} {
+	for _, line := range []string{"touched the decoy 7 times between 10:00 and 10:03 (box time)", "\n10:00 scanned the Trap IPs",
+		"\n10:00 touched the SSH trap", "\n10:00 used the Credential token Old admin", "\n10:00 opened the File token Passwords", "\n10:03 touched the SMB trap"} {
 		if !strings.Contains(i.What, line) {
 			t.Fatalf("what lacks %q:\n%s", line, i.What)
 		}
@@ -201,7 +201,7 @@ func TestTrapSessionDescriptionFitsAndCountsTheRest(t *testing.T) {
 	if title != "192.0.2.118 touched the decoy: opened 80 decoy files" {
 		t.Fatalf("title %q", title)
 	}
-	if n := utf8.RuneCountInString(what); n > 1000 || !strings.Contains(what, "\n09:28:00 opened the File token Report-00") || !strings.Contains(what, " more") {
+	if n := utf8.RuneCountInString(what); n > 1000 || !strings.Contains(what, "\n09:28 opened the File token Report-00") || !strings.Contains(what, " more") {
 		t.Fatalf("what (%d):\n%s", n, what)
 	}
 	var shown int

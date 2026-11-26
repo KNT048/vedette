@@ -48,6 +48,8 @@ const DEFS: Def[] = [
   { id: 'abusech-feodo', name: 'abuse.ch Feodo Tracker', kind: 'ioc', format: 'lines', url: 'https://feodotracker.abuse.ch/downloads/ipblocklist.txt', license: 'CC0', records: 212 },
   { id: 'tor-exit', name: 'Tor exit list', kind: 'ioc', format: 'lines', url: 'https://check.torproject.org/torbulkexitlist', license: 'Attribution: torproject', records: 1190 },
   { id: 'hagezi-tif', name: 'hagezi TIF', kind: 'ioc', format: 'lines', url: 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt', license: 'GPL-3.0, unmodified', records: 438900 },
+  // Networks, not addresses; off until an administrator turns it on (the box then fetches it from Spamhaus once a day)
+  { id: 'spamhaus-drop', name: 'Spamhaus DROP', kind: 'ioc', format: 'json', url: 'https://www.spamhaus.org/drop/drop_v4.json', license: 'Spamhaus DROP, (c) The Spamhaus Project. Free under the DROP terms of use (https://www.spamhaus.org/drop/terms/); fetched by this box from spamhaus.org, never redistributed.', records: 1737 },
 ]
 
 interface BuiltinState { key_last4?: string | null; enabled: boolean; interval_hours: number; url: string; last_fetch: string | null; last_success?: string | null; records: number | null; status: 'ok' | 'error' | 'never'; error: string | null }
@@ -55,6 +57,8 @@ interface Config { builtin: Record<string, BuiltinState>; custom: Feed[] }
 
 // The built-in feed that needs the customer's own API key: off until one is saved.
 const BYOK = 'vulncheck-kev'
+// The built-in feed that is off until an administrator turns it on (Spamhaus DROP), fetched once a day.
+const DEFAULT_OFF = 'spamhaus-drop'
 // Every other built-in feed, the tier feeds epss-all and nvd-recent included, is on by default.
 const ago = (h: number) => new Date(Date.now() - h * 36e5).toISOString()
 /** LEAN: the mock inventory has Ubuntu devices and no Debian one, so the Debian tracker, filled once 9 days ago, is not
@@ -72,8 +76,8 @@ const HELD: Record<string, string> = {
   'windows-releases': "6 Windows releases on Microsoft's release information pages, with 412 monthly updates, the newest of 11 Nov 2026.",
 }
 const seedBuiltin = (clean: boolean): Record<string, BuiltinState> => Object.fromEntries(DEFS.map((d, i) => [d.id, {
-  enabled: d.id !== BYOK, interval_hours: d.kind === 'ioc' || d.id === BYOK ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : 24, url: d.url,
-  ...(clean || d.id === BYOK
+  enabled: d.id !== BYOK && d.id !== DEFAULT_OFF, interval_hours: d.id === DEFAULT_OFF ? 24 : d.kind === 'ioc' || d.id === BYOK ? 6 : d.id === 'cisa-kev' || d.id === 'cve-org' ? 1 : 24, url: d.url,
+  ...(clean || d.id === BYOK || d.id === DEFAULT_OFF
     ? { last_fetch: null, records: null, status: 'never' as const, error: null }
     : { last_fetch: ago(d.id === IDLE ? 9 * 24 : 1 + i * 0.7), records: d.records, status: 'ok' as const, error: d.id === IDLE ? NO_DEBIAN : HELD[d.id] ?? null }),
 }]))
@@ -192,6 +196,15 @@ export const sourceHandlers = [
     const f = allFeeds(c).find((x) => x.id === id)
     if (!f) return fail(404, 'not_found', 'No such feed.')
     if (!f.enabled) return fail(409, 'feed_disabled', 'Turn the feed on before fetching it.')
+    // As modules/feeds fetchFloor: Spamhaus DROP at most once every 24 hours after a good pull, and an hour after any attempt
+    if (id === DEFAULT_OFF) {
+      const s = c.builtin[id]
+      const at = Math.max(s?.last_success ? Date.parse(s.last_success) + 24 * 36e5 : 0, s?.last_fetch ? Date.parse(s.last_fetch) + 36e5 : 0)
+      if (Date.now() < at) {
+        const when = new Date(at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })
+        return fail(409, 'fetch_too_soon', `Spamhaus DROP can be fetched once every 24 hours, and the list on the box is still in use. Fetch it again after ${when} UTC.`)
+      }
+    }
     if (id === IDLE && f.records !== null) return HttpResponse.json(f) // Filled, no Debian device, so nothing is fetched; the row keeps its note
     const host = hostOf(f.url)
     let status: Feed['status'] = 'ok', error: string | null = null, records = f.records

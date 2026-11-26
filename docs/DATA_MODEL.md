@@ -94,7 +94,7 @@ One vulnerability catalogue, the signals that make a CVE urgent, and the indicat
 | `feeds_winrel`, `feeds_winrel_update` | Windows releases and their cumulative updates. |
 | `feeds_nvd_cursor` | Where each paged NVD pull stands. |
 | `feeds_source`, `feeds_fetch_log` | Built-in and custom feeds, and one row per pull attempt. |
-| `feeds_ioc`, `feeds_ioc_source` | Indicators of compromise merged over every feed that lists them. |
+| `feeds_ioc`, `feeds_ioc_source` | Indicators of compromise merged over every feed that lists them. An address a list names is stored exactly, never widened; only a list that publishes networks (Spamhaus DROP) stores a network, as type `ip` with the canonical network as the value (`192.0.2.0/24`), and an address lookup also reads the stored networks that hold it. (The comment of the first feeds migration, "never a /24", predates network lists; a migration is not edited.) Not in the data export: the box pulls them again. |
 | `feeds_weekly_answer` | A person's answer to "do you have this product?" in the weekly digest. |
 
 Retention: a CVE stays in the catalogue while it was published inside the window (365 days), or has an exploited-list entry, or has

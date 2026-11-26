@@ -157,7 +157,9 @@ func NewService(d Deps) (*Service, error) {
 	if d.Clock == nil {
 		d.Clock = time.Now
 	}
-	return &Service{Deps: d, st: NewStore(d.DB), locks: map[string]*feedGate{}}, nil
+	st := NewStore(d.DB)
+	st.zone = d.Zone
+	return &Service{Deps: d, st: st, locks: map[string]*feedGate{}}, nil
 }
 
 // Store gives other modules the read methods (VulnByCVE, VulnsByProductKey, HasTemplate, IOCLookup, KevPairs).

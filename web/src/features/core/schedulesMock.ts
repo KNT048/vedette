@@ -49,11 +49,16 @@ const subjectOf = (key: string) => {
 }
 
 const KEY_RE = /^[a-z][a-z0-9_-]*(\.[a-z0-9_-]+)+(:[A-Za-z0-9._-]{1,96})?$/
+/** A subject whose schedule has narrower limits than its owner's (core/schedule Owner.LimitsOf): a source that asks for fewer requests. */
+const SUBJECT_LIMITS: Record<string, Partial<Limits>> = {
+  'feeds.source:spamhaus-drop': { min_every_minutes: 1440, reason: 'Spamhaus DROP asks for at most one download every 24 hours.' },
+}
 function ownerOf(key: string): Owner | null {
   if (!KEY_RE.test(key)) return null
   const [name, subject] = key.split(':', 2) as [string, string | undefined]
   const o = OWNERS[name]
-  return o && o.perSubject === (subject !== undefined) ? o : null
+  if (!o || o.perSubject !== (subject !== undefined)) return null
+  return SUBJECT_LIMITS[key] ? { ...o, limits: { ...o.limits, ...SUBJECT_LIMITS[key] } } : o
 }
 const limitsOf = (o: Owner): Limits => ({ freqs: o.limits.freqs ?? FREQS, min_every_minutes: o.limits.min_every_minutes ?? 1, max_every_minutes: o.limits.max_every_minutes ?? 527040, windows: o.limits.windows ?? WINDOWS, reason: o.limits.reason ?? '' })
 

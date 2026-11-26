@@ -67,8 +67,10 @@ Apple's word on exploitation is read from the descriptions of Apple's CVE record
 | abuse.ch Feodo Tracker | `feodotracker.abuse.ch` | 6 hours |
 | Tor exit list | `check.torproject.org` (informational) | 6 hours |
 | hagezi TIF (mini) | `hagezi/dns-blocklists` on GitHub, unmodified | 6 hours |
+| Spamhaus DROP (networks; off by default) | `www.spamhaus.org` (`drop_v4.json`) | 24 hours |
 
-Indicators are matched against what the logs and the mirror port see; Vedette alerts and never blocks traffic.
+Indicators are matched against what the logs and the mirror port see; Vedette alerts and never blocks traffic. Every list names
+addresses or domains exactly, except Spamhaus DROP, which lists networks: an address inside a listed network is listed by it.
 
 ### Custom feeds
 
@@ -90,7 +92,8 @@ tested on a sample before saving (`POST /feeds/parse-test` writes nothing and ca
   from `displaySlugs` in `modules/feeds/display.go`; a pair not listed reads "Vendor Product".
 - **Indicator verdict** (`Judge` in `modules/feeds/verdict.go`, computed on read): a whitelisted domain, or a value that is not a public
   IP address or domain, gets no verdict; otherwise `block` for two independent sources or one block-class source, `alert` below that.
-  An informational source (the Tor exit list) never counts toward `block`, and an aggregate list (IPsum) never blocks alone. `block`
+  An informational source (the Tor exit list) never counts toward `block`, and an aggregate list (IPsum) never blocks alone; a CC0
+  list (Feodo Tracker) or a list meant to be dropped outright (Spamhaus DROP) is block-class. `block`
   is a confidence level for alerts and for the firewall block list a person chooses to publish; Vedette itself blocks nothing.
 
 ## 4. Confirmed recommendation packs

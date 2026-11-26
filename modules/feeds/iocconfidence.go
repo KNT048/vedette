@@ -11,7 +11,8 @@ import (
 // How sure the feeds are that an indicator is bad (INV-12b). A built-in list gives no confidence per line, so a listing by one weighs
 // what the list is (Source.Weight); a custom feed's listing weighs what the feed said for it, or 0.5 when it said nothing. The
 // listings of independent feeds add up as independent evidence (1 - the product of (1 - weight)), with the independence rules of
-// Judge: an aggregate list that merges a feed that also lists the value adds nothing, and all aggregates together count once. A Tor
+// Judge: an aggregate list that merges a feed that also lists the value adds nothing (the result is never below the aggregate's own
+// weight, as it is the same evidence), and all aggregates together count once. A Tor
 // exit relay is not malicious by itself: it counts only when nothing else lists the address, and aggregated blocklists that list a
 // Tor exit relay count half (abuse traffic of Tor users leaves through the relay, so such lists pick up exits for that alone).
 
@@ -33,10 +34,14 @@ func levelOf(raw string) (int, bool) {
 	return n, err == nil
 }
 
-// levelWeight is the weight of a listing by a list of addresses found on at least n blocklists: each list counted as 40% evidence
-// on its own (level 1 0.4, 2 0.64, 3 0.78, 4 0.87), never above 0.9, as an aggregate is never certain.
+// levelWeight is the weight of a listing by a list of addresses found on at least n blocklists: 0.9 from level 3 (IPsum's default
+// list: an address that three independent blocklists report is as sure as a curated list, and never certain, as an aggregate never
+// is); below that each list counts as 40% evidence on its own (level 1 0.4, 2 0.64).
 func levelWeight(n int) float64 {
-	return round2(min(0.9, 1-math.Pow(0.6, float64(n))))
+	if n >= 3 {
+		return 0.9
+	}
+	return round2(1 - math.Pow(0.6, float64(n)))
 }
 
 // listingWeight is the confidence a listing by the built-in source s carries, with the address the feed is pulled from now.
@@ -90,7 +95,7 @@ func IOCConfidence(gs []IOCSighting) (conf float64, c2 bool) {
 			independent = true
 		}
 	}
-	agg := 0.0
+	agg, same := 0.0, 0.0
 	for _, s := range seen {
 		if !s.aggregate || s.info {
 			continue
@@ -101,7 +106,9 @@ func IOCConfidence(gs []IOCSighting) (conf float64, c2 bool) {
 				covered = true
 			}
 		}
-		if !covered {
+		if covered {
+			same = max(same, s.w)
+		} else {
 			agg = max(agg, s.w)
 		}
 	}
@@ -115,5 +122,5 @@ func IOCConfidence(gs []IOCSighting) (conf float64, c2 bool) {
 	if !independent {
 		return round2(info), c2
 	}
-	return round2(1 - miss), c2
+	return round2(max(1-miss, same)), c2
 }

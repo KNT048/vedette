@@ -33,9 +33,9 @@ func TestIOCConfidenceRatesEachFeedAndRisesWithIndependentFeeds(t *testing.T) {
 		}
 		applyI(t, db, epoch0, src, recs)
 	}
-	applyI(t, db, epoch0, "hagezi-tif", []iocInput{{Kind: "domain", Value: "tif-listed.example.net"}})
+	applyI(t, db, epoch0, "hagezi-tif", []iocInput{{Kind: "domain", Value: "tif-listed.example.net"}, {Kind: "domain", Value: "tif-and-mine.example.net"}})
 	strong := 0.6
-	applyI(t, db, epoch0.Add(1), "fs-mine", []iocInput{ip("198.51.100.10"), {Kind: "ip", Value: "198.51.100.11", Confidence: &strong}})
+	applyI(t, db, epoch0.Add(1), "fs-mine", []iocInput{ip("198.51.100.10"), {Kind: "ip", Value: "198.51.100.11", Confidence: &strong}, {Kind: "domain", Value: "tif-and-mine.example.net", Confidence: &strong}})
 	applyI(t, db, epoch0.Add(2), "et-open", []iocInput{ip("198.51.100.2"), ip("198.51.100.6"), ip("198.51.100.7"), ip("198.51.100.8"), ip("198.51.100.9"), ip("198.51.100.11")})
 	if n := count(t, db, `SELECT count(*) FROM feeds_ioc_source WHERE confidence <> 0.5 AND source_id <> 'fs-mine'`); n != 0 {
 		t.Fatalf("%d built-in listings stored with a confidence other than the default", n)
@@ -48,16 +48,17 @@ func TestIOCConfidenceRatesEachFeedAndRisesWithIndependentFeeds(t *testing.T) {
 	}{
 		{"ip", "198.51.100.1", 0.95, true, "a confirmed botnet command-and-control server"},
 		{"ip", "198.51.100.2", 0.85, false, "a curated compromised host"},
-		{"ip", "198.51.100.3", 0.78, false, "IPsum level 3: on at least three blocklists"},
+		{"ip", "198.51.100.3", 0.9, false, "IPsum level 3: on at least three blocklists"},
 		{"ip", "198.51.100.4", 0.2, false, "a Tor exit relay alone"},
-		{"ip", "198.51.100.5", 0.39, false, "a Tor exit relay on aggregated blocklists counts half"},
+		{"ip", "198.51.100.5", 0.45, false, "a Tor exit relay on aggregated blocklists counts half"},
 		{"ip", "198.51.100.6", 0.99, true, "two independent feeds, one of them command-and-control"},
-		{"ip", "198.51.100.7", 0.85, false, "IPsum includes ET Open: not a second source"},
+		{"ip", "198.51.100.7", 0.9, false, "IPsum includes ET Open: not a second source, and never less than IPsum alone"},
 		{"ip", "198.51.100.8", 0.85, false, "a curated compromised host that is also a Tor exit"},
-		{"ip", "198.51.100.9", 0.85, false, "ET Open, IPsum and Tor"},
+		{"ip", "198.51.100.9", 0.9, false, "ET Open, IPsum and Tor"},
 		{"ip", "198.51.100.10", 0.5, false, "a custom feed that gives no confidence"},
 		{"ip", "198.51.100.11", 0.94, false, "a custom feed's own 0.6 and ET Open's 0.85 together"},
-		{"domain", "tif-listed.example.net", 0.75, false, "hagezi TIF"},
+		{"domain", "tif-listed.example.net", 0.45, false, "hagezi TIF alone: a pooled list with known false positives, medium"},
+		{"domain", "tif-and-mine.example.net", 0.78, false, "hagezi TIF and an independent feed (a custom feed's 0.6)"},
 	}
 	for _, c := range cases {
 		rec, found, err := s.IOCLookup(t.Context(), c.kind, c.value)
@@ -83,8 +84,8 @@ func TestIOCConfidenceRatesEachFeedAndRisesWithIndependentFeeds(t *testing.T) {
 	}
 }
 
-// IPsum's address names its level (levels/N.txt: on at least N blocklists); a mirror of another level is rated by that level, and an
-// address that names none keeps the weight of the default list.
+// IPsum's address names its level (levels/N.txt: on at least N blocklists): level 3, the default, and above weigh 0.9; a mirror of a
+// lower level is rated by that level, and an address that names none keeps the weight of the default list.
 func TestIOCConfidenceOfIPsumFollowsTheLevelOfItsAddress(t *testing.T) {
 	t.Parallel()
 	s, db := newStore(t)
@@ -96,14 +97,14 @@ func TestIOCConfidenceOfIPsumFollowsTheLevelOfItsAddress(t *testing.T) {
 	for url, want := range map[string]float64{
 		"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/1.txt":       0.4,
 		"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/2.txt":       0.64,
-		"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt":       0.78,
-		"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt":       0.87,
+		"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt":       0.9,
+		"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt":       0.9,
 		"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/8.txt":       0.9,
 		"https://mirror.example.net/ipsum/levels/5.txt?ref=main":                     0.9,
-		"https://mirror.example.net/ipsum.txt":                                       0.78,
-		"https://mirror.example.net/levels/0.txt":                                    0.78,
-		"https://mirror.example.net/levels/" + strings.Repeat("9", 30) + ".txt":      0.78,
-		"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt/x.txt": 0.78,
+		"https://mirror.example.net/ipsum.txt":                                       0.9,
+		"https://mirror.example.net/levels/0.txt":                                    0.9,
+		"https://mirror.example.net/levels/" + strings.Repeat("9", 30) + ".txt":      0.9,
+		"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt/x.txt": 0.9,
 	} {
 		write(t, db, func(tx *sql.Tx) error {
 			_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET url = ? WHERE id = 'ipsum'`, url)
@@ -138,5 +139,26 @@ func TestIOCEveryBuiltinListIsRated(t *testing.T) {
 		if b.Informational && b.Weight >= 0.5 {
 			t.Errorf("%s says what an address is, not that it is bad, but weighs %v", b.ID, b.Weight)
 		}
+	}
+}
+
+// hagezi TIF alone is medium: a pooled domain list with known false positives that matches every subdomain of a name. It reaches high
+// only with an independent feed beside it (ET Open here, as a custom domain feed would be).
+func TestIOCConfidenceOfHageziTIFAloneStaysBelowHigh(t *testing.T) {
+	t.Parallel()
+	tif := IOCSighting{SourceID: "hagezi-tif", Confidence: 0.45, Enabled: true, Builtin: true, Subdomains: true}
+	et := IOCSighting{SourceID: "et-open", Confidence: 0.85, Enabled: true, Builtin: true}
+	ipsum := IOCSighting{SourceID: "ipsum", Confidence: 0.9, Enabled: true, Builtin: true}
+	if conf, _ := IOCConfidence([]IOCSighting{tif}); conf >= 0.5 {
+		t.Errorf("hagezi TIF alone: %v, want below 0.5 (medium)", conf)
+	}
+	if conf, _ := IOCConfidence([]IOCSighting{tif, et}); conf != 0.92 {
+		t.Errorf("hagezi TIF and ET Open: %v, want 0.92 (high)", conf)
+	}
+	if conf, _ := IOCConfidence([]IOCSighting{tif, ipsum}); conf != 0.9 { // two aggregates count once: the stronger one
+		t.Errorf("hagezi TIF and IPsum: %v, want 0.9", conf)
+	}
+	if b, _ := BuiltinByID("hagezi-tif"); b.Weight >= 0.5 {
+		t.Errorf("hagezi TIF weighs %v, want below 0.5", b.Weight)
 	}
 }

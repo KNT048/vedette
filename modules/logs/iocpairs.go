@@ -184,11 +184,13 @@ func (s *Service) iocPairs(ctx context.Context, since time.Time) ([]IocPair, err
 		return nil, fmt.Errorf("logs: reading the bad connections: %w", err)
 	}
 	devices := s.assetsFor(ctx, ips)
+	c := s.credits(ctx)
 	for i, p := range out {
 		if d, ok := devices[p.SrcIP]; ok && d.ID != "" {
 			id, name := d.ID, plainText(d.Name)
 			out[i].AssetID, out[i].AssetName = &id, &name
 		}
+		out[i].Feeds = credited(p.Feeds, c)
 	}
 	return out, nil
 }

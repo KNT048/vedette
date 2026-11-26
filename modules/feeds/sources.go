@@ -21,6 +21,8 @@ const (
 	DecoderNVDRecent Decoder = "nvd-recent" // RecentPageURL, WalkPageURL and ParseNVD: the catalogue's NVD records
 	// Microsoft's Windows release information pages (parseWinRelPage): the releases core/winrel learns.
 	DecoderWinRel Decoder = "windows-releases"
+	// ParseSpamhausDROP: the networks of the Spamhaus DROP list.
+	DecoderSpamhausDROP Decoder = "spamhaus-drop"
 )
 
 // Source is a built-in feed. Built-ins cannot be deleted (INV-4): the
@@ -32,13 +34,15 @@ type Source struct {
 	Format        Format
 	URL           string // default address; Reset restores it
 	License       string
-	IntervalHours int // default schedule: 1 for the CISA list (S-FEED-1) and CVE.org, 24 for the other vulnerability feeds, 6 for IOC
+	IntervalHours int // default schedule: 1 for the CISA list (S-FEED-1) and CVE.org, 24 for the other vulnerability feeds, 6 for IOC (24 for Spamhaus DROP, which asks for at most one download a day)
 	Decoder       Decoder
 	Parser        *Parser // set when Decoder == DecoderParser
 	MaxRows       int     // row limit of this source; 0 means MaxRows (50,000)
 	// BYOK: the customer's own API key is needed. The feed is off until one is saved, and what it loaded goes
 	// when the key is removed or the feed is turned off.
 	BYOK bool
+	// DefaultOff: the feed is off on a new box until an administrator turns it on (Spamhaus DROP); the box contacts its host only then.
+	DefaultOff bool
 
 	// Aggregate: the list is itself a merge of other lists (IPsum, hagezi TIF).
 	// It never reaches block alone, and counts with one of its Upstreams as one source.
@@ -61,6 +65,15 @@ type Source struct {
 	// C2: the list is of confirmed botnet command-and-control servers (abuse.ch Feodo Tracker). A device that reaches one runs
 	// malware, so logs rates such an incident critical.
 	C2 bool
+	// DropClass: the list is meant to be dropped outright by whoever uses it (Spamhaus DROP, "Don't Route Or Peer"): one such source
+	// is enough for the verdict block, as a CC0 list is (BlockClass).
+	DropClass bool
+	// CreditFetch: the list is credited with the time the box fetched it wherever a listing by it is named (CreditName).
+	CreditFetch bool
+	// MinHours: the source allows at most one download every MinHours hours (Spamhaus DROP: once a day). Its schedule cannot be set
+	// shorter, and neither the pull job nor Fetch now pulls it sooner after a good pull, nor sooner than an hour after any attempt
+	// (fetchFloor). 0 for every other source.
+	MinHours int
 }
 
 func (s Source) rowLimit() int {
@@ -70,9 +83,9 @@ func (s Source) rowLimit() int {
 	return MaxRows
 }
 
-// BlockClass reports a CC0 IOC list: one such source is enough for `block`
+// BlockClass reports a CC0 IOC list or one meant to be dropped outright (Spamhaus DROP): one such source is enough for `block`
 // (INV-12, "one DROP/CC0-class source").
-func (s Source) BlockClass() bool { return s.Kind == KindIOC && s.License == "CC0" }
+func (s Source) BlockClass() bool { return s.Kind == KindIOC && (s.License == "CC0" || s.DropClass) }
 
 func linesParser() *Parser {
 	p := DefaultParser(KindIOC, FormatLines)
@@ -108,6 +121,11 @@ const (
 // (https://www.microsoft.com/legal/terms-of-use); Vedette ships none of their text.
 const winRelNotice = "Facts from Microsoft's public Windows release information pages, Microsoft Terms of Use. Not endorsed by Microsoft."
 
+// dropNotice is the licence line of the Spamhaus DROP feed: the list is free under the Spamhaus DROP terms of use
+// (https://www.spamhaus.org/drop/terms/); the box fetches it from Spamhaus itself when an administrator turns it on, and Vedette
+// ships and redistributes none of it.
+const dropNotice = "Spamhaus DROP, (c) The Spamhaus Project. Free under the DROP terms of use (https://www.spamhaus.org/drop/terms/); fetched by this box from spamhaus.org, never redistributed."
+
 // builtinSources is the default list of sourcesMock.ts. Hosts must match the
 // list in PRIVACY.md (INV-13) except where the report says otherwise.
 var builtinSources = []Source{
@@ -133,11 +151,12 @@ var builtinSources = []Source{
 	{ID: androidFeedID, Name: "Android Security Bulletins", Kind: KindVulnerabilities, Format: FormatLines, URL: "https://source.android.com/docs/security/bulletin/", License: androidNotice, IntervalHours: 6, Decoder: DecoderAndroid},
 	{ID: rapid7FeedID, Name: "Rapid7 blog", Kind: KindVulnerabilities, Format: FormatRSS, URL: "https://www.rapid7.com/rss.xml", License: rapid7Notice, IntervalHours: 6, Decoder: DecoderRapid7},
 	{ID: gtiFeedID, Name: "Google Threat Intelligence blog", Kind: KindVulnerabilities, Format: FormatRSS, URL: "https://cloudblog.withgoogle.com/topics/threat-intelligence/rss/", License: gtiNotice, IntervalHours: 6, Decoder: DecoderGTI},
-	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo"}, Weight: 0.78, LevelInURL: true},
+	{ID: "ipsum", Name: "IPsum", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt", License: "Unlicense", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Aggregate: true, Upstreams: []string{"et-open", "abusech-feodo"}, Weight: 0.9, LevelInURL: true},
 	{ID: "et-open", Name: "ET Open compromised IPs", Kind: KindIOC, Format: FormatLines, URL: "https://rules.emergingthreats.net/blockrules/compromised-ips.txt", License: "BSD", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Weight: 0.85},
 	{ID: "abusech-feodo", Name: "abuse.ch Feodo Tracker", Kind: KindIOC, Format: FormatLines, URL: "https://feodotracker.abuse.ch/downloads/ipblocklist.txt", License: "CC0", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Weight: 0.95, C2: true},
 	{ID: "tor-exit", Name: "Tor exit list", Kind: KindIOC, Format: FormatLines, URL: "https://check.torproject.org/torbulkexitlist", License: "Attribution: torproject", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), Informational: true, Weight: 0.2},
-	{ID: "hagezi-tif", Name: "hagezi TIF", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt", License: "GPL-3.0, unmodified", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), MaxRows: 250_000, Aggregate: true, Subdomains: true, Weight: 0.75},
+	{ID: "hagezi-tif", Name: "hagezi TIF", Kind: KindIOC, Format: FormatLines, URL: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt", License: "GPL-3.0, unmodified", IntervalHours: 6, Decoder: DecoderParser, Parser: linesParser(), MaxRows: 250_000, Aggregate: true, Subdomains: true, Weight: 0.45},
+	{ID: dropFeedID, Name: "Spamhaus DROP", Kind: KindIOC, Format: FormatJSON, URL: "https://www.spamhaus.org/drop/drop_v4.json", License: dropNotice, IntervalHours: 24, Decoder: DecoderSpamhausDROP, MaxRows: dropMaxRows, DefaultOff: true, Weight: 0.9, DropClass: true, CreditFetch: true, MinHours: 24},
 }
 
 // BuiltinSources returns the built-in feeds in display order. The slice is a

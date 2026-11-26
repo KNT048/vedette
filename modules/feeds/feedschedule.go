@@ -27,12 +27,24 @@ type SchedulePort interface {
 var scheduleLimits = coreschedule.Limits{Freqs: []coreschedule.Freq{coreschedule.Interval}, MinEveryMinutes: 60, MaxEveryMinutes: 168 * 60,
 	Windows: []coreschedule.WindowMode{coreschedule.WindowNone}, Reason: "Sources ask clients not to poll more often."}
 
+// sourceLimits is the schedule floor of a built-in source that allows fewer downloads (Source.MinHours: Spamhaus DROP, a day).
+func sourceLimits(id string) (coreschedule.Limits, bool) {
+	b, ok := BuiltinByID(id)
+	if !ok || b.MinHours == 0 {
+		return coreschedule.Limits{}, false
+	}
+	l := scheduleLimits
+	l.MinEveryMinutes = b.MinHours * 60
+	l.Reason = fmt.Sprintf("%s asks for at most one download every %d hours.", b.Name, b.MinHours)
+	return l, true
+}
+
 // ScheduleOwner is what the sources register with core/schedule: one schedule per source (feeds.source:<id>), an interval only. When
 // it comes due nothing starts here: the pull job pulls the source at its next tick (State.Due reads when the schedule last came due),
 // because a pull asks the Internet and must not hold the schedule's transaction.
 func (s *Service) ScheduleOwner() coreschedule.Owner {
 	return coreschedule.Owner{Module: "feeds", Key: "feeds.source", PerSubject: true, AdminOnly: true, Limits: scheduleLimits,
-		Default: coreschedule.Every(60), DefaultOn: false,
+		LimitsOf: sourceLimits, Default: coreschedule.Every(60), DefaultOn: false,
 		Subject: func(ctx context.Context, id string) (bool, error) {
 			var n int
 			if err := s.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_source WHERE id = ?`, id).Scan(&n); err != nil {

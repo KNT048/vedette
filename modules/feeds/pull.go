@@ -20,6 +20,7 @@ import (
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/orgtime"
 	"github.com/knt048/vedette/core/winrel"
 )
 
@@ -91,6 +92,9 @@ func (s *Service) RunPull(ctx context.Context) error {
 		}
 		if !due && r.Enabled && distroFeeds[r.ID] && r.Failures == 0 && !s.busy(r.ID) && s.distroBehind(ctx, r) {
 			due = true // A device runs a package its tier rows were not kept for (6 h floor); a failing feed keeps its back-off
+		}
+		if at, floor := r.fetchFloor(); floor && now.Before(at) {
+			due = false // a source that allows fewer downloads (Spamhaus DROP) waits whatever the schedule or the back-off says
 		}
 		if !r.Enabled || !due || s.busy(r.ID) { // busy: a "Fetch now" is pulling it; never a second pull
 			continue
@@ -375,6 +379,17 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		}
 		p.templates, p.hasTemplates = n.Templates, true
 		p.out.fill(n.Stats, len(n.Templates))
+	case DecoderSpamhausDROP: // networks, stored as indicators of type ip ("192.0.2.0/24"); a cut or unreadable list keeps the old one
+		l, err := ParseSpamhausDROP(resp.Body, builtin.rowLimit())
+		if err != nil {
+			return p, err
+		}
+		p.iocs = make([]iocInput, 0, len(l.Prefixes))
+		for _, v := range l.Prefixes {
+			p.iocs = append(p.iocs, iocInput{Kind: "ip", Value: v})
+		}
+		p.hasIOCs = true
+		p.out.fill(l.Stats, l.Accepted)
 	default: // DecoderParser: the built-in IOC lists and every custom feed
 		var res Result
 		if src.Builtin {
@@ -478,6 +493,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	}
 	if !src.Enabled {
 		return sourceRow{}, 0, nil, ErrFeedDisabled
+	}
+	if at, floor := src.fetchFloor(); floor && s.now().Before(at) {
+		return src, 0, nil, &TooSoonError{Name: src.Name, Hours: builtinMinHours(src.ID), At: at, Zone: orgtime.At(ctx, s.Zone)}
 	}
 	started := s.now()
 	bctx, cancel := context.WithTimeout(ctx, pullBudget)

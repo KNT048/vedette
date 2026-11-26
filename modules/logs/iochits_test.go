@@ -19,14 +19,15 @@ import (
 
 // fakeFeeds is the Feeds port of the tests: a fixed list, a count of the lookups and the failures to answer with.
 type fakeFeeds struct {
-	mu     sync.Mutex
-	listed map[string]Listing // by "kind:value"
-	calls  []string
-	err    error
-	hook   func(ctx context.Context) // runs inside every lookup
-	noSub  bool                      // no switched-on feed lists subdomains (Subdomains says false)
-	subErr error                     // what Subdomains fails with
-	subs   int                       // calls of Subdomains
+	mu      sync.Mutex
+	listed  map[string]Listing // by "kind:value"
+	calls   []string
+	err     error
+	hook    func(ctx context.Context) // runs inside every lookup
+	noSub   bool                      // no switched-on feed lists subdomains (Subdomains says false)
+	subErr  error                     // what Subdomains fails with
+	subs    int                       // calls of Subdomains
+	credits map[string]string         // what Credits answers: feed name -> name shown
 }
 
 func (f *fakeFeeds) Lookup(ctx context.Context, kind, value string) (Listing, bool, error) {
@@ -61,6 +62,12 @@ func (f *fakeFeeds) Subdomains(context.Context) (bool, error) {
 	defer f.mu.Unlock()
 	f.subs++
 	return !f.noSub, f.subErr
+}
+
+func (f *fakeFeeds) Credits(context.Context) (map[string]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.credits, nil
 }
 
 func (f *fakeFeeds) lookups() []string {

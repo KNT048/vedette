@@ -110,7 +110,12 @@ const steps: Step[] = [
   { name: 'search blank', role: 'viewer', method: 'GET', path: '/feeds/search?q=%20%20', status: 400, code: 'empty_query' },
   { name: 'search 201 characters', role: 'viewer', method: 'GET', path: `/feeds/search?q=${'a'.repeat(201)}`, status: 200, real: { status: 400, code: 'invalid' } },
   { name: 'sources list', role: 'viewer', method: 'GET', path: '/feeds/sources', status: 200, schema: FeedList,
-    check: (b) => { expect(b.items.filter((f: { builtin: boolean }) => f.builtin).map((f: { id: string }) => f.id)).toEqual(['cisa-kev', 'epss-all', 'nvd-kev', 'nvd-recent', 'cve-org', 'vulncheck-kev', 'ubuntu-osv', 'ubuntu-vex', 'debian-tracker', 'alpine-osv', 'windows-releases', 'nuclei-templates', 'metasploit', 'exploit-db', 'poc-in-github', 'msrc', 'cisco-psirt', 'fortinet-psirt', 'chrome-releases', 'android-bulletin', 'rapid7-blog', 'gti-blog', 'ipsum', 'et-open', 'abusech-feodo', 'tor-exit', 'hagezi-tif']) } },
+    check: (b) => { expect(b.items.filter((f: { builtin: boolean }) => f.builtin).map((f: { id: string }) => f.id)).toEqual(['cisa-kev', 'epss-all', 'nvd-kev', 'nvd-recent', 'cve-org', 'vulncheck-kev', 'ubuntu-osv', 'ubuntu-vex', 'debian-tracker', 'alpine-osv', 'windows-releases', 'nuclei-templates', 'metasploit', 'exploit-db', 'poc-in-github', 'msrc', 'cisco-psirt', 'fortinet-psirt', 'chrome-releases', 'android-bulletin', 'rapid7-blog', 'gti-blog', 'ipsum', 'et-open', 'abusech-feodo', 'tor-exit', 'hagezi-tif', 'spamhaus-drop']) } },
+  { name: 'Spamhaus DROP is off by default', role: 'viewer', method: 'GET', path: '/feeds/sources', status: 200, schema: FeedList,
+    check: (b) => { const f = b.items.find((x: { id: string }) => x.id === 'spamhaus-drop'); expect([f.enabled, f.interval_hours, f.url]).toEqual([false, 24, 'https://www.spamhaus.org/drop/drop_v4.json']) } },
+  { name: 'Spamhaus DROP is scheduled at most once a day', role: 'viewer', method: 'GET', path: '/schedules/feeds.source:spamhaus-drop', status: 200,
+    check: (b) => expect([b.limits.min_every_minutes, b.limits.reason]).toEqual([1440, 'Spamhaus DROP asks for at most one download every 24 hours.']) },
+  { name: 'a 12-hour schedule of Spamhaus DROP is refused', role: 'admin', method: 'PUT', path: '/schedules/feeds.source:spamhaus-drop', body: { enabled: true, paused_until: null, rule: { freq: 'interval', every_minutes: 720, at_time: null, weekdays: null, month_day: null, once_at: null, tz: 'org', window: 'none', window_days: null, window_from: null, window_to: null } }, status: 400 },
 
   // ---- roles
   { name: 'no session', role: null, method: 'GET', path: '/feeds/status', status: 401, code: 'unauthenticated' },

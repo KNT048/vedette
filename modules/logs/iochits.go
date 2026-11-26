@@ -94,6 +94,32 @@ type Feeds interface {
 	// Subdomains says whether a switched-on feed lists names with all of their subdomains: without one, the parents of an
 	// unlisted name are not looked up.
 	Subdomains(ctx context.Context) (bool, error)
+	// Credits is the name a feed is shown by where it differs from the name stored on a hit, by stored name: a list whose terms ask for
+	// credit with a time (Spamhaus DROP) is shown with the time of its feed's last fetch. A hit stores the plain name; the credit is
+	// added only where the hit is shown (credited), so one feed stays one name across the days of a row.
+	Credits(ctx context.Context) (map[string]string, error)
+}
+
+// credits asks the feeds for the names to show (Feeds.Credits); none while the feeds module is off or the answer fails (the plain names
+// are shown then).
+func (s *Service) credits(ctx context.Context) map[string]string {
+	if s.cfg.Feeds == nil || !s.cfg.Feeds.On() {
+		return nil
+	}
+	c, err := s.cfg.Feeds.Credits(ctx)
+	if err != nil {
+		return nil
+	}
+	return c
+}
+
+// credited is names as shown: each stored feed name replaced by its credit, if it has one. A new slice; names is not changed.
+func credited(names []string, c map[string]string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = cmp.Or(c[n], n)
+	}
+	return out
 }
 
 // IocHit is a connection to a listed destination as the API shows it (IocHit of contract.ts) and as the event logs.ioc_hit.detected carries it.
@@ -512,12 +538,15 @@ func (s *Service) announceIOC(ctx context.Context, fresh []iocRow) {
 		ips[i] = r.src
 	}
 	devices := s.assetsFor(ctx, ips)
+	c := s.credits(ctx)
 	for _, r := range fresh {
 		hit := r.hit(devices)
 		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventIocHit, Data: hit}); err != nil {
 			s.cfg.Log.WarnContext(ctx, "logs: announcing a bad connection failed", "err", err)
 		}
-		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventBadAddress, Data: badAddressEvent(hit, r.sev)}); err != nil {
+		shown := hit // the incident text credits a list as it is shown
+		shown.Feeds = credited(hit.Feeds, c)
+		if err := s.cfg.Events.Publish(ctx, events.Event{Name: EventBadAddress, Data: badAddressEvent(shown, r.sev)}); err != nil {
 			s.cfg.Log.WarnContext(ctx, "logs: announcing a bad connection failed", "err", err)
 		}
 	}
@@ -664,11 +693,13 @@ func (s *Service) iocHits(ctx context.Context, where string, limit int, args ...
 		return nil, fmt.Errorf("logs: reading the bad connections: %w", err)
 	}
 	devices := s.assetsFor(ctx, ips)
+	c := s.credits(ctx)
 	for i, h := range out {
 		if d, ok := devices[h.SrcIP]; ok && d.ID != "" {
 			id, name := d.ID, plainText(d.Name)
 			out[i].AssetID, out[i].AssetName = &id, &name
 		}
+		out[i].Feeds = credited(h.Feeds, c)
 	}
 	return out, nil
 }

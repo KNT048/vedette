@@ -14,8 +14,8 @@ import "strings"
 //	skip    never exported: a secret, a reference to a secret, a hash or nonce of sign-in state
 //
 // A table with skipAll is not exported at all (secrets, sign-in state, link state, public data the box pulls again, such as
-// feeds_epss, and the tables of logs.db, which this export does not read). Every table of docs/SCHEMA.sql, in both databases, is
-// listed.
+// feeds_epss and the indicator lists, and the tables of logs.db, which this export does not read). Every table of docs/SCHEMA.sql,
+// in both databases, is listed.
 type tablePolicy struct {
 	skipAll                          bool
 	export, json, jsonURL, url, skip string
@@ -100,8 +100,8 @@ var exportPolicy = map[string]tablePolicy{
 	"feeds_winrel":           {export: "build server product display line ga ga_rev"},                                  // The Windows releases Microsoft lists; kept so a restore reads the same builds
 	"feeds_winrel_update":    {export: "build server rev kb day hotpatch"},                                             // The monthly Windows updates Microsoft lists; kept so a restore names the same target builds
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
-	"feeds_ioc":              {export: "id type value first_seen last_seen"},
-	"feeds_ioc_source":       {export: "ioc_id source_id last_seen confidence seen"},
+	"feeds_ioc":              {skipAll: true, skip: "id type value first_seen last_seen"},         // Indicator lists the box pulls again (a third party's list, such as Spamhaus DROP, is never redistributed)
+	"feeds_ioc_source":       {skipAll: true, skip: "ioc_id source_id last_seen confidence seen"}, // Which feed lists which indicator: pulled again with the lists
 	"feeds_source":           {export: "id builtin name kind format enabled auth_type auth_header_name auth_username secret_last4 license created_at last_fetch last_success failures records status error etag last_modified mirror_etag mirror_last_modified catalog_version catalog_released rev answered_by stale_watch_from stale_alerted_at stale_failed_since stale_failed_checks distro_packages", json: "parser kev_copies", url: "url default_url", skip: "secret_id"},
 	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added device_id have_since"},
 	"fnd_finding":            {export: "id asset_id cve software_id detected basis verified range_origin matched_version fix_kind fix_version fix_ref fix_key state resolution via resolved_by resolved_at note accepted_until from_version to_version urgency urgency_at first_seen last_seen updated_at", json: "evidence"}, // one row per (device, CVE, software line)

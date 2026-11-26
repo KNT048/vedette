@@ -38,11 +38,25 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   each say so in the feed's error.
 - **INV-22** After its first fill, a distribution feed is pulled only while a device runs that distribution (Alpine: only with an
   Alpine device at all).
+- **INV-38** Spamhaus DROP (`spamhaus-drop`) is off on a new box and on a box that updates to a version that adds it
+  (`Source.DefaultOff`): the box asks `www.spamhaus.org` nothing until an administrator turns it on. Once on, it reads Spamhaus's
+  `drop_v4.json` once a day by default, conditional on the last file. Spamhaus asks that the list be downloaded at most once a day,
+  and automated downloads at least an hour apart (`Source.MinHours` = 24): the feed's schedule cannot be set below 24 hours
+  (`sourceLimits`, the schedule's `LimitsOf`: the editor says "Spamhaus DROP asks for at most one download every 24 hours."), and
+  neither the pull job nor Fetch now asks it sooner than 24 hours after its last good pull or an hour after any attempt, a failed one
+  included (`fetchFloor`); Fetch now then answers 409 `fetch_too_soon` with the time it becomes possible (orgtime, zone named).
+  `TestSpamhausDROPIsOffByDefaultAndMatchesTheAddressesInsideItsNetworks`, `TestSpamhausDROPIsFetchedAtMostOnceADay`.
 
 **Parsing**
 - **INV-3** The parser fails closed: an invalid row is dropped and counted by reason, never stored. Feed text is untrusted plain
   text; consumers escape it for their own output.
 - **INV-7** `POST /feeds/parse-test` writes nothing and makes no network call: it parses the caller's sample or the built-in one.
+- **INV-39** The Spamhaus DROP list is read by `ParseSpamhausDROP` (its JSON form, and the text form for a mirror: comments after
+  `;`). A row is kept only as a canonical network (no host bits, not IPv4-mapped) of IPv4 /8 to /32 or IPv6 /16 to /128 that is
+  neither inside nor around a private, reserved or documentation range; a network of one address is stored as the address. The list
+  is refused whole (the networks stored before stay) when it is over 5,000,000 bytes or 20,000 rows, has no accepted network, or
+  its JSON form does not end with exactly one metadata record whose `records` equals the rows read. `TestParseSpamhausDROP`,
+  `FuzzParseSpamhausDROP`.
 
 **Feeds and pulls**
 - **INV-4** A built-in feed cannot be deleted, only switched off or pointed at a mirror. Deleting a custom feed deletes what it
@@ -120,19 +134,31 @@ IDs are stable (code comments cite them); a retired ID is not reused.
 
 **Indicators**
 - **INV-12** An indicator's verdict, score and category are computed on read from `feeds_ioc_source` by `Judge`: `block` for two
-  independent sources or one block-class source, `alert` below that. An IP is never widened to a network. Private, reserved,
-  documentation and local names or addresses never become indicators. An indicator no feed lists for 30 days is deleted.
+  independent sources or one block-class source (a CC0 list, or Spamhaus DROP: `Source.DropClass`), `alert` below that. An IP a
+  list names is never widened to a network. Only a list that publishes networks (Spamhaus DROP) lists one: a network is stored as an
+  indicator of type `ip` whose value is the canonical network (`192.0.2.0/24`), and `IOCLookup` of an address also reads every
+  stored network that holds it (`networksAround`: the address's networks of IPv4 /8 to /31 or IPv6 /16 to /127, one indexed read),
+  one sighting per feed. Private, reserved, documentation and local names or addresses
+  never become indicators. An indicator no feed lists for 30 days is deleted.
 - **INV-12b** An indicator's confidence (the search `score`, logs' hit `confidence`) is computed on read by `IOCConfidence` over
   the switched-on feeds that list it. A built-in indicator list carries no confidence per line, so `IOCLookup` rates its listing
   by what the list is (`Source.Weight`), whatever `feeds_ioc_source.confidence` holds: abuse.ch Feodo Tracker 0.95 (confirmed
-  botnet command-and-control servers, `Source.C2`), ET Open compromised IPs 0.85, IPsum by the level its address names
-  (`levels/N.txt`: 1 − 0.6^N, at most 0.9; 0.78 for the default level 3 or an address that names none), hagezi TIF 0.75, the
-  Tor exit list 0.2 (it says what an address is, not that it is bad). A custom feed's listing weighs what the feed said, or 0.5.
+  botnet command-and-control servers, `Source.C2`), Spamhaus DROP 0.9 (hijacked or criminal-controlled networks), ET Open
+  compromised IPs 0.85, IPsum by the level its address names (`levels/N.txt`: 0.9 from level 3, the default, and for an address
+  that names none; level 1 0.4, level 2 0.64), hagezi TIF 0.45 (a pooled domain list with known false positives that matches every
+  subdomain: medium alone, high only with an independent feed beside it), the Tor exit list 0.2 (it says what an address is, not
+  that it is bad). A custom feed's listing weighs what the feed said, or 0.5.
   Independent feeds add up (1 − ∏(1 − weight)) under `Judge`'s independence rules (an aggregate with one of its upstreams adds
-  nothing; all aggregates count once); the Tor exit list counts only when nothing else lists the address, and aggregates that
-  list a Tor exit relay count half. Two decimals. No stored row is rewritten: a listing stored before is rated the same way on
-  its next lookup. Tests: `TestIOCConfidenceRatesEachFeedAndRisesWithIndependentFeeds`,
-  `TestIOCConfidenceOfIPsumFollowsTheLevelOfItsAddress`, `TestIOCEveryBuiltinListIsRated`.
+  nothing, and the result is never below that aggregate's own weight; all aggregates count once); the Tor exit list counts only
+  when nothing else lists the address, and aggregates that list a Tor exit relay count half. Two decimals. No stored row is
+  rewritten: a listing stored before is rated the same way on its next lookup. Tests:
+  `TestIOCConfidenceRatesEachFeedAndRisesWithIndependentFeeds`, `TestIOCConfidenceOfIPsumFollowsTheLevelOfItsAddress`,
+  `TestIOCConfidenceOfHageziTIFAloneStaysBelowHigh`, `TestIOCEveryBuiltinListIsRated`, `TestSpamhausDROPAndAnAddressListAddUp`.
+- **INV-12c** A listing by a list whose terms ask for credit with a time (`Source.CreditFetch`: Spamhaus DROP) is named, wherever it
+  is shown (logs' hit and incident, Feeds → Look up, the AI), by `CreditName`: "Spamhaus DROP (list fetched 26 Nov 2026, 14:00 +07)", written by `orgtime.StampZone` in the organization's zone with the zone named,
+  the time of the feed's last good pull (`feeds_source.last_success`, `IOCSighting.FetchedAt`). The credit is never stored: logs
+  stores the plain name on a hit and shows the credit from `IOCCredits` when it reads or announces the hit, so one feed is one name
+  across the days of a row. Every other listing is named by its feed's name.
 
 **Other modules**
 - **INV-10** Feeds works without inventory: `you_have` is `null`, `matched_assets` empty, nothing fails.

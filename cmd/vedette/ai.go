@@ -1130,7 +1130,7 @@ func (a aiAsk) IOC(ctx context.Context, kind, value string) (ai.IOCFact, bool, e
 	out := ai.IOCFact{Kind: rec.Type, Value: rec.Value, FirstSeen: rec.FirstSeen.UTC().Format(time.RFC3339), LastSeen: rec.LastSeen.UTC().Format(time.RFC3339)}
 	for _, g := range rec.Sightings {
 		if g.Enabled { // a switched-off feed is not pulled: its listings are stale (as in logsFeeds.Lookup); no source left is "not listed"
-			out.Sources = append(out.Sources, g.SourceName)
+			out.Sources = append(out.Sources, a.feeds.CreditName(ctx, g))
 		}
 	}
 	return out, true, nil

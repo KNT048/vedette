@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -40,6 +41,16 @@ type Setting struct {
 	Enabled     bool
 	PausedUntil *time.Time // nil, or a time in the past: not paused
 	Rule        Rule
+}
+
+// limitsOf is the limits of the schedule with this key: the subject's own (LimitsOf) or the owner's.
+func (o Owner) limitsOf(key string) Limits {
+	if o.PerSubject && o.LimitsOf != nil {
+		if l, ok := o.LimitsOf(strings.TrimPrefix(key, o.Key+":")); ok {
+			return l
+		}
+	}
+	return o.Limits
 }
 
 func (o Owner) editRole() string {
@@ -91,7 +102,7 @@ func (s *Service) view(ctx context.Context, o Owner, r row, saved bool, org stri
 	v := View{
 		OwnerKey: r.OwnerKey, Module: o.Module, Saved: saved, Enabled: r.Enabled, PausedUntil: r.PausedUntil, Rule: r.Rule,
 		Zone: loc.String(), NextDueAt: r.NextDueAt, Upcoming: []time.Time{}, LastDueAt: r.LastDueAt, LastRunID: r.LastRunID,
-		LastSkipReason: r.LastSkipReason, LastSkipAt: r.LastSkipAt, Limits: o.Limits.normalized(), EditRole: o.editRole(),
+		LastSkipReason: r.LastSkipReason, LastSkipAt: r.LastSkipAt, Limits: o.limitsOf(r.OwnerKey).normalized(), EditRole: o.editRole(),
 	}
 	if saved {
 		v.UpdatedBy, v.UpdatedAt = &r.UpdatedBy, &r.UpdatedAt
@@ -147,7 +158,7 @@ func (s *Service) Preview(ctx context.Context, key string, rl Rule, pausedUntil 
 		if err != nil {
 			return nil, "", err
 		}
-		if err := o.Limits.Check(rl); err != nil {
+		if err := o.limitsOf(key).Check(rl); err != nil {
 			return nil, "", err
 		}
 	}
@@ -217,7 +228,7 @@ func (s *Service) saveTx(ctx context.Context, tx *sql.Tx, o Owner, key string, s
 	if err != nil {
 		return err
 	}
-	if err := o.Limits.Check(rl); err != nil {
+	if err := o.limitsOf(key).Check(rl); err != nil {
 		return err
 	}
 	now := s.now()

@@ -28,6 +28,7 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		"source.android.com":                         true, // Android's monthly security bulletins
 		"www.rapid7.com":                             true, // Rapid7's blog (its RSS feed)
 		"cloudblog.withgoogle.com":                   true, // Google Threat Intelligence's blog (its RSS feed)
+		"www.spamhaus.org":                           true, // Spamhaus DROP (off until an administrator turns it on)
 	}
 	seenID, seenName := map[string]bool{}, map[string]bool{}
 	for _, s := range BuiltinSources() {
@@ -48,6 +49,9 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 		if vendorClaimFeed(s.ID) { // a vendor's word on exploitation: small lists, read every 6 hours so a claim is not a day late
 			want = 6
 		}
+		if s.ID == dropFeedID { // Spamhaus asks for at most one download a day
+			want = 24
+		}
 		if s.ID == "cisa-kev" || s.ID == "cve-org" { // hourly: Home promises data at most an hour old (S-FEED-1); a 304 keeps it cheap
 			want = 1
 		}
@@ -66,8 +70,8 @@ func TestContract_INV1_BuiltinSourcesAreDeclaredHTTPS(t *testing.T) {
 			t.Errorf("%s: dedicated decoder must not carry a parser", s.ID)
 		}
 	}
-	if len(seenID) != 27 {
-		t.Fatalf("expected the 27 built-ins of sourcesMock.ts, got %d", len(seenID))
+	if len(seenID) != 28 {
+		t.Fatalf("expected the 28 built-ins of sourcesMock.ts, got %d", len(seenID))
 	}
 }
 
@@ -79,8 +83,14 @@ func TestBuiltinLookupAndBlockClass(t *testing.T) {
 	feodo, _ := BuiltinByID("abusech-feodo")
 	ipsum, _ := BuiltinByID("ipsum")
 	kev, _ := BuiltinByID("cisa-kev")
-	if !feodo.BlockClass() || ipsum.BlockClass() || kev.BlockClass() {
-		t.Fatal("BlockClass: only CC0 IOC lists qualify")
+	drop, _ := BuiltinByID(dropFeedID)
+	if !feodo.BlockClass() || !drop.BlockClass() || ipsum.BlockClass() || kev.BlockClass() {
+		t.Fatal("BlockClass: only CC0 IOC lists and Spamhaus DROP qualify")
+	}
+	for _, b := range BuiltinSources() { // a new box asks a source nothing that it did not choose: only DROP and BYOK feeds start off
+		if b.DefaultOff != (b.ID == dropFeedID) {
+			t.Errorf("%s: off by default %v", b.ID, b.DefaultOff)
+		}
 	}
 	// Mutating the returned slice must not change the registry.
 	l := BuiltinSources()

@@ -327,3 +327,33 @@ func (e *env) ipTargetID() string {
 	}
 	return id
 }
+
+// nuclei's own sign that a port stopped answering, as the scanner really reports it: a template whose requests got only connection
+// errors, or that nuclei skipped after it gave the address up as unresponsive, comes back as OutcomeError (cmd/vedette outcomes);
+// Elsewhere is only the few templates whose lines named another address (nucleiout keeps at most 20 of them a run). A port where at
+// least half of 20 or more templates got no answer is incomplete; a port that answered most of them is not.
+func TestLiveness_NucleiErrorsOnAPortThatStoppedAnsweringMakeItIncomplete(t *testing.T) {
+	t.Parallel()
+	var res []TemplateResult
+	for i := range 60 {
+		outcome := OutcomeNoMatch
+		if i >= 15 { // the port stopped answering after the 15th template
+			outcome = OutcomeError
+		}
+		res = append(res, TemplateResult{Port: 9443, Template: "tpl-" + strings.Repeat("a", i+1), Outcome: outcome})
+	}
+	for i := range 30 { // a port that kept answering: a few templates erred
+		outcome := OutcomeNoMatch
+		if i < 3 {
+			outcome = OutcomeError
+		}
+		res = append(res, TemplateResult{Port: 443, Template: "tpl-" + strings.Repeat("b", i+1), Outcome: outcome})
+	}
+	got := unanswered(ipA, res)
+	if !strings.Contains(got, ipA+":9443 for 45 of 60 templates") || strings.Contains(got, ":443 ") {
+		t.Fatalf("unanswered = %q", got)
+	}
+	if got := unanswered(ipA, res[60:]); got != "" {
+		t.Fatalf("a port that kept answering: %q", got)
+	}
+}

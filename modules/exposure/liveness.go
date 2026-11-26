@@ -249,7 +249,10 @@ func (s *Service) skipIfGone(ctx context.Context, st ScanTarget, c Content, key 
 }
 
 // unanswered is nuclei's own sign that a port stopped answering: of the templates that ran on it, at least unansweredMin and at least
-// half printed only lines about the host being unreachable (TemplateResult.Elsewhere). It names the ports with how many.
+// half got no answer. A template whose requests got only connection errors, or that nuclei skipped after giving the address up as
+// unresponsive, comes back as OutcomeError (cmd/vedette's outcomes); one whose lines all named another address or could not be read is
+// Elsewhere (nucleiout keeps at most 20 such templates a run, so Elsewhere alone would rarely reach half). It names the ports with how
+// many.
 func unanswered(ip string, res []TemplateResult) string {
 	type tally struct{ all, none int }
 	by := map[int]*tally{}
@@ -260,7 +263,7 @@ func unanswered(ip string, res []TemplateResult) string {
 			by[r.Port] = t
 		}
 		t.all++
-		if r.Elsewhere {
+		if r.Elsewhere || r.Outcome == OutcomeError {
 			t.none++
 		}
 	}

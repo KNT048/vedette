@@ -132,9 +132,10 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   box's own public IP the note adds the likely cause (the box could not reach its own public address from inside the network: the
   router may not support NAT loopback, or something blocked it), never an IPS without evidence. When no port of the target answers
   any more, the later engine steps are skipped with that note. nuclei's own sign counts too: a port where at least half of 20 or
-  more templates printed only unreachable-host lines makes the template step partly done. Such a run, and a run whose engine image
+  more templates got no answer (only connection errors, skipped after nuclei gave the address up, or lines about another address)
+  makes the template step partly done. Such a run, and a run whose engine image
   is not on the box yet (INV-24, INV-25), ends partly done (`core/run` `Partial`, its first problem as the reason), never done.
-  `TestLiveness_ATargetThatStopsAnsweringIsSaidAndIsNotAMiss`, `TestLiveness_APortThatStopsAnsweringMakesTheStepIncomplete`,
+  `TestLiveness_ATargetThatStopsAnsweringIsSaidAndIsNotAMiss`, `TestLiveness_APortThatStopsAnsweringMakesTheStepIncomplete`, `TestLiveness_NucleiErrorsOnAPortThatStoppedAnsweringMakeItIncomplete`,
   `cmd/vedette` `TestExposureLivenessConnectsAndSendsNothing`.
 - **INV-43** The deep scan runs its light checks before its heavy ones, so a ban or an overloaded firewall costs only the last
   steps (`scanPlan`, the one source of the order the run page shows): the runner, nmap's sweep of every TCP port with service

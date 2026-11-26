@@ -179,7 +179,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   re-check of INV-22 (3) answering, no address that stopped answering during the scan) ends partly done the same way, with one
   "Not checked" line of kind `unanswered`: "No port of <target> answered this box. If the site has a WAF or firewall, allow this
   box's public IP <ip> during deep scans." (the box's own public IP gets the NAT-loopback hint instead). Its results are written and
-  it is not a miss of any port (INV-22 (2), (3) keep holding, so three silent scans over a day may still close them).
+  it is not a miss of any port (INV-22 (2), (3) keep holding, so three silent scans over a day may still close them). Only the open
+  ports on addresses the scan asked count (an IP target's own, a domain's addresses port-scanned or checked by name): the rows of a
+  name whose lookup got no answer this time are kept (INV-27) and say nothing (`TestUnanswered_PortsOfANameNotLookedUpSayNothing`).
   `TestUnanswered_NoPortOfTheBoxsOwnIPAnsweredEndsPartlyDone`, `TestUnanswered_NoPortOfADomainAnsweredNamesTheBoxsIP`,
   `TestUnanswered_ResetsAreAnAnswer`, `TestUnanswered_OnlyRowsOfTheNetworkSayNothing` (rows of ports the network answers, retired by
   the same scan, are not open ports of the target).
@@ -234,9 +236,13 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   software and impact, plain text with its lines kept, at most 1,500 characters (`TestOpenVASDescriptionKeepsItsLines`); a result with none names the test
   (`TestContract_INV25_IssueDetailHasGreenbonesDescription`). Each Greenbone service has a memory limit (`deploy/greenbone`).
   OpenVAS enabled but still starting (its images pull when it is turned on) or loading its feed: the step is skipped with why and
-  that it will run in the next scan, and the run ends partly done (INV-42). OpenVAS that scanned nothing in a run (no open port on any
-  address, a refused re-check: state `not_run`) has its step skipped with its "Not checked" lines as the reason, never done with
-  an empty note (`TestContract_INV28_Deep_OpenVASWithNoOpenPortIsSkippedWithWhy`).
+  that it will run in the next scan, and the run ends partly done (INV-42). OpenVAS that had nothing to scan in a run (no open port
+  on any address, or an address that answers on every port: state `not_run`) has its step skipped with its "Not checked" lines as
+  the reason, never done with an empty note (`TestContract_INV28_Deep_OpenVASWithNoOpenPortIsSkippedWithWhy`). OpenVAS that was due
+  and never got going (the task stayed queued for 90 minutes, OpenVAS ended it before it scanned, a refusal of the gate, the terms or
+  the fence, no probe log) has its step failed with those lines, and the run ends partly done with them; on a domain, one address
+  that never got going does so too, whatever the others did
+  (`TestContract_INV25_OpenVASThatNeverStartedEndsTheRunPartlyDone`).
 - **INV-27** A proved domain's surface: names from the CT log, the domain itself, its MX and NS hosts under it, and a short common
   wordlist.
 - **INV-28** Deep scanning of addresses of names under a domain happens only in a full scan with the domain's terms accepted.

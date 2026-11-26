@@ -634,6 +634,9 @@ func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []de
 			n.Text = clipText(a.label()+": "+n.Text, maxLineText)
 			out.not = append(out.not, n)
 		}
+		for _, m := range o.missed {
+			out.missed = append(out.missed, clipText(a.label()+": "+m, maxLineText))
+		}
 		if o.audit != "" {
 			audits = append(audits, a.ip.String()+": "+o.audit)
 		}
@@ -648,7 +651,8 @@ func (s *Service) greenboneDomain(ctx context.Context, st ScanTarget, addrs []de
 			return out, err
 		}
 		if line != "" {
-			merge(a, gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: "OpenVAS did not scan: " + line}}, audit: "not done: the re-check refused it", state: GBRunNotRun})
+			merge(a, gbOutcome{not: []NotCheckedRow{{Kind: "greenbone", Text: "OpenVAS did not scan: " + line}}, audit: "not done: the re-check refused it", state: GBRunNotRun,
+				missed: []string{"OpenVAS did not scan: " + line}})
 			continue
 		}
 		o, err := s.greenboneAt(ctx, stD, a.ip, gbPorts(ports, a.ip))

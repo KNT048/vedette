@@ -172,8 +172,9 @@ func (s *Service) unansweredLine(ctx context.Context, st ScanTarget, c Content, 
 		s.cfg.Log.WarnContext(ctx, "exposure: reading the open services before the scan's end failed", "target", st.Value, "error", err)
 		return ""
 	}
-	at := s.pathPortsAt(ctx) // a row of a port the network answers is retired by this scan: not an open port of the target
-	if !slices.ContainsFunc(prev, func(x ServiceView) bool { return !slices.Contains(at[ipKey(x.IP)], x.Port) }) {
+	at := s.pathPortsAt(ctx)   // a row of a port the network answers is retired by this scan: not an open port of the target
+	asked := askedAddrs(st, c) // only the addresses this scan asked: a name whose lookup got no answer keeps its rows (INV-27)
+	if !slices.ContainsFunc(prev, func(x ServiceView) bool { k := ipKey(x.IP); return asked[k] && !slices.Contains(at[k], x.Port) }) {
 		return ""
 	}
 	line := "No port of " + st.Value + " answered this box."
@@ -188,6 +189,20 @@ func (s *Service) unansweredLine(ctx context.Context, st ScanTarget, c Content, 
 		return line + " If the site has a WAF or firewall, allow this box's public IP " + ip + " " + when + "."
 	}
 	return line + " If the site has a WAF or firewall, allow this box's public IP " + when + "."
+}
+
+// askedAddrs are the addresses (canonical spelling) this scan sent packets to: an IP target's own, and a domain's addresses that
+// were port-scanned (portScanned) or checked by name (Contacted).
+func askedAddrs(st ScanTarget, c Content) map[string]bool {
+	out := portScanned(Target{Kind: st.Kind, Value: st.Value}, c)
+	for _, h := range c.Hosts {
+		for _, a := range h.IPs {
+			if a.Contacted {
+				out[ipKey(a.IP)] = true
+			}
+		}
+	}
+	return out
 }
 
 // boxPublicIP is the box's current public IP as its records say ("" when not known).

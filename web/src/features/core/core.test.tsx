@@ -1576,7 +1576,7 @@ describe('core: updates (S-CORE-2)', () => {
   it('?tab=managed lists the pinned packages, and an unknown tab falls back to Vedette', async () => {
     const { unmount } = renderApp('/settings/updates?tab=managed')
     const managed = await screen.findByRole('table', { name: 'Packages managed by Vedette' })
-    for (const n of ['nuclei', 'nuclei templates', 'OpenCanary']) expect(within(managed).getByText(n)).toBeInTheDocument()
+    for (const n of ['nuclei', 'nuclei templates', 'OpenCanary', 'ZAP', 'OpenVAS (Greenbone Community Edition)']) expect(within(managed).getByText(n)).toBeInTheDocument()
     expect(within(managed).queryByText('nmap')).toBeNull() // nmap comes from the operating system packages
     unmount()
     renderApp('/settings/updates?tab=nope')
@@ -1620,7 +1620,7 @@ describe('core: updates (S-CORE-2)', () => {
     it('otherwise a short "None listed."', async () => {
       await empty({ ...(await sw('0.1.9')), last_check_error: null })
       expect(await screen.findByText('None listed.')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'About None listed.' })).toHaveAccessibleDescription(/nuclei, its template pack and OpenCanary/)
+      expect(screen.getByRole('button', { name: 'About None listed.' })).toHaveAccessibleDescription(/nuclei and its template pack, OpenCanary, ZAP and OpenVAS/)
     })
   })
 

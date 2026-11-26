@@ -623,6 +623,14 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 		if cut {
 			logf(fmt.Sprintf("the active scan reached its limit of %d minutes: the report holds what it found until then", zapActiveMinutes))
 		}
+		if refused == api.ZapRefusedGrantMissing {
+			// A request for the disruptive rules without a grant is how a core older than the grant asks (the host is updated first). Such
+			// a core reads only cut_short to know that a page did not run every rule it asked for, and then closes no issue with it: so
+			// the page is answered as one that did not, and that core can neither close an issue of a rule that never ran nor count the
+			// page as attacked with the disruptive rules. A core that knows the grant never sends this request (it asks without
+			// disruptive when it has no grant).
+			cut = true
+		}
 		return api.ZapActiveResult{ReportID: id, Size: size, ExitCode: code, CutShort: cut, DisruptiveRules: zapDisruptiveRuleIDs(), DisruptiveRefused: refused}, nil
 	}
 	return api.ZapBaselineResult{ReportID: id, Size: size, ExitCode: code}, nil

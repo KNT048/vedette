@@ -208,10 +208,16 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	}
 	actor := zapActor(t.User)
 	var run api.Run
+	noGrant := false // the page asked for the disruptive rules without the host's grant: it runs without them
 	if active {
 		// The disruptive rules only for the box's own IP: the host refuses them on any other page as well, and runs them only with the
 		// grant of the person's press (t.Grant) and its own read of the gateway.
 		aa := api.ZapActiveArgs{ZapBaselineArgs: args, Disruptive: t.Mode.Disruptive && args.Kind == api.ZapKindIP && args.Typed == nil}
+		if aa.Disruptive && t.Grant == "" {
+			// No grant of the press: never asked for, so the host never sees the request of a core older than the grant (disruptive
+			// without grant), which it answers as a page that did not run every rule.
+			aa.Disruptive, noGrant = false, true
+		}
 		if aa.Disruptive {
 			aa.Grant = t.Grant
 		}
@@ -257,8 +263,11 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 			return exposure.WebScan{}, err
 		}
 		reportID, cut = res.ReportID, res.CutShort
-		if res.DisruptiveRefused != "" {
+		switch {
+		case res.DisruptiveRefused != "":
 			refused = webRefusedWhy(res.DisruptiveRefused)
+		case noGrant:
+			refused = webRefusedWhy(api.ZapRefusedGrantMissing)
 		}
 		for _, r := range res.DisruptiveRules {
 			disruptiveRules = append(disruptiveRules, strconv.Itoa(r))

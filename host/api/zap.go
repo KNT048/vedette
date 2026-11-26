@@ -76,8 +76,6 @@ const (
 	// CodeZapGrantNotPerson: zap.authorize was sent with an actor label that does not name a person (exposure:<person>): a scan
 	// the box runs by itself (exposure:system) never gets a grant of the disruptive rules.
 	CodeZapGrantNotPerson = "zap_grant_not_person"
-	// CodeZapGrantsFull: zap.authorize while the host keeps as many grants as it keeps at most (ZapGrantsMax), none of them expired.
-	CodeZapGrantsFull = "zap_grants_full"
 )
 
 // Why the host ran a page of zap.active without the disruptive rules core asked for (ZapActiveResult.DisruptiveRefused). The run
@@ -85,7 +83,8 @@ const (
 const (
 	// ZapRefusedGrantMissing: no grant came with the run.
 	ZapRefusedGrantMissing = "zap_grant_missing"
-	// ZapRefusedGrantUnknown: the host does not hold the grant (it never minted it, or it restarted since the press).
+	// ZapRefusedGrantUnknown: the host does not hold the grant (it never minted it, it restarted since the press, or ZapGrantsMax later
+	// presses took its place).
 	ZapRefusedGrantUnknown = "zap_grant_unknown"
 	// ZapRefusedGrantExpired: the run came more than ZapGrantTTL after the press.
 	ZapRefusedGrantExpired = "zap_grant_expired"
@@ -105,7 +104,7 @@ const (
 	ZapGrantTTL   = 6 * time.Hour    // from the press: the scan may wait in the queue and run its deep steps first
 	ZapGrantPass  = 90 * time.Minute // from the grant's first page: one active pass (core's 60 minutes, and its last page)
 	ZapGrantPages = 4                // pages of one active pass (exposure.MaxWebScans)
-	ZapGrantsMax  = 32               // grants kept at once
+	ZapGrantsMax  = 32               // grants kept at once: a grant whose pass is over gives up its place, and a press drops the oldest
 )
 
 // MaxZapReport is the largest report the host keeps and serves (exposure.MaxWebReport).
@@ -170,7 +169,9 @@ type ZapAuthorizeResult struct {
 
 // ZapActiveResult is the result of a zap.active that produced a report: the Automation Framework's exit code (0 no error or
 // warning, 1 a job reported an error, 2 a warning) and the report as for zap.baseline. CutShort says the active scan reached its time
-// limit (or was ended by ZAP) before it finished: the report holds what it found until then.
+// limit (or was ended by ZAP) before it finished: the report holds what it found until then. It is also set when the run asked for the
+// disruptive rules without a grant (DisruptiveRefused zap_grant_missing, how a core older than the grant asks): not every rule asked
+// for ran, so a core that reads only CutShort closes no issue with the page.
 type ZapActiveResult struct {
 	ReportID string `json:"report_id"`
 	Size     int64  `json:"size"`

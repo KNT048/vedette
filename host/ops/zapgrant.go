@@ -21,7 +21,8 @@ import (
 //   - a person's press: zap.authorize mints a grant when a person starts the scan (actor exposure:<person>, never exposure:system), for
 //     the box's own IP. The grant is the host's random value, kept only in the host's memory, and holds for one active pass: that IP,
 //     runs of that actor, at most ZapGrantPages pages within ZapGrantPass of the first one, until ZapGrantTTL after the press. A
-//     scheduled scan never presses, so it has no grant, and a grant cannot be carried to another address, person or scan. Core still
+//     scheduled scan never presses, so it has no grant, and a grant cannot be carried to another address or person (another run of the
+//     same person on the same address can use it within those bounds: the host does not know which scan a run is of). Core still
 //     labels the actor: the grant binds the run to a press core reported (and the host audited) at that time, not to the person's own
 //     credential, which the host does not see;
 //   - carrier-grade NAT: the host reads the box's default IPv4 gateway itself (/proc/net/route, as state/net) right before the run:
@@ -34,9 +35,42 @@ import (
 type zapGrant struct {
 	ip    netip.Addr
 	actor string
+	at    time.Time // the press
 	until time.Time // ZapGrantTTL after the press
 	first time.Time // the first page it ran the disruptive rules on (zero: none yet)
 	pages int
+}
+
+// over says whether the grant's one active pass is over at now: its pages used, or its window since the first page gone.
+func (g *zapGrant) over(now time.Time) bool {
+	return !g.first.IsZero() && (g.pages >= api.ZapGrantPages || !now.Before(g.first.Add(api.ZapGrantPass)))
+}
+
+// zapSpentMax bounds the grants the host remembers as spent (only to say "spent" rather than "unknown" to a page that brings one).
+const zapSpentMax = 64
+
+// zapRetire takes a grant whose pass is over out of the grants at once, so it never holds a place a new press needs, and remembers it
+// as spent until its lifetime ends. The caller holds zapMu.
+func (o *Ops) zapRetire(value string, g *zapGrant, now time.Time) {
+	delete(o.zapGrants, value)
+	if o.zapSpent == nil {
+		o.zapSpent = map[string]time.Time{}
+	}
+	for k, until := range o.zapSpent {
+		if !now.Before(until) {
+			delete(o.zapSpent, k)
+		}
+	}
+	for len(o.zapSpent) >= zapSpentMax {
+		oldest := ""
+		for k, until := range o.zapSpent {
+			if oldest == "" || until.Before(o.zapSpent[oldest]) {
+				oldest = k
+			}
+		}
+		delete(o.zapSpent, oldest)
+	}
+	o.zapSpent[value] = g.until
 }
 
 // zapGrantRE is a grant as the host mints it.
@@ -87,16 +121,26 @@ func (o *Ops) zapAuthorize(logf func(string), actor string, ip netip.Addr) (any,
 	if o.zapGrants == nil {
 		o.zapGrants = map[string]*zapGrant{}
 	}
-	for k, v := range o.zapGrants {
-		if !now.Before(v.until) {
+	for k, v := range o.zapGrants { // expired ones go, and those whose pass is over give up their place
+		switch {
+		case !now.Before(v.until):
 			delete(o.zapGrants, k)
+		case v.over(now):
+			o.zapRetire(k, v, now)
 		}
 	}
-	if len(o.zapGrants) >= api.ZapGrantsMax {
-		return nil, refuse409(api.CodeZapGrantsFull, "The host holds as many grants of the disruptive rules as it keeps; the scan runs without them.")
+	for len(o.zapGrants) >= api.ZapGrantsMax { // still full: the oldest press makes room for this one, never the other way round
+		oldest := ""
+		for k, v := range o.zapGrants {
+			if oldest == "" || v.at.Before(o.zapGrants[oldest].at) {
+				oldest = k
+			}
+		}
+		delete(o.zapGrants, oldest)
+		logf("the oldest grant of the disruptive rules the host held was dropped to make room for this press")
 	}
 	until := now.Add(api.ZapGrantTTL)
-	o.zapGrants[g] = &zapGrant{ip: ip, actor: actor, until: until}
+	o.zapGrants[g] = &zapGrant{ip: ip, actor: actor, at: now, until: until}
 	logf("the disruptive rules of the active web scan are granted on " + ip.String() + " for one active pass of " + actor + ", until " + until.UTC().Format(time.RFC3339))
 	return api.ZapAuthorizeResult{Grant: g, ExpiresAt: until.UTC()}, nil
 }
@@ -112,15 +156,25 @@ func (o *Ops) zapDisruptiveRefusal(p zapPage, pass zapPass) string {
 		return api.ZapRefusedGrantMissing
 	}
 	g := o.zapGrants[pass.grant]
-	switch {
-	case g == nil:
+	if g == nil {
+		until, spent := o.zapSpent[pass.grant]
+		switch {
+		case spent && !now.Before(until):
+			delete(o.zapSpent, pass.grant)
+			return api.ZapRefusedGrantExpired
+		case spent:
+			return api.ZapRefusedGrantSpent
+		}
 		return api.ZapRefusedGrantUnknown
+	}
+	switch {
 	case !now.Before(g.until):
 		delete(o.zapGrants, pass.grant)
 		return api.ZapRefusedGrantExpired
 	case g.ip != p.ip || g.actor != pass.actor:
 		return api.ZapRefusedGrantMismatch
-	case !g.first.IsZero() && (g.pages >= api.ZapGrantPages || !now.Before(g.first.Add(api.ZapGrantPass))):
+	case g.over(now):
+		o.zapRetire(pass.grant, g, now)
 		return api.ZapRefusedGrantSpent
 	}
 	if why := o.zapGatewayRefusal(); why != "" {
@@ -130,6 +184,9 @@ func (o *Ops) zapDisruptiveRefusal(p zapPage, pass zapPass) string {
 		g.first = now
 	}
 	g.pages++
+	if g.pages >= api.ZapGrantPages { // its last page: the grant gives up its place at once
+		o.zapRetire(pass.grant, g, now)
+	}
 	return ""
 }
 
@@ -159,7 +216,7 @@ func zapRefusalText(code string) string {
 	case api.ZapRefusedGrantMissing:
 		return "no grant of a person's press came with the run"
 	case api.ZapRefusedGrantUnknown:
-		return "the host does not hold the grant of the press (it was never minted here, or the host restarted since)"
+		return "the host does not hold the grant of the press (it was never minted here, the host restarted since, or later presses took its place)"
 	case api.ZapRefusedGrantExpired:
 		return "the grant of the press expired"
 	case api.ZapRefusedGrantSpent:

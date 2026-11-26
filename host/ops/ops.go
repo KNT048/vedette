@@ -240,6 +240,7 @@ type Ops struct {
 	zapReq     string               // the request id of the run that runs now
 	zapStopped map[string]time.Time // zap.stop of a run that had not started: its request id, until when it is kept
 	zapGrants  map[string]*zapGrant // zap.authorize: the grants of the disruptive rules by their value (zapgrant.go)
+	zapSpent   map[string]time.Time // grants whose pass is over, until their lifetime ends: only to refuse them as spent
 	zapPulling bool
 	zapPullErr string
 	zapExec    zapExecFn

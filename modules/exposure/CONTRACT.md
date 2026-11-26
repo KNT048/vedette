@@ -199,7 +199,7 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   person's scan, the terms include them, the gateway not in 100.64.0.0/10); a domain's page, on hosting or a CDN, gets the active
   scan without them, and the scan says so. The host checks two of those itself (host INV-31c): a person's press of Scan now or
   Run once now on such a target asks the host for its grant (`zap.authorize`, `DisruptiveGranter`, at the press, without waiting;
-  a scan the box runs by itself never asks), each page that asks for the disruptive rules hands it back (`ScanTarget.Grant`), and
+  a scan the box runs by itself never asks), each page that asks for the disruptive rules hands it back (`ScanTarget.Grant`; a page without a grant asks for none and says why), and
   the host also reads the box's gateway itself; when the host runs a page without them (`WebScan.DisruptiveRefused`), the page
   counts as a page of a pass without them (its alerts are not disruptive and close no issue of a disruptive rule) and the scan's
   line and the step's note say why in the host's words. ZAP's context includes the page's origin (anchored to scheme,

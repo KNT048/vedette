@@ -57,8 +57,8 @@ func IsCode(err error, code string) bool {
 
 // Client calls the host. It is safe for concurrent use.
 //
-// A request the host's rate limiter refuses (429 rate_limited) is sent again after the host's Retry-After (plus up to a
-// quarter more, so that callers refused together do not come back together), each wait capped at Options.MaxRateWait, for
+// A request the host's rate limiter refuses (429 rate_limited) is sent again after the host's Retry-After, capped at
+// Options.MaxRateWait, plus up to a quarter more (so that callers refused together do not come back together), for
 // as long as the caller's context allows: a wait that would end after ctx's deadline is not started, and without a deadline
 // the waits of one request stop after Options.RateBudget. The host's limiters answer before any handler runs (no run, no
 // idempotency key taken), so a command is sent again with the same request id safely. No other answer is retried here.
@@ -72,7 +72,7 @@ type Client struct {
 
 // Options tune a Client. The zero value of each field is its default.
 type Options struct {
-	// MaxRateWait caps one wait after a rate_limited answer (default 30 s).
+	// MaxRateWait caps the host's Retry-After that one wait follows (default 30 s); the jitter adds up to a quarter.
 	MaxRateWait time.Duration
 	// RateBudget bounds the waits of one request when its context has no deadline (default 65 s: a slot of the host's
 	// one-minute window is free by then unless core keeps filling it).
@@ -173,12 +173,11 @@ func (c *Client) do(hc *http.Client, req *http.Request) (*http.Response, error) 
 	}
 }
 
-// rateWait is the wait before a request the limiter refused is sent again: the host's Retry-After (at least a second),
-// plus up to a quarter more, at most MaxRateWait.
+// rateWait is the wait before a request the limiter refused is sent again: the host's Retry-After (at least a second, at
+// most MaxRateWait), plus up to a quarter more.
 func (c *Client) rateWait(retryAfterS int) time.Duration {
-	d := time.Duration(max(retryAfterS, 1)) * time.Second
-	d += rand.N(d/4 + 1) //nolint:gosec // jitter, not a secret
-	return min(d, c.o.MaxRateWait)
+	d := min(time.Duration(max(retryAfterS, 1))*time.Second, c.o.MaxRateWait)
+	return d + rand.N(d/4+1) //nolint:gosec // jitter, not a secret
 }
 
 // mayWait says whether a wait of d may start: it ends before ctx's deadline, or, without one, within RateBudget.

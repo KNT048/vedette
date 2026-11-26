@@ -81,7 +81,7 @@ func TestRateLimitedReadWaitsRetryAfter(t *testing.T) {
 	}
 }
 
-// Each wait is capped (MaxRateWait): a long Retry-After becomes several shorter waits, still within the budget.
+// Each wait is capped (MaxRateWait, plus its jitter): a long Retry-After becomes several shorter waits, within the budget.
 func TestRateLimitWaitIsCapped(t *testing.T) {
 	t.Parallel()
 	h := servertest.Start(t, nil, func(o *server.Options) { o.RequestsPerMinute = 1 })
@@ -97,11 +97,11 @@ func TestRateLimitWaitIsCapped(t *testing.T) {
 	}
 	w := fs.got()
 	if len(w) != 3 {
-		t.Fatalf("waits = %v, want three waits of at most 20 s", w)
+		t.Fatalf("waits = %v, want three waits of at most 20 s and its jitter", w)
 	}
 	for _, d := range w {
-		if d > 20*time.Second {
-			t.Fatalf("waits = %v, one is over the 20 s cap", w)
+		if d > 25*time.Second {
+			t.Fatalf("waits = %v, one is over the 20 s cap plus a quarter", w)
 		}
 	}
 }
@@ -145,7 +145,7 @@ func TestRateLimitBudgetWithoutDeadline(t *testing.T) {
 		sum += d
 	}
 	if n := len(fs.got()); n != 2 || sum > 25*time.Second {
-		t.Fatalf("waits = %v, want two waits of 10 s within the 25 s budget", fs.got())
+		t.Fatalf("waits = %v, want two waits of 10 s (and jitter) within the 25 s budget", fs.got())
 	}
 }
 

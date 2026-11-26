@@ -96,10 +96,10 @@ func TestExposureWeb_RateLimitedHostCallsKeepTheReport(t *testing.T) {
 func TestExposureGateway_ReadsTheHostOncePerTTL(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 11, 26, 12, 0, 0, 0, time.UTC)
-	f := &fakeNet{st: api.NetState{DefaultRoute: &api.NetRoute{Gateway: "192.0.2.1"}}}
+	f := &fakeNet{st: api.NetState{DefaultRoute: &api.NetRoute{Gateway: "198.51.100.1"}}}
 	g := &cachedNetState{r: f, ttl: exposureNetTTL, now: func() time.Time { return now }}
 	for range 6 { // half a minute of one page's refreshes
-		if got, err := g.StateNet(t.Context()); err != nil || got.DefaultRoute == nil || got.DefaultRoute.Gateway != "192.0.2.1" {
+		if got, err := g.StateNet(t.Context()); err != nil || got.DefaultRoute == nil || got.DefaultRoute.Gateway != "198.51.100.1" {
 			t.Fatalf("%+v %v", got, err)
 		}
 		now = now.Add(4 * time.Second)

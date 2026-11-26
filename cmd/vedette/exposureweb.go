@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/netip"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/knt048/vedette/host/api"
@@ -163,12 +164,16 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	}
 	var reportID string
 	cut := false
+	var disruptiveRules []string
 	if active {
 		res, err := hostclient.ResultOf[api.ZapActiveResult](run)
 		if err != nil {
 			return exposure.WebScan{}, err
 		}
 		reportID, cut = res.ReportID, res.CutShort
+		for _, r := range res.DisruptiveRules {
+			disruptiveRules = append(disruptiveRules, strconv.Itoa(r))
+		}
 	} else {
 		res, err := hostclient.ResultOf[api.ZapBaselineResult](run)
 		if err != nil {
@@ -186,7 +191,7 @@ func (w exposureWebScan) run(ctx context.Context, t exposure.ScanTarget, page ex
 	if err != nil {
 		return exposure.WebScan{}, fmt.Errorf("exposure web scan: reading the report: %w", err)
 	}
-	return exposure.WebScan{Report: b, CutShort: cut}, nil
+	return exposure.WebScan{Report: b, CutShort: cut, DisruptiveRules: disruptiveRules}, nil
 }
 
 // stop stops the ZAP run of request runID on the host when exposure gave up on it (the scan was stopped, or the page's time ran

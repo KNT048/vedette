@@ -119069,6 +119069,12 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) encodeFields(e *jx
 		s.Confidence.Encode(e)
 	}
 	{
+		if s.Disruptive.Set {
+			e.FieldStart("disruptive")
+			s.Disruptive.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("pass")
 		s.Pass.Encode(e)
 	}
@@ -119078,10 +119084,11 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) encodeFields(e *jx
 	}
 }
 
-var jsonFieldsNameOfExposureGetExposureTreeIDIssuesOKItemsItemDetailZap = [3]string{
+var jsonFieldsNameOfExposureGetExposureTreeIDIssuesOKItemsItemDetailZap = [4]string{
 	0: "confidence",
-	1: "pass",
-	2: "risk",
+	1: "disruptive",
+	2: "pass",
+	3: "risk",
 }
 
 // Decode decodes ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap from json.
@@ -119103,8 +119110,18 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Decode(d *jx.Decod
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"confidence\"")
 			}
+		case "disruptive":
+			if err := func() error {
+				s.Disruptive.Reset()
+				if err := s.Disruptive.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"disruptive\"")
+			}
 		case "pass":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Pass.Decode(d); err != nil {
 					return err
@@ -119114,7 +119131,7 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"pass\"")
 			}
 		case "risk":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Risk.Decode(d); err != nil {
 					return err
@@ -119133,7 +119150,7 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) Decode(d *jx.Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001101,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

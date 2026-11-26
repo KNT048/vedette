@@ -614,7 +614,7 @@ func (o *Ops) zapRun(ctx context.Context, logf func(string), p zapPage, pass zap
 		if cut {
 			logf(fmt.Sprintf("the active scan reached its limit of %d minutes: the report holds what it found until then", zapActiveMinutes))
 		}
-		return api.ZapActiveResult{ReportID: id, Size: size, ExitCode: code, CutShort: cut}, nil
+		return api.ZapActiveResult{ReportID: id, Size: size, ExitCode: code, CutShort: cut, DisruptiveRules: zapDisruptiveRuleIDs()}, nil
 	}
 	return api.ZapBaselineResult{ReportID: id, Size: size, ExitCode: code}, nil
 }

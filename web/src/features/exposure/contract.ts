@@ -474,6 +474,7 @@ export const IssueZap = z.object({
   risk: z.enum(['high', 'medium', 'low', 'info']).describe('ZAP\'s risk of the alert'),
   confidence: z.enum(['confirmed', 'high', 'medium', 'low']).describe('How sure ZAP is of it'),
   pass: z.enum(['passive', 'active']).describe('passive: the baseline read it in the pages; active: an attack request of the active scan showed it'),
+  disruptive: z.boolean().optional().describe('Active only: a rule that runs only with the disruptive checks (the box\'s own public IP) found it, so only a later active scan with them closes it; missing when not'),
 })
 export const Issue = z.object({
   id: z.string(), target_id: z.string(),

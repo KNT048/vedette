@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/core/api/oas"
 )
 
 // INV-24, the active web scan: when it runs, with which rules, and how its results are kept, against a fake ZAP.
@@ -30,8 +32,11 @@ func (a *activeWeb) Active(_ context.Context, st ScanTarget, p WebPage) (WebScan
 	}
 	a.calls, a.urls = append(a.calls, st), append(a.urls, p.URL)
 	a.logRows = append(a.logRows, len(a.log.rows))
-	return WebScan{Report: a.active(p.URL), CutShort: a.cut}, nil
+	return WebScan{Report: a.active(p.URL), CutShort: a.cut, DisruptiveRules: zapTestDisruptiveRules}, nil
 }
+
+// zapTestDisruptiveRules are the rules the host names as run only with the disruptive rules (ZapActiveResult.DisruptiveRules).
+var zapTestDisruptiveRules = []string{"7", "20015", "30001", "30002", "40014", "40016", "40017", "40018", "40044", "90026", "90034"}
 
 func xssReport(page string) []byte {
 	return []byte(fmt.Sprintf(`{"site":[{"@name":%q,"alerts":[{"pluginid":"40012","alert":"Cross Site Scripting (Reflected)","riskcode":"3","confidence":"2","cweid":"79","instances":[{"uri":%q}]},`+
@@ -306,5 +311,83 @@ func TestZapActive_ACutShortPageClosesNoActiveIssue(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM exp_issue WHERE key LIKE '40012@%' AND state = 'gone'`); n != 3 {
 		t.Fatalf("%d active issues gone after a finished active scan no longer found them, want 3", n)
+	}
+}
+
+// persistentXSSReport is an active report with an alert of a disruptive rule (40014, persistent XSS) and one of a rule every active
+// pass runs (40012, reflected XSS).
+func persistentXSSReport(page string) []byte {
+	return []byte(fmt.Sprintf(`{"site":[{"@name":%q,"alerts":[{"pluginid":"40014","alert":"Cross Site Scripting (Persistent)","riskcode":"3","confidence":"2","cweid":"79","instances":[{"uri":%q}]},`+
+		`{"pluginid":"40012","alert":"Cross Site Scripting (Reflected)","riskcode":"3","confidence":"2","cweid":"79","instances":[{"uri":%q}]}]}]}`, strings.TrimSuffix(page, "/"), page+"guestbook", page+"search"))
+}
+
+// An active issue is closed only by a later active pass that ran the rule that found it: a pass without the disruptive rules never
+// closes an issue of a disruptive rule (it stays open, its rating kept), while it does close one of a rule it ran itself; a later
+// pass with the disruptive rules that no longer finds it closes it.
+func TestZapActive_APassWithoutTheDisruptiveRulesClosesNoIssueOfThem(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	w := e.wireActive(persistentXSSReport)
+	id := e.committedIP(ipA).ID
+	e.acceptTerms(id, true)
+	gw := &fakeGateway{g: GatewayDevice{IP: netip.MustParseAddr("192.0.2.1")}}
+	e.svc.cfg.Gateway = gw
+	open := func(plugin string) int {
+		return e.count(`SELECT count(*) FROM exp_issue WHERE engine = 'zap' AND key LIKE '` + plugin + `@%' AND state = 'open'`)
+	}
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	if open("40014") != 3 || open("40012") != 3 {
+		t.Fatalf("after the disruptive pass: %d open 40014, %d open 40012", open("40014"), open("40012"))
+	}
+	if n := e.count(`SELECT count(*) FROM exp_issue WHERE key LIKE '40014@%' AND json_extract(detail, '$.zap.disruptive') = 1`); n != 3 {
+		t.Fatalf("%d issues of 40014 say a disruptive rule found them", n)
+	}
+	if n := e.count(`SELECT count(*) FROM exp_issue WHERE key LIKE '40012@%' AND coalesce(json_extract(detail, '$.zap.disruptive'), 0) = 0`); n != 3 {
+		t.Fatalf("%d issues of 40012 say a rule of every pass found them", n)
+	}
+	// The API carries it (Issue.detail.zap.disruptive).
+	issues, err := e.svc.Issues(e.ctx(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := into[oas.ExposureGetExposureTreeIDIssuesOK](items[IssueView]{issues})
+	if err != nil {
+		t.Fatalf("the issues do not fit the API: %v", err)
+	}
+	flagged := 0
+	for _, it := range out.Items {
+		if z, ok := it.Detail.Zap.Get(); ok && z.Disruptive.Or(false) {
+			flagged++
+		}
+	}
+	if flagged != 3 {
+		t.Fatalf("%d issues say detail.zap.disruptive in the API, want 3", flagged)
+	}
+	// The gateway moved behind carrier-grade NAT: the next person's scan runs the active pass without the disruptive rules.
+	gw.g = GatewayDevice{IP: netip.MustParseAddr("100.64.0.1")}
+	w.active = emptyReport
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	if c := w.calls[len(w.calls)-1]; c.Mode.Disruptive {
+		t.Fatal("the pass behind carrier-grade NAT ran the disruptive rules")
+	}
+	if open("40014") != 3 {
+		t.Fatalf("a pass without the disruptive rules closed %d issues of a disruptive rule", 3-open("40014"))
+	}
+	if open("40012") != 0 {
+		t.Fatalf("a pass that ran the rule did not close %d issues it no longer found", open("40012"))
+	}
+	// Back on the box's own line: a pass with the disruptive rules that no longer finds them closes them.
+	gw.g = GatewayDevice{IP: netip.MustParseAddr("192.0.2.1")}
+	e.advance(ScanEvery)
+	if _, err := e.svc.Scan(e.ctx(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM exp_issue WHERE key LIKE '40014@%' AND state = 'gone'`); n != 3 {
+		t.Fatalf("%d issues of 40014 gone after a disruptive pass no longer found them, want 3", n)
 	}
 }

@@ -174,11 +174,23 @@ func TestZapActive_DisruptiveRulesOnlyOnAProvenOwnIP(t *testing.T) {
 	}
 	w := newZapWorld(t, Deps{})
 	w.report = cleanZapReport()
-	if _, err := w.o.zapRun(t.Context(), nolog, zapActivePage(t, api.ZapKindIP), zapPass{active: true}); err != nil {
+	res, err := w.o.zapRun(t.Context(), nolog, zapActivePage(t, api.ZapKindIP), zapPass{active: true})
+	if err != nil {
 		t.Fatal(err)
 	}
 	if _, on := planRules(t, w.plan)[30001]; on {
 		t.Fatal("the run without Disruptive wrote a plan with the disruptive rules")
+	}
+	// The result names the rules a pass without Disruptive does not run as a pass with it does (the disruptive class, and SQL
+	// Injection's stronger payloads), so core closes an issue of one of them only after a pass that ran them.
+	var want []int
+	for _, rule := range zapActiveRules {
+		if rule.class == zapRuleDisruptive || rule.id == zapSQLi {
+			want = append(want, rule.id)
+		}
+	}
+	if got := res.(api.ZapActiveResult).DisruptiveRules; !slices.Equal(got, want) || !slices.Contains(got, 7) || slices.Contains(got, 40012) {
+		t.Fatalf("disruptive rules %v, want %v", got, want)
 	}
 }
 

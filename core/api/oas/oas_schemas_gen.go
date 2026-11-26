@@ -60761,6 +60761,9 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetail) SetZap(val OptExposur
 type ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap struct {
 	// How sure ZAP is of it.
 	Confidence ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence `json:"confidence"`
+	// Active only: a rule that runs only with the disruptive checks (the box's own public IP) found it, so
+	// only a later active scan with them closes it; missing when not.
+	Disruptive OptBool `json:"disruptive"`
 	// Passive: the baseline read it in the pages; active: an attack request of the active scan showed it.
 	Pass ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapPass `json:"pass"`
 	// ZAP's risk of the alert.
@@ -60770,6 +60773,11 @@ type ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap struct {
 // GetConfidence returns the value of Confidence.
 func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) GetConfidence() ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence {
 	return s.Confidence
+}
+
+// GetDisruptive returns the value of Disruptive.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) GetDisruptive() OptBool {
+	return s.Disruptive
 }
 
 // GetPass returns the value of Pass.
@@ -60785,6 +60793,11 @@ func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) GetRisk() Exposure
 // SetConfidence sets the value of Confidence.
 func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetConfidence(val ExposureGetExposureTreeIDIssuesOKItemsItemDetailZapConfidence) {
 	s.Confidence = val
+}
+
+// SetDisruptive sets the value of Disruptive.
+func (s *ExposureGetExposureTreeIDIssuesOKItemsItemDetailZap) SetDisruptive(val OptBool) {
+	s.Disruptive = val
 }
 
 // SetPass sets the value of Pass.

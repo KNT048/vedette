@@ -78,6 +78,10 @@ type WebProbeLog interface {
 type WebScan struct {
 	Report   []byte
 	CutShort bool
+	// DisruptiveRules (active scan only) are the ZAP plugin ids the host runs only with the disruptive rules, or more strongly with
+	// them (its rule split): an alert of one of them in a pass with the disruptive rules is closed only by another such pass. Empty
+	// (an older host): every alert of a pass with the disruptive rules counts as one of them.
+	DisruptiveRules []string
 }
 
 // Limits of the passive web scan (INV-24).
@@ -132,6 +136,9 @@ type WebFindingRow struct {
 	Software []WebSoftware `json:"software"`
 	// Pass is "active" for an alert of ZAP's active scan (an attack request showed it), "" for one of the passive baseline.
 	Pass string `json:"pass,omitempty"`
+	// Disruptive (active only) says the alert came from a rule that runs only with the disruptive rules (WebScan.DisruptiveRules) in
+	// a pass that ran them: only another such pass closes its issue.
+	Disruptive bool `json:"disruptive,omitempty"`
 }
 
 var (
@@ -328,7 +335,7 @@ func plainText(s string, n int) string {
 func cleanWebRow(r WebFindingRow) (WebFindingRow, bool) {
 	r.Name, r.PluginID = plainText(r.Name, maxWebName), field(r.PluginID, 12)
 	if r.Pass != passActive {
-		r.Pass = ""
+		r.Pass, r.Disruptive = "", false
 	}
 	r.Description, r.Solution = plainText(r.Description, maxWebText), plainText(r.Solution, maxWebText)
 	if r.Name == "" || r.PluginID == "" || !slices.Contains(zapRisks, r.Risk) || !slices.Contains(zapConfidences[1:], r.Confidence) {

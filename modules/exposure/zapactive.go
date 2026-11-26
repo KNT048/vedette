@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -231,10 +232,14 @@ func (s *Service) webActive(ctx context.Context, st ScanTarget, c Content) (Cont
 			case perr == nil || errors.Is(perr, ErrNoPage):
 				for i := range rows {
 					rows[i].Pass = passActive
+					rows[i].Disruptive = pst.Mode.Disruptive && (len(res.DisruptiveRules) == 0 || slices.Contains(res.DisruptiveRules, rows[i].PluginID))
 				}
 				c.WebFindings = mergeWebRows(c.WebFindings, rows)
 				if !res.CutShort { // a page cut short did not run every rule: an active alert it no longer reports is not "gone"
 					c.WebActivePages = append(c.WebActivePages, page.URL)
+					if pst.Mode.Disruptive {
+						c.WebDisruptivePages = append(c.WebDisruptivePages, page.URL)
+					}
 				}
 				scanned = append(scanned, page.URL)
 				ok++
@@ -331,6 +336,9 @@ func mergeWebRows(have, rows []WebFindingRow) []WebFindingRow {
 			}
 		}
 		h.Count = max(h.Count, r.Count, len(h.URLs))
+		if h.Pass == passActive && r.Pass == passActive { // a rule a pass without the disruptive rules ran too can close it
+			h.Disruptive = h.Disruptive && r.Disruptive
+		}
 		if riskRank(r.Risk) > riskRank(h.Risk) {
 			h.Risk = r.Risk
 		}

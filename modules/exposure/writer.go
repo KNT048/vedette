@@ -750,7 +750,7 @@ func zapIssues(rows []WebFindingRow) []issueIn {
 			pass = passActive
 		}
 		in := issueIn{engine: EngineZAP, key: r.PluginID + "@" + r.Site, severity: sev, title: clipText(firstOf(r.Name, "ZAP alert "+r.PluginID), 300),
-			detail: IssueDetail{Description: r.Description, Solution: r.Solution, Evidence: nz(r.URLs), ZAP: &IssueZAP{Risk: r.Risk, Confidence: r.Confidence, Pass: pass}}}
+			detail: IssueDetail{Description: r.Description, Solution: r.Solution, Evidence: nz(r.URLs), ZAP: &IssueZAP{Risk: r.Risk, Confidence: r.Confidence, Pass: pass, Disruptive: pass == passActive && r.Disruptive}}}
 		if u, err := url.Parse(r.Site); err == nil && u.Hostname() != "" {
 			port := 80
 			if u.Scheme == "https" {
@@ -892,7 +892,7 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 		if !ok {
 			continue
 		}
-		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.key, i.service_id IS NOT NULL, coalesce(x.ip, ''), coalesce(x.port, 0), coalesce(json_extract(i.detail, '$.zap.pass'), '') FROM exp_issue i
+		rows, err := tx.QueryContext(ctx, `SELECT i.id, i.key, i.service_id IS NOT NULL, coalesce(x.ip, ''), coalesce(x.port, 0), coalesce(json_extract(i.detail, '$.zap.pass'), ''), coalesce(json_extract(i.detail, '$.zap.disruptive'), 0) = 1 FROM exp_issue i
 			LEFT JOIN exp_service x ON x.id = i.service_id WHERE i.target_id = ? AND i.engine = ? AND i.state = 'open'`, target, string(e))
 		if err != nil {
 			return nil, nil, fmt.Errorf("issues of %s: %w", e, err)
@@ -901,7 +901,7 @@ func writeIssues(ctx context.Context, tx *sql.Tx, target, runID, at string, host
 		for rows.Next() {
 			var id string
 			var w issueWhere
-			if err := rows.Scan(&id, &w.key, &w.service, &w.ip, &w.port, &w.pass); err != nil {
+			if err := rows.Scan(&id, &w.key, &w.service, &w.ip, &w.port, &w.pass, &w.disruptive); err != nil {
 				_ = rows.Close()
 				return nil, nil, err
 			}
@@ -938,6 +938,8 @@ type issueWhere struct {
 	ip      string // the service's address, or the address its key names; "" when neither
 	port    int    // the service's port; 0 when none
 	pass    string // a ZAP issue's pass (IssueZAP.Pass): "active" is covered only by the active scan
+	// disruptive: an active ZAP issue of a disruptive rule (IssueZAP.Disruptive), covered only by an active scan that ran them
+	disruptive bool
 }
 
 // coverFunc says the engine probed where the issue is in this run: only then does an issue it no longer reports go.
@@ -972,12 +974,15 @@ func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
 	for _, k := range c.TemplatesRan {
 		tplRan[k] = true
 	}
-	pages, activePages := map[string]bool{}, map[string]bool{}
+	pages, activePages, disruptivePages := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, u := range c.WebPages {
 		pages[siteOf(u)] = true
 	}
 	for _, u := range c.WebActivePages {
 		activePages[siteOf(u)] = true
+	}
+	for _, u := range c.WebDisruptivePages {
+		disruptivePages[siteOf(u)] = true
 	}
 	open, compared := map[string]bool{}, map[string]bool{}
 	for _, p := range c.Ports {
@@ -1005,8 +1010,8 @@ func scanCoverage(w scanWrite) map[IssueEngine]coverFunc {
 		},
 		EngineZAP: func(x issueWhere) bool { // an alert of the active rules goes only when the active scan looked at its page again
 			_, site, ok := strings.Cut(x.key, "@")
-			if x.pass == passActive {
-				return ok && activePages[siteOf(site)]
+			if x.pass == passActive { // and one of a disruptive rule only when that scan ran the disruptive rules
+				return ok && activePages[siteOf(site)] && (!x.disruptive || disruptivePages[siteOf(site)])
 			}
 			return ok && pages[siteOf(site)]
 		},

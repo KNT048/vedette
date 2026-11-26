@@ -162,6 +162,9 @@ type IssueZAP struct {
 	Risk       string `json:"risk"`
 	Confidence string `json:"confidence"`
 	Pass       string `json:"pass"`
+	// Disruptive: an active alert of a rule that runs only with the disruptive rules (the box's own IP), found by a pass that ran them;
+	// only another such pass closes the issue.
+	Disruptive bool `json:"disruptive,omitempty"`
 }
 
 // IssueCVE is a CVE an issue names, with its score when the catalogue has one (nil: not scored yet).

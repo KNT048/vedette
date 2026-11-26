@@ -36019,6 +36019,10 @@
                                       "active"
                                     ],
                                     "description": "passive: the baseline read it in the pages; active: an attack request of the active scan showed it"
+                                  },
+                                  "disruptive": {
+                                    "description": "Active only: a rule that runs only with the disruptive checks (the box's own public IP) found it, so only a later active scan with them closes it; missing when not",
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [

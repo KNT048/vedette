@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 
@@ -279,7 +280,7 @@ func TestExposureWeb_ActiveSendsTheDisruptiveRulesOnlyForTheBoxsOwnIP(t *testing
 	ok := func() *fakeZapHost {
 		r := zapRun(t, api.StatusSucceeded, "", nil)
 		r.Command = api.CmdZapActive
-		r.Result, _ = json.Marshal(api.ZapActiveResult{ReportID: rid, Size: 11, CutShort: true})
+		r.Result, _ = json.Marshal(api.ZapActiveResult{ReportID: rid, Size: 11, CutShort: true, DisruptiveRules: []int{7, 40018}})
 		return &fakeZapHost{run: r, report: []byte(`{"site":[]}`)}
 	}
 	deep := exposure.ScanMode{Full: true, Disruptive: true}
@@ -288,7 +289,7 @@ func TestExposureWeb_ActiveSendsTheDisruptiveRulesOnlyForTheBoxsOwnIP(t *testing
 	h := ok()
 	w := exposureWebScan{host: h, token: func(context.Context, string) (string, error) { return "0123456789abcdef", nil }}
 	got, err := w.Active(t.Context(), ipT, webIPPage)
-	if err != nil || !got.CutShort || h.reportID != rid {
+	if err != nil || !got.CutShort || h.reportID != rid || !slices.Equal(got.DisruptiveRules, []string{"7", "40018"}) {
 		t.Fatalf("%+v %v", got, err)
 	}
 	if len(h.active) != 1 || !h.active[0].Disruptive || h.active[0].URL != webIPPage.URL || h.active[0].Kind != api.ZapKindIP {

@@ -138,6 +138,19 @@ var zapActiveRules = []zapRule{
 // zapSQLi is the SQL Injection rule whose strength follows Disruptive.
 const zapSQLi = 40018
 
+// zapDisruptiveRuleIDs are the rules a run without Disruptive does not run as a run with it does: the disruptive class, and SQL
+// Injection (its stronger payloads). ZapActiveResult carries them to core, which closes an issue of one of them only after a run
+// with Disruptive.
+func zapDisruptiveRuleIDs() []int {
+	var ids []int
+	for _, r := range zapActiveRules {
+		if r.class == zapRuleDisruptive || r.id == zapSQLi {
+			ids = append(ids, r.id)
+		}
+	}
+	return ids
+}
+
 // zapActivePlan is the Automation Framework plan of one active page: built from the validated page and the fixed bounds above, never
 // from text core sent.
 func zapActivePlan(p zapPage, disruptive bool) string {

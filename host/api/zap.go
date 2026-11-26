@@ -107,6 +107,10 @@ type ZapActiveResult struct {
 	Size     int64  `json:"size"`
 	ExitCode int    `json:"exit_code"`
 	CutShort bool   `json:"cut_short"`
+	// DisruptiveRules are the ZAP plugin ids of the host's rule split that a run without Disruptive does not run as a run with it
+	// does (the disruptive rules, and SQL Injection, whose stronger payloads need Disruptive): an alert of one of them found with
+	// Disruptive is closed by core only after another run with Disruptive. The same list for every run of a host version.
+	DisruptiveRules []int `json:"disruptive_rules"`
 }
 
 // ZapStopArgs are the args of zap.stop: the X-Request-Id (a UUID v4) of the zap.baseline or zap.active run to stop.

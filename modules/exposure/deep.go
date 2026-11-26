@@ -76,6 +76,10 @@ const (
 	deepFenceDown  = "the Vedette host did not give this domain's fence token, so nothing was sent."
 	deepNoNmap     = "service identification did not finish, so its ports are not known this run: it goes back in line."
 	notDeepOutside = "%s: reached only through a name that points (CNAME) outside this domain, so the disruptive checks were not run there."
+	// notDeepNotOwn follows an address of a domain that is not a proven address of this box (hosting, a CDN, a typed IP): the
+	// disruptive checks go only to the box's own public IPs inside their proof.
+	notDeepNotOwn  = "not a proven address of this box, so the deep scan ran there without the disruptive checks."
+	notDeepNAT     = "this box's gateway is in 100.64.0.0/10 (carrier-grade NAT) or could not be read, so the deep scan ran there without the disruptive checks."
 	notDeepNoCNAME = "%s: the box could not confirm right before the scan that its name stays inside this domain (CNAME lookup), so the disruptive checks were not run there."
 )
 
@@ -157,11 +161,11 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 		return st, deepUnchecked, nil
 	case box:
 		if tt, typed := s.typedAddr(ctx, ip); typed { // a typed IP of the box's list, not the box's own egress: its own proof goes to the executors
-			tm := tt.mode() // a separate asset with its own consent: the stricter of the two targets' terms and disruptive settings
+			tm := tt.mode() // a separate asset with its own consent: the stricter of the two targets' terms
 			if !tm.Full {
 				return st, deepTerms, nil
 			}
-			out.Mode.Disruptive = out.Mode.Disruptive && tm.Disruptive
+			out = dropDisruptive(out, dropNotOwn) // a typed IP proves control of a web port, not that the address is the customer's own
 			scope, why := s.typedScope(ctx, tt)
 			if scope == nil {
 				return st, why, nil
@@ -169,8 +173,13 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 			out.Domain = scope
 			return out, "", nil
 		}
-		if out.Mode.Disruptive && len(names) > 0 { // r2-M1: the box's own IP reached through a name: the same CNAME rule
-			out.Mode.Disruptive = s.cnameInZone(ctx, names, st.Value)
+		if out.Mode.Disruptive && len(names) > 0 && !s.cnameInZone(ctx, names, st.Value) { // r2-M1: the box's own IP reached through a name: the same CNAME rule
+			out = dropDisruptive(out, dropCNAME)
+		}
+		if out.Mode.Disruptive { // the box's own IP behind carrier-grade NAT is the provider's (runMode's rule, at this step)
+			if _, shared, err := s.sharedGateway(ctx); err != nil || shared {
+				out = dropDisruptive(out, dropNAT)
+			}
 		}
 		return out, "", nil
 	case len(names) == 0: // a step of the box's pipeline (no scope) whose address is not the box's any more
@@ -237,10 +246,24 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 		}
 	}
 	out.Domain = &DomainScope{Domain: fd, Name: name, Token: tok, ProofAt: proofAt, Chain: s.cnameChain(ctx, name)}
-	if out.Mode.Disruptive { // r2-M1: fail closed: the disruptive checks only when the name is seen to stay inside the domain now
-		out.Mode.Disruptive = s.cnameInZone(ctx, []string{name}, st.Value)
+	// An address that is not the box's own (hosting, a CDN, a proxy): the deep scan without the disruptive checks, whatever the
+	// terms. They go only to an address proven as the customer's own, the box's public IP inside its proof (above).
+	return dropDisruptive(out, dropNotOwn), "", nil
+}
+
+// Why deepGate took the disruptive checks out of a step (ScanTarget.dropped).
+const (
+	dropNotOwn = "not_own" // not a proven address of this box
+	dropCNAME  = "cname"   // the box's IP reached through a name whose CNAME could not be seen to stay inside the domain
+	dropNAT    = "nat"     // the box's gateway is in 100.64.0.0/10 or could not be read
+)
+
+// dropDisruptive takes the disruptive checks out of a step that the run allowed them on, saying why.
+func dropDisruptive(st ScanTarget, why string) ScanTarget {
+	if st.Mode.Disruptive {
+		st.Mode.Disruptive, st.dropped = false, why
 	}
-	return out, "", nil
+	return st
 }
 
 // CNAMEResolver looks up a name's canonical name; *net.Resolver satisfies it (it answers the name itself when there is no CNAME).
@@ -463,7 +486,7 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 }
 
 // deepMode is the run's ScanTarget for one address: an address reached only through a name that points (CNAME) outside the domain
-// never gets the disruptive checks, whatever the tick: the owner of that other name chooses the address.
+// never gets the disruptive checks, whatever the terms: the owner of that other name chooses the address.
 func deepMode(st ScanTarget, a deepAddr) ScanTarget {
 	if !a.inZone {
 		st.Mode.Disruptive = false
@@ -491,8 +514,13 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 			sub.Ports = append(sub.Ports, p)
 		}
 	}
-	if st.Mode.Disruptive && !stD.Mode.Disruptive { // r2-M1: the CNAME re-check could not confirm the name stays in the domain
+	switch stD.dropped { // the run allowed the disruptive checks; this address does not get them
+	case dropNotOwn:
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "deep", Text: clipText(label+": "+notDeepNotOwn, maxLineText)})
+	case dropCNAME: // r2-M1: the CNAME re-check could not confirm the name stays in the domain
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "deep", Text: clipText(fmt.Sprintf(notDeepNoCNAME, label), maxLineText)})
+	case dropNAT:
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "deep", Text: clipText(label+": "+notDeepNAT, maxLineText)})
 	}
 	how := "this box's own verified IP"
 	if stD.Domain != nil {

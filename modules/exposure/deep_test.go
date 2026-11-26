@@ -352,7 +352,8 @@ func TestContract_INV28_Deep_WithFenceEveryAddressOnce(t *testing.T) {
 		t.Fatalf("dialed %v", d.seams.bad)
 	}
 	st, _ := d.seams.call(ipB)
-	if !st.Mode.Full || !st.Mode.Disruptive || st.Domain == nil || *st.Domain != (DomainScope{Domain: "acme.example", Name: "api.acme.example", Token: deepToken, Chain: "api.acme.example"}) {
+	// not the box's address: the deep scan without the disruptive checks, whatever the terms
+	if !st.Mode.Full || st.Mode.Disruptive || st.Domain == nil || *st.Domain != (DomainScope{Domain: "acme.example", Name: "api.acme.example", Token: deepToken, Chain: "api.acme.example"}) {
 		t.Fatalf("ipB step = %+v %+v", st, st.Domain)
 	}
 	if st, _ := d.seams.call(ipA); st.Domain != nil {
@@ -490,11 +491,11 @@ func TestContract_INV28_Deep_WithdrawStopsTheDeepStep(t *testing.T) {
 }
 
 // LEGAL-2, reviews r1 H1 and r2: a domain's terms say the scan reaches third-party hosting, CDN and proxies, name the IP-level
-// tools, the customer's responsibility and the CNAME rule; an IP keeps its "yours alone" sentence; both say what runs without the tick
-// and what the tick adds; the version is 2026-11-18b (it also names the schedule).
+// tools, the customer's responsibility and the CNAME rule; an IP keeps its "yours alone" sentence; both say what the deep scan sends
+// and, in their own paragraph, what the disruptive checks add; the version is 2026-11-26 (one acceptance covers the disruptive checks).
 func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 	t.Parallel()
-	if TermsVersion != "2026-11-18b" {
+	if TermsVersion != "2026-11-26" {
 		t.Fatalf("version %s", TermsVersion)
 	}
 	dom := termsFor(KindDomain, "acme.example").Text
@@ -503,7 +504,8 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 		"Cloudflare and AWS forbid denial-of-service tests",
 		"Vedette's tools reach each address a name under acme.example resolves to, including a third-party hosting provider, CDN or proxy in front of your names: the scan of all ports, OpenVAS, nuclei and the web scan (ZAP).",
 		// review r1 M4
-		"A name that points (CNAME) to a name outside acme.example is scanned at whatever address the owner of that other name sets, so the disruptive checks never run on an address reached only that way.",
+		"A name that points (CNAME) to a name outside acme.example is scanned at whatever address the owner of that other name sets.",
+		"The disruptive checks run only on an address of acme.example that is a proven public IP of this box; every other address (a hosting provider, a CDN, a proxy, or the address of a name that points outside acme.example) gets the deep scan without them.",
 		// TERMS.md word for word, so the two texts never disagree
 		"Verifying a name proves you control its DNS, not that you own the machines behind it or may test them. With shared or cloud hosting, a CDN or a proxy, that address can also serve other people's systems: you are responsible for having the provider's permission. Vedette does not check who owns those addresses.",
 	} {
@@ -518,13 +520,14 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 	if !strings.Contains(ip, "Accept only if "+ipA+" is yours alone") || strings.Contains(ip, "Verifying a name") {
 		t.Errorf("IP terms = %q", ip)
 	}
-	// review r1 H1: the texts say what the deep scan sends without the tick (OpenVAS deep config), and what waits for it
+	// review r1 H1: the texts say what the deep scan sends (OpenVAS deep config), and what only the disruptive checks send
 	for _, text := range []string{dom, ip} {
 		for _, want := range []string{
 			"including checks that confirm a flaw by sending the exploit request itself in a harmless form (for example reading a file or running a harmless command)",
 			"through a known authentication bypass",
 			"Some checks, OpenVAS's in particular, may write a harmless test file or record to confirm a flaw and then try to remove it.",
-			"Checks that can crash a service, guess passwords or sign in with default passwords, and the exploit checks of nuclei and nmap that send more than a harmless read, run only with the disruptive checks below.",
+			"\nDisruptive checks: denial of service, password guessing, sign-in attempts with default or well-known passwords, and exploit checks that send more than a harmless read, such as nuclei's POST exploit requests that may create or change data and nmap's SQL injection probes.",
+			"They run only in a scan a person starts with Scan now, never in the scans Vedette runs by itself on the schedule.",
 			"including the public anonymous login a service may offer (for example anonymous FTP)",
 		} {
 			if !strings.Contains(text, want) {
@@ -534,9 +537,6 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 		if strings.Contains(text, "exploiting it run only with") {
 			t.Errorf("terms say exploit checks run only with the tick: %q", text)
 		}
-	}
-	if d := termsFor(KindDomain, "acme.example").Disruptive; !strings.Contains(d, "exploit checks that send more than a harmless read, such as nuclei's POST exploit requests that may create or change data and nmap's SQL injection probes") {
-		t.Errorf("disruptive tick = %q", d)
 	}
 	e := newEnv(t)
 	v := e.addVerifiedDomain()
@@ -550,7 +550,7 @@ func TestContract_INV28_Deep_DomainTermsText(t *testing.T) {
 			t.Fatalf("audit detail of %d characters: %q", len([]rune(a.Detail)), a.Detail[len(a.Detail)-120:])
 		}
 	}
-	if acc.Terms == nil || acc.Terms.Text != dom+"\n"+termsDisruptive {
+	if acc.Terms == nil || acc.Terms.Text != dom || !acc.Terms.Disruptive {
 		t.Fatalf("stored terms = %+v", acc.Terms)
 	}
 }
@@ -709,8 +709,9 @@ func TestContract_INV28_Deep_RefusedTakesNoPlace(t *testing.T) {
 	}
 }
 
-// review r2 M1: the CNAME rule fails closed: with the tick on, a name whose CNAME cannot be looked up right before the step (here every
-// CNAME lookup fails, and the runner's row has no CNAME) gets no disruptive checks, and a line says why.
+// review r2 M1: the CNAME rule fails closed: with the disruptive checks accepted, the box's own IP reached through a name whose CNAME
+// cannot be looked up right before the step (here every CNAME lookup fails, and the runner's row has no CNAME) gets none, and a line
+// says why. An address that is not the box's never gets them anyway.
 func TestContract_INV28_Deep_CNAMELookupFailsClosed(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
@@ -729,7 +730,10 @@ func TestContract_INV28_Deep_CNAMELookupFailsClosed(t *testing.T) {
 			t.Fatalf("templates with the disruptive checks: %+v", c)
 		}
 	}
-	if !hasLine(s, ipB+" (api.acme.example, www.acme.example): the box could not confirm right before the scan that its name stays inside this domain (CNAME lookup)") {
+	if st, _ := d.seams.call(ipA); !st.Mode.Full || st.Mode.Disruptive {
+		t.Fatalf("ipA step = %+v", st.Mode)
+	}
+	if !hasLine(s, ipA+" (acme.example): the box could not confirm right before the scan that its name stays inside this domain (CNAME lookup)") {
 		t.Fatalf("not checked %q", notChecked(s))
 	}
 }

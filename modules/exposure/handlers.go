@@ -179,17 +179,27 @@ func (h *ExposureHandlers) ExposurePostExposureTargetsIDOpenvas(context.Context,
 }
 
 // ExposurePutExposureTargetsIDTerms implements exposure_put_exposure_targets_id_terms (admin with two-step): accept the testing terms
-// of a verified target, with or without the disruptive tick.
+// of a verified target, the disruptive checks included (termsVersionOf reads the field an older page sends).
 func (h *ExposureHandlers) ExposurePutExposureTargetsIDTerms(ctx context.Context, req *oas.ExposurePutExposureTargetsIDTermsReq, params oas.ExposurePutExposureTargetsIDTermsParams) (*oas.ExposurePutExposureTargetsIDTermsOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
 	}
-	v, err := h.svc.AcceptTerms(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID, req.Version, req.Disruptive)
+	v, err := h.svc.AcceptTerms(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID, termsVersionOf(req.Version, req.Disruptive))
 	if err != nil {
 		return nil, ToAPIError(err)
 	}
 	return into[oas.ExposurePutExposureTargetsIDTermsOK](v)
+}
+
+// termsVersionOf is the version a terms request accepts. A page from before the one acceptance sends its tick: false asked for the
+// deep scan without the disruptive checks, so it accepts no version (409 notice_changed: read the terms again); true or absent is
+// the one acceptance.
+func termsVersionOf(version string, tick oas.OptBool) string {
+	if tick.Set && !tick.Value {
+		return ""
+	}
+	return version
 }
 
 // ExposureDeleteExposureTargetsIDQueue implements exposure_delete_exposure_targets_id_queue (operator): the scan of the target that
@@ -480,13 +490,14 @@ func (h *ExposureHandlers) ExposurePostExposureTreeIDVerify(ctx context.Context,
 	}{r.Verified, r.Message, n})
 }
 
-// ExposurePutExposureTreeIDTerms implements exposure_put_exposure_tree_id_terms (admin with two-step): accept the testing terms.
+// ExposurePutExposureTreeIDTerms implements exposure_put_exposure_tree_id_terms (admin with two-step): accept the testing terms, the
+// disruptive checks included (termsVersionOf reads the field an older page sends).
 func (h *ExposureHandlers) ExposurePutExposureTreeIDTerms(ctx context.Context, req *oas.ExposurePutExposureTreeIDTermsReq, params oas.ExposurePutExposureTreeIDTermsParams) (*oas.ExposurePutExposureTreeIDTermsOK, error) {
 	p, ok := server.PrincipalFrom(ctx)
 	if !ok {
 		return nil, apierr.Unauthenticated()
 	}
-	if _, err := h.svc.AcceptTerms(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID, req.Version, req.Disruptive); err != nil {
+	if _, err := h.svc.AcceptTerms(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID, termsVersionOf(req.Version, req.Disruptive)); err != nil {
 		return nil, ToAPIError(err)
 	}
 	n, err := h.svc.Node(ctx, params.ID)

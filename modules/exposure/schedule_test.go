@@ -150,7 +150,7 @@ func TestSchedule_SetPreviewPauseRunOnce(t *testing.T) {
 	if v, err = sch.Get(e.ctx(), key); err != nil || v.LastSkipReason == nil || !strings.Contains(*v.LastSkipReason, "testing terms") {
 		t.Fatalf("due without the terms: %+v %v", v, err)
 	}
-	// with the terms (and their disruptive tick): a scheduled scan by the box, deep, never disruptive
+	// with the terms (the disruptive checks included): a scheduled scan by the box, deep, never disruptive
 	e.acceptTerms(d.ID, true)
 	e.moveTo(*v.NextDueAt)
 	if _, err := sch.Tick(e.ctx()); err != nil {
@@ -170,7 +170,7 @@ func TestSchedule_SetPreviewPauseRunOnce(t *testing.T) {
 		t.Fatalf("the mode the box's scan reads before a deep step: %+v %v", m, err)
 	}
 	if m, err := e.svc.ModeNow(e.ctx(), "admin@acme.example", d.ID); err != nil || !m.Disruptive {
-		t.Fatalf("a person's scan keeps the disruptive tick: %+v %v", m, err)
+		t.Fatalf("a person's scan keeps the disruptive checks: %+v %v", m, err)
 	}
 	// switched off: the due time is skipped with the reason
 	off := false

@@ -7,6 +7,9 @@ All notable changes to Vedette are recorded here. Format: [Keep a Changelog](htt
 ### Added
 - A backup downloaded with a password carries the box's decryption key inside its encryption, so restoring it on a new box keeps every saved secret and two-step sign-in, with no separate key file. A backup downloaded without a password still never holds the key.
 
+### Changed
+- External targets: one button accepts the testing terms, disruptive checks included (they run only in a scan a person starts, never on the schedule). The box's own IP it does not go out through now can be accepted while its proof holds. Acceptances made before the update stay valid; one made without the disruptive checks keeps the deep scan only until the terms are accepted again. A refused acceptance is logged with its reason.
+
 ### Fixed
 - An update or rollback follows the module a person switched when it starts or stops a service, and an automatic install that waits for a restart says so.
 - A network card that answers on two addresses has one main address in the inventory.

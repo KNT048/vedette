@@ -3,7 +3,7 @@
 // with names and addresses replaced by example.com and 198.51.100.0/24.
 import { daysAgo } from '@/mocks/db'
 import { dayOf } from '@/lib/format'
-import { NOTICE_TEMPLATE, NOTICE_VERSION, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION } from './contract'
+import { NOTICE_TEMPLATE, NOTICE_VERSION, TERMS_KEPT_VERSIONS, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION } from './contract'
 import type { Address, Consent, Host, Issue, NodeOrigin, ProofCheck, Scan, ScopeMode, Service, TargetKind, VerifyMethod } from './types'
 
 /** A node as the mock stores it; proof state, blocked, counts and the newest scan are worked out on read. */
@@ -39,8 +39,9 @@ export const TREE_BOX_IP = '198.51.100.2'
 const ADMIN = 'admin@example.com'
 
 const commitment = (value: string, d: number): Consent => ({ version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', value), by: ADMIN, at: daysAgo(d), disruptive: false })
+// without the disruptive checks: an acceptance of the previous version made without its tick (still valid, the deep scan only)
 const terms = (value: string, kind: TargetKind, d: number, disruptive: boolean): Consent => ({
-  version: TERMS_VERSION, text: (kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', value), by: ADMIN, at: daysAgo(d), disruptive,
+  version: disruptive ? TERMS_VERSION : TERMS_KEPT_VERSIONS[0], text: (kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', value), by: ADMIN, at: daysAgo(d), disruptive,
 })
 
 export function seedTree(): StoredNode[] {

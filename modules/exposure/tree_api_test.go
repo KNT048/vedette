@@ -91,7 +91,7 @@ func TestHandlers_TheTreeAnswersTheContract(t *testing.T) {
 		t.Fatalf("299 names that are not its own: %d %v", code, b)
 	}
 	// the terms, then withdrawn
-	code, b = e.call("PUT", "/exposure/tree/"+apex+"/terms", "admin", `{"version":"`+TermsVersion+`","disruptive":false}`)
+	code, b = e.call("PUT", "/exposure/tree/"+apex+"/terms", "admin", `{"version":"`+TermsVersion+`"}`)
 	if terms, _ := b["terms"].(map[string]any); code != 200 || b["deep"] != true || terms["version"] != TermsVersion || b["commitment"] == nil {
 		t.Fatalf("accept the terms: %d %v", code, b)
 	}

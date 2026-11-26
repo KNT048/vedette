@@ -215,6 +215,9 @@ func TestRestoreFromAFileIsRecordedWithTheBackupsDate(t *testing.T) {
 	e.swapIn()
 	e.newHandlers(t, newFollowHost(t, f), 0) // core is back on the restored data; the run is not over yet
 	f.finish(api.StatusSucceeded, api.BackupRestoreResult{RestoredBackupID: b.BackupID, PreRestoreBackupID: "dddd0000dddd0000dddd0000dddd0000"}, "")
+	// the run's end is its status: the audit row and the run status are written by separate steps, so waiting for the row
+	// alone could read the run before it was marked done
+	eventuallyOS(t, "the restore run done", func() bool { return e.admin.get("/core/data/restore/run").str("status") == "done" })
 	eventuallyOS(t, "the restore recorded in the restored database", func() bool { return e.count("data.restore_done") == 1 })
 	if d := e.auditDetails("data.restore_done"); len(d) != 1 || !strings.Contains(d[0], "the backup from 1 Nov 2026") {
 		t.Errorf("data.restore_done detail = %q, want the backup's own date", d)

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -73,12 +75,18 @@ func (w exposureWebScan) GrantDisruptive(ctx context.Context, user string, ip ne
 	return res.Grant, nil
 }
 
-// zapActor is the host's actor label of the ZAP runs of a scan user started.
+// zapActor is the host's actor label of the ZAP runs of a scan user started, and of the grant of that user's press (zap.authorize):
+// exposure:<e-mail> when the e-mail is in the host's actor alphabet, else exposure:u-<16 hex of its SHA-256>, so a person whose
+// address has a "+" tag or is long is still labelled as one person (the host grants the disruptive rules only to exposure:<person>).
 func zapActor(user string) string {
 	if hostActorRE.MatchString(user) {
 		return "exposure:" + user
 	}
-	return "exposure"
+	if user == "" {
+		return "exposure"
+	}
+	sum := sha256.Sum256([]byte(user))
+	return "exposure:u-" + hex.EncodeToString(sum[:8])
 }
 
 // zapPreparer is the host client's zap.prepare: the ZAP image fetched ahead of the first scan.

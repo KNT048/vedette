@@ -554,7 +554,14 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	}
 	lt := liveTarget(t, user)
 	s.checkAlive(ctx, lt, &content, "writing the results") // an address that stopped answering is not a miss of its ports (coverage)
-	s.recheckMissed(ctx, t, &content)                      // INV-22: a port open before that is silent now is not a miss
+	rechecked := s.recheckMissed(ctx, t, &content)         // INV-22: a port open before that is silent now is not a miss
+	ut := lt
+	ut.Mode = ex.mode
+	if line := s.unansweredLine(ctx, ut, content, rechecked); line != "" {
+		content.NotChecked = append(content.NotChecked, NotCheckedRow{Kind: "unanswered", Text: clipText(line, maxLineText)})
+		rs.problem(line) // the run ends partly done, never "done, 0 ports open"
+		rs.logLine(ctx, corerun.Warn, line)
+	}
 	lost := s.lostText(ctx, lt, content.Lost)
 	if lost != "" { // the save step stays done (its rows are written: RecentScans and the outside view read it), the run says it
 		rs.problem(lost)
@@ -569,7 +576,8 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 	ex.content, ex.vulns, ex.gaps, ex.written, ex.first = wr.final.Content, wr.final.Vulns, wr.final.VersionGaps, true, wr.first
 	s.alertNews(ctx, t, x.ID(), "", wr.first, wr.openedAt, wr.newAt)
 	rs.end(ctx, stepKeySave, corerun.Done, fmt.Sprintf("%s (%d new, %d closed), %s (%d new).",
-		plural(wr.counts.Services, "open service"), wr.counts.NewServices, wr.counts.ClosedServices, plural(wr.counts.Issues, "open issue"), wr.counts.NewIssues)+lost)
+		plural(wr.counts.Services, "open service"), wr.counts.NewServices, wr.counts.ClosedServices, plural(wr.counts.Issues, "open issue"), wr.counts.NewIssues)+
+		retiredText(wr.retired)+lost)
 	rs.record(ctx, "", runOn, "")
 	s.recordCoverage(ctx, x, wr.checked, wr.topPorts)
 	s.recordPathPorts(ctx, x, wr.path)
@@ -600,6 +608,20 @@ func (s *Service) execute(ctx context.Context, x *corerun.Exec, ex *scanExec, us
 		s.disruptiveStep(ctx, x, ex, user, t, content, deep)
 	}
 	return rs.result(res), nil
+}
+
+// notRunWhy is the note of an OpenVAS step that scanned nothing: its "Not checked" lines, which say why for each address.
+func notRunWhy(not []NotCheckedRow) string {
+	var why []string
+	for _, n := range not {
+		if n.Kind == "greenbone" && n.Text != "" && !slices.Contains(why, n.Text) {
+			why = append(why, n.Text)
+		}
+	}
+	if len(why) == 0 {
+		return "OpenVAS did not scan in this run."
+	}
+	return strings.Join(why, " ")
 }
 
 // liveTarget is what the liveness checks need of t: its kind, its address, whether it was typed in, and who started the scan.
@@ -758,7 +780,7 @@ func (s *Service) save(ctx context.Context, runID, user string, t Target, c Cont
 	cov := s.coverage(wctx, user, t, runID, c, prevPorts, prevHosts)
 	checked := cov.checked
 	path, _ := s.pathPortsOf(ctx)
-	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID), path: path,
+	w := scanWrite{target: t, runID: runID, user: user, at: at, c: c, vulns: m.Vulns, first: s.baseline(wctx, t.ID, runID), path: path, pathAt: s.pathPortsAt(ctx),
 		checked: checked, gone: cov.gone, listed: cov.listed, settled: cov.settled, ran: engineSet{EngineNuclei: steps.ran(StepNuclei), EngineZAP: steps.ran(StepZAP) || steps.ran(StepZAPActive), EngineMatch: ranMatch}}
 	var out written
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
@@ -853,7 +875,11 @@ func (s *Service) openVASStep(ctx context.Context, x *corerun.Exec, ex *scanExec
 	if s, ok := stepStatus[outcome]; ok {
 		st2 = s
 	}
-	rs.end(wctx, stepKeyOpenVAS, st2, text)
+	if o.state == GBRunNotRun { // it scanned nothing (no open port on any address, a refusal…): skipped, with its lines as why
+		rs.skip(wctx, stepKeyOpenVAS, notRunWhy(o.not))
+	} else {
+		rs.end(wctx, stepKeyOpenVAS, st2, text)
+	}
 	if err != nil || ctx.Err() != nil {
 		ex.err = s.stopErr(ctx, x.ID(), err)
 		return corerun.Result{Status: corerun.Partial, Error: "OpenVAS did not finish"}, nil

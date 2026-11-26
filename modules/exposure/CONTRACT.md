@@ -146,8 +146,13 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   neither seen nor missed for INV-22 (`closeVanished` skips it, its run item `path_port` / `answered_by_network` makes
   `previousCheck` skip the run for it). The run's log says which ports, once each, and the target's "Not checked" lines get one line
   of kind `network_path` ("Ports 2000 and 5060 are answered by your own network …, so they were left out of the results."). No
-  check wired, or a check that fails: the ports stay as found. `TestNetworkPath_APortAnsweredForANeverRoutedAddressIsLeftOut`,
-  `TestNetworkPath_APortTheNetworkAnswersIsNeitherSeenNorMissed`, `TestNetworkPath_NoCheckKeepsTheOpenPorts`,
+  check wired, or a check that fails: the ports stay as found. A row an earlier scan stored open for such a port (before the check
+  existed, or when it failed) is retired by the scan whose check flagged that port on that address: state `closed` ("No longer
+  seen"), its issues gone as for any closed service, not counted in the run's closed services; the save step and the run's log say
+  "Ports 2000 and 5060 of <ip> are no longer listed: they are answered by your own network, not by <ip>." A port the network
+  answered on another address only, or a check that failed or did not run, retires nothing; the same port seen open later from a
+  clean network is a new open service. `TestNetworkPath_APortAnsweredForANeverRoutedAddressIsLeftOut`,
+  `TestNetworkPath_EarlierRowsOfAPortTheNetworkAnswersAreRetired`, `TestNetworkPath_NoCheckKeepsTheOpenPorts`,
   `TestNetworkPath_ManyPortsKeepTheirLine` (past 6 ports and 3 addresses the line counts the rest); cmd/vedette
   `TestExposurePathConnectsOnlyToNeverRoutedAddresses`.
 - **INV-41** A scan to which nothing of the target answered while the box could not reach the public IP services either (INV-2,
@@ -170,6 +175,14 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   `TestLiveness_TheNATLoopbackHintIsOnlyForTheBoxsOwnIP`, `cmd/vedette` `TestExposureLivenessConnectsAndSendsNothing`. The
   disruptive step of a domain whose own-box address stopped answering says so ("Not run on <ip>. Results incomplete: …"), never
   "No open port was found" nor that no address is the box's own (`TestDisruptive_ADomainWhoseOwnAddressStoppedAnsweringSaysSo`).
+  A scan to which no port of a target with open ports answered at all (nothing open, no reset from any address, no port of the
+  re-check of INV-22 (3) answering, no address that stopped answering during the scan) ends partly done the same way, with one
+  "Not checked" line of kind `unanswered`: "No port of <target> answered this box. If the site has a WAF or firewall, allow this
+  box's public IP <ip> during deep scans." (the box's own public IP gets the NAT-loopback hint instead). Its results are written and
+  it is not a miss of any port (INV-22 (2), (3) keep holding, so three silent scans over a day may still close them).
+  `TestUnanswered_NoPortOfTheBoxsOwnIPAnsweredEndsPartlyDone`, `TestUnanswered_NoPortOfADomainAnsweredNamesTheBoxsIP`,
+  `TestUnanswered_ResetsAreAnAnswer`, `TestUnanswered_OnlyRowsOfTheNetworkSayNothing` (rows of ports the network answers, retired by
+  the same scan, are not open ports of the target).
 - **INV-43** The deep scan runs its light checks before its heavy ones, so a ban or an overloaded firewall costs only the last
   steps (`scanPlan`, the one source of the order the run page shows): the runner, nmap's sweep of every TCP port with service
   identification and the reviewed safe scripts (`external_full`; the later steps need the ports and the services), the templates,
@@ -221,7 +234,9 @@ IDs are stable (code comments cite them); a retired ID is not reused.
   software and impact, plain text with its lines kept, at most 1,500 characters (`TestOpenVASDescriptionKeepsItsLines`); a result with none names the test
   (`TestContract_INV25_IssueDetailHasGreenbonesDescription`). Each Greenbone service has a memory limit (`deploy/greenbone`).
   OpenVAS enabled but still starting (its images pull when it is turned on) or loading its feed: the step is skipped with why and
-  that it will run in the next scan, and the run ends partly done (INV-42).
+  that it will run in the next scan, and the run ends partly done (INV-42). OpenVAS that scanned nothing in a run (no open port on any
+  address, a refused re-check: state `not_run`) has its step skipped with its "Not checked" lines as the reason, never done with
+  an empty note (`TestContract_INV28_Deep_OpenVASWithNoOpenPortIsSkippedWithWhy`).
 - **INV-27** A proved domain's surface: names from the CT log, the domain itself, its MX and NS hosts under it, and a short common
   wordlist.
 - **INV-28** Deep scanning of addresses of names under a domain happens only in a full scan with the domain's terms accepted.

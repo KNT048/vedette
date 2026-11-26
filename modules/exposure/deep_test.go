@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	corerun "github.com/knt048/vedette/core/run"
 )
 
 const (
@@ -89,6 +91,7 @@ type deepSeams struct {
 	svcErr    error                           // ScanServices answers it when set (after recording the call)
 	extra     []ServiceRow                    // more services ScanServices answers, for their own address
 	errFor    map[string]error                // ScanServices answers it for that address when set
+	none      bool                            // ScanServices finds no open port on any address (a sweep that got no answer)
 }
 
 func (f *deepSeams) ScanServices(ctx context.Context, t ScanTarget, ip netip.Addr) (ServiceScan, error) {
@@ -97,7 +100,7 @@ func (f *deepSeams) ScanServices(ctx context.Context, t ScanTarget, ip netip.Add
 		f.bad = append(f.bad, ip.String())
 	}
 	f.services = append(f.services, deepCall{ip.String(), t})
-	hook, svcErr, extra := f.onService, f.svcErr, f.extra
+	hook, svcErr, extra, none := f.onService, f.svcErr, f.extra, f.none
 	if e := f.errFor[ip.String()]; e != nil {
 		svcErr = e
 	}
@@ -109,6 +112,9 @@ func (f *deepSeams) ScanServices(ctx context.Context, t ScanTarget, ip netip.Add
 	}
 	if svcErr != nil {
 		return ServiceScan{}, svcErr
+	}
+	if none {
+		return ServiceScan{Ports: 65535}, nil
 	}
 	rows := []ServiceRow{{IP: ip.String(), Port: 443, Name: "https", Product: "nginx", Version: "1.24.0"}}
 	for _, r := range extra {
@@ -774,6 +780,37 @@ func TestContract_INV28_Deep_KeepRuleIsPerAddress(t *testing.T) {
 
 // allowGB is fakeGB whose host checks the domain fence and says yes.
 type allowGB struct{ *fakeGB }
+
+// OpenVAS on a domain whose deep scan found no open port on any address scans nothing: its step is skipped with why, never
+// "done" with an empty note.
+func TestContract_INV28_Deep_OpenVASWithNoOpenPortIsSkippedWithWhy(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	e.terms = nil
+	e.enable()
+	dns := &deepDNS{fakeResolver: e.dns, a: map[string][]string{}}
+	e.svc.cfg.Resolver, e.svc.cfg.DomainFence, e.svc.cfg.Services = dns, &fakeFence{}, &deepSeams{none: true}
+	box := e.detect(ipA)
+	if _, err := e.commit(box[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	dom := e.committedDomain()
+	e.acceptTerms(dom.ID, false)
+	e.svc.SetRunner(&fakeRunner{content: Content{Hosts: []HostRow{
+		{Name: "acme.example", IP: ipA, Source: "dns", IPs: []HostIP{{IP: ipA, Family: "ipv4", Class: ClassBox}}},
+	}, Ports: []PortRow{}}})
+	s, err := e.svc.Scan(e.ctx(), "admin@acme.example", dom.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(h.gvm.log.rows) != 0 {
+		t.Fatalf("OpenVAS was sent over no open port: %+v", h.gvm.log.rows)
+	}
+	st := stepOf(t, e.runDetail(e.ctx(), s.RunID), stepNameOpenVAS)
+	if note := noteOf(st); st.Status != corerun.Skipped || !strings.Contains(note, "no open port") {
+		t.Fatalf("OpenVAS step = %s %q, want skipped saying it found no open port to check", st.Status, note)
+	}
+}
 
 func (allowGB) CheckDomainIP(context.Context, DomainScope, netip.Addr, FenceCheck) error { return nil }
 
